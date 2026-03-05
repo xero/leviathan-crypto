@@ -1,4 +1,29 @@
-# $Id: Makefile,v 1.10 1998/06/10 19:32:15 fms Exp $
+# $Id: Makefile,v 1.11 2026/03/03 18:06:42 fms Exp $
+#                  ▄▄▄▄▄▄▄▄▄▄
+#           ▄████████████████████▄▄           The files in this folder are a
+#        ▄██████████████████████ ▀████▄       mirror of serpent/floppy1 from
+#      ▄█████████▀▀▀     ▀███████▄▄███████▌   the AES Submission archive.
+#     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+#     ████████      ███▀▀     ████▀  █▀ █▀    The files provided here were
+#     ███████▌    ▀██▀         ███            licensed "public domain" by
+#      ███████   ▀███           ▀██ ▀█▄       their creators after the AES
+#       ▀██████   ▄▄██            ▀▀  ██▄     competition submission.
+#         ▀█████▄   ▄██▄             ▄▀▄▀
+#            ▀████▄   ▄██▄                    Their inclusion in the repo are
+#              ▐████   ▐███                   two fold. First, this c version
+#       ▄▄██████████    ▐███         ▄▄       using little edian is what our
+#    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀        implementation is based from.
+#  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███
+#   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀           also, a test harness was created
+#  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄      to generate CRT vectors for our
+#  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████       libraries test suite, as no public
+#   ▀██████▀             ▀████▄▄▄████▀        samples exist as CRT was released
+#                           ▀█████▀▀          after serpent's creation.
+#
+# The original AES submission sources we mirror are from:
+# https://www.cl.cam.ac.uk/archive/rja14/Papers/serpent.tar.gz
+##############################################################################
+# v 1.10 1998/06/10 19:32:15 $
 # Makefile for GNU make for the C reference implementation of Serpent
 
 # This file is part of the C reference implementation of Serpent.
@@ -6,7 +31,7 @@
 # Written by Frank Stajano,
 # Olivetti Oracle Research Laboratory <http://www.orl.co.uk/~fms/> and
 # Cambridge University Computer Laboratory <http://www.cl.cam.ac.uk/~fms27/>.
-# 
+#
 # (c) 1998 Olivetti Oracle Research Laboratory (ORL)
 #
 # Original (Python) Serpent reference development started on 1998 02 12.
@@ -65,6 +90,12 @@ allexe: ecb_vk ecb_vt ecb_iv ecb_tbl \
 	ecb_e_m ecb_d_m cbc_e_m cbc_d_m \
 	serpent-test
 
+#
+# CTR mode vector generation harness (separate target, does not affect other builds)
+ctr_harness: ctr_harness.o serpent-reference.o serpent-aux.o
+	$(CC) -o $@ $(CFLAGS) $^
+ctr_harness.o: ctr_harness.c serpent-api.h serpent-aux.h
+
 
 # Dependencies
 #
@@ -97,11 +128,11 @@ ecb_iv: ecb_iv.o serpent-reference-show-internals.o serpent-aux.o
 	$(CC) -o $@ $(CFLAGS) $^
 
 
-ecb_tbl_plaintext_only.txt: ecb_tbl_precomputed.txt 
+ecb_tbl_plaintext_only.txt: ecb_tbl_precomputed.txt
 	fgrep PT ecb_tbl_precomputed.txt > ecb_tbl_plaintext_only.txt
-ecb_tbl.txt: ecb_tbl ecb_tbl_plaintext_only.txt 
+ecb_tbl.txt: ecb_tbl ecb_tbl_plaintext_only.txt
 	./ecb_tbl < ecb_tbl_plaintext_only.txt >ecb_tbl.txt
-ecb_tbl.run: ecb_tbl ecb_tbl_pt.txt 
+ecb_tbl.run: ecb_tbl ecb_tbl_pt.txt
 	./ecb_tbl < ecb_tbl_plaintext_only.txt
 ecb_tbl.diff: ecb_tbl.txt
 	$(DIFF) $(DIFF_FLAGS) $< ecb_tbl_precomputed.txt
@@ -114,7 +145,7 @@ veryclean: clean
 	rm -f *.exe
 
 # --------------------------------------------------
-# (For internal development use, NIST may ignore this) 
+# (For internal development use, NIST may ignore this)
 
 # Make this target to run the program without sending the output to a file
 # (just to see if it works after you've built it)
