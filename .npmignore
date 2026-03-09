@@ -1,0 +1,25 @@
+# Source and build inputs
+src/
+scripts/
+build/
+
+# Tests and docs
+test/
+docs/
+
+# Config files
+asconfig.json
+tsconfig.json
+tsconfig.test.json
+tslint.json
+eslint.config.ts
+vitest.config.ts
+playwright.config.ts
+
+# Dev dependencies and locks
+node_modules/
+package-lock.json
+bun.lock
+
+# Source maps
+dist/**/*.map

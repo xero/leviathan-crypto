@@ -1,0 +1,113 @@
+# =============================================================================
+# EXPORT IGNORE
+# Exclude non-essential files from git archive / source tarballs
+# =============================================================================
+
+.gitattributes           export-ignore
+.gitignore               export-ignore
+.gitkeep                 export-ignore
+*.wasm                   export-ignore
+
+# =============================================================================
+# LINE ENDING NORMALIZATION
+# * text=auto handles anything not listed below
+# =============================================================================
+
+*                        text=auto
+
+# Sources
+*.ts                     text eol=lf
+*.cts                    text eol=lf
+*.mts                    text eol=lf
+*.js                     text eol=lf
+*.cjs                    text eol=lf
+*.mjs                    text eol=lf
+*.sh                     text eol=lf
+
+# Declaration files
+*.d.ts                   text eol=lf
+*.d.cts                  text eol=lf
+*.d.mts                  text eol=lf
+
+# Test and spec files
+*.test.ts                text eol=lf
+*.spec.ts                text eol=lf
+
+# Config and data
+*.json                   text eol=lf
+*.yml                    text eol=lf
+*.toml                   text eol=lf
+
+# Web
+*.html                   text eol=lf
+*.svg                    text eol=lf
+*.css                    text eol=lf
+
+# Docs and text
+*.md                     text diff=markdown
+*.txt                    text eol=lf
+
+# Source maps
+*.js.map                 text eol=lf
+*.ts.map                 text eol=lf
+*.wasm.map               text eol=lf
+*.d.ts.map               text eol=lf
+
+# Git internals
+*.gitattributes          text eol=lf
+*.gitignore              text eol=lf
+*.npmignore              text eol=lf
+
+# Lockfiles
+*.lock                   text eol=lf
+bun.lockb                binary
+
+# Misc text
+*.idx                    text eol=lf
+*.rev                    text eol=lf
+*.sample                 text eol=lf
+*.pack                   text eol=lf
+*.patch                  -text
+*.config.ts              text eol=lf
+*.test.json              text eol=lf
+*.last-run.json          text eol=lf
+
+# Binary
+*.wasm                   binary
+*.bmp                    binary
+*.png                    binary
+*.jpg                    binary
+*.jpeg                   binary
+*.gif                    binary
+*.pdf                    binary
+*.node                   binary
+
+# =============================================================================
+# GITHUB LINGUIST
+# Control counts and language stats
+# =============================================================================
+
+# Markdown: counts as documentation
+*.md                     linguist-vendored=false
+*.md                     linguist-generated=false
+*.md                     linguist-documentation=true
+*.md                     linguist-detectable=true
+
+# WebAssembly: show WAT source and WASM binary in language stats
+*.wat                    linguist-detectable=true
+*.wat                    linguist-documentation=false
+*.wat                    linguist-language=WebAssembly
+*.wasm                   linguist-detectable=true
+*.wasm                   linguist-documentation=false
+*.wasm                   linguist-language=WebAssembly
+
+# Generated files: don't count toward stats
+*.js.map                 linguist-generated=true
+*.d.ts                   linguist-generated=true
+*.d.ts.map               linguist-generated=true
+dist/**                  linguist-generated=true
+build/**                 linguist-generated=true
+
+# Test vectors: don't count as code
+test/vectors/**          linguist-documentation=true
+test/vectors/**          linguist-detectable=false

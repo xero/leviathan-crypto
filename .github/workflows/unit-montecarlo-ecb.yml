@@ -1,0 +1,23 @@
+name: unit-montecarlo-ecb
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: setup bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2
+        with:
+          bun-version: 'latest'
+      - name: install dependencies
+        run: bun i
+      - name: build wasm + embedded modules
+        run: bun run build:asm && bun run build:embed
+      - name: run serpent ecb monte carlo unit tests
+        run: >
+          bun vitest run --reporter=verbose --no-coverage
+          test/unit/serpent/serpent_montecarlo.test.ts

@@ -1,0 +1,6188 @@
+/* 
+
+For each key size, make a key of all 0s and try out some
+'magic' plaintexts, coming from stdin, that have been
+precomputed in such a way that they will present specific
+inputs to the S-boxes.
+
+All the rounds, from 0 to 31, are exercised in turn. For each
+round, all the possible nibble inputs from 0 to f are presented
+in turn to each S-box in that round. The plaintexts with these
+properties have been precomputed in advance by working
+backwards through the cipher.
+
+*/
+=========================
+
+FILENAME:  "ecb_tbl.txt"
+
+Electronic Codebook (ECB) Mode
+Tables Known Answer Tests
+
+Algorithm Name: Serpent
+Principal Submitter: Ross Anderson, Eli Biham, Lars Knudsen
+
+==========
+
+KEYSIZE=128
+
+KEY=00000000000000000000000000000000
+
+I=1 Round=0 Input value=0
+PT=8ed77392f29990eda7a3a3ce6f579dd2
+CT=2d99fd0696ced14886b0e88a968b28b2
+
+I=2 Round=0 Input value=1
+PT=8ed77392f29990eda7a3a3ce90a8622d
+CT=2d118710a9ac549d932e1ab82eb07e71
+
+I=3 Round=0 Input value=2
+PT=8ed77392f29990ed585c5c316f579dd2
+CT=3b4623bb6d957bba7e472fe85e9c800d
+
+I=4 Round=0 Input value=3
+PT=8ed77392f29990ed585c5c3190a8622d
+CT=f9378b4e88b7ff124129f516d690010f
+
+I=5 Round=0 Input value=4
+PT=8ed773920d666f12a7a3a3ce6f579dd2
+CT=18e7f7888133888b42b78653501bba41
+
+I=6 Round=0 Input value=5
+PT=8ed773920d666f12a7a3a3ce90a8622d
+CT=3a70d96324d2882f55fa5cbf308234a3
+
+I=7 Round=0 Input value=6
+PT=8ed773920d666f12585c5c316f579dd2
+CT=f62532e1178d9126ca6b012e62515311
+
+I=8 Round=0 Input value=7
+PT=8ed773920d666f12585c5c3190a8622d
+CT=dc1757584c04dacb2ee56fc4f2e3e47e
+
+I=9 Round=0 Input value=8
+PT=71288c6df29990eda7a3a3ce6f579dd2
+CT=dd1ea1f5dcb17023d60953ff03843a56
+
+I=10 Round=0 Input value=9
+PT=71288c6df29990eda7a3a3ce90a8622d
+CT=2601173f1d4ce45325cd702b60737d2f
+
+I=11 Round=0 Input value=10
+PT=71288c6df29990ed585c5c316f579dd2
+CT=ef1c658f7134e845b365a9e39bbd5b15
+
+I=12 Round=0 Input value=11
+PT=71288c6df29990ed585c5c3190a8622d
+CT=f11678490f351748896e565c8c5ec66c
+
+I=13 Round=0 Input value=12
+PT=71288c6d0d666f12a7a3a3ce6f579dd2
+CT=afb60ecc41b18c9f6ebbfe91fc51faee
+
+I=14 Round=0 Input value=13
+PT=71288c6d0d666f12a7a3a3ce90a8622d
+CT=751be7900e2f7f1696c9d3cb80836f3c
+
+I=15 Round=0 Input value=14
+PT=71288c6d0d666f12585c5c316f579dd2
+CT=d10b4aa6f6cb8db2565397a462eb876c
+
+I=16 Round=0 Input value=15
+PT=71288c6d0d666f12585c5c3190a8622d
+CT=837bc80ab91403d519be6dfe486d2007
+
+I=17 Round=1 Input value=0
+PT=d7184cc22875e48a0e5267f561d526aa
+CT=2f1e1caacf0581ad717000269b6f7035
+
+I=18 Round=1 Input value=1
+PT=742b37a6aa172b92d6fe979a3d19a231
+CT=70689000b2e6247f47114dec5caefef7
+
+I=19 Round=1 Input value=2
+PT=febb07514a172bc9c903e359d5eb5dbe
+CT=fa7e5cebde63cddac22a0f95e2290e3c
+
+I=20 Round=1 Input value=3
+PT=227783a1c875e4aef3cddc5ef6d826b6
+CT=cbc91f98dc878251d56305743b9fdb9f
+
+I=21 Round=1 Input value=4
+PT=d61b474627f4d4de5f1f63f1c1e7dd41
+CT=10f5dc9782d170fe08ec6fa8a5b5d446
+
+I=22 Round=1 Input value=5
+PT=523bb7ae5a69e439fe6e1786ba38d251
+CT=12a240599f502cb1eb40a08d03bedd72
+
+I=23 Round=1 Input value=6
+PT=bfb80c92ba69e4628901d8daca2659ea
+CT=d660a9baea23fc8145be3221f059ebdd
+
+I=24 Round=1 Input value=7
+PT=a4670399c7f4d4fad5ed9c4d2e06a91e
+CT=cec89b436f0faf4e6efd6de352931d34
+
+I=25 Round=1 Input value=8
+PT=af84cc59a5961bc6887227d2c5e566b9
+CT=4d109a938ec02d0f3530ff6431aba973
+
+I=26 Round=1 Input value=9
+PT=a9c6f3aed80b2b21d6fcac5a3c58a6b6
+CT=29b4b68b27618a46442d8e8fc2c2f06d
+
+I=27 Round=1 Input value=10
+PT=d9d87846380b2b0541936375d1db1da1
+CT=3bb87fc5d8d47cc92f03aa0cae45ae4d
+
+I=28 Round=1 Input value=11
+PT=4065b82d45961b9de280d81db7992235
+CT=659ea0382ba4d382c80b0722aefc8aba
+
+I=29 Round=1 Input value=12
+PT=ffc8f81955e8d46dd93f23d2cb675d6e
+CT=f0090e8ea9257078e28fc2e0547578bc
+
+I=30 Round=1 Input value=13
+PT=2166b39dd78a1b75fe6c2c42ea36e915
+CT=1b54ea544312c723ca6b78b37c0eb886
+
+I=31 Round=1 Input value=14
+PT=c9944c46378a1b51019158f560a6d9ce
+CT=dd4d3f5b2503569f200559f8728cf127
+
+I=32 Round=1 Input value=15
+PT=68c5f829b5e8d436c4a0980d3e089259
+CT=9778c352f0d45e2e31c4935bcfe4d2ed
+
+I=33 Round=2 Input value=0
+PT=b8f583cff6533e97b0be1077a69c06c8
+CT=dc5cbe7212536d0d5cc112d90c1faebb
+
+I=34 Round=2 Input value=1
+PT=3a5762f4cdfc595e93d7978534159720
+CT=0800213227a1307ce7e6cc4709758d53
+
+I=35 Round=2 Input value=2
+PT=f00a6f264f7459bceb231a8b1d295ff5
+CT=e98a70282b42e4cb25c3b392a5ebf3de
+
+I=36 Round=2 Input value=3
+PT=4c5619c5f39cb6322d208e0b7754f4b5
+CT=0375c0aacb11c171a914762492be2986
+
+I=37 Round=2 Input value=4
+PT=5f37fcd4edd36a5f601e015d197d4491
+CT=c5b80f299a28b12f0f98c6540c1691d5
+
+I=38 Round=2 Input value=5
+PT=d22f59c3a53f2470fd1eaebfb5dfd839
+CT=c3bcf3d8a593e33c074cd9a2f87d4edd
+
+I=39 Round=2 Input value=6
+PT=133bd28b35fc09f21509d36ea5a9ad80
+CT=6360093195a864c20dec9d32349bea16
+
+I=40 Round=2 Input value=7
+PT=7d81f08d52f83e495b7cc99b8ee562b7
+CT=3c5e657d43464cd8211a413860e4dd81
+
+I=41 Round=2 Input value=8
+PT=16f306153fab66f6db01d22e97a16341
+CT=9b3ee9a7096ffd938c439fd2e84ad8e3
+
+I=42 Round=2 Input value=9
+PT=769fcce6a1e4c2dc181c10bb53db29a4
+CT=dc0b0e2ef4fb1d15880430fd2d255aea
+
+I=43 Round=2 Input value=10
+PT=46e622421dcc086809e07eb3d73de1d9
+CT=b010fcccde8a63a6027ad8d8c73259be
+
+I=44 Round=2 Input value=11
+PT=bfd8cc207e6dec31f2958cb860eb9041
+CT=a7c9bec7ceb669dbf1082f012cbb11d5
+
+I=45 Round=2 Input value=12
+PT=182dff0b6d226bc47785e7e416f99115
+CT=dcf7bb8c53f1479d5e3106f541aea24f
+
+I=46 Round=2 Input value=13
+PT=64588a855af4d8de03d4ad9c312d112a
+CT=0a889514c107f5e44dbeec99567500ba
+
+I=47 Round=2 Input value=14
+PT=3d953469dd7542f192b82da3f6b7a365
+CT=6943307a4d3a0bdd635fec6e9e2581eb
+
+I=48 Round=2 Input value=15
+PT=ebca0b8d77c7820707d46db4947ab4af
+CT=98a9f71ba45d2c11d2d2c4a66a5edfcb
+
+I=49 Round=3 Input value=0
+PT=8a93b742324859360a8632cf0c6c0f04
+CT=119b7d78545a431e1409303c17050fb8
+
+I=50 Round=3 Input value=1
+PT=22703f100cae7a1aafe2b91a25763c78
+CT=ff4c414684f625e8fa647fe28d0cb0a4
+
+I=51 Round=3 Input value=2
+PT=ba89145117958f8dd827cc7b3406ceb4
+CT=c5fd3ef7da425cc3aa97a116ec55c09e
+
+I=52 Round=3 Input value=3
+PT=27ec131710118da814fc824342465f1d
+CT=442313df3ae05d8d048fd7ddaaaa6e6d
+
+I=53 Round=3 Input value=4
+PT=fd3cbe05cbb0ab0605eef762391dd0a7
+CT=fb8382f724a9b3f552fd9e014d8e9ca2
+
+I=54 Round=3 Input value=5
+PT=a82a7482622d1f9dc504e47925e477df
+CT=3c1513ef471aa3d6e7894b6ca894ca21
+
+I=55 Round=3 Input value=6
+PT=be4dc3c62f602bb8779912b333c3947c
+CT=8da7dbaa1cef32e00de108c013537654
+
+I=56 Round=3 Input value=7
+PT=a71b3e7be8489c838f381811440d9365
+CT=6f02eb795de08d6462605b1168989252
+
+I=57 Round=3 Input value=8
+PT=cffe612f23f5e37f4dc8fb7ee43dca33
+CT=eb7fc4533fbc5b87c96c81bd17d7cb49
+
+I=58 Round=3 Input value=9
+PT=94eec770656ca4aa99ee6d9fa29afeb4
+CT=635734c91162532273fbee443a804f8f
+
+I=59 Round=3 Input value=10
+PT=09a6a426888a3c1bbf436750468cbe68
+CT=aa4a0218451f7465f4b4d16cf0c19566
+
+I=60 Round=3 Input value=11
+PT=c9a58e31c5605e40e40f44bea3d6c81c
+CT=46f62ffe6b68ec9058e7685351c903be
+
+I=61 Round=3 Input value=12
+PT=0d43261d5ab7111ea7a71e06d61502d0
+CT=d39aa4137cd8c8301cb4d0e8d0d4e2c3
+
+I=62 Round=3 Input value=13
+PT=c96693e4fc53f6bce36990a34871f7cd
+CT=527a8f93497bdd76a61a35cf4573f14d
+
+I=63 Round=3 Input value=14
+PT=28ed15d6b56a85d72d30f7ed50bd990f
+CT=16b72caec51849be987d5f637a427201
+
+I=64 Round=3 Input value=15
+PT=284792f32e38ad21a55bf4ec5176b766
+CT=42c9e43e548977c4e6dba68ed5794179
+
+I=65 Round=4 Input value=0
+PT=3158b657f15b2d2d00bc6e77327f7d44
+CT=071f001336d2562a8e148b7a0cddff96
+
+I=66 Round=4 Input value=1
+PT=844df25521b8047fce0dd6b7166dab2a
+CT=920540b5e6acce4bfb019146591424fa
+
+I=67 Round=4 Input value=2
+PT=f1e99101bafb04a0e7106d7f44b78be5
+CT=0d36e3a35df1a26a6f5bd5928f9c78f3
+
+I=68 Round=4 Input value=3
+PT=64ca5a06bec523ea03c4f7d0981749de
+CT=9b8fd798557c54772eb89852ab340724
+
+I=69 Round=4 Input value=4
+PT=3ab34fca604ec443d48b7b70c5dfe4b7
+CT=f79fec7e58abecad293802525aae87c9
+
+I=70 Round=4 Input value=5
+PT=beba2058aa347de8177b00ba4e7b690f
+CT=c318f41f64669a0d674f6371510af0d4
+
+I=71 Round=4 Input value=6
+PT=b9d813b2cee3b7ef164c5e100ea502b2
+CT=100c84e66cfaf8729710ad4862a2dece
+
+I=72 Round=4 Input value=7
+PT=47483f42f8caf649bbb479e67fedf9e5
+CT=42dde3232087a26a50e4255a15ca0cbb
+
+I=73 Round=4 Input value=8
+PT=1c480afa41b2f02d78cf79e39eb5f00e
+CT=655777ca12bcea7fbfd1cd186cc65815
+
+I=74 Round=4 Input value=9
+PT=cf157558f0b86336c48cbae8977b2901
+CT=cafaf4df460cddd1e01524c2d26a12b9
+
+I=75 Round=4 Input value=10
+PT=7e4b1032350d0cced42421ec83944804
+CT=0ca42392799cb3a53660495eb78aa13e
+
+I=76 Round=4 Input value=11
+PT=e4463e3df85c67f26148320f70e6b42c
+CT=f64fcc0c6e1e51b6b24020e0fc99252f
+
+I=77 Round=4 Input value=12
+PT=e210953e659fea7f6f4ec3863d34a479
+CT=0ac65a92926e80adc93ea1ace1df9097
+
+I=78 Round=4 Input value=13
+PT=2c11b42e921789074f7e293a3e338bc4
+CT=d4e3e466323fd2b9b17392e41fe39b78
+
+I=79 Round=4 Input value=14
+PT=1b681d6c0966545406055bdcbacc7289
+CT=370dcfa5a1c559bd1dd4e148bf83b8e6
+
+I=80 Round=4 Input value=15
+PT=11b01a3caca131c575fe0af8a57c2307
+CT=e247b99e7dfb648c15ad2fb2590d1cc0
+
+I=81 Round=5 Input value=0
+PT=34a8ded91a55b6f58dbcbe509aa40f53
+CT=a8f11814a4ff1efebf3dc79776193948
+
+I=82 Round=5 Input value=1
+PT=62e6d0ad9e77fde067938ad7cf6d7ea3
+CT=a18c49f7d61fdb04b0eb6cacb90e63ad
+
+I=83 Round=5 Input value=2
+PT=d5994c542cae454109a6714f8326b139
+CT=5f518e004ec3631fa97178b908425fcf
+
+I=84 Round=5 Input value=3
+PT=20d4589cd9db486ac4c75346000dc021
+CT=15f4f8fbe25bbdb151616c7f16c2f911
+
+I=85 Round=5 Input value=4
+PT=c02e48c6bb4b6fe275219beaf2d1181d
+CT=8c94ca200be30d361b9b467edac839c2
+
+I=86 Round=5 Input value=5
+PT=3a536b343a58356a351e11131b574822
+CT=90894c9c726093b0980a7b0c50943381
+
+I=87 Round=5 Input value=6
+PT=f66833cc5cb1d360c88b60e130824eac
+CT=24a3fbabbc840a0b4afbd8a3f6936e4c
+
+I=88 Round=5 Input value=7
+PT=9b6c59d105f055313f3469fb85f3bf9a
+CT=ba6333d13bfbd1d91fb10264c542f450
+
+I=89 Round=5 Input value=8
+PT=68c08fee9909248cd026af004e6fbd52
+CT=5c3d2815aa3a7f2516276cd1275f8d34
+
+I=90 Round=5 Input value=9
+PT=8dbbb4fcffeef96ca2f68e7bec6b3ee1
+CT=ade0f63a521bf1e5c3cbbb9df38b0480
+
+I=91 Round=5 Input value=10
+PT=feccfdc572598769f2d943fd9ddf4d5d
+CT=24407c34df2c313fb29430ee95f78cf6
+
+I=92 Round=5 Input value=11
+PT=6ef3f5ae358de72c38b3cac410bf21c9
+CT=552a412a21b3fd41713e73b49d9c0089
+
+I=93 Round=5 Input value=12
+PT=d6254b23e583135a10f255a45b0de30e
+CT=cae42a2e21ba28aebca7cccabf32573a
+
+I=94 Round=5 Input value=13
+PT=c8b8fdf502e549fa2baf9b5307a3307f
+CT=36ebcb161d6623e66f975a4d867c5f4d
+
+I=95 Round=5 Input value=14
+PT=8165401228da3d993a3a1ec9237ddc53
+CT=b39e6bd84e8168e9683c6c36922a3ac9
+
+I=96 Round=5 Input value=15
+PT=f777c00cf0e9b9ac34344559b88aeddb
+CT=d94153af7bf2e99b46467750d79171d5
+
+I=97 Round=6 Input value=0
+PT=e9dd5d6f646df7f6ebdb56e04dd0e76e
+CT=5853d4083970249790e44af8d87fe009
+
+I=98 Round=6 Input value=1
+PT=75be646ba10ec58452d5b626c535eefa
+CT=bf6e18dd6269a5f9746c89e065f2b552
+
+I=99 Round=6 Input value=2
+PT=369f98e7b5d098c631a314440d5e70d1
+CT=6caa215b59fe6de08c29b67bd472c33b
+
+I=100 Round=6 Input value=3
+PT=75b4d1ece6def40008411b6e23871bfb
+CT=4f0939b5de8f553a1dcb1d4b0cb90bea
+
+I=101 Round=6 Input value=4
+PT=0b7b7b46dd643f7315fa962d3be2aa4d
+CT=a2688ac9a68112baa673739304139aff
+
+I=102 Round=6 Input value=5
+PT=bc29f8d0717ebc4eacb67cfd75f5610f
+CT=9e00ff5a9728fe2562cc089318566a29
+
+I=103 Round=6 Input value=6
+PT=0675701fea6653ce526b3329f02d986d
+CT=4417f41bc13712c2d6693e1ad4f67fde
+
+I=104 Round=6 Input value=7
+PT=e36e76a7bcf797e67a9ef10eb057d9d5
+CT=68d59954888c9c9613efe2f9e3d4b2ff
+
+I=105 Round=6 Input value=8
+PT=7a7623f1cf7e06b5effb7d6898e418fd
+CT=5a5a9aae20b9f7390cdd4b0cdf1fae0d
+
+I=106 Round=6 Input value=9
+PT=af53c80b0920676cb4a65986417d142f
+CT=444c1a9f8e0e789e46d360c7565332ef
+
+I=107 Round=6 Input value=10
+PT=8e7d19225f29fd4ec99965b9339abdf5
+CT=c41efdb90697fda18d3ceecdb7479cd4
+
+I=108 Round=6 Input value=11
+PT=b7e73092df6756eb62ac93675129197d
+CT=0868e523bf32ffae326119185a026a91
+
+I=109 Round=6 Input value=12
+PT=f003c84f184e1b685eefe5d9d185f1f6
+CT=2fc4a4671d820e0236d545a380cace3d
+
+I=110 Round=6 Input value=13
+PT=256cdad506069862a4b6321d3e81cf8d
+CT=e4411ff22c7b2123e881034bd28a65fd
+
+I=111 Round=6 Input value=14
+PT=38ee1c3954be659d6afbd9d545501e31
+CT=b5a31175a707112629c77612bf2ca998
+
+I=112 Round=6 Input value=15
+PT=ae89006ad458cb5af60fa268c5ef40db
+CT=bf08f3b78adc22fe610536a912f8e0da
+
+I=113 Round=7 Input value=0
+PT=d5fd72b90faa75b2ba926af000d2ba3f
+CT=202546f34764b4c5a51761c29e8724d0
+
+I=114 Round=7 Input value=1
+PT=ccaf3d226a3b4b08e9af1e12dc7fdc20
+CT=a0454b4084b648ca9a653158cb418357
+
+I=115 Round=7 Input value=2
+PT=b3e727d4c94f4ee1cca798d94cf7073b
+CT=1b2fc5853e3c7ccb88be4931f86d776e
+
+I=116 Round=7 Input value=3
+PT=427ffd8ea382ed3ac7346b897c946964
+CT=a9fe8ca57b6da828f9f038e3d5c89ec2
+
+I=117 Round=7 Input value=4
+PT=acf978ed5244ff65429769ec2d6c6ad2
+CT=085df27ecd60d6d84b69d692d4529f2f
+
+I=118 Round=7 Input value=5
+PT=1c49d57413300618efbbf130b4092b39
+CT=0a17a279ce471225211277aa05a65d0d
+
+I=119 Round=7 Input value=6
+PT=7a6dd50ca6fb223d3c75e642d13eb151
+CT=86c58d79ba5136d350fd112d247417cf
+
+I=120 Round=7 Input value=7
+PT=836d0af543ec748ee8a8d2e79a74cef2
+CT=d81e042f01ac4365309fd896a024f87b
+
+I=121 Round=7 Input value=8
+PT=0745e12b7ea1d7ab28ef94489a65b148
+CT=f9989c90de95d1e878e437c6b7390f13
+
+I=122 Round=7 Input value=9
+PT=6038ed6e7f4965c7ed86287872a55520
+CT=cd1a962ec486cccf0459106de4f4e4a2
+
+I=123 Round=7 Input value=10
+PT=8d2144a96c79ecfb72b352a26e784dbe
+CT=1e4932cb532ec779d2ec5b04d9da52d2
+
+I=124 Round=7 Input value=11
+PT=35516bd6a2667356ed3c2d75850972ab
+CT=0c184ab6fc7c8b80c67cf609d5b9d014
+
+I=125 Round=7 Input value=12
+PT=71e0cc049232e53b2ef0df7961b19029
+CT=c68cc248c0f49d63437737377f761a94
+
+I=126 Round=7 Input value=13
+PT=84e3682c91853ecdc5ff9f40692ff04a
+CT=4db9f30061d88d95977873960cc4b726
+
+I=127 Round=7 Input value=14
+PT=38f74d39b78003cc71cc3a51d93ed4d5
+CT=83cf712eeb236e5a6c54e7c764a69386
+
+I=128 Round=7 Input value=15
+PT=7e2ae1a0a03f5f331589309229ba9b3b
+CT=f2e00d3183498de0fd1f16482160dd90
+
+I=129 Round=8 Input value=0
+PT=3f5716965d235aed3a3ca1df15feab3e
+CT=cd5ba76a340ccd8b582beda765b8df1a
+
+I=130 Round=8 Input value=1
+PT=2a02fd02f6d795244f76f63347005753
+CT=f6c5cbadc7713a58745c588c76ba8bf5
+
+I=131 Round=8 Input value=2
+PT=0698e8db192b226cd1996dfa11b2a1c5
+CT=734456c51539cad462ab918a3ad5cdaf
+
+I=132 Round=8 Input value=3
+PT=2da3d4fae8b5f531f7311846ad95093e
+CT=adde66a1677526f8cd0d2ca65b4bb05f
+
+I=133 Round=8 Input value=4
+PT=71ac8ad1030b3f57a7983d59bc1e41ac
+CT=10a59c633ee00f8d8e2f2e4fd4c6b66f
+
+I=134 Round=8 Input value=5
+PT=7392c553ce348cc45fa611b8468dd0cd
+CT=6e20a36c69fee0ebf272010e20469386
+
+I=135 Round=8 Input value=6
+PT=59e67489e9ea32fd57c1ed86d08ddb53
+CT=6bb6744389cdddc7fa98ebbf6fcfd61c
+
+I=136 Round=8 Input value=7
+PT=26e18ff2d3648fa2d98b7bd0750d38bb
+CT=21c0d37d0b052f5737e266b2e3586264
+
+I=137 Round=8 Input value=8
+PT=b834685a5c03f36d67652777e34ddaa8
+CT=e1e57ff5126ac529abff9b7ec76ab7e8
+
+I=138 Round=8 Input value=9
+PT=9d9c5ae07cd037504942a0e95b141e61
+CT=ff3dcdf6a1e96db463fd22c59e5f7f71
+
+I=139 Round=8 Input value=10
+PT=895e6f9ef5a85f13de7125dfd7dbedb9
+CT=2c9172bcf8bf53c463c44f1804a9b77f
+
+I=140 Round=8 Input value=11
+PT=3e4152169657d94a24d8a932c5c670bc
+CT=628c4a013ba1ee2a0681944ab650acc4
+
+I=141 Round=8 Input value=12
+PT=d510f3a77500caf3787bfb70dd7c979a
+CT=fd0cc599e22fcac6482a66373cd7eee8
+
+I=142 Round=8 Input value=13
+PT=d6c78e04dfc565fa360cb7c3eade1bcb
+CT=c1b84dc4e5dc9525ce0e63487ae21851
+
+I=143 Round=8 Input value=14
+PT=7efe2fd11160ab12f57999e3a52cc717
+CT=97281b8b6c37f4f1a01e15cb5eb7889c
+
+I=144 Round=8 Input value=15
+PT=a1dde9be204c98efb2ba19eefd3776b2
+CT=60747b45414adf69ad1bbc2aa2ec3a05
+
+I=145 Round=9 Input value=0
+PT=7992801a71d614eadead9222b5432224
+CT=406045d861c2adfd12761b8d23281ceb
+
+I=146 Round=9 Input value=1
+PT=5917625ddca41837e162ce370c5cb0bc
+CT=ffe26cb7159689a2242baf9468793ebd
+
+I=147 Round=9 Input value=2
+PT=b45f443ddfadfd248327d18cba23f0f1
+CT=89353a1674b7b8e77e1da61d9b023903
+
+I=148 Round=9 Input value=3
+PT=88b494acf1aa066e8bd4ada67a9f4589
+CT=19e19bdfc955f3f30338a045ec0f466e
+
+I=149 Round=9 Input value=4
+PT=d1f58e61e8021fc2ed7b507bb9c90e8c
+CT=53d6670efd436dc99f871d02f32d1cea
+
+I=150 Round=9 Input value=5
+PT=78e21524cd9668dde578f53891490e73
+CT=f60ef87b65f3d2e0807ef067af477923
+
+I=151 Round=9 Input value=6
+PT=ccdf1ef13e9ccd3e2d54391f71cd4787
+CT=cfad5d16eeb76ad504bc9a28d7f692f2
+
+I=152 Round=9 Input value=7
+PT=18ed80b3141df79b7e10a4024caedbef
+CT=20c1ab7360d2a095c8dc7131e62049e4
+
+I=153 Round=9 Input value=8
+PT=d20c5b43d0b20eab36bb5e1131572aa3
+CT=4c1f67847d019da26c64295aebd7e9dc
+
+I=154 Round=9 Input value=9
+PT=026c50d87f7ddecd1c77c519da7a8b64
+CT=a55358aa98b25a5bb9c519f8b336c38b
+
+I=155 Round=9 Input value=10
+PT=9b133dada260152f94ed6c8949a2effd
+CT=9d83eb904fa59d66efcc99fb276f68f2
+
+I=156 Round=9 Input value=11
+PT=39eb6b0e851fc4fff192738f74f6e74c
+CT=affad07e29f936cb97ae3dcef843218d
+
+I=157 Round=9 Input value=12
+PT=c2824369ea56af46009f6a7c86069128
+CT=95c21631926f38fa7a7698b384c337ce
+
+I=158 Round=9 Input value=13
+PT=bc63913a558c9c3e8f740b54df9a38e8
+CT=d5dd58fa9a976b1ac404d69b99b96c3b
+
+I=159 Round=9 Input value=14
+PT=1d9382755a435d1f24557ed073f9eb90
+CT=e30581ae1b9e7602621f6fe7089353ee
+
+I=160 Round=9 Input value=15
+PT=0475db2919411a038d42fd32de981ada
+CT=cebea7a229814d234f5732f8e1b3fdee
+
+I=161 Round=10 Input value=0
+PT=3291eb78ba522ce8bbd358cae21a6edb
+CT=99d267646d1efc3291466e6b046c0cfb
+
+I=162 Round=10 Input value=1
+PT=f59bb17cc3aa7d256b471b31beee18e2
+CT=dbac77d9f1e199f5c3e1385cfa629a06
+
+I=163 Round=10 Input value=2
+PT=aeea30d9ae60d24f8087970f3d5e2e12
+CT=8bbc7588e5386db2e8b3a2a183502bd6
+
+I=164 Round=10 Input value=3
+PT=6e5e3528cb83166085f491cc6139df6d
+CT=d8901f95e7ba03509344f2a1a09ad29e
+
+I=165 Round=10 Input value=4
+PT=f09e7ce136464bdf4df6c315ad09544b
+CT=f1d18245819f74c0a9b436e9f0b8e2e7
+
+I=166 Round=10 Input value=5
+PT=183bbdcb9704d3c2fc72721633b70a37
+CT=813a42a399a84d77cae3f068ca6fe70f
+
+I=167 Round=10 Input value=6
+PT=f6bc8d15e7b8b699ae398f92906b8151
+CT=de05ceb3930dcb940d98e5ed99cec924
+
+I=168 Round=10 Input value=7
+PT=403943dece947bd5d68bd1a3cca38cfb
+CT=c3db978b0698fee1f12c104f76637ce0
+
+I=169 Round=10 Input value=8
+PT=fae5ecc4cfc3640af1874706b779a19a
+CT=a8717dce66014d1608517bc9c1e24f75
+
+I=170 Round=10 Input value=9
+PT=7b9fe6d51647e1bec4c580bf9d11a718
+CT=0529001a3341a971c064559c063e849a
+
+I=171 Round=10 Input value=10
+PT=1286eee21c18e6d6fe259600a9dcf40c
+CT=c468979561122c17072034c56ca31c1e
+
+I=172 Round=10 Input value=11
+PT=eb3a903633f5d46c4ee80acfa5d353fd
+CT=dba459c43dd0f3e6a516df48f8649df3
+
+I=173 Round=10 Input value=12
+PT=b40268780d6e4bf336b8f5d1f3fa9041
+CT=c246be57abaef343715daab0373b2430
+
+I=174 Round=10 Input value=13
+PT=c635554b38bbcf3b4672a659cfcc2ee6
+CT=d1702546e2e2a541cdd3b663ef47c04c
+
+I=175 Round=10 Input value=14
+PT=c4f7541842e9e7dac60c2a5059bd41ae
+CT=c2b8c80b2384ee25b043c579862d8917
+
+I=176 Round=10 Input value=15
+PT=f6e52a54d0771ecc06fb34518e4a098f
+CT=2f4f99c461ee2296c7d612da771acdcf
+
+I=177 Round=11 Input value=0
+PT=23dbefc90de251213ef33a14283d1eb1
+CT=3a1cea573532e3136498cbf2e03712a3
+
+I=178 Round=11 Input value=1
+PT=79b64982ee0e567e648bcef9e77c63e9
+CT=c67a0a3d6ec3805a4e03aa5f4fb6f237
+
+I=179 Round=11 Input value=2
+PT=36ec9173a7f59482b548097100851bd4
+CT=487e4399f1aa62a88ff7cf6f15b12fe1
+
+I=180 Round=11 Input value=3
+PT=12615e60831345f7994e67ca60bbd90a
+CT=dfd7ca5333dc4c2e2f9a199a57c63ba0
+
+I=181 Round=11 Input value=4
+PT=b3590d28c37496e5773590aed607ba87
+CT=6b224869f9169d874ffdf8e62d2cbfd2
+
+I=182 Round=11 Input value=5
+PT=741297304e937b2b590221dff13ecd92
+CT=c83641727b1173990e7aadf4ea2cdc3c
+
+I=183 Round=11 Input value=6
+PT=1044662d07cf6438d4524c12362cc6cd
+CT=41f6c8330f8e450caa33fab0da81954b
+
+I=184 Round=11 Input value=7
+PT=47f9561cd7d344db80a8dd1ac3de64a2
+CT=c9837862fcd6e5019a2a4253a6999d24
+
+I=185 Round=11 Input value=8
+PT=070bb853985b1a12c16e41c9a1383d68
+CT=2711d9d30e6e141048a43362ea6d570c
+
+I=186 Round=11 Input value=9
+PT=b5091149b752d2be1f50e1b83276e002
+CT=69a3f6aba3db43b174d07a634788d70a
+
+I=187 Round=11 Input value=10
+PT=3c6b0b1e7f3a17828803f69c7de57560
+CT=0eaaffe7842c20686e37e9794b0d4754
+
+I=188 Round=11 Input value=11
+PT=299b3f416b8bf3a83b134496c4ff44fc
+CT=f9d10a7d085a668e836ae456bb58be86
+
+I=189 Round=11 Input value=12
+PT=0f858435b76a2f49daef1ff05225c451
+CT=811cf3b26ebb11336c7d962e7dab2d48
+
+I=190 Round=11 Input value=13
+PT=b76080d95cedf4230e67ccaa15499410
+CT=74d72c91ef0ee83dc7f40421d2565f7c
+
+I=191 Round=11 Input value=14
+PT=ad13e6825713418098e52ddb2126712e
+CT=73dfa511a38cac63b1cc7254fd11daec
+
+I=192 Round=11 Input value=15
+PT=ca679fb33c0fdfdd7e04c78b0324340e
+CT=bd9d78d0875e58082798d4f05df0e053
+
+I=193 Round=12 Input value=0
+PT=75af25b7c07c0b1784f3dd6726bd940d
+CT=1da39fb40c762bff8d572325e3176e99
+
+I=194 Round=12 Input value=1
+PT=ff7c9d11e66cf34166d477a8bf7c3edd
+CT=9188949ad578b07f587febbc709301da
+
+I=195 Round=12 Input value=2
+PT=b689a8225f62f1764c246e95b227fe42
+CT=56955a6fcb400603731564e8e6df1731
+
+I=196 Round=12 Input value=3
+PT=0851b533dfb7b36f27171131e1cc1129
+CT=40d875b2161ccb3cc8e312e4b7efccf0
+
+I=197 Round=12 Input value=4
+PT=515f7194bc870a84a2c67159b439f107
+CT=ae97d5b44a9f7d4fc5da121e7f47ac44
+
+I=198 Round=12 Input value=5
+PT=1a5e21affeca3f7d8bec9beb6df0f9cd
+CT=07afe0ee26a591d7e4c6680efe74bd36
+
+I=199 Round=12 Input value=6
+PT=6763b9f1502ae15bf59bab432fcfedf9
+CT=7eac2ab5d294d6dafa7b6832ae1ce012
+
+I=200 Round=12 Input value=7
+PT=78c267c98fe9d7d847936737a4330244
+CT=1cee22d4fae4415b9d9f983030c4f781
+
+I=201 Round=12 Input value=8
+PT=04e82811fe8f3457cde85fcaed6efd5b
+CT=3178730e5fc68bf4f2e3dbf6f84f0f78
+
+I=202 Round=12 Input value=9
+PT=a52104e7d6f4a612346f5d5a070095d5
+CT=981eeb795b7442f55c8a5ce4397131e2
+
+I=203 Round=12 Input value=10
+PT=6717fbf5c9498c1995bc8fc5de5a870b
+CT=8496245b2dc1448710f1fd9cd6dbc71c
+
+I=204 Round=12 Input value=11
+PT=0925664c6747244c2c17458302ffa756
+CT=b9bd7104ae3bf1a2e0e9db150e2435ed
+
+I=205 Round=12 Input value=12
+PT=881a5a0a6f04ddce663b0b747e2f61a5
+CT=24aa6f35bb9b3a5510022d74213e563e
+
+I=206 Round=12 Input value=13
+PT=d5ed24bfd4cc8c70e7102b6a7b7249bf
+CT=29133fe4e0cecbfc75c6e5c185a3d233
+
+I=207 Round=12 Input value=14
+PT=bfff9594e15600c019fabc3eb003cfce
+CT=56af0f736ea13f58df038ca52a3175f0
+
+I=208 Round=12 Input value=15
+PT=0dc0b8503a584d60ff25d181be5cafa7
+CT=15e601cfe1ec26710d6f827f6a99a6c4
+
+I=209 Round=13 Input value=0
+PT=b7d97dc8d4474ff64b1f047735c1f667
+CT=5e27322b7c470d2d3af7facb33c0c4c1
+
+I=210 Round=13 Input value=1
+PT=6db7abc7402fab2a026c6bbd3994d5ff
+CT=a321250bc8431688172e5a58b51112e4
+
+I=211 Round=13 Input value=2
+PT=9fa2449c3042fa9ac40047474a939d48
+CT=2636757c9758bb7a75a5c5707a13947e
+
+I=212 Round=13 Input value=3
+PT=285ac159fe522db8e7d3403a7e4e9dcc
+CT=e106fcc90efac3bee1a54fcb7d7adfc2
+
+I=213 Round=13 Input value=4
+PT=48e7e20837a987555ee34d5c12c5945b
+CT=5c9c067d86730497a73c62e77c0ef5ca
+
+I=214 Round=13 Input value=5
+PT=936cf87c81ef7d17924e662ed47d2579
+CT=18c972abc356da0af124aee0c2f962f1
+
+I=215 Round=13 Input value=6
+PT=ff711bdeb03793d151c609b0cbef9f4c
+CT=61df8e5ce3182c9e717b117b20db3182
+
+I=216 Round=13 Input value=7
+PT=0f2495eb432f2598229fa7704051175c
+CT=082d1274e850e7da63fe5eb55b03e1d6
+
+I=217 Round=13 Input value=8
+PT=9c2f1e302e6ea9c0bab6ba4f3e368775
+CT=36b3870d85586ac6ad924d1f124c0ebf
+
+I=218 Round=13 Input value=9
+PT=3ff632c94a7bf6881d62757485d0342f
+CT=bd9b6c8b962b9eb6b90eb45d8c4626dc
+
+I=219 Round=13 Input value=10
+PT=13aa622d360a36c0cc7536d50366c81c
+CT=10b7eb6b1854fb3076318a75cbdcc9c3
+
+I=220 Round=13 Input value=11
+PT=9a2e4651e4fbdd12ecc54e1ccf24e013
+CT=b4f3345b1a1913bc518f2fe7586938dc
+
+I=221 Round=13 Input value=12
+PT=dcab43360d60a9ffe4547138657853c9
+CT=4886c41cd5ea76b3a266cc1259e10513
+
+I=222 Round=13 Input value=13
+PT=1aad5cea4cad31147c873792e7ceb4a0
+CT=c3c3544567d19f565f82eec92a194f07
+
+I=223 Round=13 Input value=14
+PT=93f3132c5a7661fe6871730b1887ae4c
+CT=ee688a851063be4fab4375360173c3ac
+
+I=224 Round=13 Input value=15
+PT=94e85dd143748b523aa586ff7760f673
+CT=aa1005700a803945ea3ce37ab8f7af32
+
+I=225 Round=14 Input value=0
+PT=7c09deccf4ab617caa8b88ab9926dcca
+CT=4d996efd2d4e5144cf6c00a33ed3fbb4
+
+I=226 Round=14 Input value=1
+PT=7de7e3aebe496938c98e07ec3323a0f9
+CT=7f5f7352f4c992ea54fe06f2b31a3dbb
+
+I=227 Round=14 Input value=2
+PT=4b34a00ea8c76dc43756d8a5c97f2d59
+CT=dda1af85bb84fd9a29895e57977ebeaf
+
+I=228 Round=14 Input value=3
+PT=6f8909c16500fe54f7711ee5f55a5827
+CT=760681f99a95dba480e31b6fa0fb5bc1
+
+I=229 Round=14 Input value=4
+PT=2c346b1773b8cccd03271fde62bc99b9
+CT=bbf4e0923ca1013ad2b749bb62c891dc
+
+I=230 Round=14 Input value=5
+PT=e8e894dc98213add518a66785ae40f99
+CT=def9c93c9f838f6fdef6d3bf86d5c397
+
+I=231 Round=14 Input value=6
+PT=b8cec33aae10ec9106c63672137420e1
+CT=5eaec3078b72d4660706e174ea517a78
+
+I=232 Round=14 Input value=7
+PT=55bc13d92306d1d2759c1d7803e4afb1
+CT=e97f798eacd0466b9f38ed5a70f41c24
+
+I=233 Round=14 Input value=8
+PT=4822624214deb76bf9317bd9a55756c2
+CT=7c469cf57c5a4eb653ef65d8c21c81d5
+
+I=234 Round=14 Input value=9
+PT=33843187c0dfb1663f8754e882db8a2e
+CT=309d4e11fcc151d06717e5e0a24a9fa0
+
+I=235 Round=14 Input value=10
+PT=3a850f7a893d0c44bc159848b6a18df6
+CT=6a522665a5618f5d297b0e1adb29ab36
+
+I=236 Round=14 Input value=11
+PT=89f7ca819957c732ca96bda683d8ac18
+CT=f51e3691e8ad934c4851cf80205ddd92
+
+I=237 Round=14 Input value=12
+PT=6632fac66e987efdb8af9ef1a8aec3b0
+CT=ace6607377137b822c81105efc7b204f
+
+I=238 Round=14 Input value=13
+PT=3bb3d12b37cae705a6e2fc29d5152d5e
+CT=279c8f62ea6a8640d755d9b27991e8c5
+
+I=239 Round=14 Input value=14
+PT=9b780148b49c70100cc167b5e37d52b6
+CT=0907f27446d163ccfcddcc3c35b1e911
+
+I=240 Round=14 Input value=15
+PT=e564502a67d485dca3484efe22997c6c
+CT=159c8e07741eb2f88a3855858e52c144
+
+I=241 Round=15 Input value=0
+PT=d0fde39bae127ebfd3d5b8307445a1ba
+CT=37edcce29bc55021c86e38cb2a31b83b
+
+I=242 Round=15 Input value=1
+PT=241a67b9bdcc7c9ef3929769b8ec10c2
+CT=2f1596ad317b4da2b32a64d622365490
+
+I=243 Round=15 Input value=2
+PT=c53aa0a2ec7f65bb2463026d37fff13d
+CT=46c44cbf514004ae2a926b00141ca5cf
+
+I=244 Round=15 Input value=3
+PT=49760cf38f389f5bfe4bf3847b247074
+CT=4e51b6289c6968efa417f613f169fa78
+
+I=245 Round=15 Input value=4
+PT=9b2fb23a22d35b7c8fe76f10683041e4
+CT=8e7add9dd4918aaea82b647c21e4f8d8
+
+I=246 Round=15 Input value=5
+PT=eee99e6f6d1b62638d75773962cbdc95
+CT=dc66d32cdeb0f2d907768ce86d7afd46
+
+I=247 Round=15 Input value=6
+PT=faf05f204b9a96a05f4a47e58a1ab192
+CT=779a6fc3be61df4f89d4e81e796dd6a4
+
+I=248 Round=15 Input value=7
+PT=d587759aecb7b8eef3e785d098caf581
+CT=7869f3aa299e827c24b853fc3b4fe126
+
+I=249 Round=15 Input value=8
+PT=c495a290a2ddb8bb4ab1d1fcca3fb5fc
+CT=de8c2c324ae421a30a6ffb154b81dfb0
+
+I=250 Round=15 Input value=9
+PT=d15aef3ab9ba6d86ace21a6cb898a9de
+CT=50ce0bd9ac34e4853df29a110cf4a31d
+
+I=251 Round=15 Input value=10
+PT=29f281a18433a1d53c4e154e6bd68408
+CT=f62730638562c89876b8b8afe717e81d
+
+I=252 Round=15 Input value=11
+PT=677ba655b2b07281057a932f9f2f5165
+CT=e203dbafabefcb96da65ce2150560883
+
+I=253 Round=15 Input value=12
+PT=c357983f24632bd72ab820b14ae066d1
+CT=4e0ff64e170f83c0a2342c79c355d0c5
+
+I=254 Round=15 Input value=13
+PT=36d153607aed949de012b254cd6bb881
+CT=b9110dde7c4f00e0d08a281dee427669
+
+I=255 Round=15 Input value=14
+PT=9f70dfb29997727b99b95c3a325872b2
+CT=9a9c5ae92d96e93dafa4cd273d384ffc
+
+I=256 Round=15 Input value=15
+PT=a2ff2d8f1ba4f849acb6ab550f6a9ebc
+CT=5f99a205a551f8e37d516e1203afcb34
+
+I=257 Round=16 Input value=0
+PT=753026b254791a796c6395a608371e89
+CT=43e7f10dbfd324fc2601b4e134114608
+
+I=258 Round=16 Input value=1
+PT=0fe0a3e0f9154ab2879964d979b048fc
+CT=bd7f3daed34a7ae052b7de1cf651dd2b
+
+I=259 Round=16 Input value=2
+PT=d901bc1a9e389117b2fa8a8b78b93420
+CT=9fe9ea60daa8557817ecf1b0f1898e65
+
+I=260 Round=16 Input value=3
+PT=85284d4b43ce7ec943fe25e8ded474f9
+CT=783dc70b2cf66a23d2f40a056153fba0
+
+I=261 Round=16 Input value=4
+PT=0979042e4ba017b89df02c72e6bb11b6
+CT=d03884c1cb4794d8c8a111e502986afd
+
+I=262 Round=16 Input value=5
+PT=37ddfcf3ec1c1324a20d0a8c752c2127
+CT=be06adb4674363815d6e5d2d03317cc4
+
+I=263 Round=16 Input value=6
+PT=ddde08a47686317c919b54ffc1665059
+CT=e481bcd336f20ba34398f79e75d5fa8f
+
+I=264 Round=16 Input value=7
+PT=c65ebc70b815d6e681fe26386684a291
+CT=103bc3f26127735e5a23ac9ca3e45a9d
+
+I=265 Round=16 Input value=8
+PT=82e6b80a985d8d2fad4fc6435c5aa0bd
+CT=68da2fbcbafd89353d45c92c1478ea9e
+
+I=266 Round=16 Input value=9
+PT=f050ab5613b713f289302a3399380d84
+CT=8c082ce22b7e2daa72ada0859324dcf8
+
+I=267 Round=16 Input value=10
+PT=7a25b1d38e53175bd9e18d0b85afde6d
+CT=ca271f651cec30ab229787f24cdc050d
+
+I=268 Round=16 Input value=11
+PT=9516af47a953af739cefef3963bb3c43
+CT=08f91ec764e119632ec2ceee06e4e80d
+
+I=269 Round=16 Input value=12
+PT=fc9c98cb353e7e6bb0f4c4dc297e431c
+CT=21f2c89be259a7056eec5a68311e66b1
+
+I=270 Round=16 Input value=13
+PT=411bdfcf57c312850b9826983d693b9c
+CT=239cbd57f4609be935a8a35997225825
+
+I=271 Round=16 Input value=14
+PT=0b5c881e7f7646d45c1892c245ea73c0
+CT=ffed75b0d5884e3af602c851a7fab3bf
+
+I=272 Round=16 Input value=15
+PT=0f4f6bd72a95311d347e0f2b89bc7a51
+CT=61c637191eabad2b44849012beb96283
+
+I=273 Round=17 Input value=0
+PT=a73671f58741bfaec3f0daf24029c9bb
+CT=ffef30b1e8fcff612144f026f2b0a332
+
+I=274 Round=17 Input value=1
+PT=464085a06e5b726b47b33793c802f24d
+CT=935aed82117968b778062144816098d3
+
+I=275 Round=17 Input value=2
+PT=305b4c3437b4d1d82282bdc8f29830a5
+CT=891275b09ef17c54c2462581fb4f3b26
+
+I=276 Round=17 Input value=3
+PT=beb6fbce4c0e22adc62da2d019d070a4
+CT=d780f15bff6bd5f4ba3e404bd29cd903
+
+I=277 Round=17 Input value=4
+PT=810dca55831be24a87b03e742576576e
+CT=3bd8b4efc41c9b0e492bb0d94f206904
+
+I=278 Round=17 Input value=5
+PT=1b9b59e6cf0360961e5e034cb0f25e39
+CT=314f2607e1047a7734b0507ec1a2b2bd
+
+I=279 Round=17 Input value=6
+PT=a4406c581e2d5f86d933e7ab9aac077b
+CT=1dbe5a090cf39ac702115630ea85072b
+
+I=280 Round=17 Input value=7
+PT=5268f781684bf604428511a778d4ab51
+CT=e6d4009fc17caee8e6a164d2b5aa71c7
+
+I=281 Round=17 Input value=8
+PT=a722d3faa387693a53fd9dfafd85db57
+CT=1f589052be116c3a09562880088438cc
+
+I=282 Round=17 Input value=9
+PT=c5b520480129585a0bd67ae1b3bfe5c4
+CT=a206d5d4293c38b2cd31a61e8669322e
+
+I=283 Round=17 Input value=10
+PT=273d709adfe967f89f05b9bf8dc02948
+CT=04e76cc995c7d8a5035523155eab5bd1
+
+I=284 Round=17 Input value=11
+PT=bba4bd337af640b2a4c6f8d715ec4c2c
+CT=cdc6675171dc43ecd38d6cea29775621
+
+I=285 Round=17 Input value=12
+PT=5799f594b3256879ac19580d4811d97a
+CT=1fbfa863a54e12b9ff686094f8f42278
+
+I=286 Round=17 Input value=13
+PT=5b6b237ae686761880b41f9b354b3b42
+CT=58400695aa9c235d4c0b1e1338a446b8
+
+I=287 Round=17 Input value=14
+PT=a01e7dbdf18e379f870a15375d8bc27b
+CT=e3619b919168ba56536dab2616a96984
+
+I=288 Round=17 Input value=15
+PT=66ef23ef97a6c5d6d22e59ad0874ebcf
+CT=0204b555c5664bffada5978b24a131be
+
+I=289 Round=18 Input value=0
+PT=3fa58fa486b06df0f293a371f9b6daeb
+CT=22224db1a1390671ecc0ba6d299f727c
+
+I=290 Round=18 Input value=1
+PT=da6942f11cfb7e767f62f35472d76525
+CT=442447e6cb7edcbeeb573b693a79cff0
+
+I=291 Round=18 Input value=2
+PT=ba812ae11d2745194a719b58e6d5c2d1
+CT=effa0f74ef7b14ced5dea4883251dfb6
+
+I=292 Round=18 Input value=3
+PT=025430b9931a5a7c314f1624de83453a
+CT=c91de207b607ee9d88378023f5131d49
+
+I=293 Round=18 Input value=4
+PT=f0cc56914921608e40690d99128cb2ac
+CT=2294183533c7e484f325b54ffacc5621
+
+I=294 Round=18 Input value=5
+PT=787640abe09bf6fb94edb73aa120b0ae
+CT=8712d1649eac43a350e70a8c5cd3e8b2
+
+I=295 Round=18 Input value=6
+PT=8711a57b28c3d27a11a0bbae920e9f2d
+CT=6f03bd95bbb62ecb1e4a88e5dfd46ada
+
+I=296 Round=18 Input value=7
+PT=98c6f7ac3f2e73f2db000517d66b3055
+CT=ae5285aa4b927ee27303efcdc7272b86
+
+I=297 Round=18 Input value=8
+PT=76dc6771a91d06ce1fc2edb274545079
+CT=49e051701b37be7a16a709739493419e
+
+I=298 Round=18 Input value=9
+PT=cbc34ae10e4ca61b67b83c2ee293a073
+CT=54b3f1ba186f97504e14eae23ce0efcc
+
+I=299 Round=18 Input value=10
+PT=3c29ee5f10d2068d053f424ddb1b50d0
+CT=ed3ebe825cb3dc448293ec180b8b98a4
+
+I=300 Round=18 Input value=11
+PT=624f398930eedb2cf597cb1967133e02
+CT=7e84cd18125f0349ebb28968c36ff5af
+
+I=301 Round=18 Input value=12
+PT=d3b7e3dc1a257990c9c13d173a31ec48
+CT=303eafafbf1b1b7facac5f7ac120cb3a
+
+I=302 Round=18 Input value=13
+PT=043ab36f0ab45b9989f625b404b85223
+CT=cd4b345aaa0344eda642f0974297dca1
+
+I=303 Round=18 Input value=14
+PT=989b366e37fc1cadd6e673e92a4c1ce6
+CT=0412917260645a0f17bf8dd7c8fe67bc
+
+I=304 Round=18 Input value=15
+PT=84863cca8d59720bfe5935fc53f57105
+CT=ca16ef8a9dab0cc7f8a4b1eeb3daa779
+
+I=305 Round=19 Input value=0
+PT=2f75bd7da6502f52569445e83a04014b
+CT=2fdd66c3a8c5901c0310b363369bf3dd
+
+I=306 Round=19 Input value=1
+PT=2b8b5af9b990faa0ce642ff4c73d79c0
+CT=bb6a84fb473594c12121fbb6c19e5745
+
+I=307 Round=19 Input value=2
+PT=18c34e82e1789a6cac9c3a944c4fc7b8
+CT=befbad40a1100c66106252685646a2f8
+
+I=308 Round=19 Input value=3
+PT=d9cd2795c2b3aabb91036e32d6fcb4ea
+CT=09dea9fa80654b2b4e9dbdde83ff54ed
+
+I=309 Round=19 Input value=4
+PT=26ff1a33f42f98064cd29766f3fe0a47
+CT=af48fc59707a6d8579aae95d6858f55e
+
+I=310 Round=19 Input value=5
+PT=2c27f99723d2eadb412babe4b0d10c35
+CT=fd6aa691fa93581d369a9f757be971ed
+
+I=311 Round=19 Input value=6
+PT=b82c743648cfe7b7835bc1dab1b447b8
+CT=093103c31870e4768036c9d8ea1f47c7
+
+I=312 Round=19 Input value=7
+PT=4dc931204fda377a5973f0b6a2155178
+CT=0ab23348106555be429ae668be6aa833
+
+I=313 Round=19 Input value=8
+PT=4ba7563047991dc0b293609005b0204b
+CT=246dc404fc0de44d9a3742151598705c
+
+I=314 Round=19 Input value=9
+PT=e6375851b24ca5d8bdf18681c7d2c6df
+CT=3d26795d9de882386909097893d84763
+
+I=315 Round=19 Input value=10
+PT=0042ea5a6be6aa534a5c55a61c043a39
+CT=1f5bed30e728914e36b16302795df214
+
+I=316 Round=19 Input value=11
+PT=ac6a01d94bc9535880e050e38152dd14
+CT=56aaa6555fac0ca5f72757e3414b3f6a
+
+I=317 Round=19 Input value=12
+PT=57f0129ac6f51e98d4cbcff9299dec21
+CT=d70aa03c767554cbaaab08a008c86e86
+
+I=318 Round=19 Input value=13
+PT=2560c11bfb1777104928b1e6035e2d9f
+CT=1bcf4cbbe87d6031051f60d798da8b01
+
+I=319 Round=19 Input value=14
+PT=aa214f48ff68c70f52eef50f414f0b16
+CT=d2418d906b58e5fa18474d0d987cb1c4
+
+I=320 Round=19 Input value=15
+PT=c16a78f9e6050915fe9c14075f5ade82
+CT=d9cdcd52edc3f1cf19629ba32748823e
+
+I=321 Round=20 Input value=0
+PT=89c07c20ceb02041ddc798a870e75d3e
+CT=d6d46be3126d1d483304515aa09c2150
+
+I=322 Round=20 Input value=1
+PT=45525dd8d8a6a39da4fccce1b2e9134e
+CT=692f51632eb61f2d8c535e4e860c4ed4
+
+I=323 Round=20 Input value=2
+PT=834e107f9b4aed0e2e0e456e748005b4
+CT=04b392b9fe5a508eec0bb478cea4ead1
+
+I=324 Round=20 Input value=3
+PT=17df69889606b69b51a7afa0b9e78ec4
+CT=eeddbc26e4de8750ebcf2368210fee7c
+
+I=325 Round=20 Input value=4
+PT=9d06aa6909cf5e0a126a28504b7d170e
+CT=c81285482159c904d97f8866721d0136
+
+I=326 Round=20 Input value=5
+PT=32573bb1bd3b0b2280cbcb1ea53104bd
+CT=b727d74603e953e7efab9c28efb926f8
+
+I=327 Round=20 Input value=6
+PT=a8085e345cbe580468262f6a5a7d007d
+CT=abd3a22e16d3b27d63df0b9b8bce98e7
+
+I=328 Round=20 Input value=7
+PT=bb67960c476d5f6f3faeee7c58db1d89
+CT=92975c5effa29eb27c74bbad09fa09cb
+
+I=329 Round=20 Input value=8
+PT=6db5ffbdcebae094590e0bb8ebf995ac
+CT=810cf9046361cdc237ddfe903b3a6d96
+
+I=330 Round=20 Input value=9
+PT=ae3a9544d5f6d0b19f8aba9e1e3a72cd
+CT=af26f79c665bc901650fdbf2274a2917
+
+I=331 Round=20 Input value=10
+PT=36d1d7cb52f763fcee72f600fa8effc3
+CT=f67e29a8a95745e4a6494f3f2af8c51e
+
+I=332 Round=20 Input value=11
+PT=ef1ca9793f732d114ab60242f0664a8b
+CT=e0f756a71aa214436b9bff842d81dbe4
+
+I=333 Round=20 Input value=12
+PT=1d2f966847027b22623d271e690d25da
+CT=f12e57bbf022c4a942c2896143f78658
+
+I=334 Round=20 Input value=13
+PT=66d5e8f683397444c12a891be0b5baf0
+CT=2602d10900b08aa38a0114ead68f52b9
+
+I=335 Round=20 Input value=14
+PT=544763860c96447175f6d7b7bdc49db8
+CT=e5846c24ff603103997fed033b22190d
+
+I=336 Round=20 Input value=15
+PT=8597a1a25ee67c5b4860c13bec04e5eb
+CT=ea175bce8e51bde83607d7ff4f1b0c88
+
+I=337 Round=21 Input value=0
+PT=75744ee7b4901b36981ae386491acd2f
+CT=163df42a02edce852b58ad1d17220c93
+
+I=338 Round=21 Input value=1
+PT=51a863f59fab1c90b99d711b833b8714
+CT=58cf50a34d89f0fe596c8da390da1323
+
+I=339 Round=21 Input value=2
+PT=8fdec2b4dfd89946244c0bcb95da73a4
+CT=bb64af85fe0d530f449aca5f9e7bdb45
+
+I=340 Round=21 Input value=3
+PT=a3806ab2ef39cfac30367c2041897a02
+CT=4d147cefc70cd11510d30836f8f6c952
+
+I=341 Round=21 Input value=4
+PT=9089380683b876703645f612ac5cde33
+CT=c78f56728388337fa8060c796799ab7d
+
+I=342 Round=21 Input value=5
+PT=4877fc842245a7fc99b3fcd27c17d892
+CT=aacb748442760c43eeef53cd0d77de43
+
+I=343 Round=21 Input value=6
+PT=c7480e7df853893b48d354160d1a20dd
+CT=64433e828ffd3d49cd1d858e523a3eef
+
+I=344 Round=21 Input value=7
+PT=014cde00cde6990d0288462191e8e0da
+CT=1e3265867bd28c8c4ae51f420c7c7e34
+
+I=345 Round=21 Input value=8
+PT=9f98762e561f0001ca6d841cf7d39bea
+CT=46381902a475c9936a625e9b14964e0b
+
+I=346 Round=21 Input value=9
+PT=48de6c223e93d2142872d65f90f49532
+CT=7e372bfee37933953b5f6506be22dc71
+
+I=347 Round=21 Input value=10
+PT=810830059ff95ee31e576caa27f51958
+CT=06fca7c7998cef78826379268f10d697
+
+I=348 Round=21 Input value=11
+PT=cb5b4ae3dc9e51cb4690b258cc4fb300
+CT=63e604b9edd675ec1f5f97d7fecf3e12
+
+I=349 Round=21 Input value=12
+PT=b73418955f4ca44fc87cd1e31895d7b6
+CT=cc235e3282f37a56092c6c99420e95a5
+
+I=350 Round=21 Input value=13
+PT=fed96f0ec5232f980da6de68f4fafb25
+CT=7f4295f37b0022c101459fbcffb08d24
+
+I=351 Round=21 Input value=14
+PT=fd3fec683535c7dd9f79e929d7f5c021
+CT=b755533599c74aa49f3b2d0ddd85d34b
+
+I=352 Round=21 Input value=15
+PT=1e5cf96bc08fc072ae5fa1a61bd873c2
+CT=bec3e83144b6b8ba8ff5741fbf9724a5
+
+I=353 Round=22 Input value=0
+PT=c01b9f1bda0386812158684a94505439
+CT=a5fad5da46a50eb98119dc0293c8960e
+
+I=354 Round=22 Input value=1
+PT=04a206065834255bc3a72255136a6114
+CT=3ad3db6578ba8a59b368462c7d54a197
+
+I=355 Round=22 Input value=2
+PT=dacf833afa7b68a63ea5773a99324fae
+CT=ddec13cd62685b3bd11669f4d2157281
+
+I=356 Round=22 Input value=3
+PT=31bf8dc14a7a0a16bb03c979956dba86
+CT=a89daf1cebeeb60cf0f1268885fd9d90
+
+I=357 Round=22 Input value=4
+PT=041e46344d2b947e128275429917e26b
+CT=f3090698ea9177822ff301c44bd9fc5f
+
+I=358 Round=22 Input value=5
+PT=3cc33ca50a9b81d17f7189bf80b49684
+CT=d8f09953459353598cc901190056be95
+
+I=359 Round=22 Input value=6
+PT=9b7cb0bf603197df51f820b875ba70fa
+CT=9d9268e0b3d6aef6db7caee1a89a2575
+
+I=360 Round=22 Input value=7
+PT=d18982b2c1dd4fb05653e63f62b0df00
+CT=89eebf9d181045752202dd4a7b487ab8
+
+I=361 Round=22 Input value=8
+PT=4f43cddc47a0616c8f2f4027b37646af
+CT=f90e3b088dcd161fd5bdc2bff8142085
+
+I=362 Round=22 Input value=9
+PT=55bae97d5adc3ced0396697cc642c3c6
+CT=0985a6da98d129f5bd6ec77f6fde42c4
+
+I=363 Round=22 Input value=10
+PT=272cfc0bc74f2e93a5a0a29f5cd20279
+CT=ad858f0e4b9d5fd9709354b1ca2643fc
+
+I=364 Round=22 Input value=11
+PT=f0e7baf3a14162fd24305031f61c68bd
+CT=9d319e4a5e4f264562d18adf9c959c1b
+
+I=365 Round=22 Input value=12
+PT=0037761c3183acf9df52321f3d190335
+CT=1f25d2f1fec44129bdde68e980687cd0
+
+I=366 Round=22 Input value=13
+PT=9f61a40408fcc160449f96c93a649204
+CT=6e2b1290b5c833decc3cffde8729e9d4
+
+I=367 Round=22 Input value=14
+PT=b9fc693e689f9e9084b6edea951d9afa
+CT=ef62fa82df6f48e8598dcd88bc348d10
+
+I=368 Round=22 Input value=15
+PT=81b2cefdbf39294a16982726fd4d5622
+CT=ed262650a21c6c58c3dcdc8f0d7bb706
+
+I=369 Round=23 Input value=0
+PT=9da2ef8592ee710c9afd2efa6e3ef945
+CT=fbeaf4e98b9da0dd2f2e7b03b45b2d2e
+
+I=370 Round=23 Input value=1
+PT=c0a48bf077e215a761ddd90f41736880
+CT=1b2236f23bc2755bc19c37693f32f783
+
+I=371 Round=23 Input value=2
+PT=0c98aa65852a7c07ef7960dd97a3f377
+CT=3fd7a98a395e6d9a1205c9a396deed98
+
+I=372 Round=23 Input value=3
+PT=3a672d7e06ef8dfb1e17f755b9cff844
+CT=7166600c17d3330fb7fbbe3cb0b980ec
+
+I=373 Round=23 Input value=4
+PT=29bca359e5757e67ff492b48f2a494af
+CT=0048d9a6aa833f956985418072527f9b
+
+I=374 Round=23 Input value=5
+PT=6428e62fcb8c4f9fd0a6be08cc46fd54
+CT=55176cc10e7cf39c2f2529e65bfdcec0
+
+I=375 Round=23 Input value=6
+PT=47dfcefa75521f4d94def1302dc3ba21
+CT=eb48bd5d9a5f6ad0ac179c98047973d0
+
+I=376 Round=23 Input value=7
+PT=38e3906ebfe5518ebc665d4a64d5d9b1
+CT=8f25e0f0b2df0c7ad6fc35152548f9d8
+
+I=377 Round=23 Input value=8
+PT=cb27cc3cd1a8407a59af1fe139369c3b
+CT=9293e30c5aab3cec7196c0d0594e145c
+
+I=378 Round=23 Input value=9
+PT=9582df8a3fb0d82dd9459cbd219bd3aa
+CT=776a3dd27da5c49bf0ee5699b82e3a06
+
+I=379 Round=23 Input value=10
+PT=9869dc776a6016e477bdc8aab1168819
+CT=c133b758878b19808a4b27552fea0a24
+
+I=380 Round=23 Input value=11
+PT=e5f121749ededfcde60a1cd3f9832061
+CT=e0d7f63a9d7603466985f2c190659821
+
+I=381 Round=23 Input value=12
+PT=5c5c85781bf1bfeba80c82021f1aeec0
+CT=f2610e1c0dcba72de57da18a1fa3e877
+
+I=382 Round=23 Input value=13
+PT=84d388994dea75b0a6778ef099761657
+CT=8abe0a4fca5e37cfc4a284e4de8e3f6a
+
+I=383 Round=23 Input value=14
+PT=648dc96ba7edb7f621f182d46d9f5b5c
+CT=5a75589514e74b940425b1aa1ae74380
+
+I=384 Round=23 Input value=15
+PT=b5ef0a1482993a6c1123e658bf51709f
+CT=e0045066b6d5468257a8c5d34ce638f8
+
+I=385 Round=24 Input value=0
+PT=b04c4698bfb82b5a467e712249abe3ed
+CT=7d53951daf256c5c684c34b98ddf3b86
+
+I=386 Round=24 Input value=1
+PT=31b72db6b7c86d9da26918c53539d31d
+CT=2e2491274cd68829ecf39f8e3a463966
+
+I=387 Round=24 Input value=2
+PT=489a471b50d003f580814e05e8771a18
+CT=bbe7f4a4ffca7685d5a40587bfec377a
+
+I=388 Round=24 Input value=3
+PT=bee3521ac6a70be2724a55c165692458
+CT=2f86f6a472680220bf4ceb35b59e5018
+
+I=389 Round=24 Input value=4
+PT=9579e033cb9f2d02542bee15e739bc3f
+CT=a20980ed95ac69201e38ee1e0c35803c
+
+I=390 Round=24 Input value=5
+PT=0dc84fd2b60205528b873cc0c6e25bfa
+CT=46944c71cfc45cd6edc84512e59be6e0
+
+I=391 Round=24 Input value=6
+PT=0ea8f9a8327cc37fa64b6bc52870036c
+CT=88c5477f5a20c07b15924c4a9e34b528
+
+I=392 Round=24 Input value=7
+PT=30c88a25c48f3436096901b6e561bae9
+CT=676360bccddc541ce7843e0a7bfea14c
+
+I=393 Round=24 Input value=8
+PT=d56907cd0842a7c41617a742bfcb3594
+CT=7b709b4d86142db13a1c048c514360ea
+
+I=394 Round=24 Input value=9
+PT=bd6e4cdae82266fa344b0e1ff37cfd7f
+CT=cc22e51eb90d1e0229fa5bde4e66ffea
+
+I=395 Round=24 Input value=10
+PT=b11a91da40bbf1831dd65cc4ed5f995d
+CT=10cdfd6a90bd14f73df6c8c8cdb03b80
+
+I=396 Round=24 Input value=11
+PT=37b014c0abe9e67222b1f60f84186021
+CT=965bc2cd8b524f658efc2d57deb66226
+
+I=397 Round=24 Input value=12
+PT=10eb47d9ab859818ebe72204d3e9648a
+CT=df67fcd8acd1f26ea161c51cdf0319e4
+
+I=398 Round=24 Input value=13
+PT=a4b0ef88f55daee49181baf7fa17a3e8
+CT=6c623c24d7bd4e01b40c6a5f3a774868
+
+I=399 Round=24 Input value=14
+PT=687848c21d92c3ec507e660a487a0a61
+CT=036dd5f514578eb3f01b78b8c4e853c3
+
+I=400 Round=24 Input value=15
+PT=dac750f568d39f1d8e8df8155f38d34d
+CT=06c9bee017cb632a5ac99aa3c4dfaada
+
+I=401 Round=25 Input value=0
+PT=9ec9c84880bc3e70fc5876b6f8d55d6e
+CT=be8d0293fafac79f2fdf05f4195c93f5
+
+I=402 Round=25 Input value=1
+PT=23bccb0797f1f7f92a85e9b1e3c2a06d
+CT=9dc35e1d9c26ec750a7bfc481da4ef3a
+
+I=403 Round=25 Input value=2
+PT=19b24cdaf09b5eb599d5128cd6e449da
+CT=6840a85f537b589cbba1a0745f40e53a
+
+I=404 Round=25 Input value=3
+PT=9bd06cda5b761175b7ed2ba7ebff28f9
+CT=2324a1374949dc506f26959bf5c5af71
+
+I=405 Round=25 Input value=4
+PT=5a405b8bdf4df03ffe8defae21af4825
+CT=fd2a493a984de2422485de157528b7e5
+
+I=406 Round=25 Input value=5
+PT=11c6a5ee4f2e40f486aa91327ea1f70d
+CT=724d375826acd81959760c8d9a325ac9
+
+I=407 Round=25 Input value=6
+PT=dc46fd624b336cb7da70cd2babd82cd8
+CT=e494d07522fa0125fd377699e22c0464
+
+I=408 Round=25 Input value=7
+PT=6d065095a998f2672b8c5b8533ac3a4b
+CT=ff4b1eb7c5623f2545b79edc19715d26
+
+I=409 Round=25 Input value=8
+PT=727a9d5b60f6904f6ecf697062fc4def
+CT=03685a391b59bd47487922696ddbfcf1
+
+I=410 Round=25 Input value=9
+PT=0f77cf470b7cebaeeba7e5264e1c404f
+CT=9b41969270d3722ad696b68c81e78133
+
+I=411 Round=25 Input value=10
+PT=76ea7dda89b59f3efb5efc67f184cecb
+CT=4ec69eee6d0db771d96a6c470298b345
+
+I=412 Round=25 Input value=11
+PT=a6b441bc250da65e3749980f39879842
+CT=e08a3650a51fca33b391d91d5942554e
+
+I=413 Round=25 Input value=12
+PT=f23f2f43077ce9530d07ed7a35bacc59
+CT=cb7f96c1cee6614c9f14d21f0b69db77
+
+I=414 Round=25 Input value=13
+PT=473b39e0b2327683aca71776cb71b0f8
+CT=e5481a317d64223bb000669283437020
+
+I=415 Round=25 Input value=14
+PT=6d559e96a17868903894dea7479c5e9c
+CT=8b4a7cb55f3ef505675deef25d81adc9
+
+I=416 Round=25 Input value=15
+PT=ea9c77d8702459c55ecffb4c78505b33
+CT=4e6dc1da57a0061e5feddf129648d4a8
+
+I=417 Round=26 Input value=0
+PT=ffe745807658d4256934dce8d6bfd3d5
+CT=ad8afd90054dbbf425d0413d5a8db4b8
+
+I=418 Round=26 Input value=1
+PT=49bf3b7f4c1a943153a8acb89ed1cf06
+CT=8a278509ecb7ef3353cca4901deba1ce
+
+I=419 Round=26 Input value=2
+PT=f9415e88e0efa71f8131d88e8937d94b
+CT=8b4b632fa0d99708e45392abd582a87f
+
+I=420 Round=26 Input value=3
+PT=06b592ab6f8750999688620f5947cc64
+CT=eb9831c072c8cadf950968b82cc56fe5
+
+I=421 Round=26 Input value=4
+PT=773a3f8f8edf56cbcf49e37662e37568
+CT=baac20796eb02e5ff5dc695e64071283
+
+I=422 Round=26 Input value=5
+PT=1ce4a9d2017e01eb85cd7c4acde0b35a
+CT=7f167abd3a54accdb84705cd58ae8714
+
+I=423 Round=26 Input value=6
+PT=6bc3e71d1b321a5f578310e1b44f19d6
+CT=9cd0afde4f67feb717e792b5f045fa90
+
+I=424 Round=26 Input value=7
+PT=c77e2419842ca7523d54bb1638af446b
+CT=aa48993f1ea7a5347ac907b0c54d7ab2
+
+I=425 Round=26 Input value=8
+PT=0200303e914301876a697419f7f5340c
+CT=1634bd2bdd44c26cb3e04ed200bf09ad
+
+I=426 Round=26 Input value=9
+PT=8786748add3f8725bd2832633bf31497
+CT=0e8d7b8d14a7961933b69d6cec788d46
+
+I=427 Round=26 Input value=10
+PT=00541515c1947eca92c1e3de8bb855b6
+CT=1bcd034e0a3b8e3bdf88e8ab9d45ffe6
+
+I=428 Round=26 Input value=11
+PT=1988e21ee1a7479a4dabc5dc7d33102e
+CT=2bad8086504965463c66f61470c32355
+
+I=429 Round=26 Input value=12
+PT=3221b2308150da73e690f8084e26dc91
+CT=8b6c31ca2632d19a1e4c29e2be4f5a1f
+
+I=430 Round=26 Input value=13
+PT=f0f4415a268c22431fb16bb18915965a
+CT=03e7c9e2cdf7401e0c84f86a270c1fc4
+
+I=431 Round=26 Input value=14
+PT=c18906480f696a635a5d0a01e8b97992
+CT=0c887b078661e8fbfc12c5452ee00f0c
+
+I=432 Round=26 Input value=15
+PT=9972077755317a504813d359f9bc8f58
+CT=60b06dbdbf50e0c71319ce584ab2ddda
+
+I=433 Round=27 Input value=0
+PT=73aa4d236a67d97e6c429284f5257d2b
+CT=35043d9ad414b18945326787f8706fec
+
+I=434 Round=27 Input value=1
+PT=a74f13890b6d2a49cba36f6691502686
+CT=8f0891351bc4b82943312e7c6bbd3211
+
+I=435 Round=27 Input value=2
+PT=12520b762db3c21dbb2ce2d93508931d
+CT=aa180a780ec9322a37fcad97c7c9fdb0
+
+I=436 Round=27 Input value=3
+PT=4ae7d908424ad55bb8840ecd07844899
+CT=cc7935caf72384e744fc33ca812a702d
+
+I=437 Round=27 Input value=4
+PT=9f7fa76c1b354c5f655bd65b55292d2a
+CT=4e16d54fbe283874eb2d75d2c6a1aeae
+
+I=438 Round=27 Input value=5
+PT=0a01c08b35d7802e8bacf11f27b63041
+CT=17732b1428d0613bd00305a1f4d8934a
+
+I=439 Round=27 Input value=6
+PT=0c0ab4fdac030fc5a335e3a849c8bb78
+CT=0db01818b354b5d79737a4d963f7c2cf
+
+I=440 Round=27 Input value=7
+PT=a7d7e0e222fce38cd145ab5a0fddf715
+CT=9fa0d736b0e587db58cc057449283cb5
+
+I=441 Round=27 Input value=8
+PT=fd69a96fc4a7f75bf842f1bfeb7509b7
+CT=e9e80d13871fe21cac5479a39dfff6b1
+
+I=442 Round=27 Input value=9
+PT=16f023340d1764e8863213131f742f68
+CT=61b56a93e0daf10b5ad408b5ce186940
+
+I=443 Round=27 Input value=10
+PT=6bac573314316077039bd5081c58a43f
+CT=a3a48e6a74fbac0f839b1add4726e927
+
+I=444 Round=27 Input value=11
+PT=f022f4b79ad9e9d556060cc46aefbad8
+CT=f220da5aac76399211ec10439c77bb3b
+
+I=445 Round=27 Input value=12
+PT=f335fe0fcba37ee1735e9c3be8bfc818
+CT=d86c2b229e65cf55c16691aa4f69a331
+
+I=446 Round=27 Input value=13
+PT=29bb5037778d5b0992fba80a038d1702
+CT=e669d28febc298cb648ae6085268561b
+
+I=447 Round=27 Input value=14
+PT=4a1ba7d4e6e2f3890089a5007fcfcfc4
+CT=067e5f9dc74686a654904bfe0a17a033
+
+I=448 Round=27 Input value=15
+PT=0e81c7f1096a11eaeaeb66ec4bad3d7b
+CT=fa5f02b2455abce4e5fe314a8487fa34
+
+I=449 Round=28 Input value=0
+PT=94d331b4277f4a62763031bed09bb5e6
+CT=f11337fdb760ba335b20ea67958efda8
+
+I=450 Round=28 Input value=1
+PT=a4a4b502239d60ba4abfea53d8ed06c8
+CT=8605ea214a115d90951d49aabae6ce9f
+
+I=451 Round=28 Input value=2
+PT=4d2915d82166b6535cb61e1f59290c53
+CT=9dc702d215b590572b1d3de3909dc743
+
+I=452 Round=28 Input value=3
+PT=61077362b0730a00ad17799730084845
+CT=30ef490eb2c7093440df8d9a64a5fcd8
+
+I=453 Round=28 Input value=4
+PT=f93649eab9c599f1a6b6b0976c22733c
+CT=73026b0116e3f1aeaba95c7fe3a04c24
+
+I=454 Round=28 Input value=5
+PT=666f0f49e491b577463c7b47cb689a75
+CT=bd6c0c2747a2b86f655b08cfa495dcda
+
+I=455 Round=28 Input value=6
+PT=af18ac4e4c2bcda7edbd3a6c525a2931
+CT=9caca262b0eb18e44cb60e217554ffd8
+
+I=456 Round=28 Input value=7
+PT=97503f4b1c1abd6aab6bdb849483e690
+CT=7ce6f797af76e9cde64ebe5e7700b1e0
+
+I=457 Round=28 Input value=8
+PT=49c777a3f28ec2ca7dacc8c5160b7ea7
+CT=06b0da256db716294f22cb355ec52623
+
+I=458 Round=28 Input value=9
+PT=de50a047d190854819d1be6c9de33d47
+CT=99abe9a395bec1f9e8e7d75de3e45fd4
+
+I=459 Round=28 Input value=10
+PT=3dd48865b76e1fd7d302e51b74bbde8e
+CT=d4d2240f5d9e5189cd809898c1c0856c
+
+I=460 Round=28 Input value=11
+PT=fc4a6127ddf0184e69e065d205e577bd
+CT=85631e8f1733b36cc31478b6ad5e3495
+
+I=461 Round=28 Input value=12
+PT=bff275681a24bfaa49a16fa877d4bdff
+CT=c5856ee984471b30c5042a576e8d97f7
+
+I=462 Round=28 Input value=13
+PT=c773a824ba143e8f980adde748d48f87
+CT=68cb085dd86a81ac67816945503fd1f5
+
+I=463 Round=28 Input value=14
+PT=3106ef439c629f0d561a30d876d12447
+CT=6ce12e34f6aa854d94130c2cd992cacd
+
+I=464 Round=28 Input value=15
+PT=0c98c27f6ac9007273920bcfdce5dd92
+CT=9c10c2e7644d7bed351e5f31ae404398
+
+I=465 Round=29 Input value=0
+PT=b249ceeb9a6e860d973a0007fdcdd5d0
+CT=df7bcb7ee2d4e7e82287ff6b672395d2
+
+I=466 Round=29 Input value=1
+PT=ecf8ed011b84eae45a3306e00111d716
+CT=b1728a05b679a5b18946cf74452ac49d
+
+I=467 Round=29 Input value=2
+PT=a6f6759f3ed17e93d1b2fffa98372657
+CT=a6097f2c5019763c69592b187c92d763
+
+I=468 Round=29 Input value=3
+PT=ebd82247794b212e2e3c47d575bc061e
+CT=b3c2163dafc4c2309809846b964544ff
+
+I=469 Round=29 Input value=4
+PT=e4df7eaa587c54c3bf44304d2973085b
+CT=08e973c62a0ce61784e7136e2ae33f29
+
+I=470 Round=29 Input value=5
+PT=26a986763bea01a72645f188d81cb548
+CT=6839eb865feabd9cf2a725996dce00c6
+
+I=471 Round=29 Input value=6
+PT=379ef0db12fa73f7898638139851dd54
+CT=b19cc6d91c2f3479b74ddb1103cc8879
+
+I=472 Round=29 Input value=7
+PT=8944df9c610e97b6fa0b4780d143fc7d
+CT=db2e0ce6b8e643fcf4d2e35156f62b1e
+
+I=473 Round=29 Input value=8
+PT=99facaf5800eca48ae41d4af720a3aed
+CT=fc08ae34a5c3e88cb33e2f8fc9eec9bb
+
+I=474 Round=29 Input value=9
+PT=f6d529c3d353d774fb10a4cfc7d6a59a
+CT=4b93577398fdeaf9915a52cbb91101c9
+
+I=475 Round=29 Input value=10
+PT=eee3677c96c4fa4cd377a5e15bb554a2
+CT=2646295106cda5b3674b0939be342d63
+
+I=476 Round=29 Input value=11
+PT=c3ee181d8d48d859b5903101b568be9f
+CT=a28d49398f23feca704972c52fe964e5
+
+I=477 Round=29 Input value=12
+PT=80b18e7459e58c81b81336dc9b0b0e3d
+CT=6976a8b9ee2bb64f42900e99aaf982e6
+
+I=478 Round=29 Input value=13
+PT=536f7c5ad36c6abdcf067d515f4a5023
+CT=3c23d244c8a12645c51a106c8bf5957b
+
+I=479 Round=29 Input value=14
+PT=8163b44c94802baeca799902459da7c3
+CT=db0409bb0e2561a9fde6dfc27070061e
+
+I=480 Round=29 Input value=15
+PT=8c4e4c5eb0b1143c4cb9d34ac3ca7fc4
+CT=8584fc8a600576a6e4082bed02f661a6
+
+I=481 Round=30 Input value=0
+PT=e5ca6d35cbff9fbc478854e9bb35e230
+CT=d69a9f294cdd44b943706aff3141e1b2
+
+I=482 Round=30 Input value=1
+PT=146410b280f745da2bbf37e2d7ec9c30
+CT=e428e0aceaace5d38a6c4f6a6bffb8a2
+
+I=483 Round=30 Input value=2
+PT=5ca6b26e82162a46c60ce2f75dafd076
+CT=7b7017f115134a64d0056e9016106258
+
+I=484 Round=30 Input value=3
+PT=2c8c92c984726fb133e7e4f0e47283fe
+CT=649403bcc8d15164fb1ed522f4f896cd
+
+I=485 Round=30 Input value=4
+PT=23883bd98cdd125811a0624eb75d1eb0
+CT=e4631fd31ddaa95624b2517fcaa3eab2
+
+I=486 Round=30 Input value=5
+PT=3f696bc6255e62886c7e78339b40e42e
+CT=cc6591d637d5332caa287e22b5443010
+
+I=487 Round=30 Input value=6
+PT=85f230ff5e0326349edd246922df233f
+CT=9bcce461ba0c561b61d3839510da9f4d
+
+I=488 Round=30 Input value=7
+PT=01762380dbd80a56e44d61cc5128f096
+CT=1b3ba80e15a8a61b5e880ba74b264b10
+
+I=489 Round=30 Input value=8
+PT=b1befaea9ce163adf4d72900798a42ca
+CT=3d5a8f296735d0acb5abd14dec679dff
+
+I=490 Round=30 Input value=9
+PT=c1df1ca0899ce5a03de920419bd261f4
+CT=336d61c636326f4324d7c25d8e9f3c6f
+
+I=491 Round=30 Input value=10
+PT=66b08f8acdf708b3a2fc62c78d6c4a65
+CT=1b874b9eeb0b9a740f69aacd03a7ca7a
+
+I=492 Round=30 Input value=11
+PT=41e0aa6e204aab78942f8f4df0b637b0
+CT=84df9cc391e4b18eb5f7f758e41034dd
+
+I=493 Round=30 Input value=12
+PT=4d42ca3c2830643af12182ace7391764
+CT=38ad62c6ea175bac5c0c096f9e7f9f27
+
+I=494 Round=30 Input value=13
+PT=576093713bfe699aef7310e89c963426
+CT=c2521f39376eacd3db5cdd2279c86180
+
+I=495 Round=30 Input value=14
+PT=d51d48a839bb547369b9236f98eccfbb
+CT=29924f39c86a9c9bd28726906f3d45ef
+
+I=496 Round=30 Input value=15
+PT=5eff3902a6cfbabe670c7dbba7552cdb
+CT=c7a5a2d6c0e32fe12df3851091884705
+
+I=497 Round=31 Input value=0
+PT=87b15cbfe550945a72cb4e1332e3db4d
+CT=4af628f4868010460735e815a245f637
+
+I=498 Round=31 Input value=1
+PT=ecb8f45bac35078ac7ddf7a174da6f25
+CT=b509d70b797fefb90735e815a245f637
+
+I=499 Round=31 Input value=2
+PT=4c8332cd1414acf222339cf0600d6f49
+CT=b509d70b797fefb9f8ca17eaa245f637
+
+I=500 Round=31 Input value=3
+PT=07da15f4cbc3b33bdd9ec96124bdeb4d
+CT=4af628f4868010460735e8155dba09c8
+
+I=501 Round=31 Input value=4
+PT=4f53ff2417e1623b65a728e6fca0b3d1
+CT=b509d70b797fefb9f8ca17ea5dba09c8
+
+I=502 Round=31 Input value=5
+PT=723fdac51ef68816a618b08decbd77dc
+CT=b509d70b868010460735e8155dba09c8
+
+I=503 Round=31 Input value=6
+PT=694186aaa99b4537db4aa3250a8a876f
+CT=4af628f486801046f8ca17ea5dba09c8
+
+I=504 Round=31 Input value=7
+PT=27d330cb2f03983c6a9b475cc6567dc9
+CT=b509d70b86801046f8ca17eaa245f637
+
+I=505 Round=31 Input value=8
+PT=abb4c597b1c893873c619f298a367dca
+CT=4af628f4797fefb9f8ca17eaa245f637
+
+I=506 Round=31 Input value=9
+PT=c34df27fdb2f78e4d5d9577fdc7d1bc8
+CT=4af628f4797fefb90735e8155dba09c8
+
+I=507 Round=31 Input value=10
+PT=82357bab9b5503d4de712b611410d62e
+CT=b509d70b797fefb90735e8155dba09c8
+
+I=508 Round=31 Input value=11
+PT=50ceff41162ce29aa9017e0753a7e675
+CT=b509d70b86801046f8ca17ea5dba09c8
+
+I=509 Round=31 Input value=12
+PT=be2c54924b1356c20d603632815e40b6
+CT=b509d70b868010460735e815a245f637
+
+I=510 Round=31 Input value=13
+PT=12308e6cb043b618903623f65cf90920
+CT=4af628f486801046f8ca17eaa245f637
+
+I=511 Round=31 Input value=14
+PT=d588038ce7f13e8deb78e4dc38db037d
+CT=4af628f4797fefb90735e815a245f637
+
+I=512 Round=31 Input value=15
+PT=8331adade1cb28f0214779cb675416f9
+CT=4af628f4797fefb9f8ca17ea5dba09c8
+
+==========
+
+KEYSIZE=192
+
+KEY=000000000000000000000000000000000000000000000000
+
+I=1 Round=0 Input value=0
+PT=8ed77b92f29998eda7a3abce6f579dd2
+CT=e9c3c3b2effae80524c237103e350e13
+
+I=2 Round=0 Input value=1
+PT=8ed77b92f29998eda7a3abce90a8622d
+CT=50e9b4bc68442c2fc0bd5ec165332faa
+
+I=3 Round=0 Input value=2
+PT=8ed77b92f29998ed585c54316f579dd2
+CT=afe525a0888f0b855d7cab94f40c4f1b
+
+I=4 Round=0 Input value=3
+PT=8ed77b92f29998ed585c543190a8622d
+CT=ade77ed0d932053b7b0d872457d48db9
+
+I=5 Round=0 Input value=4
+PT=8ed77b920d666712a7a3abce6f579dd2
+CT=e11047e3d9b3e8549f22f854bba1ffcf
+
+I=6 Round=0 Input value=5
+PT=8ed77b920d666712a7a3abce90a8622d
+CT=5ef1eeeb138f113a04af36b2c8adc186
+
+I=7 Round=0 Input value=6
+PT=8ed77b920d666712585c54316f579dd2
+CT=632f5091373bae80dd16f02a65aa6490
+
+I=8 Round=0 Input value=7
+PT=8ed77b920d666712585c543190a8622d
+CT=d98c6d2be106e46288beeefee1841913
+
+I=9 Round=0 Input value=8
+PT=7128846df29998eda7a3abce6f579dd2
+CT=845178757084bfc85c10c2ecad9be1d2
+
+I=10 Round=0 Input value=9
+PT=7128846df29998eda7a3abce90a8622d
+CT=887505bdc7d6f8b3a0a02a1d8896d89d
+
+I=11 Round=0 Input value=10
+PT=7128846df29998ed585c54316f579dd2
+CT=8a434df981644718c5cd66b8c9c26f41
+
+I=12 Round=0 Input value=11
+PT=7128846df29998ed585c543190a8622d
+CT=74c2750166a0636f7fa7b67c6e2cc40a
+
+I=13 Round=0 Input value=12
+PT=7128846d0d666712a7a3abce6f579dd2
+CT=5595e426739c9e20f0963663bd1c286e
+
+I=14 Round=0 Input value=13
+PT=7128846d0d666712a7a3abce90a8622d
+CT=858f0dca64cc59c3ed2ac603ad1c9bcb
+
+I=15 Round=0 Input value=14
+PT=7128846d0d666712585c54316f579dd2
+CT=93c33f4659cf8a580172077d61696320
+
+I=16 Round=0 Input value=15
+PT=7128846d0d666712585c543190a8622d
+CT=52d630fe609effe37950f844ada35875
+
+I=17 Round=1 Input value=0
+PT=5756d0f0ae297afb08446f374783a22a
+CT=241bea9a9c9a3d159db90def4166b085
+
+I=18 Round=1 Input value=1
+PT=d065bbe58a5db71074a009a93f4f36c3
+CT=72511e497dfc897ccb4eebd883efb9bd
+
+I=19 Round=1 Input value=2
+PT=7aff99936a5db77bcb1bfbaa51a1d94c
+CT=7a56939a0a78bf76c29f7bba74112c58
+
+I=20 Round=1 Input value=3
+PT=22330d634e297aef538b50acf692b247
+CT=6e225ae962dc7846d3c45f7da5e8f0ff
+
+I=21 Round=1 Input value=4
+PT=d65fd9f427b8489fd945ef3161edcdb3
+CT=88ffdbd3e4d67dc90fc8b0c67d57598c
+
+I=22 Round=1 Input value=5
+PT=f233af6ffc337a8b5e660d47ba7e44d3
+CT=51cc443564da54218ec37df43e51c93d
+
+I=23 Round=1 Input value=6
+PT=3bf690931c337ae00b13d0aa48304929
+CT=be873c77f8543f21cc354436cfa8a60f
+
+I=24 Round=1 Input value=7
+PT=2065199ac7b8488b77bb00ccac5c3fdc
+CT=6a55fd53f5911820d916f1f743fd2648
+
+I=25 Round=1 Input value=8
+PT=2d98d41803cc85740c743f2041a1f248
+CT=887479a1260399ed255ee2e7d1380cc2
+
+I=26 Round=1 Input value=9
+PT=2d806f6fd847b76074a822a9be46b6c4
+CT=872c6966e7a8662cf54301c761435cfe
+
+I=27 Round=1 Input value=10
+PT=dfce62f63847b774c1ddff3777838923
+CT=9337eee6f153c70f1543ac6b0cb42232
+
+I=28 Round=1 Input value=11
+PT=e029266ce3cc851f428ad0aeb79b3245
+CT=f89df7068066a69c7864b9c929c0830f
+
+I=29 Round=1 Input value=12
+PT=7d98761975a248efdd75bf214939c92c
+CT=63e7968518e5dae47de10946930217cd
+
+I=30 Round=1 Input value=13
+PT=21202f1f51d685045e6e2640ea7e6fd6
+CT=e63bb080ca519c169931babb43226dda
+
+I=31 Round=1 Input value=14
+PT=4fcec0f4b1d6851001d5d43740e44dbc
+CT=4b5977a3c4c0cada17ed85f1b6cdb930
+
+I=32 Round=1 Input value=15
+PT=cc89666895a2488466ba80ce3c5c14db
+CT=8af04120a8d2ea4773e473570a9281b9
+
+I=33 Round=2 Input value=0
+PT=1c50895a6a6a2418a84976868d421f25
+CT=61c6c11b178a50c9c6f8a6264689ff15
+
+I=34 Round=2 Input value=1
+PT=66f1ea61c9a4a8898bd8637ce34411a4
+CT=baee3d296b32193c72b44cdd28274da6
+
+I=35 Round=2 Input value=2
+PT=35d3fa7d6963ade1a82bfd6a8407bdcf
+CT=26d176d821608661ba6dd05570149778
+
+I=36 Round=2 Input value=3
+PT=5e5084d07d48945f29be278543a6934d
+CT=2a4d95100ec87c05bbf57baf083436f0
+
+I=37 Round=2 Input value=4
+PT=c375653529a3ce3e2e6c6c5b4a985508
+CT=e94cc8bd19aa1eb53062ded9a0591016
+
+I=38 Round=2 Input value=5
+PT=27ce64fcf06068d9fbf7bffb129a977e
+CT=613cb61a153323e936fc87eaaf5d7c97
+
+I=39 Round=2 Input value=6
+PT=f72aba766c9afdec80e4223e2ddc8820
+CT=97e3dd65b679350500fa090102f1dee7
+
+I=40 Round=2 Input value=7
+PT=f0efeb04d2d6909615992c4eaae6a8b9
+CT=548671108c15bec2f4d22f95c1029a9e
+
+I=41 Round=2 Input value=8
+PT=839dc9f5d4ef5402909844c4346fe0e8
+CT=1d421c709d923a20e079743d19909a15
+
+I=42 Round=2 Input value=9
+PT=b4f0d7692346e1ec964eb7771c90ce1a
+CT=ef6710131322ac0f7f3b37c3d26f90f2
+
+I=43 Round=2 Input value=10
+PT=7c9ff06cb7d7e410f62170fb3687f14b
+CT=7b55f943c8d428eb339eb2a003710ed5
+
+I=44 Round=2 Input value=11
+PT=14d309882c5c2a2114ae92b96e8b6fa7
+CT=81eaf7d3cde69219e34b4bae0589cc76
+
+I=45 Round=2 Input value=12
+PT=b3fbf9fe5c2f5d5b8f1ed543b423dc10
+CT=ea3ca78826ab5b7b43b2f0cf6c1fe6a6
+
+I=46 Round=2 Input value=13
+PT=2f79054070e322c983896cf339fe7f0f
+CT=84b05dd4faa5b1b0de3e0709c77a9b0d
+
+I=47 Round=2 Input value=14
+PT=bb47da9e034d12028348c60fa24a568b
+CT=18b019438b5c38bf7a07da59551ae07f
+
+I=48 Round=2 Input value=15
+PT=215c31c8fc14641da592e149b9d457ea
+CT=e026c5a1e8ee099558611bd209074599
+
+I=49 Round=3 Input value=0
+PT=d231ddce8c2e64eafa3bcfc456bc0861
+CT=1344da50e2971b778e0cd6087eba4030
+
+I=50 Round=3 Input value=1
+PT=15540aab03d0b38c236c2f8cb459d1f1
+CT=fc24bdd55a00418ee2b7bbeb9e7c344a
+
+I=51 Round=3 Input value=2
+PT=6dd744a64a74f211384d90188cb099dd
+CT=1dd92d19e1a49b27923e44aae0d7ebd7
+
+I=52 Round=3 Input value=3
+PT=125917caf6e6e63132fb5e144445bff0
+CT=beb6da78265fe97f1a10f56f9a7af397
+
+I=53 Round=3 Input value=4
+PT=697e49ae86ee663392dfa8ee44777b9f
+CT=5b5e88986dc2172c1b698bdd991b1950
+
+I=54 Round=3 Input value=5
+PT=3ae4e9c2901225f8aa36c70c79ca7761
+CT=8f415404857ae31605c7bf043be21717
+
+I=55 Round=3 Input value=6
+PT=3dfd62f725df8f8c0af730f96f01a7e2
+CT=c74c749787068d28814f3f7a4a7216d4
+
+I=56 Round=3 Input value=7
+PT=ee3c6b02d1ae6adc2759b00823bca2dc
+CT=93c5d552d8f4619d0c33742a214b8c31
+
+I=57 Round=3 Input value=8
+PT=e003b872d954435e29e197e57c9a37b6
+CT=1b31f23850751ac3a86520fbf2c363af
+
+I=58 Round=3 Input value=9
+PT=79bb7b9bc1d6c8719332ea4c9684bb20
+CT=b25742426b480b14e5c7e765a2a73fb6
+
+I=59 Round=3 Input value=10
+PT=e02f58161f2a59c0775737906a5e7d75
+CT=df6dfc5461e5d36f78661fedab4ba687
+
+I=60 Round=3 Input value=11
+PT=a7b78430d4e53da7fddcb6ee227385b6
+CT=d06089dcb927d4f95890a381a305c800
+
+I=61 Round=3 Input value=12
+PT=3d2ca0d545095f7f782988df6da38a58
+CT=45f54938af9799103437f297dc11be1a
+
+I=62 Round=3 Input value=13
+PT=0611c27d75be988a8b4e5fc4371283ca
+CT=11205dddc6759c0727508b9cdd7c72be
+
+I=63 Round=3 Input value=14
+PT=f92631397772e2312679038f5da297c4
+CT=a8eb68f85b260cd4fe79b99af9be9da2
+
+I=64 Round=3 Input value=15
+PT=781d453ff599944e7af93f76e51fb9a2
+CT=69e42766bd5acb966bb0c7044b6eb519
+
+I=65 Round=4 Input value=0
+PT=d7031de7cd34eb98bc8e9d3b1d9aa3ec
+CT=189f73c713316309d41486f518374ad3
+
+I=66 Round=4 Input value=1
+PT=6bd963414009c41b975133b1b4450044
+CT=cb1efd1f4699f4405a33d3a111a7d38d
+
+I=67 Round=4 Input value=2
+PT=57dd4e36b23ca7bb76ef2c471f2231d6
+CT=93f55f2b1ed17a64fd609675ee64e64a
+
+I=68 Round=4 Input value=3
+PT=b75df87c1c4d2abf6f08b66d18665063
+CT=e0ec60458a92588cfd3f759c2da0713e
+
+I=69 Round=4 Input value=4
+PT=1e5bc3a152486f198bc3bac158469222
+CT=d3c13c31f7fa4b460f0d721e73cdab8f
+
+I=70 Round=4 Input value=5
+PT=ee029b29451c2340eb4252645911cdae
+CT=83d7270c1148998e1a165057ef889277
+
+I=71 Round=4 Input value=6
+PT=7b9c042c60f45ca3fd7d0179ac2a62ac
+CT=51db1b7bf39488dea047b4a77900a128
+
+I=72 Round=4 Input value=7
+PT=22c865ee090ed541fbcfe86c0da875ae
+CT=4335ffe02b4bb7280798be30fda3ab0f
+
+I=73 Round=4 Input value=8
+PT=d157ddf325d899f46f857ce25e3607b5
+CT=77468e1d0528d069f29f59a6825a4c49
+
+I=74 Round=4 Input value=9
+PT=b0085b2a9202a4f5f328fbae57818e26
+CT=8f0178ed97c242ce48b44abf433491b2
+
+I=75 Round=4 Input value=10
+PT=7af313ddeb906efede852a7de9f13eb0
+CT=1684032b73c4558e386ca1426c8c87e3
+
+I=76 Round=4 Input value=11
+PT=da41daab2ba2ea27abc4d41c40d87952
+CT=871191af63daa911363c7b874cda1e72
+
+I=77 Round=4 Input value=12
+PT=8a63f54e8a16309ef494547070aedef2
+CT=e5fa9363f7ac18f16ddf52d5d6741b46
+
+I=78 Round=4 Input value=13
+PT=18f5df5aa19b7453de830c907287a061
+CT=1d8c60dadd220dc6b04d5f745318496c
+
+I=79 Round=4 Input value=14
+PT=26c8dcfe485b7e11e8570fa8d629399d
+CT=fe303ae1c0dab97c8ac7f7261a2ef6ba
+
+I=80 Round=4 Input value=15
+PT=05df08b40dc35ea4099f11b8dd315ef8
+CT=6b519c614a57860e97d7a3f61cfef759
+
+I=81 Round=5 Input value=0
+PT=88fc2118974ab278bd3ae90ceb6f9620
+CT=cdf8b227d72c2a8b41d8f4c915794487
+
+I=82 Round=5 Input value=1
+PT=5fafe3436739b99463f5411e00501481
+CT=fe5c39c14e1f1a053d0c95aa280c469a
+
+I=83 Round=5 Input value=2
+PT=759572ca864f2493071a915a3bece356
+CT=4f3498a457d20cd8b2d63e7fa3cbbebd
+
+I=84 Round=5 Input value=3
+PT=aec1d69d66342d7a58e921e594ad1ce8
+CT=d47c09aeecf6ba9a9d289f7c1cdf3f2d
+
+I=85 Round=5 Input value=4
+PT=e0b9f39ba10c720991f55d13269e97cf
+CT=9174b401fbddba9103afe048e5435a1a
+
+I=86 Round=5 Input value=5
+PT=f2ec11511856cc93e6d4971639b48b98
+CT=e439e45168a0ce1e3bd68b2e29a57349
+
+I=87 Round=5 Input value=6
+PT=35ea93d188b753e6e3f9dba1ff7fb23d
+CT=184e134395d64aae7aa17e949f7cfca6
+
+I=88 Round=5 Input value=7
+PT=0931e69c32fde40da9fb8c450aafeb8b
+CT=6d922698fd5bf18a6fc728244d1b3763
+
+I=89 Round=5 Input value=8
+PT=d1a7438cb7576580fe73d0623785b24f
+CT=c7378e44db5ee382e2d72a2f38d1d1f2
+
+I=90 Round=5 Input value=9
+PT=2cd27e6088d7dbbff3d62901fefe0af2
+CT=33949e7b4bfc287e2963b5e978a23ee6
+
+I=91 Round=5 Input value=10
+PT=379ebf6e12442e8569d82dd413d63900
+CT=f58dfcfa9d3d560130da4bc96f74fc6b
+
+I=92 Round=5 Input value=11
+PT=d58bebe4bb5a75c036a132b6e8966ed5
+CT=5ea9faebc0e544cbbdb6a531f1aabcfd
+
+I=93 Round=5 Input value=12
+PT=d10ad1fb99c739bc6fa970819c2f7b38
+CT=5ebbc3d4f379f1165832d5dff77a5adb
+
+I=94 Round=5 Input value=13
+PT=e9cf67d5963ae87a55992e96c65bd6a7
+CT=76478d82298ddffbf02c43cab9bc9736
+
+I=95 Round=5 Input value=14
+PT=c85b6d818d8d8f1be63fdaf07131ba3d
+CT=edaf3b38a5edd7abe42ee741b960fa00
+
+I=96 Round=5 Input value=15
+PT=ebbb4ba5e71381b60c6a566fa2b51670
+CT=d658bd96231e957364cf443cd13425fb
+
+I=97 Round=6 Input value=0
+PT=dbcede42f56af154db50793f16767d7f
+CT=06e9c4bb55f3adb9d516641b0872d874
+
+I=98 Round=6 Input value=1
+PT=67595921f063c71f57c318e8b3641fe0
+CT=98e7b9cf43171faef0ffa5c0156393c3
+
+I=99 Round=6 Input value=2
+PT=3b2627e0d6c30fd86e7788e6dd868a9f
+CT=887346986843384bac15962d3380e006
+
+I=100 Round=6 Input value=3
+PT=9ebd54aff5242b8e39d8a55129724e4e
+CT=7f7d6cac190aba02da4637a54c66a62f
+
+I=101 Round=6 Input value=4
+PT=17baaefb4b58c3657e37c1efd12f0854
+CT=40ca86791f308a5c52d5e110bdb01bc5
+
+I=102 Round=6 Input value=5
+PT=3685552ae78545902f1ec536341285d6
+CT=073110e6be88c5fa054f686ad5bb3b00
+
+I=103 Round=6 Input value=6
+PT=b77b1da85d76e3b64597d01b020bbbcd
+CT=ab1317f7e4b117ec6533e67368ce25df
+
+I=104 Round=6 Input value=7
+PT=cf21a86157d040702a46ecc5b46cbbd8
+CT=079cd33ef49263a664587b75f8faf31e
+
+I=105 Round=6 Input value=8
+PT=110093e48330f76e3c1f6bed247a63f2
+CT=56966964677182e73c60f102de87b439
+
+I=106 Round=6 Input value=9
+PT=83a2d015152c863b1a084c90d2c1c48e
+CT=4bb1983e74f99f692b8a3dfa96fcb72d
+
+I=107 Round=6 Input value=10
+PT=2db21a2689b41fea3dd68ec3406897cc
+CT=413277a707a9f45092a2225ad52e8228
+
+I=108 Round=6 Input value=11
+PT=d9d3b2ac4335e4236ed5b4753fa50ad1
+CT=4c3841154492324fd8709004321ddb73
+
+I=109 Round=6 Input value=12
+PT=40077585d2682542f189dba674a7fa42
+CT=0d8939c4e6b8351df5161c524f4b2dde
+
+I=110 Round=6 Input value=13
+PT=59ba15745a8fb7d48017f4d65b2aaee8
+CT=b137ed8a6c2808628d4057fc3e48836b
+
+I=111 Round=6 Input value=14
+PT=ca81b11d5c1addfeaa21a07607226f0c
+CT=601ce03aba3e07f832a11444c3a28fad
+
+I=112 Round=6 Input value=15
+PT=c53d714f906e2dd4bfe6f02c22674367
+CT=be60fd54f10b06c7ba26da2d12b5c5d3
+
+I=113 Round=7 Input value=0
+PT=ce88c4af9ec2ba1983a1aef249ce9cf1
+CT=4a8a0525db70326c2e530df7ae3639d7
+
+I=114 Round=7 Input value=1
+PT=36876088d6f4d39b17325e532e4e2aa0
+CT=c54023e9d0b84b3268f56a1371028da9
+
+I=115 Round=7 Input value=2
+PT=10a98d235a17cecdc921cdf2f15f41d4
+CT=ab5f2b75f6d0de0f918eb34ae8ac2481
+
+I=116 Round=7 Input value=3
+PT=d5d2e0d579196b9752d6d52b97e6fd23
+CT=87a094b1fe39c8a6dcf370cdb98334e4
+
+I=117 Round=7 Input value=4
+PT=7599b1f5bb581e9bee0b89072411c76f
+CT=1cdd64faae29c6a7b2549eaf140dcbba
+
+I=118 Round=7 Input value=5
+PT=6cf2caae956ad13d871549d3f58b3ab6
+CT=3d8a80a54ce238768437db0e7bca2f30
+
+I=119 Round=7 Input value=6
+PT=9a1d9ac07cf66501f5dffcdfcc2afed3
+CT=d966e4d89f62e2c4a829268656c78027
+
+I=120 Round=7 Input value=7
+PT=c1c0af363188243ae93ec613be344e25
+CT=d13ac2133b5580652cdb15fb33c360b9
+
+I=121 Round=7 Input value=8
+PT=ca3d912d7fc841b2c1d5102b57025303
+CT=92be0b5919f4d3df486e084cc233099c
+
+I=122 Round=7 Input value=9
+PT=9170265c9be436854366e124a14dc83e
+CT=a67650d9f956906e7abc1c3f87b45061
+
+I=123 Round=7 Input value=10
+PT=61e56832dc42e378e2210c24aa2d478d
+CT=dc23ce3f661e85c365784df37c5e5cac
+
+I=124 Round=7 Input value=11
+PT=f1d98b85a6f98698bf9f17ec774cab1e
+CT=320d943ab93e570bffeb2999fb2605bd
+
+I=125 Round=7 Input value=12
+PT=bf0f342411a9b9c0c824e3e10d61258f
+CT=e0daba4177572dc2036b7683a3e9c594
+
+I=126 Round=7 Input value=13
+PT=96f86522972aee5a743c050440a081b8
+CT=6f88142f3bbf7473c51b689388c03acd
+
+I=127 Round=7 Input value=14
+PT=670f3e81321b44eb528f4c65af886e9b
+CT=a1d70f8642aaf5cd1181586d745aa76c
+
+I=128 Round=7 Input value=15
+PT=ca4429f58a67fbd3e4b6b2014a6bf108
+CT=0f8c4bdc420a85c305dc1e0561f1fcad
+
+I=129 Round=8 Input value=0
+PT=9e53a4ae666718c179ea7175c6ed064b
+CT=414f6e537180e82f2c2f876a3aa298fd
+
+I=130 Round=8 Input value=1
+PT=33a2cc206821b63ece3da9a959f4f812
+CT=7fd1acd3546a82bc739b48c6dc6b7cd8
+
+I=131 Round=8 Input value=2
+PT=56d9e1969c5deed72350a79374798a84
+CT=d349a5b7c72ee4638fcb634396aa228a
+
+I=132 Round=8 Input value=3
+PT=90781d1c6e2c4605e527913a165c3135
+CT=feb0d1cc4be1a9b84b178cb21ba0866d
+
+I=133 Round=8 Input value=4
+PT=5fa6f585ab4969ad92e9ba03796c5d69
+CT=addf4b64723e720c55acf40cf62e3af9
+
+I=134 Round=8 Input value=5
+PT=955e7ba182c8ca70cb0054a662dc3260
+CT=0e0a56233cbb66df63ce1f5c400eea97
+
+I=135 Round=8 Input value=6
+PT=ad81c3e80754fb3d4f2af29e7bb7945c
+CT=5e6388d2466dda88fa300612be5cea2d
+
+I=136 Round=8 Input value=7
+PT=03f8bf1873b02026295c7a4d7a345ff9
+CT=ebb04dff58a622a0bc78641cd9d887b3
+
+I=137 Round=8 Input value=8
+PT=fbc99d38a1273e7e58a8d1e71bb47795
+CT=c35e9ee69902760d3a5b2c54ebb474ed
+
+I=138 Round=8 Input value=9
+PT=48f9a1d650b96d4f9898bd98378ef23d
+CT=023ba65025a22ccfd8871ce888ba5280
+
+I=139 Round=8 Input value=10
+PT=dbb293d3d5989685a6a6a717e27327ab
+CT=92c8b8664b7b8931cffc9f73de374a47
+
+I=140 Round=8 Input value=11
+PT=62459b1f86299d4b6efe52d4ef030206
+CT=511e725ec743aff35db3fb87a93f2c47
+
+I=141 Round=8 Input value=12
+PT=fda410a48bef21f1329932fecf5c9931
+CT=77177f513ec56d03e2517d3a7f186b43
+
+I=142 Round=8 Input value=13
+PT=90359598f1da057004de4923472536a5
+CT=db47fcb25136ecc4ca02ea6e3b170f96
+
+I=143 Round=8 Input value=14
+PT=a85d04b3ab7cfab070303de97bbbac8e
+CT=142d37716427b56a430c1bbf266627ec
+
+I=144 Round=8 Input value=15
+PT=29c3fcb11e6a31747b2fd450043965a9
+CT=de603634bc986ee15dc8a5bafb8f48c1
+
+I=145 Round=9 Input value=0
+PT=6b965c9db406b15dee070b3737afe236
+CT=b8613d85e1be8095b5cd6eb6c323cc86
+
+I=146 Round=9 Input value=1
+PT=2ec29ed02053659d2a816d5d42b736be
+CT=e2efed0364f10c1c9d6dd2281cc4b474
+
+I=147 Round=9 Input value=2
+PT=bfb4b8f15ae93d02a0260e5e7a9ee167
+CT=e76e8c979182dfd15b6ceed50627aa1b
+
+I=148 Round=9 Input value=3
+PT=2019c4104affb46dfdd560685ef24801
+CT=db98c2d42495dc0f486b859d991fc7ee
+
+I=149 Round=9 Input value=4
+PT=46df0921aeb64f07562e29a504aec28c
+CT=0016b8a636799bb1b2a2793cebaff36f
+
+I=150 Round=9 Input value=5
+PT=c6be300b186a73608724dae32a71d820
+CT=c5f58f6b5ab03f4813cebde390c1e474
+
+I=151 Round=9 Input value=6
+PT=7356574ae2604da6aef12a0111122928
+CT=7d03011aede5a0042844219eb5c69c84
+
+I=152 Round=9 Input value=7
+PT=64283c92ca319343935e4f9e02c44ec3
+CT=830d063c22c532a4669af25b216e74d1
+
+I=153 Round=9 Input value=8
+PT=b8de05c494645471db446ff35448b5d7
+CT=51055fff3df4c461b68505423054d4c4
+
+I=154 Round=9 Input value=9
+PT=b483426a57e11c6ad27e8cd15c582512
+CT=d3086351f5da24a7c0ad35180b910275
+
+I=155 Round=9 Input value=10
+PT=ee43ecdbbc6e6262e15564c06425d0e3
+CT=9f84105c7a1aa66d584ad3d77305da11
+
+I=156 Round=9 Input value=11
+PT=e681d1b8ad973af33cd8206bb228eda9
+CT=c3a21b14aa77cf9b4cca42d727307fb4
+
+I=157 Round=9 Input value=12
+PT=8eef4fb50d1d7488aa4e76c408b042d1
+CT=5626e1d6e54f5ca28f917323fd48f7dd
+
+I=158 Round=9 Input value=13
+PT=e2104ee3397080b3eb3b7ddc7c1668e5
+CT=18bd1e612506d57e070be87bc4eab5bd
+
+I=159 Round=9 Input value=14
+PT=90cf9a8ebba66adfcf4691f395ac2373
+CT=631274d3c3e3b48d84d90a1b5e3fe5f1
+
+I=160 Round=9 Input value=15
+PT=4fe387d53fd2f8457c0d4570a11a54ba
+CT=924db4a50aa8badeb47c3517521e3319
+
+I=161 Round=10 Input value=0
+PT=97f70b820e8e18d0f0c083d048e303e6
+CT=9ab3e3ae3ee3136bd2c551fdeb1a692d
+
+I=162 Round=10 Input value=1
+PT=92c26f5adda285f0b36424a40914d35a
+CT=cc900de64f074e0eec6620e539e9e863
+
+I=163 Round=10 Input value=2
+PT=18d088fc13bdc3b959bb49cc6d2bc5d9
+CT=c00e90bc623696a134458115d93f56a7
+
+I=164 Round=10 Input value=3
+PT=6bbecd2b7f3203d1f9d8a1778a511430
+CT=af785b9449ec4450217d46a64539d959
+
+I=165 Round=10 Input value=4
+PT=cf419e2bc140f116a61ed4d6fc534f5d
+CT=26f43d7378fbce015026fc8daaf3d7e8
+
+I=166 Round=10 Input value=5
+PT=a50bc3f05a4f2afe34132b1876ca0ae3
+CT=d22a7225fccd62bf7937f7542b9768c8
+
+I=167 Round=10 Input value=6
+PT=9459e606e485641b2c260ec2220a4aa0
+CT=fbef406f177a153748528967fd75a132
+
+I=168 Round=10 Input value=7
+PT=6180485034406c363b5c47927a0b11b6
+CT=73efbf49714f58ee382cce7c30e0da88
+
+I=169 Round=10 Input value=8
+PT=13f168677f5047ba1027b1dd9ef55d8c
+CT=d8882525cc7ee3ed11d43291a99f4cd4
+
+I=170 Round=10 Input value=9
+PT=eddf0cda56dd77a687653413d085c317
+CT=d240de6f935495cdf9690cb3ab3e0cc1
+
+I=171 Round=10 Input value=10
+PT=d716e75f44baeedff7c16ed932a1436e
+CT=731efef911a01f9db3361563a6f51b91
+
+I=172 Round=10 Input value=11
+PT=03a1ecffab857ae5e0182ba4e83327ea
+CT=44e3b73061ab631d437ab9043fbf4717
+
+I=173 Round=10 Input value=12
+PT=cf7b96d934f8434288d9cc4e9a8fcd57
+CT=2822d5932dc9fad4c73897c3e4b6338f
+
+I=174 Round=10 Input value=13
+PT=643c009a265d60fa1b3c80f07c202366
+CT=1ec85acbcc18f4fc5501ca6b7cbe3485
+
+I=175 Round=10 Input value=14
+PT=b7d738a6614ec346d61cac3b608b5676
+CT=e9a95dcb24ea3e24174350e16e78f653
+
+I=176 Round=10 Input value=15
+PT=68302449ec433a44f42af9c4c6331e84
+CT=900de98b7717457b43776b51ece332fd
+
+I=177 Round=11 Input value=0
+PT=edbae094898f9fded204cf9e1ac19710
+CT=b056a48d7acadddf976d3e0de2013414
+
+I=178 Round=11 Input value=1
+PT=ede128c4818bf3ec6042ca44e20b528d
+CT=b66fa67220106af5c31fb092f4821b70
+
+I=179 Round=11 Input value=2
+PT=c4777a738b3f5a925762e29644e59ba0
+CT=2e2d240da5adc1794a2f9c74316d27d2
+
+I=180 Round=11 Input value=3
+PT=f7298e45c3d43798d9660620f66314ae
+CT=718d92191b8cb83f2fee6045e33fec4b
+
+I=181 Round=11 Input value=4
+PT=bfb581acf958377f47a05f42a6fe0a87
+CT=332ba3208ffacfb3342acd4c226b9a3b
+
+I=182 Round=11 Input value=5
+PT=ca672cb975f98dba0bf30e3ef4572845
+CT=ff546e0bb20df4b9d5d91488ed790b65
+
+I=183 Round=11 Input value=6
+PT=ff8c9d911257294470f261301462a63e
+CT=2ca52ffd179a9569302ff1d0f20cf63f
+
+I=184 Round=11 Input value=7
+PT=9a0ee52000991ab5679dcc6b0e721037
+CT=275f3d7a5083d4b704fdfeea284606ab
+
+I=185 Round=11 Input value=8
+PT=5bcb360adbe73916ea6cb6a31f71cdce
+CT=0f412a87cce317c77017d7ff87919c21
+
+I=186 Round=11 Input value=9
+PT=9374b1ffbb7d015d059c4d4e5bcf061a
+CT=3fecfd0cf9dbb069caf06eed2c632bdb
+
+I=187 Round=11 Input value=10
+PT=129b546ec22ba1b24dd447c50f3d40c9
+CT=05de77bac354cc56bd34275470677434
+
+I=188 Round=11 Input value=11
+PT=2fae63cfd341aaacb3baf6299623e669
+CT=e1ff63421a759873cf5a15d0d6c2ab68
+
+I=189 Round=11 Input value=12
+PT=69d7782d49fc7709cca545ed3aa2f3cd
+CT=009caad15da82b66c51257424b285501
+
+I=190 Round=11 Input value=13
+PT=3b8a98cc8279cc4923eb9ecb6b7a9438
+CT=44c44d15771a8a274b059c5d20057748
+
+I=191 Round=11 Input value=14
+PT=dd18da0c00d3b3dd0c057d0063171ad2
+CT=8ec2c2729abe4731649907bda0babde4
+
+I=192 Round=11 Input value=15
+PT=72f35a48864d20cdc0ac8b4f9d346ed8
+CT=d94be1dc7c74a607e7f08615d79c0c69
+
+I=193 Round=12 Input value=0
+PT=2756722ab774d8a5941611901e9e3a2f
+CT=f76dc583cc338fdcc1dceac8e6b45b48
+
+I=194 Round=12 Input value=1
+PT=564c09dd7cd137d5f7d0c5e8d99763bf
+CT=9e45172bad732f891a2781e39b50c55d
+
+I=195 Round=12 Input value=2
+PT=e94082c732b3f3131ea1265c7eef8e0c
+CT=f08813c71ac9209b69619180037b7ffe
+
+I=196 Round=12 Input value=3
+PT=50c428666cb3e38b497d450d37a30837
+CT=17b458de23af284950e19e1ee646cd5e
+
+I=197 Round=12 Input value=4
+PT=d8e5d1db0741a6c795240ea8d44b987a
+CT=47cd6f4698abbd5010604bdfe2c69e52
+
+I=198 Round=12 Input value=5
+PT=51722e7b3bfd20d21f3c2cf3a4270ce0
+CT=738899d6d18077184ab3c94baaf200de
+
+I=199 Round=12 Input value=6
+PT=ce1e296f47003e397ee915f5e1d5eec9
+CT=80279dabbdf76b4c7a656a6429953681
+
+I=200 Round=12 Input value=7
+PT=aa737a5d48e7954e0c6baa9c058911d9
+CT=8e3d527cf14ff28a032c836813ecd1f6
+
+I=201 Round=12 Input value=8
+PT=e25f44d4baefc3bfceeff5867a4a82b0
+CT=d56a6f48c5867a6c305d37b2a52e12e4
+
+I=202 Round=12 Input value=9
+PT=1f969deb43cce1b5b145d256a747ef7f
+CT=571bfa1deff24037c6548670c6227853
+
+I=203 Round=12 Input value=10
+PT=73a3ddb4f7f3cc86e25430134d564b71
+CT=6ab90dd723e78c614b45703cfab611d6
+
+I=204 Round=12 Input value=11
+PT=7db515f35f5667005ccb3e0972c6ee67
+CT=5420d7a5dbd3cb14ea94663d99b2ddbc
+
+I=205 Round=12 Input value=12
+PT=4005caf757134f1cc0538c0541ad34eb
+CT=9ca4c73b36bd8c6e4ccddd2def1c5ec2
+
+I=206 Round=12 Input value=13
+PT=65b22df519fc1bf5162bb860fcc67b08
+CT=56939d0d47750e88088db13186496b40
+
+I=207 Round=12 Input value=14
+PT=55049610f369d7bd0d13688f275f507d
+CT=14cd2418f9a8384f5a99dbb16f4b4a0e
+
+I=208 Round=12 Input value=15
+PT=01101aff575e073d0035b2ddf9bbc553
+CT=86872fe9f99fd65a710e02e2b94d70fe
+
+I=209 Round=13 Input value=0
+PT=5e1d499dcdd7ea90aaeeceb97952e143
+CT=352b7014154c32fbfff434b064c64d7b
+
+I=210 Round=13 Input value=1
+PT=eaf406b9fa22b1a1cb8cd1b2d2e3c50b
+CT=e8c0a555c30fcc7ab2ec064010a5e154
+
+I=211 Round=13 Input value=2
+PT=e15f86c7a90864d54fde0713e8f1412a
+CT=ff4dce7880e4da60fecf0cba0f9b0b7d
+
+I=212 Round=13 Input value=3
+PT=ca4260c69cee9e148a73f6299f2bf77b
+CT=46aaacb45b50f9aba3b4c1ae2e5ec0b8
+
+I=213 Round=13 Input value=4
+PT=c6b77e79909f20dd59f644296cca0799
+CT=2450477be72a23694d287792522b6d60
+
+I=214 Round=13 Input value=5
+PT=e9cdbbb08358c181c82245752a738e47
+CT=6248b5c9d75394a94e57612774cf32b2
+
+I=215 Round=13 Input value=6
+PT=a6494fae211bf4930f3af826f3b29e4a
+CT=a20c44577faad931ed108d9330064e35
+
+I=216 Round=13 Input value=7
+PT=4052f98c573c3d1d516873e8a4367b8c
+CT=ea7fa566e6284c02b7a5d25352c5f153
+
+I=217 Round=13 Input value=8
+PT=3b55b74015b2db53354c7875551f2aee
+CT=8a7d24a211ae2dcc30d4e2b768878c8e
+
+I=218 Round=13 Input value=9
+PT=2a88e1c80c65bab5a4bc7cb7eba1e9bb
+CT=fb14435f94acd8818225fa0356fc3ba1
+
+I=219 Round=13 Input value=10
+PT=4c0e1b29147ca651abe9e43a5ded0403
+CT=417302e68f0a64977ce085d289bbc017
+
+I=220 Round=13 Input value=11
+PT=3d728b57330187e9ce81480d3460eee8
+CT=c405069489ea526b5fbdd56853abf1da
+
+I=221 Round=13 Input value=12
+PT=09639a37f1ecd0fff94c37bbb40ef215
+CT=df6fc673606b21a9ff5feb5503f6d5d3
+
+I=222 Round=13 Input value=13
+PT=f4d811b627cb141d515e99dc4594b503
+CT=d8a3a042544258ffde4f86f1722b4ad3
+
+I=223 Round=13 Input value=14
+PT=3bb3ef8a3be841feeaa6acc7fc46dee5
+CT=43ed54f6dc4cf3ea66e10cc78f0c0452
+
+I=224 Round=13 Input value=15
+PT=592e3caac0a97cea33fd12cf9ea7dec6
+CT=6b0a0890042cfa3628c9f659f702579c
+
+I=225 Round=14 Input value=0
+PT=6988fa4fd2cdfc47f42bea12302fddcf
+CT=7d2bf2e833ed4983037328880e593fc3
+
+I=226 Round=14 Input value=1
+PT=64d4f869964b516076dbd8b7f34afe8b
+CT=0d63a608c2b5fddc8d8a9c720f0f32a8
+
+I=227 Round=14 Input value=2
+PT=2e79acc8c3e1e7d5ddde639ecc581930
+CT=301030e48ce5538fae3aa71e7e595d9f
+
+I=228 Round=14 Input value=3
+PT=261fd0f822cec15960861737f6c0d8ed
+CT=2b40e4b6ee02a149baea3e93b0f2ee4c
+
+I=229 Round=14 Input value=4
+PT=1774c3b4c928bfc262dd04727ac58b5e
+CT=1a847f12a615d86e8996a3593e77c558
+
+I=230 Round=14 Input value=5
+PT=cbb7f2c68bfae63c38ed161996186f25
+CT=95fcb8ee8a30fcbb54c317e4bf3e807a
+
+I=231 Round=14 Input value=6
+PT=f16ffa4f398c83cca531626def664175
+CT=e6ed89e54358ae9d6cde985e50c7514b
+
+I=232 Round=14 Input value=7
+PT=23739d28a9510a4289edb2cb2f799c56
+CT=f06021c12cd7d44ee1a343918e5050d4
+
+I=233 Round=14 Input value=8
+PT=a02b13fac7923de3559f0163ce7b4df7
+CT=facd0ac73e30265ae89ac776b526f1a8
+
+I=234 Round=14 Input value=9
+PT=9d1d72d954bb18c83b1efaf5f97ceb1d
+CT=bda4194298a823bf284447f781f81391
+
+I=235 Round=14 Input value=10
+PT=807dc0e748b8d003cbe2a2be3c2df52e
+CT=196119e6664e2958892cf26e4c8315da
+
+I=236 Round=14 Input value=11
+PT=1753003ba497db0ae7b4579e7d81273b
+CT=ceaf976924a2eea0021a3da3896997ce
+
+I=237 Round=14 Input value=12
+PT=42da4b0d4daf6a1555aa41da24ce285e
+CT=36f5648b2988743228398779b82cae32
+
+I=238 Round=14 Input value=13
+PT=ed639871f3a790445f38259dc01a338d
+CT=78e0bffa0018adce8935398707387699
+
+I=239 Round=14 Input value=14
+PT=1fcf0a9fda939735474db068b756b0d5
+CT=4be59304d5ec03b31300a3eff1b4d5ea
+
+I=240 Round=14 Input value=15
+PT=2f34ebee7ca0ebf4ef6950c70e8a2b32
+CT=d9c06bd4f128eac535a4a6675df6941a
+
+I=241 Round=15 Input value=0
+PT=fe1a0e1974d53647dc570a3c56224a4b
+CT=82fe8e6dde9b681c473b9def703b4cd8
+
+I=242 Round=15 Input value=1
+PT=ed37a73d6019426fe46e0122cb17d9f1
+CT=5a47693de914e82e739942508eb9d24a
+
+I=243 Round=15 Input value=2
+PT=7567ddd1aa10d7685fb325616e21da74
+CT=2eeada5b980ae49dbd1626234b94bd7b
+
+I=244 Round=15 Input value=3
+PT=36f82732e9b10312374deb0120602c29
+CT=284493b00d12d755c1b375afb213408c
+
+I=245 Round=15 Input value=4
+PT=f05c9df2671b1feba728c2fbc7834673
+CT=34caa7cde33f8430b8c33922bbc71d95
+
+I=246 Round=15 Input value=5
+PT=f70fbb73dceb0362b4ddd30e6d474778
+CT=bd98acaadfdc1bad3f25f5071049b560
+
+I=247 Round=15 Input value=6
+PT=fbd4784838064c5f201427c8c386cd81
+CT=3e269de9878278824b582f3d95bd5e58
+
+I=248 Round=15 Input value=7
+PT=f547b2b8d3b1a5d25a6582d4a67254e6
+CT=48375751067c57cbdc68da180f91d140
+
+I=249 Round=15 Input value=8
+PT=0f5377fb89fe2a89115b8cbfe36e7027
+CT=9910410b66fcac1a30ddc0376a2c1180
+
+I=250 Round=15 Input value=9
+PT=0fd62ad9eb81f0792c4754a947205899
+CT=020b0aecd370cfdee1c65610e0944b29
+
+I=251 Round=15 Input value=10
+PT=150ce4c594ea80352442198f31edd17e
+CT=b19b4c079d9fa0eb9fbd855dde860948
+
+I=252 Round=15 Input value=11
+PT=f0bb2a2652b991978bff440bb89b39c4
+CT=35d61938afd4a13ee6c4c34e6335b40b
+
+I=253 Round=15 Input value=12
+PT=fc0dfba46fd05649577c3521f67497aa
+CT=3b2f25cccd638eaf22a0da47b2709608
+
+I=254 Round=15 Input value=13
+PT=723d8c6d740d478383886cb9c0f2d7a2
+CT=c5b5e4add6664f7cb94a71433902c671
+
+I=255 Round=15 Input value=14
+PT=e7589cff2d3fcf2e09bfcba693e7bb60
+CT=5a2aa31ae8cd9fa4f460715350014b91
+
+I=256 Round=15 Input value=15
+PT=2ae97ffa2c6945fb97938db6cf44cacd
+CT=67a05d53c68b47662154b8513a4bcd01
+
+I=257 Round=16 Input value=0
+PT=2adc97fa94181bc9d3817c3298851d20
+CT=1ed68fc5b49f5892678a97558e0ff6e4
+
+I=258 Round=16 Input value=1
+PT=7cf3898b2d5b620573dc057a47cb7330
+CT=d4b9f0677ae22692a920b8c39ccf0d75
+
+I=259 Round=16 Input value=2
+PT=9535b2242bc49acd5e0fca6a82430d8b
+CT=296ac5603257ea33fc36a46cf91cea2b
+
+I=260 Round=16 Input value=3
+PT=5427f1bdea31dbb885d2996d45f01ece
+CT=0e3518f5ab0c7b93fd588be7ecaf269a
+
+I=261 Round=16 Input value=4
+PT=444ae0c854c8101cd43f1a8b93545f6a
+CT=22b38dcd660c5f023e01a18b8be75d40
+
+I=262 Round=16 Input value=5
+PT=44da501e97d6dc564cb22b3e83cb5c92
+CT=e047a4ef0d77be9436e11d8a0cc5b1a7
+
+I=263 Round=16 Input value=6
+PT=3cd14f84f1e35568f1fe2e8d0a5ece72
+CT=295619ece6d32e8fb9c5f2616a7b1753
+
+I=264 Round=16 Input value=7
+PT=bc50086ccbbded2cd9f415e14c97a3a7
+CT=38b30effd1508bf944f5bff77611c33d
+
+I=265 Round=16 Input value=8
+PT=f30f7ac8bbb598f4272464231e18b06e
+CT=e0db28a3dbd695829102f2951a7b88f7
+
+I=266 Round=16 Input value=9
+PT=0a70c6f083b8512d6e8a10d7bfb52d11
+CT=9532b63ddbb098fd6c6f37981b6fec35
+
+I=267 Round=16 Input value=10
+PT=675a4b26568d46546f10c631ffb89cee
+CT=79d4d5942206dc3b43bdc26ec8112afa
+
+I=268 Round=16 Input value=11
+PT=a01175539d105224d016b53e3ddb6992
+CT=4cba89d38127a46a545edaf6a509c770
+
+I=269 Round=16 Input value=12
+PT=bccc2965bc03fa91d7ee69f1877c7904
+CT=447f894267185c3fb3c736652339badf
+
+I=270 Round=16 Input value=13
+PT=eda5dd47446dda4cf91967f9e9eedc30
+CT=b94e9b2db208321ea79350b87be2e26b
+
+I=271 Round=16 Input value=14
+PT=3e47c1f7354a92e5f4bee7ed1f87ecde
+CT=36fd05b2962e22f037eb6a935396182d
+
+I=272 Round=16 Input value=15
+PT=590482f18cb1470d6cefe6401e1bd914
+CT=d2ab852a034b258e7d5251a4d6fb28e4
+
+I=273 Round=17 Input value=0
+PT=73f4d47c5f3f8880fc683c4ef84407f5
+CT=56e160e85e76754ce4436693acadd912
+
+I=274 Round=17 Input value=1
+PT=84667d27c05a6c2ac25f47b30a9137bd
+CT=2001429094363bf5fa0c55b7e6adeb22
+
+I=275 Round=17 Input value=2
+PT=2290130670a31f2b6314bb7b3bb19e4a
+CT=8566ffd3991e89178ef78bb7ec68051b
+
+I=276 Round=17 Input value=3
+PT=c34a6d3d65da20c6ded82acc7e36f6a1
+CT=7c7a127497a0b9985754c78da9c02db7
+
+I=277 Round=17 Input value=4
+PT=f6fb1138e6b125017f7cd056f5a2fc1f
+CT=34583b8a4f110c78a7ecc51a674e0b62
+
+I=278 Round=17 Input value=5
+PT=8f4cd77cc2a94db9bf9b3bd3373aef28
+CT=d7557c1b13a128b63fcf0c17063ffb8d
+
+I=279 Round=17 Input value=6
+PT=ab7e2b73064278128d0e2ff88b340435
+CT=8d0ea5350665087e72763d7f7a209593
+
+I=280 Round=17 Input value=7
+PT=6cfedb788c31c615e072fab4039b9b64
+CT=996d027ea9e7ae574b2d61781e7a7f1c
+
+I=281 Round=17 Input value=8
+PT=e0538fa168cfd73a2e0a756120245d5e
+CT=9501ff6669e4aa58bd63f874eea6bc92
+
+I=282 Round=17 Input value=9
+PT=2c63987e4ae918c1166ce60d38c3ea0b
+CT=09f82bc02eb9d22f035aa48dafec07d7
+
+I=283 Round=17 Input value=10
+PT=8e2c1347f694bfe5dcc1bdac290b0c10
+CT=2ae5c329bb0894d2abc77ee02ebbd4d7
+
+I=284 Round=17 Input value=11
+PT=4e9fb81782b939d38140eaadab0ec4e4
+CT=9f1073e17b1c1606e7c41331fe778406
+
+I=285 Round=17 Input value=12
+PT=1ba25d4337b67df67228ba18fa1e2079
+CT=53b3246ff339e01b12e22fc440d13ee7
+
+I=286 Round=17 Input value=13
+PT=f24c9f2ffed4e9976d75fdc02d4caef0
+CT=71c6374e3a0479210df7d67eaaa67224
+
+I=287 Round=17 Input value=14
+PT=a01e46290549e40ed8fcdc759aaa186c
+CT=15c3dc21c7b64d6755fd6763328c8195
+
+I=288 Round=17 Input value=15
+PT=b618e15de0ea93f68c0800df6ee3c073
+CT=1edd1f44b28809688d3b4a8949e1ba44
+
+I=289 Round=18 Input value=0
+PT=cfb5c5b7508c89b52a2d1e8cf75805c2
+CT=35bd8d5be78c26c885b9c9a95d893166
+
+I=290 Round=18 Input value=1
+PT=fd00aac6e3e7bfab636ac45734be2d7a
+CT=8e95ee709e159d34a35178330f5d5fa9
+
+I=291 Round=18 Input value=2
+PT=289736dca719c9bb9810c6585001b39f
+CT=fe4aa2381c56f2983cf3c9d3e3dd3e0b
+
+I=292 Round=18 Input value=3
+PT=0e70be8975b7b51c713758306eaa4684
+CT=2724b86daa4e3f50b2764616ca3ff39c
+
+I=293 Round=18 Input value=4
+PT=a489540d6a4ce762e1f585b914c1ac63
+CT=ba86cf1648db84eb53c4f3b298af0245
+
+I=294 Round=18 Input value=5
+PT=50a4dad09b98000504dea998a774b21f
+CT=b737de7ec14782019db9f7adb4ba2251
+
+I=295 Round=18 Input value=6
+PT=b97c2e452558182efa3a808fe3b6750b
+CT=8bc656e1a2e68bd7fd36ed08c5d05380
+
+I=296 Round=18 Input value=7
+PT=b0c2bc7aeb7c45c9e6390592bd982950
+CT=f9140f23910abe57de9f2640fe850a63
+
+I=297 Round=18 Input value=8
+PT=e7b259672992bd5ae704a2c5ee9854d1
+CT=44c29df0f9c10ed7348bc38759dffb1d
+
+I=298 Round=18 Input value=9
+PT=25c990f152942fbeef0e40a42a16ce74
+CT=4ddec91d9fd87bae720487438b18a089
+
+I=299 Round=18 Input value=10
+PT=97286a68d50ed7b02ea0aa2d40d9f69b
+CT=7f30658708f9563585aef697c5b980f0
+
+I=300 Round=18 Input value=11
+PT=95f79c9915aa3046c2a3836bf14e1066
+CT=f8e577efcaa96b66d6704df31ded5b46
+
+I=301 Round=18 Input value=12
+PT=a436e2c18a44552030b217385618752c
+CT=45168068af64fdf5f29b6c2d588b2229
+
+I=302 Round=18 Input value=13
+PT=b1c008a0c2bf1f499ccdf0786ea540b8
+CT=b58df564ebc3df64f70b82702d571e74
+
+I=303 Round=18 Input value=14
+PT=daa21c763ba32bde7182095bc2456c36
+CT=263d4360e53b83fab7e028cf170b7393
+
+I=304 Round=18 Input value=15
+PT=51e55d71628670ce0a657d8e998bc2df
+CT=fa3bfe9623a24e34f5fb210ead440707
+
+I=305 Round=19 Input value=0
+PT=f0179c45d4f31e3d291bfcf96a9f8dab
+CT=59bd4f37ac56cd93246f29492d853a87
+
+I=306 Round=19 Input value=1
+PT=84522ff2b781bb0c8f4c26671f7d8acf
+CT=0a276c532544f3751b2a468ed48d68a0
+
+I=307 Round=19 Input value=2
+PT=cd230bea9685618454a3f09551521139
+CT=e5cf3ab5de5bae7fa588d85e12361b9b
+
+I=308 Round=19 Input value=3
+PT=7f9abeb1ee49a8da28e1f7eec62cb05d
+CT=a82648c76cbf20f7c2b19eca7c4d4095
+
+I=309 Round=19 Input value=4
+PT=c98d7b6c3ffc96435fe7b05ab860b2cb
+CT=680e9cda178eddead85837614e2a702b
+
+I=310 Round=19 Input value=5
+PT=02ed478b2d2ba6bdeb7e0dee71c3c773
+CT=4767ef9e9e73fdd15f6843e9f5e0b9c6
+
+I=311 Round=19 Input value=6
+PT=d555aa415839d70ebc392eabf1488c92
+CT=f0d1afc25870172fd864f82210b7e06e
+
+I=312 Round=19 Input value=7
+PT=23562fe02ef04a1a6de71a14cba4739b
+CT=41c7818f278dc24f031c4935fae2d911
+
+I=313 Round=19 Input value=8
+PT=5da6a93ba2d38825578d0731e9f88ff9
+CT=938e8ada76b5605cf4ce3e701e8f4069
+
+I=314 Round=19 Input value=9
+PT=72c29a4ed9f577b45846393e6de697d6
+CT=c5506c80fca13bbaf4bff1901c1ce2c3
+
+I=315 Round=19 Input value=10
+PT=c08396a71ee6e30d7978125dd92a5d7b
+CT=42d2dafb8f4ff2e4092d4ff3f79eadba
+
+I=316 Round=19 Input value=11
+PT=5401273e245bc503f919973799e6ab2f
+CT=c8721658cb56b4de2132bbaeb68e7688
+
+I=317 Round=19 Input value=12
+PT=e49da9ea5a0282e6cdf8b19dd167d5a1
+CT=2a8e05d78652aa64cd022de42db616ea
+
+I=318 Round=19 Input value=13
+PT=3ac4496dfc4e8ec1022474906e40b931
+CT=82cef12da96ce028c55c800931ab3ec3
+
+I=319 Round=19 Input value=14
+PT=ff3f4ed0815b4ca75e56b8cd61c85cdc
+CT=aa2c2872bb293b4f4578d8d916105895
+
+I=320 Round=19 Input value=15
+PT=761984bd0f5345250b1220aaca35d792
+CT=3b81365fe4dd523cc94b962d902f35af
+
+I=321 Round=20 Input value=0
+PT=d37055c8fbcd9f472cf641e3a234ac81
+CT=fde6ed75aa3924124c03efda34285ed3
+
+I=322 Round=20 Input value=1
+PT=f5569e48f914deb081e03509a0a56cdb
+CT=22e26b55761e67445e81cc1bf607b2c0
+
+I=323 Round=20 Input value=2
+PT=e0246dfac56713bda9b7b11a73c49567
+CT=d68ce446e4f23712564c4d4e698cf4f2
+
+I=324 Round=20 Input value=3
+PT=3516f2ad0ab46646d22df3008c1e3d50
+CT=1f330925063e08e431c273a5568dab6c
+
+I=325 Round=20 Input value=4
+PT=9d8d3918c821d2dcda4ff8e4d7d2349b
+CT=7c2f0bafa36930de077d7cf9a411623f
+
+I=326 Round=20 Input value=5
+PT=2842055f7664138d2a6355cd25aa6a9a
+CT=9844a1a86d3f6805134225b20d71eefc
+
+I=327 Round=20 Input value=6
+PT=c4cacdfea727ee509c78b467f373bb51
+CT=86f3828e027338539ec852b18f65dc89
+
+I=328 Round=20 Input value=7
+PT=e8af2014b617ce77a954f9ae18fbe238
+CT=fabf8f0f1652283f0b6024d9e190f0f2
+
+I=329 Round=20 Input value=8
+PT=576bea7d9d3ad3387ab83ec27df2e140
+CT=22faf01f9f01ab9a74bcabdf4a97a70b
+
+I=330 Round=20 Input value=9
+PT=e2e5edd82e4ef450c974b8a64f7f2369
+CT=5073920c5c0fc8c583f0fcf95d1ebee8
+
+I=331 Round=20 Input value=10
+PT=f69590ff390e159f6eb4ed5f1f1529e5
+CT=617e9545aa08f3651091faa375d51695
+
+I=332 Round=20 Input value=11
+PT=5573df34f1e8d167485f141e78c42139
+CT=617fc17c1d0e0c1eda99b1051cb2dade
+
+I=333 Round=20 Input value=12
+PT=a4cf59a50451e648a00635849397fcaf
+CT=17d6040b25e8d927aef76677a466c443
+
+I=334 Round=20 Input value=13
+PT=04f06b26c4a6c9c193d763b1ba61ccd7
+CT=9df2ae8795fa5bfa9ed19ff63cabe2b0
+
+I=335 Round=20 Input value=14
+PT=6c57cd206cfbc978740b003fcf4ed6a0
+CT=caec38f06a4438d7d21e334f3a890a2c
+
+I=336 Round=20 Input value=15
+PT=150cd8b846ff7d06cb1e8c27e6641914
+CT=c4ce2656a138df5bc66fda65e0329ed8
+
+I=337 Round=21 Input value=0
+PT=cdf115d4dbed5e9ee6ef72af2f8e5672
+CT=862f9c70813593a7e8c0d97b49e99d3a
+
+I=338 Round=21 Input value=1
+PT=3e76111dfb44ae63a5be63b0e1a90923
+CT=30639f76f89530cb17c71ce038d6682c
+
+I=339 Round=21 Input value=2
+PT=398614715415f589d109512ae286875b
+CT=e34de748dca9c52b85ca702f0cda4bf5
+
+I=340 Round=21 Input value=3
+PT=c2289b6aeca2a88884d68974fd1db314
+CT=4595fd36ec769984869bc07c2610412e
+
+I=341 Round=21 Input value=4
+PT=3e4f69947dde9dfbdb8fe7407af9d872
+CT=aee7a6eda5376af73853a1060a0e012c
+
+I=342 Round=21 Input value=5
+PT=7e7cabb74a5086c4b5e0bf9aea6bfb7c
+CT=1ad2c4bc7f5a3c617834f51caadd9514
+
+I=343 Round=21 Input value=6
+PT=fe7246d7fb66977950beaf522387228e
+CT=39a3b4496085fad27a48fb60cf9488da
+
+I=344 Round=21 Input value=7
+PT=1640b2cd1831bb4ca5e7b36071c6de9a
+CT=26c6a26075b6dcc9d8e4747fc372d8ac
+
+I=345 Round=21 Input value=8
+PT=53663b898622f90d2a80ea91878835af
+CT=aaf16ab3502d400004873b855d302d2e
+
+I=346 Round=21 Input value=9
+PT=428f00cb35244d3d878b6d7204174030
+CT=9c9b247d44fbc7af7a580b7a1a074417
+
+I=347 Round=21 Input value=10
+PT=a6e79f3ed957ccfea2fe01f03bc6602e
+CT=c32858b34ee50f8d5c02717b1b90b583
+
+I=348 Round=21 Input value=11
+PT=4dfc04f557ecde04491c05432c405039
+CT=c80615e0bef19a9f9ffb260103919c9a
+
+I=349 Round=21 Input value=12
+PT=1ca7bb7d31b2f970857004be8e4a45f5
+CT=833ae7211b8e5b0845128920fd640b17
+
+I=350 Round=21 Input value=13
+PT=4fecca43f6a043006529385c19af033e
+CT=d02e06bb7777b7936a3544413d2593a5
+
+I=351 Round=21 Input value=14
+PT=6376f0f2ac7f6d5d4ebb96c273cdec2f
+CT=7d80308a617729b4da9113d275cf9da5
+
+I=352 Round=21 Input value=15
+PT=6b0b6dd3e4e8df5db19b0c8ffc00a6e3
+CT=7564c4af70d31349914fdccf77dae3f2
+
+I=353 Round=22 Input value=0
+PT=1cbca80fd67382e782df018301e4fa65
+CT=c3a1e6faf1acc71a3897141f812082b4
+
+I=354 Round=22 Input value=1
+PT=9f3e738d6d2f33010a6f46315d513f51
+CT=50ab9ee21e97562927c0fd8e20786e05
+
+I=355 Round=22 Input value=2
+PT=b12650126c8b97bc5194b11ef4d71a28
+CT=b5edafa27dda4b4600400993d9206ddf
+
+I=356 Round=22 Input value=3
+PT=a045fc817be3557e10f5fb19395ea797
+CT=e479c32704626d0f0399e1648b2a05cc
+
+I=357 Round=22 Input value=4
+PT=0cff9862dfe2df7040f1bf68b9f001b5
+CT=b17bda6d6e1ca0b7ffd9589a5f78530a
+
+I=358 Round=22 Input value=5
+PT=d078124d211247ba6a3e0533997e2b67
+CT=c0fb2b9e0944608e99c992ac1106e14c
+
+I=359 Round=22 Input value=6
+PT=f827a1318f93a65321a760e2b921eec8
+CT=ec4660ccbcb250f313f0c19c38f8ed7f
+
+I=360 Round=22 Input value=7
+PT=25fab7acac99daba8fd8113d22fef661
+CT=899db6e7974ef93274eb1ffd8b2834a8
+
+I=361 Round=22 Input value=8
+PT=624baf6b008d8ea34416b11fa3d79df7
+CT=d9ff5ee8063bfb450882df9c299c949e
+
+I=362 Round=22 Input value=9
+PT=9e296ef284d79a22eb26e2abc1e52873
+CT=ea75dcc33052a0b11da05914e31fe257
+
+I=363 Round=22 Input value=10
+PT=7eff5ac9629ccf32e6e0bc54831ad99a
+CT=cb1ab1c22705d7e5927434b996cb04f3
+
+I=364 Round=22 Input value=11
+PT=1e5ca0ef9279d78eba0ac400def26b60
+CT=0e81ca6b7bddac2c99b0fc11adfb27de
+
+I=365 Round=22 Input value=12
+PT=dfbad5475d9005f177d0cf274dfe1df8
+CT=5bef82abcb46f92da0b05104ad78f9e8
+
+I=366 Round=22 Input value=13
+PT=ea618c685d53a43c38c907649f1d20d7
+CT=34b872cea9ab18397b1483b10d2249dc
+
+I=367 Round=22 Input value=14
+PT=c664a5b49c1300fc4557874692d334ae
+CT=fb5c1ee6d885643ad8ff27d7d546a983
+
+I=368 Round=22 Input value=15
+PT=c8cae0213edde7fdf083bc30db603f6d
+CT=d91db8b7f9547a883e06dc19b22dfc9e
+
+I=369 Round=23 Input value=0
+PT=7c84c7989ef8973e39547595f722a15f
+CT=d9b2bfdd78be4a68389902824de43ae9
+
+I=370 Round=23 Input value=1
+PT=742c778821a658058a6c1829a749f207
+CT=53451edbde412ee2ea53e69e61a1a8e0
+
+I=371 Round=23 Input value=2
+PT=4dd22c9fbb287fa3123c2e50f8f54d24
+CT=cb4b2e4e1ba9a9957d95bcd6ffb089b1
+
+I=372 Round=23 Input value=3
+PT=d9be53b002bcfdc910101b726b5c0c2a
+CT=26b9461e17acaf283169b619a1279e3d
+
+I=373 Round=23 Input value=4
+PT=edad7c85b07ed71d3f452896e74964af
+CT=b19dc0890ed9d567f3f8167a16cf50c1
+
+I=374 Round=23 Input value=5
+PT=9fc28968e0ff37e08acd630a3d3dbf36
+CT=898cbcb19ea37676b9995b9eb7da08c7
+
+I=375 Round=23 Input value=6
+PT=53c16af187d9e85f07b7499bcbc7dd9d
+CT=aa117ff076b7c8f879bf084ed1a901df
+
+I=376 Round=23 Input value=7
+PT=fb2fa64df2452825baaee212b5b5ca48
+CT=b3591b4e16ae7a21254b680578d46b06
+
+I=377 Round=23 Input value=8
+PT=2cd2c14329c9c009b669c84660b45f90
+CT=493a95739f53660868027afa25921a95
+
+I=378 Round=23 Input value=9
+PT=54812341e3bd3e0c9c9b6c2f767c026c
+CT=b31b4d8ceb485d81f09cdb606cddcdd4
+
+I=379 Round=23 Input value=10
+PT=eb8e7485896102808fe425af448b4855
+CT=5f8edac3254c84a66defabe3d80670c4
+
+I=380 Round=23 Input value=11
+PT=4c431941ca642fec0dab42fb996ae7b6
+CT=62f73fb7c1e5ced21a4bc7e37317c91a
+
+I=381 Round=23 Input value=12
+PT=f13d571425dc3ad5e573348f4fcee6fe
+CT=a1a65270736389e8756855a14cbe5ec0
+
+I=382 Round=23 Input value=13
+PT=fcac35d678d36785698fe0a1d00444bb
+CT=340de3a2294477eefa7127a78a5b0d31
+
+I=383 Round=23 Input value=14
+PT=c296731ad5ae885dd551e25e61daeccb
+CT=d3af40d70ba79c2c8fc7b14580975f00
+
+I=384 Round=23 Input value=15
+PT=39f5f33a57884c70ddfb7c6dbadc6d21
+CT=71b0c8073ce9f9bd8f3a361b954055cd
+
+I=385 Round=24 Input value=0
+PT=dcf61141441f3b8291cf247e7383df32
+CT=bd17655d8cddfe1decca7f1f60a5790a
+
+I=386 Round=24 Input value=1
+PT=1915ca3c66cff7c12918bde374050675
+CT=28c040109346be4f61ace2aaa5d74c40
+
+I=387 Round=24 Input value=2
+PT=4a726efd6135c1562ee7e8c615803c79
+CT=e54f283419cc3c8bb3635e2a14c58f6f
+
+I=388 Round=24 Input value=3
+PT=ac69f05f57d1318d7cb75fd231764156
+CT=c0caecb82a0c9715b6fe50e561fef811
+
+I=389 Round=24 Input value=4
+PT=cc8fc2622ce624a601484132defa9ee9
+CT=c29d7a1bce00de14864ba9b51cd2c7c3
+
+I=390 Round=24 Input value=5
+PT=d6830e677694500b1ef58783486645ec
+CT=c589df803f68fdac75848a0a16271e19
+
+I=391 Round=24 Input value=6
+PT=93885724e6bddca439fe2193de44abb2
+CT=9e9b8be36baced22fe2946aeaab5d054
+
+I=392 Round=24 Input value=7
+PT=e19714406582c3204fbaaa89a6843d06
+CT=6f1412c2c1f1afa522d0d711a4af1e18
+
+I=393 Round=24 Input value=8
+PT=7a3bbe36d902143ba024676bcc525d74
+CT=4a63129888ce2bf3f685a810434a6252
+
+I=394 Round=24 Input value=9
+PT=9f58cc5be3eb495470afcf398c439cde
+CT=f0e5a7720770dd7a8ccb85144e13c2fa
+
+I=395 Round=24 Input value=10
+PT=f92fd76a5f56791e4398ab0e7fe4ca67
+CT=614381232c972ecbbd3ecb418b93771d
+
+I=396 Round=24 Input value=11
+PT=400a7110446dfb947cd4eae5938e0e19
+CT=fedd8080ade435ce9268b6dbd495045e
+
+I=397 Round=24 Input value=12
+PT=a82a1c493ad3456dc54fe3813d0c4c1f
+CT=cdb7783e97b5a5ce08d3c1c03e6a35b3
+
+I=398 Round=24 Input value=13
+PT=d63a0b7ec780086b2f32f8bc9be5f116
+CT=bcacb21e7cb14b248eca1fc596522742
+
+I=399 Round=24 Input value=14
+PT=6258390704c4516cdb9f02c25e7abf95
+CT=a8ef2a9be5f0902e220e653f269e2de9
+
+I=400 Round=24 Input value=15
+PT=8f9bf8c0256b7e521a743c3c20abb0f4
+CT=e74cd17c770c7c5feb302f7757f0090b
+
+I=401 Round=25 Input value=0
+PT=5eed805cdf56dc7dad0442caffb92294
+CT=f26960fda88845b1f7780fc6ec5e83b2
+
+I=402 Round=25 Input value=1
+PT=cce1e3b4c628c3f3e829385c8e855607
+CT=f5984afc99f80cf6d0c5ac9748e9567f
+
+I=403 Round=25 Input value=2
+PT=7b52a46f627a3084b5cf66ce38038e5c
+CT=03755b837dfb8162c8859b8a5e9c81d3
+
+I=404 Round=25 Input value=3
+PT=611b249b8316dcb700e9ca0b3fab4c52
+CT=d8058ef63c7695da375b1a5ba1c271cd
+
+I=405 Round=25 Input value=4
+PT=6ab1b855daeb4ea9975cc7ee8fccb374
+CT=3ca484747e1535abaf4936ec0d3e70a2
+
+I=406 Round=25 Input value=5
+PT=9115f66cb839136df0d1e9b843d1c633
+CT=955b75f5bdf2a5afb7e0d8731ebc98ba
+
+I=407 Round=25 Input value=6
+PT=98b5fcb80dae332f49ba36017ff63dec
+CT=0d053dcdd8568a94fee941a77e043cf2
+
+I=408 Round=25 Input value=7
+PT=870225a12ca2d66b7dd96fe58aaaa6ea
+CT=43f6876f80389e07eca310356514b4d0
+
+I=409 Round=25 Input value=8
+PT=5317378fdb2c2f7c4a4a24e79a39c352
+CT=5e30178c68fdcb57258ce1c716229e81
+
+I=410 Round=25 Input value=9
+PT=188be4534ed6430b79b2e3c7bec161ab
+CT=0fe40454ffd73b64a14e548024d6e8a3
+
+I=411 Round=25 Input value=10
+PT=b53c5b0a851b728fc81a20f446b98cb0
+CT=380c441d2dc854c0726fce6e3489afab
+
+I=412 Round=25 Input value=11
+PT=697be8118f502452839e37ba5d6f78b5
+CT=f159259ce6bdfc0cef271eb90637bc93
+
+I=413 Round=25 Input value=12
+PT=759b94a70c0ef928dc9239e0119db840
+CT=752f490dbd1e8d2fd049f1ae46a85361
+
+I=414 Round=25 Input value=13
+PT=e63babca90c9b67ab75f181498d57133
+CT=cc3be7c7f07f1dcccb53096abe39409b
+
+I=415 Round=25 Input value=14
+PT=463c35c7f1e18b94945a9c0c0e8ce18b
+CT=23b8681b60bfb314a198a5bf44493a28
+
+I=416 Round=25 Input value=15
+PT=40784dfe28a74065970744d369f5553a
+CT=70d48f3f0aa4e39ff51201972629dcf3
+
+I=417 Round=26 Input value=0
+PT=c6f457586f1250a8830618f8946ae492
+CT=972bf2f405618f280a743fbc3e1646e2
+
+I=418 Round=26 Input value=1
+PT=15574623414df58bea4b50b24b21becb
+CT=3aece33b3bb76dc17ad9b1e3ac6fa4d5
+
+I=419 Round=26 Input value=2
+PT=b23565c0fc4dba384251bed074e5954b
+CT=310d40d544d218afcf2e7b456c145c05
+
+I=420 Round=26 Input value=3
+PT=1900090f0ef43e0740359a4744369eb8
+CT=4df240bf7a626abe5a31531662dcc9f2
+
+I=421 Round=26 Input value=4
+PT=00b8fb5e717ffaf1268c9c79c4025d4a
+CT=f55e7707a55490d7dbfe214bbc14f7b2
+
+I=422 Round=26 Input value=5
+PT=5bddff624609232a3bedd7910372d5a9
+CT=7cab1aa8b492c7b4b1e98169ff0f1c95
+
+I=423 Round=26 Input value=6
+PT=d6136dd289f5d6296fdd547a431c5bcf
+CT=7f2559e50e8c46a41d2c37310bb49f6c
+
+I=424 Round=26 Input value=7
+PT=32d5932b27d04dccb86eb748228c548f
+CT=dd70329ae242aaa925238e2dc7a9de56
+
+I=425 Round=26 Input value=8
+PT=cc1ff0c10a888e3bfccf5af74d2e9ce0
+CT=569b37166d61a9c42809cd6b3344cdd1
+
+I=426 Round=26 Input value=9
+PT=fc13d9d8e87ce96ddee6307cb7121cfb
+CT=af02005693a667012907c8c19c494769
+
+I=427 Round=26 Input value=10
+PT=0434c8cd825c6a297335970ee2027d12
+CT=a1c5fe73595c74fec64a1b0f32740341
+
+I=428 Round=26 Input value=11
+PT=f37bb04ec792fb4f9496f562282fd091
+CT=dd03d90e08a284e671588c62065a7b1a
+
+I=429 Round=26 Input value=12
+PT=7e1276635298a97a9e4a5b790afa466a
+CT=925a057facbda40156db909af7a28621
+
+I=430 Round=26 Input value=13
+PT=4ad40b78f2cfe65da0ec592c82efc435
+CT=559eb19d5a33605cd4b7611077c66b3d
+
+I=431 Round=26 Input value=14
+PT=a7ad3751f429a00460a5e6b5734637ea
+CT=c5df766a73899458faaed834f9859dc1
+
+I=432 Round=26 Input value=15
+PT=cb0fb3392d570ac95032b50e1a753a4e
+CT=1b94f372d88462d33a309314b563c26a
+
+I=433 Round=27 Input value=0
+PT=eda216f41bad8017c8ba13de9fc981e5
+CT=f17b5561c94586c11b9b599e47e66769
+
+I=434 Round=27 Input value=1
+PT=e7731aaba01882f59675fe9b48d38b28
+CT=1d59d29c8e52522e0f647ca2e672fc6a
+
+I=435 Round=27 Input value=2
+PT=c95603905037c0ba6b2c8577299bb664
+CT=14afe26ab1740942f35a3d77f86fc50a
+
+I=436 Round=27 Input value=3
+PT=acb5ec19d021bb2a74e92814af451b2f
+CT=057572f0f06bc0d48f39f221d758eaad
+
+I=437 Round=27 Input value=4
+PT=3a5120e1e9e309ade53bbca1390c3249
+CT=486e89b6e68dd0452b257d55e327c68c
+
+I=438 Round=27 Input value=5
+PT=93f16d8b7f7b19d6f79630498963d755
+CT=a70e6e66049021a38442047d5c385798
+
+I=439 Round=27 Input value=6
+PT=12d7c0759b63db31f311399035d2272a
+CT=3f088a3d67c9861dcc24cf0e0cf5989b
+
+I=440 Round=27 Input value=7
+PT=c09cb1cf051a47a427c12c0755759d41
+CT=d113860789284c2bd12f6467323fff67
+
+I=441 Round=27 Input value=8
+PT=fe92bf89ff2fac5aacf565161bf6d69f
+CT=4a6a26d56a932bc494052daf106c8637
+
+I=442 Round=27 Input value=9
+PT=074027ff2a12a66416269eb8450a09bb
+CT=89307e56389edaca23d3cd89ab14de82
+
+I=443 Round=27 Input value=10
+PT=bdb8a734e9b988cf14909d5d03b47b15
+CT=ba3e87818797ddd33b030915d97dc019
+
+I=444 Round=27 Input value=11
+PT=3045acc6f4174148855d1d8c1b0f87a8
+CT=b8b8106190ee803b875624f19b874723
+
+I=445 Round=27 Input value=12
+PT=9c719271191c91ae52d3aa6af1168c90
+CT=b20dbe070d920a3db9ab3ee8eb45272c
+
+I=446 Round=27 Input value=13
+PT=95c07c70704969ec5938d835f8d75316
+CT=0237fdcf87e9bb055ed6ea1e6ddff6bc
+
+I=447 Round=27 Input value=14
+PT=96b6b234d57a94d8d5155ac81364e00d
+CT=ee5697f49a0042a33ceed126cde18772
+
+I=448 Round=27 Input value=15
+PT=f6396277ca68cc21f9ead1803d3e543b
+CT=535477abcf0b86b38998bc23593f31be
+
+I=449 Round=28 Input value=0
+PT=610ac3bcb7027bef2170585e75182267
+CT=10ccb979ac2eb9f11a5a25ea6b84ede1
+
+I=450 Round=28 Input value=1
+PT=151d1bacc10b821494bd4b4ade931d81
+CT=ae37519f354bf4111ae367828261ce18
+
+I=451 Round=28 Input value=2
+PT=b1d51750de863b610d9ea550be6fb966
+CT=7b1c96bdb6249c50f8d24403ccd646bc
+
+I=452 Round=28 Input value=3
+PT=43228a13ec6414b047c57caa0615e8ee
+CT=04370f5af9cef7fd3f405a151b1a7d71
+
+I=453 Round=28 Input value=4
+PT=667bf1c3d24947983916319a605a8ba0
+CT=374e9899d69f642686478378c9679c0d
+
+I=454 Round=28 Input value=5
+PT=be4f19da98b1cc53128ef4d2d4aad164
+CT=c099ed54816f0a0b66eb597e3033c7b4
+
+I=455 Round=28 Input value=6
+PT=7a255f14236090681b157cf85ec68945
+CT=b1979f836825145273cb95bed16ce680
+
+I=456 Round=28 Input value=7
+PT=96521709640a85d8085ac111667dacc8
+CT=4a924b1c0c1ca0e7ad3ef2830fab3bc9
+
+I=457 Round=28 Input value=8
+PT=e58514b2b2ca89049a88af50605eaa68
+CT=f5e3ee7ec92869661a00167069c6a67a
+
+I=458 Round=28 Input value=9
+PT=7a787dd69d1ec34bcf7a8b88118415a1
+CT=09a45d480e88b274fa26824780b69824
+
+I=459 Round=28 Input value=10
+PT=9394b4c2155c24136614237657174c21
+CT=c7c2b4694fd02ea425dd935383dea84b
+
+I=460 Round=28 Input value=11
+PT=90f5781116d822acd9f7b25f545dd8c9
+CT=5f729f097226d43d2f1aaebe59953a16
+
+I=461 Round=28 Input value=12
+PT=67653e54955a2cfec0fa9a5ff9dfd0ec
+CT=204051553ccc9e1d22f685aad977c2ae
+
+I=462 Round=28 Input value=13
+PT=9db790d9eb2d20258ea7c9f36227f981
+CT=7ccbe9b789231d1815d43fdf05b5b0ea
+
+I=463 Round=28 Input value=14
+PT=1e2dffe41531a7c576b6265a49cab936
+CT=0a1c904160fda171f1117a3ea2b036ed
+
+I=464 Round=28 Input value=15
+PT=d2bfec14c3a26786cee3da34cd363893
+CT=5f56cdf775fa85575c249402aec92cf5
+
+I=465 Round=29 Input value=0
+PT=e35f1aca032b233ccd46e3ea9fe17b54
+CT=b4a4ccd388a894e7ebbed9bb476e50bb
+
+I=466 Round=29 Input value=1
+PT=f434041b99c181b5419936f70bda2432
+CT=da9681f23b1db7be5e157418feaef183
+
+I=467 Round=29 Input value=2
+PT=013cbe1c70d04b46c99a3454f574f2bb
+CT=516b7d1fb525718dbb27e84cbb7c7408
+
+I=468 Round=29 Input value=3
+PT=8eff08bb4a5f4d84c6e67d4e5f213503
+CT=c8f80f1243e3ca662fb6279cb7673d75
+
+I=469 Round=29 Input value=4
+PT=7d31e79b05b1f4e531dcaa37098b790e
+CT=db79b85c4379b447aca4cee52e3f8ed2
+
+I=470 Round=29 Input value=5
+PT=293114626e9967a877f1740601f5c8b7
+CT=097b7a74087b734244684a550c813b80
+
+I=471 Round=29 Input value=6
+PT=e34ec3df53a609281a7ba58a0cee823c
+CT=b3f596722e0eb6d059e248c774b5f2dd
+
+I=472 Round=29 Input value=7
+PT=a82d28029eaed265dea2f44bb3af5e24
+CT=c356f4132f8886ef751d4e8c83337a36
+
+I=473 Round=29 Input value=8
+PT=123abe91ce7348b35227517a6fe9bb82
+CT=5e4da46c12a4783cf31b4b10a1a30cd8
+
+I=474 Round=29 Input value=9
+PT=a0b25d517031f09a95db8cc7fc597301
+CT=c9a194480073f7b40fb9b14e3aeeb730
+
+I=475 Round=29 Input value=10
+PT=4a2082a40c299e2166929e4c1cbae1fb
+CT=4e70dceb99d487e35ec780039853c823
+
+I=476 Round=29 Input value=11
+PT=dd827d8661a36e5079bdf758b5605d7a
+CT=8fa2d2386a48cafb02fea00e4894c6ce
+
+I=477 Round=29 Input value=12
+PT=633c15144a04988f0c99cb903ca1e1f6
+CT=def66e79d97275dfa06e84d10a1dba5d
+
+I=478 Round=29 Input value=13
+PT=5e68b04b616ef161514cbbb8668961be
+CT=44aa967cf36ad2275ba73a326f1c5150
+
+I=479 Round=29 Input value=14
+PT=2a411353364c6732c81eb3d6cdcb3034
+CT=96cb3a08329706a41686b8da23b0c72e
+
+I=480 Round=29 Input value=15
+PT=fd6750e9ef7caafed274b8aa60c136b7
+CT=a11074344c1a21b0411be2812666b0b7
+
+I=481 Round=30 Input value=0
+PT=366fcaf5298e3853f05ad21c120360e7
+CT=3883151005dcc6b16a75eff755696e93
+
+I=482 Round=30 Input value=1
+PT=6d1a0e610c6ae6e77305068572075f89
+CT=4f0cefa445b463cba1604d42a9e3b7a3
+
+I=483 Round=30 Input value=2
+PT=55b78b145bfef7580c8f7563bf0ceee6
+CT=b45118d9fb1bcd7d79186b89d411ec68
+
+I=484 Round=30 Input value=3
+PT=4ac1fe6de4d66a88e846704765760754
+CT=0b94089544c9d37c1322d23a90d498ec
+
+I=485 Round=30 Input value=4
+PT=59e58308949f9026e56f889a9cc9de33
+CT=ed6390ea15e3ab7e8eafd6768bab6493
+
+I=486 Round=30 Input value=5
+PT=5b942787c94dcb20beffc2d7a9c5e7a1
+CT=867c98ef3ec1b0342120780ab5493d11
+
+I=487 Round=30 Input value=6
+PT=e5e6027a712556bb729b1a103be11d9c
+CT=50c9ef68f23c5603efdf87bd50d6936c
+
+I=488 Round=30 Input value=7
+PT=8713abe200329e73406d2319f606ca41
+CT=b63e27173fbc220334a50b8e6e0b4711
+
+I=489 Round=30 Input value=8
+PT=890fd22217492a4944ccf80c902b43fd
+CT=f6430310c819d4b59c8f54446e7e11de
+
+I=490 Round=30 Input value=9
+PT=bd8f67d40b0230312364f26e6d08ec7e
+CT=5f74ecefd826e87acedfc075abb6b16e
+
+I=491 Round=30 Input value=10
+PT=417736989e5861016b1df7a435673f24
+CT=12a6c0a6e203194c42552fc581a3405b
+
+I=492 Round=30 Input value=11
+PT=cd5d06f086055488a1c5802ce4d6b239
+CT=e9fb17db3ff93787dcdaf171260cbfed
+
+I=493 Round=30 Input value=12
+PT=538d581b81e5a75f0bd9e59ed83898bc
+CT=51b4e9ef8113ddb571250f465c7e9626
+
+I=494 Round=30 Input value=13
+PT=9b20078aff32466ce1a79f9cbfc3ab9c
+CT=8f4b1710fa662cca9378d83bfbd16990
+
+I=495 Round=30 Input value=14
+PT=9963945df1d173ff621be153ac13b6f6
+CT=e18b4110806e1e823c8223886e34caee
+
+I=496 Round=30 Input value=15
+PT=296053d0600f7c0b2a17fa0277291262
+CT=28bcadef2fc629c8c7da8739138c4a15
+
+I=497 Round=31 Input value=0
+PT=8bcc70e98fe10e9315e2a13ab03267b0
+CT=42c625dcceb1144f0b05eb3cc6747d16
+
+I=498 Round=31 Input value=1
+PT=38d37fe254eeb47f626f5917d43cd6e4
+CT=bd39da23314eebb00b05eb3cc6747d16
+
+I=499 Round=31 Input value=2
+PT=fef9dd6d1658284b77e2fdc2f5be3d47
+CT=bd39da23314eebb0f4fa14c3c6747d16
+
+I=500 Round=31 Input value=3
+PT=6cd6a615919b470f1f52593410d3e162
+CT=42c625dcceb1144f0b05eb3c398b82e9
+
+I=501 Round=31 Input value=4
+PT=d7c3ad8d89f8efd4bc9a27bc2f1d34e1
+CT=bd39da23314eebb0f4fa14c3398b82e9
+
+I=502 Round=31 Input value=5
+PT=1b2f5d5fce6453a09f58c03faaf9458b
+CT=bd39da23ceb1144f0b05eb3c398b82e9
+
+I=503 Round=31 Input value=6
+PT=06c5e01060817e92f88733b6ddfac8ba
+CT=42c625dcceb1144ff4fa14c3398b82e9
+
+I=504 Round=31 Input value=7
+PT=aef5773b877a331dedcc7436de54d502
+CT=bd39da23ceb1144ff4fa14c3c6747d16
+
+I=505 Round=31 Input value=8
+PT=76c26976935ff7e98971a014ecf547a6
+CT=42c625dc314eebb0f4fa14c3c6747d16
+
+I=506 Round=31 Input value=9
+PT=f9549c5f8e192e39e1bdcd87bf0d6c4a
+CT=42c625dc314eebb00b05eb3c398b82e9
+
+I=507 Round=31 Input value=10
+PT=ae0b0abd6c9aff0ce4153efd0a2c81fd
+CT=bd39da23314eebb00b05eb3c398b82e9
+
+I=508 Round=31 Input value=11
+PT=9f6abba4d4441767f039d48127ae410e
+CT=bd39da23ceb1144ff4fa14c3398b82e9
+
+I=509 Round=31 Input value=12
+PT=b3eda6bfd2d27b38a36109d4535533ac
+CT=bd39da23ceb1144f0b05eb3cc6747d16
+
+I=510 Round=31 Input value=13
+PT=b61ddfd75e2043d7ede8bb5b84c29ae3
+CT=42c625dcceb1144ff4fa14c3c6747d16
+
+I=511 Round=31 Input value=14
+PT=d944a012ae655c836c9045d8b5447faa
+CT=42c625dc314eebb00b05eb3cc6747d16
+
+I=512 Round=31 Input value=15
+PT=04e2cae4c75e77db0619179356b6e1e3
+CT=42c625dc314eebb0f4fa14c3398b82e9
+
+==========
+
+KEYSIZE=256
+
+KEY=0000000000000000000000000000000000000000000000000000000000000000
+
+I=1 Round=0 Input value=0
+PT=8ed77390f2d998eda7e3a3ce6f5795d0
+CT=2b47455b12d5bdf26891e62d86e50eb9
+
+I=2 Round=0 Input value=1
+PT=8ed77390f2d998eda7e3a3ce90a86a2f
+CT=2a203f02377e01b2416feaf42d7ee1a3
+
+I=3 Round=0 Input value=2
+PT=8ed77390f2d998ed581c5c316f5795d0
+CT=01dd8c96bf6e81f4c60b1166e45129fd
+
+I=4 Round=0 Input value=3
+PT=8ed77390f2d998ed581c5c3190a86a2f
+CT=62e04a58b25b5dc8b09211c550e76ec3
+
+I=5 Round=0 Input value=4
+PT=8ed773900d266712a7e3a3ce6f5795d0
+CT=aaefdc97907e3f6e4c455ff6279e0686
+
+I=6 Round=0 Input value=5
+PT=8ed773900d266712a7e3a3ce90a86a2f
+CT=4de2a21c843803974c8454885a88fa00
+
+I=7 Round=0 Input value=6
+PT=8ed773900d266712581c5c316f5795d0
+CT=b54561cba040a7ea20fda20a9a398aa1
+
+I=8 Round=0 Input value=7
+PT=8ed773900d266712581c5c3190a86a2f
+CT=b16bf672d1f34771d914cc799ae3793d
+
+I=9 Round=0 Input value=8
+PT=71288c6ff2d998eda7e3a3ce6f5795d0
+CT=02055994648952aaf58048e293fc341d
+
+I=10 Round=0 Input value=9
+PT=71288c6ff2d998eda7e3a3ce90a86a2f
+CT=80aa46ae889ef4ab04dfc39521e59f9b
+
+I=11 Round=0 Input value=10
+PT=71288c6ff2d998ed581c5c316f5795d0
+CT=e6afc70241b2dd32a87c7d2250079c43
+
+I=12 Round=0 Input value=11
+PT=71288c6ff2d998ed581c5c3190a86a2f
+CT=e3a7277897fa9e0c3eade979b4db8b49
+
+I=13 Round=0 Input value=12
+PT=71288c6f0d266712a7e3a3ce6f5795d0
+CT=4ca7b6513048a15964fbda9745c076a2
+
+I=14 Round=0 Input value=13
+PT=71288c6f0d266712a7e3a3ce90a86a2f
+CT=9e4cac4a117ef3dea63adb2e00784d4d
+
+I=15 Round=0 Input value=14
+PT=71288c6f0d266712581c5c316f5795d0
+CT=6f0e0382dff7b93da655f7e02149b13a
+
+I=16 Round=0 Input value=15
+PT=71288c6f0d266712581c5c3190a86a2f
+CT=f25c656f846e1f6f3f628e044e938459
+
+I=17 Round=1 Input value=0
+PT=797c5bd5405475deaa1e6480a791a3bc
+CT=6dd57277c8b69cc4c912eaa855d9238a
+
+I=18 Round=1 Input value=1
+PT=bc4abef1081fb6a710da8b9b9d58b966
+CT=2e10eb8f29a39f8c0a12fc248950d907
+
+I=19 Round=1 Input value=2
+PT=fcda9e02e81fb6dc8767762c75835af9
+CT=a10239ec7a10b5da401d0ee17f6579bf
+
+I=20 Round=1 Input value=3
+PT=861384e6a05475dad5e85a1ff0b5bfe4
+CT=c095fc80ced62f22c1eb1a113e50b5b0
+
+I=21 Round=1 Input value=4
+PT=3c5e5b45c5f445aa9d376c916fc74436
+CT=aaeb13299ae0e104e5e227d906d2331b
+
+I=22 Round=1 Input value=5
+PT=b41aacd87240792c180a89d2187c4c52
+CT=2b294a20c4af254963a3319a81f5f018
+
+I=23 Round=1 Input value=6
+PT=59f89e8492407957a76556bea22a429d
+CT=3daef503038b1388c6729c79268bcb7e
+
+I=24 Round=1 Input value=7
+PT=8e4396ae25f445aed5ec8f5d8a6eb549
+CT=63f58caf79b1bc9cac5580d1e4115946
+
+I=25 Round=1 Input value=8
+PT=43ac510f8dbf86d3aa1ab1a7a78172fb
+CT=1a5edcabf7a3dbe6d982aeef722aaa17
+
+I=26 Round=1 Input value=9
+PT=83a365ec3a0bba55d0d8ab1b9871b9e1
+CT=0a2cf4df6c2bfa8b3aec6268a1ae971b
+
+I=27 Round=1 Input value=10
+PT=39f56b50da0bba518fb7740475938bb6
+CT=e278953c77bc01b2baaa4788b1d6819a
+
+I=28 Round=1 Input value=11
+PT=a605a07b6dbf86a802c15218159cbf63
+CT=4429c7bd6fda459e3631298824ecf1f1
+
+I=29 Round=1 Input value=12
+PT=f1a5790ff7e049589d33b9b367034219
+CT=d2b1731e9fb6cd0c28e14fc3423ce4d5
+
+I=30 Round=1 Input value=13
+PT=8327a0aabfab8a21d808a957ea7e6442
+CT=67600768e001932f13f6009abba2b54b
+
+I=31 Round=1 Input value=14
+PT=6bfc43415fab8a25afb55494aaee44bd
+CT=5ed9e45dd3d22548723586ad7c9c373a
+
+I=32 Round=1 Input value=15
+PT=a681655b17e0492302c58758986c9d5e
+CT=0dc4dd3b91c7e7317339744a328acdd6
+
+I=33 Round=2 Input value=0
+PT=42f94a91a3b239a1cc5031c15362a6fe
+CT=8baf304fc2c2e008157341b66c157f61
+
+I=34 Round=2 Input value=1
+PT=7270a2b07c675479ba44977c5d8d0bfc
+CT=70ad912dd1caa11bdea68efaf0e40d60
+
+I=35 Round=2 Input value=2
+PT=6749956053afe46deb839658fe334255
+CT=638b610c1125df8641121dacdd87d814
+
+I=36 Round=2 Input value=3
+PT=966ff8949e5d8dc15163618a5bd65f44
+CT=b8cd76cc4f4b6577424340455e6aa2b2
+
+I=37 Round=2 Input value=4
+PT=d4922a9aab9cc88406ba3fcfcf8daa47
+CT=e1fd54e490cbfee96c0196b20cd9d52b
+
+I=38 Round=2 Input value=5
+PT=46a1ce4572fa91b4604931dcea4aa9ed
+CT=7263fe1c52dc6edfe26b00e5acd29503
+
+I=39 Round=2 Input value=6
+PT=92d645e027754776ce9f375c46063111
+CT=96d0dd99bfb37bd6160b8dd18bf07279
+
+I=40 Round=2 Input value=7
+PT=8c243cf834a01553197e681d3aed8232
+CT=5971fd241805f5a59ddd57d7518d77bc
+
+I=41 Round=2 Input value=8
+PT=2553e9aa15f9d01e85b78649bc220ae3
+CT=26fbb7876c9d9f7a3b55e143895313d9
+
+I=42 Round=2 Input value=9
+PT=fbf3daaf1f8bc4a53c3e971962d7ee07
+CT=6b601ca621fe1dd1b04de83a12507f75
+
+I=43 Round=2 Input value=10
+PT=90a66b8554cf16de7ba97478e0069d2d
+CT=a96308e769511b626349d87905b0d9cf
+
+I=44 Round=2 Input value=11
+PT=5731a18694a9c0fe37b69c9d80813384
+CT=eb054ffc122d27a467e87bdeb5fae031
+
+I=45 Round=2 Input value=12
+PT=930c3bd02ae76fbc626e2c4b1f9c5f2f
+CT=733d79692830a91ef8f505dd429834f4
+
+I=46 Round=2 Input value=13
+PT=d61721bb14088408b7eaf70c18464929
+CT=5aa11b17e2245ba3b039c819f7c4b6ab
+
+I=47 Round=2 Input value=14
+PT=46a0da0666c8d747057b2fa73ccf61bd
+CT=a4bda260c43e561593ef9fa97b981326
+
+I=48 Round=2 Input value=15
+PT=5eac70a2f63927d79d40544e63898985
+CT=ee79baa22a9c0dbea0019f100d0a19a0
+
+I=49 Round=3 Input value=0
+PT=435579ce287db66178f23bfab9c7d441
+CT=dd90179517b33a5cab5ebe49d7fa080a
+
+I=50 Round=3 Input value=1
+PT=2999a6efceccd748ad3ce4f4f7bf53a7
+CT=579329fe595bb27e678aaf1e38ef0a10
+
+I=51 Round=3 Input value=2
+PT=6c1186893bc7c5f9003bd1543d6a6023
+CT=9017c64e28aa950bc0e2f3168e98d0cf
+
+I=52 Round=3 Input value=3
+PT=418dc0a01f54482055d812c359b092ec
+CT=47425170ccdfd1d755ca5f503339463d
+
+I=53 Round=3 Input value=4
+PT=395ac8026db2db21be95abc4cd321f91
+CT=01fa11769d3950650c173590c822686c
+
+I=54 Round=3 Input value=5
+PT=27488074ff46dfcab02997df08aa1483
+CT=7a6fefc43867b66e21d7a90ab83d8f26
+
+I=55 Round=3 Input value=6
+PT=2b1a4048a9601bfb027ce2bbda901ae2
+CT=79d3cf0e15d80d18e707c448244682bf
+
+I=56 Round=3 Input value=7
+PT=3b8704c5ee95854e12fbfa2955de7c08
+CT=46e2ab6ead9960ccadffa1cfa4b7807c
+
+I=57 Round=3 Input value=8
+PT=c548a8f2d9bca1cd6f91371920875662
+CT=2a182d25face9f45944355a3ef631e89
+
+I=58 Round=3 Input value=9
+PT=0a14f6999b2e9e4d6629a077a43aba7e
+CT=fb8257a4a3d1b03f9bf94c969de88324
+
+I=59 Round=3 Input value=10
+PT=f015d2634a52f76357d7d87ee2e8cedc
+CT=b7a7f23a80839af360a153f8e5c98b02
+
+I=60 Round=3 Input value=11
+PT=26a82bc9252f1c85c47981f4abb7cf19
+CT=42b4de84ca1a15ed54ae8316701d2226
+
+I=61 Round=3 Input value=12
+PT=6724095a034226c83e1d2fbdb2c9bc5c
+CT=1ee380cf4268ef21fecd663ac955538a
+
+I=62 Round=3 Input value=13
+PT=bb24e1bbc738f7a46c76b86a67042508
+CT=e661ae706926437d62ae7374c5109e2b
+
+I=63 Round=3 Input value=14
+PT=170332b8479419b4416c16fae744036c
+CT=65fe8600921c8a4b27d6e0d0e5ef7182
+
+I=64 Round=3 Input value=15
+PT=0a2119680128d129d95965d16a6a3c08
+CT=9daf43a1a6f49690fc4260a7bf9cae7d
+
+I=65 Round=4 Input value=0
+PT=a814fe98845968a0f2e60cc390b534e2
+CT=5471f50abd4ef90ddc17b4e74f3dfe3b
+
+I=66 Round=4 Input value=1
+PT=c02415fc948215810971c2409b8abc8e
+CT=2e1a6819cc91e8d8c9b15ba2082e6b3c
+
+I=67 Round=4 Input value=2
+PT=f99d7789b9badf1aecc1b269b183a8a4
+CT=705197b21aaafef169884b3e8b2e1d8d
+
+I=68 Round=4 Input value=3
+PT=9f5dae27c3876d5bde4de087474211be
+CT=2c3cceb81c9a8470dc17e9d4508dfdce
+
+I=69 Round=4 Input value=4
+PT=94b2e679444959f7057eaf155943b632
+CT=277c2d09ed68fb469fe31e4e113e56c4
+
+I=70 Round=4 Input value=5
+PT=03d301ac3d2ad904e50e084f049ba007
+CT=d7830a345efad1efa81d8c9673e48a25
+
+I=71 Round=4 Input value=6
+PT=293ef25f3b8b3ceadd71cdf0eb25431e
+CT=31670fc042906c20e025efecd17b3a07
+
+I=72 Round=4 Input value=7
+PT=54ec0e7a64fa9736ca72de956cd55ce4
+CT=bcda2c69d334c8ea6f99d9861267c857
+
+I=73 Round=4 Input value=8
+PT=88962f743c6155489d7a69473045cc58
+CT=c978f6e2c0966ca4f7c810bd87d3564a
+
+I=74 Round=4 Input value=9
+PT=ff6ca8e101336c2c2df12373cf0d4b8f
+CT=daf0942358604435a1525d3f2beea259
+
+I=75 Round=4 Input value=10
+PT=d866db943de1f8632d29510c39a7d760
+CT=eeece26b8aa6040ff7bca74152a647d3
+
+I=76 Round=4 Input value=11
+PT=31de537a6fedf93b107bb7d3b953adff
+CT=fb2faa492972234a6da58036cfd9163b
+
+I=77 Round=4 Input value=12
+PT=bf29231a41ef0a2c63626376c53f91e3
+CT=cc0807997b45c94da3e3719c41765d6c
+
+I=78 Round=4 Input value=13
+PT=783fa29dd6adbcc47ff5f502843b47a6
+CT=c10f29603ef0263f9b08bcf4d0a40c19
+
+I=79 Round=4 Input value=14
+PT=b73298e1c750d60b9a0c26b41e0714b7
+CT=90c72df5bea3b2065b22ede3dfd430b7
+
+I=80 Round=4 Input value=15
+PT=f7795127cb433c10cfd448f0c98f8c38
+CT=736ac596ec582753f4c618d8bdadfae2
+
+I=81 Round=5 Input value=0
+PT=f1a09ddff95ffe1eb136515f3c4f9390
+CT=e6b3b5d2f8b4c3bd5ac97e9ff83f599d
+
+I=82 Round=5 Input value=1
+PT=7c83dfab3d48e58778c2bf7cce2a2bdf
+CT=a1aa9049e3b74cdbe63539eec56a1ded
+
+I=83 Round=5 Input value=2
+PT=e2c2b75802c38974885fb313e9f7ccba
+CT=94d664bc47213ab15c6e81fc4c729d0a
+
+I=84 Round=5 Input value=3
+PT=cf7d6c1c18ec0d6188518c58ee163ad2
+CT=c986c6537997278c3b7afa1f6c608490
+
+I=85 Round=5 Input value=4
+PT=92f7870339426f709356c8e08be0d675
+CT=13f4dabb1f719904083294311210eaee
+
+I=86 Round=5 Input value=5
+PT=5d8db9d512f0ff522b529515c2157aeb
+CT=5b0332b78bf6b7015c98d8233b83ef70
+
+I=87 Round=5 Input value=6
+PT=79d20b2a4df2f9491c4a2be44f48bd50
+CT=63bf6c9bb137a19ed7fe80d2a8c8f750
+
+I=88 Round=5 Input value=7
+PT=0fec605d20300b04901e5b20790a2165
+CT=be36a5032e6efb49f863858147edcccd
+
+I=89 Round=5 Input value=8
+PT=14f87d40fc6ad86cf3ee64234616606a
+CT=c7c3180dbb4c2cea0508557c6fb803c0
+
+I=90 Round=5 Input value=9
+PT=8576e543c3e1c3249d2abd2699505413
+CT=a3efed858a9b92d5d6392eb918fa4e08
+
+I=91 Round=5 Input value=10
+PT=439492cbf5dc1095f8514ab56aabd569
+CT=d5cd67e0da793b28b36046f1cbfc67e2
+
+I=92 Round=5 Input value=11
+PT=129a1bdc98117a23f6e42a3cc4016f93
+CT=4d04ce2d987bbdb5bba4698828f581e1
+
+I=93 Round=5 Input value=12
+PT=9a41402d2628c55fc9f14b968235ea09
+CT=822beba7951b140f35430f373d02adac
+
+I=94 Round=5 Input value=13
+PT=90f8ea15309c02e5fcc9bd75b3584e4b
+CT=f1b688819aa3f94f3c78c69bbeeab895
+
+I=95 Round=5 Input value=14
+PT=c944dc8c4e86c1302fac22adca3ff38a
+CT=75df5327ce4f990249a27011a22fbef7
+
+I=96 Round=5 Input value=15
+PT=09910753864b7e6a4d52db4f1447298f
+CT=81afac26110993f4ff7c7055a1a1f8d7
+
+I=97 Round=6 Input value=0
+PT=741c40517c57885bb58d471d55bd9246
+CT=dda90a3f0a2bb5911b5b915f97cdcf19
+
+I=98 Round=6 Input value=1
+PT=daad0e38fefc0e731aa22461d66c00c9
+CT=24cec7291e752a35b56e87268140301c
+
+I=99 Round=6 Input value=2
+PT=7eb856def8e11fe36e23d9b09fc2776b
+CT=4087e83dd045ad3b6180720445aafd0a
+
+I=100 Round=6 Input value=3
+PT=bca64cacdf549bf7741214426a28ae54
+CT=03e3dffe29f49b47f73cc1a34f8e8ac6
+
+I=101 Round=6 Input value=4
+PT=162311bb84028a9b1f098fc1bc23fbf6
+CT=1c59a56b3066062a65da0b60896dd2c3
+
+I=102 Round=6 Input value=5
+PT=efa7c172132406eb3f6472f61fa8f508
+CT=2ba57534c2b80f68c09abf8beff4fa85
+
+I=103 Round=6 Input value=6
+PT=0ebdea5edef37fe4429447baf3a6b850
+CT=7c00db1b2915796072e428b86ea16762
+
+I=104 Round=6 Input value=7
+PT=6f1dd6ae8c62310371c3377a36be7983
+CT=ab65645782cc49e2c99508e647965028
+
+I=105 Round=6 Input value=8
+PT=416b8dd3be2b1b22c5239f74986ad548
+CT=080950ed441a66b48adcd93d29e88cf9
+
+I=106 Round=6 Input value=9
+PT=5da58a2f5391b28e5c34166e3f2b9581
+CT=4f571f454e454798549464e9eaf68c2c
+
+I=107 Round=6 Input value=10
+PT=db45c82cf0b99626e8cdea8808c9985f
+CT=811659ccf07d42f8e8124ec8778c3abe
+
+I=108 Round=6 Input value=11
+PT=f87e76dd5c807ef22de8c092980079f0
+CT=cbc090f444272fa0e79da4317a8c0e81
+
+I=109 Round=6 Input value=12
+PT=b3c370de3be258d8c7b9ff0dc9e21b3e
+CT=3b5c9bc6dc429c6de31d50203fa436a3
+
+I=110 Round=6 Input value=13
+PT=51eb161e9d9b10d262720d8f8c428c1d
+CT=612aaefae40d997fdbcb670daed91fb1
+
+I=111 Round=6 Input value=14
+PT=2eae78157784384c65fbe64135f21e80
+CT=699110f3509c92df5f1d3516f642108f
+
+I=112 Round=6 Input value=15
+PT=10b66b0c0c16291bd6bd325e284fb140
+CT=c3defd5771fd4b3cfd713e53a7335e4d
+
+I=113 Round=7 Input value=0
+PT=8f7d818825fa0baaf1c4aace72a32642
+CT=b0c2db5c25570d2cb61cc7cc5bcfe9d1
+
+I=114 Round=7 Input value=1
+PT=3582dbe39577eefc52a889a7933935f0
+CT=442370e429bcf8d74d2c16a6fe3ccbd0
+
+I=115 Round=7 Input value=2
+PT=afb87ffce8d6052925b45c89cea3a8ce
+CT=09659df0593b0c0faf0a362ae6c98cbe
+
+I=116 Round=7 Input value=3
+PT=a56b4b7fee8f79c2be8d2aa898c47cfe
+CT=66989689959400b3a6ff1b2335954831
+
+I=117 Round=7 Input value=4
+PT=cdfce1a3fa2a954d62c921f079327080
+CT=f3036de28fae3bcaa4008032887af2ee
+
+I=118 Round=7 Input value=5
+PT=0287be310ff21e7deea4386e7a392629
+CT=46d353ffeaac33cbef16f280e7256b62
+
+I=119 Round=7 Input value=6
+PT=1c03192841045de9568012898b274bf2
+CT=66cbe7eec1ca60333f48f9ac0874a752
+
+I=120 Round=7 Input value=7
+PT=f70df4867d0553bc7bca4af2e9467875
+CT=52511cd2b4c82a5b3fe7472dab9a90d9
+
+I=121 Round=7 Input value=8
+PT=6dfac93319d7e40bac539b55e536f069
+CT=e335397e798bed38e12113e197f223b1
+
+I=122 Round=7 Input value=9
+PT=c53e0458366b334b57ba27753e3625ae
+CT=01f30fd426226810e00973a2ff651253
+
+I=123 Round=7 Input value=10
+PT=7f26079d0ebaf2e48d05c80f2bfb1d26
+CT=dddb64f64c9430072206f1c703141973
+
+I=124 Round=7 Input value=11
+PT=7c747fb6cfff554e212fee6ef24ef4f4
+CT=686d699baed2ef63c10307c772027bb2
+
+I=125 Round=7 Input value=12
+PT=49101bf734935a45faddb190a0617d6e
+CT=d975c4a85e1f21e60e50fe40b11b303f
+
+I=126 Round=7 Input value=13
+PT=4d244a45fda1a732cf02064f852ca89b
+CT=6cf7d4ce18414f8f78ea0efd51ec070d
+
+I=127 Round=7 Input value=14
+PT=a68b0315a12459f2091b1aa82a604349
+CT=8aa48ad36cc1a10fb2105da14bcfb35d
+
+I=128 Round=7 Input value=15
+PT=29941661741df630119095f0c95d65bd
+CT=ffca2f01189af031e713110b0aa01d3f
+
+I=129 Round=8 Input value=0
+PT=cd32d23a12cf0130ef85543dab7e1c88
+CT=a507783d165e667b83caae88c6d63977
+
+I=130 Round=8 Input value=1
+PT=d5ddc1f168c7bcd7418a26ed44bb78db
+CT=451ed4ad7e43543e7f8bc743ad5499ec
+
+I=131 Round=8 Input value=2
+PT=e294e499dc9d1d9c87a5f705441ea0ed
+CT=8592d97133df4d8abb6fb97252391457
+
+I=132 Round=8 Input value=3
+PT=d1f7e72580cce262c20080efeedd3df4
+CT=82dbea6d03ecf30626c836f414ea783a
+
+I=133 Round=8 Input value=4
+PT=f42e94692bf18c17c6688f6b99ca7bf6
+CT=e48a1428dbe922dc1e44d4d044279851
+
+I=134 Round=8 Input value=5
+PT=6f55fedcbe83d7e2291608d0c19d2f1b
+CT=356edd66622a2424133becc190f84201
+
+I=135 Round=8 Input value=6
+PT=7f38c55e90761b0c0e8ae4cb4d7d697f
+CT=7c6116a21b1beeaebede29fe83e3abb5
+
+I=136 Round=8 Input value=7
+PT=9a533ff8b406d937aaf053a991ba8700
+CT=da19c97fb6ea5d71ea8678f5bc46f12d
+
+I=137 Round=8 Input value=8
+PT=0f719ff0a04b277cdf90ace53175a38b
+CT=37870f06122d00f552009993980b3f68
+
+I=138 Round=8 Input value=9
+PT=b6fe8f09ccaeb6e02bf5b5d890a7d031
+CT=0943cecdf3ac6a98056087fbdd319670
+
+I=139 Round=8 Input value=10
+PT=1fccab34c651bd9580225de593c282c5
+CT=e2466ce27ff95dd4d6b964b9d8b65cee
+
+I=140 Round=8 Input value=11
+PT=6bfb344de372e9d807078b5852955082
+CT=d5eaee631abd0a4c7d4a04e9c66bbba8
+
+I=141 Round=8 Input value=12
+PT=44962ba0d56acdc38cbd6f9dbe30dd92
+CT=03e272b107bb888319c7262629f043e7
+
+I=142 Round=8 Input value=13
+PT=8b65fec71076e2e41b1c02ee2c1333f5
+CT=bdceb7c2ac9db2ca4f9b70a2932fb2eb
+
+I=143 Round=8 Input value=14
+PT=47f6262c87b0924ff58d1d0e8d2d1e82
+CT=b15d3e6f9c62a94adf253222e54bafb8
+
+I=144 Round=8 Input value=15
+PT=8c7ac0cfa91baefc6e11d2b6ad20c5ca
+CT=956b199cfb63fd94aadebdb8e584efcb
+
+I=145 Round=9 Input value=0
+PT=c5500663fa909f91c9193bd231043761
+CT=da0cad339143a5684f16b12da01ab6c9
+
+I=146 Round=9 Input value=1
+PT=cb7fab5f9014740d3b8b77fa6e8c9e39
+CT=08341f30ff7d73ff867fbf8a90854014
+
+I=147 Round=9 Input value=2
+PT=56847c89f1ea569ac5856deec99b1814
+CT=50258be6fbdbc0c9433e0ed430f4e62b
+
+I=148 Round=9 Input value=3
+PT=7fdaaa76ab2ae9aeb485d74704c2e5f1
+CT=7b7b09a7bbf862a80adcdf25a626e767
+
+I=149 Round=9 Input value=4
+PT=bc60904a200ca7dc26de816482f9aa8f
+CT=f25e20d221bfbb1c9cc91415ee708448
+
+I=150 Round=9 Input value=5
+PT=f78a200b30ac3e124e524642eb97bdb6
+CT=ab02c4b92b4a8183fa35fb543ab2e25b
+
+I=151 Round=9 Input value=6
+PT=f9b9fabe22251449f813fe2221a4780a
+CT=ff8113e9ed2e835771cc2ba8a51e5004
+
+I=152 Round=9 Input value=7
+PT=041fb3f85962164f4f60ead366ece446
+CT=34b08b5da8f8c560584b02b618e02d6d
+
+I=153 Round=9 Input value=8
+PT=15ad1fc4b2d520c35975f033e18fab20
+CT=b6b9d29b47abf3cbd13d412befad3cc1
+
+I=154 Round=9 Input value=9
+PT=7266d85b824da2f301dfe3e746dc3879
+CT=949c183023550d58518c90a6d0022beb
+
+I=155 Round=9 Input value=10
+PT=ae79bbe13a00ab3a7891bda5f038797f
+CT=4928f75915427bc3f7cd06fe33a14cb5
+
+I=156 Round=9 Input value=11
+PT=e15e25c1a5c42d312e85e277c5f9a891
+CT=986524b0455f9e634b3480669e82af0e
+
+I=157 Round=9 Input value=12
+PT=2ae1730bc8d972b6344f1aa71229e6ac
+CT=07a96ff12dbd18b124412525c7231cc9
+
+I=158 Round=9 Input value=13
+PT=a4c72ac439ac6e448b3464a2ea253f5b
+CT=42fd9dc50f322dc6195e0b8e9663bd6f
+
+I=159 Round=9 Input value=14
+PT=cd03f740969f1f6d8f812a3c97a7e263
+CT=80a9a48a8e4ba30bae1026b21ffcc994
+
+I=160 Round=9 Input value=15
+PT=7ecedd7a28c315119f9c3ae66025e7d8
+CT=b6d02f670df470086b6fb45b99fb01ca
+
+I=161 Round=10 Input value=0
+PT=38f6bc806a91901d73cb26b75ec06f12
+CT=e1c667e105c2b4604d3adbd13e2cb5cb
+
+I=162 Round=10 Input value=1
+PT=f2849d8c1e671361963f92fd36ca96bf
+CT=dc4f1f6d9b5e914766b453f7e21087eb
+
+I=163 Round=10 Input value=2
+PT=47bc5519404ca06dfaf8b3a37f51eff0
+CT=b5e696ed148f19c68afcfff8852e4390
+
+I=164 Round=10 Input value=3
+PT=39949ab6fd04bda5db96dc9fd3f0a4e5
+CT=7e8ff26ba01657d46e21856d1a09fc52
+
+I=165 Round=10 Input value=4
+PT=c1ad0d40afcfd0141707b7d3f84f485d
+CT=404945b04344cf3c1af67f59fe90e38d
+
+I=166 Round=10 Input value=5
+PT=420c50f17a1c638668016415eba74631
+CT=af57f2c862f1ac9179ef921784a91c55
+
+I=167 Round=10 Input value=6
+PT=9c2356c7e07a9f37fad93a2f35aa4122
+CT=6ddabf8018130d83bbe691dd4fb221f1
+
+I=168 Round=10 Input value=7
+PT=e9e31f8cc9cd567622659dba5bdf0cd7
+CT=accea45e4d98d9b5a7de15334c2ce57f
+
+I=169 Round=10 Input value=8
+PT=49eafa9eb4f5fcba0b0bb6f048b784fa
+CT=dce159a6d139c4a220bd9c72dbbd52f8
+
+I=170 Round=10 Input value=9
+PT=15a261f7c0d31e6e5d12a6e2977f37ff
+CT=0b31ab4517da1eba368948e7106bc47a
+
+I=171 Round=10 Input value=10
+PT=be7ef8681d84bda191ed5520b99fbfde
+CT=d930f1d96b2de4651aab14e34737f885
+
+I=172 Round=10 Input value=11
+PT=93891330f21c1edf65d7af8e8f046ecf
+CT=89ce8c2ab431ce8ffba5b0bca703b6c4
+
+I=173 Round=10 Input value=12
+PT=5591b375f1eed35048dfc2813d7f374e
+CT=762eeff0cd95e84c64653b7221406d6c
+
+I=174 Round=10 Input value=13
+PT=b66c59e40e7b456273f588e1f7d0d108
+CT=d06b1e9fd643a0c64ad0633b09db1ecf
+
+I=175 Round=10 Input value=14
+PT=9c8f5bf2e272b65b1d498f200154e567
+CT=1bf0168ec1ef1263d54bc7650ee8b147
+
+I=176 Round=10 Input value=15
+PT=0dc95b406eecef8477869ebb7066ae6c
+CT=5135d491594a9a7f096985d6e83b4f34
+
+I=177 Round=11 Input value=0
+PT=fc9af04687065518249b5f2d2f49b8e4
+CT=e15cf5eb81d398b868c79db943762781
+
+I=178 Round=11 Input value=1
+PT=82aee9c4a1c2525f535e24b9bdab8838
+CT=cb39892054c32ee58476df5ff2c562b9
+
+I=179 Round=11 Input value=2
+PT=5676ac4facdb2816b273a0eba26eb0d0
+CT=2bf8761b253b1c42410bb3b6d33ea375
+
+I=180 Round=11 Input value=3
+PT=43c148b9a92d268db6f5d5530ef88773
+CT=4d8db880a1f1a19874e35b14477f7151
+
+I=181 Round=11 Input value=4
+PT=8ce97ecd31b72615f92d1b87f78e0707
+CT=dbfe7ac171f2b41a86b21b992122d3e8
+
+I=182 Round=11 Input value=5
+PT=796a1a94079ce0e337ad9b92cdb0cb48
+CT=27023f0b869d7bc2b4cee501d2682229
+
+I=183 Round=11 Input value=6
+PT=1846a553b2673fdb1db5b4e5bfccfbf9
+CT=38e46bf2ffb26a65729c0ef8e8c3ab4d
+
+I=184 Round=11 Input value=7
+PT=0215a37af006eebe70bb71052902ca49
+CT=0a327863df18c3594b0a4a6747ad9eb5
+
+I=185 Round=11 Input value=8
+PT=68223075366ab6472e3e5d78f47f403f
+CT=853d02b3d4863b64bd67efd87cdeaa50
+
+I=186 Round=11 Input value=9
+PT=876a57b404f8674d8d9691edeae14c3e
+CT=d301cfaa1f519a7bb841b25090274d65
+
+I=187 Round=11 Input value=10
+PT=09ee094870ee4fcf9d123754fb637e84
+CT=f80da7cb6b783d65f057ae6257ef41dd
+
+I=188 Round=11 Input value=11
+PT=dffe10406f7ba1299509673c73760572
+CT=1d676a136319f7373a42f790e994f5fe
+
+I=189 Round=11 Input value=12
+PT=da229e1288cd30cc8f08ad2ea9b7feae
+CT=6c839187b4af94d635286f3ca1794fc5
+
+I=190 Round=11 Input value=13
+PT=5bc3dd1b192283e91a36723a4b23a4f3
+CT=b53a2f7065a90053b5a15cafb1df9f68
+
+I=191 Round=11 Input value=14
+PT=88007fc4b73d5f6bb16fbf52dfae99c8
+CT=fdaf12c685acd999e8ec89f07429c3ca
+
+I=192 Round=11 Input value=15
+PT=88bb427afacf2c0b85a39f1f3d99d18d
+CT=da1ebcd14042b1ef86acd1e8d56a6ffc
+
+I=193 Round=12 Input value=0
+PT=2552e3bffd2878d859f08b32b642746b
+CT=320ca8ccb78c0ff208fb7b0ce2cc5a77
+
+I=194 Round=12 Input value=1
+PT=d8544b43208f4c2a628b34f78a4ac928
+CT=74966693683e53048a369f14bd6680cb
+
+I=195 Round=12 Input value=2
+PT=217dafcd0ebc0659a6d82df5cb49e042
+CT=8e61dc6c805aaa76481a66fb04f6c063
+
+I=196 Round=12 Input value=3
+PT=8551c3df135fd0880cbc1cf2b71ffbd1
+CT=1952ab4d3ad9ccad7d7e4d3cc01fc66f
+
+I=197 Round=12 Input value=4
+PT=b7197b74e945b5dabfa654777d9782d3
+CT=75a0a002ccd509b4bbac40aa29477ae9
+
+I=198 Round=12 Input value=5
+PT=a6c3bb7857857352acb9c0af820b0985
+CT=535239a7a214edf332ed91f29a1ba4f6
+
+I=199 Round=12 Input value=6
+PT=29415f4d6c105f3f237ab3bbba63b408
+CT=7631eda244a20328bf8f0eaa742295f3
+
+I=200 Round=12 Input value=7
+PT=b26b62fe14891c12ead6578d027f19c2
+CT=b68c1be32d0fe4ea4bf249f74afd43be
+
+I=201 Round=12 Input value=8
+PT=9e802b872bae9fef016432d292e34246
+CT=7ad6b7377c2d604e977639f75f990f95
+
+I=202 Round=12 Input value=9
+PT=98ac9fa8b81d1b9e39b0fd6a525c5d76
+CT=96ad1fd27ad3744303bc636ccba7a898
+
+I=203 Round=12 Input value=10
+PT=8193b116a4a54ad47d7e3ce154915839
+CT=54f3201fe36b3da58f1ce7cd7f01789d
+
+I=204 Round=12 Input value=11
+PT=4486c1053aa01cb8128c62d12b800593
+CT=6d358b0a1c804b6ddb2ea15b8da1fe80
+
+I=205 Round=12 Input value=12
+PT=4ce2c28e2d430b315a7619cf3293f53f
+CT=204531a0962c7631daff3dd2e497c690
+
+I=206 Round=12 Input value=13
+PT=4918ce8b8f264fd2c0cf572309f600f9
+CT=8497baaad329bd5a3da57233c23fdb06
+
+I=207 Round=12 Input value=14
+PT=2c8a7a1c2872b69338f77fbc2583f72a
+CT=33102d862c5165b1aad61662231195ff
+
+I=208 Round=12 Input value=15
+PT=c4258e3710cacd8ee9ce705bf01308ef
+CT=788a9690584d1803981dc871bc685da5
+
+I=209 Round=13 Input value=0
+PT=6dc3f2db727dd1b3e33635c96151d165
+CT=9716c6e5db861db5e59692e8c31c7764
+
+I=210 Round=13 Input value=1
+PT=749c379bc9f68a10306e6fdbc140bfd4
+CT=eed1461bf5c0ff564d1d9d05b73bd039
+
+I=211 Round=13 Input value=2
+PT=9ff33fd4edb7ffbff071bef65d4ac4ab
+CT=53593f2ca04e8553a3455ac572be4e11
+
+I=212 Round=13 Input value=3
+PT=82b4475cc1aaf5bde229a7f30ecff5df
+CT=e2c4e95a975f097606c8e1d13018cdf5
+
+I=213 Round=13 Input value=4
+PT=5dc5e4b1d773abe297c84fa6fc7e2a76
+CT=ccb1f7abd1cd1ac5384f5a7affaba95f
+
+I=214 Round=13 Input value=5
+PT=4f5c9fadbed31b67e71e3f4ff80e9ca1
+CT=f282a4b8cf261050473e9a34fb27ce97
+
+I=215 Round=13 Input value=6
+PT=22d19678772b7a678bd77edc77a19b6d
+CT=458cfddea8e80e92704e3526be0cc68c
+
+I=216 Round=13 Input value=7
+PT=ed045c8d26d1b4993260d12b4d8ad384
+CT=1d25fcccb550d2d4a32de6edcf08531a
+
+I=217 Round=13 Input value=8
+PT=6d418fb19e351e3108e4f92d65bdcacc
+CT=2139521f18e3af5302478314727b3771
+
+I=218 Round=13 Input value=9
+PT=3220c0fa3cb635361413d2f0aaf32202
+CT=7763b788e8482cab65d3ab0d920ab572
+
+I=219 Round=13 Input value=10
+PT=5684ed51907aea3fe9f53d31e224e29b
+CT=b51ec6675c013865d53fb7a2813bc8d8
+
+I=220 Round=13 Input value=11
+PT=bafb286a068ec56b7e5497ec0e30920f
+CT=90fa8ab97958338b801b55bba98c0dfb
+
+I=221 Round=13 Input value=12
+PT=10bffba0d82851b74caf9f04ec2a38c9
+CT=b114364722aff505fc81342ac369e656
+
+I=222 Round=13 Input value=13
+PT=30213ee4a6cb0bdf0854619a39fb5b9f
+CT=d3ec5f03642a52c53b12fd6ea852abc5
+
+I=223 Round=13 Input value=14
+PT=2aa6dc44de3c83f749d4ff02125fbe9f
+CT=b4cba6648f0669ff398d51fdacae2073
+
+I=224 Round=13 Input value=15
+PT=b0aaa5cba258d0c2c061f1a8d6080483
+CT=b366d8dfd80df1b9c19c262f09487cfe
+
+I=225 Round=14 Input value=0
+PT=2247c2b06a5e647880b10371656ed846
+CT=a16b6cf1620129895cb737a1e2b7d1d7
+
+I=226 Round=14 Input value=1
+PT=e5f35e41a5d28a6b7d3cce1bf158dce7
+CT=811cd832f85526fc1b00af30bdd21421
+
+I=227 Round=14 Input value=2
+PT=03b71570b6921d098c635ba2ad44bb07
+CT=a0f0e3bc870269a46728688399a27a08
+
+I=228 Round=14 Input value=3
+PT=a678b4742b39b7088f903beea6e58645
+CT=d15c894329a8538cb896153ee52627b9
+
+I=229 Round=14 Input value=4
+PT=762aeefc0e762c0ad7119cbf026ebaec
+CT=72d6d9cdf4a55ea7e104e811020dc545
+
+I=230 Round=14 Input value=5
+PT=6669e3d2e8e448a77a2ec38371c5571f
+CT=aa0443c3631cd87e5ab9ecc97743dee4
+
+I=231 Round=14 Input value=6
+PT=54b39468243c41ae91ee0586255e651c
+CT=bc8c73bdf36f93e65a0025fe8ffc8332
+
+I=232 Round=14 Input value=7
+PT=990597b05340d9f18c7b4bb5373f7484
+CT=1de7771a9b3fae9285f9c55a8cfce83b
+
+I=233 Round=14 Input value=8
+PT=e98b5ddc2ea935d6392291486e0f35e4
+CT=5e6b1c46935e4ce3a8973086a7c962bd
+
+I=234 Round=14 Input value=9
+PT=e4d03e8ff12af346306b88cc6dba4a7c
+CT=93ae0acdb635ec831ff530974d8ad31d
+
+I=235 Round=14 Input value=10
+PT=99442d1d9d71ea72a3b83dc110798d16
+CT=6690b7b2b2b4a84cd3a8e7291ae05f44
+
+I=236 Round=14 Input value=11
+PT=7bd640f963762e3b1f6809c3d0d9356d
+CT=e0f4a6f5cfaa17299e7080c705f9108f
+
+I=237 Round=14 Input value=12
+PT=e7b79d1f420beab7da21001563ef34f7
+CT=c32785779ce5c4e5a91f3ce5b9033d83
+
+I=238 Round=14 Input value=13
+PT=1bbe4fbdbf16d1869e12fa901c532024
+CT=acc17280e58356e8f94387c779d96096
+
+I=239 Round=14 Input value=14
+PT=16137e9ccc11b7888ab5896f285463cb
+CT=e24462d02f709e7ecab54c3d34dc8827
+
+I=240 Round=14 Input value=15
+PT=512781f59c58b39e65f4e49d56af5075
+CT=3279ac53e190cde8925309506c873f10
+
+I=241 Round=15 Input value=0
+PT=9b123e430f9751a0f4946d3416f0598d
+CT=9774f9d01ea2d9245955444729be6d5d
+
+I=242 Round=15 Input value=1
+PT=092d06540e262fb50ac8ad90c2d09535
+CT=84ad99f92d162a091f48c23fbbdd8911
+
+I=243 Round=15 Input value=2
+PT=85ec49b0d32818fded00da0967d3349e
+CT=849be9128676e0c24bbbbe13e1450f7e
+
+I=244 Round=15 Input value=3
+PT=b371144c26aff6be2f9d57ca1a7553bd
+CT=9ad8dd70a3d3e70a0914f4497c74429f
+
+I=245 Round=15 Input value=4
+PT=52c40d132be508ea25a19e0f49e4cfc5
+CT=11095673ed113faaa2276d184ee86202
+
+I=246 Round=15 Input value=5
+PT=577cd7a99bf6e61189ce97fc3d909672
+CT=71684ea3bedef42a5eda295ef51787cd
+
+I=247 Round=15 Input value=6
+PT=c82a0705c8e7d56cc746180868d8d167
+CT=e75f741a75d56afc10c0af485ed3365d
+
+I=248 Round=15 Input value=7
+PT=26981a4243c08d2682ca7eb552cc1ec0
+CT=af77ca37adb885910f6f121e0af6d748
+
+I=249 Round=15 Input value=8
+PT=88d1966a63cf55d8f567b4ae18061603
+CT=7f3389ee68951b66ca3b8f605e9f5c7f
+
+I=250 Round=15 Input value=9
+PT=b478e807e7f50695b7936f79e55e0741
+CT=c63bcecaee1c7f3c38af4fbe4d3b0c30
+
+I=251 Round=15 Input value=10
+PT=efc7651f6aef401c2b7a223a03e48ba8
+CT=50563f4cada9b807892bafa53b722b11
+
+I=252 Round=15 Input value=11
+PT=897dc6d420bcd6748b7c05279cc4d8e0
+CT=140e9316680a1beaf1d4b5345d591621
+
+I=253 Round=15 Input value=12
+PT=41d520a16741de63d156dfd0879f20e6
+CT=f3834a83bb1b596785674b5a4b90fa88
+
+I=254 Round=15 Input value=13
+PT=018f44c014fdf8570f4b955160cadb98
+CT=768a53c1a14fcaa2f9cc10750fbc33da
+
+I=255 Round=15 Input value=14
+PT=4ddfab14ba938199efe920eb6d866c7b
+CT=556c449380bcca213347484641817471
+
+I=256 Round=15 Input value=15
+PT=25156bbeb123e8edf92035c9191635d7
+CT=b59cf1be022fea25b6e8d25982eaadd5
+
+I=257 Round=16 Input value=0
+PT=83c352d28ce5ee6f18aa7a934e5aa36b
+CT=4061bace070d3780c244698a9ce32dfa
+
+I=258 Round=16 Input value=1
+PT=bda6e5770acfbbc95b3dfe4542dfa94c
+CT=f712f64479bcc1a676c5bac6380eec42
+
+I=259 Round=16 Input value=2
+PT=1a0d11781be5cab12dd3ac2b5ce1b1aa
+CT=11b94ba2bb38ba35b29ef57d8a8cdece
+
+I=260 Round=16 Input value=3
+PT=4ad8be78d660e358b28804e2587345cb
+CT=03b2a3a443b3e8d8f031e6522ac98fd2
+
+I=261 Round=16 Input value=4
+PT=4a7166ed0960f80213599040083d5741
+CT=ba9525715eacbfa42041417611c7428c
+
+I=262 Round=16 Input value=5
+PT=6774e3cffef14b20844e35f9b2fc7623
+CT=d4e180f7edcc680e60695dbec5afa77b
+
+I=263 Round=16 Input value=6
+PT=74acb51e8205721ca32999a6e7cd350a
+CT=4a9a86c110df0d87cf2bc2caf376370b
+
+I=264 Round=16 Input value=7
+PT=5d3c4dbd85789abea133090df31dac30
+CT=e0dcc23716d80a9a1c53a809c5b2f094
+
+I=265 Round=16 Input value=8
+PT=46930437d838a9d39294e430e6789a13
+CT=64694efe32b1a547973f81821e9e5734
+
+I=266 Round=16 Input value=9
+PT=fb98dffe4ee1f85760150a2ec71060ab
+CT=f38789701c47d1ea3bd31139f1027a0c
+
+I=267 Round=16 Input value=10
+PT=9d1baed756fc4a81f95c8e60aba30e3f
+CT=e265c8beb8d73c6361a6ee1006c43136
+
+I=268 Round=16 Input value=11
+PT=db3aabaef4062a072b759507ea082ac6
+CT=fdc98792c044926b89b6507f76f6b2cc
+
+I=269 Round=16 Input value=12
+PT=b1a04edd65bd3e38fc94f9c9b4623ab7
+CT=6210e3227bc062efec7f713f1d39b0ad
+
+I=270 Round=16 Input value=13
+PT=25189c1cb684f4726deaee0a14703249
+CT=04537f9041ac0c8f273ea7de68f1da6a
+
+I=271 Round=16 Input value=14
+PT=f0fa11eb4852110f12d45a2c32ec255f
+CT=73d03ce3a0baef43a0d758687239652b
+
+I=272 Round=16 Input value=15
+PT=438843af938724330427b5d2d71250c0
+CT=d49d706ae0cab443a291c5e46bde8aad
+
+I=273 Round=17 Input value=0
+PT=5ad98a84b32d16dabc6d155e7ad7b9b9
+CT=d9c4a0f8312d480c68cb4503c0994bc1
+
+I=274 Round=17 Input value=1
+PT=6c1da2734f8f3361515a67be769bc08f
+CT=807fbb51cdba34a736f2572bfb7f546b
+
+I=275 Round=17 Input value=2
+PT=9ec9d2baf2c596c4dc39442fb1c85928
+CT=b9454c53f18f8106cf769a3aa897c384
+
+I=276 Round=17 Input value=3
+PT=4c4d04f708f0af0661a3e7ec1733cd29
+CT=982f42d9840ad9917109b64d9c9f9307
+
+I=277 Round=17 Input value=4
+PT=8c7a3d96ee172140fd74c05b28d94094
+CT=84ba96dd610adfb050d9b0ffd1815a29
+
+I=278 Round=17 Input value=5
+PT=42dae4e1cf3948358c6de9ba00de05c4
+CT=88a03d717c3cb3a2e6052a39f297ba13
+
+I=279 Round=17 Input value=6
+PT=62a47a1a01d0581d9dcc0abfca4d91f5
+CT=cb91009bac878ed79cbcfad7aaacb46d
+
+I=280 Round=17 Input value=7
+PT=26a75ca548ecf29619f181dec89cbe80
+CT=550e8ebe24cdb75eeda29463b338aafb
+
+I=281 Round=17 Input value=8
+PT=a8db05147cff804ff74756be8bb0c858
+CT=797538a42c03a33ad7639e5e48624cfb
+
+I=282 Round=17 Input value=9
+PT=f0c86f48e8d460d0e279a30c7d50a77d
+CT=e88b2004d5bcd83fcda1ed2ee7ef3551
+
+I=283 Round=17 Input value=10
+PT=5533729e65935f9db9d1bcece9890476
+CT=c6e305b047539774bf95aad5840e7bff
+
+I=284 Round=17 Input value=11
+PT=a18dc2771678424ff91c80dc786af2d8
+CT=d935e7f560d8d789d4576a3f7c199c7d
+
+I=285 Round=17 Input value=12
+PT=95b39d540860ec463d0f7f3038ba1b63
+CT=abb2804039f9d2c758b4c2188741f9ef
+
+I=286 Round=17 Input value=13
+PT=6790f1fc63b30719d4f6056dac5544eb
+CT=50d5d19d2e5835ad4bc0e377b41d6126
+
+I=287 Round=17 Input value=14
+PT=a3adbcc317650ec76badb57cc4e024b1
+CT=80e2cd97134d52ccd7db3c3a35f5bf99
+
+I=288 Round=17 Input value=15
+PT=c471b0370cf134155e96505be66b6dd9
+CT=b78c8ff5b8625f25dde088cb9bec2045
+
+I=289 Round=18 Input value=0
+PT=980da2dde1a9cef6d18f469b52a00de2
+CT=32d55aacd9d396a853c66d9cf9ad8e7d
+
+I=290 Round=18 Input value=1
+PT=dd9d71c831bb77854749ed843205ed8f
+CT=2ae6afcd056be8307f1bfec4bf5c89fb
+
+I=291 Round=18 Input value=2
+PT=0b1b1ccfe6d0c7aec02f6d10c7ca305f
+CT=984d2512d2c518ca98c89e24bb325055
+
+I=292 Round=18 Input value=3
+PT=016a7739ea2e4eb808d2f5c1d11be695
+CT=a9bd34c2b78e6373248b702108f0803b
+
+I=293 Round=18 Input value=4
+PT=31a9678b3a5df0f00db03e3661f6132e
+CT=6e1a95fcbf3b34bc8c2856728067b696
+
+I=294 Round=18 Input value=5
+PT=c8eeb60a68b2a78237dc717783e750be
+CT=c3b9b7de738fc730e096872ced91a048
+
+I=295 Round=18 Input value=6
+PT=c7aa3a248cbd5989db4b6774307d4e49
+CT=18acbb48d77af58b9ae6c4f4ed46d4cb
+
+I=296 Round=18 Input value=7
+PT=3db894cdcce3a94673504d3997d3ef98
+CT=f5bc2f8159beb5b80c1959e9c4d24119
+
+I=297 Round=18 Input value=8
+PT=ff816900a26a891e44c0b2c8a191e4a0
+CT=c9bf0e0fa4158994271254ef22b9930d
+
+I=298 Round=18 Input value=9
+PT=6f43f8be4f15931dce72faf75da40699
+CT=9044df23d024d77803d6fe80ec420020
+
+I=299 Round=18 Input value=10
+PT=dc21bfc45322c65b3ae3da4bfc934793
+CT=db15899ae06a7418ec0fed07afcfbce0
+
+I=300 Round=18 Input value=11
+PT=648d438b6c99182808785dc52f2fc8b2
+CT=16377d644d565317d758bdf709b2d72c
+
+I=301 Round=18 Input value=12
+PT=64cacfe791bc7940b27c52c22eb13cb7
+CT=2ac5c8cb773814074c9bfba2e0c244c7
+
+I=302 Round=18 Input value=13
+PT=323bc2ef7d0018a14c1f97875798bd03
+CT=79d5b566848e250d8bc59c1622965630
+
+I=303 Round=18 Input value=14
+PT=f6c39c980bab11c93bb6b485b98a1b0f
+CT=44719784888cacdb33cbe36f366b3237
+
+I=304 Round=18 Input value=15
+PT=6f2dc9fe941442834277e8da5611649f
+CT=70a3b7b1020833d3aeb380a9fed54380
+
+I=305 Round=19 Input value=0
+PT=52ad0b0948e8c64e67867bb82c27142b
+CT=9c1b7b952f4f783cf8b4fd49124d016a
+
+I=306 Round=19 Input value=1
+PT=32d9c18886907aa9821e4ede8b557451
+CT=646c8c98e98daaaedf3f307681cebfab
+
+I=307 Round=19 Input value=2
+PT=07fd73b1130fa0fc841da319a376450c
+CT=a4f4cf0ac43561059895b00127676eaf
+
+I=308 Round=19 Input value=3
+PT=c3e5e6893defc58ad292f7ed1a92582f
+CT=a72034fb8977b4ce72edacf7b5246f16
+
+I=309 Round=19 Input value=4
+PT=546170eed6b418bdb95e54c777ecd418
+CT=2fd616edaef483b4ae9f9ee0418a4b8e
+
+I=310 Round=19 Input value=5
+PT=fd5fe095063f2a9f81d49e386eefcc41
+CT=1f8ecbd38e54b08530f223b21e31a11f
+
+I=311 Round=19 Input value=6
+PT=4f8436c2c8ff450ee4652058d811cd6f
+CT=11332879d30c9eed5f5dcf66f7dad97d
+
+I=312 Round=19 Input value=7
+PT=ac6bf587cf9fcc4368611be5b354e984
+CT=c0ca9f1224ea76d4e1b1bc07ae0405fc
+
+I=313 Round=19 Input value=8
+PT=3f3e36e84ba4731d65c3c4c0abe45fc1
+CT=bb1e76dbde4da74f35bd5cf39dbea123
+
+I=314 Round=19 Input value=9
+PT=91871a082fbfe29a4909e939e70c593e
+CT=3fd9309499ba3fdbb6277d4013efe3a1
+
+I=315 Round=19 Input value=10
+PT=a600e8b063fd1a2e8a78cb22cf173884
+CT=f0d6807d7c1177425856575ba9696376
+
+I=316 Round=19 Input value=11
+PT=8eeadd3caeadbb502f1f7efc850d8947
+CT=e65da627bd5d8721d1db78fd1d03df38
+
+I=317 Round=19 Input value=12
+PT=7035f8cbd1855954fe5fa966d4ec491e
+CT=1607c6b41b55cc64267c80dde2e31ed4
+
+I=318 Round=19 Input value=13
+PT=57f24b34fc484388f830279639e1240c
+CT=88d2ceda848f9eb6652b2dc41cfa3a33
+
+I=319 Round=19 Input value=14
+PT=222b7255c0a737a7193c0a50c095b3fb
+CT=33e96e0c3807e8d21c883f2c74c12af2
+
+I=320 Round=19 Input value=15
+PT=70847781162d0cd1253bc3f3a0aadf47
+CT=7f108118f8f9de30ab3f258db237444e
+
+I=321 Round=20 Input value=0
+PT=d475914256a3a9c4025c78ba898e300a
+CT=c41860658129eb816e53374420c04b95
+
+I=322 Round=20 Input value=1
+PT=2806f753bac41794bece1545ee04cd9b
+CT=ed1b55778979c8972358f7e477cb0c35
+
+I=323 Round=20 Input value=2
+PT=e29219f22a40ad46c5946879a1ca6c11
+CT=afd685e04e78ed9e3b9f71dee38a2b9b
+
+I=324 Round=20 Input value=3
+PT=2ed21412eec910d3a89aff0c499afad0
+CT=2aab15243dca59e1f1ff4f9a5efb1dde
+
+I=325 Round=20 Input value=4
+PT=6d8e9a9b1b3b7195427464d68064f704
+CT=70a725ab3c5be1712874f0f562e5b121
+
+I=326 Round=20 Input value=5
+PT=ac6422d111db03c39f8f5c2fa9713cdb
+CT=761a610a799f480b955d292d6682be5e
+
+I=327 Round=20 Input value=6
+PT=76eceec93f8ac2e7f380b79f9ac00008
+CT=7ea5fa74b8fb3300af084e7f1a1ad6cc
+
+I=328 Round=20 Input value=7
+PT=5d2c140a6e88d48d9a6c9d01d58badd0
+CT=63a4814785b98b7bcc124a8c858d34c0
+
+I=329 Round=20 Input value=8
+PT=17965ebabbc22e2a00d1564226e98828
+CT=a4e34ab6beb8484be31c46c05d13c29e
+
+I=330 Round=20 Input value=9
+PT=1a89d4438110635feb5e76e60ebb4c39
+CT=ddd222d87c6b25c988533b0e9d794b0c
+
+I=331 Round=20 Input value=10
+PT=885c20203092882814974e0334afcf6b
+CT=09c1eabfaca427eedb673335bb184553
+
+I=332 Round=20 Input value=11
+PT=bc741daefd7932f153370addb14009c3
+CT=f0ef8e2167276873ba8021f917579e46
+
+I=333 Round=20 Input value=12
+PT=a7d712aa06b89199a4fb002c002ce2c5
+CT=48962a9a395de6f4a22b2fecb9717551
+
+I=334 Round=20 Input value=13
+PT=aa93efca5f02986b6effb623065cfbc0
+CT=a658d8e0ac9020e7f93ff54227017d27
+
+I=335 Round=20 Input value=14
+PT=39523bb5ce7fd9ca7a9f91eb8a0dfd00
+CT=1639c6d9469e5e37222eaa9dc0f123ad
+
+I=336 Round=20 Input value=15
+PT=08490e2d0d2dbf7e43d1066ad2bb81a2
+CT=0bd20736ba4b49cccee0b79df799bada
+
+I=337 Round=21 Input value=0
+PT=fcb2b7a60705cae54c557173f36d358d
+CT=33d89b9160835242effe78252cd4c012
+
+I=338 Round=21 Input value=1
+PT=a3ebf0cd80e39387b5b4d8273c3d9a71
+CT=9b14eab173a3a4aba023b8d942e0e7bb
+
+I=339 Round=21 Input value=2
+PT=dee04189bf4e6ac377da52032a235090
+CT=72f812bcfaa44aa5b02dc4d637beaaee
+
+I=340 Round=21 Input value=3
+PT=c55a6f9d9f760a2e40246fab6d9094d8
+CT=e899acaba218edbd960f22c99c0d657e
+
+I=341 Round=21 Input value=4
+PT=5233da2f85f5b3dc1565a64032bf5483
+CT=eed59b4e88d66b1c1d14ad1b6dc367f8
+
+I=342 Round=21 Input value=5
+PT=aef5c56249f932ff8638cf0063e62eab
+CT=04997f4f80ac1162ba0f16f8d050f055
+
+I=343 Round=21 Input value=6
+PT=174ede6e6b4d8bc01377642e3698c236
+CT=7c70e69e38aa7bcd3428cba9aaa63a9d
+
+I=344 Round=21 Input value=7
+PT=37e79f23b41747c13fc0fea09c5eb975
+CT=e5cb0c8a6f76aeddfc5aeea42446f49b
+
+I=345 Round=21 Input value=8
+PT=be7973dbf14c2669ef9e7d23f0a49e55
+CT=d99de267d6b79670a1a3569eb704dcbf
+
+I=346 Round=21 Input value=9
+PT=28ce44874d6e7204277981b9a65aa4d5
+CT=436f7bd0de93fcd710c69a1f6da4b918
+
+I=347 Round=21 Input value=10
+PT=8c2aaba0e1a3df3984b39963cb25b014
+CT=fe2361482ce83ac593b7d60f326171ae
+
+I=348 Round=21 Input value=11
+PT=5ea5bc739c7c5cdd72907a14005e1fe6
+CT=8139b61c757b97ca57fc8b91c44b61d6
+
+I=349 Round=21 Input value=12
+PT=279ccbd4fbda810c08009ecf4ba730c1
+CT=cd64e6520aff9be5cc09bb1fc9798767
+
+I=350 Round=21 Input value=13
+PT=6d83ca7dc7cceaa44f8284b31f79337b
+CT=ba6c6c44b3dd827d9e561eed6183b7dd
+
+I=351 Round=21 Input value=14
+PT=8a4730c2480f328dcdae2b80cea612f3
+CT=2ef16c50d793cceaa6d4e0678a6e37bf
+
+I=352 Round=21 Input value=15
+PT=810d96f8851df472b778c6df1cf312a3
+CT=5904947fcf5d49d848d10677948b27c3
+
+I=353 Round=22 Input value=0
+PT=4ccec74a80ecf4f3f817d5445b21e2b1
+CT=4961e0efb86ce21a1fd13196f1f65c3c
+
+I=354 Round=22 Input value=1
+PT=27be16ce3095e326201970d64b84182d
+CT=a49a3f825de4a1be3cb818cd1593e733
+
+I=355 Round=22 Input value=2
+PT=5d84b437174797e23bafaf7a83bd4d8b
+CT=c3013f76c470a9d2bd4c3995a3c8302a
+
+I=356 Round=22 Input value=3
+PT=3e933e6c25b408085f69c4f0cff120ad
+CT=6a9ce64a35854d452382ab0a872b062c
+
+I=357 Round=22 Input value=4
+PT=ee45a88d4faf6255acfeb352dcc2b364
+CT=f92c3633fe5857f7683ee8bcb7c1e4c3
+
+I=358 Round=22 Input value=5
+PT=c6799971f51510858e8c3a5308708099
+CT=d62576bb1dc7b314aefea5fea45d2689
+
+I=359 Round=22 Input value=6
+PT=e0d916f39256e107d0d34293451e6494
+CT=1b0e189baf725140a0d25e74831c4851
+
+I=360 Round=22 Input value=7
+PT=5ea5cde5bed96e7cb7b3621fe34a6489
+CT=9c8e6696d30c8092d957e3178e1e499d
+
+I=361 Round=22 Input value=8
+PT=758638d212bb0df06ef42be1642ac274
+CT=3ef254a4948769bdfa1984f1db822885
+
+I=362 Round=22 Input value=9
+PT=20b2d1d1c31759704d84594fccb28a2d
+CT=1921b79048772dcb0eca70cb5c7de730
+
+I=363 Round=22 Input value=10
+PT=4a4ddcdf7568d397e4be09387060363e
+CT=2ff482aeafbf834112bb8d41e911dc7e
+
+I=364 Round=22 Input value=11
+PT=775cd7eb0faf15dc591c55b8e9bce7d8
+CT=78d835eac06ea33855bcf3a0157449dc
+
+I=365 Round=22 Input value=12
+PT=2554e906c5f489a0afa5d098bafc5a61
+CT=e48322e3b6c70dd9a20447860c89ced7
+
+I=366 Round=22 Input value=13
+PT=36b81d85a4ccb88a3a8230ea5d392a08
+CT=375ce18153ce642358044884803415db
+
+I=367 Round=22 Input value=14
+PT=823fcab1f8307743671a744c125e0bb1
+CT=95d7d3a7d73723d2a6138d90162115c7
+
+I=368 Round=22 Input value=15
+PT=1135bf8821c7053058c4070255d12a11
+CT=4a9b56b3c68e9d08fdad7ac53093e741
+
+I=369 Round=23 Input value=0
+PT=39a7138e625c9bef3be247977ea3b9c1
+CT=cf8d7b8f1639e08943b729738c94aae9
+
+I=370 Round=23 Input value=1
+PT=489af08e3593f1c3508dce5c2a0c25b2
+CT=614f6b9f277356268ba27e4c952a5d93
+
+I=371 Round=23 Input value=2
+PT=c2c1b856b61c7a0224939f707e9725d1
+CT=0f9079cf364c099527bfe07660790778
+
+I=372 Round=23 Input value=3
+PT=049086d578e82277bc13a181ba009664
+CT=000a27e306482426402cd4b52c849cc6
+
+I=373 Round=23 Input value=4
+PT=30ff6f829a0ec4e52dd059edb4f31857
+CT=e8f24110cd1c5c696196cba39cbe6392
+
+I=374 Round=23 Input value=5
+PT=f5936ee32946807c1c7b61439b4756ac
+CT=f7fe3b70dab34235f01aaa6bb5275ec3
+
+I=375 Round=23 Input value=6
+PT=350a2e05cc73998ff4ccb47ab27a0220
+CT=26b53d2a3b902329aaad7696f8a7aa22
+
+I=376 Round=23 Input value=7
+PT=bd86789c59cba0fa678f5e5d8e67ddc8
+CT=e7b0245c097ffaca1693db2ef5484473
+
+I=377 Round=23 Input value=8
+PT=2f5bf7dfd3aa9b0a95bdbd56ccf0df93
+CT=439ce483c78eefb08b47ee7f48a3d6eb
+
+I=378 Round=23 Input value=9
+PT=ef9827f51db90d07ddbd91a6f968ef7f
+CT=822a7a2f765db3922f1b4f8466a56045
+
+I=379 Round=23 Input value=10
+PT=8e59ed3b1cb8a4776d5431b1bd6ea086
+CT=2d3953979e246e5d1f21ea076329b937
+
+I=380 Round=23 Input value=11
+PT=fd5cf31864d86d5bb6f1cc1e147e465c
+CT=de36f110e192c432f3836328ce329740
+
+I=381 Round=23 Input value=12
+PT=8791ceb741e82bef70145cd4affae935
+CT=6e315b14df7bd9ab32d8804d8066db1b
+
+I=382 Round=23 Input value=13
+PT=97f7c4fa242d5873b21cd87ea37ae772
+CT=0e5f88794fbdfefe6baa7ffe3be5ef19
+
+I=383 Round=23 Input value=14
+PT=3d0dc60eeb6c00cf27e79e55d5faa873
+CT=275ffb5a702b31f0d72a5b8fef97e181
+
+I=384 Round=23 Input value=15
+PT=a1e826e5a6861424c96169eaf566b581
+CT=c0e79a015f9397dd7883189817183f21
+
+I=385 Round=24 Input value=0
+PT=1feccacf5ac51f164aa29687cb82a20d
+CT=e19984c1ba89557f3b1dd03abc6abf72
+
+I=386 Round=24 Input value=1
+PT=fa19260a5be512aa9b54a704ca822417
+CT=26046e51f9123e372d9c7e3c603207b4
+
+I=387 Round=24 Input value=2
+PT=556710084c5054a7abf18db96bb7890e
+CT=83d92e167b5158410c3f0de216d6381f
+
+I=388 Round=24 Input value=3
+PT=fde6aee5cc04c33c57069d3d82d8fb44
+CT=55e461f4ed2d0db364878bcac26b57a4
+
+I=389 Round=24 Input value=4
+PT=b06fe0e049379136b7b4c60816d8c9e6
+CT=4025aacf3548d515244e66b9366c7583
+
+I=390 Round=24 Input value=5
+PT=0cb8f23c877bb60e9ed6399b26ef3db0
+CT=db1629f7a85c6ee4905b395e2f4526b2
+
+I=391 Round=24 Input value=6
+PT=eff79b9cf45983a6860e17a2f7764914
+CT=e2237f858002ff4d77cf420b8e068321
+
+I=392 Round=24 Input value=7
+PT=d0499922273bac49d1fc741ae9156ff8
+CT=65340f16a1f882d89718d48794508ea8
+
+I=393 Round=24 Input value=8
+PT=50c047b4f671e4801d285c99e1ebb865
+CT=0911b8992690577081b45b04fcd5ee84
+
+I=394 Round=24 Input value=9
+PT=27145fde39f35bf9022f438b5ae66a11
+CT=6fba06fa6b12987667de2ee5688eb94f
+
+I=395 Round=24 Input value=10
+PT=21ecbf79841851f078d11ecd0567da7e
+CT=41006d431b818d74b48da717cf0c8466
+
+I=396 Round=24 Input value=11
+PT=2476bc6046f51b64b041d4000d78b2b3
+CT=3ef5acfe57a6a815e689600964b3246c
+
+I=397 Round=24 Input value=12
+PT=8b7d9df644781d636f095d9620befcae
+CT=574ca81bebb2efcb22e25fe724b1b30b
+
+I=398 Round=24 Input value=13
+PT=100a282995f66ec6b0a67f7eb2c0c894
+CT=3c68e7a40f74f63c2be28b96f6860c7b
+
+I=399 Round=24 Input value=14
+PT=1f080517306f754e22e3430597d36c86
+CT=bbe4f49dd31954a48cd0d6e1db0e40a0
+
+I=400 Round=24 Input value=15
+PT=da94e6965822e62d570bcd88bd86dbaa
+CT=e42dacaa62af9eb26e196a35f7424bad
+
+I=401 Round=25 Input value=0
+PT=987f21f396abb1dff0bdbc43147122ad
+CT=60d79391550656e5f8d0e0265576396b
+
+I=402 Round=25 Input value=1
+PT=d5bd0c9dcc9ccb9aae79bac591ef632c
+CT=d373020e7e883ba5800487e72efc8b36
+
+I=403 Round=25 Input value=2
+PT=782bd831af91523082aead828ee95279
+CT=425579007b71ab2c522e11c914371f48
+
+I=404 Round=25 Input value=3
+PT=bf69e9307a76c02ac88f64a18616b6e0
+CT=4abc6ceea68df826b3545397901f68ca
+
+I=405 Round=25 Input value=4
+PT=9d20794978b1fca410f5188d3247f22a
+CT=097d560903fd756ad95fb11528b885c1
+
+I=406 Round=25 Input value=5
+PT=bfb9c6685236274c4b5176654364205d
+CT=57c151ac76592baf7322b18038ac7a26
+
+I=407 Round=25 Input value=6
+PT=3f8b9acc5e00bd1a0b80eb150e28043d
+CT=491b64a07744db28746d01548962e2eb
+
+I=408 Round=25 Input value=7
+PT=903bf96b4cf2380c51dbcb84cf355ba5
+CT=80a2e2d18f8805ef760dd6f961a14196
+
+I=409 Round=25 Input value=8
+PT=9b5be8b8eade6a33c76f1fa1ee2043f1
+CT=9cec9e431bd99fb87e3e941c6bb8427f
+
+I=410 Round=25 Input value=9
+PT=653264a427331b31549d913b8a38d481
+CT=63285473f0814c97a2f1740ea7e1df70
+
+I=411 Round=25 Input value=10
+PT=3d39f5c7ea7ce57eec8bf3d3789d46d1
+CT=cdd6259acbdba85cc6b78f1e54b5ec5d
+
+I=412 Round=25 Input value=11
+PT=9343648117d53b059c98c6367d362800
+CT=3079a6196a9a984afb406039c17f9628
+
+I=413 Round=25 Input value=12
+PT=4b7a1ad90c44ca094d517aede379f30d
+CT=ec49efca20d587bd5d2b879ffe5b40b2
+
+I=414 Round=25 Input value=13
+PT=a469ad7ede50d9896d3cd0147bcf472e
+CT=ac77e827c0e943cb1abd2dfb40aea1a6
+
+I=415 Round=25 Input value=14
+PT=4baf2f48fdd9947f8fcd567cba5a6fbd
+CT=b1916a82d2413625385697f9fa1fd91e
+
+I=416 Round=25 Input value=15
+PT=3eb19a18a5040c0026d2a5b5414363ba
+CT=115e0c02cf7ffbba526b6d2e444f64f5
+
+I=417 Round=26 Input value=0
+PT=2f2aca9c8ffc9b204c50a7fc5ac12a6e
+CT=da849e3061e3af241ab0e0bfb228b273
+
+I=418 Round=26 Input value=1
+PT=18cc5dbc7cecc3c8eb4e98f4817b34ce
+CT=155ecc676e91165b54028c770edecc5e
+
+I=419 Round=26 Input value=2
+PT=de8034d2f95be7efb504554004f8ffdc
+CT=7a4d9df6a4a4942e46a8af8fc74ec066
+
+I=420 Round=26 Input value=3
+PT=c87c52a33ef994b97d53ba8e64521322
+CT=081c4419c5b737144a22475a0fdbe074
+
+I=421 Round=26 Input value=4
+PT=bdddd741e69613f84c92af89ec8f45c8
+CT=00d60f2381d2f7da635363994dd03b5c
+
+I=422 Round=26 Input value=5
+PT=0acce0429c21a1f5f8420bf07e1f7ef4
+CT=7d67dc54141ad45d2a7b212ad019de6d
+
+I=423 Round=26 Input value=6
+PT=884cd58f17333bed7cb3a65e4cf3cd24
+CT=3031096eafcca54ff42ed14c7edddd95
+
+I=424 Round=26 Input value=7
+PT=cb4f17716e8ca8ad0f019031452380ac
+CT=3709ce58773f55dac5c4cf73506123f1
+
+I=425 Round=26 Input value=8
+PT=a7e0df18c2842d43b668fd03afe53a02
+CT=f035f26039d2b2a67aeb28577c618d4b
+
+I=426 Round=26 Input value=9
+PT=4f165f4f2bc935591e6045df455ca3ca
+CT=0daa2cbc487c05d69a27b592e7d05571
+
+I=427 Round=26 Input value=10
+PT=c8236f7c3766e085ce4fc29625d872ed
+CT=ad0e498bffdb75f5b705dc3abdf74323
+
+I=428 Round=26 Input value=11
+PT=d603df8cfd42d3ce2565d49dea348881
+CT=fca32dfda9aabc04ff1b87e85352aaf0
+
+I=429 Round=26 Input value=12
+PT=63784c8669f7117669f5080a038d52ae
+CT=364ddd7f1fb078f5655b395deb670dc4
+
+I=430 Round=26 Input value=13
+PT=18c1514b625631cd231e656661e59b97
+CT=fb6906831d7449b41dc895effaad3f4d
+
+I=431 Round=26 Input value=14
+PT=7547f172325b30667bcb468d29c6f223
+CT=9dc13543b384910c0c63fc8c9f5d1fb2
+
+I=432 Round=26 Input value=15
+PT=20e42d9642cc022424ff2bf17e6e5e4c
+CT=15cfef8c23fbc84bde56ce1355166407
+
+I=433 Round=27 Input value=0
+PT=46cdb679b60b876834a22821bf53fb93
+CT=08b0f6348b091a0ac7b061904132ea6f
+
+I=434 Round=27 Input value=1
+PT=d3b8a44026635ceacc6079b0492aeba5
+CT=a7fb05e5d7128333de1568f9cdce8a14
+
+I=435 Round=27 Input value=2
+PT=20ca289b7c1222478dd1ba712bcae57c
+CT=2c275829c2b35ef16e510bf61ce7ea65
+
+I=436 Round=27 Input value=3
+PT=05385c6c80da7f98b7e6de30bed33b6b
+CT=3d2cf9b61c21ab56b81efe33be02949c
+
+I=437 Round=27 Input value=4
+PT=1515b34317ac308455da204b90c836fa
+CT=059ac32a14d00d194545d0c0ef62e590
+
+I=438 Round=27 Input value=5
+PT=4090284ff4087fcee8352b06bd9a156d
+CT=cad6218222209bd5ac1a36b862e15337
+
+I=439 Round=27 Input value=6
+PT=7a97cae1cb8d6193402e3561669c09f5
+CT=21e3020badcb8d76992e5cce079fbefd
+
+I=440 Round=27 Input value=7
+PT=538c8732611bacca0b29a5f70b788a68
+CT=07090e0eb3a8d24c9b90441d5b152906
+
+I=441 Round=27 Input value=8
+PT=069dde409ad843a4245566b28bc92160
+CT=50377cb7293c3269c44690f533970358
+
+I=442 Round=27 Input value=9
+PT=63f55500a7bba60c8445629edf6bf7fb
+CT=adff1c87a5bfdefdea2b233a251b5594
+
+I=443 Round=27 Input value=10
+PT=8ab6f24a55ccc03cf06941666fdd2fa7
+CT=f93655f6936c5a5a74e013931fb1010e
+
+I=444 Round=27 Input value=11
+PT=31b679879bd7562fc5e8ec110e0e5565
+CT=b5263a52b33afc4007a2c352197b0f06
+
+I=445 Round=27 Input value=12
+PT=d2a29351133b4349f3723be5409dc8f6
+CT=34138d72132fae5b0cd720a528d79d54
+
+I=446 Round=27 Input value=13
+PT=1ae6741bffec14750c2d1067f4e6f204
+CT=f135dde987c7f4ae61ebde648d63deb9
+
+I=447 Round=27 Input value=14
+PT=f92b8c36e92df52ce1b73bc0120603f4
+CT=ae62d27ed9534e6345485b6bc076925f
+
+I=448 Round=27 Input value=15
+PT=5f3f7fcbac68494dfbe434338cd08aa2
+CT=2c24b6e0a225d1b119518772e5b3b882
+
+I=449 Round=28 Input value=0
+PT=032c0cad6ac7e244d3f17d285e02dab2
+CT=1d32de968cc8517858de335cf59853a2
+
+I=450 Round=28 Input value=1
+PT=eafa7dcf1ef2685fd33e9636b2486549
+CT=fc06c391321b0e3c9f60e78b19829f20
+
+I=451 Round=28 Input value=2
+PT=2df808ec6c9bbc673ab0db27d77a01d8
+CT=2e9000ffd2e6899e04996b862a0c9475
+
+I=452 Round=28 Input value=3
+PT=60de1487ee5b19bf3d530cc06311966f
+CT=78b2fae47e81d3c95b61df654dc1046a
+
+I=453 Round=28 Input value=4
+PT=79cd7ab341a184069f1fc8cafeee9313
+CT=0ec4fb16018c3295a2b1cc39395c7503
+
+I=454 Round=28 Input value=5
+PT=edd8f2b5d28051ea83bb2dbfc60f6f2d
+CT=7a3203cc4408763b629bad78149165f9
+
+I=455 Round=28 Input value=6
+PT=36074d7fe6792ac5fc9aa45fdec33390
+CT=fbc4661bca4603b56ca8bd0163043158
+
+I=456 Round=28 Input value=7
+PT=2b2dfd0144ae1cfd022c80319dc4b7d8
+CT=f870ef73f4610c8b03e185984e88f708
+
+I=457 Round=28 Input value=8
+PT=4035504d0e27d83044443656587896ba
+CT=77c3cecd6586a4bb088aaa1c481e1d42
+
+I=458 Round=28 Input value=9
+PT=3ca38eced98b91e1ff9fed573d32619b
+CT=45f42cdc5b1622d9f7c0ba74e99a1679
+
+I=459 Round=28 Input value=10
+PT=618cffb3ff748a9b870a75a169b4cb4c
+CT=dcf7417956abc5b8ab5966b98696834e
+
+I=460 Round=28 Input value=11
+PT=3f32841ef9e8efbbbfd3087ca343f2d8
+CT=1befa8c47d04869a93fb14e4f467039a
+
+I=461 Round=28 Input value=12
+PT=6f3509faeffcb926349f492c4d1e82d3
+CT=0d65a4013ac6b9a1525b0a4ed6bc159b
+
+I=462 Round=28 Input value=13
+PT=86d2534be8aff8e68d49fa73d33572e6
+CT=7d2af185f64a567b58e50b58b978da5f
+
+I=463 Round=28 Input value=14
+PT=eb5d36caf803a714bc41664f1b81fdf1
+CT=5c24e37fdd4eef0e427bd7e535f80c66
+
+I=464 Round=28 Input value=15
+PT=ae9d88ffc34ad63cce53d3ca0fc6162b
+CT=71f8c4f4806bff617990308fb0148bf7
+
+I=465 Round=29 Input value=0
+PT=0e4e0019e85f8783959ba92316fd7feb
+CT=fe376c1b452539dfcb29b9b62cb754b4
+
+I=466 Round=29 Input value=1
+PT=06685a082771e69ee27a9dc0312ce409
+CT=cbdecf0406a6fbdb6a712467a65b3046
+
+I=467 Round=29 Input value=2
+PT=96e5eff793ffaf79a98915c42427148a
+CT=81aef35fb606a154128fe0f142428aab
+
+I=468 Round=29 Input value=3
+PT=3315a8c2116337729dc4ba0af1eeeb87
+CT=c51b2fb07046e8adbd22e5a115d33d03
+
+I=469 Round=29 Input value=4
+PT=896bcac2a3dd7bef491851b29b2ebcb3
+CT=0202ed2153a2a71ad4d91d96c94bdb0e
+
+I=470 Round=29 Input value=5
+PT=707cb894a97694494fb0a07155d1e7a5
+CT=007b2b5fdb8246e3b4ca1f318a3e35d8
+
+I=471 Round=29 Input value=6
+PT=645478edd31de7ad6d0ee4a1eb5fd35d
+CT=85481ad2912d823c34dd2836f3ebc558
+
+I=472 Round=29 Input value=7
+PT=9c0176402e92c2cbbc886ec7faa49e46
+CT=abf4e07f6e89694e1fcf8181810c91a6
+
+I=473 Round=29 Input value=8
+PT=f05dad509fc29997ad8bfec05d9f4b5e
+CT=5b29e1218b64b8b81755918c53ba5595
+
+I=474 Round=29 Input value=9
+PT=b9f9ee52455d8d130a783c05a31a52a8
+CT=59674013bd160a2d72eb7afc0293d058
+
+I=475 Round=29 Input value=10
+PT=56c8eb3dcd5dde209eca3297eed595e1
+CT=2dc2a72ab6483fc71a08c20f1614d360
+
+I=476 Round=29 Input value=11
+PT=a9d0b2eeb7262791096270f49fdecefa
+CT=433f8438f62a8180eba0d3ddbc84223d
+
+I=477 Round=29 Input value=12
+PT=503284f7406048aa307f8f9704e444b4
+CT=cb287ee3f29caf06d3f7b66fe9c5ba9a
+
+I=478 Round=29 Input value=13
+PT=369277b25513fd1288960dc99acb549b
+CT=c351216cbdd993ee50043874e1fb44b4
+
+I=479 Round=29 Input value=14
+PT=b81d845afe818238b122ffa3c06896c2
+CT=7c9bde7c61d4841f79a1de6d376e3f4a
+
+I=480 Round=29 Input value=15
+PT=7c3fb7b94936132c70a0c586b7fcaa75
+CT=0cc3770fcad867385ea60b7be39bd8cb
+
+I=481 Round=30 Input value=0
+PT=a7892ac4623240cf0ae288ef8937c639
+CT=5fcd102acdff07c2ac37a0ae3508adfa
+
+I=482 Round=30 Input value=1
+PT=97b2228322be12a4bfffabcfa13b5871
+CT=cb526e8eeb9a23b9c52e072ae88ff1da
+
+I=483 Round=30 Input value=2
+PT=7f69866b177a239c64014b9a579702d0
+CT=312f9ad29425080e796aa4c1576d2e21
+
+I=484 Round=30 Input value=3
+PT=402fc8d549168a0b29a447921994d649
+CT=cbf78bbe6ae7950e104d1f52d2955995
+
+I=485 Round=30 Input value=4
+PT=139b010d97bb2a76d53e17035659883c
+CT=2e2c13d1bdc1e91daaf11b2ecdcaa5da
+
+I=486 Round=30 Input value=5
+PT=1fd0e20c3e725af6d5a8154f5e29ab83
+CT=62129bc515e3f446446e3362d628fa69
+
+I=487 Round=30 Input value=6
+PT=618c5a5d20cd4f385ee4b161a7f3a9d8
+CT=118a6c627e3e15412c91ccd531975235
+
+I=488 Round=30 Input value=7
+PT=67fbcc9afb5c35da148c172769c5541d
+CT=f451a40d949e617153f640c6296a8249
+
+I=489 Round=30 Input value=8
+PT=68dbf0242b8ab851a2c07bf0bd74957d
+CT=920d042a000716f69ed01a3d0f125196
+
+I=490 Round=30 Input value=9
+PT=3f467110aa434d3a9077a892564ca975
+CT=9836efd57039a829ab918b1dcef77626
+
+I=491 Round=30 Input value=10
+PT=f89a3a8369053b84802d61faad414ca0
+CT=14f442bd0e00d81ee616e0bd00ce8212
+
+I=492 Round=30 Input value=11
+PT=75b85c5f902ffcf758aab4c69c9f154d
+CT=ee8996e1b3c677f59f89bb394771fda5
+
+I=493 Round=30 Input value=12
+PT=f6281bb65954044ac9b719b1e840180b
+CT=b5f6ebd5eb211ac65376460eff13525e
+
+I=494 Round=30 Input value=13
+PT=5b095ffd331ca423edab1138e4cf4c8e
+CT=4829103a1558eeb9910b9652b8ac2de9
+
+I=495 Round=30 Input value=14
+PT=2a76cd62374c56a87cf82b4d306c95c9
+CT=a5e9443a6a5cdff179ec6cc12a750d86
+
+I=496 Round=30 Input value=15
+PT=95fbf857603995bb1672a1f8a10f76f4
+CT=6fd2afc5c3f8eaaa6689ce71b0f08e6d
+
+I=497 Round=31 Input value=0
+PT=62a84112ab121cf73ba4bd038653b67c
+CT=60b526d684a2550d2f57267584143b7e
+
+I=498 Round=31 Input value=1
+PT=34a768166e4642af6135a205aad445e9
+CT=9f4ad9297b5daaf22f57267584143b7e
+
+I=499 Round=31 Input value=2
+PT=3e4b358333433cb352241c4a9cb4a05f
+CT=9f4ad9297b5daaf2d0a8d98a84143b7e
+
+I=500 Round=31 Input value=3
+PT=c12926c79a6a6d73abe05965c156dc5c
+CT=60b526d684a2550d2f5726757bebc481
+
+I=501 Round=31 Input value=4
+PT=4b4e364023b8654b4fc8518caed3c84e
+CT=9f4ad9297b5daaf2d0a8d98a7bebc481
+
+I=502 Round=31 Input value=5
+PT=376aeee97bd3f3f3e6b3ce1e58707ff9
+CT=9f4ad92984a2550d2f5726757bebc481
+
+I=503 Round=31 Input value=6
+PT=13a5e0ca48c958c497a249cb9d2dcdee
+CT=60b526d684a2550dd0a8d98a7bebc481
+
+I=504 Round=31 Input value=7
+PT=6f932f130f7e0e016683b2f524bb8718
+CT=9f4ad92984a2550dd0a8d98a84143b7e
+
+I=505 Round=31 Input value=8
+PT=4ac3b27164ca1e4015e39d64fa76d5ea
+CT=60b526d67b5daaf2d0a8d98a84143b7e
+
+I=506 Round=31 Input value=9
+PT=8fb88b4f21f57ec6848a922fa21b0d54
+CT=60b526d67b5daaf22f5726757bebc481
+
+I=507 Round=31 Input value=10
+PT=9f93408d9e26920a67d3952221cfd974
+CT=9f4ad9297b5daaf22f5726757bebc481
+
+I=508 Round=31 Input value=11
+PT=3e9eada088085d10e3f701adf4bceb6b
+CT=9f4ad92984a2550dd0a8d98a7bebc481
+
+I=509 Round=31 Input value=12
+PT=289b453a1cf221ae7fb90bc7ed03ffb4
+CT=9f4ad92984a2550d2f57267584143b7e
+
+I=510 Round=31 Input value=13
+PT=8dd552243583bf286520d44dbe7ff893
+CT=60b526d684a2550dd0a8d98a84143b7e
+
+I=511 Round=31 Input value=14
+PT=b82d13e9d3ab0e2959d2241804d661d2
+CT=60b526d67b5daaf22f57267584143b7e
+
+I=512 Round=31 Input value=15
+PT=50bf524c03a013a041184ed832470792
+CT=60b526d67b5daaf2d0a8d98a7bebc481
+
+==========
+

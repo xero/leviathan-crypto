@@ -1,0 +1,16 @@
+{
+  "options": {
+    "runtime": "stub",
+    "initialMemory": 3,
+    "maximumMemory": 3,
+    "noAssert": true,
+    "optimizeLevel": 3,
+    "shrinkLevel": 1
+  },
+  "entries": [
+    "src/asm/serpent/index.ts",
+    "src/asm/chacha/index.ts",
+    "src/asm/sha2/index.ts",
+    "src/asm/sha3/index.ts"
+  ]
+}

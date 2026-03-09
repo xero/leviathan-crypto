@@ -1,0 +1,55 @@
+name: test suite
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.npmignore'
+      - '.gitattributes'
+      - 'bun.lock'
+      - 'package-lock.json'
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-vectors:
+    uses: ./.github/workflows/verify-vectors.yml
+
+  build:
+    uses: ./.github/workflows/build.yml
+
+  e2e:
+    needs: [build]
+    uses: ./.github/workflows/e2e.yml
+
+  unit-fast:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-fast.yml
+
+  unit-montecarlo-cbc:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-montecarlo-cbc.yml
+
+  unit-montecarlo-ecb:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-montecarlo-ecb.yml
+
+  unit-nessie:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-nessie.yml
+
+  unit-hashing:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-hashing.yml
+
+  unit-utils:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-utils.yml
+

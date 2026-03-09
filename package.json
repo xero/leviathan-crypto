@@ -1,0 +1,77 @@
+{
+  "name": "leviathan-crypto",
+  "version": "1.0.0-alpha.0",
+  "author": "xero (x@xero.style)",
+  "license": "MIT",
+  "description": "Cryptography library focused on Serpent-256, featuring a strictly typed TypeScript API built on audited and vector-verified WebAssembly primitives",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./serpent": "./dist/serpent/index.js",
+    "./chacha20": "./dist/chacha20/index.js",
+    "./sha2": "./dist/sha2/index.js",
+    "./sha3": "./dist/sha3/index.js"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build:asm": "node scripts/build-asm.js",
+    "build:embed": "npx tsx scripts/embed-wasm.ts",
+    "build:ts": "tsc",
+    "build": "npm run build:asm && npm run build:embed && npm run build:ts && cp build/*.wasm dist/ 2>/dev/null || true",
+    "test": "npm run build:asm && npm run build:embed && vitest run",
+    "test:browser": "npm run build && playwright test",
+    "test:all": "npm run test && npm run test:browser",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "_shorthand": "# aliases: 'bun bake' = build, 'bun fix' = lint:fix, 'bun check' = test:all",
+    "bake": "npm run build",
+    "fix": "npm run lint:fix",
+    "check": "npm run test:all"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.3.5",
+    "assemblyscript": "^0.27.37",
+    "eslint": "^10.0.3",
+    "jiti": "^2.6.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^3.2.4"
+  },
+  "repository": "github:xero/leviathan-crypto",
+  "homepage": "https://github.com/xero/leviathan-crypto/wiki",
+  "bugs": {
+    "url": "https://github.com/xero/leviathan-crypto/issues"
+  },
+  "keywords": [
+    "Cryptography",
+    "Encryption",
+    "Serpent",
+    "Serpent256",
+    "Cypher",
+    "Cipher",
+    "Crypto",
+    "Typescript",
+    "AES",
+    "Chacha20",
+    "Curve25519",
+    "Ed25519",
+    "SHA",
+    "SHA.256",
+    "SHA-512",
+    "SHA-3",
+    "Keccak",
+    "SHAKE",
+    "HMAC",
+    "PBKDF2",
+    "UUID",
+    "Fortuna",
+    "CSPRNG",
+    "Entropy"
+  ]
+}

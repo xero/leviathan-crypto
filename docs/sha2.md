@@ -1,0 +1,501 @@
+# sha2.md -- SHA-2 hash functions and HMAC (TypeScript API)
+
+> Cryptographic hashing and message authentication using SHA-256, SHA-384,
+> SHA-512, HMAC-SHA256, HMAC-SHA384, and HMAC-SHA512.
+
+---
+
+## Overview
+
+SHA-2 is a family of cryptographic hash functions standardized in
+[FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final).
+A hash function takes an input of any size -- a password, a file, a single
+byte -- and produces a fixed-size output called a **digest** (sometimes called
+a "fingerprint" or "hash"). Even the smallest change to the input produces a
+completely different digest. This makes hash functions useful for verifying that
+data has not been tampered with.
+
+leviathan-crypto provides three SHA-2 variants:
+
+- **SHA-256** -- 32-byte (256-bit) digest. The most widely used variant. Use
+  this unless you have a specific reason to choose another.
+- **SHA-512** -- 64-byte (512-bit) digest. Higher security margin. Faster than
+  SHA-256 on 64-bit platforms.
+- **SHA-384** -- 48-byte (384-bit) digest. A truncated variant of SHA-512.
+  Useful when you need a digest longer than 256 bits but shorter than 512 bits,
+  or when a protocol specifies it (e.g. TLS cipher suites).
+
+**HMAC** (Hash-based Message Authentication Code, [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104))
+combines a secret key with a hash function to produce a **tag** that proves both
+the integrity and the authenticity of a message. Anyone can compute a plain SHA-256
+hash of a message -- but only someone who holds the secret key can compute the
+correct HMAC tag. This means the recipient can verify that the message was sent by
+someone who knows the key, and that it was not modified in transit.
+
+leviathan-crypto provides three HMAC variants corresponding to each hash:
+
+- **HMAC_SHA256** -- 32-byte tag, using SHA-256
+- **HMAC_SHA512** -- 64-byte tag, using SHA-512
+- **HMAC_SHA384** -- 48-byte tag, using SHA-384
+
+All computation runs in WebAssembly. The TypeScript classes handle input
+validation and the JS/WASM boundary -- they never implement cryptographic
+algorithms directly.
+
+---
+
+## Security Notes
+
+Read these before using the API. Misusing hash functions is one of the most
+common sources of security vulnerabilities.
+
+### Hashing is NOT encryption
+
+A hash is a one-way function. You **cannot** recover the original input from a
+hash digest. If you need to protect data so that it can be read later, you need
+encryption (see [serpent.md](./serpent.md) or use `XChaCha20Poly1305`).
+
+### Do NOT use plain SHA-2 for passwords
+
+SHA-2 is extremely fast by design. An attacker with a GPU can compute billions
+of SHA-256 hashes per second, making brute-force attacks on passwords trivial.
+For password hashing, use a deliberately slow function like **Argon2id** or
+**bcrypt**. leviathan-crypto does not include a password hashing function in
+v1.0 -- use a dedicated library for this purpose.
+
+### SHA-2 is vulnerable to length extension attacks
+
+Never construct a MAC by concatenating a secret and a message and hashing them:
+
+```typescript
+// DANGEROUS -- DO NOT DO THIS
+const bad = sha256.hash(concat(secret, message))
+```
+
+An attacker who sees `SHA256(secret || message)` can compute
+`SHA256(secret || message || padding || attacker_data)` without knowing the
+secret. This is called a **length extension attack**.
+
+**Always use HMAC** when you need to authenticate a message with a secret key.
+HMAC is specifically designed to be immune to this attack.
+
+### HMAC key length
+
+HMAC keys should be **at least as long as the hash output**:
+
+| HMAC variant  | Minimum recommended key length |
+|---------------|-------------------------------|
+| HMAC_SHA256   | 32 bytes (256 bits)           |
+| HMAC_SHA384   | 48 bytes (384 bits)           |
+| HMAC_SHA512   | 64 bytes (512 bits)           |
+
+Keys shorter than this are technically valid (they will be zero-padded
+internally) but provide less security than the hash function offers. Keys
+longer than the hash block size (64 bytes for SHA-256, 128 bytes for
+SHA-384/SHA-512) are pre-hashed automatically per RFC 2104 section 3 -- this is
+handled for you, but there is no benefit to using very long keys.
+
+### Always use constant-time comparison for HMAC verification
+
+When verifying an HMAC tag, **never** use `===` or any other comparison that
+can return early on the first mismatched byte. An attacker can measure how long
+the comparison takes and use that information to forge a valid tag one byte at a
+time (this is called a **timing attack**).
+
+Use `constantTimeEqual()` from leviathan-crypto instead. It always compares
+every byte regardless of where the first difference is.
+
+### Call dispose() when you are done
+
+`dispose()` calls `wipeBuffers()` in the WASM module, which zeroes out all
+internal buffers including hash state and key material. This prevents sensitive
+data from lingering in memory. Always call `dispose()` when you are finished
+with a hash or HMAC instance.
+
+---
+
+## API Reference
+
+All classes require `init(['sha2'])` to be called first. Constructing any SHA-2
+class before initialization throws an error.
+
+### SHA256
+
+Computes a SHA-256 hash (32-byte digest).
+
+```typescript
+class SHA256 {
+	constructor()
+	hash(msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new SHA256 instance. Throws if `init(['sha2'])`
+has not been called.
+
+**`hash(msg: Uint8Array): Uint8Array`** -- Hashes the entire message and returns
+a 32-byte `Uint8Array` digest. The message can be any length (including empty).
+Large messages are internally chunked and streamed through the WASM hash function,
+so memory usage stays constant regardless of input size.
+
+**`dispose(): void`** -- Wipes all internal WASM buffers (hash state, input
+buffer, output buffer). Call this when you are done with the instance.
+
+---
+
+### SHA512
+
+Computes a SHA-512 hash (64-byte digest).
+
+```typescript
+class SHA512 {
+	constructor()
+	hash(msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new SHA512 instance. Throws if not initialized.
+
+**`hash(msg: Uint8Array): Uint8Array`** -- Returns a 64-byte digest.
+
+**`dispose(): void`** -- Wipes all internal WASM buffers.
+
+---
+
+### SHA384
+
+Computes a SHA-384 hash (48-byte digest). SHA-384 is a truncated variant of
+SHA-512 with different initial values.
+
+```typescript
+class SHA384 {
+	constructor()
+	hash(msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new SHA384 instance. Throws if not initialized.
+
+**`hash(msg: Uint8Array): Uint8Array`** -- Returns a 48-byte digest.
+
+**`dispose(): void`** -- Wipes all internal WASM buffers.
+
+---
+
+### HMAC_SHA256
+
+Computes an HMAC-SHA256 authentication tag (32-byte output).
+
+```typescript
+class HMAC_SHA256 {
+	constructor()
+	hash(key: Uint8Array, msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new HMAC_SHA256 instance. Throws if not
+initialized.
+
+**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** -- Computes the
+HMAC-SHA256 tag for the given message using the given key. Returns a 32-byte
+`Uint8Array`. Keys longer than 64 bytes are automatically pre-hashed with
+SHA-256 per RFC 2104 section 3.
+
+**`dispose(): void`** -- Wipes all internal WASM buffers, including key material.
+
+---
+
+### HMAC_SHA512
+
+Computes an HMAC-SHA512 authentication tag (64-byte output).
+
+```typescript
+class HMAC_SHA512 {
+	constructor()
+	hash(key: Uint8Array, msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new HMAC_SHA512 instance. Throws if not
+initialized.
+
+**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** -- Returns a 64-byte
+HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-512.
+
+**`dispose(): void`** -- Wipes all internal WASM buffers.
+
+---
+
+### HMAC_SHA384
+
+Computes an HMAC-SHA384 authentication tag (48-byte output).
+
+```typescript
+class HMAC_SHA384 {
+	constructor()
+	hash(key: Uint8Array, msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new HMAC_SHA384 instance. Throws if not
+initialized.
+
+**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** -- Returns a 48-byte
+HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-384.
+
+**`dispose(): void`** -- Wipes all internal WASM buffers.
+
+---
+
+## Usage Examples
+
+### Example 1: Hash a message with SHA-256
+
+The most common operation: hash a string and get a hex-encoded digest.
+
+```typescript
+import { init, SHA256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+
+// Step 1: Initialize the SHA-2 WASM module (do this once at app startup)
+await init(['sha2'])
+
+// Step 2: Create a SHA256 instance
+const sha = new SHA256()
+
+// Step 3: Hash a message
+// utf8ToBytes converts a string to a Uint8Array
+const message = utf8ToBytes('Hello, world!')
+const digest = sha.hash(message)
+
+// Step 4: Convert the digest to a hex string for display or storage
+console.log(bytesToHex(digest))
+// => "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"
+
+// Step 5: Clean up -- wipes hash state from WASM memory
+sha.dispose()
+```
+
+### Example 2: Hash binary data (e.g., a file)
+
+SHA-256 works on raw bytes, not just strings. You can hash any `Uint8Array`,
+including file contents read from a `<input type="file">` element or a fetch
+response.
+
+```typescript
+import { init, SHA256, bytesToHex } from 'leviathan-crypto'
+
+await init(['sha2'])
+
+// Suppose you have file contents as an ArrayBuffer (from FileReader, fetch, etc.)
+const response = await fetch('https://example.com/file.bin')
+const buffer = new Uint8Array(await response.arrayBuffer())
+
+const sha = new SHA256()
+const digest = sha.hash(buffer)
+console.log('SHA-256:', bytesToHex(digest))
+
+sha.dispose()
+```
+
+The library handles large inputs automatically -- it streams the data through
+the WASM hash function in chunks, so you do not need to worry about memory.
+
+### Example 3: Using SHA-512 or SHA-384
+
+The API is identical for all three hash variants. Only the output size differs.
+
+```typescript
+import { init, SHA256, SHA384, SHA512, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+
+await init(['sha2'])
+
+const msg = utf8ToBytes('Same message, different hashes')
+
+const sha256 = new SHA256()
+const sha384 = new SHA384()
+const sha512 = new SHA512()
+
+console.log('SHA-256 (32 bytes):', bytesToHex(sha256.hash(msg)))
+console.log('SHA-384 (48 bytes):', bytesToHex(sha384.hash(msg)))
+console.log('SHA-512 (64 bytes):', bytesToHex(sha512.hash(msg)))
+
+sha256.dispose()
+sha384.dispose()
+sha512.dispose()
+```
+
+### Example 4: Generate and verify an HMAC
+
+Use HMAC when you need to prove that a message was created by someone who holds
+a secret key. A typical pattern: one side generates a tag, the other side
+recomputes the tag with the same key and checks that they match.
+
+```typescript
+import {
+	init, HMAC_SHA256, constantTimeEqual, randomBytes,
+	bytesToHex, utf8ToBytes
+} from 'leviathan-crypto'
+
+await init(['sha2'])
+
+// Generate a random 32-byte key (do this once, store it securely)
+const key = randomBytes(32)
+
+const hmac = new HMAC_SHA256()
+const message = utf8ToBytes('Transfer $100 to Alice')
+
+// --- Sender side: generate the tag ---
+const tag = hmac.hash(key, message)
+console.log('HMAC tag:', bytesToHex(tag))
+
+// Send both `message` and `tag` to the recipient...
+
+// --- Recipient side: verify the tag ---
+// The recipient has the same key and recomputes the tag
+const recomputed = hmac.hash(key, message)
+
+// Use constant-time comparison to check the tags
+if (constantTimeEqual(tag, recomputed)) {
+	console.log('Message is authentic -- it was not tampered with')
+} else {
+	console.log('WARNING: message has been modified or key is wrong')
+}
+
+hmac.dispose()
+```
+
+### Example 5: HMAC verification -- the wrong way vs. the right way
+
+This is important enough to call out separately. The difference between these
+two approaches is the difference between a secure system and a broken one.
+
+```typescript
+import { init, HMAC_SHA256, constantTimeEqual, bytesToHex } from 'leviathan-crypto'
+
+await init(['sha2'])
+const hmac = new HMAC_SHA256()
+
+// Suppose you received a message with a tag and you recomputed the expected tag:
+const receivedTag = hmac.hash(key, message)
+const expectedTag = hmac.hash(key, message)
+
+// WRONG -- timing attack vulnerable!
+// JavaScript's === operator compares byte-by-byte and returns false as soon as
+// it finds a mismatch. An attacker can measure the response time to figure out
+// how many leading bytes of the tag are correct, then forge a valid tag one
+// byte at a time.
+if (bytesToHex(receivedTag) === bytesToHex(expectedTag)) {
+	// This "works" but is insecure
+}
+
+// RIGHT -- constant-time comparison
+// constantTimeEqual always examines every byte, regardless of where the first
+// difference is. The comparison takes the same amount of time whether zero
+// bytes match or all bytes match.
+if (constantTimeEqual(receivedTag, expectedTag)) {
+	// This is secure
+}
+
+hmac.dispose()
+```
+
+### Example 6: Using HMAC-SHA512 for higher security
+
+The pattern is identical to HMAC-SHA256. Use a 64-byte key for full security.
+
+```typescript
+import { init, HMAC_SHA512, constantTimeEqual, randomBytes, utf8ToBytes } from 'leviathan-crypto'
+
+await init(['sha2'])
+
+// 64-byte key for HMAC-SHA512
+const key = randomBytes(64)
+const hmac = new HMAC_SHA512()
+
+const tag = hmac.hash(key, utf8ToBytes('Important message'))
+// tag is a 64-byte Uint8Array
+
+// Verify
+const recomputed = hmac.hash(key, utf8ToBytes('Important message'))
+console.log('Valid:', constantTimeEqual(tag, recomputed)) // true
+
+hmac.dispose()
+```
+
+### Example 7: Hashing an empty input
+
+SHA-2 is well-defined for empty inputs. This can be useful as a sanity check.
+
+```typescript
+import { init, SHA256, bytesToHex } from 'leviathan-crypto'
+
+await init(['sha2'])
+
+const sha = new SHA256()
+const digest = sha.hash(new Uint8Array(0))
+console.log(bytesToHex(digest))
+// => "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+// (This is the well-known SHA-256 hash of the empty string)
+
+sha.dispose()
+```
+
+---
+
+## Error Conditions
+
+### Module not initialized
+
+If you construct any SHA-2 class before calling `init(['sha2'])`, the
+constructor throws immediately:
+
+```
+Error: leviathan-crypto: call init(['sha2']) before using this class
+```
+
+**Fix:** Call `await init(['sha2'])` at application startup, before creating any
+SHA-2 instances.
+
+```typescript
+// This will throw:
+const sha = new SHA256() // Error!
+
+// Do this instead:
+await init(['sha2'])
+const sha = new SHA256() // OK
+```
+
+### HMAC key length
+
+HMAC accepts keys of any length, including zero-length keys. However:
+
+- **Keys shorter than the recommended minimum** (see the table in Security
+  Notes) are zero-padded internally. They will produce valid HMAC tags, but the
+  security of the MAC is limited by the key length, not the hash output size.
+  A 16-byte key with HMAC-SHA256 provides at most 128 bits of security, not 256.
+- **Keys longer than the hash block size** (64 bytes for HMAC-SHA256, 128 bytes
+  for HMAC-SHA384 and HMAC-SHA512) are automatically pre-hashed to fit. This is
+  standard behavior defined in RFC 2104 section 3 and is handled transparently.
+- **Zero-length keys** are technically valid per the HMAC spec, but provide no
+  authentication. Do not use a zero-length key in production.
+
+### Empty message input
+
+All hash and HMAC functions accept empty `Uint8Array` inputs (`new Uint8Array(0)`).
+SHA-2 is well-defined for zero-length messages and will return the correct digest.
+
+---
+
+## Cross-References
+
+- [asm_sha2.md](./asm_sha2.md) -- WASM implementation details (AssemblyScript)
+- [sha3.md](./sha3.md) -- Alternative: SHA-3 family (immune to length extension attacks)
+- [serpent.md](./serpent.md) -- Use HMAC-SHA256 for Encrypt-then-MAC with Serpent-CBC or Serpent-CTR
+- [utils.md](./utils.md) -- `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
+- [api.md](./api.md) -- Library architecture and `init()` API

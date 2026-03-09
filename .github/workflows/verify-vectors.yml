@@ -1,0 +1,14 @@
+name: verify-vectors
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  hashsums:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: verify test vector checksums
+        working-directory: test/vectors
+        run: sha256sum --check SHA256SUMS

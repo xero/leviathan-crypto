@@ -1,0 +1,61 @@
+name: publish wiki
+on:
+  # auto-runs on changes to the docs folder in the main branch
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+jobs:
+  sync-docs:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          path: repo
+      - name: checkout wiki
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          token: ${{ secrets.CICD_TOKEN }}
+      - name: configure git
+        run: |
+          # get the last commit author name and email
+          cd repo
+          COMMIT_NAME="${{ github.event.head_commit.author.name }}"
+          COMMIT_EMAIL="${{ github.event.head_commit.author.email }}"
+          # default to actor name if head_commit info is not available (e.g. onDispatch)
+          if [ -z "$COMMIT_NAME" ]; then
+            COMMIT_NAME="${{ github.actor }}"
+            COMMIT_EMAIL="${{ github.actor }}@users.noreply.github.com"
+          fi
+          git config --global user.name "$COMMIT_NAME"
+          git config --global user.email "$COMMIT_EMAIL"
+          cd ..
+      - name: sync docs to wiki
+        run: |
+          # copy docs to wiki
+          cp -r repo/docs/* wiki/
+          cd wiki
+          # update layout
+          echo "## &copy; $(date +"%Y") : [Leviathan Crypto Project](https://github.com/xero/leviathan-crypto)" > _Footer.md
+          ### update after first build
+          #echo -e "## **LVTHN Wiki**\n\n<img src=\"https://github.com/xero/lvthn/raw/main/docs/logo.svg\" alt=\"Leviathan logo\" width=\"150\">\n\n## API Reference\n\n### Symmetric Ciphers\n- [serpent.ts](./serpent)\n\n" > _Sidebar
+          ####
+          # rename index file
+          mv README.md Home.md
+          # change README to Home in all docs
+          find . -name "*.md" -exec perl -pi -e 's/\]\((?!https?:\/\/)([^)]*?)README\.md([#][^)]+)?\)/](${1}Home.md$2)/g' {} \;
+          # fix internal markdown linx (remove .md extension)
+          find . -name "*.md" -exec perl -pi -e 's/\]\((?!https?:\/\/)([^)]+)\.md([#][^)]+)?\)/](\1\2)/g' {} \;
+          git add .
+          if git diff --staged --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "docs(wiki): sync :recycle:"
+          git push

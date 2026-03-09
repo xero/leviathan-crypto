@@ -1,0 +1,60 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+import { test, expect } from '@playwright/test';
+import { CTR_VECTORS } from '../unit/serpent/ctr_vectors';
+
+const JS_URL = 'http://localhost:1337/build/serpent.js';
+
+const INIT = `
+var __wasmCache = null;
+async function loadWasm() {
+  if (__wasmCache) return __wasmCache;
+  __wasmCache = await import('${JS_URL}');
+  return __wasmCache;
+}
+function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) }
+function toHex(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') }
+`;
+
+test.beforeEach(async ({ page }) => {
+	await page.goto('http://localhost:1337/');
+	await page.evaluate(INIT);
+});
+
+for (const { label, key, nonce, pt, ct } of CTR_VECTORS) {
+	test(`CTR mode — Case ${label}`, async ({ page }) => {
+		const result: string = await page.evaluate(async ({ key, nonce, pt }) => {
+			const wasm = await loadWasm();
+			const mem  = new Uint8Array(wasm.memory.buffer);
+			const k    = fromHex(key);
+			mem.set(k, wasm.getKeyOffset());
+			wasm.loadKey(k.length);
+			mem.set(fromHex(nonce), wasm.getNonceOffset());
+			const ptBytes = fromHex(pt);
+			mem.set(ptBytes, wasm.getChunkPtOffset());
+			wasm.resetCounter();
+			wasm.encryptChunk(ptBytes.length);
+			return toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + ptBytes.length));
+		}, { key, nonce, pt });
+		expect(result).toBe(ct.toLowerCase());
+	});
+}
