@@ -43,7 +43,10 @@
     "typescript-eslint": "^8.56.1",
     "vitest": "^3.2.4"
   },
-  "repository": "github:xero/leviathan-crypto",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xero/leviathan-crypto.git"
+  },
   "homepage": "https://github.com/xero/leviathan-crypto/wiki",
   "bugs": {
     "url": "https://github.com/xero/leviathan-crypto/issues"
