@@ -11,6 +11,7 @@ export default defineConfig([
       "**/build/**",
       "**/dist/**",
       "src/asm/**",
+			"src/ts/embedded/**",
       "tslint.config.ts",
       "vitest.config.ts",
       "eslint.config.ts",
