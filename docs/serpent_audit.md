@@ -1,14 +1,13 @@
 # Serpent-256 Cryptographic Audit — leviathan-crypto
 
-**Conducted:** Week of 2026-03-09
-**Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-**Reference implementations:**
-- Serpent AES submission C code (`floppy1/serpent-reference.c`, Frank Stajano)
-- `leviathan` TypeScript implementation (prior audit baseline)
-
-**Spec:** Serpent AES submission, Anderson/Biham/Knudsen 1998
-
----
+> [!NOTE]
+> **Conducted:** Week of 2026-03-09
+> **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
+> **Reference implementations:**
+> - Serpent AES submission C code (`floppy1/serpent-reference.c`, Frank Stajano)
+> - `leviathan` TypeScript implementation (prior audit baseline)
+>
+> **Spec:** Serpent AES submission, Anderson/Biham/Knudsen 1998
 
 ## Table of Contents
 
@@ -97,9 +96,8 @@ The `kl` function (`serpent.ts:297–319`) implements the inverse linear transfo
 | ROTL(5) | ROTL(27) | 5 + 27 = 32 |
 | ROTL(22) | ROTL(10) | 22 + 10 = 32 |
 
-Note: In the WASM implementation, `rotl<i32>` is an AssemblyScript built-in that compiles to the WASM `i32.rotl` instruction — a single CPU instruction on all modern architectures. The TypeScript version required a manual `rotW` function with masking (`& this.wMax`) to preserve 32-bit arithmetic in JavaScript; the WASM version does not need this because `i32` is natively 32-bit.
-
----
+> [!NOTE]
+> In the WASM implementation, `rotl<i32>` is an AssemblyScript built-in that compiles to the WASM `i32.rotl` instruction — a single CPU instruction on all modern architectures. The TypeScript version required a manual `rotW` function with masking (`& this.wMax`) to preserve 32-bit arithmetic in JavaScript; the WASM version does not need this because `i32` is natively 32-bit.
 
 ### 1.3 Key Schedule
 
@@ -576,3 +574,10 @@ The best biclique attack on full 32-round Serpent-256 achieves 2^{255.19} time c
 To contextualize the scale: 2^{255.19} operations at 10^{18} operations per second (beyond any current or foreseeable hardware) would require approximately 10^{58} years — roughly 10^{48} times the age of the universe. The biclique attack reduces this by a factor of less than 2, which does not change the conclusion that brute-force key search against Serpent-256 is computationally infeasible.
 
 The leviathan-crypto implementation is not affected by this attack in any way that a code change could address. The biclique structure exploits inherent algebraic properties of the Serpent S-boxes and key schedule — properties that are identical in any correct implementation.
+
+---
+
+## Cross-References
+
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)

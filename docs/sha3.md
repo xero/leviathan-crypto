@@ -1,8 +1,7 @@
 # sha3.md
 
-SHA-3 hash functions and SHAKE XOFs (TypeScript API)
-
----
+> [!NOTE]
+> SHA-3 hash functions and SHAKE XOFs (TypeScript API)
 
 ## Overview
 
@@ -434,6 +433,7 @@ absorbs zero bytes and then squeezes.
 
 ## Cross-References
 
+- [README.md](./README.md): Project overview and quick-start guide
 - [asm_sha3.md](./asm_sha3.md): WASM implementation details (buffer layout, Keccak internals, variant parameters)
 - [sha2.md](./sha2.md): Alternative: SHA-2 family (SHA-256, SHA-384, SHA-512) and HMAC
 - [utils.md](./utils.md): Encoding utilities: `bytesToHex`, `hexToBytes`, `utf8ToBytes`

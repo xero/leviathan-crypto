@@ -550,12 +550,6 @@ const pt2 = cipher.decryptChunk(ct2)
 cipher.dispose()
 ```
 
-## Cross-References
-
-- [asm_chacha.md](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-- [serpent.md](./serpent.md) — Alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
-- [sha2.md](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
-
 ## Error Conditions
 
 | Condition | Error Type | Message |
@@ -570,3 +564,10 @@ cipher.dispose()
 | Chunk or plaintext exceeds WASM buffer size | `RangeError` | `plaintext exceeds N bytes — split into smaller chunks` / `chunk exceeds maximum size of N bytes — split into smaller chunks` |
 | Authentication tag does not match on decrypt | `Error` | `ChaCha20Poly1305: authentication failed` |
 | Empty plaintext | — | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
+
+## Cross-References
+
+- [README.md](./README.md)
+- [asm_chacha.md](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
+- [serpent.md](./serpent.md) — Alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
+- [sha2.md](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20

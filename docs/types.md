@@ -175,6 +175,8 @@ function cleanup(ctx: EncryptionContext): void {
 
 ## Cross-References
 
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)
 - [utils.md](./utils.md): Encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
 - [serpent.md](./serpent.md): Serpent classes implement `Blockcipher` and `Streamcipher`
-- [testing.md](./testing.md): Test suite documentation
+- [test-suite.md](./test-suite.md): Test suite documentation

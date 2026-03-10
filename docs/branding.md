@@ -91,3 +91,8 @@ Source: [logo.svg](./logo.svg)
 >[!NOTE]
 > Logos and colorscheme design by [xero](https://x-e.ro)
 > Licensed [MIT](http://www.opensource.org/licenses/MIT) as part of the project.
+
+## Cross-References
+
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)

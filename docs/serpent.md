@@ -1,9 +1,8 @@
 # serpent.md -- Serpent-256 block cipher (TypeScript API)
 
+> [!NOTE]
 > Encrypt and decrypt data using the Serpent block cipher in three modes:
 > raw block operations, CTR streaming, and CBC with automatic padding.
-
----
 
 ## Overview
 
@@ -174,7 +173,8 @@ when you are done with the instance.
 Serpent in Counter (CTR) mode. Encrypts and decrypts data of any length as a
 stream of chunks.
 
-> **WARNING: CTR mode is unauthenticated.** An attacker can modify ciphertext
+> [!WARNING]
+> CTR mode is unauthenticated. An attacker can modify ciphertext
 > without detection. Always pair with HMAC-SHA256 (Encrypt-then-MAC) or use
 > `XChaCha20Poly1305` instead.
 
@@ -237,7 +237,8 @@ Wipes all key material and intermediate state from WASM memory.
 Serpent in Cipher Block Chaining (CBC) mode with automatic PKCS7 padding.
 Encrypts and decrypts entire messages in a single call.
 
-> **WARNING: CBC mode is unauthenticated.** Always authenticate the output with
+> [!WARNING]
+> CBC mode is unauthenticated. Always authenticate the output with
 > HMAC-SHA256 (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead.
 
 ```typescript
@@ -356,11 +357,10 @@ console.log(new TextDecoder().decode(plain2)); // "world!"
 ctr.dispose();
 ```
 
-> **Remember:** CTR mode is unauthenticated. An attacker can tamper with the
+> [!IMPORTANT]
+> CTR mode is unauthenticated. An attacker can tamper with the
 > ciphertext without detection. See Example 4 for how to add authentication, or
 > use `XChaCha20Poly1305` instead.
-
----
 
 ### Example 3: CBC mode encrypt/decrypt
 
@@ -388,10 +388,9 @@ console.log(new TextDecoder().decode(decrypted)); // "This is a secret message."
 cbc.dispose();
 ```
 
-> **Remember:** CBC mode is unauthenticated. See the next example for the secure
+> [!IMPORTANT]
+> CBC mode is unauthenticated. See the next example for the secure
 > Encrypt-then-MAC pattern.
-
----
 
 ### Example 4: Encrypt-then-MAC (SerpentCbc + HMAC_SHA256)
 
@@ -481,6 +480,8 @@ hmac.dispose();
 
 ## Cross-References
 
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)
 - [asm_serpent.md](./asm_serpent.md): WASM implementation details and buffer layout
 - [serpent_reference.md](./serpent_reference.md): Algorithm specification and design rationale
 - [serpent_audit.md](./serpent_audit.md): Security audit findings

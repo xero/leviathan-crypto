@@ -1,10 +1,9 @@
 # loader.md -- WASM Binary Loading Strategies
 
-Internal module that handles the actual loading and instantiation of WebAssembly
-binaries. Used by `init()` -- you do not normally interact with this module
-directly.
-
----
+> [!NOTE]
+> Internal module that handles the actual loading and instantiation of WebAssembly
+> binaries. Used by `init()` -- you do not normally interact with this module
+> directly.
 
 ## Overview
 
@@ -201,5 +200,6 @@ unexpected allocations and makes the memory layout predictable and auditable.
 
 ## Cross-References
 
-- [init.md](./init.md): The public `init()` API that uses this loader
+- [README.md](./README.md)
 - [architecture.md](./architecture.md): Architecture overview
+- [init.md](./init.md): The public `init()` API that uses this loader

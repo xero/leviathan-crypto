@@ -608,7 +608,8 @@ exports its own `init(mode?, opts?)` for tree-shakeable loading.
 }
 ```
 
-> **Note:** `dist/chacha20/pool.worker.js` ships in the package but is not in the
+> [!NOTE]
+> `dist/chacha20/pool.worker.js` ships in the package but is not in the
 > `exports` map. It is an internal Web Worker entry point loaded by
 > `XChaCha20Poly1305Pool` at runtime. Do not import it as a named subpath.
 
@@ -809,3 +810,7 @@ They are not deprecated — they are the source material for this repository.
   with the new class names and `init()` architecture.
 - `leviathan-wasm/test/` — original test suite. Ported into `test/unit/` and
   `test/e2e/` with reorganization into per-module subdirectories.
+
+## Cross-References
+
+- [README.md](./README.md)

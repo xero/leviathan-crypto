@@ -59,13 +59,10 @@
 | `hmac.spec.ts` | HMAC-SHA256 TC1 (Gate 5), HMAC-SHA512 TC6 (Gate 6), HMAC-SHA256 TC2 | 3 |
 | `sha3.spec.ts` | SHA3-256 empty (Gate 7), SHA3-512 "abc", SHAKE128 empty/32B | 3 |
 
->[!NOTE]
+> [!NOTE]
 > E2E Monte Carlo tests use 50 outer iterations in Playwright (vs 1200 in Vitest) for
 > cross-browser performance. A correct 50-iteration result is strong evidence of
 > correct 1200-iteration behavior as errors compound within the first few iterations.
-
----
-
 
 ## Vector Corpus
 
@@ -109,7 +106,12 @@
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHAKE128 (empty×32, "abc"×32, empty×64, rate boundary) | 5 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHAKE256 (empty×32, "abc"×64, rate boundary) | 4 | VERIFIED |
 
->[!IMPORTANT]
+> [!IMPORTANT]
 > All vector files are read-only. Integrity is verified via [`SHA256SUMS`](https://github.com/xero/lvthn/blob/main/test/vectors/SHA256SUMS)
 > with expected values sourced directly from authoritative references.
 > They are the **_immutable truth,_** and must never be modified to make tests pass.
+
+## Cross-References
+
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)

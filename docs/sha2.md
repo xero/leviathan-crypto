@@ -1,9 +1,8 @@
 # sha2.md -- SHA-2 hash functions and HMAC (TypeScript API)
 
+> [!NOTE]
 > Cryptographic hashing and message authentication using SHA-256, SHA-384,
 > SHA-512, HMAC-SHA256, HMAC-SHA384, and HMAC-SHA512.
-
----
 
 ## Overview
 
@@ -522,8 +521,9 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 
 ## Cross-References
 
+- [README.md](./README.md): Project overview and quick-start guide
+- [architecture.md](./architecture.md): Library architecture and `init()` API
 - [asm_sha2.md](./asm_sha2.md): WASM implementation details (AssemblyScript)
 - [sha3.md](./sha3.md): Alternative: SHA-3 family (immune to length extension attacks)
 - [serpent.md](./serpent.md): Use HMAC-SHA256 for Encrypt-then-MAC with Serpent-CBC or Serpent-CTR
 - [utils.md](./utils.md): `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
-- [architecture.md](./architecture.md): Library architecture and `init()` API

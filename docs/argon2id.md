@@ -1,9 +1,8 @@
 # Argon2id -- Memory-Hard Password Hashing and Key Derivation
 
+> [!NOTE]
 > A memory-hard password hashing function that resists GPU and ASIC brute-force
 > attacks, backed by a dedicated WASM module with SIMD acceleration where available.
-
----
 
 ## Overview
 
@@ -260,11 +259,12 @@ deriveKey(
 Returns an object containing the derived `key`, the `salt` used, and the `params`
 applied.
 
-**Critical: callers MUST store the returned `salt` AND `params` alongside the
-ciphertext.** Both are required to re-derive the same key for decryption. If
-either value is lost, the key cannot be reconstructed and the ciphertext becomes
-permanently unrecoverable. The salt is not secret -- it can be stored in
-plaintext next to the ciphertext -- but it must be preserved.
+> [!CAUTION]
+> Callers MUST store the returned `salt` AND `params` alongside the
+> ciphertext. Both are required to re-derive the same key for decryption. If
+> either value is lost, the key cannot be reconstructed and the ciphertext becomes
+> permanently unrecoverable. The salt is not secret -- it can be stored in
+> plaintext next to the ciphertext -- but it must be preserved.
 
 Uses `ARGON2ID_DERIVE` parameters by default, which always produces a 32-byte
 key suitable for Serpent-256 or XChaCha20-Poly1305.
@@ -390,6 +390,8 @@ db.storeMasterCredential(userId, {
 
 ## Cross-References
 
+- [README.md](./README.md): Project overview and quick-start guide
+- [architecture.md](./architecture.md): System architecture and design decisions
 - [serpent.md](./serpent.md): Serpent-256 TypeScript API (pair with `deriveKey()` for passphrase-based encryption)
 - [chacha20.md](./chacha20.md): XChaCha20-Poly1305 TypeScript API (pair with `deriveKey()` for authenticated encryption)
 - [fortuna.md](./fortuna.md): CSPRNG for generating random salts when none is provided

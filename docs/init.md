@@ -1,11 +1,10 @@
 # init.md -- Module Initialization and WASM Loading
 
-The `init()` function is the entry point for leviathan-crypto. You must call it
-before using any cryptographic class. It loads the WebAssembly modules that
-perform the actual cryptographic work, caches them in memory, and makes them
-available to all wrapper classes.
-
----
+> [!NOTE]
+> The `init()` function is the entry point for leviathan-crypto. You must call it
+> before using any cryptographic class. It loads the WebAssembly modules that
+> perform the actual cryptographic work, caches them in memory, and makes them
+> available to all wrapper classes.
 
 ## Overview
 
@@ -65,7 +64,7 @@ The four WASM module families. Each one backs a group of related classes:
 | `'chacha20'`| `ChaCha20`, `XChaCha20Poly1305`                                |
 | `'sha2'`    | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `Fortuna`  |
 | `'sha3'`    | `SHA3`, `SHAKE128`, `SHAKE256`                                 |
-| `'argon2id'`| `Argon2id` — **not part of the `Module` union.** Uses its own init type (`'embedded' \| 'manual'`), not the root `Module` type. See [index.md](./index.md) for its dedicated init path. |
+| `'argon2id'`| `Argon2id` — **not part of the `Module` union.** Uses its own init type (`'embedded' \| 'manual'`), not the root `Module` type. See [README.md](./README.md) for its dedicated init path. |
 
 ```typescript
 type Mode = 'embedded' | 'streaming' | 'manual'
@@ -95,9 +94,10 @@ Optional configuration object. Which fields are required depends on the mode:
 
 #### `init(modules, mode?, opts?)` — public API (exported from root barrel)
 
-> **Note:** `init()` is no longer exported from `init.ts`. It is defined in the
+> [!NOTE]
+> `init()` is no longer exported from `init.ts`. It is defined in the
 > root barrel (`src/ts/index.ts`) and dispatches to each module's own `init()`.
-> See [index.md](./index.md) for details.
+> See [README.md](./README.md) for details.
 
 The public `init()` signature is unchanged:
 
@@ -148,7 +148,7 @@ dependency graph stays isolated per module, enabling tree-shaking.
 - `'leviathan-crypto: unknown mode '<mode>''` if an invalid mode string
   is passed.
 
->[!NOTE]
+> [!NOTE]
 > The previous design exported `init()` from `init.ts`,
 > which contained a central `embeddedLoaders` record mapping every module name
 > to its embedded import. This meant any consumer importing `init()`,
@@ -156,8 +156,6 @@ dependency graph stays isolated per module, enabling tree-shaking.
 > embedded binaries into the bundle. Moving `init()` to the root barrel and
 > giving each module its own thunk isolates the dependency graph so bundlers
 > can tree-shake unused modules, optimizing build size.
-
----
 
 #### `getInstance(mod)`
 
@@ -298,5 +296,6 @@ if (!isInitialized('sha2')) {
 
 ## Cross-References
 
+- [README.md](./README.md): Package overview and quick-start guide
 - [loader.md](./loader.md): WASM binary loading strategies (internal details)
 - [architecture.md](./architecture.md): Architecture overview

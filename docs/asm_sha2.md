@@ -1,8 +1,7 @@
 # asm_sha2.md
 
-SHA-2 family WASM module (AssemblyScript -> `sha2.wasm`)
-
----
+> [!NOTE]
+> SHA-2 family WASM module (AssemblyScript -> `sha2.wasm`)
 
 ## Overview
 
@@ -472,14 +471,6 @@ with `memory.fill(0, 0, 1976)`.
 
 ---
 
-## Cross-References
-
-- [sha2.md](./sha2.md): TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384)
-- [asm_sha3.md](./asm_sha3.md): Alternative hash family (SHA-3 / SHAKE)
-- [asm_serpent.md](./asm_serpent.md): Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG)
-
----
-
 ## Error Conditions
 
 The WASM module itself does not throw exceptions or return error codes.
@@ -519,3 +510,13 @@ implementation and the TypeScript wrapper:
   intermediate hash state, and message schedule data persist in WASM
   linear memory until overwritten by a subsequent operation or until the
   WASM instance is garbage collected.
+
+---
+
+## Cross-References
+
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)
+- [sha2.md](./sha2.md): TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384)
+- [asm_sha3.md](./asm_sha3.md): Alternative hash family (SHA-3 / SHAKE)
+- [asm_serpent.md](./asm_serpent.md): Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG)

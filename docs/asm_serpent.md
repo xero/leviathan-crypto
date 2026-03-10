@@ -1,8 +1,7 @@
 # asm_serpent.md
 
-Serpent-256 WASM module (AssemblyScript -> `serpent.wasm`)
-
----
+> [!NOTE]
+> Serpent-256 WASM module (AssemblyScript -> `serpent.wasm`)
 
 ## Overview
 
@@ -158,9 +157,10 @@ Decrypts a single 128-bit block. Reads 16 bytes from `BLOCK_CT_BUFFER` (offset 4
 writes 16 bytes to `BLOCK_PT_BUFFER` (offset 32). Same byte-ordering conventions as
 `encryptBlock`.
 
-Note: `index.ts` exports the unrolled variants as `encryptBlock`/`decryptBlock`
-(the loop-driven versions in `serpent.ts` are not exported, they exist as the
-reference implementation).
+> [!NOTE]
+> `index.ts` exports the unrolled variants as `encryptBlock`/`decryptBlock`
+> (the loop-driven versions in `serpent.ts` are not exported, they exist as the
+> reference implementation).
 
 ### CTR mode
 
@@ -378,11 +378,10 @@ serpent_unrolled.ts
 | `cbcEncryptChunk(len)` | `len <= 0`, `len > 65536`, or `len % 16 !== 0` | `-1` |
 | `cbcDecryptChunk(len)` | `len <= 0`, `len > 65536`, or `len % 16 !== 0` | `-1` |
 
-Note: `encryptBlock`/`decryptBlock` have no error returns. They assume `loadKey`
-was called successfully and the block buffers contain valid data. The TypeScript
-wrapper enforces these preconditions.
-
----
+> [!NOTE]
+> `encryptBlock`/`decryptBlock` have no error returns. They assume `loadKey`
+> was called successfully and the block buffers contain valid data. The TypeScript
+> wrapper enforces these preconditions.
 
 ## Cross-References
 
@@ -390,3 +389,5 @@ wrapper enforces these preconditions.
 - [serpent_reference.md](./serpent_reference.md): Algorithm specification, S-box tables, known attacks
 - [serpent_audit.md](./serpent_audit.md): Security audit results (algorithm correctness, side-channel analysis)
 - [asm_sha2.md](./asm_sha2.md): SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)

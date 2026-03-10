@@ -1,9 +1,8 @@
 # XChaCha20Poly1305Pool -- Parallel Worker Pool for Authenticated Encryption
 
+> [!NOTE]
 > A worker pool that dispatches independent XChaCha20-Poly1305 AEAD operations
 > across multiple Web Workers, each with its own isolated WebAssembly instance.
-
----
 
 ## Overview
 
@@ -115,9 +114,8 @@ encrypt(
 
 Returns `ciphertext || tag` (`plaintext.length + 16` bytes).
 
-**Warning:** All input buffers are transferred and neutered after dispatch.
-
----
+> [!WARNING]
+> All input buffers are transferred and neutered after dispatch.
 
 ### `decrypt(key, nonce, ciphertext, aad?)`
 
@@ -144,9 +142,8 @@ Returns the decrypted plaintext.
 Rejects with `Error('ChaCha20Poly1305: authentication failed')` if the tag does
 not match (tampered ciphertext, wrong key, wrong nonce, or wrong AAD).
 
-**Warning:** All input buffers are transferred and neutered after dispatch.
-
----
+> [!WARNING]
+> All input buffers are transferred and neutered after dispatch.
 
 ### `dispose()`
 
@@ -304,3 +301,4 @@ const result = concat(chunk1, chunk2)
 - [chacha20.md](./chacha20.md): Single-instance XChaCha20-Poly1305 API
 - [fortuna.md](./fortuna.md): Another class using the `static async create()` factory pattern
 - [architecture.md](./architecture.md): Library architecture and module relationships
+- [README.md](./README.md): Project overview and getting started

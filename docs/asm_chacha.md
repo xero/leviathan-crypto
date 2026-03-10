@@ -1,8 +1,7 @@
 # asm_chacha.md
 
-ChaCha20/Poly1305 WASM module (AssemblyScript -> `chacha.wasm`)
-
----
+> [!NOTE]
+> ChaCha20/Poly1305 WASM module (AssemblyScript -> `chacha.wasm`)
 
 ## Overview
 
@@ -161,8 +160,9 @@ copies the first 32 bytes to `POLY_KEY_OFFSET`.
 (call `chachaLoadKey()` first). The counter value in the state is overwritten
 to 0 for this operation.
 
-**Important:** This consumes block 0. After calling `chachaGenPolyKey()`, set the
-counter to 1 before encrypting plaintext to avoid keystream reuse.
+> [!IMPORTANT]
+> This consumes block 0. After calling `chachaGenPolyKey()`, set the
+> counter to 1 before encrypting plaintext to avoid keystream reuse.
 
 #### `hchacha20(): void`
 
@@ -206,8 +206,9 @@ Initializes Poly1305 state from the 32-byte one-time key at `POLY_KEY_OFFSET`
 **Precondition:** Write the 32-byte one-time key to `POLY_KEY_OFFSET`. For AEAD,
 this is produced by `chachaGenPolyKey()`.
 
-**Warning:** `polyInit()` clamps r in-place at `POLY_KEY_OFFSET`. The first 16
-bytes of the key buffer are modified.
+> [!WARNING]
+> `polyInit()` clamps r in-place at `POLY_KEY_OFFSET`. The first 16
+> bytes of the key buffer are modified.
 
 #### `polyUpdate(len: i32): void`
 
@@ -399,6 +400,8 @@ dependency on either algorithm implementation.
 
 ## Cross-References
 
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)
 - [chacha20.md](./chacha20.md): TypeScript wrapper classes (`ChaCha20`,
   `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
 - [asm_serpent.md](./asm_serpent.md): Alternative symmetric cipher (Serpent WASM

@@ -5,8 +5,6 @@
 > - **Scope:** Serpent-256 Algorithm Specification & Known Attacks
 > - **Sources:** Anderson/Biham/Knudsen original papers, Ross Anderson's AES submission reference implementation (floppy1/floppy4)
 
----
-
 ## 1. Algorithm Overview
 
 ### Origins and Design Goals
@@ -451,12 +449,13 @@ approximately 0.55–0.79 bits. However:
 - The time complexities of 2²⁵⁵ are not meaningfully less secure than 2²⁵⁶
 - These attacks provide no practical cryptanalytic leverage
 
-**⚠️ Note on paper accuracy:** The biclique paper contains a formula error in the
-key schedule description: it states `k_i = SBox_{(3-(i mod 33)) mod 32}(w_i)`, which
-is incorrect. The correct formula is `S_{(3−n) mod 8}` for the n-th group of four
-prekey words (verified against the original AES submission paper and the reference
-C implementation). The paper's error does not affect the attack results — it is
-a documentation issue only.
+> [!WARNING]
+> **Note on paper accuracy:** The biclique paper contains a formula error in the
+> key schedule description: it states `k_i = SBox_{(3-(i mod 33)) mod 32}(w_i)`, which
+> is incorrect. The correct formula is `S_{(3−n) mod 8}` for the n-th group of four
+> prekey words (verified against the original AES submission paper and the reference
+> C implementation). The paper's error does not affect the attack results — it is
+> a documentation issue only.
 
 **Practical threat to 32-round Serpent-256:** None. The attack is 0.55–0.79 bits
 better than brute force and requires infeasible data and computation.
@@ -508,3 +507,5 @@ considered cryptographically secure for all foreseeable use cases.
 
 [serpent_audit.md](./serpent_audit.md) Results of the security and algorithm
 correctness audit of leviathan's Serpent-256 implementation.
+
+[README.md](./README.md)
