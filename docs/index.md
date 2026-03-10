@@ -78,6 +78,22 @@ module's WASM binary. A bundler with tree-shaking support (and
 `"sideEffects": false` in `package.json`) will exclude the other three
 modules' embedded binaries from the bundle entirely.
 
+### Subpath exports
+
+| Subpath | Entry point |
+|---------|-------------|
+| `leviathan-crypto` | `./dist/index.js` |
+| `leviathan-crypto/serpent` | `./dist/serpent/index.js` |
+| `leviathan-crypto/chacha20` | `./dist/chacha20/index.js` |
+| `leviathan-crypto/sha2` | `./dist/sha2/index.js` |
+| `leviathan-crypto/sha3` | `./dist/sha3/index.js` |
+| `leviathan-crypto/argon2id` | `./dist/argon2id.js` |
+| `leviathan-crypto/chacha20/pool` | `./dist/chacha20/pool.js` |
+
+> **Note:** `pool.worker.js` ships in the package under `dist/chacha20/` and is loaded
+> by the pool at runtime, but it is not a named subpath export in the `exports` map.
+> Do not import it directly — the pool constructor resolves it automatically.
+
 ---
 
 ## All Exports
@@ -109,6 +125,8 @@ modules' embedded binaries from the bundle entirely.
 | `Poly1305` | class | Poly1305 one-time MAC (RFC 8439). `mac(key, msg)`. |
 | `ChaCha20Poly1305` | class | ChaCha20-Poly1305 AEAD (RFC 8439). `encrypt(key, nonce, plaintext, aad)`, `decrypt(key, nonce, ciphertext, tag, aad)`. |
 | `XChaCha20Poly1305` | class | XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha). 24-byte nonce. `encrypt(key, nonce, plaintext, aad)`, `decrypt(key, nonce, ciphertext, aad)`. |
+| `XChaCha20Poly1305Pool` | class | Worker-pool wrapper for `XChaCha20Poly1305`. Dispatches operations across isolated WASM instances in Web Workers. `XChaCha20Poly1305Pool.create(opts?)` static factory. |
+| `PoolOpts` | type | Options for `XChaCha20Poly1305Pool.create()`: worker count, worker script URL. |
 
 ### SHA-2 (`sha2/index.ts`) -- requires `init(['sha2'])` or subpath `init()`
 
@@ -139,6 +157,19 @@ modules' embedded binaries from the bundle entirely.
 | Export | Kind | Description |
 |--------|------|-------------|
 | `Fortuna` | class | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create()` static factory, `get(n)`, `addEntropy()`, `stop()`. |
+
+### Argon2id (`argon2id.ts`) -- standalone init, not part of `Module` union
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `Argon2id` | class | Argon2id password hashing (RFC 9106). `hash()`, `verify()`. |
+| `isArgon2idInitialized` | function | Returns `true` if the Argon2id module has been loaded. |
+| `ARGON2ID_INTERACTIVE` | const | Preset params for interactive login (low latency). |
+| `ARGON2ID_SENSITIVE` | const | Preset params for sensitive key derivation (high cost). |
+| `ARGON2ID_DERIVE` | const | Preset params for key derivation. |
+| `Argon2idParams` | type | Parameter object for Argon2id operations. |
+| `Argon2idResult` | type | Result object returned by `hash()`. |
+| `ArgonOpts` | type | Options for Argon2id init. |
 
 ### Types (`types.ts`)
 

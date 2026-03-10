@@ -53,3 +53,7 @@ jobs:
     needs: [build, verify-vectors]
     uses: ./.github/workflows/unit-utils.yml
 
+  unit-argon2id:
+    needs: [build]
+    uses: ./.github/workflows/unit-argon2id.yml
+

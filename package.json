@@ -10,8 +10,10 @@
     ".": "./dist/index.js",
     "./serpent": "./dist/serpent/index.js",
     "./chacha20": "./dist/chacha20/index.js",
+    "./chacha20/pool": "./dist/chacha20/pool.js",
     "./sha2": "./dist/sha2/index.js",
-    "./sha3": "./dist/sha3/index.js"
+    "./sha3": "./dist/sha3/index.js",
+    "./argon2id": "./dist/argon2id.js"
   },
   "types": "./dist/index.d.ts",
   "files": [
@@ -32,10 +34,14 @@
     "fix": "npm run lint:fix",
     "check": "npm run test:all"
   },
+  "dependencies": {
+    "argon2id": "1.0.1"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.4.0",
+    "@vitest/web-worker": "^3.2.4",
     "assemblyscript": "^0.27.37",
     "eslint": "^10.0.3",
     "jiti": "^2.6.1",

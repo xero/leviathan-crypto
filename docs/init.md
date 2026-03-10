@@ -65,6 +65,7 @@ The four WASM module families. Each one backs a group of related classes:
 | `'chacha20'`| `ChaCha20`, `XChaCha20Poly1305`                                |
 | `'sha2'`    | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `Fortuna`  |
 | `'sha3'`    | `SHA3`, `SHAKE128`, `SHAKE256`                                 |
+| `'argon2id'`| `Argon2id` — **not part of the `Module` union.** Uses its own init type (`'embedded' \| 'manual'`), not the root `Module` type. See [index.md](./index.md) for its dedicated init path. |
 
 ```typescript
 type Mode = 'embedded' | 'streaming' | 'manual'
@@ -290,6 +291,7 @@ if (!isInitialized('sha2')) {
 | Streaming mode without `wasmUrl`          | Throws: `"leviathan-crypto: streaming mode requires wasmUrl"`                                |
 | Manual mode without the needed binary     | Throws: `"leviathan-crypto: manual mode requires wasmBinary['<mod>']"`                       |
 | Unknown mode string                       | Throws: `"leviathan-crypto: unknown mode '<mode>'"`                                          |
+| Streaming mode requested for argon2id         | Throws: `"leviathan-crypto: argon2id does not support streaming mode"`               |
 | Calling `init()` for an already-loaded module | No error. Module is silently skipped (idempotent behavior)                          |
 
 ---
