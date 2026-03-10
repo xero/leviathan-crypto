@@ -386,7 +386,7 @@ wrapper enforces these preconditions.
 
 ## Cross-References
 
-- [serpent.md](./serpent.md) -- TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`)
-- [serpent_reference.md](./serpent_reference.md) -- Algorithm specification, S-box tables, known attacks
-- [serpent_audit.md](./serpent_audit.md) -- Security audit results (algorithm correctness, side-channel analysis)
-- [asm_sha2.md](./asm_sha2.md) -- SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
+- [serpent.md](./serpent.md): TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`)
+- [serpent_reference.md](./serpent_reference.md): Algorithm specification, S-box tables, known attacks
+- [serpent_audit.md](./serpent_audit.md): Security audit results (algorithm correctness, side-channel analysis)
+- [asm_sha2.md](./asm_sha2.md): SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)

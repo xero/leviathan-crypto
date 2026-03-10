@@ -399,7 +399,7 @@ dependency on either algorithm implementation.
 
 ## Cross-References
 
-- [chacha20.md](./chacha20.md) -- TypeScript wrapper classes (`ChaCha20`,
+- [chacha20.md](./chacha20.md): TypeScript wrapper classes (`ChaCha20`,
   `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
-- [asm_serpent.md](./asm_serpent.md) -- Alternative symmetric cipher (Serpent WASM
+- [asm_serpent.md](./asm_serpent.md): Alternative symmetric cipher (Serpent WASM
   module)

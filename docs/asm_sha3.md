@@ -285,5 +285,5 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
 
 ## Cross-References
 
-- [sha3.md](./sha3.md) -- TypeScript wrapper classes (SHA3_256, SHA3_512, SHAKE128, etc.)
-- [asm_sha2.md](./asm_sha2.md) -- Alternative hash family (SHA-2/HMAC WASM module)
+- [sha3.md](./sha3.md): TypeScript wrapper classes (SHA3_256, SHA3_512, SHAKE128, etc.)
+- [asm_sha2.md](./asm_sha2.md): Alternative hash family (SHA-2/HMAC WASM module)

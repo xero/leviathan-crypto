@@ -71,10 +71,38 @@ they are the mistakes that cause real-world breaches.
   building your own authenticated construction (and you probably should not be),
   use one of the AEAD classes instead.
 
+## Module Init
+
+Each module subpath exports its own `init()` for consumers who want
+tree-shakeable imports.
+
+### `init(mode?, opts?)`
+
+Initializes only the chacha20 WASM binary. Equivalent to calling the
+root `init(['chacha20'], mode, opts)` but without pulling the other three
+modules into the bundle.
+
+**Signature:**
+
+```typescript
+async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+```
+
+**Usage:**
+
+```typescript
+import { init, XChaCha20Poly1305 } from 'leviathan-crypto/chacha20'
+
+await init()
+const aead = new XChaCha20Poly1305()
+```
+
+---
+
 ## API Reference
 
-All classes require calling `await init(['chacha20'])` before construction. If you
-construct a class before initialization, it throws:
+All classes require calling `await init(['chacha20'])` or the subpath `init()`
+before construction. If you construct a class before initialization, it throws:
 ```
 Error: leviathan-crypto: call init(['chacha20']) before using this class
 ```

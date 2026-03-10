@@ -26,7 +26,7 @@
  * Coverage: 5 cases (A–E): 128/256/192-bit keys, various IVs.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { loadKey, fromHex, toHex, writeBytes, readBytes, getWasm } from '../helpers';
 import { CTR_VECTORS } from './ctr_vectors';
 

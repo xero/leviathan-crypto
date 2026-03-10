@@ -28,7 +28,7 @@
  * GATE 2 — must pass before non-gate Serpent tests.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { loadKey, readBytes, getWasm } from '../helpers';
 import { parseIvFile } from './vector_parser';
 

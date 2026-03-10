@@ -20,7 +20,29 @@
 //                           ▀█████▀▀
 //
 // Root barrel — re-exports everything
-export { init, type Module, type Mode, type InitOpts, _resetForTesting } from './init.js';
+import { init as _initSerpent } from './serpent/index.js';
+import { init as _initChacha } from './chacha20/index.js';
+import { init as _initSha2 } from './sha2/index.js';
+import { init as _initSha3 } from './sha3/index.js';
+import type { Module, Mode, InitOpts } from './init.js';
+
+const _dispatchers: Record<string, (mode: Mode, opts?: InitOpts) => Promise<void>> = {
+	serpent: (mode, opts) => _initSerpent(mode, opts),
+	chacha20: (mode, opts) => _initChacha(mode, opts),
+	sha2: (mode, opts) => _initSha2(mode, opts),
+	sha3: (mode, opts) => _initSha3(mode, opts),
+};
+
+export async function init(
+	modules: Module | Module[],
+	mode: Mode = 'embedded',
+	opts?: InitOpts,
+): Promise<void> {
+	const list = Array.isArray(modules) ? modules : [modules];
+	await Promise.all(list.map(mod => _dispatchers[mod](mode, opts)));
+}
+
+export { type Module, type Mode, type InitOpts, _resetForTesting } from './init.js';
 export { Serpent, SerpentCtr, SerpentCbc, _serpentReady } from './serpent/index.js';
 export { ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, _chachaReady } from './chacha20/index.js';
 export { SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, _sha2Ready } from './sha2/index.js';

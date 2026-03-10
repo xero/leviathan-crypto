@@ -114,10 +114,38 @@ with a hash or HMAC instance.
 
 ---
 
+## Module Init
+
+Each module subpath exports its own `init()` for consumers who want
+tree-shakeable imports.
+
+### `init(mode?, opts?)`
+
+Initializes only the sha2 WASM binary. Equivalent to calling the
+root `init(['sha2'], mode, opts)` but without pulling the other three
+modules into the bundle.
+
+**Signature:**
+
+```typescript
+async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+```
+
+**Usage:**
+
+```typescript
+import { init, SHA256 } from 'leviathan-crypto/sha2'
+
+await init()
+const sha = new SHA256()
+```
+
+---
+
 ## API Reference
 
-All classes require `init(['sha2'])` to be called first. Constructing any SHA-2
-class before initialization throws an error.
+All classes require `init(['sha2'])` or the subpath `init()` to be called first.
+Constructing any SHA-2 class before initialization throws an error.
 
 ### SHA256
 
@@ -494,8 +522,8 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 
 ## Cross-References
 
-- [asm_sha2.md](./asm_sha2.md) -- WASM implementation details (AssemblyScript)
-- [sha3.md](./sha3.md) -- Alternative: SHA-3 family (immune to length extension attacks)
-- [serpent.md](./serpent.md) -- Use HMAC-SHA256 for Encrypt-then-MAC with Serpent-CBC or Serpent-CTR
-- [utils.md](./utils.md) -- `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
-- [api.md](./api.md) -- Library architecture and `init()` API
+- [asm_sha2.md](./asm_sha2.md): WASM implementation details (AssemblyScript)
+- [sha3.md](./sha3.md): Alternative: SHA-3 family (immune to length extension attacks)
+- [serpent.md](./serpent.md): Use HMAC-SHA256 for Encrypt-then-MAC with Serpent-CBC or Serpent-CTR
+- [utils.md](./utils.md): `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
+- [architecture.md](./architecture.md): Library architecture and `init()` API

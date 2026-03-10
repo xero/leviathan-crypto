@@ -27,7 +27,7 @@
  *         vectors/serpent_ecb_vk.txt (variable-key, 576 vectors)
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { loadKey, encryptBlock, decryptBlock } from '../helpers';
 import { parseVtFile, parseVkFile } from './vector_parser';
 

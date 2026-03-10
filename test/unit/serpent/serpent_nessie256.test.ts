@@ -27,7 +27,7 @@
  * Coverage: 1,284 encrypt + 1,284 decrypt vectors
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { toHex, writeBytes, readBytes, getWasm } from '../helpers';
 import { parseNessieFile, prepareNessieKey, prepareNessiePlaintext, prepareNessieCiphertext } from './vector_parser';
 

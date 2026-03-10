@@ -24,7 +24,17 @@
 // Public API classes for the Serpent-256 WASM module.
 // Uses the init() module cache — call init('serpent') before constructing.
 
-import { getInstance } from '../init.js';
+import { getInstance, initModule } from '../init.js';
+import type { Mode, InitOpts } from '../init.js';
+
+const _embedded = () => import('../embedded/serpent.js').then(m => m.WASM_BASE64);
+
+export async function init(
+	mode: Mode = 'embedded',
+	opts?: InitOpts,
+): Promise<void> {
+	return initModule('serpent', _embedded, mode, opts);
+}
 
 // Exports needed from the serpent WASM module
 interface SerpentExports {

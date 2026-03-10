@@ -26,7 +26,7 @@
  * module's linear memory. No key material persists after dispose().
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { loadKey, encryptBlock, readBytes, wipeBuffers, getWasm } from '../helpers';
 
 beforeAll(async () => {

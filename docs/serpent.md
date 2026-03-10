@@ -85,9 +85,38 @@ in memory longer than necessary.
 
 ---
 
+## Module Init
+
+Each module subpath exports its own `init()` for consumers who want
+tree-shakeable imports.
+
+### `init(mode?, opts?)`
+
+Initializes only the serpent WASM binary. Equivalent to calling the
+root `init(['serpent'], mode, opts)` but without pulling the other three
+modules into the bundle.
+
+**Signature:**
+
+```typescript
+async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+```
+
+**Usage:**
+
+```typescript
+import { init, Serpent } from 'leviathan-crypto/serpent'
+
+await init()
+const cipher = new Serpent()
+```
+
+---
+
 ## API Reference
 
-All three classes require `init(['serpent'])` to be called before construction.
+All three classes require `init(['serpent'])` or the subpath `init()` to be
+called before construction.
 Attempting to construct any Serpent class before initialization throws an error:
 
 ```
@@ -452,8 +481,8 @@ hmac.dispose();
 
 ## Cross-References
 
-- [asm_serpent.md](./asm_serpent.md) -- WASM implementation details and buffer layout
-- [serpent_reference.md](./serpent_reference.md) -- Algorithm specification and design rationale
-- [serpent_audit.md](./serpent_audit.md) -- Security audit findings
-- [chacha20.md](./chacha20.md) -- XChaCha20Poly1305: authenticated encryption (recommended for most use cases)
-- [sha2.md](./sha2.md) -- HMAC-SHA256 for Encrypt-then-MAC pattern
+- [asm_serpent.md](./asm_serpent.md): WASM implementation details and buffer layout
+- [serpent_reference.md](./serpent_reference.md): Algorithm specification and design rationale
+- [serpent_audit.md](./serpent_audit.md): Security audit findings
+- [chacha20.md](./chacha20.md): XChaCha20Poly1305: authenticated encryption (recommended for most use cases)
+- [sha2.md](./sha2.md): HMAC-SHA256 for Encrypt-then-MAC pattern

@@ -59,9 +59,37 @@ secret. SHA-3's sponge construction makes this impossible.
 
 ---
 
+## Module Init
+
+Each module subpath exports its own `init()` for consumers who want
+tree-shakeable imports.
+
+### `init(mode?, opts?)`
+
+Initializes only the sha3 WASM binary. Equivalent to calling the
+root `init(['sha3'], mode, opts)` but without pulling the other three
+modules into the bundle.
+
+**Signature:**
+
+```typescript
+async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+```
+
+**Usage:**
+
+```typescript
+import { init, SHA3_256 } from 'leviathan-crypto/sha3'
+
+await init()
+const sha3 = new SHA3_256()
+```
+
+---
+
 ## API Reference
 
-All SHA-3 classes require initialization before use:
+All SHA-3 classes require initialization before use. Either the root `init()`:
 
 ```typescript
 import { init } from 'leviathan-crypto'
@@ -69,7 +97,15 @@ import { init } from 'leviathan-crypto'
 await init('sha3')
 ```
 
-If you use SHA-3 classes without calling `init('sha3')` first, the constructor
+Or the subpath `init()`:
+
+```typescript
+import { init } from 'leviathan-crypto/sha3'
+
+await init()
+```
+
+If you use SHA-3 classes without calling `init()` first, the constructor
 will throw an error.
 
 ---
@@ -398,7 +434,7 @@ absorbs zero bytes and then squeezes.
 
 ## Cross-References
 
-- [asm_sha3.md](./asm_sha3.md) -- WASM implementation details (buffer layout, Keccak internals, variant parameters)
-- [sha2.md](./sha2.md) -- Alternative: SHA-2 family (SHA-256, SHA-384, SHA-512) and HMAC
-- [utils.md](./utils.md) -- Encoding utilities: `bytesToHex`, `hexToBytes`, `utf8ToBytes`
-- [api.md](./api.md) -- Library architecture and `init()` API
+- [asm_sha3.md](./asm_sha3.md): WASM implementation details (buffer layout, Keccak internals, variant parameters)
+- [sha2.md](./sha2.md): Alternative: SHA-2 family (SHA-256, SHA-384, SHA-512) and HMAC
+- [utils.md](./utils.md): Encoding utilities: `bytesToHex`, `hexToBytes`, `utf8ToBytes`
+- [architecture.md](./architecture.md): Library architecture and `init()` API

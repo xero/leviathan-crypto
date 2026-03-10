@@ -39,36 +39,33 @@ const WASM_FILES: Record<Module, string> = {
 	sha3: 'sha3.wasm',
 };
 
-export async function init(
-	modules: Module | Module[],
+export async function initModule(
+	mod: Module,
+	embeddedThunk: () => Promise<string>,
 	mode: Mode = 'embedded',
 	opts?: InitOpts,
 ): Promise<void> {
-	const list = Array.isArray(modules) ? modules : [modules];
+	if (instances.has(mod)) return;
 
-	for (const mod of list) {
-		if (instances.has(mod)) continue;
+	let instance: WebAssembly.Instance;
 
-		let instance: WebAssembly.Instance;
-
-		if (mode === 'embedded') {
-			const { loadEmbedded } = await import('./loader.js');
-			instance = await loadEmbedded(mod);
-		} else if (mode === 'streaming') {
-			if (!opts?.wasmUrl) throw new Error('leviathan-crypto: streaming mode requires wasmUrl');
-			const { loadStreaming } = await import('./loader.js');
-			instance = await loadStreaming(mod, opts.wasmUrl, WASM_FILES[mod]);
-		} else if (mode === 'manual') {
-			const binary = opts?.wasmBinary?.[mod];
-			if (!binary) throw new Error(`leviathan-crypto: manual mode requires wasmBinary['${mod}']`);
-			const { loadManual } = await import('./loader.js');
-			instance = await loadManual(binary);
-		} else {
-			throw new Error(`leviathan-crypto: unknown mode '${mode}'`);
-		}
-
-		instances.set(mod, instance);
+	if (mode === 'embedded') {
+		const { loadEmbedded } = await import('./loader.js');
+		instance = await loadEmbedded(embeddedThunk);
+	} else if (mode === 'streaming') {
+		if (!opts?.wasmUrl) throw new Error('leviathan-crypto: streaming mode requires wasmUrl');
+		const { loadStreaming } = await import('./loader.js');
+		instance = await loadStreaming(mod, opts.wasmUrl, WASM_FILES[mod]);
+	} else if (mode === 'manual') {
+		const binary = opts?.wasmBinary?.[mod];
+		if (!binary) throw new Error(`leviathan-crypto: manual mode requires wasmBinary['${mod}']`);
+		const { loadManual } = await import('./loader.js');
+		instance = await loadManual(binary);
+	} else {
+		throw new Error(`leviathan-crypto: unknown mode '${mode}'`);
 	}
+
+	instances.set(mod, instance);
 }
 
 export function getInstance(mod: Module): WebAssembly.Instance {

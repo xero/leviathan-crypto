@@ -6,9 +6,9 @@ API reference and implementation documentation for all modules in the library.
 
 ## Getting Started
 
-- [index.md](./index.md) -- Library overview, quick start, and complete export reference
-- [architecture.md](./api.md) -- Architecture overview, build pipeline, and module relationships
-- [init.md](./init.md) -- `init()` API and WASM loading modes
+- [index.md](./index.md): Library overview, quick start, and complete export reference
+- [architecture.md](./architecture.md): Architecture overview, build pipeline, and module relationships
+- [init.md](./init.md): `init()` API and WASM loading modes
 
 ---
 

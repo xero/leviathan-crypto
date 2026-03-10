@@ -24,9 +24,19 @@
 // Public API classes for the ChaCha20 WASM module.
 // Uses the init() module cache — call init('chacha20') before constructing.
 
-import { getInstance } from '../init.js';
+import { getInstance, initModule } from '../init.js';
+import type { Mode, InitOpts } from '../init.js';
 import { constantTimeEqual } from '../utils.js';
 import type { ChaChaExports } from './types.js';
+
+const _embedded = () => import('../embedded/chacha.js').then(m => m.WASM_BASE64);
+
+export async function init(
+	mode: Mode = 'embedded',
+	opts?: InitOpts,
+): Promise<void> {
+	return initModule('chacha20', _embedded, mode, opts);
+}
 
 function getExports(): ChaChaExports {
 	return getInstance('chacha20').exports as unknown as ChaChaExports;

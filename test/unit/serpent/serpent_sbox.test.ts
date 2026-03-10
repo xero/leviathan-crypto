@@ -28,7 +28,7 @@
  * GATE 1 — must pass before any other Serpent tests.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { loadKey, encryptBlock } from '../helpers';
 import { parseTblFile } from './vector_parser';
 

@@ -27,7 +27,7 @@
  *         vectors/serpent_ecb_d_m.txt (decrypt, 1,200 outer × 10,000 inner)
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/init.js';
+import { init } from '../../../src/ts/index.js';
 import { fromHex, toHex, getWasm } from '../helpers';
 import { parseMcEcbEncryptFile, parseMcEcbDecryptFile } from './vector_parser';
 

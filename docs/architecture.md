@@ -85,7 +85,7 @@ leviathan-crypto/
 │   │       ├── keccak.ts
 │   │       └── buffers.ts
 │   └── ts/                         ← TypeScript (public API)
-│       ├── init.ts                 ← init() — WASM loading and module cache
+│       ├── init.ts                 ← initModule() — WASM loading and module cache
 │       ├── loader.ts               ← embedded / streaming / manual loading logic
 │       ├── types.ts                ← Hash, KeyedHash, Blockcipher, Streamcipher, AEAD
 │       ├── utils.ts                ← encoding, wipe, xor, concat, randomBytes
@@ -96,18 +96,18 @@ leviathan-crypto/
 │       │   ├── sha2.ts
 │       │   └── sha3.ts
 │       ├── serpent/
-│       │   ├── index.ts            ← Serpent, SerpentCtr, SerpentCbc
+│       │   ├── index.ts            ← init() + Serpent, SerpentCtr, SerpentCbc
 │       │   └── types.ts
 │       ├── chacha20/
-│       │   ├── index.ts            ← ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305
+│       │   ├── index.ts            ← init() + ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305
 │       │   └── types.ts
 │       ├── sha2/
-│       │   ├── index.ts            ← SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384
+│       │   ├── index.ts            ← init() + SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384
 │       │   └── types.ts
 │       ├── sha3/
-│       │   ├── index.ts            ← SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256
+│       │   ├── index.ts            ← init() + SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256
 │       │   └── types.ts
-│       └── index.ts                ← root barrel — re-exports everything
+│       └── index.ts                ← root barrel — dispatching init() + re-exports everything
 ├── test/
 │   ├── unit/                       ← Vitest (JS target, fast iteration)
 │   │   ├── serpent/
@@ -360,7 +360,8 @@ src/asm/sha3/index.ts    -+                           (base64)
 2. `npm run build:embed` — `scripts/embed-wasm.ts` reads each `.wasm`, writes base64 to `src/ts/embedded/*.ts`
 3. `npm run build:ts` — TypeScript compiler emits `dist/`
 4. `cp build/*.wasm dist/` — WASM binaries copied for streaming mode consumers
-5. At runtime: `init()` → `loader.ts` → dynamic-import `embedded/*.ts` → decode base64 → `WebAssembly.instantiate` → cache in `init.ts`
+5. At runtime (subpath): `serpent/index.ts:init()` → `initModule()` → `loadEmbedded(thunk)` → `thunk()` → dynamic-import `embedded/serpent.ts` → decode base64 → `WebAssembly.instantiate` → cache in `init.ts`
+6. At runtime (root): `index.ts:init(['serpent', 'sha3'])` → dispatches to each module's `init()` via `Promise.all` → same path as step 5 per module
 
 `src/ts/embedded/` is gitignored — always a build artifact derived from the WASM
 binaries. There is one source of truth for each binary: the AssemblyScript source.
@@ -439,8 +440,8 @@ index.ts
 
 ```
                                      +---------------------+
-                                     |      index.ts       | <- barrel re-exports everything
-                                     |  (public API root)  |
+                                     |      index.ts       | <- barrel: dispatching init()
+                                     |  (public API root)  |    + re-exports everything
                                      +--+--+--+--+--+--+--+
                                         |  |  |  |  |  |
               +-------------------------+  |  |  |  |  +----------------------+
@@ -448,26 +449,28 @@ index.ts
               v           v                   v  v             v              v
         serpent/      chacha20/            sha2/  sha3/     fortuna.ts    types.ts
         index.ts      index.ts           index.ts index.ts                utils.ts
-              |           |                |      |            |
-              |           |                |      |            +-> init.ts (isInitialized)
-              |           +-> utils.ts     |      |            +-> serpent/index.ts (Serpent)
-              |           |  (constantTime |      |            +-> sha2/index.ts (SHA256)
-              |           |   Equal)       |      |            +-> utils.ts (wipe, concat,
-              |           |                |      |                         utf8ToBytes)
-              |           +-> chacha20/    |      |
-              |           |  types.ts      |      |
-              |           |                |      |
-              +-----------+------+---------+------+
-                                 |
-                                 v
-                              init.ts <---- getInstance() / isInitialized()
-                                 |
-                                 v (dynamic import)
-                              loader.ts
-                                 |
-                                 v (dynamic import)
-                           embedded/*.ts
+          |  |          |  |               |  |    |  |          |
+          |  |          |  |               |  |    |  |          +-> init.ts (isInitialized)
+          |  |          |  +-> utils.ts    |  |    |  |          +-> serpent/index.ts (Serpent)
+          |  |          |  |  (constantTime|  |    |  |          +-> sha2/index.ts (SHA256)
+          |  |          |  |   Equal)      |  |    |  |          +-> utils.ts (wipe, concat,
+          |  |          |  |               |  |    |  |                       utf8ToBytes)
+          |  |          |  +-> chacha20/   |  |    |  |
+          |  |          |  |  types.ts     |  |    |  |
+          |  |          |  |               |  |    |  |
+          |  +----------+--+--+------------+--+----+--+--> init.ts <-- getInstance()
+          |             |     |            |       |                    initModule()
+          |             |     |            |       |                    isInitialized()
+          v             v     v            v       v
+   embedded/     embedded/  embedded/  embedded/
+   serpent.ts    chacha.ts  sha2.ts    sha3.ts
+   (each module owns its own embedded thunk — no cross-module imports)
 ```
+
+Each module's `init()` calls `initModule()` from `init.ts`, passing its own
+embedded thunk. `initModule()` delegates to `loadEmbedded(thunk)` in `loader.ts`.
+The loader calls the thunk, decodes base64, and instantiates the WASM binary.
+`loader.ts` has no knowledge of module names or embedded file paths.
 
 ### TS layer — file-by-file imports
 
@@ -481,12 +484,12 @@ index.ts
 | `chacha20/types.ts` | *(none)* | — |
 | `sha2/types.ts` | *(none)* | — |
 | `sha3/types.ts` | *(none)* | — |
-| `serpent/index.ts` | `init.ts` | `getInstance` |
-| `chacha20/index.ts` | `init.ts`, `utils.ts`, `chacha20/types.ts` | `getInstance`, `constantTimeEqual`, `ChaChaExports` |
-| `sha2/index.ts` | `init.ts` | `getInstance` |
-| `sha3/index.ts` | `init.ts` | `getInstance` |
+| `serpent/index.ts` | `init.ts`, `embedded/serpent.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
+| `chacha20/index.ts` | `init.ts`, `utils.ts`, `chacha20/types.ts`, `embedded/chacha.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `constantTimeEqual`, `ChaChaExports`, `WASM_BASE64` |
+| `sha2/index.ts` | `init.ts`, `embedded/sha2.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
+| `sha3/index.ts` | `init.ts`, `embedded/sha3.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
 | `fortuna.ts` | `init.ts`, `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `isInitialized`, `Serpent`, `SHA256`, `wipe`/`concat`/`utf8ToBytes` |
-| `index.ts` | `init.ts`, `serpent/`, `chacha20/`, `sha2/`, `sha3/`, `fortuna.ts`, `types.ts`, `utils.ts` | *(all public exports)* |
+| `index.ts` | `serpent/`, `chacha20/`, `sha2/`, `sha3/`, `init.ts`, `fortuna.ts`, `types.ts`, `utils.ts` | `init` (from each module), *(all public exports)* |
 
 ### TS-to-WASM mapping
 
@@ -541,9 +544,13 @@ Each TS wrapper class maps to one WASM module and specific exported functions.
 
 ### Public API barrel (`src/ts/index.ts`)
 
+The root barrel defines and exports the dispatching `init()` function.
+It is the only file that imports all four module-scoped `init()` functions.
+
 | Source | Exports |
 |--------|---------|
-| `init.ts` | `init`, `Module`, `Mode`, `InitOpts`, `_resetForTesting` |
+| *(barrel itself)* | `init` (dispatching function — calls per-module `init()` via `Promise.all`) |
+| `init.ts` | `Module`, `Mode`, `InitOpts`, `_resetForTesting` |
 | `serpent/index.ts` | `Serpent`, `SerpentCtr`, `SerpentCbc`, `_serpentReady` |
 | `chacha20/index.ts` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `_chachaReady` |
 | `sha2/index.ts` | `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `_sha2Ready` |
@@ -551,6 +558,9 @@ Each TS wrapper class maps to one WASM module and specific exported functions.
 | `fortuna.ts` | `Fortuna` |
 | `types.ts` | `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
 | `utils.ts` | `hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`, `constantTimeEqual`, `wipe`, `xor`, `concat`, `randomBytes` |
+
+Each subpath export (`./serpent`, `./chacha20`, `./sha2`, `./sha3`) also
+exports its own `init(mode?, opts?)` for tree-shakeable loading.
 
 ---
 
@@ -572,7 +582,13 @@ Each TS wrapper class maps to one WASM module and specific exported functions.
 
 The root `.` export re-exports everything. Subpath exports allow bundlers to
 tree-shake at the module level — a consumer importing only `./sha3` does not
-include the Serpent wrapper classes in their bundle.
+include the Serpent wrapper classes or their embedded WASM binaries in their
+bundle.
+
+**Tree-shaking:** `"sideEffects": false` is set in `package.json`. Each
+module's `index.ts` owns its own embedded import thunk. Bundlers that support
+tree-shaking (webpack, Rollup, esbuild) can eliminate unused modules and
+their embedded WASM binaries from the final bundle.
 
 **Published:** `dist/` only. Contains compiled JS, TypeScript declarations,
 and WASM binaries as assets for streaming mode. The embedded base64 is compiled

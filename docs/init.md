@@ -10,7 +10,7 @@ available to all wrapper classes.
 ## Overview
 
 leviathan-crypto runs all cryptographic computation inside WebAssembly modules.
-These modules are not available automatically -- they need to be loaded and
+These modules are not available automatically, they need to be loaded and
 compiled before any cryptographic class (`Serpent`, `SHA256`, `ChaCha20`, etc.)
 can be used.
 
@@ -25,7 +25,7 @@ Key properties:
   (better performance for large apps), and manual (full control over how
   binaries are provided).
 - **Idempotent.** Calling `init()` multiple times with the same module is
-  safe -- it skips modules that are already loaded. This means you can call
+  safe, it skips modules that are already loaded. This means you can call
   `init()` in multiple places in your application without worrying about
   redundant work.
 - **Async.** `init()` returns a Promise. Use `await` or `.then()` before
@@ -92,7 +92,13 @@ Optional configuration object. Which fields are required depends on the mode:
 
 ### Functions
 
-#### `init(modules, mode?, opts?)`
+#### `init(modules, mode?, opts?)` — public API (exported from root barrel)
+
+> **Note:** `init()` is no longer exported from `init.ts`. It is defined in the
+> root barrel (`src/ts/index.ts`) and dispatches to each module's own `init()`.
+> See [index.md](./index.md) for details.
+
+The public `init()` signature is unchanged:
 
 ```typescript
 async function init(
@@ -102,17 +108,35 @@ async function init(
 ): Promise<void>
 ```
 
-Loads and caches one or more WASM modules. This must be called (and awaited)
-before using any class backed by those modules.
+---
+
+#### `initModule(mod, embeddedThunk, mode?, opts?)` — internal
+
+```typescript
+async function initModule(
+  mod: Module,
+  embeddedThunk: () => Promise<string>,
+  mode?: Mode,        // default: 'embedded'
+  opts?: InitOpts,
+): Promise<void>
+```
+
+Internal initialization function. Called by each module's own `init()`,
+not by consumers directly. Each module passes its own embedded thunk so the
+dependency graph stays isolated per module, enabling tree-shaking.
 
 **Parameters:**
 
-- `modules` -- A single module name or an array of module names to load.
-- `mode` -- The loading strategy. Defaults to `'embedded'`.
-- `opts` -- Configuration for `'streaming'` and `'manual'` modes. Ignored
-  for `'embedded'` mode.
+- `mod`: The module name to initialize.
+- `embeddedThunk`: A function that returns a Promise resolving to the
+  base64-encoded WASM binary. Each module defines its own thunk pointing to
+  its own embedded file.
+- `mode`: The loading strategy. Defaults to `'embedded'`.
+- `opts`: Configuration for `'streaming'` and `'manual'` modes.
 
-**Returns:** A Promise that resolves when all requested modules are loaded.
+**Returns:** A Promise that resolves when the module is loaded and cached.
+
+**Idempotent:** If the module is already initialized, returns immediately.
 
 **Throws:**
 
@@ -123,6 +147,15 @@ before using any class backed by those modules.
 - `'leviathan-crypto: unknown mode '<mode>''` if an invalid mode string
   is passed.
 
+>[!NOTE]
+> The previous design exported `init()` from `init.ts`,
+> which contained a central `embeddedLoaders` record mapping every module name
+> to its embedded import. This meant any consumer importing `init()`,
+> even through a subpath like `leviathan-crypto/serpent`, pulled all four
+> embedded binaries into the bundle. Moving `init()` to the root barrel and
+> giving each module its own thunk isolates the dependency graph so bundlers
+> can tree-shake unused modules, optimizing build size.
+
 ---
 
 #### `getInstance(mod)`
@@ -132,7 +165,7 @@ function getInstance(mod: Module): WebAssembly.Instance
 ```
 
 Returns the cached WebAssembly instance for a module. This is used internally
-by wrapper classes -- you do not normally need to call it yourself.
+by wrapper classes, you do not normally need to call it yourself.
 
 **Throws:**
 `'leviathan-crypto: call init(['<mod>']) before using this class'` if the
@@ -157,7 +190,7 @@ conditional logic where you want to check readiness without catching an error.
 function _resetForTesting(): void
 ```
 
-Clears all cached WASM instances. This is a testing utility -- it allows test
+Clears all cached WASM instances. This is a testing utility, it allows test
 suites to reset the initialization state between test runs. Do not use this in
 production code.
 
@@ -165,7 +198,7 @@ production code.
 
 ## Usage Examples
 
-### Embedded mode (default -- simplest)
+### Embedded mode (default: simplest)
 
 This is the recommended mode for most applications. The WASM binaries are
 bundled inside the package as base64-encoded strings, so there are no extra
@@ -257,11 +290,11 @@ if (!isInitialized('sha2')) {
 | Streaming mode without `wasmUrl`          | Throws: `"leviathan-crypto: streaming mode requires wasmUrl"`                                |
 | Manual mode without the needed binary     | Throws: `"leviathan-crypto: manual mode requires wasmBinary['<mod>']"`                       |
 | Unknown mode string                       | Throws: `"leviathan-crypto: unknown mode '<mode>'"`                                          |
-| Calling `init()` for an already-loaded module | No error -- the module is silently skipped (idempotent behavior)                          |
+| Calling `init()` for an already-loaded module | No error. Module is silently skipped (idempotent behavior)                          |
 
 ---
 
 ## Cross-References
 
-- [loader.md](./loader.md) -- WASM binary loading strategies (internal details)
-- [api.md](./api.md) -- Architecture overview
+- [loader.md](./loader.md): WASM binary loading strategies (internal details)
+- [architecture.md](./architecture.md): Architecture overview
