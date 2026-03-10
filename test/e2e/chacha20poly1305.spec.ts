@@ -130,7 +130,7 @@ test('ChaCha20-Poly1305 round-trip 64B with AAD', async ({ page }) => {
 		const aad   = crypto.getRandomValues(new Uint8Array(12));
 		const pt    = crypto.getRandomValues(new Uint8Array(64));
 
-		function aeadEncrypt(k, n, plaintext, aad) {
+		function aeadEncrypt(k: Uint8Array, n: Uint8Array, plaintext: Uint8Array, aad: Uint8Array) {
 			mem().set(k, wasm.getKeyOffset());
 			mem().set(n, wasm.getChachaNonceOffset());
 			wasm.chachaSetCounter(1); wasm.chachaLoadKey(); wasm.chachaGenPolyKey();

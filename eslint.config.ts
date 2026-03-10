@@ -61,7 +61,7 @@ export default defineConfig([
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: ["./tsconfig.json", "./tsconfig.test.json"],
+        project: ["./tsconfig.json", "./tsconfig.test.json", "./tsconfig.e2e.json"],
       },
       globals: {
         console: "readonly",
@@ -78,6 +78,7 @@ export default defineConfig([
       "no-tabs": "off",
       quotes: ["error", "single"],
       semi: ["error", "always"],
+			'linebreak-style': ['error', 'unix'],
       // comment-format: check-space
       "spaced-comment": ["error", "always"],
       // no-duplicate-variable

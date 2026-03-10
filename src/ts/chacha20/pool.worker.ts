@@ -1,3 +1,4 @@
+// / <reference lib="webworker" />
 // src/ts/chacha20/pool.worker.ts
 //
 // Worker entry point for XChaCha20Poly1305Pool. Runs in a Web Worker or

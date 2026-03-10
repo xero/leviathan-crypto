@@ -2,17 +2,15 @@
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
 		"rootDir": ".",
-		"noEmit": true
+		"noEmit": true,
+		"lib": ["ES2022", "DOM"],
+		"types": ["node"]
 	},
 	"include": [
-		"src/ts/**/*.ts",
-		"test/unit/**/*.ts",
-		"test/vectors/**/*.ts"
+		"test/e2e/**/*.ts"
 	],
 	"exclude": [
 		"node_modules",
-		"dist",
-		"docs",
-		"src/asm"
+		"dist"
 	]
 }
