@@ -143,7 +143,7 @@ leviathan-crypto/
 ## Architecture: TypeScript over WASM
 
 
-<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/arch-layers.svg" alt="Architecture Layers">
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/arch-layers.svg" alt="Architecture Layers" width="800">
 
 
 ```
