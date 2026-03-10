@@ -177,8 +177,10 @@ cipher.dispose()
 confidentiality but not integrity or authenticity. An attacker can modify
 ciphertext without detection.
 
-For authenticated encryption, use `XChaCha20Poly1305`. If Serpent CBC/CTR is
-required, pair it with `HMAC_SHA256` using the Encrypt-then-MAC pattern.
+>[!TIP]
+> **For authenticated encryption:** use [`XChaCha20Poly1305`](./docs/chacha20.md)
+>
+> **Using Serpent CBC/CTR:** pair with `HMAC_SHA256` using the Encrypt-then-MAC pattern
 
 ## Installation
 
