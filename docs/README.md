@@ -1,11 +1,21 @@
-# leviathan-crypto Documentation
+# Leviathan Crypto Project Documentation
 
->[!NOTE]
-> API reference and implementation documentation for all modules in the library.
-
+```
+  ██     ▐█████ ██     ▐█▌  ▄█▌   ███▌ ▀███████▀▄██▌  ▐█▌  ███▌    ██▌   ▓▓
+ ▐█▌     ▐█▌    ▓█     ▐█▌  ▓██  ▐█▌██    ▐█▌   ███   ██▌ ▐█▌██    ▓██   ██
+ ██▌     ░███   ▐█▌    ██   ▀▀   ██ ▐█▌   ██   ▐██▌   █▓  ▓█ ▐█▌  ▐███▌  █▓
+ ██      ██     ▐█▌    █▓  ▐██  ▐█▌  █▓   ██   ▐██▄▄ ▐█▌ ▐█▌  ██  ▐█▌██ ▐█▌
+▐█▌     ▐█▌      ██   ▐█▌  ██   ██   ██  ▐█▌   ██▀▀████▌ ██   ██  ██ ▐█▌▐█▌
+▐▒▌     ▐▒▌      ▐▒▌  ██   ▒█   ██▀▀▀██▌ ▐▒▌   ▒█    █▓░ ▒█▀▀▀██▌ ▒█  ██▐█
+█▓ ▄▄▓█ █▓ ▄▄▓█   ▓▓ ▐▓▌  ▐▓▌  ▐█▌   ▐▒▌ █▓   ▐▓▌   ▐▓█ ▐▓▌   ▐▒▌▐▓▌  ▐███
+▓██▀▀   ▓██▀▀      ▓█▓█   ▐█▌  ▐█▌   ▐▓▌ ▓█   ▐█▌   ▐█▓ ▐█▌   ▐▓▌▐█▌   ██▓
+                    ▓█                               ▀▀        ▐█▌▌▌
+```
 ## Installation
 
 ```bash
+bun i leviathan-crypto
+# or npm slow mode
 npm install leviathan-crypto
 ```
 
@@ -24,7 +34,7 @@ const plaintext = new TextEncoder().encode('Hello, leviathan-crypto!')
 const ciphertext = cipher.encrypt(key, iv, plaintext)
 const decrypted = cipher.decrypt(key, iv, ciphertext)
 
-console.log(bytesToHex(ciphertext))            // encrypted output
+console.log(bytesToHex(ciphertext))              // encrypted output
 console.log(new TextDecoder().decode(decrypted)) // 'Hello, leviathan-crypto!'
 
 cipher.dispose() // wipe key material from WASM memory
@@ -36,6 +46,7 @@ cipher.dispose() // wipe key material from WASM memory
 
 - [architecture.md](./architecture.md): Architecture overview, build pipeline, and module relationships
 - [init.md](./init.md): `init()` API and WASM loading modes
+- [wasm.md](./wasm.md): Primer on Web Assemby in this project's context
 
 ---
 
@@ -47,8 +58,6 @@ cipher.dispose() // wipe key material from WASM memory
 |--------|-------------|
 | [serpent.md](./serpent.md) | TypeScript API -- `Serpent`, `SerpentCtr`, `SerpentCbc` classes |
 | [asm_serpent.md](./asm_serpent.md) | WASM implementation -- bitslice S-boxes, key schedule, CTR/CBC modes |
-| [serpent_reference.md](./serpent_reference.md) | Algorithm specification -- S-boxes, linear transform, round structure, known attacks |
-| [serpent_audit.md](./serpent_audit.md) | Security audit -- correctness verification, side-channel analysis, cryptanalytic paper review |
 
 ### ChaCha20 / Poly1305
 
@@ -99,15 +108,14 @@ cipher.dispose() // wipe key material from WASM memory
 |----------|-------------|
 | [architecture.md](./architecture.md) | repository structure, architecture diagram, build pipeline, module relationships, buffer layouts, correctness contract, limitations, etc |
 | [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
-| [serpent_audit.md](./serpent_audit.md) | Report of our serpent implementation security and correctness audit |
-| [serpent_reference.md](./serpent_reference.md) | Serpent algorithm overview |
+| [serpent_audit.md](./serpent_audit.md) | correctness verification, side-channel analysis, cryptanalytic paper review |
+| [serpent_reference.md](./serpent_reference.md) | Serpent algorithm overview S-boxes, linear transform, round structure, known attacks |
+| [wasm.md](./wasm.md) | Primer on Web Assemby in this project's context |
 | [branding.md](./branding.md) | Project artwork and other PR materials |
-
----
 
 ## Security Philosophy
 
-Serpent was chosen as the flagship cipher for its conservative 32-round design with a 20-round security margin -- the widest of any AES finalist. All S-box operations use a bitslice implementation that eliminates cache-timing side channels. WASM execution runs outside the JavaScript JIT, providing practical constant-time guarantees for cryptographic operations. All security-sensitive comparisons (MAC verification, padding validation) use XOR-accumulate patterns with no early return on mismatch. The library enforces an explicit `init()` gate -- no class silently auto-initializes, so there are no hidden initialization costs or race conditions. Every class exposes a `dispose()` method that calls `wipeBuffers()` to zero key material and intermediate state from WASM linear memory.
+Serpent was chosen as the flagship cipher for its conservative 32-round design with a 20-round security margin, the widest of any AES finalist. All S-box operations use a bitslice implementation that eliminates cache-timing side channels. WASM execution runs outside the JavaScript JIT, providing practical constant-time guarantees for cryptographic operations. All security-sensitive comparisons (MAC verification, padding validation) use XOR-accumulate patterns with no early return on mismatch. The library enforces an explicit `init()` gate, no class silently auto-initializes, so there are no hidden initialization costs or race conditions. Every class exposes a `dispose()` method that calls `wipeBuffers()` to zero key material and intermediate state from WASM linear memory.
 
 ---
 
@@ -156,7 +164,7 @@ modules' embedded binaries from the bundle entirely.
 >[!NOTE]
 > `pool.worker.js` ships in the package under `dist/chacha20/` and is loaded
 > by the pool at runtime, but it is not a named subpath export in the `exports` map.
-> Do not import it directly -- the pool constructor resolves it automatically.
+> Do not import it directly, the pool constructor resolves it automatically.
 
 ## All Exports
 

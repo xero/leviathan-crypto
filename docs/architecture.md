@@ -3,7 +3,7 @@
 >[!NOTE]
 > Version: 1.0
 > Package: `leviathan-crypto` (npm, unscoped)
-> Status: v1.0 complete — all four WASM modules (Serpent, ChaCha20, SHA-2, SHA-3) implemented.
+> Status: v1.0.0 - all four WASM modules (Serpent, ChaCha20, SHA-2, SHA-3) implemented.
 > Supersedes: `leviathan` (TypeScript reference) and `leviathan-wasm` (WASM primitives),
 > both of which remain unchanged as development references.
 
@@ -54,13 +54,11 @@ ship alongside the WASM-backed primitives with no `init()` dependency.
   fallback (`argon2id-no-simd.wasm`), both sourced from `node_modules` at build
   time. The runtime detects SIMD support and loads the appropriate binary.
 
-### Explicitly tabled (post-v1.0)
-
-- *(previously tabled: `XChaCha20Poly1305Pool` — now implemented; see `chacha20/pool.ts`)*
-
 ---
 
 ## Repository Structure
+
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/repo-structure.svg" alt="Repo Structrue" width="800">
 
 ```
 leviathan-crypto/
@@ -142,36 +140,12 @@ leviathan-crypto/
 
 ## Architecture: TypeScript over WASM
 
-
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/arch-layers.svg" alt="Architecture Layers" width="800">
 
-
-```
-Developer code
-     |
-     v
-TypeScript API layer  (src/ts/)
-  - Input validation and type checking
-  - Human-readable error messages
-  - Key/IV generation helpers
-  - Encoding utilities
-     |
-     v
-init() module cache
-  - One WebAssembly.Module per binary, cached at module scope
-  - Instantiated once, reused for all subsequent class creation
-     |
-     v
-WASM execution layer  (src/asm/ -> build/*.wasm)
-  - All cryptographic computation
-  - Static buffer layout in linear memory
-  - No dynamic allocation
-  - Deterministic execution outside the JIT
-```
-
-The TypeScript layer never implements cryptographic algorithms. It handles the
-JS/WASM boundary: writing inputs into WASM linear memory, calling exported
-functions, reading outputs back. All algorithm logic lives in AssemblyScript.
+>[!NOTE]
+> The TypeScript layer never implements cryptographic algorithms. It handles the
+> JS/WASM boundary: writing inputs into WASM linear memory, calling exported
+> functions, reading outputs back. All algorithm logic lives in AssemblyScript.
 
 ---
 
@@ -376,15 +350,7 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 
 ## Build Pipeline
 
-
-<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/build-pipeline.svg" alt="Build Pipeline" width="800">
-
-```
-src/asm/serpent/index.ts -+
-src/asm/chacha/index.ts  -+  build:asm              embed-wasm.ts            build:ts
-src/asm/sha2/index.ts    -+ ----------> build/*.wasm -----------> embedded/*.ts -------> dist/
-src/asm/sha3/index.ts    -+                           (base64)
-```
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/build-pipeline.svg" alt="Architecture Layers" width="1000">
 
 **Step by step:**
 
