@@ -376,6 +376,9 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 
 ## Build Pipeline
 
+
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/build-pipeline.svg" alt="Build Pipeline" width="800">
+
 ```
 src/asm/serpent/index.ts -+
 src/asm/chacha/index.ts  -+  build:asm              embed-wasm.ts            build:ts

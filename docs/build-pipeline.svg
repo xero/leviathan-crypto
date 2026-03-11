@@ -1,0 +1,133 @@
+<svg viewBox="0 0 860 500" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<filter id="shadow" x="-2%" y="-4%" width="104%" height="110%">
+				<feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+			</filter>
+			<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5"
+				markerWidth="8" markerHeight="8" orient="auto-start-auto">
+				<path d="M 0 0 L 10 5 L 0 10 Z" fill="#667eea"/>
+			</marker>
+			<style>
+				text { font-family: system-ui, -apple-system, sans-serif; }
+			</style>
+		</defs>
+
+		<!-- Stage 1: ASM Sources -->
+		<rect x="20" y="60" width="170" height="160" rx="10" fill="#ecf0ea" filter="url(#shadow)"/>
+		<rect x="20" y="60" width="170" height="30" rx="10" fill="#1c7293"/>
+		<rect x="20" y="78" width="170" height="12" fill="#1c7293"/>
+		<text x="110" y="81" text-anchor="middle" font-size="15" font-weight="700" fill="white">ASM Sources</text>
+
+		<text x="40" y="112" font-size="14" fill="#00526d" font-weight="600">src/asm/</text>
+		<text x="40" y="132" font-size="13" fill="#4a5568">serpent/index.ts</text>
+		<text x="40" y="150" font-size="13" fill="#4a5568">chacha/index.ts</text>
+		<text x="40" y="168" font-size="13" fill="#4a5568">sha2/index.ts</text>
+		<text x="40" y="186" font-size="13" fill="#4a5568">sha3/index.ts</text>
+
+		<text x="105" y="210" text-anchor="middle" font-size="9.5" fill="#718096">AssemblyScript entry points</text>
+
+		<!-- Arrow 1 -->
+		<line x1="190" y1="150" x2="250" y2="150" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+		<text x="218" y="130" text-anchor="middle" font-size="9" fill="#667eea" font-weight="600">build:asm</text>
+
+		<!-- Stage 2: WASM Binaries -->
+		<rect x="250" y="60" width="160" height="160" rx="10" fill="#ecf0ea" filter="url(#shadow)"/>
+		<rect x="250" y="60" width="160" height="30" rx="10" fill="#114b5f"/>
+		<rect x="250" y="78" width="160" height="12" fill="#114b5f"/>
+		<text x="330" y="81" text-anchor="middle" font-size="15" font-weight="700" fill="white">WASM Binaries</text>
+
+		<text x="270" y="112" font-size="14" fill="#154e62" font-weight="600">build/</text>
+		<text x="270" y="132" font-size="13" fill="#4a5568">serpent.wasm</text>
+		<text x="270" y="150" font-size="13" fill="#4a5568">chacha.wasm</text>
+		<text x="270" y="168" font-size="13" fill="#4a5568">sha2.wasm</text>
+		<text x="270" y="186" font-size="13" fill="#4a5568">sha3.wasm</text>
+
+		<!-- Arrow 2 -->
+		<line x1="410" y1="150" x2="460" y2="150" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+		<text x="433" y="130" text-anchor="middle" font-size="9" fill="#667eea" font-weight="600">embed</text>
+
+		<!-- Stage 3: Embedded Base64 -->
+		<rect x="460" y="60" width="170" height="160" rx="10" fill="#ecf0ea" filter="url(#shadow)"/>
+		<rect x="460" y="60" width="170" height="30" rx="10" fill="#016361"/>
+		<rect x="460" y="78" width="170" height="12" fill="#016361"/>
+		<text x="545" y="81" text-anchor="middle" font-size="15" font-weight="700" fill="white">Embedded Base64</text>
+
+		<text x="480" y="112" font-size="14" fill="#015453" font-weight="600">src/ts/embedded/</text>
+		<text x="480" y="132" font-size="13" fill="#4a5568">serpent.ts</text>
+		<text x="480" y="150" font-size="13" fill="#4a5568">chacha.ts</text>
+		<text x="480" y="168" font-size="13" fill="#4a5568">sha2.ts</text>
+		<text x="480" y="186" font-size="13" fill="#4a5568">sha3.ts</text>
+
+		<text x="545" y="212" text-anchor="middle" font-size="9" fill="#718096">gitignored — build artifact</text>
+
+		<!-- Arrow 3 -->
+		<line x1="630" y1="150" x2="680" y2="150" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+		<text x="653" y="130" text-anchor="middle" font-size="9" fill="#667eea" font-weight="600">build:ts</text>
+
+		<!-- Stage 4: dist -->
+		<rect x="680" y="60" width="160" height="160" rx="10" fill="#ecf0ea" filter="url(#shadow)"/>
+		<rect x="680" y="60" width="160" height="30" rx="10" fill="#1a936f"/>
+		<rect x="680" y="78" width="160" height="12" fill="#1a936f"/>
+		<text x="760" y="81" text-anchor="middle" font-size="15" font-weight="700" fill="white">Published Output</text>
+
+		<text x="700" y="112" font-size="14" fill="#276749" font-weight="600">dist/</text>
+		<text x="700" y="132" font-size="13" fill="#4a5568">Compiled JS</text>
+		<text x="700" y="150" font-size="13" fill="#4a5568">Type declarations</text>
+		<text x="700" y="168" font-size="13" fill="#4a5568">*.wasm (streaming)</text>
+		<text x="700" y="186" font-size="13" fill="#4a5568">Embedded in JS</text>
+
+		<text x="760" y="212" text-anchor="middle" font-size="9" fill="#718096">npm publish target</text>
+
+		<!-- Also: WASM copied to dist -->
+		<path d="M 330,220 L 330,256 L 760,256 L 760,220" stroke="#718096" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+		<text x="545" y="243" text-anchor="middle" font-size="9" fill="#718096">cp build/*.wasm dist/ (for streaming mode)</text>
+
+  		<rect x="20" y="280" width="170" height="160" rx="10" fill="#1c7293"  filter="url(#shadow)"/>
+  		<rect x="30" y="280" width="170" height="160" rx="15" fill="#ecf0ea" filter="url(#shadow)"/>
+  		<rect x="50" y="280" width="160" height="160" rx="10" fill="#ecf0ea"/>
+  		<rect x="38" y="356" width="98" height="21" rx="4" fill="#e5e8e2"/>
+  		<rect x="70" y="375" width="36" height="21" rx="4" fill="#e5e8e2"/>
+  		<rect x="154" y="375" width="36" height="21" rx="4" fill="#e5e8e2"/>
+  		<text x="50" y="305" text-anchor="left" font-size="15" font-weight="700" fill="#00526d">1. Compile ASM</text>
+  		<text x="50" y="330" text-anchor="left" font-size="14" font-weight="600" fill="black">npm run build:asm</text>
+  		<text x="40" y="350" text-anchor="left" font-size="11" fill="#4a5568">AssemblyScript compiles each</text>
+    	<text x="40" y="370" text-anchor="left" font-size="11" fill="#4a5568">src/asm/*/index.ts entry point</text>
+    	<text x="40" y="390" text-anchor="left" font-size="11"  fill="#4a5568">  into a .wasm binary in build/</text>
+
+    	<rect x="230" y="280" width="170" height="160" rx="10" fill="#114b5f"  filter="url(#shadow)"/>
+  		<rect x="240" y="280" width="170" height="160" rx="15" fill="#ecf0ea" filter="url(#shadow)"/>
+  		<rect x="260" y="280" width="165" height="160" rx="10" fill="#ecf0ea"/>
+  		<rect x="245" y="336" width="91" height="21" rx="4" fill="#e5e8e2"/>
+  		<rect x="245" y="356" width="39" height="21" rx="4" fill="#e5e8e2"/>
+  		<rect x="321" y="375" width="98" height="21" rx="4" fill="#e5e8e2"/>
+  		
+    	<text x="260" y="305" text-anchor="left" font-size="15" font-weight="700" fill="#154e62">2. Embed ASM</text>
+  		<text x="260" y="330" text-anchor="left" font-size="14" font-weight="600" fill="black">npm run build:embed</text>
+  		<text x="250" y="350" text-anchor="left" font-size="11" fill="#4a5568">embed-wasm.ts reads each </text>
+  		<text x="250" y="370" text-anchor="left" font-size="11" fill="#4a5568">.wasm, writes base64-encoded</text>
+		<text x="250" y="390" text-anchor="left" font-size="11"  fill="#4a5568">TypeScript to src/ts/embedded/</text>
+
+  
+      	<rect x="445" y="280" width="170" height="160" rx="10" fill="#016361"  filter="url(#shadow)"/>
+  		<rect x="455" y="280" width="170" height="160" rx="15" fill="#ecf0ea" filter="url(#shadow)"/>
+  		<rect x="475" y="280" width="160" height="160" rx="10" fill="#ecf0ea"/>
+  		<rect x="467" y="356" width="28" height="21" rx="4" fill="#e5e8e2"/>
+  		<text x="475" y="305" text-anchor="left" font-size="15" font-weight="700" fill="#015453">3. Compile TS</text>
+  		<text x="475" y="330" text-anchor="left" font-size="14" font-weight="600" fill="black">npm run build:ts</text>
+  		<text x="470" y="350" text-anchor="left" font-size="11" fill="#4a5568"> TypeScript compiler emits</text>
+  		<text x="470" y="370" text-anchor="left" font-size="11" fill="#4a5568">dist/ with JS, declarations,</text>
+		<text x="470" y="390" text-anchor="left" font-size="11"  fill="#4a5568">and base64 embedded in JS.</text>
+
+  
+      	<rect x="660" y="280" width="170" height="160" rx="10" fill="#1a936f"  filter="url(#shadow)"/>
+  		<rect x="670" y="280" width="170" height="160" rx="15" fill="#ecf0ea" filter="url(#shadow)"/>
+  		<rect x="680" y="280" width="160" height="160" rx="10" fill="#ecf0ea"/>
+    	<rect x="691" y="356" width="27" height="21" rx="4" fill="#e5e8e2"/>
+  		<text x="690" y="305" text-anchor="left" font-size="15" font-weight="700" fill="#276749">4. Copy WASM</text>
+  		<text x="680" y="330" text-anchor="left" font-size="14" font-weight="600" fill="black">cp build/*.wasm dist/</text>
+  		<text x="680" y="350" text-anchor="left" font-size="11" fill="#4a5568">Raw WASM binaries copied</text>
+  		<text x="680" y="370" text-anchor="left" font-size="11" fill="#4a5568">to dist/ for consumers using</text>
+		<text x="680" y="390" text-anchor="left" font-size="11"  fill="#4a5568">streaming mode.</text>
+
+  
+</svg>
