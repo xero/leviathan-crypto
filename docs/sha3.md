@@ -32,6 +32,10 @@ secret. SHA-3's sponge construction makes this impossible.
 
 ## Security Notes
 
+> [!IMPORTANT]
+> Read these before using the API. Misusing hash functions is one of the most
+> common sources of security vulnerabilities.
+
 - **Length extension immunity.** Unlike SHA-2, the SHA-3 sponge construction does
   not leak enough internal state for length extension attacks. Computing
   `SHA3(secret + message)` does not let an attacker forge `SHA3(secret + message + extra)`.
@@ -47,7 +51,7 @@ secret. SHA-3's sponge construction makes this impossible.
 
 - **Not for password hashing.** SHA-3 is a fast hash -- that is the opposite of
   what you want for password storage. Passwords must be hashed with a slow,
-  memory-hard algorithm like **Argon2id** or **bcrypt**. A fast hash lets attackers
+  memory-hardened algorithm like **Argon2id** or **bcrypt**. A fast hash lets attackers
   try billions of guesses per second.
 
 - **Call `dispose()` when finished.** Every SHA-3 class wraps a WASM module that

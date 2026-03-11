@@ -45,8 +45,9 @@ algorithms directly.
 
 ## Security Notes
 
-Read these before using the API. Misusing hash functions is one of the most
-common sources of security vulnerabilities.
+> [!IMPORTANT]
+> Read these before using the API. Misusing hash functions is one of the most
+> common sources of security vulnerabilities.
 
 ### Hashing is NOT encryption
 

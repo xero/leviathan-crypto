@@ -30,8 +30,9 @@ the most common footgun (accidental nonce reuse).
 
 ## Security Notes
 
-Read this section before writing any code. These are not theoretical concerns —
-they are the mistakes that cause real-world breaches.
+> [!IMPORTANT]
+> Read this section before writing any code. These are not theoretical concerns —
+> they are the mistakes that cause real-world breaches.
 
 - **Use `XChaCha20Poly1305` unless you have a specific reason not to.** It is the
   safest default: authenticated encryption with a nonce large enough for random

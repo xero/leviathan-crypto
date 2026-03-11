@@ -35,8 +35,9 @@ security margin matters more than raw speed.
 
 ## Security Notes
 
-Read this section carefully before using any Serpent class. These are not
-theoretical concerns -- ignoring them can make your encryption useless.
+> [!IMPORTANT]
+> Read this section carefully before using any Serpent class. These are not
+> theoretical concerns. Ignoring them will render encryption useless.
 
 ### Always use 256-bit keys
 
