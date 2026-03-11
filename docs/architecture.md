@@ -709,6 +709,8 @@ Source: `src/asm/sha3/buffers.ts`
 
 ### Structure
 
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Date Flow Diagram" width="800">
+
 ```
 test/
 ├── unit/        ← Vitest, JS target (fast, deterministic, Node.js)

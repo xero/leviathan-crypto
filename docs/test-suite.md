@@ -1,5 +1,7 @@
 # leviathan-crypto — Test Suite
 
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Date Flow Diagram" width="800">
+
 ## Test Counts
 
 | Runner | Tests | Status |
