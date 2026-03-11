@@ -19,7 +19,7 @@ Source: [logo.svg](./logo.svg)
 
 ## Ascii Art
 
->[!IMPORTANT]
+> [!IMPORTANT]
 > Always keep the 80th column blank for that old skool scene cred.
 
 

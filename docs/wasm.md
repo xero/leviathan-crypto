@@ -1,6 +1,6 @@
 # WebAssembly Primer
 
->[!INFO]
+> [!INFO]
 > - A short introduction to WebAssembly concepts as they apply to the leviathan-crypto project.
 > - If you already understand WASM, skip to [Project-Specific Concepts](#project-specific-concepts).
 > - WebAssembly specification and documentation: [webassembly.org](https://webassembly.org/)

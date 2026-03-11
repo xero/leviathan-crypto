@@ -1,6 +1,6 @@
 # leviathan-crypto Architecture
 
->[!NOTE]
+> [!NOTE]
 > Version: 1.0
 > Package: `leviathan-crypto` (npm, unscoped)
 > Status: v1.0.0 - all four WASM modules (Serpent, ChaCha20, SHA-2, SHA-3) implemented.
@@ -142,7 +142,7 @@ leviathan-crypto/
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/arch-layers.svg" alt="Architecture Layers" width="800">
 
->[!NOTE]
+> [!NOTE]
 > The TypeScript layer never implements cryptographic algorithms. It handles the
 > JS/WASM boundary: writing inputs into WASM linear memory, calling exported
 > functions, reading outputs back. All algorithm logic lives in AssemblyScript.

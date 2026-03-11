@@ -161,7 +161,7 @@ modules' embedded binaries from the bundle entirely.
 | `leviathan-crypto/argon2id` | `./dist/argon2id.js` |
 | `leviathan-crypto/chacha20/pool` | `./dist/chacha20/pool.js` |
 
->[!NOTE]
+> [!NOTE]
 > `pool.worker.js` ships in the package under `dist/chacha20/` and is loaded
 > by the pool at runtime, but it is not a named subpath export in the `exports` map.
 > Do not import it directly, the pool constructor resolves it automatically.

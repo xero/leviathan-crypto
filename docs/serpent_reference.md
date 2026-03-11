@@ -1,6 +1,6 @@
 # Serpent-256 Algorithm Reference
 
->[!NOTE]
+> [!NOTE]
 > - **Date:** 2026-02-27
 > - **Scope:** Serpent-256 Algorithm Specification & Known Attacks
 > - **Sources:** Anderson/Biham/Knudsen original papers, Ross Anderson's AES submission reference implementation (floppy1/floppy4)
