@@ -1,4 +1,4 @@
-# sha3.md
+# SHA3 TypeScript API Reference
 
 > [!NOTE]
 > SHA-3 hash functions and SHAKE XOFs (TypeScript API)

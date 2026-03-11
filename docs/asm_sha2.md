@@ -1,7 +1,7 @@
-# asm_sha2.md
+# SHA-2 WASM module Reference
 
 > [!NOTE]
-> SHA-2 family WASM module (AssemblyScript -> `sha2.wasm`)
+> SHA-2 hashing algorithm family WASM module (AssemblyScript -> `sha2.wasm`)
 
 ## Overview
 

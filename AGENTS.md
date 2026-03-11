@@ -1,4 +1,4 @@
-# Agent Instructions — leviathan crypto project
+# Agent Instructions — leviathan crypto library
 
 This file is the contract for all AI-assisted development on this repository.
 Read it in full before starting any work.

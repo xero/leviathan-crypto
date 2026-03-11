@@ -1,4 +1,4 @@
-# utils.md -- Encoding utilities, comparison functions, and random byte generation
+# Encoding utilities, comparison functions, and random byte generation
 
 ## Overview
 

@@ -1,4 +1,4 @@
-# Argon2id -- Memory-Hard Password Hashing and Key Derivation
+# Argon2id: Memory-Hardened Password Hashing and Key Derivation
 
 > [!NOTE]
 > A memory-hard password hashing function that resists GPU and ASIC brute-force

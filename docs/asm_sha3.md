@@ -1,4 +1,4 @@
-# asm_sha3.md
+# SHA-3 WASM module Reference
 
 > [!NOTE]
 > SHA-3/SHAKE WASM module (AssemblyScript -> `sha3.wasm`)

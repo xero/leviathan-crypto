@@ -1,4 +1,4 @@
-# XChaCha20Poly1305Pool -- Parallel Worker Pool for Authenticated Encryption
+# XChaCha20Poly1305Pool: Parallel Worker Pool for Authenticated Encryption
 
 > [!NOTE]
 > A worker pool that dispatches independent XChaCha20-Poly1305 AEAD operations

@@ -1,10 +1,10 @@
-# leviathan-crypto Architecture
+# Leviathan Crypto Library Architecture
 
 > [!NOTE]
-> Version: 1.0
-> Package: `leviathan-crypto` (npm, unscoped)
-> Status: v1.0.0 - all four WASM modules (Serpent, ChaCha20, SHA-2, SHA-3) implemented.
-> Supersedes: `leviathan` (TypeScript reference) and `leviathan-wasm` (WASM primitives),
+> - Version: 1.0
+> - Package: `leviathan-crypto` (npm, unscoped)
+> - Status: v1.0.0 - all four WASM modules (Serpent, ChaCha20, SHA-2, SHA-3) implemented.
+> - Supersedes: `leviathan` (TypeScript reference) and `leviathan-wasm` (WASM primitives),
 > both of which remain unchanged as development references.
 
 ## Vision

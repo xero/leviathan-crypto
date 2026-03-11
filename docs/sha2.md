@@ -1,4 +1,4 @@
-# sha2.md -- SHA-2 hash functions and HMAC (TypeScript API)
+# SHA-2 hash functions and HMAC TypeScript API
 
 > [!NOTE]
 > Cryptographic hashing and message authentication using SHA-256, SHA-384,

@@ -1,4 +1,4 @@
-# asm_serpent.md
+# Serpent-256 WASM Module Reference
 
 > [!NOTE]
 > Serpent-256 WASM module (AssemblyScript -> `serpent.wasm`)

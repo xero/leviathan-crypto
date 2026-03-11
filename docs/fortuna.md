@@ -1,4 +1,4 @@
-# Fortuna -- Cryptographically Secure Pseudorandom Number Generator (CSPRNG)
+# Fortuna: Cryptographically Secure Pseudorandom Number Generator (CSPRNG)
 
 > [!NOTE]
 > A CSPRNG that continuously collects entropy from the environment and generates

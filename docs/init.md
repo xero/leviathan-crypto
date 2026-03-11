@@ -1,4 +1,4 @@
-# init.md -- Module Initialization and WASM Loading
+# Module Initialization and WASM Loading
 
 > [!NOTE]
 > The `init()` function is the entry point for leviathan-crypto. You must call it

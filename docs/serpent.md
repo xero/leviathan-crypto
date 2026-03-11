@@ -1,4 +1,4 @@
-# serpent.md -- Serpent-256 block cipher (TypeScript API)
+# Serpent-256 block cipher TypeScript API
 
 > [!NOTE]
 > Encrypt and decrypt data using the Serpent block cipher in three modes:

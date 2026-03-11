@@ -1,7 +1,7 @@
 {
   "name": "leviathan-crypto",
-  "version": "0.3.5",
-  "author": "xero (x@xero.style)",
+  "version": "1.0.0",
+  "author": "xero (https://x-e.ro)",
   "license": "MIT",
   "description": "Cryptography library focused on Serpent-256, featuring a strictly typed TypeScript API built on audited and vector-verified WebAssembly primitives",
   "type": "module",

@@ -1,4 +1,4 @@
-# Leviathan Crypto Project Documentation
+# Leviathan Crypto Library Documentation
 
 ```
   ██     ▐█████ ██     ▐█▌  ▄█▌   ███▌ ▀███████▀▄██▌  ▐█▌  ███▌    ██▌   ▓▓

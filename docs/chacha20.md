@@ -1,4 +1,4 @@
-# chacha20.md — ChaCha20, Poly1305, and AEAD (TypeScript API)
+# ChaCha20, Poly1305, and AEAD TypeScript API
 
 ## Overview
 

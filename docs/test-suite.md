@@ -1,4 +1,4 @@
-# leviathan-crypto — Test Suite
+# Test Suite & Vector Corpus
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Date Flow Diagram" width="800">
 

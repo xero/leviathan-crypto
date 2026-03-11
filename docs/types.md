@@ -1,4 +1,4 @@
-# types.md -- Public TypeScript interfaces for cryptographic primitives
+# Public TypeScript interfaces for cryptographic primitives
 
 ## Overview
 

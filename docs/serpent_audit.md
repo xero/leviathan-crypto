@@ -1,4 +1,4 @@
-# Serpent-256 Cryptographic Audit — leviathan-crypto
+# Serpent-256 Cryptographic Audit
 
 > [!NOTE]
 > **Conducted:** Week of 2026-03-09

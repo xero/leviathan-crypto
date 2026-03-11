@@ -1,8 +1,8 @@
-# Leviathan Project Branding Guide
+# Leviathan Crypto Library Branding Guide
 
 ## SVG Logo
 
-<img src="https://github.com/xero/lvthn/raw/main/docs/logo.svg" alt="Leviathan logo" width="400">
+<img src="https://github.com/xero/lvthn/raw/main/docs/logo.svg" alt="leviathan-crypto logo" width="400">
 
 Source: [logo.svg](./logo.svg)
 

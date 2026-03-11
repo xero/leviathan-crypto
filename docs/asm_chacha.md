@@ -1,4 +1,4 @@
-# asm_chacha.md
+# ChaCha20/Poly1305 WASM Reference
 
 > [!NOTE]
 > ChaCha20/Poly1305 WASM module (AssemblyScript -> `chacha.wasm`)
