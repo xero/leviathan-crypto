@@ -21,17 +21,11 @@
 //
 import { test, expect } from '@playwright/test';
 
-// Import submodule paths directly — avoids dist/index.js which pulls in
-// argon2id's bare npm specifier ('argon2id/lib/setup.js'), unresolvable
-// in a browser context without an import map.
 const INIT = `
 window.loadLib = async function() {
-  const serpentMod = await import('http://localhost:1337/dist/serpent/index.js');
-  const sha2Mod    = await import('http://localhost:1337/dist/sha2/index.js');
-  const poolMod    = await import('http://localhost:1337/dist/serpent/stream-pool.js');
-  await serpentMod.init();
-  await sha2Mod.init();
-  return { ...serpentMod, ...poolMod };
+  const lib = await import('http://localhost:1337/dist/index.js');
+  await lib.init(['serpent', 'sha2']);
+  return lib;
 };
 window.toHex   = function(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') };
 window.fromHex = function(h)   { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) };

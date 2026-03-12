@@ -33,6 +33,7 @@
     - [Consolidated Verdict Table](#consolidated-verdict-table)
     - [Final Assessment](#final-assessment)
   - [2.3 Biclique Cryptanalysis (Full 32-Round)](#23-biclique-cryptanalysis-full-32-round)
+  - [2.4 SerpentStream: Encrypt-then-MAC and the Cryptographic Doom Principle](#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
     - [Background](#background)
     - [Tool Validation and Formula Corrections](#tool-validation-and-formula-corrections)
     - [Optimization Search Results](#optimization-search-results)
@@ -574,6 +575,57 @@ The best biclique attack on full 32-round Serpent-256 achieves 2^{255.19} time c
 To contextualize the scale: 2^{255.19} operations at 10^{18} operations per second (beyond any current or foreseeable hardware) would require approximately 10^{58} years — roughly 10^{48} times the age of the universe. The biclique attack reduces this by a factor of less than 2, which does not change the conclusion that brute-force key search against Serpent-256 is computationally infeasible.
 
 The leviathan-crypto implementation is not affected by this attack in any way that a code change could address. The biclique structure exploits inherent algebraic properties of the Serpent S-boxes and key schedule — properties that are identical in any correct implementation.
+
+---
+
+### 2.4 SerpentStream: Encrypt-then-MAC and the Cryptographic Doom Principle
+
+The Cryptographic Doom Principle (Duong, 2011): *if you have to perform any cryptographic operation before verifying the MAC on a message you've received, it will somehow inevitably lead to doom.* The canonical counter-examples are the SSL/TLS padding oracle (Vaudenay 2002) and the SSH plaintext recovery attack — both consequences of MAC-then-encrypt designs where decryption must run before the MAC can be checked, giving an attacker a decryption oracle through observable error behavior.
+
+Section 2.2 identified unauthenticated modes as the primary residual concern for raw `SerpentCtr` and `SerpentCbc`. `SerpentStream` addresses this by composing `SerpentCtr` with `HMAC_SHA256` in strict Encrypt-then-MAC order, per chunk.
+
+#### Seal path (encrypt)
+
+```
+plaintext → SerpentCtr.encryptChunk(encKey) → ciphertext → HMAC_SHA256(macKey, ciphertext) → ciphertext ‖ tag
+```
+
+The HMAC is computed over the ciphertext, not the plaintext. The tag covers exactly what travels on the wire.
+
+#### Open path (decrypt)
+
+```typescript
+const ciphertext   = wire.subarray(0, wire.length - 32);
+const tag          = wire.subarray(wire.length - 32);
+const expectedTag  = hmac.hash(macKey, ciphertext);
+if (!constantTimeEqual(tag, expectedTag))
+    throw new Error('SerpentStream: authentication failed');
+ctr.beginEncrypt(encKey, ZERO_IV);
+return ctr.encryptChunk(ciphertext);   // ← only reached after MAC clears
+```
+
+`ctr.encryptChunk` is never called before `constantTimeEqual` returns `true`. There is no code path — no early return, no fallthrough, no branch — that produces plaintext from a chunk that has not passed its MAC. This is the doom principle enforced structurally, not by convention.
+
+The `constantTimeEqual` comparison itself (utils.ts: XOR-accumulate over all 32 bytes, no early exit) prevents a timing oracle on the tag. An attacker cannot distinguish a one-byte tag mismatch from a 32-byte mismatch by measuring response latency.
+
+#### Per-chunk key derivation and position binding
+
+Each chunk's `encKey` and `macKey` are derived independently via `HKDF_SHA256`, with an `info` field that encodes the full chunk context:
+
+```
+info = DOMAIN (17 bytes) ‖ streamNonce (16 bytes) ‖ chunkSize (4 bytes)
+     ‖ chunkCount (8 bytes) ‖ chunkIndex (8 bytes) ‖ isLast (1 byte)
+```
+
+This construction means that a chunk's MAC is bound to its position in its stream. A chunk transplanted from a different stream (different `streamNonce`), a different position (different `chunkIndex`), or misrepresented as terminal or non-terminal (different `isLast`) will fail MAC verification before any decryption runs. The SSH plaintext recovery attack works by feeding an arbitrary ciphertext block to a recipient who decrypts the first four bytes and interprets them as a length — an operation taken before MAC verification. SerpentStream has no equivalent: there is no length field inside the encrypted payload, chunk boundaries are determined externally by the caller, and every byte of every chunk is MAC-verified before any of it is decrypted.
+
+#### Comparison with the SSL padding oracle
+
+The SSL/TLS vulnerability arises because the MAC covers the plaintext (MAC-then-encrypt), so the MAC cannot be checked until after decryption and padding removal. An attacker who can elicit different error responses for padding errors versus MAC errors gains a byte-at-a-time decryption oracle. SerpentStream's MAC covers the ciphertext. Padding does not exist — CTR mode requires no padding. The only error condition reachable before decryption is MAC failure, and MAC failure always produces the same `Error('SerpentStream: authentication failed')` with no observable timing difference.
+
+#### Verdict
+
+`SerpentStream` satisfies the Cryptographic Doom Principle by construction. MAC verification is the unconditional gate on the open path; decryption is unreachable until that gate clears. Per-chunk HKDF key derivation with position-bound info extends this guarantee to stream integrity: reordering, truncation, and cross-stream substitution are all detected at the MAC layer before any plaintext is produced.
 
 ---
 

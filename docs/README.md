@@ -158,7 +158,6 @@ modules' embedded binaries from the bundle entirely.
 | `leviathan-crypto/chacha20` | `./dist/chacha20/index.js` |
 | `leviathan-crypto/sha2` | `./dist/sha2/index.js` |
 | `leviathan-crypto/sha3` | `./dist/sha3/index.js` |
-| `leviathan-crypto/argon2id` | `./dist/argon2id.js` |
 | `leviathan-crypto/chacha20/pool` | `./dist/chacha20/pool.js` |
 
 > [!NOTE]
@@ -227,19 +226,6 @@ modules' embedded binaries from the bundle entirely.
 | Export | Kind | Description |
 |--------|------|-------------|
 | `Fortuna` | class | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create()` static factory, `get(n)`, `addEntropy()`, `stop()`. |
-
-### Argon2id (`argon2id.ts`) -- standalone init, not part of `Module` union
-
-| Export | Kind | Description |
-|--------|------|-------------|
-| `Argon2id` | class | Argon2id password hashing (RFC 9106). `hash()`, `verify()`. |
-| `isArgon2idInitialized` | function | Returns `true` if the Argon2id module has been loaded. |
-| `ARGON2ID_INTERACTIVE` | const | Preset params for interactive login (low latency). |
-| `ARGON2ID_SENSITIVE` | const | Preset params for sensitive key derivation (high cost). |
-| `ARGON2ID_DERIVE` | const | Preset params for key derivation. |
-| `Argon2idParams` | type | Parameter object for Argon2id operations. |
-| `Argon2idResult` | type | Result object returned by `hash()`. |
-| `ArgonOpts` | type | Options for Argon2id init. |
 
 ### Types (`types.ts`)
 

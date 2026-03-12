@@ -47,12 +47,6 @@ ship alongside the WASM-backed primitives with no `init()` dependency.
 
 - **`Fortuna`** — CSPRNG requiring two core modules (`serpent` + `sha2`).
   Initialized via the standard `init()` gate.
-- **`Argon2id`** — password hashing (RFC 9106). Ships as an auxiliary primitive
-  outside the four-module `Module` type. Uses its own init with mode
-  `'embedded' | 'manual'` (streaming is not supported). Loads a dual-binary
-  embedded pattern: a SIMD variant (`argon2id-simd.wasm`) and a non-SIMD
-  fallback (`argon2id-no-simd.wasm`), both sourced from `node_modules` at build
-  time. The runtime detects SIMD support and loads the appropriate binary.
 
 ---
 
@@ -212,9 +206,6 @@ about the initialization cost and gives the developer control over when it is pa
 
 ```typescript
 type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3'
-// Note: 'argon2id' is intentionally excluded from Module.
-// It has its own init path with mode 'embedded' | 'manual' (no streaming).
-
 type Mode = 'embedded' | 'streaming' | 'manual'
 
 interface InitOpts {
@@ -264,15 +255,6 @@ await init(['chacha20'], 'manual', {
 })
 ```
 
-**Argon2id dual-binary loading**
-Argon2id uses a different loading pattern from the four core modules. Instead of
-a single `.wasm` binary compiled from AssemblyScript, Argon2id embeds two
-pre-built binaries sourced from `node_modules` at build time: a SIMD variant
-(`argon2id-simd.wasm`) and a non-SIMD fallback (`argon2id-no-simd.wasm`). At
-runtime, the loader probes for WebAssembly SIMD support and loads the appropriate
-binary. Streaming mode is not supported — only `'embedded'` and `'manual'` modes
-are available.
-
 ### Behavioral contracts
 
 **Idempotent.** Calling `init()` for a module that is already initialized is a
@@ -308,7 +290,6 @@ Names match conventional cryptographic notation.
 | `sha2` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` |
 | `sha3` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `serpent` + `sha2` | `Fortuna` |
-| *(own WASM, not in `Module` union)* | `Argon2id` |
 
 HMAC names use underscore separator (`HMAC_SHA256`) matching RFC convention.
 SHA-3 names use underscore separator (`SHA3_256`) for readability.
@@ -554,7 +535,6 @@ It is the only file that imports all four module-scoped `init()` functions.
 | `sha2/index.ts` | `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `_sha2Ready` |
 | `sha3/index.ts` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `_sha3Ready` |
 | `fortuna.ts` | `Fortuna` |
-| `argon2id.ts` | `Argon2id`, `isArgon2idInitialized`, `ARGON2ID_INTERACTIVE`, `ARGON2ID_SENSITIVE`, `ARGON2ID_DERIVE`, `Argon2idParams`, `Argon2idResult`, `ArgonOpts` |
 | `types.ts` | `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
 | `utils.ts` | `hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`, `constantTimeEqual`, `wipe`, `xor`, `concat`, `randomBytes` |
 
@@ -575,8 +555,7 @@ exports its own `init(mode?, opts?)` for tree-shakeable loading.
 		"./chacha20":         "./dist/chacha20/index.js",
 		"./chacha20/pool":    "./dist/chacha20/pool.js",
 		"./sha2":             "./dist/sha2/index.js",
-		"./sha3":             "./dist/sha3/index.js",
-		"./argon2id":         "./dist/argon2id.js"
+		"./sha3":             "./dist/sha3/index.js"
 	}
 }
 ```
@@ -749,8 +728,6 @@ They are the immutable truth, and must never be modified to make tests pass.
 - **Single-threaded WASM per instance** — one WASM instance per binary per thread.
   `XChaCha20Poly1305Pool` provides Worker-based parallelism for the AEAD path;
   other primitive families remain single-threaded.
-- **Argon2id is auxiliary** — not part of the `Module` union. Has its own init
-  path with `'embedded' | 'manual'` modes only (no streaming).
 - **Max input per WASM call** — chunk-based APIs (CTR, CBC) accept at most 64KB
   per call. Wrappers handle splitting automatically for larger inputs.
 - **Browser WASM loading** — streaming mode requires files served with

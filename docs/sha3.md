@@ -48,10 +48,10 @@ secret. SHA-3's sponge construction makes this impossible.
   sponge directly with `absorb()` / `squeeze()`. The only constraint is
   `outputLength >= 1`.
 
-- **Not for password hashing.** SHA-3 is a fast hash -- that is the opposite of
+- **Not for password hashing.** SHA-3 is a fast hash — that is the opposite of
   what you want for password storage. Passwords must be hashed with a slow,
-  memory-hardened algorithm like **Argon2id** or **bcrypt**. A fast hash lets attackers
-  try billions of guesses per second.
+  memory-hardened algorithm like **Argon2id**. See [argon2id.md](./argon2id.md) for
+  usage patterns including passphrase-based encryption with leviathan primitives.
 
 - **Call `dispose()` when finished.** Every SHA-3 class wraps a WASM module that
   stores Keccak state in linear memory. Calling `dispose()` zeroes all internal

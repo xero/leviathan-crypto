@@ -59,9 +59,9 @@ encryption (see [serpent.md](./serpent.md) or use `XChaCha20Poly1305`).
 
 SHA-2 is extremely fast by design. An attacker with a GPU can compute billions
 of SHA-256 hashes per second, making brute-force attacks on passwords trivial.
-For password hashing, use a deliberately slow function like **Argon2id** or
-**bcrypt**. leviathan-crypto does not include a password hashing function in
-v1.0 -- use a dedicated library for this purpose.
+For password hashing, use a memory-hardened function like **Argon2id**. See
+[argon2id.md](./argon2id.md) for usage patterns including passphrase-based
+encryption with leviathan primitives.
 
 ### SHA-2 is vulnerable to length extension attacks
 

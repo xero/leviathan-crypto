@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 371 | All pass |
+| Vitest (unit) | 344 | All pass |
 | Playwright (e2e) | 135 (45 tests × 3 browsers) | All pass |
-| **Total** | **506** | |
+| **Total** | **479** | |
 
 ---
 
