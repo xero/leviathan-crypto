@@ -75,8 +75,40 @@ declare function toHex(bytes: Uint8Array | number[]): string;
 declare let __wasmCache: WasmExports | null;
 
 // ── Pool specs (load compiled TS dist instead of raw WASM) ────────
-declare function loadLib(): Promise<any>;
-declare let __lib: any;
+interface PoolLibSerpentStream {
+	seal(key: Uint8Array, pt: Uint8Array, chunkSize?: number): Uint8Array;
+	open(key: Uint8Array, ct: Uint8Array): Uint8Array;
+	dispose(): void;
+}
+
+interface PoolLibSerpentStreamPool {
+	seal(key: Uint8Array, pt: Uint8Array, chunkSize?: number): Promise<Uint8Array>;
+	open(key: Uint8Array, ct: Uint8Array): Promise<Uint8Array>;
+	dispose(): void;
+	size: number;
+}
+
+interface PoolLibXChaCha {
+	encrypt(key: Uint8Array, nonce: Uint8Array, pt: Uint8Array, aad?: Uint8Array): Uint8Array;
+	decrypt(key: Uint8Array, nonce: Uint8Array, ct: Uint8Array, aad?: Uint8Array): Uint8Array;
+	dispose(): void;
+}
+
+interface PoolLibXChaChaPool {
+	encrypt(key: Uint8Array, nonce: Uint8Array, pt: Uint8Array, aad?: Uint8Array): Promise<Uint8Array>;
+	decrypt(key: Uint8Array, nonce: Uint8Array, ct: Uint8Array, aad?: Uint8Array): Promise<Uint8Array>;
+	dispose(): void;
+	size: number;
+}
+
+interface PoolLib {
+	SerpentStream: new () => PoolLibSerpentStream;
+	SerpentStreamPool: { create(opts?: { workers?: number }): Promise<PoolLibSerpentStreamPool> };
+	XChaCha20Poly1305: new () => PoolLibXChaCha;
+	XChaCha20Poly1305Pool: { create(opts?: { workers?: number }): Promise<PoolLibXChaChaPool> };
+}
+
+declare function loadLib(): Promise<PoolLib>;
 
 // ── Poly1305 / ChaCha20-Poly1305 / XChaCha20 specs ────────────────
 declare function polyFeed(wasm: WasmExports, data: Uint8Array): void;
