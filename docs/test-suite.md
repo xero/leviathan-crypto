@@ -7,8 +7,8 @@
 | Runner | Tests | Status |
 |--------|-------|--------|
 | Vitest (unit) | 371 | All pass |
-| Playwright (e2e) | 105 (35 tests × 3 browsers) | All pass |
-| **Total** | **476** | |
+| Playwright (e2e) | 135 (45 tests × 3 browsers) | All pass |
+| **Total** | **506** | |
 
 ---
 
@@ -47,7 +47,7 @@
 
 ## E2E Tests (Playwright)
 
-35 tests × 3 browsers (Chromium, Firefox, WebKit) = 105 total.
+45 tests × 3 browsers (Chromium, Firefox, WebKit) = 135 total.
 
 | File | Description | Vectors |
 |------|-------------|---------|
@@ -64,6 +64,8 @@
 | `sha512.spec.ts` | SHA-512 "abc" (Gate 4), SHA-384 "abc", streaming 4×128B | 3 |
 | `hmac.spec.ts` | HMAC-SHA256 TC1 (Gate 5), HMAC-SHA512 TC6 (Gate 6), HMAC-SHA256 TC2 | 3 |
 | `sha3.spec.ts` | SHA3-256 empty (Gate 7), SHA3-512 "abc", SHAKE128 empty/32B | 3 |
+| `serpent_stream_pool.spec.ts` | SerpentStreamPool cross-compat, round-trip, tamper, size | 5 |
+| `xchacha20_pool.spec.ts` | XChaCha20Poly1305Pool cross-compat, round-trip, tamper, size | 5 |
 
 > [!NOTE]
 > E2E Monte Carlo tests use 50 outer iterations in Playwright (vs 1200 in Vitest) for

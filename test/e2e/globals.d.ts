@@ -74,6 +74,10 @@ declare function fromHex(hex: string): Uint8Array;
 declare function toHex(bytes: Uint8Array | number[]): string;
 declare let __wasmCache: WasmExports | null;
 
+// ── Pool specs (load compiled TS dist instead of raw WASM) ────────
+declare function loadLib(): Promise<any>;
+declare let __lib: any;
+
 // ── Poly1305 / ChaCha20-Poly1305 / XChaCha20 specs ────────────────
 declare function polyFeed(wasm: WasmExports, data: Uint8Array): void;
 declare function lenBlock(aadLen: number, ctLen: number): Uint8Array;
