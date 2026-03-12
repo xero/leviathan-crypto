@@ -287,6 +287,15 @@ export class SerpentCbc {
 
 export { SerpentSeal } from './seal.js';
 
+// ── SerpentStream re-export ───────────────────────────────────────────────────
+
+export { SerpentStream, sealChunk, openChunk } from './stream.js';
+
+// ── SerpentStreamPool re-export ───────────────────────────────────────────────
+
+export { SerpentStreamPool } from './stream-pool.js';
+export type { StreamPoolOpts } from './stream-pool.js';
+
 // ── Ready check ──────────────────────────────────────────────────────────────
 
 export function _serpentReady(): boolean {

@@ -1,4 +1,4 @@
-name: unit-hashing
+name: unit-pools
 on:
   workflow_call:
 permissions:
@@ -6,7 +6,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: setup bun
@@ -17,11 +17,8 @@ jobs:
         run: bun i
       - name: build wasm + embedded modules
         run: bun run build:asm && bun run build:embed
-      - name: run fast unit tests
+      - name: run pool tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
-          test/unit/sha2/sha256.test.ts
-          test/unit/sha2/sha512.test.ts
-          test/unit/sha2/hmac.test.ts
-          test/unit/sha2/hkdf.test.ts
-          test/unit/sha3/sha3.test.ts
+          test/unit/chacha20/pool.test.ts
+          test/unit/serpent/serpent_stream_pool.test.ts

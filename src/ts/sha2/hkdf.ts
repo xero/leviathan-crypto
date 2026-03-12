@@ -49,7 +49,7 @@ export class HKDF_SHA256 {
 
 		const N = Math.ceil(length / 32);
 		const okm = new Uint8Array(N * 32);
-		let prev = new Uint8Array(0);
+		let prev: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
 
 		for (let i = 1; i <= N; i++) {
 			const buf = new Uint8Array(prev.length + info.length + 1);
@@ -97,7 +97,7 @@ export class HKDF_SHA512 {
 
 		const N = Math.ceil(length / 64);
 		const okm = new Uint8Array(N * 64);
-		let prev = new Uint8Array(0);
+		let prev: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
 
 		for (let i = 1; i <= N; i++) {
 			const buf = new Uint8Array(prev.length + info.length + 1);

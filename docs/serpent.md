@@ -323,6 +323,136 @@ Returns the decrypted plaintext as a new `Uint8Array`.
 
 Wipes all key material and intermediate state from WASM memory.
 
+### SerpentStream
+
+Chunked authenticated encryption for large payloads. Each chunk is independently
+encrypted with Serpent-CTR and authenticated with HMAC-SHA256 using per-chunk
+keys derived via HKDF-SHA256. Position binding and truncation detection are
+enforced at the key-derivation layer.
+
+Use `SerpentStream` when the payload is large or when holding the entire
+plaintext in memory is undesirable. For small/medium payloads where a single
+`encrypt()`/`decrypt()` call is sufficient, use `SerpentSeal` instead.
+
+> [!NOTE]
+> `SerpentStream` takes a 32-byte key (HKDF handles expansion internally).
+> This differs from `SerpentSeal`, which takes 64 bytes.
+
+```typescript
+class SerpentStream {
+	constructor()
+	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Uint8Array
+	open(key: Uint8Array, ciphertext: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+#### `constructor()`
+
+Creates a new SerpentStream instance. Throws if `init(['serpent', 'sha2'])` has
+not been called.
+
+#### `seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Uint8Array`
+
+Encrypts plaintext into a chunked authenticated wire format.
+
+- **key** -- exactly 32 bytes. Throws `RangeError` if not.
+- **plaintext** -- any length (including zero).
+- **chunkSize** -- optional, default 64KB. Valid range: 1KB to 64KB. Throws
+  `RangeError` if outside range.
+
+A fresh random stream nonce is generated internally for each call. Two seals of
+the same plaintext with the same key produce different output.
+
+Wire format: `stream_nonce (16) || chunk_size (4, u32_be) || chunk_count (8, u64_be) || chunk_0 || ... || chunk_N-1`
+
+Each chunk on the wire: `ciphertext || hmac_tag (32 bytes)`.
+
+#### `open(key: Uint8Array, ciphertext: Uint8Array): Uint8Array`
+
+Verifies authentication and decrypts the chunked wire format. Each chunk's MAC
+is verified before decryption (Encrypt-then-MAC). If any chunk fails
+authentication, `open()` throws immediately and never returns partial plaintext.
+
+- **key** -- exactly 32 bytes. Must be the same key used for `seal()`.
+- **ciphertext** -- the wire format from `seal()`. Throws `RangeError` if too
+  short.
+
+#### `dispose(): void`
+
+Wipes all key material and intermediate state from WASM memory. Delegates to
+internal SerpentCtr, HMAC_SHA256, and HKDF_SHA256 instances.
+
+**Security properties:**
+
+- **Per-chunk EtM** -- HMAC-SHA256 over ciphertext, verified before decrypt.
+- **Position binding** -- chunk index encoded in HKDF `info`. Reordering chunks
+  produces wrong keys; MAC fails.
+- **Truncation detection** -- final chunk derives different keys than any
+  intermediate chunk at the same index.
+- **Implicit header integrity** -- HKDF `info` embeds the full header. Tampering
+  with any header field invalidates every chunk's MAC.
+- **Domain separation** -- `"serpent-stream-v1"` prefix prevents key confusion
+  with SerpentSeal or other constructions.
+
+> [!IMPORTANT]
+> This is a bespoke construction (no external RFC). The compositional security
+> argument rests on HKDF (RFC 5869), HMAC-EtM, and Serpent-CTR. See
+> [sha2.md](./sha2.md) for HKDF details.
+
+> [!NOTE]
+> `sealChunk` and `openChunk` are exported from the serpent submodule for
+> internal use by the pool worker. They are not public API -- callers should use
+> `SerpentStream` or `SerpentStreamPool`.
+
+### SerpentStreamPool
+
+Parallel worker pool for `SerpentStream`. Same wire format, same security
+properties, faster on multi-core hardware for large payloads. Each worker owns
+its own `serpent.wasm` and `sha2.wasm` instances with isolated linear memory.
+
+`SerpentStream.seal()` and `SerpentStreamPool.seal()` produce compatible wire
+formats -- either can decrypt the other's output.
+
+```typescript
+class SerpentStreamPool {
+	static async create(opts?: StreamPoolOpts): Promise<SerpentStreamPool>
+	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Promise<Uint8Array>
+	open(key: Uint8Array, ciphertext: Uint8Array): Promise<Uint8Array>
+	dispose(): void
+	get size(): number
+	get queueDepth(): number
+}
+```
+
+#### `static async create(opts?: StreamPoolOpts): Promise<SerpentStreamPool>`
+
+Creates a new pool. Requires `init(['serpent', 'sha2'])` to have been called.
+Compiles both WASM modules once and distributes them to all workers.
+
+- **opts.workers** -- number of workers to spawn. Default:
+  `navigator.hardwareConcurrency ?? 4`.
+
+Uses a static factory pattern because worker initialization is async (WASM
+compilation and instantiation happen per worker).
+
+#### `seal(key, plaintext, chunkSize?)`
+
+Same parameters as `SerpentStream.seal()`, but returns a `Promise`. Key
+derivation happens on the main thread; chunk encryption is parallelised across
+workers.
+
+#### `open(key, ciphertext)`
+
+Same parameters as `SerpentStream.open()`, but returns a `Promise`. If any chunk
+fails authentication, the promise rejects immediately -- no partial plaintext is
+returned.
+
+#### `dispose()`
+
+Terminates all workers. Rejects all pending and queued jobs. Must be called to
+release worker resources when the pool is no longer needed.
+
 ---
 
 ## Usage Examples
@@ -418,7 +548,54 @@ cbc.dispose();
 > [!IMPORTANT]
 > CBC mode is unauthenticated. Use `SerpentSeal` for authenticated encryption.
 
-### Example 4: Raw block operations (low-level)
+### Example 4: SerpentStream (chunked authenticated encryption)
+
+Use `SerpentStream` for large payloads where holding the entire plaintext in
+memory is undesirable.
+
+```typescript
+import { init, SerpentStream, randomBytes } from 'leviathan-crypto';
+
+await init(['serpent', 'sha2']);
+
+const key = randomBytes(32); // 32-byte key (HKDF handles expansion)
+
+const stream = new SerpentStream();
+
+const plaintext  = new Uint8Array(1024 * 1024); // 1 MB
+crypto.getRandomValues(plaintext);
+
+const ciphertext = stream.seal(key, plaintext);       // default 64KB chunks
+const decrypted  = stream.open(key, ciphertext);
+
+// decrypted is byte-identical to plaintext
+
+stream.dispose();
+```
+
+### Example 5: SerpentStreamPool (parallel chunked encryption)
+
+Use `SerpentStreamPool` for maximum throughput on multi-core hardware.
+
+```typescript
+import { init, SerpentStreamPool, randomBytes } from 'leviathan-crypto';
+
+await init(['serpent', 'sha2']);
+
+const pool = await SerpentStreamPool.create({ workers: 4 });
+
+const key       = randomBytes(32);
+const plaintext = new Uint8Array(10 * 1024 * 1024); // 10 MB
+
+const ciphertext = await pool.seal(key, plaintext);
+const decrypted  = await pool.open(key, ciphertext);
+
+// decrypted is byte-identical to plaintext
+
+pool.dispose(); // terminates workers
+```
+
+### Example 6: Raw block operations (low-level)
 
 Use the `Serpent` class for single 16-byte block operations. This is the lowest
 level API, most users should use `SerpentSeal` instead.
@@ -470,6 +647,13 @@ cipher.dispose();
 | IV is not 16 bytes (`SerpentCbc`) | `RangeError` | `CBC IV must be 16 bytes (got N)` |
 | Ciphertext length is zero or not a multiple of 16 (`SerpentCbc.decrypt`) | `RangeError` | `ciphertext length must be a non-zero multiple of 16` |
 | Invalid PKCS7 padding on decrypt (`SerpentCbc.decrypt`) | `RangeError` | `invalid PKCS7 padding` |
+| `SerpentStream` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent', 'sha2']) before using SerpentStream` |
+| `SerpentStream` key is not 32 bytes | `RangeError` | `SerpentStream key must be 32 bytes (got N)` |
+| `SerpentStream` chunkSize out of range | `RangeError` | `SerpentStream chunkSize must be 1024..65536 (got N)` |
+| `SerpentStream` ciphertext too short | `RangeError` | `SerpentStream: ciphertext too short` |
+| `SerpentStream` authentication failed | `Error` | `SerpentStream: authentication failed` |
+| `SerpentStreamPool.create()` before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent', 'sha2']) before using SerpentStreamPool` |
+| `SerpentStreamPool` methods after `dispose()` | `Error` | `leviathan-crypto: pool is disposed` |
 
 ---
 

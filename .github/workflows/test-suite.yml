@@ -45,6 +45,10 @@ jobs:
     needs: [build, verify-vectors]
     uses: ./.github/workflows/unit-nessie.yml
 
+  unit-pools:
+    needs: [build, verify-vectors]
+    uses: ./.github/workflows/unit-pools.yml
+
   unit-hashing:
     needs: [build, verify-vectors]
     uses: ./.github/workflows/unit-hashing.yml

@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 337 | All pass |
+| Vitest (unit) | 371 | All pass |
 | Playwright (e2e) | 105 (35 tests × 3 browsers) | All pass |
-| **Total** | **442** | |
+| **Total** | **476** | |
 
 ---
 
@@ -29,6 +29,8 @@
 | `serpent/serpent.test.ts` | SerpentSeal round-trip, tag/ciphertext/IV corruption, non-deterministic IV, key-length and data-too-short RangeErrors, dispose, init guards (serpent missing, sha2 missing), SerpentCbc/SerpentCtr dangerUnauthenticated gate | 15 tests | — |
 | `serpent/serpent_montecarlo.test.ts` | ECB Monte Carlo (1200 × 10000 enc + dec) | 2400 outer, 4 tests | — |
 | `serpent/serpent_cbc_montecarlo.test.ts` | CBC Monte Carlo (1200 × 10000 enc + dec) | 2400 outer, 4 tests | — |
+| `serpent/serpent_stream.test.ts` | SerpentStream round-trip, auth, position binding, validation, lifecycle | 19 tests | Gate 9 |
+| `serpent/serpent_stream_pool.test.ts` | SerpentStreamPool correctness, parallel, auth, lifecycle | 15 tests | Gate 10 |
 | `chacha20/chacha20.test.ts` | ChaCha20 block + encryption + round-trips | 6 tests | Gate 3 |
 | `chacha20/poly1305.test.ts` | Poly1305 MAC vectors (§2.5.2, §2.6.2, A.3 #1–#6) | 9 tests | Gate 4 |
 | `chacha20/chacha20poly1305.test.ts` | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation) | 16 tests | Gate 5 |
@@ -83,6 +85,7 @@
 | `serpent_nessie-128.txt` | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/) | 1028 | VERIFIED |
 | `serpent_nessie-192.txt` | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/) | 1156 | VERIFIED |
 | `serpent_nessie-256.txt` | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/) | 1284 | VERIFIED |
+| `serpent.ts` | SerpentStream round-trip fixture (3 × 1024-byte chunks) | 1 | VERIFIED (Gate 9) |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.2.1 — ChaCha20 block function | 1 | VERIFIED (Gate 3) |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.4.2 — ChaCha20 114-byte encryption | 1 | VERIFIED |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.5.2 — Poly1305 34-byte message | 1 | VERIFIED (Gate 4) |

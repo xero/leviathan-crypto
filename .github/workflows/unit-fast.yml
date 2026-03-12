@@ -26,9 +26,9 @@ jobs:
           test/unit/serpent/serpent_sbox.test.ts
           test/unit/serpent/serpent_ctr.test.ts
           test/unit/serpent/serpent_cbc.test.ts
+          test/unit/serpent/serpent_stream.test.ts
           test/unit/serpent/serpent_wipe.test.ts
           test/unit/chacha20/chacha20.test.ts
           test/unit/chacha20/poly1305.test.ts
           test/unit/chacha20/chacha20poly1305.test.ts
           test/unit/chacha20/xchacha20.test.ts
-          test/unit/chacha20/pool.test.ts
