@@ -253,3 +253,7 @@ export class HMAC_SHA384 {
 		this.x.wipeBuffers();
 	}
 }
+
+// ── HKDF ────────────────────────────────────────────────────────────────────
+
+export { HKDF_SHA256, HKDF_SHA512 } from './hkdf.js';

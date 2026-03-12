@@ -55,7 +55,7 @@ export { SerpentSeal, Serpent, SerpentCtr, SerpentCbc, _serpentReady } from './s
 export { ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, _chachaReady } from './chacha20/index.js';
 export { XChaCha20Poly1305Pool } from './chacha20/pool.js';
 export type { PoolOpts } from './chacha20/pool.js';
-export { SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, _sha2Ready } from './sha2/index.js';
+export { SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, _sha2Ready } from './sha2/index.js';
 export { SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, _sha3Ready } from './sha3/index.js';
 export { Fortuna } from './fortuna.js';
 export {

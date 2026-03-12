@@ -711,17 +711,7 @@ Source: `src/asm/sha3/buffers.ts`
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Date Flow Diagram" width="800">
 
-```
-test/
-├── unit/        ← Vitest, JS target (fast, deterministic, Node.js)
-│   ├── serpent/
-│   ├── chacha20/
-│   ├── sha2/
-│   ├── sha3/
-│   └── init.test.ts
-├── e2e/         ← Playwright, WASM target (cross-browser: Chromium, Firefox, WebKit)
-└── vectors/     ← test vector files (read-only, SHA256SUMS integrity check)
-```
+For the full testing methodology and vector corpus, see: [test-suite.md](./test-suite.md)
 
 ### Gate discipline
 
@@ -784,4 +774,5 @@ They are not deprecated — they are the source material for this repository.
 
 ## Cross-References
 
-- [README.md](./README.md)
+- [README.md](./README.md) Library documentation index
+- [test-suite.md](./test-suite.md) Testing methodology and vector corpus.

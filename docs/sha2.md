@@ -281,6 +281,94 @@ HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-384.
 
 ---
 
+### HKDF_SHA256
+
+RFC 5869 HMAC-based Extract-and-Expand Key Derivation Function over
+HMAC-SHA256. Use HKDF when you need to derive one or more keys from a shared
+secret (e.g. after a Diffie-Hellman exchange) or to separate keys for different
+purposes from a single source of keying material.
+
+`HKDF_SHA256` should be the default choice. `HKDF_SHA384` does not exist.
+
+```typescript
+class HKDF_SHA256 {
+	constructor()
+	extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array
+	expand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array
+	derive(ikm: Uint8Array, salt: Uint8Array | null, info: Uint8Array, length: number): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** -- Creates a new HKDF_SHA256 instance. Throws if
+`init(['sha2'])` has not been called.
+
+**`extract(salt, ikm): Uint8Array`** -- RFC 5869 section 2.2. Computes
+`PRK = HMAC-SHA256(salt, IKM)`. Returns a 32-byte pseudorandom key. If `salt`
+is `null` or empty, defaults to 32 zero bytes per RFC section 2.2.
+
+**`expand(prk, info, length): Uint8Array`** -- RFC 5869 section 2.3. Derives
+`length` bytes of output keying material from a 32-byte PRK. `info` provides
+application-specific context (can be empty). `length` must be between 1 and
+8160 (255 x 32). Throws `RangeError` if `prk` is not exactly 32 bytes or if
+`length` is out of range.
+
+**`derive(ikm, salt, info, length): Uint8Array`** -- One-shot: calls
+`extract(salt, ikm)` then `expand(prk, info, length)`. This is the correct
+path for most callers. `extract()` and `expand()` are exposed separately for
+advanced use cases such as key separation and ratchets -- callers who reach for
+them should know why.
+
+**`dispose(): void`** -- Releases the internal HMAC instance.
+
+---
+
+### HKDF_SHA512
+
+Identical to `HKDF_SHA256` but uses HMAC-SHA512 internally. HashLen is 64, so
+PRK must be exactly 64 bytes and maximum output length is 16320 (255 x 64).
+
+```typescript
+class HKDF_SHA512 {
+	constructor()
+	extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array
+	expand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array
+	derive(ikm: Uint8Array, salt: Uint8Array | null, info: Uint8Array, length: number): Uint8Array
+	dispose(): void
+}
+```
+
+**`extract(salt, ikm)`** -- If `salt` is `null` or empty, defaults to 64 zero
+bytes.
+
+**`expand(prk, info, length)`** -- PRK must be exactly 64 bytes. `length` must
+be between 1 and 16320. Throws `RangeError` otherwise.
+
+> [!NOTE]
+> HKDF is a pure TypeScript composition over the WASM-backed HMAC classes.
+> It does not introduce new WASM code or new `init()` modules. Initializing
+> `sha2` is sufficient.
+
+**Usage example:**
+
+```typescript
+import { init, HKDF_SHA256, bytesToHex } from 'leviathan-crypto'
+
+await init(['sha2'])
+
+const hkdf = new HKDF_SHA256()
+const ikm = new Uint8Array(32) // your input keying material
+const salt = crypto.getRandomValues(new Uint8Array(32))
+const info = new TextEncoder().encode('my-app-v1-encryption-key')
+
+const key = hkdf.derive(ikm, salt, info, 32)
+console.log('Derived key:', bytesToHex(key))
+
+hkdf.dispose()
+```
+
+---
+
 ## Usage Examples
 
 ### Example 1: Hash a message with SHA-256

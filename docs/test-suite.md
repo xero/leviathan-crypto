@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 315 | All pass |
+| Vitest (unit) | 337 | All pass |
 | Playwright (e2e) | 105 (35 tests × 3 browsers) | All pass |
-| **Total** | **420** | |
+| **Total** | **442** | |
 
 ---
 
@@ -36,6 +36,7 @@
 | `sha2/sha256.test.ts` | SHA-256 vectors, streaming, wipeBuffers, leviathan cross-check | 11 tests | Gate 3 |
 | `sha2/sha512.test.ts` | SHA-512, SHA-384 vectors, streaming, leviathan cross-check | 14 tests | Gate 4 |
 | `sha2/hmac.test.ts` | HMAC-SHA256/512/384 vectors, leviathan cross-check | 14 tests | Gate 5, 6 |
+| `sha2/hkdf.test.ts` | HKDF-SHA256 RFC 5869 A.1-A.3, HKDF-SHA512 generated vectors, extract/expand isolation, derive consistency, RangeError guards, salt defaults, dispose | 22 tests | Gate 8 |
 | `sha3/sha3.test.ts` | SHA3-224/256/384/512, SHAKE128/256 (single + multi-block), incremental absorb/squeeze, state machine guards, dispose zeroes TS buffer, wipeBuffers, leviathan cross-check | 61 tests | Gate 7 |
 | `fortuna.test.ts` | Fortuna CSPRNG: create, get, entropy, stop/start, key replacement, pool selection | 11 tests | — |
 | `utils.test.ts` | hex, utf8, base64 encoding, constantTimeEqual, wipe, xor, concat, randomBytes | 30 tests | — |
@@ -100,6 +101,8 @@
 | `sha2.ts` | [RFC 4231](https://www.rfc-editor.org/rfc/rfc4231) §4.2/§4.3/§4.7 — HMAC-SHA256 TC1, TC2, TC6 | 3 | VERIFIED |
 | `sha2.ts` | [RFC 4231](https://www.rfc-editor.org/rfc/rfc4231) §4.2/§4.3/§4.7 — HMAC-SHA512 TC1, TC2, TC6 | 3 | VERIFIED |
 | `sha2.ts` | [RFC 4231](https://www.rfc-editor.org/rfc/rfc4231) §4.2/§4.3/§4.7 — HMAC-SHA384 TC1, TC2, TC6 | 3 | VERIFIED |
+| `sha2.ts` | [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869) §A.1/§A.2/§A.3 — HKDF-SHA256 | 3 | VERIFIED |
+| `sha2.ts` | Node.js crypto.hkdfSync — HKDF-SHA512 (same inputs as RFC A.1–A.3) | 3 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) §A.1 — SHA3-256 (empty, "abc", 448-bit) | 3 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHA3-256 rate boundary cases (135B, 136B, 137B) | 3 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) §A.4 — SHA3-512 (empty, "abc") | 2 | VERIFIED |
