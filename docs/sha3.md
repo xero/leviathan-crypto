@@ -43,11 +43,10 @@ secret. SHA-3's sponge construction makes this impossible.
   `SHA3(key + message)` as a MAC construction, even though it is not vulnerable to
   length extension. HMAC provides a formally proven security reduction.
 
-- **SHAKE output caps.** In this library, SHAKE output is limited to a single
-  squeeze block: **SHAKE128 can produce at most 168 bytes**, and **SHAKE256 can
-  produce at most 136 bytes**. If you request more, a `RangeError` is thrown. For
-  most use cases (deriving a 32-byte key, generating a 16-byte nonce), this is more
-  than enough. Multi-block squeeze is not supported in v1.0.
+- **SHAKE output is unbounded.** SHAKE128 and SHAKE256 are full XOFs — output
+  length is unbounded. Request any number of bytes via `hash()`, or drive the
+  sponge directly with `absorb()` / `squeeze()`. The only constraint is
+  `outputLength >= 1`.
 
 - **Not for password hashing.** SHA-3 is a fast hash -- that is the opposite of
   what you want for password storage. Passwords must be hashed with a slow,
@@ -174,41 +173,96 @@ class SHA3_512 {
 
 ### SHAKE128
 
-Extendable-output function (XOF). Produces **variable-length** output, from 1 to
-168 bytes. You specify exactly how many bytes you want.
-
-128-bit security level.
+Extendable-output function (XOF). Produces **variable-length** output — any
+number of bytes you request. 128-bit security level.
 
 ```typescript
 class SHAKE128 {
 	constructor()
-	hash(msg: Uint8Array, outputLength: number): Uint8Array   // 1-168 bytes
+	hash(msg: Uint8Array, outputLength: number): Uint8Array
+	absorb(msg: Uint8Array): this
+	squeeze(n: number): Uint8Array
+	reset(): this
 	dispose(): void
 }
 ```
 
-**`outputLength`** must be between 1 and 168 (inclusive). Values outside this range
-throw a `RangeError`.
+| Method | Description |
+|--------|-------------|
+| `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
+| `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
+| `squeeze(n)` | Pull `n` bytes of XOF output. Continues from where the last `squeeze()` left off. |
+| `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. |
+| `dispose()` | Zero all WASM state and the TS-side block buffer. |
+
+**`outputLength`** / **`n`** must be `>= 1`. Values below 1 throw a `RangeError`.
 
 ---
 
 ### SHAKE256
 
-Extendable-output function (XOF). Produces **variable-length** output, from 1 to
-136 bytes. You specify exactly how many bytes you want.
-
-256-bit security level.
+Extendable-output function (XOF). Produces **variable-length** output — any
+number of bytes you request. 256-bit security level.
 
 ```typescript
 class SHAKE256 {
 	constructor()
-	hash(msg: Uint8Array, outputLength: number): Uint8Array   // 1-136 bytes
+	hash(msg: Uint8Array, outputLength: number): Uint8Array
+	absorb(msg: Uint8Array): this
+	squeeze(n: number): Uint8Array
+	reset(): this
 	dispose(): void
 }
 ```
 
-**`outputLength`** must be between 1 and 136 (inclusive). Values outside this range
-throw a `RangeError`.
+| Method | Description |
+|--------|-------------|
+| `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
+| `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
+| `squeeze(n)` | Pull `n` bytes of XOF output. Continues from where the last `squeeze()` left off. |
+| `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. |
+| `dispose()` | Zero all WASM state and the TS-side block buffer. |
+
+**`outputLength`** / **`n`** must be `>= 1`. Values below 1 throw a `RangeError`.
+
+---
+
+## Incremental XOF API (`absorb` / `squeeze` / `reset`)
+
+For use cases where you need to pull output in multiple steps — key derivation,
+mask generation, protocol-specific domain separation — the SHAKE classes expose
+a streaming interface alongside the one-shot `hash()`.
+
+### State machine
+
+| State       | Valid calls                     |
+|-------------|---------------------------------|
+| fresh       | `absorb()`, `hash()`, `reset()` |
+| absorbing   | `absorb()`, `squeeze()`, `hash()`, `reset()` |
+| squeezing   | `squeeze()`, `hash()`, `reset()` |
+
+Calling `absorb()` while squeezing throws:
+`"SHAKE128: cannot absorb after squeeze — call reset() first"`
+
+`hash()` always resets before running — safe to call on a dirty instance.
+
+### Example
+
+```typescript
+import { init, SHAKE256 } from 'leviathan-crypto'
+
+await init('sha3')
+
+const xof = new SHAKE256()
+xof.absorb(ikm)             // input key material
+xof.absorb(salt)            // additional context
+
+const encKey  = xof.squeeze(32)   // 256-bit encryption key
+const macKey  = xof.squeeze(32)   // 256-bit MAC key
+const nonce   = xof.squeeze(12)   // 96-bit nonce
+
+xof.dispose()
+```
 
 ---
 
@@ -410,20 +464,28 @@ any SHA-3 class instances.
 
 ### SHAKE output length out of range
 
-SHAKE128 accepts `outputLength` from 1 to 168. SHAKE256 accepts 1 to 136. Values
-outside these ranges throw a `RangeError`:
+SHAKE128 and SHAKE256 require `outputLength >= 1`. Passing 0 or a negative number
+throws a `RangeError`:
 
 ```
-RangeError: SHAKE128 outputLength must be 1-168 bytes (got 200). Multi-squeeze is not supported in v1.0.
+RangeError: outputLength must be >= 1 (got 0)
 ```
 
+**Fix:** Request at least 1 byte.
+
+---
+
+### SHAKE absorb after squeeze
+
+Calling `absorb()` after `squeeze()` has been called throws an `Error`. The sponge
+has been padded and finalized — further absorption is not meaningful.
+
 ```
-RangeError: SHAKE256 outputLength must be 1-136 bytes (got 0). Multi-squeeze is not supported in v1.0.
+Error: SHAKE128: cannot absorb after squeeze — call reset() first
 ```
 
-**Fix:** Request a smaller output. If you genuinely need more bytes than one
-squeeze block provides, you will need to use a different approach (e.g., call
-SHAKE multiple times with different inputs, or use HKDF-Expand).
+**Fix:** Call `reset()` to return the instance to a fresh state before absorbing
+new data.
 
 ---
 

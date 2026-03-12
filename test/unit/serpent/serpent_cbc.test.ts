@@ -37,7 +37,7 @@ let cbc: SerpentCbc;
 
 beforeAll(async () => {
 	await init('serpent');
-	cbc = new SerpentCbc();
+	cbc = new SerpentCbc({ dangerUnauthenticated: true });
 });
 
 // ── PKCS7 padding output length ───────────────────────────────────────────

@@ -323,6 +323,33 @@ export function sha3_512Final(): void { keccakFinal(64); }
 export function sha3_224Final(): void { keccakFinal(28); }
 export function shakeFinal(outLen: i32): void { keccakFinal(outLen); }
 
+// Apply sponge padding and run first permutation — FIPS 202 §4 squeeze phase
+export function shakePad(): void {
+	const rate     = load<i32>(RATE_OFFSET);
+	const absorbed = load<i32>(ABSORBED_OFFSET);
+	const dsByte   = load<u8> (DSBYTE_OFFSET);
+
+	// Domain separation byte at position `absorbed`
+	const dsAddr = STATE_OFFSET + absorbed;
+	store<u8>(dsAddr, load<u8>(dsAddr) ^ dsByte);
+
+	// Pad10*1: 0x80 into last byte of rate block
+	const lastAddr = STATE_OFFSET + rate - 1;
+	store<u8>(lastAddr, load<u8>(lastAddr) ^ 0x80);
+
+	keccakF();
+}
+
+// Copy rate bytes from state → OUT_OFFSET, then permute for next block.
+// Call after shakePad(), once per squeeze block needed.
+export function shakeSqueezeBlock(): void {
+	const rate = load<i32>(RATE_OFFSET);
+	for (let i = 0; i < rate; i++) {
+		store<u8>(OUT_OFFSET + i, load<u8>(STATE_OFFSET + i));
+	}
+	keccakF();
+}
+
 // Zero all Keccak buffers
 export function wipeBuffers(): void {
 	memory.fill(STATE_OFFSET,    0, 200);   // 25 × u64 lane state

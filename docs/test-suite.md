@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 228 | All pass |
+| Vitest (unit) | 315 | All pass |
 | Playwright (e2e) | 105 (35 tests × 3 browsers) | All pass |
-| **Total** | **333** | |
+| **Total** | **420** | |
 
 ---
 
@@ -26,6 +26,7 @@
 | `serpent/serpent_ctr.test.ts` | CTR mode cases A–E | 5 tests | — |
 | `serpent/serpent_wipe.test.ts` | wipeBuffers() verification | 1 test | — |
 | `serpent/serpent_cbc.test.ts` | CBC padding, round-trip, validation | 24 tests | — |
+| `serpent/serpent.test.ts` | SerpentSeal round-trip, tag/ciphertext/IV corruption, non-deterministic IV, key-length and data-too-short RangeErrors, dispose, init guards (serpent missing, sha2 missing), SerpentCbc/SerpentCtr dangerUnauthenticated gate | 15 tests | — |
 | `serpent/serpent_montecarlo.test.ts` | ECB Monte Carlo (1200 × 10000 enc + dec) | 2400 outer, 4 tests | — |
 | `serpent/serpent_cbc_montecarlo.test.ts` | CBC Monte Carlo (1200 × 10000 enc + dec) | 2400 outer, 4 tests | — |
 | `chacha20/chacha20.test.ts` | ChaCha20 block + encryption + round-trips | 6 tests | Gate 3 |
@@ -35,7 +36,7 @@
 | `sha2/sha256.test.ts` | SHA-256 vectors, streaming, wipeBuffers, leviathan cross-check | 11 tests | Gate 3 |
 | `sha2/sha512.test.ts` | SHA-512, SHA-384 vectors, streaming, leviathan cross-check | 14 tests | Gate 4 |
 | `sha2/hmac.test.ts` | HMAC-SHA256/512/384 vectors, leviathan cross-check | 14 tests | Gate 5, 6 |
-| `sha3/sha3.test.ts` | SHA3-224/256/384/512, SHAKE128/256, wipeBuffers, leviathan cross-check | 37 tests | Gate 7 |
+| `sha3/sha3.test.ts` | SHA3-224/256/384/512, SHAKE128/256 (single + multi-block), incremental absorb/squeeze, state machine guards, dispose zeroes TS buffer, wipeBuffers, leviathan cross-check | 61 tests | Gate 7 |
 | `fortuna.test.ts` | Fortuna CSPRNG: create, get, entropy, stop/start, key replacement, pool selection | 11 tests | — |
 | `utils.test.ts` | hex, utf8, base64 encoding, constantTimeEqual, wipe, xor, concat, randomBytes | 30 tests | — |
 
@@ -106,7 +107,9 @@
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHA3-384 (empty, "abc") + rate boundary (103B, 104B) | 4 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHA3-224 (empty, "abc") + rate boundary (143B, 144B) | 4 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHAKE128 (empty×32, "abc"×32, empty×64, rate boundary) | 5 | VERIFIED |
+| `sha3.ts` | Node.js crypto / Python hashlib — SHAKE128 multi-block (empty×200, empty×336, empty×400, "abc"×200) | 4 | VERIFIED |
 | `sha3.ts` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHAKE256 (empty×32, "abc"×64, rate boundary) | 4 | VERIFIED |
+| `sha3.ts` | Node.js crypto / Python hashlib — SHAKE256 multi-block (empty×200, empty×272, empty×300, "abc"×200) | 4 | VERIFIED |
 
 > [!IMPORTANT]
 > All vector files are read-only. Integrity is verified via [`SHA256SUMS`](https://github.com/xero/lvthn/blob/main/test/vectors/SHA256SUMS)

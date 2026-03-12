@@ -195,9 +195,9 @@ Source: `src/asm/sha2/`
 
 **`sha3.wasm`**
 Keccak-f[1600] permutation (FIPS 202). SHA3-224, SHA3-256, SHA3-384, SHA3-512.
-SHAKE128, SHAKE256 (XOFs, output capped at one squeeze block — 168 bytes for
-SHAKE128, 136 bytes for SHAKE256). All six variants share one permutation,
-differing only in rate, domain separation byte, and output length.
+SHAKE128, SHAKE256 (XOFs, multi-squeeze capable — unbounded output length).
+All six variants share one permutation, differing only in rate, domain
+separation byte, and output length.
 Source: `src/asm/sha3/`
 
 ---
@@ -529,8 +529,8 @@ Each TS wrapper class maps to one WASM module and specific exported functions.
 | `SHA3_256` | `sha3_256Init`, `keccakAbsorb`, `sha3_256Final`, `wipeBuffers` + buffer getters |
 | `SHA3_384` | `sha3_384Init`, `keccakAbsorb`, `sha3_384Final`, `wipeBuffers` + buffer getters |
 | `SHA3_512` | `sha3_512Init`, `keccakAbsorb`, `sha3_512Final`, `wipeBuffers` + buffer getters |
-| `SHAKE128` | `shake128Init`, `keccakAbsorb`, `shakeFinal`, `wipeBuffers` + buffer getters |
-| `SHAKE256` | `shake256Init`, `keccakAbsorb`, `shakeFinal`, `wipeBuffers` + buffer getters |
+| `SHAKE128` | `shake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `SHAKE256` | `shake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
 
 ### Cross-module dependencies
 
@@ -753,10 +753,6 @@ They are the immutable truth, and must never be modified to make tests pass.
 
 ## Known Limitations (v1.0)
 
-- **SHAKE output cap** — SHAKE128 and SHAKE256 output is capped at one squeeze
-  block (168 bytes for SHAKE128, 136 bytes for SHAKE256). The TypeScript wrapper
-  enforces this with a `RangeError`. Multi-squeeze for longer XOF output is not
-  implemented.
 - **No authenticated CBC** — `SerpentCbc` is unauthenticated. Use
   `XChaCha20Poly1305` for authenticated encryption, or pair `SerpentCbc` with
   `HMAC_SHA256` (Encrypt-then-MAC).

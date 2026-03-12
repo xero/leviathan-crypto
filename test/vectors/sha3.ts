@@ -272,6 +272,74 @@ export const shake128Vectors: ShakeVector[] = [
 		outputLength: 32,
 		expected: 'c22e11586c22b713bde373fce93314d76829de2c21d940a28eb659b8dec953a2',
 	},
+	{
+		// Verified: node crypto.createHash('shake128',{outputLength:200}).update(Buffer.from('','hex')).digest('hex')
+		// Cross-checked: Python hashlib.shake_128(b'').hexdigest(200)
+		description: 'SHAKE128 empty → 200 bytes (multi-block)',
+		input: '',
+		outputLength: 200,
+		expected:
+			'7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26' +
+			'3cb1eea988004b93103cfb0aeefd2a686e01fa4a58e8a3639ca8a1e3f9ae57e2' +
+			'35b8cc873c23dc62b8d260169afa2f75ab916a58d974918835d25e6a435085b2' +
+			'badfd6dfaac359a5efbb7bcc4b59d538df9a04302e10c8bc1cbf1a0b3a5120ea' +
+			'17cda7cfad765f5623474d368ccca8af0007cd9f5e4c849f167a580b14aabdef' +
+			'aee7eef47cb0fca9767be1fda69419dfb927e9df07348b196691abaeb580b32d' +
+			'ef58538b8d23f877',
+	},
+	{
+		// Verified: node crypto.createHash('shake128',{outputLength:336}).update(Buffer.from('','hex')).digest('hex')
+		description: 'SHAKE128 empty → 336 bytes (exactly 2× rate blocks)',
+		input: '',
+		outputLength: 336,
+		expected:
+			'7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26' +
+			'3cb1eea988004b93103cfb0aeefd2a686e01fa4a58e8a3639ca8a1e3f9ae57e2' +
+			'35b8cc873c23dc62b8d260169afa2f75ab916a58d974918835d25e6a435085b2' +
+			'badfd6dfaac359a5efbb7bcc4b59d538df9a04302e10c8bc1cbf1a0b3a5120ea' +
+			'17cda7cfad765f5623474d368ccca8af0007cd9f5e4c849f167a580b14aabdef' +
+			'aee7eef47cb0fca9767be1fda69419dfb927e9df07348b196691abaeb580b32d' +
+			'ef58538b8d23f87732ea63b02b4fa0f4873360e2841928cd60dd4cee8cc0d4c9' +
+			'22a96188d032675c8ac850933c7aff1533b94c834adbb69c6115bad4692d8619' +
+			'f90b0cdf8a7b9c264029ac185b70b83f2801f2f4b3f70c593ea3aeeb613a7f1b' +
+			'1de33fd75081f592305f2e4526edc09631b10958f464d889f31ba010250fda7f' +
+			'1368ec2967fc84ef2ae9aff268e0b170',
+	},
+	{
+		// Verified: node crypto.createHash('shake128',{outputLength:400}).update(Buffer.from('','hex')).digest('hex')
+		description: 'SHAKE128 empty → 400 bytes (multi-block, crosses 2nd boundary)',
+		input: '',
+		outputLength: 400,
+		expected:
+			'7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26' +
+			'3cb1eea988004b93103cfb0aeefd2a686e01fa4a58e8a3639ca8a1e3f9ae57e2' +
+			'35b8cc873c23dc62b8d260169afa2f75ab916a58d974918835d25e6a435085b2' +
+			'badfd6dfaac359a5efbb7bcc4b59d538df9a04302e10c8bc1cbf1a0b3a5120ea' +
+			'17cda7cfad765f5623474d368ccca8af0007cd9f5e4c849f167a580b14aabdef' +
+			'aee7eef47cb0fca9767be1fda69419dfb927e9df07348b196691abaeb580b32d' +
+			'ef58538b8d23f87732ea63b02b4fa0f4873360e2841928cd60dd4cee8cc0d4c9' +
+			'22a96188d032675c8ac850933c7aff1533b94c834adbb69c6115bad4692d8619' +
+			'f90b0cdf8a7b9c264029ac185b70b83f2801f2f4b3f70c593ea3aeeb613a7f1b' +
+			'1de33fd75081f592305f2e4526edc09631b10958f464d889f31ba010250fda7f' +
+			'1368ec2967fc84ef2ae9aff268e0b1700affc6820b523a3d917135f2dff2ee06' +
+			'bfe72b3124721d4a26c04e53a75e30e73a7a9c4a95d91c55d495e9f51dd0b5e9' +
+			'd83c6d5e8ce803aa62b8d654db53d09b',
+	},
+	{
+		// Verified: node crypto.createHash('shake128',{outputLength:200}).update(Buffer.from('abc')).digest('hex')
+		description: 'SHAKE128 "abc" → 200 bytes (multi-block)',
+		input: '616263',
+		inputText: 'abc',
+		outputLength: 200,
+		expected:
+			'5881092dd818bf5cf8a3ddb793fbcba74097d5c526a6d35f97b83351940f2cc8' +
+			'44c50af32acd3f2cdd066568706f509bc1bdde58295dae3f891a9a0fca578378' +
+			'9a41f8611214ce612394df286a62d1a2252aa94db9c538956c717dc2bed4f232' +
+			'a0294c857c730aa16067ac1062f1201fb0d377cfb9cde4c63599b27f3462bba4' +
+			'a0ed296c801f9ff7f57302bb3076ee145f97a32ae68e76ab66c48d51675bd49a' +
+			'cc29082f5647584e6aa01b3f5af057805f973ff8ecb8b226ac32ada6f01c1fcd' +
+			'4818cb006aa5b4cd',
+	},
 ];
 
 // ============================================================
@@ -315,5 +383,68 @@ export const shake256Vectors: ShakeVector[] = [
 		inputText: '"a" repeated 136 times',
 		outputLength: 32,
 		expected: '8fcc5a08f0a1f6827c9cf64ee8d16e0443106359ca6c8efd230759256f44996a',
+	},
+	{
+		// Verified: node crypto.createHash('shake256',{outputLength:200}).update(Buffer.from('','hex')).digest('hex')
+		// Cross-checked: Python hashlib.shake_256(b'').hexdigest(200)
+		description: 'SHAKE256 empty → 200 bytes (multi-block)',
+		input: '',
+		outputLength: 200,
+		expected:
+			'46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f' +
+			'd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be' +
+			'141e96616fb13957692cc7edd0b45ae3dc07223c8e92937bef84bc0eab862853' +
+			'349ec75546f58fb7c2775c38462c5010d846c185c15111e595522a6bcd16cf86' +
+			'f3d122109e3b1fdd943b6aec468a2d621a7c06c6a957c62b54dafc3be87567d6' +
+			'77231395f6147293b68ceab7a9e0c58d864e8efde4e1b9a46cbe854713672f5c' +
+			'aaae314ed9083dab',
+	},
+	{
+		// Verified: node crypto.createHash('shake256',{outputLength:272}).update(Buffer.from('','hex')).digest('hex')
+		description: 'SHAKE256 empty → 272 bytes (exactly 2× rate blocks)',
+		input: '',
+		outputLength: 272,
+		expected:
+			'46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f' +
+			'd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be' +
+			'141e96616fb13957692cc7edd0b45ae3dc07223c8e92937bef84bc0eab862853' +
+			'349ec75546f58fb7c2775c38462c5010d846c185c15111e595522a6bcd16cf86' +
+			'f3d122109e3b1fdd943b6aec468a2d621a7c06c6a957c62b54dafc3be87567d6' +
+			'77231395f6147293b68ceab7a9e0c58d864e8efde4e1b9a46cbe854713672f5c' +
+			'aaae314ed9083dab4b099f8e300f01b8650f1f4b1d8fcf3f3cb53fb8e9eb2ea2' +
+			'03bdc970f50ae55428a91f7f53ac266b28419c3778a15fd248d339ede785fb7f' +
+			'5a1aaa96d313eacc890936c173cdcd0f',
+	},
+	{
+		// Verified: node crypto.createHash('shake256',{outputLength:300}).update(Buffer.from('','hex')).digest('hex')
+		description: 'SHAKE256 empty → 300 bytes (multi-block, crosses 2nd boundary)',
+		input: '',
+		outputLength: 300,
+		expected:
+			'46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f' +
+			'd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be' +
+			'141e96616fb13957692cc7edd0b45ae3dc07223c8e92937bef84bc0eab862853' +
+			'349ec75546f58fb7c2775c38462c5010d846c185c15111e595522a6bcd16cf86' +
+			'f3d122109e3b1fdd943b6aec468a2d621a7c06c6a957c62b54dafc3be87567d6' +
+			'77231395f6147293b68ceab7a9e0c58d864e8efde4e1b9a46cbe854713672f5c' +
+			'aaae314ed9083dab4b099f8e300f01b8650f1f4b1d8fcf3f3cb53fb8e9eb2ea2' +
+			'03bdc970f50ae55428a91f7f53ac266b28419c3778a15fd248d339ede785fb7f' +
+			'5a1aaa96d313eacc890936c173cdcd0fab882c45755feb3aed96d477ff96390b' +
+			'f9a66d1368b208e21f7c10d0',
+	},
+	{
+		// Verified: node crypto.createHash('shake256',{outputLength:200}).update(Buffer.from('abc')).digest('hex')
+		description: 'SHAKE256 "abc" → 200 bytes (multi-block)',
+		input: '616263',
+		inputText: 'abc',
+		outputLength: 200,
+		expected:
+			'483366601360a8771c6863080cc4114d8db44530f8f1e1ee4f94ea37e78b5739' +
+			'd5a15bef186a5386c75744c0527e1faa9f8726e462a12a4feb06bd8801e751e4' +
+			'1385141204f329979fd3047a13c5657724ada64d2470157b3cdc288620944d78' +
+			'dbcddbd912993f0913f164fb2ce95131a2d09a3e6d51cbfc622720d7a75c6334' +
+			'e8a2d7ec71a7cc29cf0ea610eeff1a588290a53000faa79932becec0bd3cd0b3' +
+			'3a7e5d397fed1ada9442b99903f4dcfd8559ed3950faf40fe6f3b5d710ed3b67' +
+			'7513771af6bfe119',
 	},
 ];

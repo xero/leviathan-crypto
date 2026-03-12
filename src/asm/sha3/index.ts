@@ -36,5 +36,6 @@ export {
 	keccakAbsorb, keccakFinal,
 	sha3_224Final, sha3_256Final, sha3_384Final, sha3_512Final,
 	shakeFinal,
+	shakePad, shakeSqueezeBlock,
 	wipeBuffers,
 } from './keccak';

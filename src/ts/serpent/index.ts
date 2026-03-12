@@ -120,7 +120,13 @@ export class Serpent {
 export class SerpentCtr {
 	private readonly x: SerpentExports;
 
-	constructor() {
+	constructor(opts?: { dangerUnauthenticated: true }) {
+		if (!opts?.dangerUnauthenticated) {
+			throw new Error(
+				'leviathan-crypto: SerpentCtr is unauthenticated — use SerpentSeal instead. ' +
+				'To use SerpentCtr directly, pass { dangerUnauthenticated: true }.'
+			);
+		}
 		this.x = getExports();
 	}
 
@@ -198,7 +204,13 @@ function pkcs7Strip(data: Uint8Array): Uint8Array {
 export class SerpentCbc {
 	private readonly x: SerpentExports;
 
-	constructor() {
+	constructor(opts?: { dangerUnauthenticated: true }) {
+		if (!opts?.dangerUnauthenticated) {
+			throw new Error(
+				'leviathan-crypto: SerpentCbc is unauthenticated — use SerpentSeal instead. ' +
+				'To use SerpentCbc directly, pass { dangerUnauthenticated: true }.'
+			);
+		}
 		this.x = getExports();
 	}
 
@@ -270,6 +282,10 @@ export class SerpentCbc {
 		this.mem.set(iv, this.x.getCbcIvOffset());
 	}
 }
+
+// ── SerpentSeal re-export ─────────────────────────────────────────────────────
+
+export { SerpentSeal } from './seal.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

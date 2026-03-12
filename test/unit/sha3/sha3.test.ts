@@ -116,12 +116,6 @@ describe('SHAKE128', () => {
 		});
 	}
 
-	test('throws for outputLength > 168', () => {
-		const h = new SHAKE128();
-		expect(() => h.hash(new Uint8Array(0), 169)).toThrow(RangeError);
-		h.dispose();
-	});
-
 	test('throws for outputLength < 1', () => {
 		const h = new SHAKE128();
 		expect(() => h.hash(new Uint8Array(0), 0)).toThrow(RangeError);
@@ -140,11 +134,151 @@ describe('SHAKE256', () => {
 			h.dispose();
 		});
 	}
+});
 
-	test('throws for outputLength > 136', () => {
-		const h = new SHAKE256();
-		expect(() => h.hash(new Uint8Array(0), 137)).toThrow(RangeError);
+// ── SHAKE128 multi-block hash() ─────────────────────────────────────────────
+
+describe('SHAKE128 multi-block hash()', () => {
+	for (const vec of shake128Vectors.filter(v => v.outputLength > 168)) {
+		test(vec.description, () => {
+			const h = new SHAKE128();
+			const digest = h.hash(fromHex(vec.input), vec.outputLength);
+			expect(toHex(digest)).toBe(vec.expected);
+			h.dispose();
+		});
+	}
+});
+
+// ── SHAKE256 multi-block hash() ─────────────────────────────────────────────
+
+describe('SHAKE256 multi-block hash()', () => {
+	for (const vec of shake256Vectors.filter(v => v.outputLength > 136)) {
+		test(vec.description, () => {
+			const h = new SHAKE256();
+			const digest = h.hash(fromHex(vec.input), vec.outputLength);
+			expect(toHex(digest)).toBe(vec.expected);
+			h.dispose();
+		});
+	}
+});
+
+// ── SHAKE128 incremental absorb ─────────────────────────────────────────────
+
+describe('SHAKE128 incremental absorb matches hash()', () => {
+	test('split absorb produces same output as one-shot hash()', () => {
+		const input = fromHex('616263');
+		const half = input.length >>> 1;
+		const h = new SHAKE128();
+
+		const oneShot = h.hash(input, 32);
+
+		h.reset();
+		h.absorb(input.subarray(0, half));
+		h.absorb(input.subarray(half));
+		const incremental = h.squeeze(32);
+
+		expect(toHex(incremental)).toBe(toHex(oneShot));
 		h.dispose();
+	});
+});
+
+// ── SHAKE256 incremental absorb ─────────────────────────────────────────────
+
+describe('SHAKE256 incremental absorb matches hash()', () => {
+	test('split absorb produces same output as one-shot hash()', () => {
+		const input = fromHex('616263');
+		const half = input.length >>> 1;
+		const h = new SHAKE256();
+
+		const oneShot = h.hash(input, 32);
+
+		h.reset();
+		h.absorb(input.subarray(0, half));
+		h.absorb(input.subarray(half));
+		const incremental = h.squeeze(32);
+
+		expect(toHex(incremental)).toBe(toHex(oneShot));
+		h.dispose();
+	});
+});
+
+// ── SHAKE128 state machine guards ───────────────────────────────────────────
+
+describe('SHAKE128 state machine guards', () => {
+	test('absorb() after squeeze() throws with reset() hint', () => {
+		const h = new SHAKE128();
+		h.absorb(new Uint8Array(0));
+		h.squeeze(1);
+		expect(() => h.absorb(new Uint8Array([0x01]))).toThrow('reset()');
+		h.dispose();
+	});
+
+	test('reset() allows absorb after squeeze', () => {
+		const h = new SHAKE128();
+		h.absorb(new Uint8Array([0x61]));
+		h.squeeze(1);
+		h.reset();
+		expect(() => h.absorb(new Uint8Array([0x61]))).not.toThrow();
+		h.dispose();
+	});
+
+	test('hash() is always safe regardless of prior state', () => {
+		const h = new SHAKE128();
+		h.absorb(new Uint8Array([0x61]));
+		h.squeeze(16);
+		expect(() => h.hash(new Uint8Array([0x61]), 32)).not.toThrow();
+		h.dispose();
+	});
+});
+
+// ── SHAKE256 state machine guards ───────────────────────────────────────────
+
+describe('SHAKE256 state machine guards', () => {
+	test('absorb() after squeeze() throws with reset() hint', () => {
+		const h = new SHAKE256();
+		h.absorb(new Uint8Array(0));
+		h.squeeze(1);
+		expect(() => h.absorb(new Uint8Array([0x01]))).toThrow('reset()');
+		h.dispose();
+	});
+
+	test('reset() allows absorb after squeeze', () => {
+		const h = new SHAKE256();
+		h.absorb(new Uint8Array([0x61]));
+		h.squeeze(1);
+		h.reset();
+		expect(() => h.absorb(new Uint8Array([0x61]))).not.toThrow();
+		h.dispose();
+	});
+
+	test('hash() is always safe regardless of prior state', () => {
+		const h = new SHAKE256();
+		h.absorb(new Uint8Array([0x61]));
+		h.squeeze(16);
+		expect(() => h.hash(new Uint8Array([0x61]), 32)).not.toThrow();
+		h.dispose();
+	});
+});
+
+// ── SHAKE dispose zeroes TS-side buffer ─────────────────────────────────────
+
+describe('SHAKE dispose zeroes TS-side block buffer', () => {
+	test('SHAKE128 dispose() zeroes _block', () => {
+		const h = new SHAKE128() as unknown as { _block: Uint8Array };
+		(h as unknown as SHAKE128).hash(new Uint8Array([0x61, 0x62, 0x63]), 32);
+		(h as unknown as SHAKE128).dispose();
+		let nonZero = 0;
+		for (const b of h._block) nonZero |= b;
+		expect(nonZero).toBe(0);
+	});
+
+	test('SHAKE256 dispose() zeroes _block', () => {
+		const h = new SHAKE256() as unknown as { _block: Uint8Array };
+		(h as unknown as SHAKE256).hash(new Uint8Array([0x61, 0x62, 0x63]), 32);
+		(h as unknown as SHAKE256).dispose();
+		let nonZero = 0;
+		for (const b of h._block) nonZero |= b;
+		expect(nonZero).toBe(0);
 	});
 });
 
