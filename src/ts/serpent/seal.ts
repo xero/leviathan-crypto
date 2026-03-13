@@ -39,13 +39,14 @@ export class SerpentSeal {
 		this._hmac = new HMAC_SHA256();
 	}
 
-	encrypt(key: Uint8Array, plaintext: Uint8Array): Uint8Array {
+	// _iv: test seam only — inject a fixed IV for deterministic KAT vectors
+	encrypt(key: Uint8Array, plaintext: Uint8Array, _iv?: Uint8Array): Uint8Array {
 		if (key.length !== 64)
 			throw new RangeError(`SerpentSeal key must be 64 bytes (got ${key.length})`);
 		const encKey = key.subarray(0, 32);
 		const macKey = key.subarray(32, 64);
-		const iv = new Uint8Array(16);
-		crypto.getRandomValues(iv);
+		const iv = (_iv && _iv.length === 16) ? _iv : new Uint8Array(16);
+		if (!_iv || _iv.length !== 16) crypto.getRandomValues(iv);
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
 		const tag = this._hmac.hash(macKey, concat(iv, ciphertext));
 		return concat(concat(iv, ciphertext), tag);

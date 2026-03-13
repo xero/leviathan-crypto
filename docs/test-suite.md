@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 344 | All pass |
+| Vitest (unit) | 362 | All pass |
 | Playwright (e2e) | 135 (45 tests × 3 browsers) | All pass |
-| **Total** | **479** | |
+| **Total** | **497** | |
 
 ---
 
@@ -31,6 +31,8 @@
 | `serpent/serpent_cbc_montecarlo.test.ts` | CBC Monte Carlo (1200 × 10000 enc + dec) | 2400 outer, 4 tests | — |
 | `serpent/serpent_stream.test.ts` | SerpentStream round-trip, auth, position binding, validation, lifecycle | 19 tests | Gate 9 |
 | `serpent/serpent_stream_pool.test.ts` | SerpentStreamPool correctness, parallel, auth, lifecycle | 15 tests | Gate 10 |
+| `serpent/serpent_seal_kat.test.ts` | SerpentSeal KAT: known-answer (TC1, TC2), auth failure (ciphertext + tag), round-trip | 6 tests | — |
+| `serpent/serpent_stream_kat.test.ts` | SerpentStream KAT: known-answer (SS-1, SS-3, SS-6), header field decomposition, per-chunk tag verification, truncation, reorder, cross-stream splice, auth failure, min/max chunk size round-trip | 12 tests | — |
 | `chacha20/chacha20.test.ts` | ChaCha20 block + encryption + round-trips | 6 tests | Gate 3 |
 | `chacha20/poly1305.test.ts` | Poly1305 MAC vectors (§2.5.2, §2.6.2, A.3 #1–#6) | 9 tests | Gate 4 |
 | `chacha20/chacha20poly1305.test.ts` | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation) | 16 tests | Gate 5 |
@@ -89,6 +91,7 @@
 | `serpent_nessie-192.txt` | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/) | 1156 | VERIFIED |
 | `serpent_nessie-256.txt` | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/) | 1284 | VERIFIED |
 | `serpent.ts` | SerpentStream round-trip fixture (3 × 1024-byte chunks) | 1 | VERIFIED (Gate 9) |
+| `serpent_composition.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-seal-vectors.ts) — SerpentSeal (TC1, TC2) and SerpentStream (SS-1, SS-3, SS-6) KAT vectors. Generated with fixed IV/nonce seams, decomposed and verified against underlying primitives independently. | 5 | SELF-GENERATED |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.2.1 — ChaCha20 block function | 1 | VERIFIED (Gate 3) |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.4.2 — ChaCha20 114-byte encryption | 1 | VERIFIED |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.5.2 — Poly1305 34-byte message | 1 | VERIFIED (Gate 4) |
@@ -125,7 +128,16 @@
 > with expected values sourced directly from authoritative references.
 > They are the **_immutable truth,_** and must never be modified to make tests pass.
 
+> [!NOTE]
+> `serpent_composition.ts` vectors are self-generated — there is no external authority for the
+> SerpentSeal and SerpentStream wire formats. They were produced by running
+> [`scripts/gen-seal-vectors.ts`](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-seal-vectors.ts)
+> with fixed IV/nonce seams, then independently verifying each output against the underlying
+> primitives (SerpentCbc, SerpentCtr, HMAC_SHA256, HKDF_SHA256). These vectors are regression
+> trip-wires for wire format stability, not proof of correctness against an external reference.
+> The generation script is kept in the repo so the derivation can be audited or reproduced.
+
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
+- [README.md](./README.md) Documentation Index
+- [architecture.md](./architecture.md) Library Architecture

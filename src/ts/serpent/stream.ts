@@ -160,15 +160,16 @@ export class SerpentStream {
 		this._hkdf = new HKDF_SHA256();
 	}
 
-	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Uint8Array {
+	// _nonce: test seam only — inject a fixed nonce for deterministic KAT vectors
+	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number, _nonce?: Uint8Array): Uint8Array {
 		if (key.length !== 32)
 			throw new RangeError(`SerpentStream key must be 32 bytes (got ${key.length})`);
 		const cs = chunkSize ?? CHUNK_DEF;
 		if (cs < CHUNK_MIN || cs > CHUNK_MAX)
 			throw new RangeError(`SerpentStream chunkSize must be ${CHUNK_MIN}..${CHUNK_MAX} (got ${cs})`);
 
-		const streamNonce = new Uint8Array(16);
-		crypto.getRandomValues(streamNonce);
+		const streamNonce = (_nonce && _nonce.length === 16) ? _nonce : new Uint8Array(16);
+		if (!_nonce || _nonce.length !== 16) crypto.getRandomValues(streamNonce);
 
 		const chunkCount = plaintext.length === 0 ? 1 : Math.ceil(plaintext.length / cs);
 
