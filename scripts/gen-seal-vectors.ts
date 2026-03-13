@@ -28,7 +28,7 @@
 import {
 	init, SerpentSeal, SerpentStream, SerpentCbc, SerpentCtr,
 	HMAC_SHA256, HKDF_SHA256,
-	hexToBytes, bytesToHex, concat,
+	bytesToHex, concat,
 } from '../src/ts/index.js';
 import { chunkInfo } from '../src/ts/serpent/stream.js';
 import { writeFileSync } from 'fs';
@@ -48,7 +48,7 @@ function assert(cond: boolean, msg: string) {
 }
 
 // Split a hex string into 64-char chunks joined with ' +\n\t\t'
-function splitHex(h: string, indent: string = '\t\t'): string {
+function splitHex(h: string, indent = '\t\t'): string {
 	const lines: string[] = [];
 	for (let i = 0; i < h.length; i += 64) {
 		lines.push(`'${h.slice(i, i + 64)}'`);
