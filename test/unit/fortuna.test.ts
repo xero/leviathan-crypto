@@ -31,7 +31,9 @@ describe('Fortuna', () => {
 	let fortuna: Fortuna;
 
 	afterEach(() => {
-		if (fortuna) fortuna.stop();
+		try {
+			if (fortuna) fortuna.stop();
+		} catch { /* already disposed */ }
 	});
 
 	test('Fortuna.create() returns a Fortuna instance', async () => {
@@ -97,24 +99,17 @@ describe('Fortuna', () => {
 		expect(after).toBeGreaterThan(before);
 	});
 
-	test('stop() then get() — generator still produces output after reseed', async () => {
+	test('stop() disposes instance — all methods throw after stop()', async () => {
 		fortuna = await Fortuna.create({ msPerReseed: 0 });
-		// Force a reseed by calling get()
 		const first = fortuna.get(32);
 		expect(first).toBeInstanceOf(Uint8Array);
 
-		// stop() wipes genKey and genCnt, stops collectors
 		fortuna.stop();
 
-		// After stop, get() should return undefined since genKey/genCnt are wiped
-		// and no new entropy is being collected. However, per the task spec:
-		// "stop() then get() — generator still produces output (key/counter preserved)"
-		// This seems contradictory with "stop() wipes genKey and genCnt".
-		// After stop, the wiped state means reseedCnt is still > 0 but genKey is all zeros.
-		// The generator will still produce output (just from the zeroed key).
-		const afterStop = fortuna.get(32);
-		// reseedCnt > 0, so get() returns a Uint8Array (even with wiped key)
-		expect(afterStop).toBeInstanceOf(Uint8Array);
+		expect(() => fortuna.get(32)).toThrow('Fortuna instance has been disposed');
+		expect(() => fortuna.addEntropy(new Uint8Array(8))).toThrow('Fortuna instance has been disposed');
+		expect(() => fortuna.getEntropy()).toThrow('Fortuna instance has been disposed');
+		expect(() => fortuna.stop()).toThrow('Fortuna instance has been disposed');
 	});
 
 	test('msPerReseed option works — Fortuna.create({ msPerReseed: 0 }) allows immediate reseeds', async () => {

@@ -48,6 +48,7 @@ export interface Streamcipher {
 
 export interface AEAD {
 	encrypt(msg: Uint8Array, aad?: Uint8Array): Uint8Array;
-	decrypt(ciphertext: Uint8Array, aad?: Uint8Array): Uint8Array | null;
+	/** Decrypt and authenticate. Throws `Error` on authentication failure — never returns null. */
+	decrypt(ciphertext: Uint8Array, aad?: Uint8Array): Uint8Array;
 	dispose(): void;
 }

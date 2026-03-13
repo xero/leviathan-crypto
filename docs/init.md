@@ -60,7 +60,7 @@ The four WASM module families. Each one backs a group of related classes:
 
 | Module      | Classes it enables                                              |
 |-------------|----------------------------------------------------------------|
-| `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentGcm`, `Fortuna` |
+| `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `Fortuna` |
 | `'chacha20'`| `ChaCha20`, `XChaCha20Poly1305`                                |
 | `'sha2'`    | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `Fortuna`  |
 | `'sha3'`    | `SHA3`, `SHAKE128`, `SHAKE256`                                 |
@@ -177,8 +177,12 @@ module has not been initialized.
 function isInitialized(mod: Module): boolean
 ```
 
-Returns `true` if the given module has been loaded and cached. Useful for
-conditional logic where you want to check readiness without catching an error.
+Returns `true` if the given module has been loaded and cached (read-only).
+Exported from both `init.ts` and the root barrel (`src/ts/index.ts`).
+
+> [!NOTE]
+> `isInitialized` is a diagnostic indicator only — not a control mechanism.
+> Use `init()` to initialize modules; do not guard calls on this value.
 
 ---
 

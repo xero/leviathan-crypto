@@ -60,6 +60,7 @@ export const base64ToBytes = (b64: string): Uint8Array | undefined => {
 	// Normalise base64url → base64
 	b64 = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/%3d/g, '=');
 	if (b64.length % 4 !== 0) return undefined;
+	if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) return undefined;
 
 	let strlen = b64.length / 4 * 3;
 	if (b64.charAt(b64.length - 1) === '=') strlen--;

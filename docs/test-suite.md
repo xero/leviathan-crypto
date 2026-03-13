@@ -35,6 +35,7 @@
 | `chacha20/poly1305.test.ts` | Poly1305 MAC vectors (§2.5.2, §2.6.2, A.3 #1–#6) | 9 tests | Gate 4 |
 | `chacha20/chacha20poly1305.test.ts` | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation) | 16 tests | Gate 5 |
 | `chacha20/xchacha20.test.ts` | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation) | 14 tests | Gate 6 |
+| `chacha20/pool.test.ts` | XChaCha20Poly1305Pool correctness, parallel, auth, lifecycle | 21 tests | — |
 | `sha2/sha256.test.ts` | SHA-256 vectors, streaming, wipeBuffers, leviathan cross-check | 11 tests | Gate 3 |
 | `sha2/sha512.test.ts` | SHA-512, SHA-384 vectors, streaming, leviathan cross-check | 14 tests | Gate 4 |
 | `sha2/hmac.test.ts` | HMAC-SHA256/512/384 vectors, leviathan cross-check | 14 tests | Gate 5, 6 |

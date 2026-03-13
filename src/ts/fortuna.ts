@@ -58,6 +58,7 @@ export class Fortuna {
 	private entropyLevel: number;
 	private eventId: number;
 	private active: boolean;
+	private disposed: boolean;
 	private msPerReseed: number;
 	private robin: Record<string, number>;
 
@@ -90,6 +91,7 @@ export class Fortuna {
 		this.entropyLevel = 0;
 		this.eventId = 0;
 		this.active = false;
+		this.disposed = false;
 		this.msPerReseed = msPerReseed;
 		this.robin = { kbd: 0, mouse: 0, scroll: 0, touch: 0, motion: 0, time: 0, rnd: 0, dom: 0 };
 
@@ -103,6 +105,7 @@ export class Fortuna {
 
 	/** Get n random bytes. Returns undefined if not yet seeded (reseedCnt === 0). */
 	get(length: number): Uint8Array | undefined {
+		if (this.disposed) throw new Error('Fortuna instance has been disposed');
 		// Capture hrtime jitter at call time (Node.js) — spec §9.5
 		if (isNode) this.captureHrtime();
 
@@ -133,25 +136,25 @@ export class Fortuna {
 
 	/** Add external entropy to the pools. */
 	addEntropy(entropy: Uint8Array): void {
+		if (this.disposed) throw new Error('Fortuna instance has been disposed');
 		this.addRandomEvent(entropy, this.robin.rnd, entropy.length * 8);
 		this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 	}
 
 	/** Get estimated available entropy in bytes. */
 	getEntropy(): number {
+		if (this.disposed) throw new Error('Fortuna instance has been disposed');
 		return Math.floor(this.entropyLevel / 8);
 	}
 
-	/** Stop all collectors and timers. Wipes genKey and genCnt. */
+	/** Permanently dispose this instance. Wipes key material, stops all collectors. */
 	stop(): void {
+		if (this.disposed) throw new Error('Fortuna instance has been disposed');
 		this.stopCollectors();
 		wipe(this.genKey);
 		wipe(this.genCnt);
-	}
-
-	/** Restart collectors (after stop()). Does not reset pools or reseed state. */
-	start(): void {
-		this.startCollectors();
+		this.reseedCnt = 0;
+		this.disposed = true;
 	}
 
 	// ── Test-only accessors ───────────────────────────────────────────────

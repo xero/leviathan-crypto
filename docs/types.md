@@ -91,7 +91,7 @@ Interface for stream ciphers and block cipher streaming modes (e.g., Serpent-CTR
 ```typescript
 interface AEAD {
   encrypt(msg: Uint8Array, aad?: Uint8Array): Uint8Array;
-  decrypt(ciphertext: Uint8Array, aad?: Uint8Array): Uint8Array | null;
+  decrypt(ciphertext: Uint8Array, aad?: Uint8Array): Uint8Array;
   dispose(): void;
 }
 ```
@@ -101,7 +101,7 @@ Interface for authenticated encryption with associated data (e.g., XChaCha20-Pol
 | Method | Description |
 |---|---|
 | `encrypt(msg, aad?)` | Encrypts `msg` and authenticates both `msg` and optional `aad`. Returns ciphertext with appended authentication tag. |
-| `decrypt(ciphertext, aad?)` | Decrypts and verifies the authentication tag. Returns plaintext on success, or `null` if authentication fails. **Never** ignore a `null` return -- it means the data was tampered with. |
+| `decrypt(ciphertext, aad?)` | Decrypts and verifies the authentication tag. Returns plaintext on success. Throws `Error` on authentication failure — never returns null. |
 | `dispose()` | Releases WASM resources and wipes internal buffers. |
 
 ---
@@ -132,9 +132,8 @@ function sealMessage(aead: AEAD, plaintext: Uint8Array, metadata: Uint8Array): U
 }
 
 function openMessage(aead: AEAD, ciphertext: Uint8Array, metadata: Uint8Array): Uint8Array {
-  const result = aead.decrypt(ciphertext, metadata)
-  if (result === null) throw new Error('Authentication failed')
-  return result
+  // decrypt() throws on auth failure — no null check needed
+  return aead.decrypt(ciphertext, metadata)
 }
 ```
 

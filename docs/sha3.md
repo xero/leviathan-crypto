@@ -99,6 +99,9 @@ import { init } from 'leviathan-crypto'
 await init('sha3')
 ```
 
+Both `init('sha3')` and `init(['sha3'])` are valid — the root `init()` accepts
+a single `Module` string or an array.
+
 Or the subpath `init()`:
 
 ```typescript

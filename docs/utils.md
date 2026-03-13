@@ -69,6 +69,10 @@ base64ToBytes(b64: string): Uint8Array | undefined
 
 Decodes a base64 or base64url string to a `Uint8Array`. Base64url characters (`-`, `_`, `%3d`) are normalized to standard base64 before decoding. Returns `undefined` if the input is not valid base64 (e.g., incorrect length or illegal characters).
 
+> [!NOTE]
+> Valid base64 characters are `A-Z`, `a-z`, `0-9`, `+`, `/`, and `=`.
+> Any other character causes the function to return `undefined`.
+
 ### bytesToBase64
 
 ```typescript
@@ -220,8 +224,7 @@ console.log(combined.length) // 32
 |---|---|---|
 | `hexToBytes` | Odd-length string | Trailing `0` appended (no error) |
 | `hexToBytes` | Invalid hex characters | Bytes decode as `NaN` -> `0` |
-| `base64ToBytes` | Length not a multiple of 4 | Returns `undefined` |
-| `base64ToBytes` | Invalid characters | Returns `undefined` |
+| `base64ToBytes` | Invalid length or characters | Returns `undefined` |
 | `constantTimeEqual` | Arrays differ in length | Returns `false` immediately |
 | `xor` | Arrays differ in length | Throws `RangeError` |
 | `randomBytes` | `crypto` not available | Throws (runtime-dependent) |

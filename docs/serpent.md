@@ -640,7 +640,9 @@ cipher.dispose();
 | `init(['serpent'])` not called before constructing `Serpent` | `Error` | `leviathan-crypto: call init(['serpent']) before using this class` |
 | `SerpentCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCbc is unauthenticated — use SerpentSeal instead. To use SerpentCbc directly, pass { dangerUnauthenticated: true }.` |
 | `SerpentCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCtr is unauthenticated — use SerpentSeal instead. To use SerpentCtr directly, pass { dangerUnauthenticated: true }.` |
-| Key is not 16, 24, or 32 bytes | `RangeError` | `key must be 16, 24, or 32 bytes (got N)` |
+| Key is not 16, 24, or 32 bytes (`Serpent.loadKey`) | `RangeError` | `key must be 16, 24, or 32 bytes (got N)` |
+| Key is not 16, 24, or 32 bytes (`SerpentCbc`) | `RangeError` | `Serpent key must be 16, 24, or 32 bytes (got N)` |
+| Key is not 16, 24, or 32 bytes (`SerpentCtr`) | `RangeError` | `key must be 16, 24, or 32 bytes` |
 | Block is not 16 bytes (`Serpent`) | `RangeError` | `block must be 16 bytes (got N)` |
 | Nonce is not 16 bytes (`SerpentCtr`) | `RangeError` | `nonce must be 16 bytes (got N)` |
 | Chunk exceeds buffer size (`SerpentCtr`) | `RangeError` | `chunk exceeds maximum size of N bytes — split into smaller chunks` |

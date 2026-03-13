@@ -150,34 +150,30 @@ by each collector.
 
 ### `stop()`
 
-Stop all entropy collectors and wipe the generation key and counter.
+Permanently dispose this Fortuna instance.
 
 ```typescript
 stop(): void
 ```
 
-Call this when you are done with the Fortuna instance. After `stop()`:
-- All browser event listeners are removed
-- All background timers (Node.js stats collection, periodic crypto random) are cleared
-- The generation key and counter are zeroed
+> [!WARNING]
+> Do not attempt to reuse a stopped instance. `stop()` is a permanent dispose
+> operation. If a new Fortuna instance is needed, call `Fortuna.create()`.
 
-Calling `get()` after `stop()` will return `undefined` because the counter has
-been wiped to zero and the reseed count is no longer advancing.
+Call this when you are done with the Fortuna instance. `stop()`:
+- Removes all browser event listeners
+- Clears all background timers (Node.js stats collection, periodic crypto random)
+- Zeroes the generation key and counter
+- Resets the reseed counter to 0
+- Marks the instance as disposed
 
----
-
-### `start()`
-
-Restart entropy collectors after a previous `stop()`.
-
-```typescript
-start(): void
+All subsequent method calls (`get()`, `addEntropy()`, `getEntropy()`, `stop()`)
+on a disposed instance throw immediately:
+```
+Error: Fortuna instance has been disposed
 ```
 
-This re-registers browser event listeners and restarts background timers. It does
-**not** reset the pools or reseed state -- only the collectors are restarted. You
-will need to accumulate enough entropy to trigger a reseed before `get()` produces
-output again.
+There is no `start()` or restart capability.
 
 ---
 
@@ -286,7 +282,7 @@ rng.stop()
 | Only one module initialized | Same error -- both `serpent` and `sha2` must be initialized. |
 | `new Fortuna()` | Compile-time error -- the constructor is private. TypeScript will not allow it. |
 | `get()` before first reseed | Returns `undefined`. Under normal usage this does not happen because `create()` seeds the generator during initialization. |
-| `get()` after `stop()` | Returns `undefined`. The generation key and counter have been wiped to zero. |
+| Any method after `stop()` | Throws: `Fortuna instance has been disposed`. The instance is permanently disposed. |
 
 ---
 

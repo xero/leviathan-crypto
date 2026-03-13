@@ -274,8 +274,11 @@ Hidden initialization costs are worse than explicit ones.
 
 **Thread safety.** v1.0 uses a single WASM module instance per binary, single
 thread. WASM linear memory is not shared across Workers without `SharedArrayBuffer`
-(which requires COOP/COEP headers). The pool architecture (tabled) will address
-multi-worker use. For now: create one instance per Worker if Workers are used.
+(which requires COOP/COEP headers). Two pool classes provide Worker-based
+parallelism: `SerpentStreamPool` (chunked authenticated Serpent encryption) and
+`XChaCha20Poly1305Pool` (AEAD). Each pool worker owns its own WASM instances with
+isolated linear memory. For other primitives: create one instance per Worker if
+Workers are used.
 
 ---
 
@@ -529,10 +532,11 @@ It is the only file that imports all four module-scoped `init()` functions.
 | Source | Exports |
 |--------|---------|
 | *(barrel itself)* | `init` (dispatching function — calls per-module `init()` via `Promise.all`) |
-| `init.ts` | `Module`, `Mode`, `InitOpts`, `_resetForTesting` |
-| `serpent/index.ts` | `Serpent`, `SerpentCtr`, `SerpentCbc`, `_serpentReady` |
+| `init.ts` | `Module`, `Mode`, `InitOpts`, `isInitialized`, `_resetForTesting` |
+| `serpent/index.ts` | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `StreamPoolOpts`, `_serpentReady` |
 | `chacha20/index.ts` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `_chachaReady` |
-| `sha2/index.ts` | `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `_sha2Ready` |
+| `chacha20/pool.ts` | `XChaCha20Poly1305Pool`, `PoolOpts` |
+| `sha2/index.ts` | `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`, `_sha2Ready` |
 | `sha3/index.ts` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `_sha3Ready` |
 | `fortuna.ts` | `Fortuna` |
 | `types.ts` | `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |

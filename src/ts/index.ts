@@ -42,7 +42,7 @@ export async function init(
 	await Promise.all(list.map(mod => _dispatchers[mod](mode, opts)));
 }
 
-export { type Module, type Mode, type InitOpts, _resetForTesting } from './init.js';
+export { type Module, type Mode, type InitOpts, isInitialized, _resetForTesting } from './init.js';
 export { SerpentSeal, Serpent, SerpentCtr, SerpentCbc, SerpentStream, SerpentStreamPool, _serpentReady } from './serpent/index.js';
 export type { StreamPoolOpts } from './serpent/index.js';
 export { ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, _chachaReady } from './chacha20/index.js';
