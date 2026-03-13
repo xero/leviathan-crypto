@@ -194,7 +194,7 @@ class SHAKE128 {
 |--------|-------------|
 | `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
 | `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
-| `squeeze(n)` | Pull `n` bytes of XOF output. Continues from where the last `squeeze()` left off. |
+| `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous — `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
 | `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. |
 | `dispose()` | Zero all WASM state and the TS-side block buffer. |
 
@@ -222,7 +222,7 @@ class SHAKE256 {
 |--------|-------------|
 | `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
 | `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
-| `squeeze(n)` | Pull `n` bytes of XOF output. Continues from where the last `squeeze()` left off. |
+| `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous — `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
 | `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. |
 | `dispose()` | Zero all WASM state and the TS-side block buffer. |
 

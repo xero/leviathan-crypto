@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 362 | All pass |
+| Vitest (unit) | 372 | All pass |
 | Playwright (e2e) | 135 (45 tests × 3 browsers) | All pass |
-| **Total** | **497** | |
+| **Total** | **507** | |
 
 ---
 
@@ -43,6 +43,7 @@
 | `sha2/hmac.test.ts` | HMAC-SHA256/512/384 vectors, leviathan cross-check | 14 tests | Gate 5, 6 |
 | `sha2/hkdf.test.ts` | HKDF-SHA256 RFC 5869 A.1-A.3, HKDF-SHA512 generated vectors, extract/expand isolation, derive consistency, RangeError guards, salt defaults, dispose | 22 tests | Gate 8 |
 | `sha3/sha3.test.ts` | SHA3-224/256/384/512, SHAKE128/256 (single + multi-block), incremental absorb/squeeze, state machine guards, dispose zeroes TS buffer, wipeBuffers, leviathan cross-check | 61 tests | Gate 7 |
+| `sha3/shake_xof.test.ts` | SHAKE128/256 multi-squeeze KAT: rate-boundary crossing (MS-1–3, MS-5–7), byte-by-byte squeeze (MS-4, MS-8), reset after multi-squeeze (MS-9) | 10 tests | — |
 | `fortuna.test.ts` | Fortuna CSPRNG: create, get, entropy, stop/start, key replacement, pool selection | 11 tests | — |
 | `utils.test.ts` | hex, utf8, base64 encoding, constantTimeEqual, wipe, xor, concat, randomBytes | 30 tests | — |
 

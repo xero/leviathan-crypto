@@ -421,3 +421,66 @@ export const hkdfSha512Vectors: HkdfVector[] = [
 		okm: 'f5fa02b18298a72a8c23898a8703472c6eb179dc204c03425c970e3b164bf90fff22d04836d0e2343bac',
 	},
 ];
+
+// ── leviathan cross-check vectors ───────────────────────────────────────────
+// Values verified against Node.js crypto (createHash / createHmac).
+// Inputs are the four standard cross-check inputs shared across all SHA-2 tests.
+
+export interface CrossCheckVector {
+	description: string;
+	input: string;   // hex-encoded input
+	expected: string;
+}
+
+export interface HmacCrossCheckVector {
+	description: string;
+	key: string;     // hex-encoded key
+	msg: string;     // hex-encoded message
+	expected: string;
+}
+
+// Verified: node crypto.createHash('sha256').update(Buffer.from(input,'hex')).digest('hex')
+export const sha256CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' },
+	{ description: '"abc"',   input: '616263',         expected: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: 'd7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: 'c2a908d98f5df987ade41b5fce213067efbcc21ef2240212a41e54b5e7c28ae5' },
+];
+
+// Verified: node crypto.createHash('sha512').update(Buffer.from(input,'hex')).digest('hex')
+export const sha512CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e' },
+	{ description: '"abc"',   input: '616263',         expected: 'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: '07e547d9586f6a73f73fbac0435ed76951218fb7d0c8d788a309d785436bbb642e93a252a954f23912547d1e8a3b5ed6e1bfd7097821233fa0538f3db854fee6' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: '4b11459c33f52a22ee8236782714c150a3b2c60994e9acee17fe68947a3e6789f31e7668394592da7bef827cddca88c4e6f86e4df7ed1ae6cba71f3e98faee9f' },
+];
+
+// Verified: node crypto.createHash('sha384').update(Buffer.from(input,'hex')).digest('hex')
+export const sha384CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',  input: '',              expected: '38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b' },
+	{ description: '"abc"',  input: '616263',         expected: 'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7' },
+	{ description: 'fox',    input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: 'ca737f1014a48f4c0b6dd43cb177b0afd9e5169367544c494011e3317dbf9a509cb1e5dc1e85a941bbee3d7f2afbc9b1' },
+];
+
+// key: 0x42 × 32  msg: UTF-8 'leviathan cross-check message'
+// Verified: node crypto.createHmac(alg, Buffer.from(key,'hex')).update(Buffer.from(msg,'hex')).digest('hex')
+export const hmacCrossCheck: HmacCrossCheckVector[] = [
+	{
+		description: 'HMAC-SHA256 leviathan cross-check',
+		key: '42'.repeat(32),
+		msg: '6c657669617468616e2063726f73732d636865636b206d657373616765',
+		expected: 'b3e42787e890590efbfb8c8fb3a905b655bfa6b0e0e68d4c0883e861203b58fb',
+	},
+	{
+		description: 'HMAC-SHA512 leviathan cross-check',
+		key: '42'.repeat(32),
+		msg: '6c657669617468616e2063726f73732d636865636b206d657373616765',
+		expected: 'c024d889341c1c341f1b5e44bcdd82556e263e2d757dcba4d91550d8872594eced5fcab776bb9178e96c62a9933a01ab13e4b785877735e9c890bf8803f52cb0',
+	},
+	{
+		description: 'HMAC-SHA384 leviathan cross-check',
+		key: '42'.repeat(32),
+		msg: '6c657669617468616e2063726f73732d636865636b206d657373616765',
+		expected: 'e63f7b89cc4023b166b44377be5fdf171993c5f2d480b79b3ae015a002e23992cd75cc979706a922d2104b0690318d18',
+	},
+];

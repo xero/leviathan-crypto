@@ -22,7 +22,7 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHA256 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
-import { sha256Vectors } from '../../vectors/sha2.js';
+import { sha256Vectors, sha256CrossCheck } from '../../vectors/sha2.js';
 
 function toHex(bytes: Uint8Array): string {
 	return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -118,26 +118,10 @@ describe('wipeBuffers', () => {
 // ── leviathan cross-check ───────────────────────────────────────────────────
 
 describe('leviathan cross-check', () => {
-	const crossInputs = [
-		{ label: 'empty',     data: new Uint8Array(0) },
-		{ label: '"abc"',     data: new Uint8Array([0x61, 0x62, 0x63]) },
-		{ label: 'fox',       data: new TextEncoder().encode('The quick brown fox jumps over the lazy dog') },
-		{ label: '"a"×200',   data: new Uint8Array(200).fill(0x61) },
-	];
-
-	// Values computed from leviathan/src/sha256.ts via npx tsx
-	// Values verified against Node.js crypto.createHash('sha256')
-	const levSha256 = [
-		'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-		'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
-		'd7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592',
-		'c2a908d98f5df987ade41b5fce213067efbcc21ef2240212a41e54b5e7c28ae5',
-	];
-
 	test('SHA-256 matches leviathan reference for 4 inputs', () => {
 		const h = new SHA256();
-		for (let i = 0; i < crossInputs.length; i++) {
-			expect(toHex(h.hash(crossInputs[i].data)), crossInputs[i].label).toBe(levSha256[i]);
+		for (const vec of sha256CrossCheck) {
+			expect(toHex(h.hash(fromHex(vec.input))), vec.description).toBe(vec.expected);
 		}
 		h.dispose();
 	});

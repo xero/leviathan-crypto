@@ -448,3 +448,42 @@ export const shake256Vectors: ShakeVector[] = [
 			'7513771af6bfe119',
 	},
 ];
+
+// ── leviathan cross-check vectors ───────────────────────────────────────────
+// Values verified against Node.js crypto and the leviathan TypeScript reference.
+
+export interface CrossCheckVector {
+	description: string;
+	input: string;   // hex-encoded input
+	expected: string;
+}
+
+// Verified: node crypto.createHash('sha3-256').update(Buffer.from(input,'hex')).digest('hex')
+export const sha3_256CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: 'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a' },
+	{ description: '"abc"',   input: '616263',         expected: '3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: '69070dda01975c8c120c3aada1b282394e7f032fa9cf32f4cb2259a0897dfc04' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: 'cce34485baf2bf2aca99b94833892a4f52896d3d153f7b840cc4f9fe695f1387' },
+];
+
+// Verified: node crypto.createHash('sha3-512').update(Buffer.from(input,'hex')).digest('hex')
+export const sha3_512CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: 'a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26' },
+	{ description: '"abc"',   input: '616263',         expected: 'b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: '01dedd5de4ef14642445ba5f5b97c15e47b9ad931326e4b0727cd94cefc44fff23f07bf543139939b49128caf436dc1bdee54fcb24023a08d9403f9b4bf0d450' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: 'eae6c85c6904f11075de9f9d5e1064371d000510fa3d2d79d40cf9be34892fb01859d0a0234e138bcb0ad5c84f6c0dca226a414b0c9a2897cb695f5185fe36ec' },
+];
+
+// Verified: node crypto.createHash('sha3-384').update(Buffer.from(input,'hex')).digest('hex')
+export const sha3_384CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: '0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004' },
+	{ description: '"abc"',   input: '616263',         expected: 'ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: '7063465e08a93bce31cd89d2e3ca8f602498696e253592ed26f07bf7e703cf328581e1471a7ba7ab119b1a9ebdf8be41' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: 'f97756776c1874724c94a8008f7f155553b4bf00fbf8fbeac246624ad59c258a3c0977d9f2543d7cbd75b9ac8fdc0d40' },
+];
+
+// Verified: node crypto.createHash('sha3-224').update(Buffer.from(input,'hex')).digest('hex')
+export const sha3_224CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty', input: '',       expected: '6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7' },
+	{ description: '"abc"', input: '616263', expected: 'e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf' },
+];

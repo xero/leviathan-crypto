@@ -23,6 +23,7 @@ import { describe, test, expect, beforeAll } from 'vitest';
 import { init, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384 } from '../../../src/ts/index.js';
 import {
 	hmacSha256Vectors, hmacSha512Vectors, hmacSha384Vectors,
+	hmacCrossCheck,
 } from '../../vectors/sha2.js';
 
 function toHex(bytes: Uint8Array): string {
@@ -105,29 +106,24 @@ describe('HMAC-SHA384', () => {
 // ── leviathan cross-check ───────────────────────────────────────────────────
 
 describe('leviathan cross-check', () => {
-	const key = new Uint8Array(32).fill(0x42);
-	const msg = new TextEncoder().encode('leviathan cross-check message');
-
-	// Values verified against Node.js crypto.createHmac()
-	const levHmac256 = 'b3e42787e890590efbfb8c8fb3a905b655bfa6b0e0e68d4c0883e861203b58fb';
-	const levHmac512 = 'c024d889341c1c341f1b5e44bcdd82556e263e2d757dcba4d91550d8872594eced5fcab776bb9178e96c62a9933a01ab13e4b785877735e9c890bf8803f52cb0';
-	const levHmac384 = 'e63f7b89cc4023b166b44377be5fdf171993c5f2d480b79b3ae015a002e23992cd75cc979706a922d2104b0690318d18';
-
 	test('HMAC-SHA256 matches leviathan reference', () => {
+		const vec = hmacCrossCheck[0];
 		const h = new HMAC_SHA256();
-		expect(toHex(h.hash(key, msg))).toBe(levHmac256);
+		expect(toHex(h.hash(fromHex(vec.key), fromHex(vec.msg)))).toBe(vec.expected);
 		h.dispose();
 	});
 
 	test('HMAC-SHA512 matches leviathan reference', () => {
+		const vec = hmacCrossCheck[1];
 		const h = new HMAC_SHA512();
-		expect(toHex(h.hash(key, msg))).toBe(levHmac512);
+		expect(toHex(h.hash(fromHex(vec.key), fromHex(vec.msg)))).toBe(vec.expected);
 		h.dispose();
 	});
 
 	test('HMAC-SHA384 matches leviathan reference', () => {
+		const vec = hmacCrossCheck[2];
 		const h = new HMAC_SHA384();
-		expect(toHex(h.hash(key, msg))).toBe(levHmac384);
+		expect(toHex(h.hash(fromHex(vec.key), fromHex(vec.msg)))).toBe(vec.expected);
 		h.dispose();
 	});
 });

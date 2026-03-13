@@ -25,6 +25,8 @@ import { getInstance } from '../../../src/ts/init.js';
 import {
 	sha3_256Vectors, sha3_512Vectors, sha3_384Vectors, sha3_224Vectors,
 	shake128Vectors, shake256Vectors,
+	sha3_256CrossCheck, sha3_512CrossCheck,
+	sha3_384CrossCheck, sha3_224CrossCheck,
 } from '../../vectors/sha3.js';
 
 function toHex(bytes: Uint8Array): string {
@@ -303,66 +305,37 @@ describe('wipeBuffers', () => {
 });
 
 // ── leviathan cross-check ───────────────────────────────────────────────────
-// Verified against leviathan/src/sha3.ts (TypeScript reference) — read AFTER Gate 7 passed.
-// These values were computed with the leviathan reference using npx tsx.
 
 describe('leviathan cross-check', () => {
-	const crossInputs = [
-		{ label: 'empty',     data: new Uint8Array(0) },
-		{ label: '"abc"',     data: new Uint8Array([0x61, 0x62, 0x63]) },
-		{ label: 'fox',       data: new TextEncoder().encode('The quick brown fox jumps over the lazy dog') },
-		{ label: '"a"×200',   data: new Uint8Array(200).fill(0x61) },
-	];
-
-	const levSha3_256 = [
-		'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a',
-		'3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532',
-		'69070dda01975c8c120c3aada1b282394e7f032fa9cf32f4cb2259a0897dfc04',
-		'cce34485baf2bf2aca99b94833892a4f52896d3d153f7b840cc4f9fe695f1387',
-	];
-
-	const levSha3_512 = [
-		'a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26',
-		'b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0',
-		'01dedd5de4ef14642445ba5f5b97c15e47b9ad931326e4b0727cd94cefc44fff23f07bf543139939b49128caf436dc1bdee54fcb24023a08d9403f9b4bf0d450',
-		'eae6c85c6904f11075de9f9d5e1064371d000510fa3d2d79d40cf9be34892fb01859d0a0234e138bcb0ad5c84f6c0dca226a414b0c9a2897cb695f5185fe36ec',
-	];
-
-	const levSha3_384 = [
-		'0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004',
-		'ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25',
-		'7063465e08a93bce31cd89d2e3ca8f602498696e253592ed26f07bf7e703cf328581e1471a7ba7ab119b1a9ebdf8be41',
-		'f97756776c1874724c94a8008f7f155553b4bf00fbf8fbeac246624ad59c258a3c0977d9f2543d7cbd75b9ac8fdc0d40',
-	];
-
 	test('SHA3-256 matches leviathan reference for 4 inputs', () => {
 		const h = new SHA3_256();
-		for (let i = 0; i < crossInputs.length; i++) {
-			expect(toHex(h.hash(crossInputs[i].data)), crossInputs[i].label).toBe(levSha3_256[i]);
+		for (const vec of sha3_256CrossCheck) {
+			expect(toHex(h.hash(fromHex(vec.input))), vec.description).toBe(vec.expected);
 		}
 		h.dispose();
 	});
 
 	test('SHA3-512 matches leviathan reference for 4 inputs', () => {
 		const h = new SHA3_512();
-		for (let i = 0; i < crossInputs.length; i++) {
-			expect(toHex(h.hash(crossInputs[i].data)), crossInputs[i].label).toBe(levSha3_512[i]);
+		for (const vec of sha3_512CrossCheck) {
+			expect(toHex(h.hash(fromHex(vec.input))), vec.description).toBe(vec.expected);
 		}
 		h.dispose();
 	});
 
 	test('SHA3-384 matches leviathan reference for 4 inputs', () => {
 		const h = new SHA3_384();
-		for (let i = 0; i < crossInputs.length; i++) {
-			expect(toHex(h.hash(crossInputs[i].data)), crossInputs[i].label).toBe(levSha3_384[i]);
+		for (const vec of sha3_384CrossCheck) {
+			expect(toHex(h.hash(fromHex(vec.input))), vec.description).toBe(vec.expected);
 		}
 		h.dispose();
 	});
 
 	test('SHA3-224 matches Node.js crypto for 2 inputs', () => {
 		const h = new SHA3_224();
-		expect(toHex(h.hash(crossInputs[0].data))).toBe('6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7');
-		expect(toHex(h.hash(crossInputs[1].data))).toBe('e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf');
+		for (const vec of sha3_224CrossCheck) {
+			expect(toHex(h.hash(fromHex(vec.input))), vec.description).toBe(vec.expected);
+		}
 		h.dispose();
 	});
 });
