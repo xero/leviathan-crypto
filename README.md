@@ -40,9 +40,9 @@ since the AES competition. The current state of the art:
       biclique attack on full-round AES-256 (Bogdanov et al., 2011) reaches
       2²⁵⁴·⁴. Serpent-256 is marginally harder to attack by this method than AES-256.
         - [source](https://sol.sbc.org.br/index.php/sbseg/article/view/19225/19054) & [mirror](https://archive.is/ZZjrT)
-    - Our independent research using improved the published result by
+    - Our independent research improved the published result by
       −0.20 bits through systematic search over v position, biclique nibble
-      selection, and nabla pair: the best configuration (K31/K17, delta nibble 0,
+      selection, and nabla pair. the best configuration (K31/K17, delta nibble 0,
       nabla nibble 10, v = state 66 nibbles 8+9) achieves 2²⁵⁵·¹⁹ with only 2⁴
       chosen ciphertexts. The K17 nabla result is a new finding not present in
       the published papers.
@@ -73,7 +73,7 @@ _No 128 or 192-bit variants mitigates key-size downgrade risk._
 | `chacha20` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | Yes (AEAD) | RFC 8439 |
 | `sha2` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | -- | FIPS 180-4, RFC 2104 |
 | `sha3` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | -- | FIPS 202 |
-| `serpent`, `sha2` | `Fortuna` | -- | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`. |
+| `fortuna` | `Fortuna` | -- | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`. |
 
 >[!IMPORTANT]
 > All cryptographic computation runs in WASM (AssemblyScript), isolated outside the JavaScript JIT.
@@ -203,8 +203,8 @@ ciphertext without detection.
 >
 > **Using Serpent CBC/CTR directly:** pair with `HMAC_SHA256` using the Encrypt-then-MAC pattern
 
->[!TIP]
-> **[`SerpentStream`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstream) and [`SerpentStreamSealer`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstreamsealer--serpentstreamopener) also satisfy the Cryptographic Doom Principle
+>[!NOTE]
+> **[`SerpentStream`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstream) and [`SerpentStreamSealer`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstreamsealer--serpentstreamopener) satisfy the Cryptographic Doom Principle
 > by construction.** MAC verification is the unconditional gate on every `open()` call,
 > decryption is unreachable until it clears. Per-chunk HKDF key derivation with
 > position-bound info extends this to stream integrity: reordering, truncation, and
