@@ -251,9 +251,8 @@ await init(['serpent'], 'manual', { wasmBinary: { serpent: myBuffer } })
 | [init.md](./docs/init.md) | `init()` API and WASM loading modes |
 | [utils.md](./docs/utils.md) | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes` |
 | [types.md](./docs/types.md) | TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`) |
-| [api.md](./docs/api.md) | Architecture overview, build pipeline, module relationships |
-| [serpent_reference.md](./docs/serpent_reference.md) | Serpent-256 algorithm specification and known attacks |
-| [serpent_audit.md](./docs/serpent_audit.md) | Serpent-256 security audit results |
+| [architecture.md](./docs/architecture.md.md) | Architecture overview, build pipeline, module relationships |
+| [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
 
 ## License
 leviathan is written under the [MIT license](http://www.opensource.org/licenses/MIT).
