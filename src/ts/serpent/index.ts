@@ -296,6 +296,10 @@ export { SerpentStream, sealChunk, openChunk } from './stream.js';
 export { SerpentStreamPool } from './stream-pool.js';
 export type { StreamPoolOpts } from './stream-pool.js';
 
+// ── SerpentStreamSealer / SerpentStreamOpener re-export ───────────────────────
+
+export { SerpentStreamSealer, SerpentStreamOpener } from './stream-sealer.js';
+
 // ── Ready check ──────────────────────────────────────────────────────────────
 
 export function _serpentReady(): boolean {
