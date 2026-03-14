@@ -191,6 +191,10 @@ export class SerpentStreamOpener {
 		this._dead  = false;
 	}
 
+	get closed(): boolean {
+		return this._dead;
+	}
+
 	open(chunk: Uint8Array): Uint8Array {
 		if (this._dead) throw new Error('SerpentStreamOpener: stream is closed');
 
