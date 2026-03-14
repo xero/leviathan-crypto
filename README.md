@@ -2,24 +2,27 @@
 
 # leviathan - Serpent-256 Cryptography for the Web
 
-A TypeScript cryptographic library built around **Serpent-256**: the AES
-finalist that received more first-place security votes than Rijndael from
-the NIST evaluation committee, and was designed with a larger security
-margin by construction: 32 rounds versus AES's 10/12/14.
+### Serpent256 paranoia & ChaCha20 elegance
 
-For applications where throughput is not the primary constraint (e.g. file
-encryption, key derivation, secure storage) Serpent-256 is the stronger
-choice. leviathan makes it practical for web and server-side TypeScript.
+Serpent-256 The most conservative AES finalist, 32 rounds, maximum security margin, built to outlast
+cryptanalytic progress — alongside the streamlined brilliance of ChaCha20-Poly1305.
+SHA-2 and SHA-3 rounding it out. Two philosophies, four primitives, one coherent API.
+
+**WASM is the correctness layer.** Spec-driven, vector-verified AssemblyScript
+implementations of `Serpent-256`, `ChaCha20/Poly1305`, `SHA-2`, `SHA-3`. Each
+primitive compiled to its own isolated binary, running outside the JavaScript JIT.
+No speculative optimization touching key material. No data-dependent timing from table lookups.
+
+**TypeScript is the ergonomics layer.** Fully typed classes, explicit `init()`
+gates, input validation, and authenticated compositions ([`SerpentSeal`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentseal), [`SerpentStream`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstream),
+[`SerpentStreamSealer`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstreamsealer--serpentstreamopener)) that wire the primitives together correctly so you don't have to.
+While power users can still utilize the raw block cipher classes directly.
 
 ## Why Serpent-256
 
-AES (Rijndael) won the competition on performance. Serpent won on security
-margin. The NIST evaluation committee's own analysis gave Serpent more
-first-place security votes. Rijndael was selected because speed mattered
-for the hardware and embedded targets NIST was optimising for in 2001.
+Serpent-256 is the AES finalist that received more first-place security votes than Rijndael from the NIST evaluation committee, and was designed with a larger security margin by construction: 32 rounds versus AES's 10/12/14.
 
-For software running on modern hardware where milliseconds of encryption
-latency are acceptable, that tradeoff no longer applies.
+AES (Rijndael) won the competition on performance. Serpent won on security margin. Rijndael was selected because speed mattered for the hardware and embedded targets NIST was optimising for in 2001. For software running on modern hardware where milliseconds of encryption latency are acceptable, that tradeoff no longer applies.
 
 **Security margin.** Serpent has been a target of cryptanalytic research
 since the AES competition. The current state of the art:
@@ -36,9 +39,17 @@ since the AES competition. The current state of the art:
       it strictly less practical than brute force. For comparison, the analogous
       biclique attack on full-round AES-256 (Bogdanov et al., 2011) reaches
       2²⁵⁴·⁴. Serpent-256 is marginally harder to attack by this method than AES-256.
-    - [source](https://sol.sbc.org.br/index.php/sbseg/article/view/19225/19054) & [mirror](https://archive.is/ZZjrT)
+        - [source](https://sol.sbc.org.br/index.php/sbseg/article/view/19225/19054) & [mirror](https://archive.is/ZZjrT)
+    - Our independent research using improved the published result by
+      −0.20 bits through systematic search over v position, biclique nibble
+      selection, and nabla pair: the best configuration (K31/K17, delta nibble 0,
+      nabla nibble 10, v = state 66 nibbles 8+9) achieves 2²⁵⁵·¹⁹ with only 2⁴
+      chosen ciphertexts. The K17 nabla result is a new finding not present in
+      the published papers.
+        - [`biclique_research.md`](https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md)
 
-See: [`serpent_audit.md`](https://github.com/xero/leviathan-crypto/wiki/serpent_audit) & [`biclique_research.md`](https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md) for the full analysis.
+See: [`serpent_audit.md`](https://github.com/xero/leviathan-crypto/wiki/serpent_audit)
+for the full analysis.
 
 **Implementation.** Serpent's S-boxes are implemented as Boolean gate
 circuits: no table lookups, no data-dependent memory access, no
@@ -188,9 +199,17 @@ confidentiality but not integrity or authenticity. An attacker can modify
 ciphertext without detection.
 
 >[!TIP]
-> **For authenticated Serpent encryption:** use `SerpentSeal` or `SerpentStreamSealer`
+> **For authenticated Serpent encryption:** use [`SerpentSeal`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentseal) or [`SerpentStreamSealer`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstreamsealer--serpentstreamopener)
 >
 > **Using Serpent CBC/CTR directly:** pair with `HMAC_SHA256` using the Encrypt-then-MAC pattern
+
+>[!TIP]
+> **[`SerpentStream`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstream) and [`SerpentStreamSealer`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentstreamsealer--serpentstreamopener) also satisfy the Cryptographic Doom Principle
+> by construction.** MAC verification is the unconditional gate on every `open()` call,
+> decryption is unreachable until it clears. Per-chunk HKDF key derivation with
+> position-bound info extends this to stream integrity: reordering, truncation, and
+> cross-stream substitution are all caught at the MAC layer before any plaintext is
+> produced. [Full analysis.](https://github.com/xero/leviathan-crypto/wiki/serpent_audit#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
 
 ## Installation
 
