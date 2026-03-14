@@ -74,10 +74,10 @@ the most common footgun (accidental nonce reuse).
 
 ## Module Init
 
-Each module subpath exports its own `init()` for consumers who want
+Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `init(mode?, opts?)`
+### `chacha20Init(mode?, opts?)`
 
 Initializes only the chacha20 WASM binary. Equivalent to calling the
 root `init(['chacha20'], mode, opts)` but without pulling the other three
@@ -86,15 +86,15 @@ modules into the bundle.
 **Signature:**
 
 ```typescript
-async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function chacha20Init(mode?: Mode, opts?: InitOpts): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
-import { init, XChaCha20Poly1305 } from 'leviathan-crypto/chacha20'
+import { chacha20Init, XChaCha20Poly1305 } from 'leviathan-crypto/chacha20'
 
-await init()
+await chacha20Init()
 const aead = new XChaCha20Poly1305()
 ```
 
@@ -102,7 +102,7 @@ const aead = new XChaCha20Poly1305()
 
 ## API Reference
 
-All classes require calling `await init(['chacha20'])` or the subpath `init()`
+All classes require calling `await init(['chacha20'])` or the subpath `chacha20Init()`
 before construction. If you construct a class before initialization, it throws:
 ```
 Error: leviathan-crypto: call init(['chacha20']) before using this class

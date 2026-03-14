@@ -29,7 +29,7 @@ import type { Mode, InitOpts } from '../init.js';
 
 const _embedded = () => import('../embedded/sha3.js').then(m => m.WASM_BASE64);
 
-export async function init(
+export async function sha3Init(
 	mode: Mode = 'embedded',
 	opts?: InitOpts,
 ): Promise<void> {

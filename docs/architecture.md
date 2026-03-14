@@ -95,7 +95,7 @@ leviathan-crypto/
 │       │   ├── sha2.ts
 │       │   └── sha3.ts
 │       ├── serpent/
-│       │   ├── index.ts            ← init() + Serpent, SerpentCtr, SerpentCbc
+│       │   ├── index.ts            ← serpentInit() + Serpent, SerpentCtr, SerpentCbc
 │       │   ├── seal.ts             ← SerpentSeal (Serpent-CBC + HMAC-SHA256)
 │       │   ├── stream.ts           ← SerpentStream (chunked one-shot AEAD)
 │       │   ├── stream-pool.ts      ← SerpentStreamPool (Worker-based parallel AEAD)
@@ -103,15 +103,15 @@ leviathan-crypto/
 │       │   ├── stream.worker.ts    ← Web Worker entry point for SerpentStreamPool
 │       │   └── types.ts
 │       ├── chacha20/
-│       │   ├── index.ts            ← init() + ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305
+│       │   ├── index.ts            ← chacha20Init() + ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305
 │       │   ├── pool.ts             ← XChaCha20Poly1305Pool + PoolOpts
 │       │   ├── pool.worker.ts      ← Web Worker entry point (compiled to pool.worker.js; not a subpath export)
 │       │   └── types.ts
 │       ├── sha2/
-│       │   ├── index.ts            ← init() + SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512
+│       │   ├── index.ts            ← sha2Init() + SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512
 │       │   └── types.ts
 │       ├── sha3/
-│       │   ├── index.ts            ← init() + SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256
+│       │   ├── index.ts            ← sha3Init() + SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256
 │       │   └── types.ts
 │       └── index.ts                ← root barrel : dispatching init() + re-exports everything
 ├── test/
@@ -364,8 +364,8 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 2. `npm run build:embed` — `scripts/embed-wasm.ts` reads each `.wasm`, writes base64 to `src/ts/embedded/*.ts`
 3. `npm run build:ts` — TypeScript compiler emits `dist/`
 4. `cp build/*.wasm dist/` — WASM binaries copied for streaming mode consumers
-5. At runtime (subpath): `serpent/index.ts:init()` → `initModule()` → `loadEmbedded(thunk)` → `thunk()` → dynamic-import `embedded/serpent.ts` → decode base64 → `WebAssembly.instantiate` → cache in `init.ts`
-6. At runtime (root): `index.ts:init(['serpent', 'sha3'])` → dispatches to each module's `init()` via `Promise.all` → same path as step 5 per module
+5. At runtime (subpath): `serpent/index.ts:serpentInit()` → `initModule()` → `loadEmbedded(thunk)` → `thunk()` → dynamic-import `embedded/serpent.ts` → decode base64 → `WebAssembly.instantiate` → cache in `init.ts`
+6. At runtime (root): `index.ts:init(['serpent', 'sha3'])` → dispatches to each module's init function (`serpentInit`, `sha3Init`) via `Promise.all` → same path as step 5 per module
 
 `src/ts/embedded/` is gitignored, these files are a build artifacts derived from the WASM
 binaries. There is one source of truth for each binary: the AssemblyScript source.
@@ -471,8 +471,8 @@ index.ts
    (each module owns its own embedded thunk, no cross-module imports)
 ```
 
-Each module's `init()` calls `initModule()` from `init.ts`, passing its own
-embedded thunk. `initModule()` delegates to `loadEmbedded(thunk)` in `loader.ts`.
+Each module's init function (`serpentInit`, `chacha20Init`, `sha2Init`,
+`sha3Init`) calls `initModule()` from `init.ts`, passing its own embedded thunk. `initModule()` delegates to `loadEmbedded(thunk)` in `loader.ts`.
 The loader calls the thunk, decodes base64, and instantiates the WASM binary.
 `loader.ts` has no knowledge of module names or embedded file paths.
 
@@ -497,7 +497,7 @@ The loader calls the thunk, decodes base64, and instantiates the WASM binary.
 | `sha2/index.ts` | `init.ts`, `embedded/sha2.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
 | `sha3/index.ts` | `init.ts`, `embedded/sha3.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
 | `fortuna.ts` | `init.ts`, `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `isInitialized`, `Serpent`, `SHA256`, `wipe`/`concat`/`utf8ToBytes` |
-| `index.ts` | `serpent/`, `chacha20/`, `sha2/`, `sha3/`, `init.ts`, `fortuna.ts`, `types.ts`, `utils.ts` | `init` (from each module), *(all public exports)* |
+| `index.ts` | `serpent/`, `chacha20/`, `sha2/`, `sha3/`, `init.ts`, `fortuna.ts`, `types.ts`, `utils.ts` | `serpentInit`, `chacha20Init`, `sha2Init`, `sha3Init` (from each module), *(all public exports)* |
 
 ### TS-to-WASM mapping
 
@@ -569,11 +569,11 @@ TypeScript, they call Tier 1 classes rather than WASM functions directly.
 ### Public API barrel (`src/ts/index.ts`)
 
 The root barrel defines and exports the dispatching `init()` function.
-It is the only file that imports all four module-scoped `init()` functions.
+It is the only file that imports all four module-scoped init functions.
 
 | Source | Exports |
 |--------|---------|
-| *(barrel itself)* | `init` (dispatching function — calls per-module `init()` via `Promise.all`) |
+| *(barrel itself)* | `init` (dispatching function — calls per-module init functions via `Promise.all`) |
 | `init.ts` | `Module`, `Mode`, `InitOpts`, `isInitialized`, `_resetForTesting` |
 | `serpent/index.ts` | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `StreamPoolOpts`, `_serpentReady` |
 | `chacha20/index.ts` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `_chachaReady` |
@@ -584,8 +584,9 @@ It is the only file that imports all four module-scoped `init()` functions.
 | `types.ts` | `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
 | `utils.ts` | `hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`, `constantTimeEqual`, `wipe`, `xor`, `concat`, `randomBytes` |
 
-Each subpath export (`./serpent`, `./chacha20`, `./sha2`, `./sha3`) also
-exports its own `init(mode?, opts?)` for tree-shakeable loading.
+Each subpath export also exports its own module-specific init function for
+tree-shakeable loading: `serpentInit(mode?, opts?)`, `chacha20Init(mode?, opts?)`,
+`sha2Init(mode?, opts?)`, `sha3Init(mode?, opts?)`.
 
 ---
 

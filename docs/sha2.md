@@ -116,10 +116,10 @@ with a hash or HMAC instance.
 
 ## Module Init
 
-Each module subpath exports its own `init()` for consumers who want
+Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `init(mode?, opts?)`
+### `sha2Init(mode?, opts?)`
 
 Initializes only the sha2 WASM binary. Equivalent to calling the
 root `init(['sha2'], mode, opts)` but without pulling the other three
@@ -128,15 +128,15 @@ modules into the bundle.
 **Signature:**
 
 ```typescript
-async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function sha2Init(mode?: Mode, opts?: InitOpts): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
-import { init, SHA256 } from 'leviathan-crypto/sha2'
+import { sha2Init, SHA256 } from 'leviathan-crypto/sha2'
 
-await init()
+await sha2Init()
 const sha = new SHA256()
 ```
 
@@ -144,7 +144,7 @@ const sha = new SHA256()
 
 ## API Reference
 
-All classes require `init(['sha2'])` or the subpath `init()` to be called first.
+All classes require `init(['sha2'])` or the subpath `sha2Init()` to be called first.
 Constructing any SHA-2 class before initialization throws an error.
 
 ### SHA256

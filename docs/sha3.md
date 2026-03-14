@@ -63,10 +63,10 @@ secret. SHA-3's sponge construction makes this impossible.
 
 ## Module Init
 
-Each module subpath exports its own `init()` for consumers who want
+Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `init(mode?, opts?)`
+### `sha3Init(mode?, opts?)`
 
 Initializes only the sha3 WASM binary. Equivalent to calling the
 root `init(['sha3'], mode, opts)` but without pulling the other three
@@ -75,15 +75,15 @@ modules into the bundle.
 **Signature:**
 
 ```typescript
-async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function sha3Init(mode?: Mode, opts?: InitOpts): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
-import { init, SHA3_256 } from 'leviathan-crypto/sha3'
+import { sha3Init, SHA3_256 } from 'leviathan-crypto/sha3'
 
-await init()
+await sha3Init()
 const sha3 = new SHA3_256()
 ```
 
@@ -102,12 +102,12 @@ await init('sha3')
 Both `init('sha3')` and `init(['sha3'])` are valid — the root `init()` accepts
 a single `Module` string or an array.
 
-Or the subpath `init()`:
+Or the subpath `sha3Init()`:
 
 ```typescript
-import { init } from 'leviathan-crypto/sha3'
+import { sha3Init } from 'leviathan-crypto/sha3'
 
-await init()
+await sha3Init()
 ```
 
 If you use SHA-3 classes without calling `init()` first, the constructor

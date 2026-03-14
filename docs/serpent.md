@@ -72,10 +72,10 @@ in memory longer than necessary.
 
 ## Module Init
 
-Each module subpath exports its own `init()` for consumers who want
+Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `init(mode?, opts?)`
+### `serpentInit(mode?, opts?)`
 
 Initializes only the serpent WASM binary. Equivalent to calling the
 root `init(['serpent'], mode, opts)` but without pulling the other three
@@ -84,15 +84,15 @@ modules into the bundle.
 **Signature:**
 
 ```typescript
-async function init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function serpentInit(mode?: Mode, opts?: InitOpts): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
-import { init, Serpent } from 'leviathan-crypto/serpent'
+import { serpentInit, Serpent } from 'leviathan-crypto/serpent'
 
-await init()
+await serpentInit()
 const cipher = new Serpent()
 ```
 

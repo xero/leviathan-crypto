@@ -95,7 +95,8 @@ Optional configuration object. Which fields are required depends on the mode:
 
 > [!NOTE]
 > `init()` is no longer exported from `init.ts`. It is defined in the
-> root barrel (`src/ts/index.ts`) and dispatches to each module's own `init()`.
+> root barrel (`src/ts/index.ts`) and dispatches to each module's own init
+> function (`serpentInit`, `chacha20Init`, `sha2Init`, `sha3Init`).
 > See [README.md](./README.md) for details.
 
 The public `init()` signature is unchanged:
@@ -121,8 +122,9 @@ async function initModule(
 ): Promise<void>
 ```
 
-Internal initialization function. Called by each module's own `init()`,
-not by consumers directly. Each module passes its own embedded thunk so the
+Internal initialization function. Called by each module's own init function
+(`serpentInit`, `chacha20Init`, `sha2Init`, `sha3Init`), not by consumers
+directly. Each module passes its own embedded thunk so the
 dependency graph stays isolated per module, enabling tree-shaking.
 
 **Parameters:**

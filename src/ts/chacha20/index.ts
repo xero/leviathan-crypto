@@ -31,7 +31,7 @@ import { aeadEncrypt, aeadDecrypt, xcEncrypt, xcDecrypt } from './ops.js';
 
 const _embedded = () => import('../embedded/chacha.js').then(m => m.WASM_BASE64);
 
-export async function init(
+export async function chacha20Init(
 	mode: Mode = 'embedded',
 	opts?: InitOpts,
 ): Promise<void> {

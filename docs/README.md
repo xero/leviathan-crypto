@@ -156,7 +156,7 @@ import { init, SerpentSeal, SHA256 } from 'leviathan-crypto'
 await init(['serpent', 'sha2'])
 ```
 
-The root `init()` dispatches to each module's internal `init()` and loads the
+The root `init()` dispatches to each module's internal init function and loads the
 requested modules in parallel via `Promise.all`. This is the simplest approach
 but means all four embedded WASM binaries are reachable from the root barrel's
 dependency graph.
@@ -164,13 +164,13 @@ dependency graph.
 ### Subpath import (tree-shakeable)
 
 ```typescript
-import { init, SerpentSeal } from 'leviathan-crypto/serpent'
+import { serpentInit, SerpentSeal } from 'leviathan-crypto/serpent'
 
-await init()
+await serpentInit()
 ```
 
-Each subpath export has its own `init(mode?, opts?)` that loads only that
-module's WASM binary. A bundler with tree-shaking support (and
+Each subpath export has its own init function (e.g. `serpentInit(mode?, opts?)`)
+that loads only that module's WASM binary. A bundler with tree-shaking support (and
 `"sideEffects": false` in `package.json`) will exclude the other three
 modules' embedded binaries from the bundle entirely.
 
@@ -196,7 +196,7 @@ modules' embedded binaries from the bundle entirely.
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `init` | function | Load and cache WASM modules. Dispatches to per-module `init()` functions. |
+| `init` | function | Load and cache WASM modules. Dispatches to per-module init functions. |
 | `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3'` |
 | `Mode` | type | `'embedded' \| 'streaming' \| 'manual'` |
 | `InitOpts` | type | Options for `init()`: `wasmUrl`, `wasmBinary` |
@@ -205,7 +205,7 @@ modules' embedded binaries from the bundle entirely.
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `init` | function | Module-scoped init. `init(mode?, opts?)` loads only serpent. |
+| `serpentInit` | function | Module-scoped init. `serpentInit(mode?, opts?)` loads only serpent. |
 | `SerpentSeal` | class | Authenticated encryption: Serpent-CBC + HMAC-SHA256. `encrypt(key, plaintext)`, `decrypt(key, ciphertext)`. 64-byte key. |
 | `SerpentStream` | class | Chunked one-shot AEAD for large payloads. `seal(key, plaintext, chunkSize?)`, `open(key, ciphertext)`. 32-byte key. |
 | `SerpentStreamPool` | class | Worker-pool wrapper for `SerpentStream`. Parallelises chunk encryption across isolated WASM instances. `SerpentStreamPool.create(opts?)` static factory. |
@@ -216,11 +216,11 @@ modules' embedded binaries from the bundle entirely.
 | `SerpentCbc` | class | Serpent-256 CBC mode with PKCS7 padding. `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. Unauthenticated. |
 | `StreamPoolOpts` | type | Options for `SerpentStreamPool.create()`: worker count. |
 
-### ChaCha20 (`chacha20/index.ts`) -- requires `init(['chacha20'])` or subpath `init()`
+### ChaCha20 (`chacha20/index.ts`) -- requires `init(['chacha20'])` or subpath `chacha20Init()`
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `init` | function | Module-scoped init. `init(mode?, opts?)` loads only chacha20. |
+| `chacha20Init` | function | Module-scoped init. `chacha20Init(mode?, opts?)` loads only chacha20. |
 | `ChaCha20` | class | ChaCha20 stream cipher (RFC 8439). `beginEncrypt()`, `encryptChunk()`. |
 | `Poly1305` | class | Poly1305 one-time MAC (RFC 8439). `mac(key, msg)`. |
 | `ChaCha20Poly1305` | class | ChaCha20-Poly1305 AEAD (RFC 8439). `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
@@ -228,11 +228,11 @@ modules' embedded binaries from the bundle entirely.
 | `XChaCha20Poly1305Pool` | class | Worker-pool wrapper for `XChaCha20Poly1305`. `XChaCha20Poly1305Pool.create(opts?)` static factory. |
 | `PoolOpts` | type | Options for `XChaCha20Poly1305Pool.create()`: worker count, worker script URL. |
 
-### SHA-2 (`sha2/index.ts`) -- requires `init(['sha2'])` or subpath `init()`
+### SHA-2 (`sha2/index.ts`) -- requires `init(['sha2'])` or subpath `sha2Init()`
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `init` | function | Module-scoped init. `init(mode?, opts?)` loads only sha2. |
+| `sha2Init` | function | Module-scoped init. `sha2Init(mode?, opts?)` loads only sha2. |
 | `SHA256` | class | SHA-256 hash (FIPS 180-4). `hash(msg)` returns 32 bytes. |
 | `SHA384` | class | SHA-384 hash (FIPS 180-4). `hash(msg)` returns 48 bytes. |
 | `SHA512` | class | SHA-512 hash (FIPS 180-4). `hash(msg)` returns 64 bytes. |
@@ -242,11 +242,11 @@ modules' embedded binaries from the bundle entirely.
 | `HKDF_SHA256` | class | HKDF with HMAC-SHA256 (RFC 5869). `derive(ikm, salt, info, length)`. |
 | `HKDF_SHA512` | class | HKDF with HMAC-SHA512 (RFC 5869). `derive(ikm, salt, info, length)`. |
 
-### SHA-3 (`sha3/index.ts`) -- requires `init(['sha3'])` or subpath `init()`
+### SHA-3 (`sha3/index.ts`) -- requires `init(['sha3'])` or subpath `sha3Init()`
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `init` | function | Module-scoped init. `init(mode?, opts?)` loads only sha3. |
+| `sha3Init` | function | Module-scoped init. `sha3Init(mode?, opts?)` loads only sha3. |
 | `SHA3_224` | class | SHA3-224 hash (FIPS 202). `hash(msg)` returns 28 bytes. |
 | `SHA3_256` | class | SHA3-256 hash (FIPS 202). `hash(msg)` returns 32 bytes. |
 | `SHA3_384` | class | SHA3-384 hash (FIPS 202). `hash(msg)` returns 48 bytes. |
