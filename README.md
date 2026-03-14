@@ -2,20 +2,20 @@
 
 # leviathan - Serpent-256 Cryptography for the Web
 
-A TypeScript cryptographic library built around **Serpent-256**; the AES
+A TypeScript cryptographic library built around **Serpent-256**: the AES
 finalist that received more first-place security votes than Rijndael from
 the NIST evaluation committee, and was designed with a larger security
 margin by construction: 32 rounds versus AES's 10/12/14.
 
 For applications where throughput is not the primary constraint (e.g. file
-encryption, key derivation, secure storage, etc) Serpent-256 is the stronger
+encryption, key derivation, secure storage) Serpent-256 is the stronger
 choice. leviathan makes it practical for web and server-side TypeScript.
 
 ## Why Serpent-256
 
 AES (Rijndael) won the competition on performance. Serpent won on security
 margin. The NIST evaluation committee's own analysis gave Serpent more
-first-place security votes, Rijndael was selected because speed mattered
+first-place security votes. Rijndael was selected because speed mattered
 for the hardware and embedded targets NIST was optimising for in 2001.
 
 For software running on modern hardware where milliseconds of encryption
@@ -53,13 +53,16 @@ _No 128 or 192-bit variants mitigates key-size downgrade risk._
 
 ## Primitives
 
-| Module     | Classes                                                                   | Auth       | Notes                                                         |
-| ---------- | ------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------- |
-| `serpent`  | `Serpent`, `SerpentCtr`, `SerpentCbc`                                     | **No**     | ECB, CTR, CBC modes. Pair with HMAC or use XChaCha20Poly1305. |
-| `chacha20` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`           | Yes (AEAD) | RFC 8439                                                      |
-| `sha2`     | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | —          | FIPS 180-4, RFC 2104                                          |
-| `sha3`     | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`    | —          | FIPS 202                                                      |
-| `serpent`, `sha2` | `Fortuna`                                                          | —          | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`. |
+| Module | Classes | Auth | Notes |
+|--------|---------|------|-------|
+| `serpent`, `sha2` | `SerpentSeal` | **Yes** | Authenticated encryption: Serpent-CBC + HMAC-SHA256. Recommended for most use cases. |
+| `serpent`, `sha2` | `SerpentStream`, `SerpentStreamPool` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers. |
+| `serpent`, `sha2` | `SerpentStreamSealer`, `SerpentStreamOpener` | **Yes** | Incremental streaming AEAD: seal and open one chunk at a time without buffering the full message. |
+| `serpent` | `Serpent`, `SerpentCtr`, `SerpentCbc` | **No** | Raw ECB, CTR, CBC modes. Pair with HMAC-SHA256 for authentication. |
+| `chacha20` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | Yes (AEAD) | RFC 8439 |
+| `sha2` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | -- | FIPS 180-4, RFC 2104 |
+| `sha3` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | -- | FIPS 202 |
+| `serpent`, `sha2` | `Fortuna` | -- | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`. |
 
 >[!IMPORTANT]
 > All cryptographic computation runs in WASM (AssemblyScript), isolated outside the JavaScript JIT.
@@ -67,46 +70,70 @@ _No 128 or 192-bit variants mitigates key-size downgrade risk._
 
 ## Quick Start
 
-```typescript
-import { init, SerpentCbc, HMAC_SHA256 } from 'leviathan-crypto'
+### Authenticated encryption with Serpent (recommended)
 
-// Load the modules you need (once, at startup)
+```typescript
+import { init, SerpentSeal, randomBytes } from 'leviathan-crypto'
+
 await init(['serpent', 'sha2'])
 
-// Encrypt with CBC (unauthenticated — must add MAC)
-const cipher = new SerpentCbc()
-cipher.loadKey(key)      // 16, 24, or 32 bytes
-const ct = cipher.encrypt(plaintext, iv)
+const key = randomBytes(64)  // 64-byte key (encKey + macKey)
 
-// Always pair unauthenticated modes with Encrypt-then-MAC
-const mac = new HMAC_SHA256()
-mac.init(macKey)
-mac.update(ct)
-const tag = mac.final()
+const seal = new SerpentSeal()
 
-// Clean up key material
-cipher.dispose()
-mac.dispose()
+// Encrypt and authenticate
+const ciphertext = seal.encrypt(key, plaintext)
+
+// Decrypt and verify (throws on tamper)
+const decrypted = seal.decrypt(key, ciphertext)
+
+seal.dispose()
 ```
 
-### Authenticated Encryption (recommended)
+### Incremental streaming AEAD
+
+Use `SerpentStreamSealer` when data arrives chunk by chunk and you cannot
+buffer the full message before encrypting.
 
 ```typescript
-import { init, XChaCha20Poly1305 } from 'leviathan-crypto'
+import { init, SerpentStreamSealer, SerpentStreamOpener, randomBytes } from 'leviathan-crypto'
 
-await init(['chacha20'])
+await init(['serpent', 'sha2'])
 
-const cipher = new XChaCha20Poly1305()
-const key   = crypto.getRandomValues(new Uint8Array(32))
-const nonce = crypto.getRandomValues(new Uint8Array(24))
+const key = randomBytes(64)
 
-// Encrypt (returns ciphertext || 16-byte tag)
-const ct = cipher.encrypt(key, nonce, plaintext)
+// Seal side
+const sealer = new SerpentStreamSealer(key, 65536)
+const header = sealer.header()       // transmit to opener before any chunks
 
-// Decrypt (verifies tag, throws on tamper)
-const pt = cipher.decrypt(key, nonce, ct)
+const chunk0 = sealer.seal(data0)    // exactly chunkSize bytes
+const chunk1 = sealer.seal(data1)
+const last   = sealer.final(tail)    // any size up to chunkSize; wipes key on return
 
-cipher.dispose()
+// Open side
+const opener = new SerpentStreamOpener(key, header)
+
+const pt0 = opener.open(chunk0)
+const pt1 = opener.open(chunk1)
+const ptN = opener.open(last)        // detects final chunk; wipes key on return
+
+// Reordering, truncation, and cross-stream splicing all throw on open()
+```
+
+### Large payload chunking
+
+```typescript
+import { init, SerpentStream, randomBytes } from 'leviathan-crypto'
+
+await init(['serpent', 'sha2'])
+
+const key = randomBytes(32)  // 32-byte key (HKDF handles expansion internally)
+
+const stream = new SerpentStream()
+const ciphertext = stream.seal(key, largePlaintext)   // default 64KB chunks
+const decrypted  = stream.open(key, ciphertext)
+
+stream.dispose()
 ```
 
 ### Fortuna CSPRNG
@@ -119,10 +146,6 @@ await init(['serpent', 'sha2'])
 const fortuna = await Fortuna.create()
 const random = fortuna.get(32)  // 32 random bytes
 
-// Optional: custom reseed interval
-const fast = await Fortuna.create({ msPerReseed: 0 })
-
-// Clean up when done
 fortuna.stop()
 ```
 
@@ -142,7 +165,7 @@ hasher.dispose()
 
 ## Utilities
 
-These helpers are available immediately on import — no `init()` required.
+These helpers are available immediately on import: no `init()` required.
 
 | Function | Description |
 |----------|-------------|
@@ -158,19 +181,6 @@ These helpers are available immediately on import — no `init()` required.
 | `concat(a, b)` | Concatenate two `Uint8Array`s |
 | `randomBytes(n)` | Cryptographically secure random bytes via Web Crypto |
 
-```typescript
-import { randomBytes, XChaCha20Poly1305, init } from 'leviathan-crypto'
-
-await init(['chacha20'])
-
-const key   = randomBytes(32)
-const nonce = randomBytes(24)
-
-const cipher = new XChaCha20Poly1305()
-const ct = cipher.encrypt(key, nonce, plaintext)
-cipher.dispose()
-```
-
 ## Authentication Warning
 
 `SerpentCtr` and `SerpentCbc` are **unauthenticated** cipher modes. They provide
@@ -178,9 +188,9 @@ confidentiality but not integrity or authenticity. An attacker can modify
 ciphertext without detection.
 
 >[!TIP]
-> **For authenticated encryption:** use [`XChaCha20Poly1305`](./docs/chacha20.md)
+> **For authenticated Serpent encryption:** use `SerpentSeal` or `SerpentStreamSealer`
 >
-> **Using Serpent CBC/CTR:** pair with `HMAC_SHA256` using the Encrypt-then-MAC pattern
+> **Using Serpent CBC/CTR directly:** pair with `HMAC_SHA256` using the Encrypt-then-MAC pattern
 
 ## Installation
 
@@ -194,13 +204,13 @@ npm install leviathan-crypto
 ## Loading Modes
 
 ```typescript
-// Embedded (default) — zero-config, base64-encoded WASM inline
+// Embedded (default): zero-config, base64-encoded WASM inline
 await init(['serpent', 'sha3'])
 
-// Streaming — uses instantiateStreaming for performance
+// Streaming: uses instantiateStreaming for performance
 await init(['serpent'], 'streaming', { wasmUrl: '/assets/wasm/' })
 
-// Manual — provide your own binary
+// Manual: provide your own binary
 await init(['serpent'], 'manual', { wasmBinary: { serpent: myBuffer } })
 ```
 
@@ -210,7 +220,7 @@ await init(['serpent'], 'manual', { wasmBinary: { serpent: myBuffer } })
 
 | Module | Description |
 |--------|-------------|
-| [serpent.md](./docs/serpent.md) | Serpent-256 TypeScript API (`Serpent`, `SerpentCtr`, `SerpentCbc`) |
+| [serpent.md](./docs/serpent.md) | Serpent-256 TypeScript API (`SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc`) |
 | [asm_serpent.md](./docs/asm_serpent.md) | Serpent-256 WASM implementation (bitslice S-boxes, key schedule, CTR/CBC) |
 | [chacha20.md](./docs/chacha20.md) | ChaCha20/Poly1305 TypeScript API (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`) |
 | [asm_chacha.md](./docs/asm_chacha.md) | ChaCha20/Poly1305 WASM implementation (quarter-round, HChaCha20) |

@@ -1,7 +1,7 @@
 # Leviathan Crypto Library Architecture
 
 > [!NOTE]
-> - Version: 1.0
+> - Version: 1.0.0
 > - Package: `leviathan-crypto` (npm, unscoped)
 > - Status: v1.0.0 - all four WASM modules (Serpent, ChaCha20, SHA-2, SHA-3) implemented.
 > - Supersedes: `leviathan` (TypeScript reference) and `leviathan-wasm` (WASM primitives),
@@ -12,9 +12,9 @@
 `leviathan-crypto` is a strictly-typed, audited WebAssembly cryptography library for
 the web. It combines two previously separate efforts:
 
-- **leviathan** — developer-friendly TypeScript API, strict types, audited against specs
+- **leviathan:**  developer-friendly TypeScript API, strict types, audited against specs
   and known-answer test vectors
-- **leviathan-wasm** — AssemblyScript WASM implementation of the same primitives,
+- **leviathan-wasm:**  AssemblyScript WASM implementation of the same primitives,
   running outside the JavaScript JIT for predictable execution and practical
   constant-time guarantees
 
@@ -35,24 +35,25 @@ layer handles API ergonomics; the WASM layer handles all cryptographic computati
 
 | Module | Primitives |
 |--------|-----------|
-| `serpent` | Serpent-256 block cipher — ECB, CTR mode, CBC mode |
+| `serpent` | Serpent-256 block cipher: ECB, CTR mode, CBC mode |
+| `serpent` + `sha2` | `SerpentSeal` (Serpent-CBC + HMAC-SHA256), `SerpentStream` / `SerpentStreamPool` (chunked AEAD), `SerpentStreamSealer` / `SerpentStreamOpener` (incremental streaming AEAD) |
 | `chacha20` | ChaCha20, Poly1305, ChaCha20-Poly1305 AEAD, XChaCha20-Poly1305 AEAD |
-| `sha2` | SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, HMAC-SHA512 |
-| `sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256 |
+| `sha2` | SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, HMAC-SHA512, HKDF-SHA256, HKDF-SHA512 |
+| `sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256 (XOFs, multi-squeeze) |
 
 Pure TypeScript utilities (encoding helpers, random generation, format converters)
 ship alongside the WASM-backed primitives with no `init()` dependency.
 
 ### Auxiliary tier (not part of `Module` union)
 
-- **`Fortuna`** — CSPRNG requiring two core modules (`serpent` + `sha2`).
+- **`Fortuna`:** CSPRNG requiring two core modules (`serpent` + `sha2`).
   Initialized via the standard `init()` gate.
 
 ---
 
 ## Repository Structure
 
-<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/repo-structure.svg" alt="Repo Structrue" width="800">
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/repo-structure.svg" alt="Repo Structure" width="800">
 
 ```
 leviathan-crypto/
@@ -83,7 +84,7 @@ leviathan-crypto/
 │   │       ├── keccak.ts
 │   │       └── buffers.ts
 │   └── ts/                         ← TypeScript (public API)
-│       ├── init.ts                 ← initModule() — WASM loading and module cache
+│       ├── init.ts                 ← initModule() : WASM loading and module cache
 │       ├── loader.ts               ← embedded / streaming / manual loading logic
 │       ├── types.ts                ← Hash, KeyedHash, Blockcipher, Streamcipher, AEAD
 │       ├── utils.ts                ← encoding, wipe, xor, concat, randomBytes
@@ -95,6 +96,11 @@ leviathan-crypto/
 │       │   └── sha3.ts
 │       ├── serpent/
 │       │   ├── index.ts            ← init() + Serpent, SerpentCtr, SerpentCbc
+│       │   ├── seal.ts             ← SerpentSeal (Serpent-CBC + HMAC-SHA256)
+│       │   ├── stream.ts           ← SerpentStream (chunked one-shot AEAD)
+│       │   ├── stream-pool.ts      ← SerpentStreamPool (Worker-based parallel AEAD)
+│       │   ├── stream-sealer.ts    ← SerpentStreamSealer / SerpentStreamOpener (incremental AEAD)
+│       │   ├── stream.worker.ts    ← Web Worker entry point for SerpentStreamPool
 │       │   └── types.ts
 │       ├── chacha20/
 │       │   ├── index.ts            ← init() + ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305
@@ -102,12 +108,12 @@ leviathan-crypto/
 │       │   ├── pool.worker.ts      ← Web Worker entry point (compiled to pool.worker.js; not a subpath export)
 │       │   └── types.ts
 │       ├── sha2/
-│       │   ├── index.ts            ← init() + SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384
+│       │   ├── index.ts            ← init() + SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512
 │       │   └── types.ts
 │       ├── sha3/
 │       │   ├── index.ts            ← init() + SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256
 │       │   └── types.ts
-│       └── index.ts                ← root barrel — dispatching init() + re-exports everything
+│       └── index.ts                ← root barrel : dispatching init() + re-exports everything
 ├── test/
 │   ├── unit/                       ← Vitest (JS target, fast iteration)
 │   │   ├── serpent/
@@ -122,7 +128,9 @@ leviathan-crypto/
 ├── docs/                           ← project documentation
 ├── scripts/
 │   ├── embed-wasm.ts               ← reads build/*.wasm, generates src/ts/embedded/*.ts
-│   └── build-asm.js                ← orchestrates AssemblyScript compilation
+│   ├── build-asm.js                ← orchestrates AssemblyScript compilation
+│   ├── gen-seal-vectors.ts         ← generates KAT vectors for SerpentSeal / SerpentStream
+│   └── gen-sealstream-vectors.ts   ← generates KAT vectors for SerpentStreamSealer / Opener
 ├── package.json
 ├── asconfig.json                   ← four AssemblyScript entry points
 ├── tsconfig.json
@@ -140,24 +148,29 @@ leviathan-crypto/
 > The TypeScript layer never implements cryptographic algorithms. It handles the
 > JS/WASM boundary: writing inputs into WASM linear memory, calling exported
 > functions, reading outputs back. All algorithm logic lives in AssemblyScript.
+>
+> The exception is the Tier 2 composition layer: `SerpentSeal`, `SerpentStream`,
+> `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, and `HKDF`.
+> These are pure TypeScript, they compose the WASM-backed Tier 1 primitives
+> (Serpent-CBC, HMAC-SHA256, HKDF-SHA256) without adding new algorithm logic.
 
 ---
 
 ## Four Independent WASM Modules
 
 Each primitive family compiles to its own `.wasm` binary. Modules are fully
-independent — separate linear memories, separate buffer layouts, no shared state.
+independent, separate linear memories, separate buffer layouts, no shared state.
 
 | Module | Binary | Primitives |
 |--------|--------|------------|
-| `serpent` | `serpent.wasm` | Serpent-256 block cipher — ECB, CTR mode, CBC mode |
+| `serpent` | `serpent.wasm` | Serpent-256 block cipher: ECB, CTR mode, CBC mode |
 | `chacha20` | `chacha.wasm` | ChaCha20, Poly1305, ChaCha20-Poly1305 AEAD, XChaCha20-Poly1305 AEAD |
 | `sha2` | `sha2.wasm` | SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, HMAC-SHA512 |
 | `sha3` | `sha3.wasm` | SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256 |
 
 **Benefits:**
-1. **Size** — consumers who only use Serpent don't load the SHA-3 binary
-2. **Isolation** — key material in `serpent.wasm` memory cannot bleed into
+1. **Size:** consumers who only use Serpent don't load the SHA-3 binary
+2. **Isolation:** key material in `serpent.wasm` memory cannot bleed into
    `sha3.wasm` memory even in theory
 
 Each module's buffer layout starts at offset 0 and is defined in its own
@@ -170,6 +183,13 @@ Serpent-256 block cipher. Key schedule, block encrypt, block decrypt. CTR mode
 chunked streaming encrypt/decrypt. CBC mode chunked encrypt/decrypt.
 Source: `src/asm/serpent/`
 
+The serpent TypeScript module also includes a Tier 2 composition layer built on
+top of these WASM primitives: `SerpentSeal` (Serpent-CBC + HMAC-SHA256 AEAD),
+`SerpentStream` (chunked one-shot AEAD), `SerpentStreamPool` (Worker-based
+parallel AEAD), and `SerpentStreamSealer` / `SerpentStreamOpener` (incremental
+streaming AEAD). All Tier 2 classes use HKDF-SHA256 for per-chunk key derivation
+and require both `serpent` and `sha2` to be initialized.
+
 **`chacha.wasm`**
 ChaCha20 stream cipher (RFC 8439). Poly1305 MAC (RFC 8439 §2.5). ChaCha20-Poly1305
 AEAD (RFC 8439 §2.8). XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha).
@@ -178,18 +198,19 @@ Source: `src/asm/chacha/`
 
 The chacha20 TypeScript module also includes `pool.ts` (`XChaCha20Poly1305Pool`)
 and `pool.worker.ts`. The worker file compiles to `dist/chacha20/pool.worker.js`
-and ships in the package, but it is **not** registered in the `exports` map — it
+and ships in the package, but it is **not** registered in the `exports` map, it
 is an internal file loaded by the pool at runtime, not a public named subpath.
 
 **`sha2.wasm`**
 SHA-256 and SHA-512 (FIPS 180-4). SHA-384 (SHA-512 with different IVs, truncated
-output — shares all SHA-512 buffers and compress function). HMAC-SHA256,
-HMAC-SHA512, HMAC-SHA384 (RFC 2104).
+output, shares all SHA-512 buffers and compress function). HMAC-SHA256,
+HMAC-SHA512, HMAC-SHA384 (RFC 2104). HKDF-SHA256 and HKDF-SHA512 (RFC 5869)
+are pure TypeScript compositions over HMAC, with no new WASM logic.
 Source: `src/asm/sha2/`
 
 **`sha3.wasm`**
 Keccak-f[1600] permutation (FIPS 202). SHA3-224, SHA3-256, SHA3-384, SHA3-512.
-SHAKE128, SHAKE256 (XOFs, multi-squeeze capable — unbounded output length).
+SHAKE128, SHAKE256 (XOFs, multi-squeeze capable, unbounded output length).
 All six variants share one permutation, differing only in rate, domain
 separation byte, and output length.
 Source: `src/asm/sha3/`
@@ -198,7 +219,7 @@ Source: `src/asm/sha3/`
 
 ## `init()` API
 
-WASM instantiation is async. `init()` is the explicit initialization gate —
+WASM instantiation is async. `init()` is the explicit initialization gate,
 it must be called once before any cryptographic class is used. This is honest
 about the initialization cost and gives the developer control over when it is paid.
 
@@ -222,7 +243,7 @@ async function init(
 
 ### Three loading modes
 
-**`'embedded'` (default — zero-config)**
+**`'embedded'` (default: zero-config)**
 The `.wasm` binary is base64-encoded and inlined in the published package as a
 generated TypeScript file (`src/ts/embedded/*.ts`). At runtime, the base64 string
 is decoded and passed to `WebAssembly.instantiate()`. Works everywhere with no
@@ -236,7 +257,7 @@ await init(['serpent', 'sha3'])
 **`'streaming'` (performance path)**
 Uses `WebAssembly.instantiateStreaming()` for maximum load performance. The
 browser compiles the WASM binary while still downloading it. `wasmUrl` is a
-base URL — the loader appends the filename (`serpent.wasm`, `chacha.wasm`, etc.).
+base URL, the loader appends the filename (`serpent.wasm`, `chacha.wasm`, etc.).
 Requires the `.wasm` files to be served with `Content-Type: application/wasm`.
 
 ```typescript
@@ -262,7 +283,7 @@ no-op. Safe to call from multiple modules in a codebase.
 
 **Module-scope cache.** The compiled `WebAssembly.Module` for each binary is
 cached at module scope after first compilation. All subsequent class instantiations
-use `WebAssembly.instantiate(cachedModule)` — fast, no recompilation.
+use `WebAssembly.instantiate(cachedModule)`, fast, no recompilation.
 
 **Error before init.** Calling any cryptographic class before `init()` throws:
 ```
@@ -288,9 +309,10 @@ Names match conventional cryptographic notation.
 
 | Module | Classes |
 |--------|---------|
+| `serpent` + `sha2` | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener` |
 | `serpent` | `Serpent`, `SerpentCtr`, `SerpentCbc` |
-| `chacha20` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
-| `sha2` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` |
+| `chacha20` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool` |
+| `sha2` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` |
 | `sha3` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `serpent` + `sha2` | `Fortuna` |
 
@@ -308,12 +330,12 @@ and `os.freemem` in addition to `crypto.randomBytes`.
 All WASM-backed classes follow the same pattern:
 
 ```typescript
-import { init, SerpentCbc, SHA3_256 } from 'leviathan-crypto'
+import { init, SerpentSeal, SHA3_256 } from 'leviathan-crypto'
 
-await init(['serpent', 'sha3'])
+await init(['serpent', 'sha2', 'sha3'])
 
-const cipher = new SerpentCbc(key, iv)
-const ct = cipher.encrypt(plaintext)
+const seal = new SerpentSeal()
+const ciphertext = seal.encrypt(key, plaintext)  // throws on tamper at decrypt
 
 const hasher = new SHA3_256()
 const digest = hasher.hash(message)
@@ -345,7 +367,7 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 5. At runtime (subpath): `serpent/index.ts:init()` → `initModule()` → `loadEmbedded(thunk)` → `thunk()` → dynamic-import `embedded/serpent.ts` → decode base64 → `WebAssembly.instantiate` → cache in `init.ts`
 6. At runtime (root): `index.ts:init(['serpent', 'sha3'])` → dispatches to each module's `init()` via `Promise.all` → same path as step 5 per module
 
-`src/ts/embedded/` is gitignored — always a build artifact derived from the WASM
+`src/ts/embedded/` is gitignored, these files are a build artifacts derived from the WASM
 binaries. There is one source of truth for each binary: the AssemblyScript source.
 
 ---
@@ -382,7 +404,7 @@ index.ts
 buffers.ts
   <- chacha20.ts           (key, nonce, counter, block, state, poly key, xchacha offsets)
   <- poly1305.ts           (poly key, msg, buf, tag, h, r, rs, s offsets)
-  <- wipe.ts               (all buffer offsets — zeroes everything)
+  <- wipe.ts               (all buffer offsets, zeroes everything)
 
 index.ts
   re-exports: buffers + chacha20 + poly1305 + wipe
@@ -446,7 +468,7 @@ index.ts
           v             v     v            v       v
    embedded/     embedded/  embedded/  embedded/
    serpent.ts    chacha.ts  sha2.ts    sha3.ts
-   (each module owns its own embedded thunk — no cross-module imports)
+   (each module owns its own embedded thunk, no cross-module imports)
 ```
 
 Each module's `init()` calls `initModule()` from `init.ts`, passing its own
@@ -467,6 +489,10 @@ The loader calls the thunk, decodes base64, and instantiates the WASM binary.
 | `sha2/types.ts` | *(none)* | — |
 | `sha3/types.ts` | *(none)* | — |
 | `serpent/index.ts` | `init.ts`, `embedded/serpent.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
+| `serpent/seal.ts` | `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `SerpentCbc`, `HMAC_SHA256`, `concat`, `constantTimeEqual`, `wipe` |
+| `serpent/stream.ts` | `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `SerpentCtr`, `HMAC_SHA256`, `HKDF_SHA256`, `constantTimeEqual`, `concat` |
+| `serpent/stream-pool.ts` | `serpent/stream.ts` | `sealChunk`, `openChunk`, `chunkInfo` |
+| `serpent/stream-sealer.ts` | `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `SerpentCbc`, `HMAC_SHA256`, `HKDF_SHA256`, `concat`, `constantTimeEqual`, `wipe` |
 | `chacha20/index.ts` | `init.ts`, `utils.ts`, `chacha20/types.ts`, `embedded/chacha.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `constantTimeEqual`, `ChaChaExports`, `WASM_BASE64` |
 | `sha2/index.ts` | `init.ts`, `embedded/sha2.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
 | `sha3/index.ts` | `init.ts`, `embedded/sha3.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
@@ -476,14 +502,26 @@ The loader calls the thunk, decodes base64, and instantiates the WASM binary.
 ### TS-to-WASM mapping
 
 Each TS wrapper class maps to one WASM module and specific exported functions.
+Tier 2 composition classes (`SerpentSeal`, `SerpentStream*`, `HKDF_*`) are pure
+TypeScript, they call Tier 1 classes rather than WASM functions directly.
 
-**serpent/index.ts → asm/serpent/**
+**serpent/index.ts → asm/serpent/ (Tier 1: direct WASM callers)**
 
 | TS Class | WASM functions called |
 |----------|---------------------|
 | `Serpent` | `loadKey`, `encryptBlock`, `decryptBlock`, `wipeBuffers` + buffer getters |
 | `SerpentCtr` | `loadKey`, `resetCounter`, `setCounter`, `encryptChunk`, `decryptChunk`, `wipeBuffers` + buffer getters |
 | `SerpentCbc` | `loadKey`, `cbcEncryptChunk`, `cbcDecryptChunk`, `wipeBuffers` + buffer getters |
+
+**serpent/seal.ts, stream.ts, stream-sealer.ts (Tier 2: pure TS composition)**
+
+| TS Class | Composes |
+|----------|---------|
+| `SerpentSeal` | `SerpentCbc` + `HMAC_SHA256` |
+| `SerpentStream` | `SerpentCtr` + `HMAC_SHA256` + `HKDF_SHA256` |
+| `SerpentStreamPool` | `SerpentStream` (via worker) |
+| `SerpentStreamSealer` | `SerpentCbc` + `HMAC_SHA256` + `HKDF_SHA256` |
+| `SerpentStreamOpener` | `SerpentCbc` + `HMAC_SHA256` + `HKDF_SHA256` |
 
 **chacha20/index.ts → asm/chacha/**
 
@@ -504,6 +542,8 @@ Each TS wrapper class maps to one WASM module and specific exported functions.
 | `HMAC_SHA256` | `hmac256Init`, `hmac256Update`, `hmac256Final`, `sha256Init`, `sha256Update`, `sha256Final`, `wipeBuffers` + buffer getters |
 | `HMAC_SHA512` | `hmac512Init`, `hmac512Update`, `hmac512Final`, `sha512Init`, `sha512Update`, `sha512Final`, `wipeBuffers` + buffer getters |
 | `HMAC_SHA384` | `hmac384Init`, `hmac384Update`, `hmac384Final`, `sha384Init`, `sha512Update`, `sha384Final`, `wipeBuffers` + buffer getters |
+| `HKDF_SHA256` | Pure TS composition over `HMAC_SHA256` (extract + expand per RFC 5869) |
+| `HKDF_SHA512` | Pure TS composition over `HMAC_SHA512` (extract + expand per RFC 5869) |
 
 **sha3/index.ts → asm/sha3/**
 
@@ -520,8 +560,10 @@ Each TS wrapper class maps to one WASM module and specific exported functions.
 
 | Relationship | Notes |
 |-------------|-------|
+| `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener` → `serpent` + `sha2` | Tier 2 composition: Serpent-CBC/CTR + HMAC-SHA256 + HKDF-SHA256. Both modules must be initialized. |
 | `Fortuna` → `Serpent` + `SHA256` | Only class requiring **two** WASM modules (`serpent` + `sha2`). Uses `Fortuna.create()` static factory instead of `new`. |
 | `XChaCha20Poly1305` → `ChaCha20Poly1305` | Pure TS composition — calls `hchacha20()` for subkey derivation, then delegates to `ChaCha20Poly1305`. |
+| `HKDF_SHA256`, `HKDF_SHA512` → `HMAC_SHA256`, `HMAC_SHA512` | Pure TS composition — extract and expand steps per RFC 5869. |
 | All other classes | Each depends on exactly **one** WASM module. |
 
 ### Public API barrel (`src/ts/index.ts`)
@@ -533,7 +575,7 @@ It is the only file that imports all four module-scoped `init()` functions.
 |--------|---------|
 | *(barrel itself)* | `init` (dispatching function — calls per-module `init()` via `Promise.all`) |
 | `init.ts` | `Module`, `Mode`, `InitOpts`, `isInitialized`, `_resetForTesting` |
-| `serpent/index.ts` | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `StreamPoolOpts`, `_serpentReady` |
+| `serpent/index.ts` | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `StreamPoolOpts`, `_serpentReady` |
 | `chacha20/index.ts` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `_chachaReady` |
 | `chacha20/pool.ts` | `XChaCha20Poly1305Pool`, `PoolOpts` |
 | `sha2/index.ts` | `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`, `_sha2Ready` |
@@ -570,7 +612,7 @@ exports its own `init(mode?, opts?)` for tree-shakeable loading.
 > `XChaCha20Poly1305Pool` at runtime. Do not import it as a named subpath.
 
 The root `.` export re-exports everything. Subpath exports allow bundlers to
-tree-shake at the module level — a consumer importing only `./sha3` does not
+tree-shake at the module level, a consumer importing only `./sha3` does not
 include the Serpent wrapper classes or their embedded WASM binaries in their
 bundle.
 
@@ -692,13 +734,13 @@ Source: `src/asm/sha3/buffers.ts`
 
 ### Structure
 
-<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Date Flow Diagram" width="800">
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Data Flow Diagram" width="800">
 
 For the full testing methodology and vector corpus, see: [test-suite.md](./test-suite.md)
 
 ### Gate discipline
 
-Each primitive family has a gate test — the simplest authoritative vector for
+Each primitive family has a gate test, the simplest authoritative vector for
 that primitive. The gate must pass before any other tests in that family are
 written or run. Gate tests are annotated with a `// GATE` comment.
 
@@ -719,39 +761,25 @@ TypeScript reference and external tools (OpenSSL, Python hashlib, Node.js crypto
 provide additional verification layers.
 
 The test vector corpus in `test/vectors/` is read-only. Integrity is verified via
-`SHA256SUMS` — expected values are sourced directly from authoritative references.
+`SHA256SUMS`, expected values are sourced directly from authoritative references.
 They are the immutable truth, and must never be modified to make tests pass.
 
 ---
 
 ## Known Limitations (v1.0)
 
-- **No authenticated CBC** — `SerpentCbc` is unauthenticated. Use
-  `XChaCha20Poly1305` for authenticated encryption, or pair `SerpentCbc` with
-  `HMAC_SHA256` (Encrypt-then-MAC).
-- **Single-threaded WASM per instance** — one WASM instance per binary per thread.
-  `XChaCha20Poly1305Pool` provides Worker-based parallelism for the AEAD path;
-  other primitive families remain single-threaded.
-- **Max input per WASM call** — chunk-based APIs (CTR, CBC) accept at most 64KB
+- **`SerpentCbc` is unauthenticated**: use `SerpentSeal` for authenticated
+  Serpent encryption, or pair `SerpentCbc` with `HMAC_SHA256` (Encrypt-then-MAC)
+  if direct CBC access is required.
+- **Single-threaded WASM per instance**: one WASM instance per binary per thread.
+  `SerpentStreamPool` and `XChaCha20Poly1305Pool` provide Worker-based parallelism
+  for their respective AEAD paths; other primitive families remain single-threaded.
+- **Max input per WASM call**: chunk-based APIs (CTR, CBC) accept at most 64KB
   per call. Wrappers handle splitting automatically for larger inputs.
-- **Browser WASM loading** — streaming mode requires files served with
+- **Browser WASM loading**: streaming mode requires files served with
   `Content-Type: application/wasm`. Embedded mode works everywhere.
 
 ---
-
-## Relationship to Predecessor Repositories
-
-`leviathan` and `leviathan-wasm` remain unchanged as development references.
-They are not deprecated — they are the source material for this repository.
-
-- `leviathan/src/` — TypeScript reference implementations. Used for cross-checking
-  WASM output. Not ported directly; WASM implementations are derived from specs.
-- `leviathan-wasm/assembly/` — AssemblyScript source. Ported into `src/asm/`
-  with reorganization into per-module directories.
-- `leviathan-wasm/src/wrapper.ts` — TypeScript wrappers. Redesigned in `src/ts/`
-  with the new class names and `init()` architecture.
-- `leviathan-wasm/test/` — original test suite. Ported into `test/unit/` and
-  `test/e2e/` with reorganization into per-module subdirectories.
 
 ## Cross-References
 

@@ -453,6 +453,117 @@ returned.
 Terminates all workers. Rejects all pending and queued jobs. Must be called to
 release worker resources when the pool is no longer needed.
 
+### SerpentStreamSealer / SerpentStreamOpener
+
+Incremental streaming AEAD — seal and open one chunk at a time without holding
+the full message in memory. Unlike `SerpentStream` (which is one-shot),
+`SerpentStreamSealer` produces chunks as data arrives and `SerpentStreamOpener`
+authenticates and decrypts them individually.
+
+**Wire format:**
+```
+header:  nonce (16) || chunkSize_u32be (4)                = 20 bytes
+chunk:   IV (16) || CBC_ciphertext (PKCS7-padded) || HMAC-SHA256 (32)
+```
+
+Per-chunk keys are derived via HKDF-SHA256 from the stream key and a `chunkInfo`
+blob binding the stream nonce, chunk size, chunk index, and `isLast` flag. Each
+chunk is independently authenticated and position-bound — reordering, truncation,
+and cross-stream splicing are all detected.
+
+> [!NOTE]
+> `SerpentStreamSealer` requires a 64-byte key (same as `SerpentSeal`). HKDF
+> derives a fresh `encKey` + `macKey` pair for every chunk.
+
+> [!IMPORTANT]
+> The sealer produces a 20-byte header that **must** be transmitted to the opener
+> before any chunks. The opener is initialized with this header.
+
+```typescript
+class SerpentStreamSealer {
+	constructor(key: Uint8Array, chunkSize?: number)
+	header(): Uint8Array        // call once before seal() — returns 20 bytes
+	seal(plaintext: Uint8Array): Uint8Array   // exactly chunkSize bytes
+	final(plaintext: Uint8Array): Uint8Array  // <= chunkSize bytes; wipes on return
+	dispose(): void             // abort mid-stream; wipes without final chunk
+}
+
+class SerpentStreamOpener {
+	constructor(key: Uint8Array, header: Uint8Array)
+	open(chunk: Uint8Array): Uint8Array  // throws on auth failure or post-final
+	dispose(): void
+}
+```
+
+#### Sealer state machine
+
+| State | Valid calls |
+|---|---|
+| `fresh` | `header()`, `dispose()` |
+| `sealing` | `seal()`, `final()`, `dispose()` |
+| `dead` | `dispose()` (no-op) |
+
+`header()` transitions `fresh → sealing`. `final()` seals the last chunk, wipes
+all key material, and transitions to `dead`. `dispose()` wipes and transitions to
+`dead` from any state — use it to abort a stream before `final()` is called.
+
+Calling `header()` twice, `seal()` before `header()`, or any method after `final()`
+all throw immediately.
+
+#### Opener state machine
+
+The opener is ready as soon as it is constructed. It calls `open()` for each
+chunk in order. Once a chunk with `isLast` set passes authentication, the opener
+wipes its key material and transitions to `dead`. Subsequent `open()` calls throw.
+
+`dispose()` wipes and marks the instance dead from any state.
+
+#### `constructor(key, chunkSize?)`
+
+- **key** — 64-byte key. Throws `RangeError` if wrong length.
+- **chunkSize** — bytes per chunk. Must be 1024–65536. Default: 65536. Throws
+  `RangeError` if out of range.
+
+#### `header()`
+
+Returns the 20-byte stream header (`nonce || u32be(chunkSize)`). Must be called
+once before the first `seal()`. Throws if called a second time or after `final()`.
+
+#### `seal(plaintext)`
+
+Seals one chunk. **Plaintext must be exactly `chunkSize` bytes.** Returns
+`IV (16) || ciphertext || HMAC (32)`. Throws `RangeError` if wrong size. Throws
+if called before `header()` or after `final()`.
+
+#### `final(plaintext)`
+
+Seals the last chunk. Plaintext may be 0–`chunkSize` bytes (partial chunk is
+valid). After producing output, wipes all key material and marks the sealer dead.
+Throws `RangeError` if plaintext exceeds `chunkSize`.
+
+#### `dispose()` (sealer)
+
+Aborts the stream. Wipes key material without producing a final chunk. The opener
+will see an incomplete stream and throw when it detects a missing final chunk.
+Safe to call after `final()` — no-op if already dead.
+
+#### `constructor(key, header)` (opener)
+
+- **key** — 64-byte key. Throws `RangeError` if wrong length.
+- **header** — 20-byte stream header from `sealer.header()`. Throws `RangeError`
+  if wrong length.
+
+#### `open(chunk)`
+
+Authenticates and decrypts one chunk. Throws `Error` on authentication failure.
+Throws `Error` if called after the final chunk has already been opened. Returns
+plaintext bytes (PKCS7 padding stripped).
+
+#### `dispose()` (opener)
+
+Wipes key material. Safe to call at any point — use to abort opening a stream
+early.
+
 ---
 
 ## Usage Examples
@@ -595,7 +706,52 @@ const decrypted  = await pool.open(key, ciphertext);
 pool.dispose(); // terminates workers
 ```
 
-### Example 6: Raw block operations (low-level)
+### Example 6: SerpentStreamSealer / SerpentStreamOpener (incremental streaming)
+
+Use `SerpentStreamSealer` when data arrives in chunks and you cannot buffer the
+entire plaintext before encrypting — network streams, file processors, live feeds.
+
+```typescript
+import { init, SerpentStreamSealer, SerpentStreamOpener, randomBytes } from 'leviathan-crypto';
+
+await init(['serpent', 'sha2']);
+
+const key       = randomBytes(64);  // 64-byte key
+const chunkSize = 65536;            // 64 KB chunks
+
+// ── Seal side ────────────────────────────────────────────────────────────────
+
+const sealer = new SerpentStreamSealer(key, chunkSize);
+const header = sealer.header();  // transmit this to the opener first
+
+// seal() as data arrives — each chunk must be exactly chunkSize bytes
+const chunk0 = sealer.seal(plaintext0);
+const chunk1 = sealer.seal(plaintext1);
+
+// final() for the last chunk — may be shorter than chunkSize
+const lastChunk = sealer.final(lastPlaintext);
+// sealer is now dead — key material wiped
+
+// ── Open side ────────────────────────────────────────────────────────────────
+
+const opener = new SerpentStreamOpener(key, header);
+
+const pt0  = opener.open(chunk0);
+const pt1  = opener.open(chunk1);
+const ptN  = opener.open(lastChunk);  // opener detects isLast, wipes on return
+// opener is now dead
+
+// Truncation and reordering are detected — open() throws on auth failure
+```
+
+To abort a stream mid-way (e.g. on connection drop):
+
+```typescript
+sealer.dispose();  // wipes key material without producing a final chunk
+// opener will throw when it receives no more chunks
+```
+
+### Example 7: Raw block operations (low-level)
 
 Use the `Serpent` class for single 16-byte block operations. This is the lowest
 level API, most users should use `SerpentSeal` instead.
@@ -656,13 +812,26 @@ cipher.dispose();
 | `SerpentStream` authentication failed | `Error` | `SerpentStream: authentication failed` |
 | `SerpentStreamPool.create()` before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent', 'sha2']) before using SerpentStreamPool` |
 | `SerpentStreamPool` methods after `dispose()` | `Error` | `leviathan-crypto: pool is disposed` |
+| `SerpentStreamSealer` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent']) before using SerpentStreamSealer` |
+| `SerpentStreamSealer` key is not 64 bytes | `RangeError` | `SerpentStreamSealer key must be 64 bytes (got N)` |
+| `SerpentStreamSealer` chunkSize out of range | `RangeError` | `SerpentStreamSealer chunkSize must be 1024..65536 (got N)` |
+| `SerpentStreamSealer.header()` called twice | `Error` | `SerpentStreamSealer: header() already called` |
+| `SerpentStreamSealer.seal()` before `header()` | `Error` | `SerpentStreamSealer: call header() first` |
+| `SerpentStreamSealer.seal()` or `final()` after `final()` or `dispose()` | `Error` | `SerpentStreamSealer: stream is closed` |
+| `SerpentStreamSealer.seal()` wrong plaintext size | `RangeError` | `SerpentStreamSealer: seal() requires exactly N bytes (got M)` |
+| `SerpentStreamSealer.final()` plaintext exceeds chunkSize | `RangeError` | `SerpentStreamSealer: final() plaintext exceeds chunkSize (got N)` |
+| `SerpentStreamOpener` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent']) before using SerpentStreamOpener` |
+| `SerpentStreamOpener` key is not 64 bytes | `RangeError` | `SerpentStreamOpener key must be 64 bytes (got N)` |
+| `SerpentStreamOpener` header is not 20 bytes | `RangeError` | `SerpentStreamOpener header must be 20 bytes (got N)` |
+| `SerpentStreamOpener.open()` authentication failed | `Error` | `SerpentStreamOpener: authentication failed` |
+| `SerpentStreamOpener.open()` after stream closed | `Error` | `SerpentStreamOpener: stream is closed` |
 
 ---
 
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
+- [README.md](./README.md) Library documentation index
+- [architecture.md](./architecture.md) Architecture overview
 - [asm_serpent.md](./asm_serpent.md): WASM implementation details and buffer layout
 - [serpent_reference.md](./serpent_reference.md): Algorithm specification and design rationale
 - [serpent_audit.md](./serpent_audit.md): Security audit findings
