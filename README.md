@@ -64,16 +64,18 @@ _No 128 or 192-bit variants mitigates key-size downgrade risk._
 
 ## Primitives
 
-| Module | Classes | Auth | Notes |
-|--------|---------|------|-------|
-| `serpent`, `sha2` | `SerpentSeal` | **Yes** | Authenticated encryption: Serpent-CBC + HMAC-SHA256. Recommended for most use cases. |
-| `serpent`, `sha2` | `SerpentStream`, `SerpentStreamPool` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers. |
-| `serpent`, `sha2` | `SerpentStreamSealer`, `SerpentStreamOpener` | **Yes** | Incremental streaming AEAD: seal and open one chunk at a time without buffering the full message. |
-| `serpent` | `Serpent`, `SerpentCtr`, `SerpentCbc` | **No** | Raw ECB, CTR, CBC modes. Pair with HMAC-SHA256 for authentication. |
-| `chacha20` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | Yes (AEAD) | RFC 8439 |
-| `sha2` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | -- | FIPS 180-4, RFC 2104 |
-| `sha3` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | -- | FIPS 202 |
-| `fortuna` | `Fortuna` | -- | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`. |
+| Classes | Module | Auth | Notes |
+|---------|--------|------|-------|
+| `SerpentSeal` | `serpent`, `sha2` | **Yes** | Authenticated encryption: Serpent-CBC + HMAC-SHA256. Recommended for most use cases. |
+| `SerpentStream`, `SerpentStreamPool` | `serpent`, `sha2` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers. |
+| `SerpentStreamSealer`, `SerpentStreamOpener` | `serpent`, `sha2` | **Yes** | Incremental streaming AEAD: seal and open one chunk at a time without buffering the full message. |
+| `SerpentStreamEncoder`, `SerpentStreamDecoder` | `serpent`, `sha2` | **Yes** | Length-prefixed framing over SerpentStreamSealer/Opener for flat byte streams (files, buffered TCP). |
+| `Serpent`, `SerpentCtr`, `SerpentCbc` | `serpent` | **No** | Raw ECB, CTR, CBC modes. Pair with HMAC-SHA256 for authentication. |
+| `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | `chacha20` | Yes (AEAD) | RFC 8439 |
+| `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | `sha2` | -- | FIPS 180-4, RFC 2104 |
+| `HKDF_SHA256`, `HKDF_SHA512` | `sha2` | -- | Key derivation: RFC 5869. Extract-and-expand over HMAC. |
+| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `sha3` | -- | FIPS 202 |
+| `Fortuna` | `fortuna` | -- | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`. |
 
 >[!IMPORTANT]
 > All cryptographic computation runs in WASM (AssemblyScript), isolated outside the JavaScript JIT.

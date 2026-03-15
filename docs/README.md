@@ -288,4 +288,6 @@ modules' embedded binaries from the bundle entirely.
 
 ## Cross-References
 
-- [architecture.md](./architecture.md)
+Since this file serves as the documentation index, all docs are linked in the
+sections above. See **Getting Started**, **API Reference**, and **Project
+Documentation** for navigation.

@@ -200,6 +200,7 @@ unexpected allocations and makes the memory layout predictable and auditable.
 
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md): Architecture overview
-- [init.md](./init.md): The public `init()` API that uses this loader
+- [README.md](./README.md) — package overview and quick-start guide
+- [architecture.md](./architecture.md) — architecture overview and build pipeline
+- [init.md](./init.md) — the public `init()` API that uses this loader
+- [wasm.md](./wasm.md) — WebAssembly primer: modules, instances, and memory model

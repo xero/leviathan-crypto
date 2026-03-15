@@ -174,8 +174,11 @@ function cleanup(ctx: EncryptionContext): void {
 
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
-- [utils.md](./utils.md): Encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
-- [serpent.md](./serpent.md): Serpent classes implement `Blockcipher` and `Streamcipher`
-- [test-suite.md](./test-suite.md): Test suite documentation
+- [README.md](./README.md) — library documentation index and exports table
+- [architecture.md](./architecture.md) — module structure and correctness contracts
+- [utils.md](./utils.md) — encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
+- [serpent.md](./serpent.md) — Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD`
+- [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 classes implement `Streamcipher` and `AEAD`
+- [sha2.md](./sha2.md) — SHA-2 classes implement `Hash`; HMAC classes implement `KeyedHash`
+- [sha3.md](./sha3.md) — SHA-3 classes implement `Hash`; SHAKE classes extend with XOF API
+- [test-suite.md](./test-suite.md) — test suite structure and vector corpus

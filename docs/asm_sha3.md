@@ -284,7 +284,7 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
 
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
-- [sha3.md](./sha3.md): TypeScript wrapper classes (SHA3_256, SHA3_512, SHAKE128, etc.)
-- [asm_sha2.md](./asm_sha2.md): Alternative hash family (SHA-2/HMAC WASM module)
+- [README.md](./README.md) — library documentation index and exports table
+- [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
+- [sha3.md](./sha3.md) — TypeScript wrapper classes (SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256)
+- [asm_sha2.md](./asm_sha2.md) — alternative hash family (SHA-2/HMAC WASM module)

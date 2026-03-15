@@ -53,7 +53,6 @@ published standard:
 - SHA-3, SHAKE: FIPS 202
 - HMAC: RFC 2104
 - HMAC test vectors: RFC 4231
-- Argon2id: RFC 9106
 
 If any file in this repository states a cryptographic value (hash output, round
 constant, test vector expected value) that differs from the published standard,

@@ -568,7 +568,9 @@ cipher.dispose()
 
 ## Cross-References
 
-- [README.md](./README.md)
+- [README.md](./README.md) — library documentation index and exports table
 - [asm_chacha.md](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-- [serpent.md](./serpent.md) — Alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
+- [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+- [serpent.md](./serpent.md) — alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
 - [sha2.md](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
+- [types.md](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes

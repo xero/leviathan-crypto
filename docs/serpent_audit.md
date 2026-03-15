@@ -631,5 +631,8 @@ The SSL/TLS vulnerability arises because the MAC covers the plaintext (MAC-then-
 
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
+- [README.md](./README.md) — library documentation index and quick-start guide
+- [architecture.md](./architecture.md) — module structure, buffer layouts, and security rationale
+- [serpent.md](./serpent.md) — TypeScript API for Serpent-256 (SerpentSeal, SerpentStream, raw modes)
+- [asm_serpent.md](./asm_serpent.md) — WASM implementation details: bitslice S-boxes, key schedule, buffer layout
+- [serpent_reference.md](./serpent_reference.md) — algorithm specification, S-box tables, linear transform, and known attacks

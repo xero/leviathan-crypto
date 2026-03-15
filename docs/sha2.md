@@ -610,9 +610,11 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 
 ## Cross-References
 
-- [README.md](./README.md): Project overview and quick-start guide
-- [architecture.md](./architecture.md): Library architecture and `init()` API
-- [asm_sha2.md](./asm_sha2.md): WASM implementation details (AssemblyScript)
-- [sha3.md](./sha3.md): Alternative: SHA-3 family (immune to length extension attacks)
-- [serpent.md](./serpent.md): Use HMAC-SHA256 for Encrypt-then-MAC with Serpent-CBC or Serpent-CTR
-- [utils.md](./utils.md): `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
+- [README.md](./README.md) — project overview and quick-start guide
+- [architecture.md](./architecture.md) — library architecture and `init()` API
+- [asm_sha2.md](./asm_sha2.md) — WASM implementation details (AssemblyScript buffer layout, compression functions)
+- [sha3.md](./sha3.md) — alternative: SHA-3 family (immune to length extension attacks)
+- [serpent.md](./serpent.md) — SerpentSeal and SerpentStream use HMAC-SHA256 and HKDF internally
+- [argon2id.md](./argon2id.md) — Argon2id password hashing; HKDF expands Argon2id root keys
+- [fortuna.md](./fortuna.md) — Fortuna CSPRNG uses SHA-256 for entropy accumulation
+- [utils.md](./utils.md) — `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`

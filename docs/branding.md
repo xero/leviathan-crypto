@@ -94,5 +94,5 @@ Source: [logo.svg](./logo.svg)
 
 ## Cross-References
 
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
+- [README.md](./README.md) — library documentation index (uses the ASCII banner in header)
+- [architecture.md](./architecture.md) — library architecture (ASCII art header convention for source files)

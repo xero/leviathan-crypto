@@ -503,9 +503,9 @@ a margin of **20 rounds** — wider than AES-256's 5-round margin. No practical
 attack on full Serpent-256 is known. A correct 32-round implementation can be
 considered cryptographically secure for all foreseeable use cases.
 
-# See Also
+## Cross-References
 
-[serpent_audit.md](./serpent_audit.md) Results of the security and algorithm
-correctness audit of leviathan's Serpent-256 implementation.
-
-[README.md](./README.md)
+- [serpent_audit.md](./serpent_audit.md) — security audit results: algorithm correctness verification and side-channel analysis
+- [serpent.md](./serpent.md) — TypeScript API for Serpent-256 (SerpentSeal, SerpentStream, raw modes)
+- [asm_serpent.md](./asm_serpent.md) — WASM implementation: bitslice S-boxes, key schedule, CTR/CBC in AssemblyScript
+- [README.md](./README.md) — library documentation index and quick-start guide

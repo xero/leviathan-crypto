@@ -385,9 +385,9 @@ serpent_unrolled.ts
 
 ## Cross-References
 
-- [serpent.md](./serpent.md): TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`)
-- [serpent_reference.md](./serpent_reference.md): Algorithm specification, S-box tables, known attacks
-- [serpent_audit.md](./serpent_audit.md): Security audit results (algorithm correctness, side-channel analysis)
-- [asm_sha2.md](./asm_sha2.md): SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
+- [serpent.md](./serpent.md) — TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentSeal`, `SerpentStream`)
+- [serpent_reference.md](./serpent_reference.md) — algorithm specification, S-box tables, linear transform, and known attacks
+- [serpent_audit.md](./serpent_audit.md) — security audit results (algorithm correctness, side-channel analysis)
+- [asm_sha2.md](./asm_sha2.md) — SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
+- [README.md](./README.md) — library documentation index and exports table
+- [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
