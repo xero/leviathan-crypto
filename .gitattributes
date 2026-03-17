@@ -88,10 +88,10 @@ bun.lockb                binary
 # =============================================================================
 
 # Markdown: counts as documentation
-docs/*.md                linguist-vendored=false
-docs/*.md                linguist-generated=false
-docs/*.md                linguist-documentation=true
-docs/*.md                linguist-detectable=true
+docs/**                  linguist-vendored=false
+docs/**                  linguist-generated=false
+docs/**                  linguist-documentation=true
+docs/**                  linguist-detectable=true
 
 # WebAssembly: show WAT source and WASM binary in language stats
 *.wat                    linguist-detectable=true

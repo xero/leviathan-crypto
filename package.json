@@ -3,7 +3,7 @@
   "version": "0.3.6",
   "author": "xero (https://x-e.ro)",
   "license": "MIT",
-  "description": "Cryptography library focused on serpent-256 & xchacha20-poly1305, featuring a strictly typed TypeScript API built on audited and vector-verified WebAssembly primitives",
+  "description": "Zero-dependency WebAssembly cryptography library for TypeScript: Serpent-256, XChaCha20-Poly1305, SHA-2/3, HMAC, HKDF, and Fortuna CSPRNG, with a strictly typed API built on vector-verified primitives.",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -46,7 +46,7 @@
     "assemblyscript": "^0.27.37",
     "eslint": "^10.0.3",
     "jiti": "^2.6.1",
-    "pin-github-action": "latest",
+    "pin-github-action": "^3.4.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.1",
