@@ -1,0 +1,75 @@
+name: publish
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # gh release creation
+  id-token: write  # npm publish provenance
+
+jobs:
+  shipit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0  # full history required for changelog tag range
+
+      - name: setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+
+      - name: setup node (for npm publish)
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: install dependencies
+        run: bun i
+
+      - name: build
+        run: bun run build
+
+      - name: publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: generate changelog
+        id: changelog
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          # run changelog script — exits 1 if breaking changes detected
+          set +e
+          NOTES=$(bunx tsx scripts/gen-changelog.ts "$TAG")
+          BREAKING=$?
+          set -e
+
+          # write notes to a temp file (avoids shell quoting issues with multiline)
+          echo "$NOTES" > /tmp/release-notes.md
+
+          echo "breaking=$BREAKING" >> $GITHUB_OUTPUT
+
+      - name: create github release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          BREAKING="${{ steps.changelog.outputs.breaking }}"
+
+          # prepend warning banner to release title if breaking
+          if [ "$BREAKING" = "1" ]; then
+            TITLE="⚠️ $TAG — Breaking Changes"
+          else
+            TITLE="$TAG"
+          fi
+
+          gh release create "$TAG" \
+            --title "$TITLE" \
+            --notes-file /tmp/release-notes.md \
+            --verify-tag

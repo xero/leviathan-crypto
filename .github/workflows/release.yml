@@ -1,0 +1,52 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0  # full history required for changelog tag range
+
+      - name: setup node (for npm whoami + npm version)
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+
+      # gate: verify token is valid before doing anything
+      - name: verify npm token
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: configure git identity
+        run: |
+          git config user.name  "leviathan-cicd[bot]"
+          git config user.email "leviathan-cicd[bot]@users.noreply.github.com"
+
+      # bump package.json, commit, and create tag — all in one command
+      # --no-git-tag-version is NOT used here; we want npm to create the tag
+      - name: bump version
+        run: |
+          npm version ${{ inputs.bump }} -m "chore(release): v%s"
+          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: push commit and tag
+        run: |
+          git push origin main
+          git push origin v${{ env.VERSION }}

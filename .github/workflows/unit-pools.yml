@@ -1,0 +1,24 @@
+name: unit-pools
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+      - name: install dependencies
+        run: bun i
+      - name: build wasm + embedded modules
+        run: bun run build:asm && bun run build:embed
+      - name: run pool tests
+        run: >
+          bun vitest run --reporter=verbose --no-coverage
+          test/unit/chacha20/pool.test.ts
+          test/unit/serpent/serpent_stream_pool.test.ts

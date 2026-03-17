@@ -1,0 +1,174 @@
+# Leviathan Crypto Library Security Policy
+
+## Supported Versions
+
+| Version | Supported |
+|---------|-----------|
+| v1.x    | ✓         |
+
+> [!NOTE]
+> v1.0.0 is the current stable release.
+> This table will be updated as new versions ship.
+
+## Security Posture
+
+leviathan-crypto is a cryptography library. Security is not an afterthought,
+it is the primary design constraint at every layer of the stack.
+
+### Algorithm Correctness
+
+Every primitive in this library was implemented by hand in AssemblyScript
+against the authoritative specification for that algorithm:
+[FIPS 180-4][fips180] (SHA-2), [FIPS 202][fips202] (SHA-3),
+[RFC 8439][rfc8439] (ChaCha20-Poly1305), [RFC 2104][rfc2104] (HMAC),
+[RFC 5869][rfc5869] (HKDF), and the original
+[Serpent-256 specification][serpent] and S-box reference. No algorithm was
+ported from an existing implementation — the specs are the source of truth.
+
+All implementations are verified against published known-answer test vectors
+from NIST, RFC appendices, NESSIE, and the Argon2 reference suite. Vectors
+are immutable: if an implementation produces incorrect output, the
+implementation is fixed — vectors are never adjusted to match code.
+
+### Side-Channel Resistance
+
+Serpent's S-boxes are implemented as Boolean gate circuits — no table
+lookups, no data-dependent memory access, no data-dependent branches. Every
+bit is processed unconditionally on every block. This is the most
+timing-safe cipher implementation approach available in a WASM runtime,
+where JIT optimisation can otherwise introduce observable timing variation.
+
+All security-sensitive comparisons (MAC verification, padding validation)
+use XOR-accumulate patterns with no early return on mismatch.
+[`constantTimeEqual`][utils] is the mandated comparison function throughout
+the library and its demos.
+
+### WASM Execution Model
+
+All cryptographic computation runs in WebAssembly, isolated outside the
+JavaScript JIT. WASM execution is deterministic and not subject to JIT
+speculation or optimisation. Each primitive family compiles to its own
+isolated binary with its own linear memory — key material in the Serpent
+module cannot interact with memory in the SHA-3 module even in principle.
+
+### Cryptanalytic Review
+
+The security margin of Serpent-256 has been independently researched and
+documented. The best known attack on the full 32-round cipher — biclique
+cryptanalysis — achieves a complexity of 2²⁵⁵·¹⁹ with 2⁴ chosen
+ciphertexts. This provides less than one bit of advantage over exhaustive
+key search and has zero practical impact. Independent research conducted
+against this implementation improved on the published result by −0.20 bits
+through systematic parameter search, confirming no structural weakness
+beyond what the published literature describes.
+
+See: [`xero/BicliqueFinder/biclique_research.md`][biclique] and
+[`leviathan-crypto/wiki/serpent_audit`][serpent-audit] for the full
+analysis.
+
+### Authenticated Encryption by Default
+
+Raw unauthenticated cipher modes (`SerpentCbc`, `SerpentCtr`) are exposed
+for power users but are not the recommended entry point. The primary API
+surfaces — `SerpentSeal`, `SerpentStream`, `SerpentStreamSealer` — are
+authenticated by construction. `SerpentStreamSealer` satisfies the
+Cryptographic Doom Principle: MAC verification is the unconditional gate on
+the open path, decryption is unreachable until that gate clears, and
+per-chunk HKDF key derivation with position-bound info extends this
+guarantee to full stream integrity.
+
+### Dependency Management
+
+The library has _zero_ runtime JavaScript dependencies by design.
+`sideEffects: false` is enforced in `package.json`. Argon2id integration
+is documented as an optional external dependency.
+See:" [`leviathan-crypto/wiki/argon2id`][argon2id-wiki].
+
+Build toolchain dependencies are pinned with exact version locks in
+`bun.lock`. GitHub Actions workflows use SHA-pinned action references
+throughout with no floating tags. Supply chain integrity is treated as a
+first-class concern for a cryptography library.
+
+### Explicit Initialisation
+
+No class silently auto-initialises. The [`init()`][init] gate is mandatory and
+explicit, giving consumers full control over when WASM modules are loaded
+and ensuring no hidden initialisation costs or race conditions. Classes
+throw immediately if used before initialisation rather than failing
+silently.
+
+### Agentic Development Contracts
+
+All AI-assisted development on this repository operates under a strict
+agentic contract defined in [`AGENTS.md`][agents]. The contract enforces
+spec authority over planning documents, immutable test vectors, gate
+discipline before extending any test suite, independent algorithm
+derivation from published standards, and constant-time/wipe requirements
+for all security-sensitive code paths. Agents are explicitly prohibited
+from guessing cryptographic values or resolving spec ambiguities silently.
+
+The contract has been verified against Claude, GitHub Copilot (VS Code),
+OpenHands, Kilo Code, Cursor, Windsurf, and Aider. Configuration files for
+each are present in the repository and all route to [`AGENTS.md`][agents]
+as the single source of authority.
+
+---
+
+## Reporting a Vulnerability
+
+> [!IMPORTANT]
+> **_Please do not open a public issue for security vulnerabilities._**
+
+### Private Advisory (preferred)
+
+Use GitHub's private vulnerability reporting form:
+[https://github.com/xero/leviathan-crypto/security/advisories/new][advisory]
+
+This opens a private channel between you and the maintainer. You will
+receive a response ASAP. If the vulnerability is confirmed, a fix will be
+prioritised and a coordinated disclosure timeline agreed upon before any
+public advisory is published.
+
+### Direct Contact
+
+If you prefer to contact the maintainer directly:
+
+- **Email:** x﹫xero.style — PGP: [`0xAC1D0000`][pgp]
+- **Matrix:** x0﹫rx.haunted.computer
+
+> [!NOTE]
+> Encrypted communication is welcome and _preferred_ for sensitive reports.
+
+### Scope
+
+Reports are in scope for:
+
+- Correctness bugs in cryptographic implementations (wrong output against
+  test vectors)
+- Side-channel vulnerabilities (timing, memory access patterns)
+- Authentication bypass in AEAD constructions
+- Key material exposure or improper zeroing
+- Supply chain issues (dependency tampering, workflow compromise)
+
+Out of scope:
+
+- Unpatched vulnerabilities in third-party packages not maintained by this
+  project
+- Issues requiring physical access to the user's device
+
+---
+
+[fips180]:       https://csrc.nist.gov/publications/detail/fips/180/4/final
+[fips202]:       https://csrc.nist.gov/publications/detail/fips/202/final
+[rfc8439]:       https://www.rfc-editor.org/rfc/rfc8439
+[rfc2104]:       https://www.rfc-editor.org/rfc/rfc2104
+[rfc5869]:       https://www.rfc-editor.org/rfc/rfc5869
+[serpent]:       https://www.cl.cam.ac.uk/~rja14/Papers/serpent.pdf
+[utils]:         https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal
+[biclique]:      https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md
+[serpent-audit]: https://github.com/xero/leviathan-crypto/wiki/serpent_audit
+[argon2id-wiki]: https://github.com/xero/leviathan-crypto/wiki/argon2id
+[init]:          https://github.com/xero/leviathan-crypto/wiki/init
+[agents]:        https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md
+[advisory]:      https://github.com/xero/leviathan-crypto/security/advisories/new
+[pgp]:           https://0w.nz/pgp.pub

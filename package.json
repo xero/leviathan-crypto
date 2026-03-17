@@ -1,0 +1,87 @@
+{
+  "name": "leviathan-crypto",
+  "version": "0.3.6",
+  "author": "xero (https://x-e.ro)",
+  "license": "MIT",
+  "description": "Cryptography library focused on serpent-256 & xchacha20-poly1305, featuring a strictly typed TypeScript API built on audited and vector-verified WebAssembly primitives",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js",
+    "./serpent": "./dist/serpent/index.js",
+    "./chacha20": "./dist/chacha20/index.js",
+    "./chacha20/pool": "./dist/chacha20/pool.js",
+    "./sha2": "./dist/sha2/index.js",
+    "./sha3": "./dist/sha3/index.js"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "SECURITY.md",
+    "CLAUDE.md"
+  ],
+  "scripts": {
+    "build:asm": "node scripts/build-asm.js",
+    "build:embed": "npx tsx scripts/embed-wasm.ts",
+    "build:ts": "tsc",
+    "build": "rm -rf src/ts/embedded/* dist && npm run build:asm && npm run build:embed && npm run build:ts && cp build/*.wasm dist/ 2>/dev/null || true && cp docs/CLAUDE_consumer.md CLAUDE.md && npm run build:docs",
+    "test": "npm run build:asm && npm run build:embed && vitest run",
+    "test:browser": "npm run build && playwright test",
+    "test:all": "npm run test && npm run test:browser",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "_shorthand": "# aliases: 'bun bake' = build, 'bun fix' = lint:fix, 'bun check' = test:all",
+    "bake": "npm run build",
+    "fix": "npm run lint:fix",
+    "check": "npm run test:all",
+    "build:docs": "npx tsx scripts/copy-docs.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0",
+    "@vitest/web-worker": "^3.2.4",
+    "assemblyscript": "^0.27.37",
+    "eslint": "^10.0.3",
+    "jiti": "^2.6.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^3.2.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xero/leviathan-crypto.git"
+  },
+  "homepage": "https://github.com/xero/leviathan-crypto/wiki",
+  "bugs": {
+    "url": "https://github.com/xero/leviathan-crypto/issues"
+  },
+  "keywords": [
+    "cryptography",
+    "encryption",
+    "serpent",
+    "serpent-256",
+    "cipher",
+    "crypto",
+    "typescript",
+    "wasm",
+    "webassembly",
+    "chacha20",
+    "xchacha20",
+    "poly1305",
+    "xchacha20-poly1305",
+    "aead",
+    "sha",
+    "sha-256",
+    "sha-512",
+    "sha-3",
+    "keccak",
+    "shake",
+    "hmac",
+    "hkdf",
+    "fortuna",
+    "csprng",
+    "entropy"
+  ]
+}

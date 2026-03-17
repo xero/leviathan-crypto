@@ -1,0 +1,61 @@
+name: publish wiki
+on:
+  # auto-runs on changes to the docs folder in the main branch
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+jobs:
+  sync-docs:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          path: repo
+      - name: checkout wiki
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          token: ${{ secrets.CICD_TOKEN }}
+      - name: configure git
+        run: |
+          # get the last commit author name and email
+          cd repo
+          COMMIT_NAME="${{ github.event.head_commit.author.name }}"
+          COMMIT_EMAIL="${{ github.event.head_commit.author.email }}"
+          # default to actor name if head_commit info is not available (e.g. onDispatch)
+          if [ -z "$COMMIT_NAME" ]; then
+            COMMIT_NAME="${{ github.actor }}"
+            COMMIT_EMAIL="${{ github.actor }}@users.noreply.github.com"
+          fi
+          git config --global user.name "$COMMIT_NAME"
+          git config --global user.email "$COMMIT_EMAIL"
+          cd ..
+      - name: sync docs to wiki
+        run: |
+          # copy docs to wiki
+          cp -r repo/docs/* wiki/
+          cd wiki
+          # update footer
+          echo "## &copy; $(date +"%Y") : [Leviathan Crypto Project](https://github.com/xero/leviathan-crypto)" > _Footer.md
+          # update sidebar
+          echo -e '## **Leviathan-Crypto Wiki**\n\n<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="150">\n\n## API Reference\n\n### Core\n- [`init()` API](init)\n- [Subpath inits](init.md#initmodules-mode-opts--public-api-exported-from-root-barrel)\n	-`serpentInit`, `sha2Init`, `sha3Init`, `chacha20Init`\n- [WASM binary loading](loader)\n\n### Symmetric Ciphers\n- Serpent-256 [TypeScript](serpent) | [WASM](./asm_serpent)\n	- `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `SerpentStreamEncoder`, `SerpentStreamDecoder`,  `Serpent`, `SerpentCtr`, `SerpentCbc`\n- ChaCha20 [TypeScript](chacha20) | [WASM](./asm_chacha)\n	-	`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`\n\n### Hashing\n- SHA-2 [TypeScript](sha2) | [WASM](./asm_sha2)\n	- `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`\n- SHA-3 [TypeScript](sha3) | [WASM](./asm_sha3)\n	- `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`\n\n### Utilities\n- [Fortuna CSPRNG](fortuna)\n- [Utils](utils)\n	- Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`\n- [TypeScript interfaces](types) \n	- `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`\n\n## Auxiliary\n- [Library Architecture](architecture)\n- [Test suite & vector corpus](test-suite)\n- [Project branding guide](branding)\n- [Serpent-256 security audit](serpent_audit)\n- [Serpent algorithm reference](serpent_reference)\n- [WASM primer](wasm)\n- [Argon2id](argon2id)\n' > _Sidebar.md
+          git add _Footer.md _Sidebar.md
+          # rename index file
+          mv README.md Home.md
+          # change README to Home in all docs
+          find . -name "*.md" -exec perl -pi -e 's/\]\((?!https?:\/\/)([^)]*?)README\.md([#][^)]+)?\)/](${1}Home.md$2)/g' {} \;
+          # fix internal markdown linx (remove .md extension)
+          find . -name "*.md" -exec perl -pi -e 's/\]\((?!https?:\/\/)([^)]+)\.md([#][^)]+)?\)/](\1\2)/g' {} \;
+          git add .
+          if git diff --staged --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "docs(wiki): sync :recycle:"
+          git push

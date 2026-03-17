@@ -1,0 +1,6 @@
+# leviathan-crypto — Aider Configuration
+
+# Read AGENTS.md before every session.
+# It is the canonical contract for all AI-assisted development on this project.
+read:
+  - AGENTS.md

@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"noEmit": true
+	},
+	"include": [
+		"src/ts/**/*.ts",
+		"test/unit/**/*.ts",
+		"test/vectors/**/*.ts"
+	],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"docs",
+		"src/asm"
+	]
+}
