@@ -4,7 +4,7 @@
 > **Conducted:** Week of 2026-03-09
 > **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
 > **Reference implementations:**
-> - Serpent AES submission C code (`floppy1/serpent-reference.c`, Frank Stajano)
+> - Serpent AES submission C code ([`floppy1/serpent-reference.c`](https://github.com/xero/leviathan-crypto/blob/floppy1/serpent-reference.c), Frank Stajano)
 > - `leviathan` TypeScript implementation (prior audit baseline)
 >
 > **Spec:** Serpent AES submission, Anderson/Biham/Knudsen 1998
@@ -41,6 +41,15 @@
     - [Best Known Result](#best-known-result)
     - [Structural Conclusions](#structural-conclusions)
     - [Assessment](#assessment)
+
+---
+
+> [!NOTE]
+> A complete mirror of the AES submission floppy1 package is preserved on the
+> [`floppy1`](https://github.com/xero/leviathan-crypto/tree/floppy1) branch,
+> including the original test vectors, reference implementation, and S-box
+> tables. Also included is the `ctr_harness` we developed for CTR mode vector
+> generation, a self-generated tool with no external authority.
 
 ---
 
