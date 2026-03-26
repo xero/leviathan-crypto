@@ -35,6 +35,9 @@ jobs:
       - name: build
         run: bun run build
 
+      - name: strip devDependencies from published manifest
+        run: npm pkg delete devDependencies
+
       - name: pack
         run: npm pack
 

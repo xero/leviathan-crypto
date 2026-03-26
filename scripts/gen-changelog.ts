@@ -32,19 +32,28 @@
 //   stdout  — markdown changelog
 //   exit 1  — if breaking changes detected (for CI warning banner logic)
 //   exit 0  — clean release
+//
+// Commit footer conventions parsed:
+//   Closes/Fixes/Fix/Fixed/Close/Closed #NNN  = linked issue
+//   PR: #NNN                                  = originating pull request
+//   Co-authored-by: Name <user@users.noreply.github.com>  = contributor
 
 import { execSync } from 'node:child_process';
 
 // ── types ──────────────────────────────────────────────────────────────────
 
 interface Commit {
-	hash:     string;
-	subject:  string;
-	type:     string;
-	scope:    string;
-	breaking: boolean;
-	desc:     string;
-	raw:      string;
+	hash:         string;
+	subject:      string;
+	type:         string;
+	scope:        string;
+	breaking:     boolean;
+	desc:         string;
+	raw:          string;
+	body:         string;
+	issue:        string;
+	pr:           string;
+	contributors: string[];
 }
 
 // ── constants ──────────────────────────────────────────────────────────────
@@ -63,60 +72,64 @@ const SECTIONS: { key: string; label: string; symbol: string }[] = [
 	{ key: 'chore',     label: 'Chores',           symbol: '𛲜' },
 	{ key: 'docs',      label: 'Documentation',    symbol: '🖹' },
 	{ key: 'test',      label: 'Tests',            symbol: '🗹' },
-	{ key: 'other',     label: 'Other',            symbol: '�' },
+	{ key: 'other',     label: 'Other',            symbol: '◈' },
 ];
 
-const BUILD_TYPES      = new Set(['build', 'ci']);
-const CHORE_CI_SCOPES  = new Set(['cicd', 'ci', 'cd']);
+const BUILD_TYPES     = new Set(['build', 'ci']);
+const CHORE_CI_SCOPES = new Set(['cicd', 'ci', 'cd']);
 
 // ── git helpers ────────────────────────────────────────────────────────────
 
-const run = (cmd: string):string => {
-	return execSync(cmd, { encoding: 'utf8' }).trim();
+const run = (cmd: string): string => execSync(cmd, { encoding: 'utf8' }).trim();
+
+const getRepoUrl = (): string | null => {
+	try {
+		const r = run('git remote get-url origin');
+		const m = r.match(/(?:git@github\.com:|https:\/\/github\.com\/)(.+?)(?:\.git)?$/);
+		return m ? `https://github.com/${m[1]}` : null;
+	} catch { return null; }
 }
 
-const getPrevTag = (currentTag: string):string | null => {
+const getPrevTag = (tag: string): string | null => {
 	try {
-		// --merged: only tags reachable from currentTag (ancestors only — no future tags)
-		// --sort=-version:refname: semantic version descending order
-		const tags = run(`git tag --merged ${currentTag} --sort=-version:refname`)
-			.split('\n')
-			.map(t => t.trim())
-			.filter(t => /^v\d/.test(t) && t !== currentTag);
+		const tags = run(`git tag --merged ${tag} --sort=-version:refname`)
+			.split('\n').map(t => t.trim()).filter(t => /^v\d/.test(t) && t !== tag);
 		return tags[0] ?? null;
-	} catch {
-		return null;
-	}
+	} catch { return null; }
 }
 
-const getCommits = (range: string):string[] => {
+// use ASCII field/record separators to safely split hash, subject, body
+const getRawCommits = (range: string): Array<{hash: string; subject: string; body: string}> => {
 	try {
-		const out = run(`git log ${range} --pretty=format:"%H %s"`);
-		return out ? out.split('\n').filter(Boolean) : [];
-	} catch {
-		return [];
-	}
+		const out = run(`git log ${range} --pretty=format:"%H%x1f%s%x1f%b%x1e"`);
+		if (!out) return [];
+		return out.split('\x1e').filter(Boolean).map(r => {
+			const [hash, subject, body = ''] = r.split('\x1f');
+			return { hash: hash.trim(), subject: subject.trim(), body: body.trim() };
+		});
+	} catch { return []; }
 }
 
 // ── commit parsing ─────────────────────────────────────────────────────────
 
-const parseCommit = (line: string):Commit => {
-	const spaceIdx = line.indexOf(' ');
-	const hash     = line.slice(0, spaceIdx);
-	const subject  = line.slice(spaceIdx + 1);
+// prefer github username from noreply email, fallback to first name token
+const parseContributor = (name: string, email: string): string =>
+	email.match(/^([^@+]+)(?:\+[^@]+)?@users\.noreply\.github\.com$/)?.[1] ?? name.split(' ')[0];
+
+const parseCommit = ({ hash, subject, body }: {hash: string; subject: string; body: string}): Commit => {
 	const hasBreakingKeyword = /\bBREAKING\b/.test(subject);
+	const m            = CC_RE.exec(subject);
+	const issue        = body.match(/^(?:Fix(?:e[sd])?|Clos(?:e[sd]?)) #(\d+)/im)?.[1] ?? '';
+	const pr           = body.match(/^PR:\s*#(\d+)/im)?.[1] ?? '';
+	const contributors = [...body.matchAll(/^Co-authored-by:\s*(.+?)\s*<([^>]+)>/gim)]
+		.map(a => parseContributor(a[1], a[2]));
 
-	const m = CC_RE.exec(subject);
-	if (!m) {
-		return { hash, subject, type: 'other', scope: '', breaking: hasBreakingKeyword, desc: subject, raw: subject };
-	}
-
+	if (!m) return { hash, subject, type: 'other', scope: '', breaking: hasBreakingKeyword, desc: subject, raw: subject, body, issue, pr, contributors };
 	const [, type, scope = '', bang, desc] = m;
-	const breaking = !!bang || hasBreakingKeyword;
-	return { hash, subject, type, scope, breaking, desc, raw: subject };
+	return { hash, subject, type, scope, breaking: !!bang || hasBreakingKeyword, desc, raw: subject, body, issue, pr, contributors };
 }
 
-const sectionKey = (c: Commit):string => {
+const sectionKey = (c: Commit): string => {
 	if (c.breaking) return 'breaking';
 	if (BUILD_TYPES.has(c.type)) return 'build';
 	if (c.type === 'chore' && CHORE_CI_SCOPES.has(c.scope.toLowerCase())) return 'build';
@@ -126,11 +139,25 @@ const sectionKey = (c: Commit):string => {
 
 // ── formatting ─────────────────────────────────────────────────────────────
 
-const formatCommit = (c: Commit):string => {
-	if (c.type === 'other' && !CC_RE.test(c.raw)) return `- ${c.raw}`;
+const commitSymbol = (c: Commit): string =>
+	c.breaking ? '⚠' : (SECTIONS.find(s => s.key === sectionKey(c))?.symbol ?? '◈');
+
+const tableRow = (c: Commit, repoUrl: string | null): string => {
 	const scopePart = c.scope ? `(${c.scope})` : '';
-	const bangPart  = c.breaking && sectionKey(c) === 'breaking' ? '!' : '';
-	return `- **${c.type}${scopePart}${bangPart}:** ${c.desc}`;
+	const bangPart  = c.breaking ? '!' : '';
+	const base      = c.type === 'other' && !CC_RE.test(c.raw)
+		? c.raw
+		: `${c.type}${scopePart}${bangPart}: ${c.desc}`;
+	const commit    = c.breaking ? `**${base}**` : base;
+
+	const short    = c.hash.slice(0, 7);
+	const hashLink = repoUrl ? `[${short}](${repoUrl}/commit/${c.hash})` : short;
+	const meta     = [`↗ ${hashLink}`];
+	if (c.issue) meta.push(repoUrl ? `[#${c.issue}](${repoUrl}/issues/${c.issue})` : `#${c.issue}`);
+	if (c.pr)    meta.push(repoUrl ? `[!${c.pr}](${repoUrl}/pull/${c.pr})` : `!${c.pr}`);
+	for (const u of c.contributors) meta.push(`[@${u}](https://github.com/${u})`);
+
+	return `| ${commitSymbol(c)} | ${commit} | ${meta.join(' · ')} |`;
 }
 
 // ── main ───────────────────────────────────────────────────────────────────
@@ -141,27 +168,26 @@ if (!currentTag) {
 	process.exit(2);
 }
 
+const repoUrl    = getRepoUrl();
 const prevTag    = getPrevTag(currentTag);
 const range      = prevTag ? `${prevTag}..${currentTag}` : currentTag;
 const rangeLabel = prevTag ? `${prevTag}...${currentTag}` : 'initial release';
-const rawLines   = getCommits(range);
+const compareUrl = repoUrl && prevTag ? `${repoUrl}/compare/${rangeLabel}` : null;
+const rangeLink  = compareUrl ? `[${rangeLabel}](${compareUrl})` : rangeLabel;
+const rawCommits = getRawCommits(range);
 
-if (rawLines.length === 0) {
+if (rawCommits.length === 0) {
 	process.stdout.write(`## ${currentTag}\n\nNo commits in this release.\n`);
 	process.exit(0);
 }
 
-const commits  = rawLines.map(parseCommit);
-const grouped  = new Map<string, Commit[]>();
-for (const s of SECTIONS) grouped.set(s.key, []);
-for (const c of commits) grouped.get(sectionKey(c))?.push(c);
-
-const hasBreaking = (grouped.get('breaking') ?? []).length > 0;
+const commits     = rawCommits.map(parseCommit);
+const hasBreaking = commits.some(c => c.breaking);
 
 const lines: string[] = [];
 lines.push(`## ${currentTag}`);
 lines.push('');
-lines.push(`_${rawLines.length} commit${rawLines.length === 1 ? '' : 's'} since ${prevTag ?? 'beginning'} · [${rangeLabel}]_`);
+lines.push(`_${rawCommits.length} commit${rawCommits.length === 1 ? '' : 's'} since ${prevTag ?? 'beginning'} · ${rangeLink}_`);
 lines.push('');
 
 if (hasBreaking) {
@@ -170,14 +196,17 @@ if (hasBreaking) {
 	lines.push('');
 }
 
-for (const { key, label, symbol: emoji } of SECTIONS) {
-	const entries = grouped.get(key) ?? [];
-	if (entries.length === 0) continue;
-	lines.push(`### ${emoji} ${label}`);
-	lines.push('');
-	for (const c of entries) lines.push(formatCommit(c));
-	lines.push('');
-}
+lines.push('| Type | Commit | Meta |');
+lines.push('| :---: | :--- | :--- |');
+for (const c of commits) lines.push(tableRow(c, repoUrl));
+
+lines.push('');
+lines.push('<details><summary>legend</summary>');
+lines.push('');
+for (const { symbol, label, key } of SECTIONS)
+	lines.push(`- ${symbol} **${label}** — \`${key === 'breaking' ? 'breaking change' : key}\``);
+lines.push('');
+lines.push('</details>');
 
 process.stdout.write(lines.join('\n'));
 process.exit(hasBreaking ? 1 : 0);
