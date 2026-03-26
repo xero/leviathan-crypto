@@ -264,7 +264,7 @@ console.log(combined.length) // 32
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — module structure and security rationale
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [serpent.md](./serpent.md) — Serpent modes consume keys from `randomBytes`; wrappers use `wipe` and `constantTimeEqual`
 > - [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 classes use `randomBytes` for nonce generation
 > - [sha2.md](./sha2.md) — SHA-2 and HMAC classes; output often converted with `bytesToHex`

@@ -903,7 +903,7 @@ cipher.dispose();
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [asm_serpent.md](./asm_serpent.md) — WASM implementation details and buffer layout
 > - [serpent_reference.md](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
 > - [serpent_audit.md](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)

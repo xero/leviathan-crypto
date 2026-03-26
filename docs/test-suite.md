@@ -147,7 +147,7 @@
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — library architecture, module structure, and correctness contracts
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [serpent.md](./serpent.md) — Serpent-256 TypeScript API (tested primitives)
 > - [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
 > - [sha2.md](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)

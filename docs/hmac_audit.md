@@ -316,7 +316,7 @@ Each chunk gets independent encryption and MAC keys derived from `(masterKey, st
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md)
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [sha2_audit.md](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
 > - [hkdf_audit.md](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
 > - [serpent_audit.md](./serpent_audit.md) — HMAC-SHA256 used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)

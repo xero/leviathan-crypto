@@ -189,7 +189,7 @@ function cleanup(ctx: EncryptionContext): void {
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — module structure and correctness contracts
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [utils.md](./utils.md) — encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
 > - [serpent.md](./serpent.md) — Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD`
 > - [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 classes implement `Streamcipher` and `AEAD`

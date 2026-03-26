@@ -303,4 +303,4 @@ const result = concat(chunk1, chunk2)
 > - [asm_chacha.md](./asm_chacha.md) — WASM implementation details (quarter-round, Poly1305 accumulator, HChaCha20)
 > - [wasm.md](./wasm.md) — WebAssembly primer: how one compiled module spawns many worker instances
 > - [fortuna.md](./fortuna.md) — another class using the `static async create()` factory pattern
-> - [architecture.md](./architecture.md) — library architecture and module relationships
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

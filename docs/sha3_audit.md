@@ -12,7 +12,7 @@
   - [1.1 State Layout and Lane Indexing](#11-state-layout-and-lane-indexing)
   - [1.2 Theta](#12-theta)
   - [1.3 Rho](#13-rho)
-  - [1.4 Rho+Pi (combined)](#14-pi)
+  - [1.4 Rho+Pi (combined)](#14-rhopi-combined)
   - [1.5 Chi](#15-chi)
   - [1.6 Iota](#16-iota)
   - [1.7 Round Count](#17-round-count)
@@ -143,7 +143,7 @@ The `rot64()` function (`keccak.ts:78–80`) implements left rotation as `(v << 
 
 ---
 
-### 1.4 Pi
+### 1.4 Rho+Pi (combined)
 
 (`keccak.ts:133–161`, combined with rho)
 
@@ -525,7 +525,7 @@ A cryptanalytic breakthrough against one family does not imply weakness in the o
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md)
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [sha2_audit.md](./sha2_audit.md) — SHA-2 companion audit (independent construction)
 > - [hmac_audit.md](./hmac_audit.md) — HMAC uses SHA-2 (not SHA-3)
 > - [hkdf_audit.md](./hkdf_audit.md) — HKDF uses SHA-2 (not SHA-3)

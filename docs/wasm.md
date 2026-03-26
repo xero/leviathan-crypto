@@ -186,8 +186,7 @@ See [init.md](./init.md) for the full API.
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — module structure, buffer layouts,
->   security rationale
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [init.md](./init.md) — `init()` API and the three loading modes
 > - [loader.md](./loader.md) — how WASM binaries are loaded and instantiated
 > - [chacha20_pool.md](./chacha20_pool.md) — example of one compiled module

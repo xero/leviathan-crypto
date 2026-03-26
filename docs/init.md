@@ -304,5 +304,5 @@ if (!isInitialized('sha2')) {
 >
 > - [README.md](./README.md) — project overview and quick-start guide
 > - [loader.md](./loader.md) — WASM binary loading strategies (internal details)
-> - [architecture.md](./architecture.md) — architecture overview, module structure, and build pipeline
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [wasm.md](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate

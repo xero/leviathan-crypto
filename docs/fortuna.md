@@ -314,7 +314,7 @@ to read the spec:
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md): Library architecture and module relationships
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [serpent.md](./serpent.md): Serpent-256 TypeScript API (Fortuna uses Serpent ECB internally)
 > - [sha2.md](./sha2.md): SHA-256 TypeScript API (Fortuna uses SHA-256 for entropy accumulation)
 > - [asm_serpent.md](./asm_serpent.md): Serpent-256 WASM implementation details

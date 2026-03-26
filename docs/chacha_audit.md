@@ -531,7 +531,7 @@ Both approaches provide equivalent chunk-binding security. The ChaCha20 approach
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md)
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [serpent_audit.md](./serpent_audit.md) — Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties)
 > - [sha2_audit.md](./sha2_audit.md) — SHA-256 / HMAC-SHA256 audit
 > - [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit

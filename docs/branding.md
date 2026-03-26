@@ -95,4 +95,4 @@ Source: [logo.svg](./logo.svg)
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — library architecture (ASCII art header convention for source files)
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

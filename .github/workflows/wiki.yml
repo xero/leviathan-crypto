@@ -1,6 +1,6 @@
 name: publish wiki
 on:
-  # auto-runs on changes to the docs folder in the main branch
+  # auto-runs on changes to the main branch docs folder
   push:
     branches: [ main ]
     paths:
@@ -9,7 +9,7 @@ on:
 jobs:
   sync-docs:
     permissions:
-      contents: read
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
@@ -22,6 +22,7 @@ jobs:
           repository: ${{ github.repository }}.wiki
           path: wiki
           token: ${{ secrets.CICD_TOKEN }}
+          persist-credentials: true
       - name: configure git
         run: |
           # get the last commit author name and email
@@ -42,10 +43,11 @@ jobs:
           cp -r repo/docs/* wiki/
           cd wiki
           # update footer
-          echo "## &copy; $(date +"%Y") : [Leviathan Crypto Project](https://github.com/xero/leviathan-crypto)" > _Footer.md
+          y=$(date +%Y); r=""; v=(1000 900 500 400 100 90 50 40 10 9 5 4 1); s=(M CM D CD C XC L XL X IX V IV I)
+          for i in "${!v[@]}"; do while (( y >= v[i] )); do r+="${s[i]}"; y=$(( y - v[i] )); done; done
+          echo "## &copy; $r : [Leviathan Crypto Library](https://github.com/xero/leviathan-crypto)" > _Footer.md
           # update sidebar
-          echo -e '## **Leviathan-Crypto Wiki**\n\n<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="150">\n\n## API Reference\n\n### Core\n- [`init()` API](init)\n- [Subpath inits](init.md#initmodules-mode-opts--public-api-exported-from-root-barrel)\n	-`serpentInit`, `sha2Init`, `sha3Init`, `chacha20Init`\n- [WASM binary loading](loader)\n\n### Symmetric Ciphers\n- Serpent-256 [TypeScript](serpent) | [WASM](./asm_serpent)\n	- `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `SerpentStreamEncoder`, `SerpentStreamDecoder`,  `Serpent`, `SerpentCtr`, `SerpentCbc`\n- ChaCha20 [TypeScript](chacha20) | [WASM](./asm_chacha)\n	-	`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`\n\n### Hashing\n- SHA-2 [TypeScript](sha2) | [WASM](./asm_sha2)\n	- `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`\n- SHA-3 [TypeScript](sha3) | [WASM](./asm_sha3)\n	- `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`\n\n### Utilities\n- [Fortuna CSPRNG](fortuna)\n- [Utils](utils)\n	- Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`\n- [TypeScript interfaces](types) \n	- `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`\n\n## Auxiliary\n- [Library Architecture](architecture)\n- [Test suite & vector corpus](test-suite)\n- [Project branding guide](branding)\n- [Serpent-256 security audit](serpent_audit)\n- [Serpent algorithm reference](serpent_reference)\n- [WASM primer](wasm)\n- [Argon2id](argon2id)\n' > _Sidebar.md
-          git add _Footer.md _Sidebar.md
+          echo -e '## **Leviathan-Crypto Wiki**\n\n<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="150">\n\n## Getting Started\n- [Examples](examples)\n- [All Exports](exports)\n- [`init()` API](init)\n- [Subpath inits](init#initmodules-mode-opts--public-api-exported-from-root-barrel)\n	- `serpentInit`, `sha2Init`, `sha3Init`, `chacha20Init`\n- [WASM binary loading](loader)\n\n## API Reference\n\n### Symmetric Ciphers\n- Serpent-256 [TypeScript](serpent) | [WASM](asm_serpent)\n	- `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `SerpentStreamEncoder`, `SerpentStreamDecoder`, `Serpent`, `SerpentCtr`, `SerpentCbc`\n- ChaCha20 [TypeScript](chacha20) | [WASM](asm_chacha) | [Pool](chacha20_pool)\n	- `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool`\n\n### Hashing\n- SHA-2 [TypeScript](sha2) | [WASM](asm_sha2)\n	- `SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`\n- SHA-3 [TypeScript](sha3) | [WASM](asm_sha3)\n	- `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`\n\n### Utilities\n- [Fortuna CSPRNG](fortuna)\n- [Utils](utils)\n	- Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`\n- [TypeScript interfaces](types)\n	- `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`\n\n## Auxiliary\n- [Library Architecture](architecture)\n- [Test suite & vector corpus](test-suite)\n- [Serpent algorithm reference](serpent_reference)\n- [Demos](https://github.com/xero/leviathan-demos)\n- [WASM primer](wasm)\n- [Argon2id](argon2id)\n- [Project branding guide](branding)\n\n## Algorithm Correctness\n- [Serpent-256 audit](serpent_audit)\n- [XChaCha20-Poly1305 audit](chacha_audit)\n- [SHA-2 / HMAC / HKDF audit](sha2_audit)\n- [SHA-3 / Keccak audit](sha3_audit)\n- [HMAC-SHA256 audit](hmac_audit)\n- [HKDF-SHA256 audit](hkdf_audit)\n' > _Sidebar.md
           # rename index file
           mv README.md Home.md
           # change README to Home in all docs

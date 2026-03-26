@@ -611,7 +611,7 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 > ## Cross-References
 >
 > - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — library architecture and `init()` API
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [asm_sha2.md](./asm_sha2.md) — WASM implementation details (AssemblyScript buffer layout, compression functions)
 > - [sha3.md](./sha3.md) — alternative: SHA-3 family (immune to length extension attacks)
 > - [serpent.md](./serpent.md) — SerpentSeal and SerpentStream use HMAC-SHA256 and HKDF internally

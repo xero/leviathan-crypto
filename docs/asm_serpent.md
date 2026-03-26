@@ -420,4 +420,4 @@ serpent_unrolled.ts
 > - [serpent_reference.md](./serpent_reference.md) — algorithm specification, S-box tables, linear transform, and known attacks
 > - [serpent_audit.md](./serpent_audit.md) — security audit results (algorithm correctness, side-channel analysis)
 > - [asm_sha2.md](./asm_sha2.md) — SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
-> - [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
+> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
