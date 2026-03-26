@@ -46,31 +46,16 @@ of encryption latency are acceptable, this tradeoff is no longer as relevant.
 since the AES competition. The current state-of-the-art is as follows:
 
 - **Best known reduced-round attack:**
-    - multidimensional linear cryptanalysis reaching 12 of 32 rounds (Nguyen,
-      Wu & Wang, ACISP 2011), less than half the full cipher, requiring 2¹¹⁸
-      known plaintexts and 2²²⁸·⁸ time.
     - Multidimensional linear cryptanalysis reaches 12 of 32 rounds (Nguyen,
       Wu & Wang, ACISP 2011), less than half the full cipher. This requires
       2¹¹⁸ known plaintexts and 2²²⁸·⁸ time. [source](https://personal.ntu.edu.sg/wuhj/research/publications/2011_ACISP_MLC.pdf) & [mirror](https://archive.is/6pwMM)
 - **Best known full-round attack:**
-    - biclique cryptanalysis of full 32-round Serpent-256 (de Carvalho & Kowada,
-      SBSeg 2020), time complexity 2²⁵⁵·²¹, only 0.79 bits below the 256-bit
-      brute-force ceiling of 2²⁵⁶, and requires 2⁸⁸ chosen ciphertexts, making
-      it strictly less practical than brute force. For comparison, the analogous
-      biclique attack on full-round AES-256 (Bogdanov et al., 2011) reaches
-      2²⁵⁴·⁴. Serpent-256 is marginally harder to attack by this method than AES-256.
     - Biclique cryptanalysis of full 32-round Serpent-256 (de Carvalho & Kowada,
       SBSeg 2020) has a time complexity of 2²⁵⁵·²¹, only 0.79 bits below the 256-bit
       brute-force ceiling of 2²⁵⁶. It requires 2⁸⁸ chosen ciphertexts, making it
       strictly less practical than brute force. For comparison, the analogous biclique
       attack on full-round AES-256 (Bogdanov et al., 2011) reaches 2²⁵⁴·⁴.
       Serpent-256 is marginally harder to attack by this method than AES-256. [source](https://sol.sbc.org.br/index.php/sbseg/article/view/19225/19054) & [mirror](https://archive.is/ZZjrT)
-    - Our independent research improved the published result by
-      −0.20 bits through systematic search over v position, biclique nibble
-      selection, and nabla pair. the best configuration (K31/K17, delta nibble 0,
-      nabla nibble 10, v = state 66 nibbles 8+9) achieves 2²⁵⁵·¹⁹ with only 2⁴
-      chosen ciphertexts. The K17 nabla result is a new finding not present in
-      the published papers.
     - Our independent research improved the published result by −0.20 bits through
       systematic search over v position, biclique nibble selection, and nabla pair.
       The best configuration (K31/K17, delta nibble 0, nabla nibble 10, v = state
@@ -282,8 +267,19 @@ await init(['serpent'], 'manual', { wasmBinary: { serpent: myBuffer } })
 | [init.md](./docs/init.md) | `init()` API and WASM loading modes |
 | [utils.md](./docs/utils.md) | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes` |
 | [types.md](./docs/types.md) | TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`) |
-| [architecture.md](./docs/architecture.md.md) | Architecture overview, build pipeline, module relationships |
-| [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
+| [architecture.md](./docs/architecture.md) | Architecture overview, build pipeline, module relationships |
+| [test-suite.md](./docs/test-suite.md) | Test suite structure, vector corpus, gate discipline |
+
+### Algorithm correctness and verifications
+
+| Primitive | Audit Description |
+| --- | ---- |
+| [serpent_audit.md](./docs/serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic paper review |
+| [chacha_audit.md](./docs/chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
+| [sha2_audit.md](./docs/sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit.md](./docs/sha3_audit.md) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit.md](./docs/hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit.md](./docs/hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
 
 ## License
 leviathan is written under the [MIT license](http://www.opensource.org/licenses/MIT).

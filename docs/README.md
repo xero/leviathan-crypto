@@ -133,11 +133,21 @@ const ptN = opener.open(last)        // detects final chunk; wipes key on return
 |----------|-------------|
 | [architecture.md](./architecture.md) | Repository structure, architecture diagram, build pipeline, module relationships, buffer layouts, correctness contract, limitations |
 | [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
-| [serpent_audit.md](./serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic paper review |
 | [serpent_reference.md](./serpent_reference.md) | Serpent algorithm overview: S-boxes, linear transform, round structure, known attacks |
 | [wasm.md](./wasm.md) | Primer on Web Assembly in this project's context |
 | [argon2id.md](./argon2id.md) | Key derivation and password hashing examples using the argon2id library with Leviathan |
 | [branding.md](./branding.md) | Project artwork and other PR materials |
+
+## Algorithm correctness and verifications
+
+| Primitive | Audit Description |
+| --- | ---- |
+| [serpent_audit.md](./serpent_audit.md) | Serpent256 Correctness verification, side-channel analysis, cryptanalytic paper review |
+| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
+| [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit.md](./hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
 
 ## Security Philosophy
 
