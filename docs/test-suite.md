@@ -144,14 +144,14 @@
 > format stability, not proof of correctness against an external reference. Generation
 > scripts are kept in the repo so derivations can be audited or reproduced.
 
-## Cross-References
-
-- [README.md](./README.md) — documentation index and quick-start guide
-- [architecture.md](./architecture.md) — library architecture, module structure, and correctness contracts
-- [serpent.md](./serpent.md) — Serpent-256 TypeScript API (tested primitives)
-- [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
-- [sha2.md](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
-- [sha3.md](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
-- [fortuna.md](./fortuna.md) — Fortuna CSPRNG (tested primitive)
-- [utils.md](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)
-- [types.md](./types.md) — public interfaces verified by the test suite
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md) — library architecture, module structure, and correctness contracts
+> - [serpent.md](./serpent.md) — Serpent-256 TypeScript API (tested primitives)
+> - [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
+> - [sha2.md](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
+> - [sha3.md](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
+> - [fortuna.md](./fortuna.md) — Fortuna CSPRNG (tested primitive)
+> - [utils.md](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)
+> - [types.md](./types.md) — public interfaces verified by the test suite

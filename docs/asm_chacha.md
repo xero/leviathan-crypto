@@ -414,10 +414,10 @@ dependency on either algorithm implementation.
 
 ---
 
-## Cross-References
-
-- [README.md](./README.md) — library documentation index and exports table
-- [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
-- [chacha20.md](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
-- [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
-- [asm_serpent.md](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
+> - [chacha20.md](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
+> - [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+> - [asm_serpent.md](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)

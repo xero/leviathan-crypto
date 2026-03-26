@@ -522,12 +522,12 @@ A cryptanalytic breakthrough against one family does not imply weakness in the o
 
 ---
 
-## Cross-References
-
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
-- [sha2_audit.md](./sha2_audit.md) — SHA-2 companion audit (independent construction)
-- [hmac_audit.md](./hmac_audit.md) — HMAC uses SHA-2 (not SHA-3)
-- [hkdf_audit.md](./hkdf_audit.md) — HKDF uses SHA-2 (not SHA-3)
-- [serpent_audit.md](./serpent_audit.md) — Serpent implementation audit
-- [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md)
+> - [sha2_audit.md](./sha2_audit.md) — SHA-2 companion audit (independent construction)
+> - [hmac_audit.md](./hmac_audit.md) — HMAC uses SHA-2 (not SHA-3)
+> - [hkdf_audit.md](./hkdf_audit.md) — HKDF uses SHA-2 (not SHA-3)
+> - [serpent_audit.md](./serpent_audit.md) — Serpent implementation audit
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

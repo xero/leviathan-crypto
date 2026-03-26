@@ -92,7 +92,7 @@ Source: [logo.svg](./logo.svg)
 > Logos and colorscheme design by [xero](https://x-e.ro)
 > Licensed [MIT](http://www.opensource.org/licenses/MIT) as part of the project.
 
-## Cross-References
-
-- [README.md](./README.md) — library documentation index (uses the ASCII banner in header)
-- [architecture.md](./architecture.md) — library architecture (ASCII art header convention for source files)
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md) — library architecture (ASCII art header convention for source files)

@@ -99,7 +99,7 @@ const getPrevTag = (tag: string): string | null => {
 }
 
 // use ASCII field/record separators to safely split hash, subject, body
-const getRawCommits = (range: string): Array<{hash: string; subject: string; body: string}> => {
+const getRawCommits = (range: string): {hash: string; subject: string; body: string}[] => {
 	try {
 		const out = run(`git log ${range} --pretty=format:"%H%x1f%s%x1f%b%x1e"`);
 		if (!out) return [];

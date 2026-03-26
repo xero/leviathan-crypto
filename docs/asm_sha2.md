@@ -537,10 +537,10 @@ implementation and the TypeScript wrapper:
 
 ---
 
-## Cross-References
-
-- [README.md](./README.md) — library documentation index and exports table
-- [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
-- [sha2.md](./sha2.md) — TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF)
-- [asm_sha3.md](./asm_sha3.md) — alternative hash family (SHA-3/SHAKE WASM module)
-- [asm_serpent.md](./asm_serpent.md) — Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG)
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md) — module structure, buffer layouts, and build pipeline
+> - [sha2.md](./sha2.md) — TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF)
+> - [asm_sha3.md](./asm_sha3.md) — alternative hash family (SHA-3/SHAKE WASM module)
+> - [asm_serpent.md](./asm_serpent.md) — Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG)

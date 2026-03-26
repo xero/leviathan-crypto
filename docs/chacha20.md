@@ -592,11 +592,11 @@ cipher.dispose()
 | Authentication tag does not match on decrypt | `Error` | `ChaCha20Poly1305: authentication failed` |
 | Empty plaintext | — | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
 
-## Cross-References
-
-- [README.md](./README.md) — library documentation index and exports table
-- [asm_chacha.md](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-- [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
-- [serpent.md](./serpent.md) — alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
-- [sha2.md](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
-- [types.md](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [asm_chacha.md](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
+> - [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+> - [serpent.md](./serpent.md) — alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
+> - [sha2.md](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
+> - [types.md](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes

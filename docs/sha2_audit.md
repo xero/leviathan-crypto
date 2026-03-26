@@ -531,12 +531,12 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 
 ---
 
-## Cross-References
-
-- [README.md](./README.md)
-- [architecture.md](./architecture.md)
-- [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit (independent construction)
-- [hmac_audit.md](./hmac_audit.md) — HMAC-SHA256 builds on SHA-256
-- [hkdf_audit.md](./hkdf_audit.md) — HKDF-SHA256 builds on HMAC-SHA256
-- [serpent_audit.md](./serpent_audit.md) — uses HMAC-SHA256 in SerpentStream
-- [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 companion audit
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md)
+> - [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit (independent construction)
+> - [hmac_audit.md](./hmac_audit.md) — HMAC-SHA256 builds on SHA-256
+> - [hkdf_audit.md](./hkdf_audit.md) — HKDF-SHA256 builds on HMAC-SHA256
+> - [serpent_audit.md](./serpent_audit.md) — uses HMAC-SHA256 in SerpentStream
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 companion audit

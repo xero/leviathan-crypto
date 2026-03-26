@@ -296,11 +296,11 @@ const result = concat(chunk1, chunk2)
 
 ---
 
-## Cross-References
-
-- [chacha20.md](./chacha20.md) — single-instance XChaCha20-Poly1305 API
-- [asm_chacha.md](./asm_chacha.md) — WASM implementation details (quarter-round, Poly1305 accumulator, HChaCha20)
-- [wasm.md](./wasm.md) — WebAssembly primer: how one compiled module spawns many worker instances
-- [fortuna.md](./fortuna.md) — another class using the `static async create()` factory pattern
-- [architecture.md](./architecture.md) — library architecture and module relationships
-- [README.md](./README.md) — project overview and getting started
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [chacha20.md](./chacha20.md) — single-instance XChaCha20-Poly1305 API
+> - [asm_chacha.md](./asm_chacha.md) — WASM implementation details (quarter-round, Poly1305 accumulator, HChaCha20)
+> - [wasm.md](./wasm.md) — WebAssembly primer: how one compiled module spawns many worker instances
+> - [fortuna.md](./fortuna.md) — another class using the `static async create()` factory pattern
+> - [architecture.md](./architecture.md) — library architecture and module relationships

@@ -300,9 +300,9 @@ if (!isInitialized('sha2')) {
 
 ---
 
-## Cross-References
-
-- [README.md](./README.md) — package overview and quick-start guide
-- [loader.md](./loader.md) — WASM binary loading strategies (internal details)
-- [architecture.md](./architecture.md) — architecture overview, module structure, and build pipeline
-- [wasm.md](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [loader.md](./loader.md) — WASM binary loading strategies (internal details)
+> - [architecture.md](./architecture.md) — architecture overview, module structure, and build pipeline
+> - [wasm.md](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate

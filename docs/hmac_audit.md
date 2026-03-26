@@ -313,12 +313,12 @@ Each chunk gets independent encryption and MAC keys derived from `(masterKey, st
 
 ---
 
-## Cross-References
-
-- [README.md](../README.md)
-- [architecture.md](./architecture.md)
-- [sha2_audit.md](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
-- [hkdf_audit.md](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
-- [serpent_audit.md](./serpent_audit.md) — HMAC-SHA256 used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
-- [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 uses a different MAC (Poly1305)
-- [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit
+> ## Cross-References
+>
+> - [README.md](./README.md) — project overview and quick-start guide
+> - [architecture.md](./architecture.md)
+> - [sha2_audit.md](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
+> - [hkdf_audit.md](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
+> - [serpent_audit.md](./serpent_audit.md) — HMAC-SHA256 used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 uses a different MAC (Poly1305)
+> - [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit
