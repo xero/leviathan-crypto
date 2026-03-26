@@ -56,17 +56,25 @@ export class HKDF_SHA256 {
 			buf.set(prev, 0);
 			buf.set(info, prev.length);
 			buf[prev.length + info.length] = i;
+
+			const oldPrev = prev;
 			prev = this.hmac.hash(prk, buf);
 			okm.set(prev, (i - 1) * 32);
+
+			buf.fill(0);
+			oldPrev.fill(0);
 		}
 
+		prev.fill(0);
 		return okm.slice(0, length);
 	}
 
 	// One-shot: extract then expand
 	derive(ikm: Uint8Array, salt: Uint8Array | null, info: Uint8Array, length: number): Uint8Array {
 		const prk = this.extract(salt, ikm);
-		return this.expand(prk, info, length);
+		const okm = this.expand(prk, info, length);
+		prk.fill(0);
+		return okm;
 	}
 
 	dispose(): void {
@@ -104,17 +112,25 @@ export class HKDF_SHA512 {
 			buf.set(prev, 0);
 			buf.set(info, prev.length);
 			buf[prev.length + info.length] = i;
+
+			const oldPrev = prev;
 			prev = this.hmac.hash(prk, buf);
 			okm.set(prev, (i - 1) * 64);
+
+			buf.fill(0);
+			oldPrev.fill(0);
 		}
 
+		prev.fill(0);
 		return okm.slice(0, length);
 	}
 
 	// One-shot: extract then expand
 	derive(ikm: Uint8Array, salt: Uint8Array | null, info: Uint8Array, length: number): Uint8Array {
 		const prk = this.extract(salt, ikm);
-		return this.expand(prk, info, length);
+		const okm = this.expand(prk, info, length);
+		prk.fill(0);
+		return okm;
 	}
 
 	dispose(): void {

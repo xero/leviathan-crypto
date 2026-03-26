@@ -212,13 +212,20 @@ Reuses `deriveChunkKeys` from `stream.ts` (same domain, same parameters). Keys a
 
 HKDF is implemented in pure TypeScript — no WASM buffers are involved. All intermediate values live in JavaScript garbage-collected memory.
 
-**T(i-1) availability during T(i):** The `prev` variable holds T(i-1). It is read to construct the `buf` array, then overwritten with T(i) after `hmac.hash()` returns. There is no aliasing — `buf` is a fresh allocation on every iteration, and `prev` is not referenced after `buf` is constructed. Correct.
+**T(i-1) availability and zeroing:** The `expand()` loop captures a reference to T(i-1) in `oldPrev` before overwriting `prev` with T(i). After `okm.set(prev, ...)` copies T(i) into the output buffer, both `buf` (the HMAC input concatenation) and `oldPrev` (T(i-1)) are zeroed via `.fill(0)`. After the loop, the final `prev` (T(N)) is zeroed after its copy into `okm`. No T(i) block or concatenation buffer persists on the heap beyond its use. Correct.
 
-**PRK lifetime:** In `derive()`, the PRK is a local variable returned by `extract()`. It is passed to `expand()` and then goes out of scope. JavaScript's garbage collector will eventually reclaim it, but there is no explicit zeroing. This is a minor concern — PRK is derived key material, not raw user secrets, and JavaScript does not guarantee secure memory erasure. The underlying HMAC's WASM buffers are zeroed by `dispose()`.
+**PRK lifetime:** In `derive()`, the PRK returned by `extract()` is zeroed via `.fill(0)` immediately after `expand()` returns and before the OKM is returned to the caller. The `expand()` method does not zero the PRK itself, because callers may invoke `expand()` multiple times with the same PRK (valid per RFC 5869 §3) — zeroing is the one-shot `derive()` method's responsibility.
 
 **Info buffer integrity:** The `info` parameter to `expand()` is read-only — it is copied into `buf` via `buf.set(info, ...)` on each iteration but never modified. Correct.
 
-**Output copy:** `okm.slice(0, length)` creates a new independent array. The returned OKM does not alias any internal state. In `deriveChunkKeys()`, the split uses `derived.subarray(0, 32)` and `derived.subarray(32, 64)` — these *do* alias the same underlying buffer, but since the derived buffer is a fresh `slice()` from `expand()`, this is safe: the encKey and macKey views are independent of any HKDF internal state.
+**Output copy:** `okm.slice(0, length)` creates a new independent array. The returned OKM does not alias any internal state and is intentionally not zeroed — it belongs to the caller. In `deriveChunkKeys()`, the split uses `derived.subarray(0, 32)` and `derived.subarray(32, 64)` — these *do* alias the same underlying buffer, but since the derived buffer is a fresh `slice()` from `expand()`, this is safe: the encKey and macKey views are independent of any HKDF internal state.
+
+> [!NOTE]
+> After this fix, all intermediate key material allocated during
+> `expand()` and `derive()` is explicitly zeroed before going out of
+> scope: `buf`, `oldPrev` (each T(i-1)), the final T(N), and the PRK in
+> the one-shot `derive()` path. The only value intentionally left
+> unzeroed is the returned OKM, which belongs to the caller.
 
 ---
 

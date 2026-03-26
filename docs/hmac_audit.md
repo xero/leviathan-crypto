@@ -307,7 +307,7 @@ Each chunk gets independent encryption and MAC keys derived from `(masterKey, st
 
 #### HKDF-SHA256
 
-`HKDF_SHA256` uses HMAC-SHA256 as both the extract and expand PRFs (RFC 5869). The HMAC implementation's correctness is a prerequisite for HKDF's security — covered in the separate [hkdf_audit.md](./hkdf_audit.md).
+`HKDF_SHA256` uses HMAC-SHA256 as both the extract and expand PRFs (RFC 5869). The HMAC implementation's correctness is a prerequisite for HKDF's security — covered in the separate [hkdf_audit.md](./hkdf_audit.md). A post-audit hardening pass zeroed all intermediate key material (`buf`, `prev` blocks, and PRK) in `expand()` and `derive()` to minimise heap residue; see hkdf_audit.md §1.5.
 
 **Assessment:** Key separation is correctly implemented in all usage contexts. The encryption key and MAC key are always derived from independent key material, either by splitting a longer key or by HKDF derivation with distinct info strings.
 
