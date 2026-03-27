@@ -29,28 +29,6 @@ Import only the cipher(s) you intend to use. Subpath exports allow bundlers to e
 #### **Side-effect Free.**
 Nothing runs upon import. Initialization via `init()` is explicit and asynchronous.
 
----
-
-## Runtime Requirements
-
-[`leviathan-crypto`](https://npmjs.org/leviathan-crypto) requires a WebAssembly runtime with **SIMD support**
-(`v128` instructions, see: [WASM SIMD proposal](https://github.com/WebAssembly/simd))
-All major runtimes have supported this since 2021–2023.
-if you're on a current browser or runtime, you're covered.
-
-| Runtime           | Minimum version | Released      |
-| ----------------- | --------------- | --------------|
-| Chrome / Chromium | 91+             | 2021          |
-| Firefox           | 89+             | 2021          |
-| Safari / WebKit   | 16.4+           | 2023          |
-| Node.js           | 16.4+           | 2021          |
-| Bun               | 1.0+            | since day one |
-| Deno              | 1.9+            | 2021          |
-
-Environments that do not support WASM SIMD will fail during module
-instantiation. _There is no scalar fallback binary._
-
----
 
 ## Installation
 
@@ -60,6 +38,8 @@ bun i leviathan-crypto
 # or npm
 npm install leviathan-crypto
 ```
+
+> **Note:** The Serpent module (`SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`) requires a runtime with WebAssembly SIMD support. This has been a feature of all major browsers and runtimes circa 2021. All other primitives (SHA-2, SHA-3, ChaCha20, Poly1305) run on any WASM-capable runtime.
 
 ---
 

@@ -67,7 +67,11 @@ function getExports(): SerpentExports {
 	return getInstance('serpent').exports as unknown as SerpentExports;
 }
 
-// Lazy SIMD capability detection (computed once)
+// Detects WASM SIMD support once and caches the result.
+// Gates CTR and CBC-decrypt dispatch. CBC mode is always scalar
+// (sequential dependency). Both paths exist in the same binary.
+// serpent.wasm requires SIMD to instantiate; this check does not
+// protect against instantiation failure on non-SIMD runtimes.
 let _simd: boolean | null = null;
 function hasSIMD(): boolean {
 	if (_simd !== null) return _simd;
