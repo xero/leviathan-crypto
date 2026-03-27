@@ -1,6 +1,6 @@
 [![Version](https://img.shields.io/github/package-json/version/xero/leviathan-crypto?labelColor=33383e&logo=npm&&logoColor=979da4&color=6e2aa5)](https://github.com/xero/leviathan-crypto/releases/latest) [![GitHub repo size](https://img.shields.io/github/repo-size/xero/leviathan-crypto?labelColor=262a2e&logo=googlecontaineroptimizedos&logoColor=979da4&color=6e2aa5)](https://github.com/xero/leviathan-crypto/) [![test suite](https://github.com/xero/leviathan-crypto/actions/workflows/test-suite.yml/badge.svg)](https://github.com/xero/leviathan-crypto/actions/workflows/test-suite.yml) [![wiki](https://github.com/xero/leviathan-crypto/actions/workflows/wiki.yml/badge.svg)](https://github.com/xero/leviathan-crypto/wiki)
 
-![side-effect free](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-side-effect-free.svg) ![tree-shakeable](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-tree-shakable.svg) ![zero dependencies](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-zero-dependancies.svg) [![MIT Licensed](https://img.shields.io/github/license/xero/text0wnz?logo=wikiversity&logoColor=979da4&labelColor=262a2e&color=b1a268)](https://github.com/xero/text0wnz/blob/main/LICENSE)
+![side-effect free](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-side-effect-free.svg) ![tree-shakeable](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-tree-shakable.svg) ![zero dependencies](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-zero-dependancies.svg) [![MIT Licensed](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-mit-license.svg)](https://github.com/xero/text0wnz/blob/main/LICENSE)
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="400" >
 
@@ -133,7 +133,7 @@ const decrypted = chacha.decrypt(key, nonce, ciphertext)
 chacha.dispose()
 ```
 
-For more examples — streaming, chunking, hashing, key derivation: see the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
+For more examples, including streaming, chunking, hashing, and key derivation, see the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
 
 ---
 
@@ -174,57 +174,61 @@ await chacha20Init()
 
 ---
 
-## Utilities
+## Documentation
+
+| Document     | MD/Wiki                                                                                       | Description                                                      |
+| ------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| architecture | [▼](./docs/architecture.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/architecture) | Architecture overview, build pipeline, module relationships      |
+| test-suite   | [▼](./docs/test-suite.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/test-suite)     | Test suite structure, vector corpus, gate discipline             |
+| security     | [▼](./SECURITY.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/security_policy)       | Project security policy covering posture, disclosure, and scopes |
+
+### API Surface
+
+| Module       | MD/Wiki                                                                                       | Description                                                                                                                                                           |
+| ------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| serpent      | [▼](./docs/serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/serpent)           | Serpent-256 TypeScript API (`SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc`) |
+| asm_serpent  | [▼](./docs/asm_serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_serpent)   | Serpent-256 WASM implementation (bitslice S-boxes, key schedule, CTR/CBC)                                                                                             |
+| chacha20     | [▼](./docs/chacha20.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha20)         | ChaCha20/Poly1305 TypeScript API (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)                                                                    |
+| asm_chacha   | [▼](./docs/asm_chacha.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_chacha)     | ChaCha20/Poly1305 WASM implementation (quarter-round, HChaCha20)                                                                                                      |
+| sha2         | [▼](./docs/sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha2)                 | SHA-2 TypeScript API (`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`)                                                                      |
+| asm_sha2     | [▼](./docs/asm_sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_sha2)         | SHA-2 WASM implementation (compression functions, HMAC)                                                                                                               |
+| sha3         | [▼](./docs/sha3.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha3)                 | SHA-3 TypeScript API (`SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`)                                                                         |
+| asm_sha3     | [▼](./docs/asm_sha3.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_sha3)         | SHA-3 WASM implementation (Keccak-f[1600], sponge construction)                                                                                                       |
+| fortuna      | [▼](./docs/fortuna.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/fortuna)           | Fortuna CSPRNG (forward secrecy, 32 entropy pools)                                                                                                                    |
+| init         | [▼](./docs/init.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/init)                 | `init()` API and WASM loading modes                                                                                                                                   |
+| utils        | [▼](./docs/utils.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils)               | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`                                                                                                          |
+| types        | [▼](./docs/types.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/types)               | TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`)                                                                                    |
+
+### Utilities
 
 These helpers are available immediately on import with no `init()` required.
 
-| Function                                                       | Description                                                    |
-| -------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`hexToBytes(hex)`](./docs/utils.md#hextobytes)                | Hex string to `Uint8Array` (accepts uppercase, `0x` prefix)    |
-| [`bytesToHex(bytes)`](./docs/utils.md#bytestohex)              | `Uint8Array` to lowercase hex string                           |
-| [`utf8ToBytes(str)`](./docs/utils.md#utf8tobytes)              | UTF-8 string to `Uint8Array`                                   |
-| [`bytesToUtf8(bytes)`](./docs/utils.md#bytestoutf8)            | `Uint8Array` to UTF-8 string                                   |
-| [`base64ToBytes(b64)`](./docs/utils.md#base64tobytes)          | Base64/base64url string to `Uint8Array` (undefined on invalid) |
-| [`bytesToBase64(bytes, url?)`](./docs/utils.md#bytestobase64)  | `Uint8Array` to base64 string (url=true for base64url)         |
-| [`constantTimeEqual(a, b)`](./docs/utils.md#constanttimeequal) | Constant-time byte comparison (XOR-accumulate)                 |
-| [`wipe(data)`](./docs/utils.md#wipe)                           | Zero a typed array in place                                    |
-| [`xor(a, b)`](./docs/utils.md#xor)                             | XOR two equal-length `Uint8Array`s                             |
-| [`concat(a, b)`](./docs/utils.md#concat)                       | Concatenate two `Uint8Array`s                                  |
-| [`randomBytes(n)`](./docs/utils.md#randombytes)                | Cryptographically secure random bytes via Web Crypto           |
-
----
-
-## Documentation
-
-**Full API documentation:** [./docs](./docs/README.md)
-
-| Module                                    | Description                                                                                                                                                           |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [serpent.md](./docs/serpent.md)           | Serpent-256 TypeScript API (`SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc`) |
-| [asm_serpent.md](./docs/asm_serpent.md)   | Serpent-256 WASM implementation (bitslice S-boxes, key schedule, CTR/CBC)                                                                                             |
-| [chacha20.md](./docs/chacha20.md)         | ChaCha20/Poly1305 TypeScript API (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)                                                                    |
-| [asm_chacha.md](./docs/asm_chacha.md)     | ChaCha20/Poly1305 WASM implementation (quarter-round, HChaCha20)                                                                                                      |
-| [sha2.md](./docs/sha2.md)                 | SHA-2 TypeScript API (`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`)                                                                      |
-| [asm_sha2.md](./docs/asm_sha2.md)         | SHA-2 WASM implementation (compression functions, HMAC)                                                                                                               |
-| [sha3.md](./docs/sha3.md)                 | SHA-3 TypeScript API (`SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`)                                                                         |
-| [asm_sha3.md](./docs/asm_sha3.md)         | SHA-3 WASM implementation (Keccak-f[1600], sponge construction)                                                                                                       |
-| [fortuna.md](./docs/fortuna.md)           | Fortuna CSPRNG (forward secrecy, 32 entropy pools)                                                                                                                    |
-| [init.md](./docs/init.md)                 | `init()` API and WASM loading modes                                                                                                                                   |
-| [utils.md](./docs/utils.md)               | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`                                                                                                          |
-| [types.md](./docs/types.md)               | TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`)                                                                                    |
-| [architecture.md](./docs/architecture.md) | Architecture overview, build pipeline, module relationships                                                                                                           |
-| [test-suite.md](./docs/test-suite.md)     | Test suite structure, vector corpus, gate discipline                                                                                                                  |
+| Function                     | MD/Wiki                                                                                                             | Description                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `hexToBytes(hex)`            | [▼](./docs/utils.md#hextobytes) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#hextobytes)               | Hex string to `Uint8Array` (accepts uppercase, `0x` prefix)    |
+| `bytesToHex(bytes)`          | [▼](./docs/utils.md#bytestohex) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#bytestohex)               | `Uint8Array` to lowercase hex string                           |
+| `utf8ToBytes(str)`           | [▼](./docs/utils.md#utf8tobytes) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#utf8tobytes)             | UTF-8 string to `Uint8Array`                                   |
+| `bytesToUtf8(bytes)`         | [▼](./docs/utils.md#bytestoutf8) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#bytestoutf8)             | `Uint8Array` to UTF-8 string                                   |
+| `base64ToBytes(b64)`         | [▼](./docs/utils.md#base64tobytes) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#base64tobytes)         | Base64/base64url string to `Uint8Array` (undefined on invalid) |
+| `bytesToBase64(bytes, url?)` | [▼](./docs/utils.md#bytestobase64) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#bytestobase64)         | `Uint8Array` to base64 string (url=true for base64url)         |
+| `constantTimeEqual(a, b)`    | [▼](./docs/utils.md#constanttimeequal) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) | Constant-time byte comparison (XOR-accumulate)                 |
+| `wipe(data)`                 | [▼](./docs/utils.md#wipe) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#wipe)                           | Zero a typed array in place                                    |
+| `xor(a, b)`                  | [▼](./docs/utils.md#xor) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#xor)                             | XOR two equal-length `Uint8Array`s                             |
+| `concat(a, b)`               | [▼](./docs/utils.md#concat) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#concat)                       | Concatenate two `Uint8Array`s                                  |
 
 ### Algorithm correctness and verifications
 
-| Primitive                                   | Audit Description                                                                      |
-| ------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [serpent_audit.md](./docs/serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic paper review            |
-| [chacha_audit.md](./docs/chacha_audit.md)   | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension   |
-| [sha2_audit.md](./docs/sha2_audit.md)       | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification          |
-| [sha3_audit.md](./docs/sha3_audit.md)       | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [hmac_audit.md](./docs/hmac_audit.md)       | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage             |
-| [hkdf_audit.md](./docs/hkdf_audit.md)       | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation   |
+| Primitive     | MD/Wiki                                                                                         | Description                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| serpent_audit | [▼](./docs/serpent_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/serpent_audit) | Correctness verification, side-channel analysis, cryptanalytic paper review            |
+| chacha_audit  | [▼](./docs/chacha_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha_audit)   | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension   |
+| sha2_audit    | [▼](./docs/sha2_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha2_audit)       | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification          |
+| sha3_audit    | [▼](./docs/sha3_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha3_audit)       | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| hmac_audit    | [▼](./docs/hmac_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/hmac_audit)       | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage             |
+| hkdf_audit    | [▼](./docs/hkdf_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/hkdf_audit)       | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation   |
+
+>[!NOTE]
+> Additional documentation available in [./docs](./docs/README.md) and on the [project wiki](https://github.com/xero/leviathan-crypto/wiki/).
 
 ---
 
