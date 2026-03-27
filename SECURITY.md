@@ -2,12 +2,13 @@
 
 ## Supported Versions
 
-| Version | Supported |
-|---------|-----------|
-| v1.x    | ✓         |
+| Version | Supported  |
+|---------|------------|
+| v0.x.x  | ✘ (alphas) |
+| v1.1.x  | ✔          |
 
 > [!NOTE]
-> v1.0.0 is the current stable release.
+> v1.1.0 is the current stable release.
 > This table will be updated as new versions ship.
 
 ## Security Posture
@@ -53,18 +54,30 @@ module cannot interact with memory in the SHA-3 module even in principle.
 
 ### Cryptanalytic Review
 
+All of our primitives have undergone a cryptographic implementation review.
+
+| Primitive | Audit Description |
+|-----------|-------------------|
+| [serpent_audit.md](./serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
+| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
+| [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit.md](./hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
+
+#### Additional Serpent-256 research
+
 The security margin of Serpent-256 has been independently researched and
-documented. The best known attack on the full 32-round cipher — biclique
-cryptanalysis — achieves a complexity of 2²⁵⁵·¹⁹ with 2⁴ chosen
+documented. The best known attack on the full 32-round cipher, _"biclique
+cryptanalysis"_, achieves a complexity of 2²⁵⁵·¹⁹ with 2⁴ chosen
 ciphertexts. This provides less than one bit of advantage over exhaustive
 key search and has zero practical impact. Independent research conducted
 against this implementation improved on the published result by −0.20 bits
 through systematic parameter search, confirming no structural weakness
 beyond what the published literature describes.
 
-See: [`xero/BicliqueFinder/biclique_research.md`][biclique] and
-[`leviathan-crypto/wiki/serpent_audit`][serpent-audit] for the full
-analysis.
+See: [`xero/BicliqueFinder/biclique_research.md`][biclique research]
+
 
 ### Authenticated Encryption by Default
 
