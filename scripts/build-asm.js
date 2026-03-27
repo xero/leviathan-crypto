@@ -43,6 +43,8 @@ const modules = [
 ]
 
 for (const { name, entry, extra = '' } of modules) {
+  // --config none: prevent asc from picking up asconfig.json entries
+  // when invoked per-module; each module is built with explicit options only.
   const cmd = `npx asc ${entry} -o build/${name}.wasm --bindings esm --sourceMap --config none ${ASC_OPTS}`
   console.log(`  asc ${entry} → build/${name}.wasm + build/${name}.js`)
   execSync(extra ? `${cmd} ${extra}` : cmd, { stdio: 'inherit' })

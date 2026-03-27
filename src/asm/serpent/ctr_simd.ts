@@ -48,17 +48,6 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	}
 }
 
-// Increment 128-bit LE counter by 4
-@inline function incrementCounter4(): void {
-	let carry: i32 = 4
-	for (let i = 0; i < 16; i++) {
-		carry = i32(load<u8>(COUNTER_OFFSET + i)) + carry
-		store<u8>(COUNTER_OFFSET + i, u8(carry & 0xFF))
-		carry >>= 8
-		if (carry === 0) break
-	}
-}
-
 // ── Interleave / Deinterleave ───────────────────────────────────────────────
 
 // Load 4 consecutive counter values into SIMD working registers.

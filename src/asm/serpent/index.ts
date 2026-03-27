@@ -32,8 +32,6 @@ export {
 	getWorkOffset,
 	getCbcIvOffset,
 	getSimdWorkOffset,
-	getSimdCtrOffset,
-	getSimdKsOffset,
 	getChunkSize,
 	getMemoryPages,
 } from './buffers';

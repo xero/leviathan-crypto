@@ -39,8 +39,6 @@ import {
 	WORK_OFFSET,
 	CBC_IV_OFFSET,
 	SIMD_WORK_OFFSET,
-	SIMD_CTR_OFFSET,
-	SIMD_KS_OFFSET,
 } from './buffers'
 
 // ── Working register helpers ───────────────────────────────────────────────────
@@ -528,6 +526,4 @@ export function wipeBuffers(): void {
 	memory.fill(CHUNK_CT_OFFSET, 0, CHUNK_SIZE)
 	memory.fill(CBC_IV_OFFSET,   0, 16)
 	memory.fill(SIMD_WORK_OFFSET, 0, 80)   // 5 × v128
-	memory.fill(SIMD_CTR_OFFSET,  0, 64)   // 4 × 16-byte counters
-	memory.fill(SIMD_KS_OFFSET,   0, 64)   // 4 × 16-byte keystream
 }

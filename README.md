@@ -31,6 +31,27 @@ Nothing runs upon import. Initialization via `init()` is explicit and asynchrono
 
 ---
 
+## Runtime Requirements
+
+[`leviathan-crypto`](https://npmjs.org/leviathan-crypto) requires a WebAssembly runtime with **SIMD support**
+(`v128` instructions, see: [WASM SIMD proposal](https://github.com/WebAssembly/simd))
+All major runtimes have supported this since 2021–2023.
+if you're on a current browser or runtime, you're covered.
+
+| Runtime           | Minimum version | Released      |
+| ----------------- | --------------- | --------------|
+| Chrome / Chromium | 91+             | 2021          |
+| Firefox           | 89+             | 2021          |
+| Safari / WebKit   | 16.4+           | 2023          |
+| Node.js           | 16.4+           | 2021          |
+| Bun               | 1.0+            | since day one |
+| Deno              | 1.9+            | 2021          |
+
+Environments that do not support WASM SIMD will fail during module
+instantiation. _There is no scalar fallback binary._
+
+---
+
 ## Installation
 
 ```bash
