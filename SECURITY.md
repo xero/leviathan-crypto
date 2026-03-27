@@ -4,8 +4,8 @@
 
 | Version | Supported  |
 |---------|------------|
-| v0.x.x  | ✘ (alphas) |
-| v1.1.x  | ✔          |
+| v0.0.0  | ✗          |
+| v1.1.0  | ✔          |
 
 > [!NOTE]
 > v1.1.0 is the current stable release.
@@ -58,12 +58,12 @@ All of our primitives have undergone a cryptographic implementation review.
 
 | Primitive | Audit Description |
 |-----------|-------------------|
-| [serpent_audit.md](serpent_audit) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
-| [chacha_audit.md](chacha_audit) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
-| [sha2_audit.md](sha2_audit) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
-| [sha3_audit.md](sha3_audit) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [hmac_audit.md](hmac_audit) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit.md](hkdf_audit) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
+| [serpent_audit][serpent_audit] | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
+| [chacha_audit][chacha_audit] | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
+| [sha2_audit][sha2_audit] | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit][sha3_audit] | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit][hmac_audit] | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit][hkdf_audit] | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
 
 #### Additional Serpent-256 research
 
