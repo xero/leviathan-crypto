@@ -58,12 +58,12 @@ All of our primitives have undergone a cryptographic implementation review.
 
 | Primitive | Audit Description |
 |-----------|-------------------|
-| [serpent_audit.md](./serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
-| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
-| [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
-| [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [hmac_audit.md](./hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
+| [serpent_audit.md](serpent_audit) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
+| [chacha_audit.md](chacha_audit) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
+| [sha2_audit.md](sha2_audit) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit.md](sha3_audit) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit.md](hmac_audit) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit.md](hkdf_audit) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
 
 #### Additional Serpent-256 research
 
@@ -171,17 +171,22 @@ Out of scope:
 
 ---
 
-[fips180]:       https://csrc.nist.gov/publications/detail/fips/180/4/final
-[fips202]:       https://csrc.nist.gov/publications/detail/fips/202/final
-[rfc8439]:       https://www.rfc-editor.org/rfc/rfc8439
-[rfc2104]:       https://www.rfc-editor.org/rfc/rfc2104
-[rfc5869]:       https://www.rfc-editor.org/rfc/rfc5869
-[serpent]:       https://www.cl.cam.ac.uk/~rja14/Papers/serpent.pdf
-[utils]:         https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal
-[biclique]:      https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md
-[serpent-audit]: https://github.com/xero/leviathan-crypto/wiki/serpent_audit
-[argon2id-wiki]: https://github.com/xero/leviathan-crypto/wiki/argon2id
-[init]:          https://github.com/xero/leviathan-crypto/wiki/init
-[agents]:        https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md
-[advisory]:      https://github.com/xero/leviathan-crypto/security/advisories/new
-[pgp]:           https://0w.nz/pgp.pub
+[fips180]:        https://csrc.nist.gov/publications/detail/fips/180/4/final
+[fips202]:        https://csrc.nist.gov/publications/detail/fips/202/final
+[rfc8439]:        https://www.rfc-editor.org/rfc/rfc8439
+[rfc2104]:        https://www.rfc-editor.org/rfc/rfc2104
+[rfc5869]:        https://www.rfc-editor.org/rfc/rfc5869
+[serpent]:        https://www.cl.cam.ac.uk/~rja14/Papers/serpent.pdf
+[utils]:          https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal
+[serpent_audit]:  https://github.com/xero/leviathan-crypto/wiki/serpent_audit
+[chacha_audit]:   https://github.com/xero/leviathan-crypto/wiki/chacha_audit
+[sha2_audit]:     https://github.com/xero/leviathan-crypto/wiki/sha2_audit
+[sha3_audit]:     https://github.com/xero/leviathan-crypto/wiki/sha3_audit
+[hmac_audit]:     https://github.com/xero/leviathan-crypto/wiki/hmac_audit
+[hkdf_audit]:     https://github.com/xero/leviathan-crypto/wiki/hkdf_audit
+[biclique]:       https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md
+[argon2id-wiki]:  https://github.com/xero/leviathan-crypto/wiki/argon2id
+[init]:           https://github.com/xero/leviathan-crypto/wiki/init
+[agents]:         https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md
+[advisory]:       https://github.com/xero/leviathan-crypto/security/advisories/new
+[pgp]:            https://0w.nz/pgp.pub
