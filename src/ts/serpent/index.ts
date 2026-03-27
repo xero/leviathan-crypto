@@ -57,11 +57,26 @@ interface SerpentExports {
   decryptChunk:     (n: number) => number
   cbcEncryptChunk:  (n: number) => number
   cbcDecryptChunk:  (n: number) => number
+  encryptChunk_simd: (n: number) => number
+  decryptChunk_simd: (n: number) => number
+  cbcDecryptChunk_simd: (n: number) => number
   wipeBuffers:      () => void
 }
 
 function getExports(): SerpentExports {
 	return getInstance('serpent').exports as unknown as SerpentExports;
+}
+
+// Lazy SIMD capability detection (computed once)
+let _simd: boolean | null = null;
+function hasSIMD(): boolean {
+	if (_simd !== null) return _simd;
+	// Minimal WASM module using v128 — validates iff SIMD is supported
+	_simd = WebAssembly.validate(new Uint8Array([
+		0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,
+		3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
+	]));
+	return _simd;
 }
 
 // ── Serpent ──────────────────────────────────────────────────────────────────
@@ -152,7 +167,8 @@ export class SerpentCtr {
 		const ptOff = this.x.getChunkPtOffset();
 		const ctOff = this.x.getChunkCtOffset();
 		mem.set(chunk, ptOff);
-		this.x.encryptChunk(chunk.length);
+		const fn = hasSIMD() ? this.x.encryptChunk_simd : this.x.encryptChunk;
+		fn(chunk.length);
 		return mem.slice(ctOff, ctOff + chunk.length);
 	}
 
@@ -259,7 +275,8 @@ export class SerpentCbc {
 		for (let off = 0; off < ciphertext.length; off += maxChunk) {
 			const chunk = ciphertext.subarray(off, Math.min(off + maxChunk, ciphertext.length));
 			this.mem.set(chunk, ctOff);
-			this.x.cbcDecryptChunk(chunk.length);
+			const fn = hasSIMD() ? this.x.cbcDecryptChunk_simd : this.x.cbcDecryptChunk;
+			fn(chunk.length);
 			output.set(new Uint8Array(this.x.memory.buffer).subarray(ptOff, ptOff + chunk.length), off);
 		}
 		return pkcs7Strip(output);

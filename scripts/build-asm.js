@@ -36,15 +36,16 @@ if (!existsSync(BUILD_DIR)) mkdirSync(BUILD_DIR)
 const ASC_OPTS = '--runtime stub --initialMemory 3 --maximumMemory 3 --noAssert --optimizeLevel 3 --shrinkLevel 1'
 
 const modules = [
-  { name: 'serpent', entry: 'src/asm/serpent/index.ts' },
+  { name: 'serpent', entry: 'src/asm/serpent/index.ts', extra: '--enable simd' },
   { name: 'chacha',  entry: 'src/asm/chacha/index.ts' },
   { name: 'sha2',    entry: 'src/asm/sha2/index.ts' },
   { name: 'sha3',    entry: 'src/asm/sha3/index.ts' },
 ]
 
-for (const { name, entry } of modules) {
+for (const { name, entry, extra = '' } of modules) {
+  const cmd = `npx asc ${entry} -o build/${name}.wasm --bindings esm --sourceMap --config none ${ASC_OPTS}`
   console.log(`  asc ${entry} → build/${name}.wasm + build/${name}.js`)
-  execSync(`npx asc ${entry} -o build/${name}.wasm --bindings esm --sourceMap ${ASC_OPTS}`, { stdio: 'inherit' })
+  execSync(extra ? `${cmd} ${extra}` : cmd, { stdio: 'inherit' })
   // ASC ESM bindings can emit duplicate names in the export destructuring
   // Deduplicate to avoid SyntaxError in strict mode (e.g. browsers)
   const jsPath = `build/${name}.js`

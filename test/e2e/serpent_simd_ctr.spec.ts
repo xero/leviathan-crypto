@@ -19,38 +19,43 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-export {
-	getModuleId,
-	getKeyOffset,
-	getBlockPtOffset,
-	getBlockCtOffset,
-	getNonceOffset,
-	getCounterOffset,
-	getSubkeyOffset,
-	getChunkPtOffset,
-	getChunkCtOffset,
-	getWorkOffset,
-	getCbcIvOffset,
-	getSimdWorkOffset,
-	getSimdCtrOffset,
-	getSimdKsOffset,
-	getChunkSize,
-	getMemoryPages,
-} from './buffers';
+// SIMD CTR e2e — confirms encryptChunk_simd works in browser WASM runtimes.
+import { test, expect } from '@playwright/test';
+import { CTR_VECTORS } from '../unit/serpent/ctr_vectors';
 
-export { loadKey, wipeBuffers } from './serpent';
+const JS_URL = 'http://localhost:1337/build/serpent.js';
 
-export {
-	encryptBlock_unrolled as encryptBlock,
-	decryptBlock_unrolled as decryptBlock,
-} from './serpent_unrolled';
+const INIT = `
+var __wasmCache = null;
+async function loadWasm() {
+  if (__wasmCache) return __wasmCache;
+  __wasmCache = await import('${JS_URL}');
+  return __wasmCache;
+}
+function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) }
+function toHex(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') }
+`;
 
-export { resetCounter, encryptChunk, decryptChunk, setCounter } from './ctr';
+test.beforeEach(async ({ page }) => {
+	await page.goto('http://localhost:1337/');
+	await page.evaluate(INIT);
+});
 
-export { cbcEncryptChunk, cbcDecryptChunk } from './cbc';
-
-export { encryptBlock_simd_4x, decryptBlock_simd_4x } from './serpent_simd';
-
-export { encryptChunk_simd, decryptChunk_simd } from './ctr_simd';
-
-export { cbcDecryptChunk_simd } from './cbc_simd';
+for (const { label, key, nonce, pt, ct } of CTR_VECTORS) {
+	test(`SIMD CTR — Case ${label}`, async ({ page }) => {
+		const result: string = await page.evaluate(async ({ key, nonce, pt }) => {
+			const wasm = await loadWasm();
+			const mem  = new Uint8Array(wasm.memory.buffer);
+			const k    = fromHex(key);
+			mem.set(k, wasm.getKeyOffset());
+			wasm.loadKey(k.length);
+			mem.set(fromHex(nonce), wasm.getNonceOffset());
+			const ptBytes = fromHex(pt);
+			mem.set(ptBytes, wasm.getChunkPtOffset());
+			wasm.resetCounter();
+			wasm.encryptChunk_simd(ptBytes.length);
+			return toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + ptBytes.length));
+		}, { key, nonce, pt });
+		expect(result).toBe(ct.toLowerCase());
+	});
+}
