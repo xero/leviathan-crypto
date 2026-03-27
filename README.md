@@ -29,7 +29,6 @@ Import only the cipher(s) you intend to use. Subpath exports allow bundlers to e
 #### **Side-effect Free.**
 Nothing runs upon import. Initialization via `init()` is explicit and asynchronous.
 
----
 
 ## Installation
 
@@ -39,6 +38,8 @@ bun i leviathan-crypto
 # or npm
 npm install leviathan-crypto
 ```
+
+> **Note:** The Serpent module (`SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`) requires a runtime with WebAssembly SIMD support. This has been a feature of all major browsers and runtimes circa 2021. All other primitives (SHA-2, SHA-3, ChaCha20, Poly1305) run on any WASM-capable runtime.
 
 ---
 

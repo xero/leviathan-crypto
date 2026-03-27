@@ -31,6 +31,7 @@ export {
 	getChunkCtOffset,
 	getWorkOffset,
 	getCbcIvOffset,
+	getSimdWorkOffset,
 	getChunkSize,
 	getMemoryPages,
 } from './buffers';
@@ -45,3 +46,9 @@ export {
 export { resetCounter, encryptChunk, decryptChunk, setCounter } from './ctr';
 
 export { cbcEncryptChunk, cbcDecryptChunk } from './cbc';
+
+export { encryptBlock_simd_4x, decryptBlock_simd_4x } from './serpent_simd';
+
+export { encryptChunk_simd, decryptChunk_simd } from './ctr_simd';
+
+export { cbcDecryptChunk_simd } from './cbc_simd';

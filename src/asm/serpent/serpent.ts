@@ -38,6 +38,7 @@ import {
 	CHUNK_SIZE,
 	WORK_OFFSET,
 	CBC_IV_OFFSET,
+	SIMD_WORK_OFFSET,
 } from './buffers'
 
 // ── Working register helpers ───────────────────────────────────────────────────
@@ -524,4 +525,5 @@ export function wipeBuffers(): void {
 	memory.fill(CHUNK_PT_OFFSET, 0, CHUNK_SIZE)
 	memory.fill(CHUNK_CT_OFFSET, 0, CHUNK_SIZE)
 	memory.fill(CBC_IV_OFFSET,   0, 16)
+	memory.fill(SIMD_WORK_OFFSET, 0, 80)   // 5 × v128
 }

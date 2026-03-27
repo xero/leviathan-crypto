@@ -57,11 +57,38 @@ interface SerpentExports {
   decryptChunk:     (n: number) => number
   cbcEncryptChunk:  (n: number) => number
   cbcDecryptChunk:  (n: number) => number
+  encryptChunk_simd: (n: number) => number
+  decryptChunk_simd: (n: number) => number
+  cbcDecryptChunk_simd: (n: number) => number
   wipeBuffers:      () => void
 }
 
 function getExports(): SerpentExports {
 	return getInstance('serpent').exports as unknown as SerpentExports;
+}
+
+// Detects WASM SIMD support once and caches the result.
+// Gates CTR and CBC-decrypt dispatch. CBC mode is always scalar
+// (sequential dependency). Both paths exist in the same binary.
+// serpent.wasm requires SIMD to instantiate; this check does not
+// protect against instantiation failure on non-SIMD runtimes.
+let _simd: boolean | null = null;
+function hasSIMD(): boolean {
+	if (_simd !== null) return _simd;
+	if (typeof WebAssembly === 'undefined' || typeof WebAssembly.validate !== 'function') {
+		_simd = false;
+		return _simd;
+	}
+	// Minimal WASM module using v128 — validates iff SIMD is supported
+	try {
+		_simd = WebAssembly.validate(new Uint8Array([
+			0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,
+			3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
+		]));
+	} catch {
+		_simd = false;
+	}
+	return _simd;
 }
 
 // ── Serpent ──────────────────────────────────────────────────────────────────
@@ -152,7 +179,8 @@ export class SerpentCtr {
 		const ptOff = this.x.getChunkPtOffset();
 		const ctOff = this.x.getChunkCtOffset();
 		mem.set(chunk, ptOff);
-		this.x.encryptChunk(chunk.length);
+		const fn = hasSIMD() ? this.x.encryptChunk_simd : this.x.encryptChunk;
+		fn(chunk.length);
 		return mem.slice(ctOff, ctOff + chunk.length);
 	}
 
@@ -259,7 +287,8 @@ export class SerpentCbc {
 		for (let off = 0; off < ciphertext.length; off += maxChunk) {
 			const chunk = ciphertext.subarray(off, Math.min(off + maxChunk, ciphertext.length));
 			this.mem.set(chunk, ctOff);
-			this.x.cbcDecryptChunk(chunk.length);
+			const fn = hasSIMD() ? this.x.cbcDecryptChunk_simd : this.x.cbcDecryptChunk;
+			fn(chunk.length);
 			output.set(new Uint8Array(this.x.memory.buffer).subarray(ptOff, ptOff + chunk.length), off);
 		}
 		return pkcs7Strip(output);
