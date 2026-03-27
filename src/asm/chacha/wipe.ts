@@ -34,6 +34,7 @@ import {
 	POLY_TAG_OFFSET,
 	POLY_H_OFFSET, POLY_R_OFFSET, POLY_RS_OFFSET, POLY_S_OFFSET,
 	XCHACHA_NONCE_OFFSET, XCHACHA_SUBKEY_OFFSET,
+	CHACHA_SIMD_WORK_OFFSET,
 } from './buffers';
 
 export function wipeBuffers(): void {
@@ -62,4 +63,7 @@ export function wipeBuffers(): void {
 	// XChaCha20 nonce and subkey (key-derived material)
 	memory.fill(XCHACHA_NONCE_OFFSET,  0, 24);   // full 24-byte nonce
 	memory.fill(XCHACHA_SUBKEY_OFFSET, 0, 32);   // HChaCha20 subkey
+
+	// 4-wide inter-block SIMD work buffer
+	memory.fill(CHACHA_SIMD_WORK_OFFSET, 0, 256);
 }

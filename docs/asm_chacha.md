@@ -99,6 +99,7 @@ uses them to determine where to write inputs and read outputs.
 | `getPolySOffset(): i32` | `131492` | s pad (4 x u32, 16 bytes) |
 | `getXChaChaNonceOffset(): i32` | `131508` | Full 24-byte XChaCha20 nonce |
 | `getXChaChaSubkeyOffset(): i32` | `131532` | HChaCha20 output subkey (32 bytes) |
+| `getChachaSimdWorkOffset(): i32` | `131568` | 4-wide inter-block SIMD work buffer (256 bytes) |
 | `getMemoryPages(): i32` | (runtime) | Current WASM linear memory size in pages |
 
 ### ChaCha20 Functions
@@ -157,6 +158,57 @@ auto-increments after each block.
 Alias for `chachaEncryptChunk` -- ChaCha20 is a stream cipher; encryption and
 decryption are identical (XOR with keystream). Reads from `CHUNK_PT_OFFSET`,
 writes to `CHUNK_CT_OFFSET`.
+
+---
+
+#### `chachaEncryptChunk_simd(len: i32): i32`
+
+4-wide inter-block SIMD variant of `chachaEncryptChunk`. Processes four
+independent 64-byte keystream blocks simultaneously using WebAssembly v128
+operations. Each v128 register lane holds word `w` from a different block
+(counter values `ctr`, `ctr+1`, `ctr+2`, `ctr+3`). For inputs >= 256 bytes,
+this produces 2-3× higher throughput than the scalar path on JIT-warmed V8 and
+SpiderMonkey runtimes.
+
+- **Input:** `len` bytes at `CHUNK_PT_OFFSET` (1 <= len <= 65536)
+- **Output:** `len` bytes at `CHUNK_CT_OFFSET`
+- **Returns:** `len` on success, `-1` if len is out of range
+- **Side effect:** Block counter advances by `ceil(len / 64)` blocks. Both the
+  state matrix (word 12) and `CHACHA_CTR_OFFSET` are updated.
+
+**SIMD inner loop** (entered when `processed + 256 <= len`):
+
+1. Loads words 0-11, 13-15 from `CHACHA_STATE_OFFSET` as `i32x4.splat` vectors
+   (all four lanes identical).
+2. Constructs the counter vector `r12 = [ctr, ctr+1, ctr+2, ctr+3]` using
+   `i32x4.replace_lane`.
+3. Applies 10 double rounds (column + diagonal quarter-rounds) entirely in
+   v128 registers using `v128.add<i32>`, `v128.xor`, `i32x4.shl`, `i32x4.shr_u`.
+4. Adds back the initial state words. Word 12 reconstructed from the `ctr`
+   parameter to avoid storing an extra v128 for the initial counter vector.
+5. Deinterleaves via `i32x4.extract_lane` (64 stores) to write all four blocks
+   sequentially into `CHACHA_SIMD_WORK_OFFSET`.
+6. XORs 256 bytes of plaintext using 16 `v128.xor` + `v128.load`/`v128.store`
+   instructions. All three buffer addresses (PT, CT, work) are 16-byte aligned.
+7. Advances counter by 4, writes to both `CHACHA_STATE_OFFSET + 48` and
+   `CHACHA_CTR_OFFSET`, increments `processed` by 256.
+
+**Scalar tail** (entered when fewer than 256 bytes remain):
+
+Falls back to the scalar block function (`computeBlock_scalar`) for each
+remaining 64-byte block. The counter continues from where the SIMD loop left off.
+Partial final blocks are handled byte-by-byte.
+
+**Precondition:** Call `chachaLoadKey()` first to initialize the state matrix.
+This function requires the WASM binary to be compiled with `--enable simd`.
+
+---
+
+#### `chachaDecryptChunk_simd(len: i32): i32`
+
+Alias for `chachaEncryptChunk_simd` -- ChaCha20 is a stream cipher; encryption
+and decryption are identical. Reads from `CHUNK_PT_OFFSET`, writes to
+`CHUNK_CT_OFFSET`. Provided for API symmetry; the call is forwarded directly.
 
 ---
 
@@ -267,6 +319,7 @@ Zeroes every buffer region in the module via `memory.fill()`. Covers:
   partial block length (4B), tag (16B), accumulator h (40B), clamped r (40B),
   precomputed 5*r (32B), s pad (16B)
 - XChaCha20: nonce (24B), subkey (32B)
+- SIMD work buffer (256B)
 
 Must be called by the TypeScript `dispose()` method to prevent key material from
 persisting in WASM linear memory.
@@ -276,7 +329,7 @@ persisting in WASM linear memory.
 ## Buffer Layout
 
 All offsets are byte offsets from the start of linear memory (offset 0). The
-module's total memory footprint is 131,564 bytes (< 3 x 64KB pages = 192KB).
+module's total memory footprint is 131,824 bytes (< 3 x 64KB pages = 192KB).
 
 | Offset | Size (bytes) | Name | Description |
 |---|---|---|---|
@@ -298,14 +351,16 @@ module's total memory footprint is 131,564 bytes (< 3 x 64KB pages = 192KB).
 | 131,492 | 16 | `POLY_S_BUFFER` | s pad (4 x u32) |
 | 131,508 | 24 | `XCHACHA_NONCE_BUFFER` | Full 24-byte XChaCha20 nonce |
 | 131,532 | 32 | `XCHACHA_SUBKEY_BUFFER` | HChaCha20 output subkey |
-| 131,564 | -- | END | Total < 192,608 (3 pages) |
+| 131,564 | 4 | *(alignment padding)* | Pad to 16-byte boundary (131564 % 16 = 12) |
+| 131,568 | 256 | `CHACHA_SIMD_WORK_BUFFER` | 4-wide inter-block SIMD work buffer |
+| 131,824 | -- | END | Total < 196,608 (3 pages) |
 
 ---
 
 ## Internal Architecture
 
-The module is composed of four source files compiled into a single `chacha.wasm`
-binary:
+The module is composed of five source files compiled into a single `chacha.wasm`
+binary (built with `--enable simd`):
 
 ### `buffers.ts` -- Static Memory Layout
 
@@ -364,31 +419,56 @@ Implements from RFC 8439 S2.5:
   constant-time conditional reduction mod p, and adds the s pad to produce the
   final 16-byte tag.
 
+### `chacha20_simd_4x.ts` -- 4-Wide Inter-Block SIMD
+
+Implements `chachaEncryptChunk_simd` and `chachaDecryptChunk_simd` using
+WebAssembly v128 SIMD operations. Processes four independent ChaCha20 blocks
+simultaneously: each v128 register lane holds word `w` from a different block,
+giving 4× useful work per instruction.
+
+- **`rotl32_4x`** / **`qr_4x`** -- scalar helpers for the tail path, renamed
+  to avoid namespace conflict with the same-named private functions in
+  `chacha20.ts` (same AS compilation unit).
+- **`computeBlock_scalar`** -- scalar block function duplicated here to service
+  the tail path (inputs not a multiple of 256 bytes). Avoids adding an
+  exportable symbol to `chacha20.ts`.
+- **`block4x(ctr: u32)`** -- core SIMD routine. Operates entirely in 16 v128
+  locals (enabling JIT register allocation). Reconstructs initial-state for the
+  add-back step from `CHACHA_STATE_OFFSET` memory + the `ctr` parameter, avoiding
+  the need to save 16 additional v128 locals.
+
+> **Note on negative result:** A prior attempt at intra-block SIMD (processing
+> one block via v128 with shuffles) is documented in `chacha20_simd.ts` (no
+> exports). It measured 0.65-0.74× scalar due to: (a) no native `i32x4.rotl`
+> — each rotation costs 3 v128 ops vs 1 scalar, (b) 6 shuffles per double round
+> for the diagonal, (c) V8 already register-promotes fixed-address loads for
+> the scalar path. Inter-block parallelism avoids all three issues.
+
 ### `wipe.ts` -- Buffer Zeroing
 
 Single exported function `wipeBuffers()` that calls `memory.fill(offset, 0, size)`
 for every buffer region. Covers key material, nonces, state, intermediate
-computations, chunk buffers, and XChaCha20 subkey. Called by the TypeScript
-`dispose()` method.
+computations, chunk buffers, XChaCha20 subkey, and the SIMD work buffer. Called
+by the TypeScript `dispose()` method.
 
 ### Dependency Graph
 
 ```
 buffers.ts
-	^           ^           ^
-	|           |           |
-chacha20.ts   poly1305.ts   wipe.ts
-	|           |           |
-	+-----------+-----------+
-	            |
-	         index.ts (re-exports all)
+	^           ^           ^           ^
+	|           |           |           |
+chacha20.ts   poly1305.ts   wipe.ts   chacha20_simd_4x.ts
+	|           |           |           |
+	+-----------+-----------+-----------+
+	                        |
+	                     index.ts (re-exports all)
 ```
 
-`chacha20.ts` and `poly1305.ts` are independent of each other -- they both import
-only from `buffers.ts`. The AEAD composition (calling `chachaGenPolyKey` then
-feeding ciphertext through `polyUpdate`) happens in the TypeScript layer, not in
-the WASM module. `wipe.ts` imports buffer offsets from `buffers.ts` and has no
-dependency on either algorithm implementation.
+`chacha20.ts`, `poly1305.ts`, and `chacha20_simd_4x.ts` are independent of each
+other -- they all import only from `buffers.ts`. The AEAD composition (calling
+`chachaGenPolyKey` then feeding ciphertext through `polyUpdate`) happens in the
+TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
+`buffers.ts` and has no dependency on any algorithm implementation.
 
 ---
 
@@ -398,6 +478,8 @@ dependency on either algorithm implementation.
 |---|---|---|
 | `chachaEncryptChunk(len)` | `len <= 0` or `len > 65536` | Returns `-1` |
 | `chachaDecryptChunk(len)` | Same as above (alias) | Returns `-1` |
+| `chachaEncryptChunk_simd(len)` | `len <= 0` or `len > 65536` | Returns `-1` |
+| `chachaDecryptChunk_simd(len)` | Same as above (alias) | Returns `-1` |
 | `polyUpdate(len)` | `len <= 0` | No-op (returns immediately) |
 | All other functions | -- | No error returns; preconditions are the caller's responsibility |
 
