@@ -119,6 +119,15 @@ For more: streaming, chunking, hashing, key derivation, and both ciphers: see th
 
 ---
 
+## Performance
+
+| Document | Description |
+|----------|-------------|
+| [serpent_simd_bench.md](./serpent_simd_bench.md) | Serpent-256 SIMD benchmark results: CTR and CBC-decrypt inter-block 4-wide, scalar vs SIMD across V8, SpiderMonkey, and JSC |
+| [chacha_simd_bench.md](./chacha_simd_bench.md) | ChaCha20 SIMD benchmark results: 4-wide inter-block parallelism, scalar vs SIMD across V8, SpiderMonkey, and JSC. Includes documented negative result for intra-block approach |
+
+---
+
 ## Algorithm Correctness and Verifications
 
 | Primitive | Audit Description |

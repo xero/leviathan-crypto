@@ -39,7 +39,7 @@ bun i leviathan-crypto
 npm install leviathan-crypto
 ```
 
-> **Note:** The Serpent module (`SerpentCtr`, `SerpentCbc`, `SerpentSeal`, `SerpentStream`) requires a runtime with WebAssembly SIMD support. This has been a feature of all major browsers and runtimes circa 2021. All other primitives (SHA-2, SHA-3, ChaCha20, Poly1305) run on any WASM-capable runtime.
+> **Note:** The Serpent and ChaCha20 modules require a runtime with WebAssembly SIMD support. This has been a feature of all major browsers and runtimes since 2021. All other primitives (SHA-2, SHA-3, Poly1305) run on any WASM-capable runtime.
 
 ---
 
