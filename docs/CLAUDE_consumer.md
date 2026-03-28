@@ -93,10 +93,6 @@ await serpentInit()
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init(['sha3'])` |
 | `Fortuna` | `init(['serpent', 'sha2'])` |
 
-`Argon2id` is a separate subpath: `import { Argon2id } from 'leviathan-crypto/argon2id'`
-It does **not** require `init()` — it uses its own WASM loader.
-`'argon2id'` is **not** a valid module string for `init()`.
-
 ---
 
 ## Recommended patterns
@@ -236,7 +232,7 @@ cipher.decrypt(key, iv, ciphertext)  // correct
 ## Utilities (no `init()` required)
 
 ```typescript
-import { hexToBytes, bytesToHex, randomBytes, constantTimeEqual, wipe } from 'leviathan-crypto'
+import { hexToBytes, bytesToHex, randomBytes, constantTimeEqual, wipe, hasSIMD } from 'leviathan-crypto'
 
 // available immediately — no await init() needed
 const key  = randomBytes(32)
@@ -245,6 +241,11 @@ const back = hexToBytes(hex)
 const safe = constantTimeEqual(a, b)   // constant-time equality — never use ===
 wipe(key)                               // zero a Uint8Array in place
 ```
+
+`hasSIMD()` returns `true` if the runtime supports WebAssembly SIMD. It is used
+internally — you do not need to call it. SIMD acceleration is fully transparent:
+`SerpentCtr.encryptChunk`, `SerpentCbc.decrypt`, and `ChaCha20.encryptChunk` all
+auto-dispatch to the faster 4-wide SIMD path when available, with no API change.
 
 ---
 

@@ -121,6 +121,11 @@ function getCbcIvOffset(): i32     // 131716
 Each returns the fixed byte offset for that buffer. Values shown as comments.
 
 ```typescript
+function getSimdWorkOffset(): i32  // 131744
+```
+Returns the byte offset of `SIMD_WORK_BUFFER` — five v128 working registers used by the SIMD S-box circuits. Only present when the binary is built with `--enable simd`.
+
+```typescript
 function getChunkSize(): i32       // 65536
 ```
 Returns the maximum chunk size in bytes (64KB).
@@ -244,7 +249,56 @@ ciphertext block on return.
 
 ---
 
-### Cleanup
+### SIMD block operations
+
+These functions require the binary to be compiled with `--enable simd` and are
+only present in the SIMD-capable build. The TypeScript wrapper calls them only
+when `hasSIMD()` returns `true` at runtime.
+
+```typescript
+function encryptBlock_simd_4x(): void
+```
+Encrypts four independent 128-bit blocks in parallel using v128 SIMD. Reads
+four counter words from `SIMD_WORK_BUFFER` (pre-loaded by the caller),
+encrypts them through all 32 rounds with v128 S-box circuits, and leaves
+the four keystream blocks' words in `SIMD_WORK_BUFFER`. Called by
+`encryptChunk_simd` once per four-block group.
+
+```typescript
+function decryptBlock_simd_4x(): void
+```
+Decrypts four independent 128-bit blocks in parallel. Same interface as
+`encryptBlock_simd_4x` — reads and writes `SIMD_WORK_BUFFER`.
+
+```typescript
+function encryptChunk_simd(chunkLen: i32): i32
+```
+CTR-encrypts `chunkLen` bytes using 4-wide SIMD where possible. Processes
+four 16-byte blocks per iteration via `encryptBlock_simd_4x`, falling back
+to the scalar `encryptBlock_unrolled` path for the remaining 1–3 blocks.
+Same parameters and return values as `encryptChunk`.
+
+```typescript
+function decryptChunk_simd(chunkLen: i32): i32
+```
+Alias for `encryptChunk_simd` — CTR mode is symmetric.
+
+```typescript
+function cbcDecryptChunk_simd(len: i32): i32
+```
+CBC-decrypts `len` bytes using 4-wide SIMD where possible. Loads four
+ciphertext blocks into `SIMD_WORK_BUFFER`, runs `decryptBlock_simd_4x`,
+then XORs each plaintext block with its chaining value. Falls back to the
+scalar path for the trailing 1–3 blocks. Same parameters and return values
+as `cbcDecryptChunk`.
+
+> [!NOTE]
+> CBC *encryption* has no SIMD variant — each ciphertext block depends on
+> the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be
+> parallelised. Decryption is fully parallelisable because all ciphertext
+> blocks are available up front.
+
+---
 
 ```typescript
 function wipeBuffers(): void
@@ -263,6 +317,7 @@ Zeroes all sensitive memory regions:
 | CHUNK_CT_BUFFER | 66160 | 65536 |
 | WORK_BUFFER | 131696 | 20 |
 | CBC_IV_BUFFER | 131716 | 16 |
+| SIMD_WORK_BUFFER | 131744 | 80 |
 
 Must be called when done with the cipher (the TypeScript wrapper calls this in
 `dispose()`).
@@ -284,14 +339,17 @@ All buffers are static, starting at offset 0. Total footprint: 131732 bytes
 | 96 | 528 | `SUBKEY_BUFFER` | Expanded subkeys: 33 rounds x 4 words x 4 bytes |
 | 624 | 65536 | `CHUNK_PT_BUFFER` | Bulk plaintext input (CTR/CBC) |
 | 66160 | 65536 | `CHUNK_CT_BUFFER` | Bulk ciphertext output (CTR/CBC) |
-| 131696 | 20 | `WORK_BUFFER` | 5 x i32 working registers for S-box computation |
+| 131696 | 20 | `WORK_BUFFER` | 5 × i32 working registers for scalar S-box computation |
 | 131716 | 16 | `CBC_IV_BUFFER` | CBC chaining value (IV, then last CT block) |
-| 131732 | -- | `END` | Total < 196608 (3 pages) |
+| 131732 | 12 | *(alignment padding)* | Pad to 16-byte boundary for v128 SIMD alignment |
+| 131744 | 80 | `SIMD_WORK_BUFFER` | 5 × v128 working registers for SIMD S-box computation |
+| 131824 | -- | `END` | Total < 196608 (3 pages) |
 
-The `SUBKEY_BUFFER` holds 132 i32 words during key expansion, then the final 33 x 4
-round subkeys. The `WORK_BUFFER` holds 5 working registers (r0-r4) used by the
-S-box Boolean circuits -- these are effectively the cipher's "CPU registers" in
-linear memory.
+The `SUBKEY_BUFFER` holds 132 i32 words during key expansion, then the final 33 × 4
+round subkeys. The `WORK_BUFFER` holds 5 working registers (r0-r4) for the scalar
+S-box path. `SIMD_WORK_BUFFER` holds 5 v128 registers (r0-r4, 16 bytes each) for
+the SIMD S-box path — each lane corresponds to one of the four blocks processed in
+parallel.
 
 ---
 
@@ -378,6 +436,41 @@ generate keystream blocks.
 
 ---
 
+### serpent_simd.ts
+
+Auto-generated (via `scripts/generate_simd.ts`). Contains fully-unrolled 4-wide
+SIMD implementations of all 8 forward and 8 inverse S-boxes as v128 Boolean
+circuits, plus the `encryptBlock_simd_4x` and `decryptBlock_simd_4x` entry
+points. Each S-box gate (`sb0_v`–`sb7_v`, `si0_v`–`si7_v`) mirrors its scalar
+counterpart exactly but operates on 4 × i32 lanes simultaneously — no lane
+shuffles, no cross-lane dependencies.
+
+Exported as `encryptBlock_simd_4x` / `decryptBlock_simd_4x` by `index.ts`.
+Do not edit by hand — regenerate with `bun scripts/generate_simd.ts`.
+
+---
+
+### ctr_simd.ts
+
+SIMD CTR mode. `loadCounters4x()` reads four successive counter values and
+interleaves their words into `SIMD_WORK_BUFFER` (one v128 per word position,
+each lane holding the corresponding word from a different counter). After
+`encryptBlock_simd_4x`, the keystream words are extracted lane-by-lane and
+XORed with plaintext. The scalar tail (0–3 remaining blocks) is handled by
+`encryptBlock_unrolled` from `serpent_unrolled.ts`.
+
+---
+
+### cbc_simd.ts
+
+SIMD CBC-decrypt mode. `loadCiphertext4x()` reads four successive ciphertext
+blocks and interleaves their words into `SIMD_WORK_BUFFER`. After
+`decryptBlock_simd_4x`, each decrypted block is XORed with its preceding
+ciphertext block (chaining value). The IV buffer is updated to the last
+ciphertext block on return. Scalar tail handled by `decryptBlock_unrolled`.
+
+---
+
 ### Dependency graph
 
 ```
@@ -387,12 +480,13 @@ buffers.ts
 serpent.ts
     ^
     |
-serpent_unrolled.ts
-    ^        ^
-    |        |
-  cbc.ts   ctr.ts
-    \       /
-     \     /
+serpent_unrolled.ts     serpent_simd.ts
+    ^        ^               ^       ^
+    |        |               |       |
+  cbc.ts   ctr.ts       ctr_simd.ts  cbc_simd.ts
+    \       /    \           /
+     \     /      \         /
+      \   /        \       /
     index.ts  (re-exports public API)
 ```
 

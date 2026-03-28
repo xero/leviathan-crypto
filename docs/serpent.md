@@ -265,6 +265,12 @@ automatically.
 - **chunk** -- any length up to the module's internal chunk buffer size. Throws
   `RangeError` if the chunk exceeds the maximum size.
 
+> [!NOTE]
+> Automatically dispatches to the 4-wide SIMD path (`encryptChunk_simd`) when
+> the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise
+> falls back to the scalar unrolled path. The dispatch is transparent — no API
+> change required.
+
 ---
 
 #### `beginDecrypt(key: Uint8Array, nonce: Uint8Array): void`
@@ -352,6 +358,12 @@ Decrypts Serpent CBC ciphertext and strips PKCS7 padding.
   corrupted ciphertext).
 
 Returns the decrypted plaintext as a new `Uint8Array`.
+
+> [!NOTE]
+> Automatically dispatches to the 4-wide SIMD path (`cbcDecryptChunk_simd`) when
+> the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise
+> falls back to the scalar unrolled path. CBC encryption has no SIMD variant —
+> each ciphertext block depends on the previous one.
 
 ---
 

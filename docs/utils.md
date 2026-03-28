@@ -143,6 +143,26 @@ Returns `n` cryptographically secure random bytes via the Web Crypto API (`crypt
 
 ---
 
+### hasSIMD
+
+```typescript
+hasSIMD(): boolean
+```
+
+Returns `true` if the current runtime supports WebAssembly SIMD (the `v128`
+type and associated operations). The result is computed once on first call by
+validating a minimal v128 WASM module, then cached for subsequent calls.
+
+This function is called internally by `SerpentCtr.encryptChunk`,
+`SerpentCbc.decrypt`, and `ChaCha20.encryptChunk` to select the fast SIMD path
+at runtime. It is exported for informational purposes — you do not need to call
+it yourself. SIMD dispatch is fully automatic.
+
+Supported in all modern browsers and Node.js 16+. Returns `false` in older
+environments, which fall back silently to the scalar path.
+
+---
+
 ## Usage Examples
 
 ### Converting between formats
@@ -258,6 +278,7 @@ console.log(combined.length) // 32
 | `constantTimeEqual` | Arrays differ in length | Returns `false` immediately |
 | `xor` | Arrays differ in length | Throws `RangeError` |
 | `randomBytes` | `crypto` not available | Throws (runtime-dependent) |
+| `hasSIMD` | `WebAssembly` not available | Returns `false` |
 
 ---
 
