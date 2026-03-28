@@ -99,15 +99,40 @@ explained by the v128 local benefit described above.
 
 ## Negative result: intra-block SIMD (documented)
 
-A prior attempt at intra-block SIMD (one block using v128 with shuffles) measured
-**0.65–0.74× scalar** across all runtimes. Root causes:
-- No `i32x4.rotl` in WASM SIMD — each rotation requires 3 v128 ops vs 1 scalar
-- 6 cross-lane shuffles per double round for the diagonal arrangement
-- V8/JSC already register-promote fixed-address scalar loads, removing the
-  memory traffic advantage SIMD was supposed to provide
+A prior attempt at intra-block SIMD (one block using v128 with shuffles) was
+benchmarked across 4 attempts and measured **0.60×, 0.72×, 0.71×, 0.70×
+scalar** — uniformly slower across all runtimes. Root causes:
 
-The intra-block implementation is preserved in `src/asm/chacha/chacha20_simd.ts`
-(no longer exported) as a documented negative result.
+**1. No `i32x4.rotl` in WASM SIMD — 3× rotation cost**
+
+WASM SIMD has no rotate-left instruction for v128. Each rotation requires three
+instructions: `i32x4.shl` + `i32x4.shr_u` + `v128.or`. ChaCha20 performs 8
+rotations per quarter-round × 8 quarter-rounds per double-round × 10
+double-rounds = 640 rotations total. The 3× cost triples the instruction count
+for the most frequent operation in the entire cipher.
+
+**2. 6 cross-lane shuffles per double-round**
+
+The diagonal quarter-rounds require word indices to be realigned across v128
+lanes after the column rounds. Each realignment costs a `i8x16.shuffle`
+instruction. Six shuffles per double-round with no scalar equivalent — pure
+overhead.
+
+**3. V8/JSC register-promotion neutralises the memory traffic advantage**
+
+The expected win from SIMD was eliminating repeated loads of the 16-word state
+matrix (`CHACHA_STATE_OFFSET` words 0–15, fixed constant addresses). V8 and JSC
+already apply register promotion to these fixed-address loads, keeping all 16
+words in scalar registers across the round loop. SIMD was supposed to load them
+once into v128 locals — but V8/JSC already do the equivalent. The advantage does
+not materialise.
+
+The inter-block 4-wide approach (`chacha20_simd_4x.ts`) avoids all three issues:
+it processes 4 independent blocks simultaneously, so each SIMD instruction does
+4× the useful work. Rotation cost per block is identical to scalar but 4 blocks
+complete in the same time. No diagonal alignment is needed (independent blocks
+require no shuffles). And the v128 local loads are genuinely beneficial since the
+4-block working set does not fit in scalar registers.
 
 ---
 

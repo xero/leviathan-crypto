@@ -165,3 +165,29 @@ export const randomBytes = (n: number): Uint8Array => {
 	crypto.getRandomValues(buf);
 	return buf;
 };
+
+// ── SIMD detection ───────────────────────────────────────────────────────────
+
+let _simd: boolean | null = null;
+
+/**
+ * Detects WASM SIMD support once and caches the result.
+ * Gates CTR/CBC-decrypt dispatch in Serpent and encryptChunk dispatch in ChaCha20.
+ */
+export function hasSIMD(): boolean {
+	if (_simd !== null) return _simd;
+	if (typeof WebAssembly === 'undefined' || typeof WebAssembly.validate !== 'function') {
+		_simd = false;
+		return _simd;
+	}
+	// Minimal WASM module using v128 — validates iff SIMD is supported
+	try {
+		_simd = WebAssembly.validate(new Uint8Array([
+			0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,
+			3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
+		]));
+	} catch {
+		_simd = false;
+	}
+	return _simd;
+}

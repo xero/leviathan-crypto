@@ -13,21 +13,22 @@
 //       ▄▄██████████    ▐███         ▄▄      License: MIT
 //    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
 //  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
-//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▄          free, "as is", and without
 //  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
 //  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// ChaCha20 SIMD 4-wide throughput benchmark — browser runtimes.
+// Serpent-256 CTR SIMD 4-wide throughput benchmark — browser runtimes.
 // Measures scalar vs inter-block SIMD throughput (MB/s) after JIT warmup.
-// Primary purpose: document Firefox (SpiderMonkey) SIMD gain.
 import { test } from '@playwright/test';
 
-const JS_URL = 'http://localhost:1337/build/chacha.js';
+const JS_URL = 'http://localhost:1337/build/serpent.js';
 
+// 32-byte key: 0x00..0x1f
 const KEY   = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f';
-const NONCE = '000000090000004a00000000';
+// 16-byte nonce: 0x00..0x0f
+const NONCE = '000102030405060708090a0b0c0d0e0f';
 
 const BENCH_SRC = `
 var __wasmCache = null;
@@ -41,9 +42,9 @@ function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(
 function benchOnce(wasm, fn, pt, key, nonce) {
   const mem = new Uint8Array(wasm.memory.buffer);
   mem.set(key,   wasm.getKeyOffset());
-  mem.set(nonce, wasm.getChachaNonceOffset());
-  wasm.chachaSetCounter(1);
-  wasm.chachaLoadKey();
+  mem.set(nonce, wasm.getNonceOffset());
+  wasm.loadKey(key.length);
+  wasm.resetCounter();
   mem.set(pt, wasm.getChunkPtOffset());
   fn(pt.length);
 }
@@ -53,8 +54,8 @@ async function runBench(chunkSize, warmup, trials) {
   const key   = fromHex('${KEY}');
   const nonce = fromHex('${NONCE}');
   const pt    = new Uint8Array(chunkSize).fill(0x5a);
-  const scalar = wasm.chachaEncryptChunk.bind(wasm);
-  const simd   = wasm.chachaEncryptChunk_simd.bind(wasm);
+  const scalar = wasm.encryptChunk.bind(wasm);
+  const simd   = wasm.encryptChunk_simd.bind(wasm);
 
   // Warmup
   for (let i = 0; i < warmup; i++) {
@@ -84,23 +85,23 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(BENCH_SRC);
 });
 
-test('ChaCha20 SIMD throughput benchmark — 65536 bytes', async ({ page }) => {
+test('serpent_simd_bench — 65536 bytes', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		return await runBench(65536, 50, 200);
 	});
 	console.log(`[SIMD bench] 65536B  scalar=${result.scalarMBs.toFixed(1)} MB/s  SIMD=${result.simdMBs.toFixed(1)} MB/s  speedup=${result.speedup.toFixed(2)}x`);
 });
 
-test('ChaCha20 SIMD throughput benchmark — 16384 bytes', async ({ page }) => {
+test('serpent_simd_bench — 16384 bytes', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		return await runBench(16384, 50, 500);
 	});
 	console.log(`[SIMD bench] 16384B  scalar=${result.scalarMBs.toFixed(1)} MB/s  SIMD=${result.simdMBs.toFixed(1)} MB/s  speedup=${result.speedup.toFixed(2)}x`);
 });
 
-test('ChaCha20 SIMD throughput benchmark — 256 bytes', async ({ page }) => {
+test('serpent_simd_bench — 1024 bytes', async ({ page }) => {
 	const result = await page.evaluate(async () => {
-		return await runBench(256, 100, 5000);
+		return await runBench(1024, 100, 2000);
 	});
-	console.log(`[SIMD bench]   256B  scalar=${result.scalarMBs.toFixed(1)} MB/s  SIMD=${result.simdMBs.toFixed(1)} MB/s  speedup=${result.speedup.toFixed(2)}x`);
+	console.log(`[SIMD bench]  1024B  scalar=${result.scalarMBs.toFixed(1)} MB/s  SIMD=${result.simdMBs.toFixed(1)} MB/s  speedup=${result.speedup.toFixed(2)}x`);
 });

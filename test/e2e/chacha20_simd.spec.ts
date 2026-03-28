@@ -69,8 +69,6 @@ test.beforeEach(async ({ page }) => {
 test('SIMD ChaCha20 — 114 bytes: SIMD === scalar', async ({ page }) => {
 	const result = await page.evaluate(async ({ key, nonce }) => {
 		const pt = new Uint8Array(114).fill(0x41);
-		const wasm = await loadWasm();
-
 		const scalar = (async () => {
 			const w = await setup(key, nonce, pt);
 			w.chachaEncryptChunk(114);

@@ -42,6 +42,8 @@ export interface ChaChaExports {
 	chachaResetCounter():    void
 	chachaEncryptChunk(n: number): number
 	chachaDecryptChunk(n: number): number
+	chachaEncryptChunk_simd(n: number): number
+	chachaDecryptChunk_simd(n: number): number
 	chachaGenPolyKey():      void
 	hchacha20():             void
 	polyInit():              void

@@ -438,11 +438,12 @@ giving 4× useful work per instruction.
   the need to save 16 additional v128 locals.
 
 > **Note on negative result:** A prior attempt at intra-block SIMD (processing
-> one block via v128 with shuffles) is documented in `chacha20_simd.ts` (no
-> exports). It measured 0.65-0.74× scalar due to: (a) no native `i32x4.rotl`
-> — each rotation costs 3 v128 ops vs 1 scalar, (b) 6 shuffles per double round
-> for the diagonal, (c) V8 already register-promotes fixed-address loads for
-> the scalar path. Inter-block parallelism avoids all three issues.
+> one block via v128 with shuffles) measured 0.60–0.72× scalar across 4 attempts.
+> Root causes: (a) no native `i32x4.rotl` — each rotation costs 3 v128 ops vs 1
+> scalar (640 rotations per block = 3× instruction count), (b) 6 shuffles per
+> double round for the diagonal, (c) V8/JSC already register-promotes
+> fixed-address loads for the scalar path. See `docs/chacha_simd_bench.md` for
+> full analysis. Inter-block parallelism avoids all three issues.
 
 ### `wipe.ts` -- Buffer Zeroing
 

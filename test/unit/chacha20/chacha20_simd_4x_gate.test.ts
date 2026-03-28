@@ -22,16 +22,14 @@
 /**
  * ChaCha20 4-wide inter-block SIMD — gate test
  *
- * Gate: chachaEncryptChunk_simd output must be byte-identical to the scalar
- * chachaEncryptChunk for the same key/nonce/counter/plaintext.
+ * The gate uses the RFC 8439 §2.4.2 key and nonce, matching the scalar
+ * implementation's known-answer tests elsewhere in the suite. Here we only
+ * assert that the SIMD and scalar implementations produce byte-identical
+ * output for the same key/nonce/counter/plaintext for both 256-byte (4 full
+ * SIMD blocks) and 320-byte (4 SIMD blocks + 1 scalar tail block) inputs.
  *
- * The gate uses the RFC 8439 §2.4.2 key and nonce so the keystream is
- * independently verifiable against the spec. Both 256-byte (4 full SIMD
- * blocks) and 320-byte (4 SIMD blocks + 1 scalar tail block) inputs are
- * tested to confirm both the SIMD inner loop and the scalar tail path.
- *
- * Do NOT adjust expected values to match implementation output. If either
- * test fails, the implementation is wrong — fix it.
+ * If either test fails, the SIMD implementation is not bit-for-bit identical
+ * to the already-gated scalar reference and must be investigated.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
