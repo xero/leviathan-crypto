@@ -547,7 +547,7 @@ and cross-stream splicing are all detected.
 
 ```typescript
 class SerpentStreamSealer {
-	constructor(key: Uint8Array, chunkSize?: number)
+	constructor(key: Uint8Array, chunkSize?: number, opts?: { framed?: boolean })
 	header(): Uint8Array        // call once before seal() — returns 20 bytes
 	seal(plaintext: Uint8Array): Uint8Array   // exactly chunkSize bytes
 	final(plaintext: Uint8Array): Uint8Array  // <= chunkSize bytes; wipes on return
@@ -555,8 +555,9 @@ class SerpentStreamSealer {
 }
 
 class SerpentStreamOpener {
-	constructor(key: Uint8Array, header: Uint8Array)
+	constructor(key: Uint8Array, header: Uint8Array, opts?: { framed?: boolean })
 	open(chunk: Uint8Array): Uint8Array  // throws on auth failure or post-final
+	feed(bytes: Uint8Array): Uint8Array[]  // framed mode only — accumulates and parses frames
 	dispose(): void
 }
 ```
@@ -588,11 +589,17 @@ wipes its key material and transitions to `dead`. Subsequent `open()` calls thro
 
 ---
 
-#### `constructor(key, chunkSize?)`
+#### `constructor(key, chunkSize?, opts?)`
 
 - **key** — 64-byte key. Throws `RangeError` if wrong length.
 - **chunkSize** — bytes per chunk. Must be 1024–65536. Default: 65536. Throws
   `RangeError` if out of range.
+
+##### Options (`opts`)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `framed` | `boolean` | `false` | Prepend `u32be(sealedLen)` to each `seal()`/`final()` output. Use for flat byte streams (files, pipes, TCP). Omit when the transport already frames messages (WebSocket, IPC). |
 
 ---
 
@@ -627,11 +634,17 @@ Safe to call after `final()` — no-op if already dead.
 
 ---
 
-#### `constructor(key, header)` (opener)
+#### `constructor(key, header, opts?)` (opener)
 
 - **key** — 64-byte key. Throws `RangeError` if wrong length.
 - **header** — 20-byte stream header from `sealer.header()`. Throws `RangeError`
   if wrong length.
+
+##### Options (`opts`)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `framed` | `boolean` | `false` | Enable byte-accumulation mode. Parses `u32be` length prefixes and dispatches complete frames to `open()` internally. Required to use `feed()`. |
 
 ---
 
@@ -640,6 +653,15 @@ Safe to call after `final()` — no-op if already dead.
 Authenticates and decrypts one chunk. Throws `Error` on authentication failure.
 Throws `Error` if called after the final chunk has already been opened. Returns
 plaintext bytes (PKCS7 padding stripped).
+
+---
+
+#### `feed(bytes: Uint8Array): Uint8Array[]`
+
+Only callable when constructed with `{ framed: true }`. Accumulates incoming bytes,
+parses `u32be` length prefixes, dispatches complete frames to `open()` internally.
+Returns an array of decrypted chunks — zero, one, or more per call depending on how
+many complete frames were buffered. Throws if called on an unframed opener.
 
 ---
 

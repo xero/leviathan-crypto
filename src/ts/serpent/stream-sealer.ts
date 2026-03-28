@@ -72,28 +72,45 @@ function deriveChunkKeys(
 }
 
 export class SerpentStreamSealer {
-	private readonly _key:   Uint8Array;
-	private readonly _cs:    number;          // chunk size
-	private readonly _nonce: Uint8Array;      // stream nonce (16 bytes)
-	private readonly _cbc:   SerpentCbc;
-	private readonly _hmac:  HMAC_SHA256;
-	private readonly _hkdf:  HKDF_SHA256;
-	private readonly _ivs:   Uint8Array[] | undefined;  // test seam: fixed IVs
+	private readonly _key:    Uint8Array;
+	private readonly _cs:     number;          // chunk size
+	private readonly _nonce:  Uint8Array;      // stream nonce (16 bytes)
+	private readonly _cbc:    SerpentCbc;
+	private readonly _hmac:   HMAC_SHA256;
+	private readonly _hkdf:   HKDF_SHA256;
+	private readonly _framed: boolean;
+	private readonly _ivs:    Uint8Array[] | undefined;  // test seam: fixed IVs
 	private _ivIdx: number;
 	private _index: number;
 	private _state: SealerState;
 
-	// _nonce, _ivs: test seams — inject fixed nonce/IVs for deterministic KAT vectors
-	constructor(key: Uint8Array, chunkSize?: number, _nonce?: Uint8Array, _ivs?: Uint8Array[]) {
+	/** Public: consumers use this 3-param form. */
+	constructor(key: Uint8Array, chunkSize?: number, opts?: { framed?: boolean })
+	/** @internal Test-only overload to inject fixed nonce/IVs for deterministic KAT vectors. */
+	constructor(
+		key:       Uint8Array,
+		chunkSize: number | undefined,
+		opts:      { framed?: boolean } | undefined,
+		_nonce:    Uint8Array,
+		_ivs?:     Uint8Array[],
+	)
+	constructor(
+		key:        Uint8Array,
+		chunkSize?: number,
+		opts?:      { framed?: boolean },
+		_nonce?:    Uint8Array,
+		_ivs?:      Uint8Array[],
+	) {
 		if (!_serpentReady()) throw new Error('leviathan-crypto: call init([\'serpent\']) before using SerpentStreamSealer');
 		if (!_sha2Ready())    throw new Error('leviathan-crypto: call init([\'sha2\']) before using SerpentStreamSealer');
 		if (key.length !== 64) throw new RangeError(`SerpentStreamSealer key must be 64 bytes (got ${key.length})`);
 		const cs = chunkSize ?? CHUNK_DEF;
 		if (cs < CHUNK_MIN || cs > CHUNK_MAX)
 			throw new RangeError(`SerpentStreamSealer chunkSize must be ${CHUNK_MIN}..${CHUNK_MAX} (got ${cs})`);
-		this._key   = key.slice();
-		this._cs    = cs;
-		this._nonce = new Uint8Array(16);
+		this._key    = key.slice();
+		this._cs     = cs;
+		this._framed = opts?.framed ?? false;
+		this._nonce  = new Uint8Array(16);
 		if (_nonce && _nonce.length === 16) {
 			this._nonce.set(_nonce);
 		} else {
@@ -149,7 +166,12 @@ export class SerpentStreamSealer {
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
 		const tag        = this._hmac.hash(macKey, concat(iv, ciphertext));
 		this._index++;
-		return concat(concat(iv, ciphertext), tag);
+		const sealed = concat(concat(iv, ciphertext), tag);
+		if (!this._framed) return sealed;
+		const out = new Uint8Array(4 + sealed.length);
+		out.set(u32be(sealed.length), 0);
+		out.set(sealed, 4);
+		return out;
 	}
 
 	private _wipe(): void {
@@ -167,28 +189,42 @@ export class SerpentStreamSealer {
 }
 
 export class SerpentStreamOpener {
-	private readonly _key:   Uint8Array;
-	private readonly _cs:    number;
-	private readonly _nonce: Uint8Array;
-	private readonly _cbc:   SerpentCbc;
-	private readonly _hmac:  HMAC_SHA256;
-	private readonly _hkdf:  HKDF_SHA256;
-	private _index: number;
-	private _dead:  boolean;
+	private readonly _key:      Uint8Array;
+	private readonly _cs:       number;
+	private readonly _nonce:    Uint8Array;
+	private readonly _cbc:      SerpentCbc;
+	private readonly _hmac:     HMAC_SHA256;
+	private readonly _hkdf:     HKDF_SHA256;
+	private readonly _framed:   boolean;
+	private readonly _buf:      Uint8Array | undefined;
+	private readonly _maxFrame: number | undefined;
+	private _bufLen:  number;
+	private _index:   number;
+	private _dead:    boolean;
 
-	constructor(key: Uint8Array, header: Uint8Array) {
+	constructor(key: Uint8Array, header: Uint8Array, opts?: { framed?: boolean }) {
 		if (!_serpentReady()) throw new Error('leviathan-crypto: call init([\'serpent\']) before using SerpentStreamOpener');
 		if (!_sha2Ready())    throw new Error('leviathan-crypto: call init([\'sha2\']) before using SerpentStreamOpener');
 		if (key.length !== 64)     throw new RangeError(`SerpentStreamOpener key must be 64 bytes (got ${key.length})`);
 		if (header.length !== 20)  throw new RangeError(`SerpentStreamOpener header must be 20 bytes (got ${header.length})`);
-		this._key   = key.slice();
-		this._nonce = header.slice(0, 16);
-		this._cs    = (header[16] << 24 | header[17] << 16 | header[18] << 8 | header[19]) >>> 0;
-		this._cbc   = new SerpentCbc({ dangerUnauthenticated: true });
-		this._hmac  = new HMAC_SHA256();
-		this._hkdf  = new HKDF_SHA256();
-		this._index = 0;
-		this._dead  = false;
+		this._key    = key.slice();
+		this._nonce  = header.slice(0, 16);
+		this._cs     = (header[16] << 24 | header[17] << 16 | header[18] << 8 | header[19]) >>> 0;
+		if (this._cs < CHUNK_MIN || this._cs > CHUNK_MAX)
+			throw new RangeError(`SerpentStreamOpener: header contains invalid chunkSize ${this._cs} (expected ${CHUNK_MIN}..${CHUNK_MAX})`);
+		this._framed = opts?.framed ?? false;
+		this._cbc    = new SerpentCbc({ dangerUnauthenticated: true });
+		this._hmac   = new HMAC_SHA256();
+		this._hkdf   = new HKDF_SHA256();
+		this._index  = 0;
+		this._dead   = false;
+		this._bufLen = 0;
+		if (this._framed) {
+			const cs        = this._cs;
+			const maxSealed = 16 + (cs + (16 - (cs % 16))) + 32;
+			this._maxFrame  = 4 + maxSealed;
+			this._buf       = new Uint8Array(this._maxFrame);
+		}
 	}
 
 	get closed(): boolean {
@@ -197,7 +233,11 @@ export class SerpentStreamOpener {
 
 	open(chunk: Uint8Array): Uint8Array {
 		if (this._dead) throw new Error('SerpentStreamOpener: stream is closed');
+		if (this._framed) throw new Error('SerpentStreamOpener: call feed() on framed openers — open() expects raw sealed chunks without length prefix');
+		return this._openRaw(chunk);
+	}
 
+	private _openRaw(chunk: Uint8Array): Uint8Array {
 		// Try isLast = true first, then false.
 		// Whichever passes auth is the correct interpretation.
 		for (const isLast of [true, false]) {
@@ -222,12 +262,107 @@ export class SerpentStreamOpener {
 		throw new Error('SerpentStreamOpener: authentication failed');
 	}
 
+	feed(bytes: Uint8Array): Uint8Array[] {
+		if (!this._framed) throw new Error('SerpentStreamOpener: feed() requires { framed: true }');
+		if (this._dead) throw new Error('SerpentStreamOpener: stream is closed');
+		const buf      = this._buf as Uint8Array;
+		const maxFrame = this._maxFrame as number;
+
+		const results: Uint8Array[] = [];
+		let consumed = 0;
+
+		// ── Phase 1: drain carry-over ─────────────────────────────────────
+		if (this._bufLen > 0) {
+			// Sub-case A: partial prefix — we have < 4 bytes buffered
+			if (this._bufLen < 4) {
+				const need = 4 - this._bufLen;
+				const take = Math.min(need, bytes.length - consumed);
+				buf.set(bytes.subarray(consumed, consumed + take), this._bufLen);
+				this._bufLen += take;
+				consumed += take;
+				if (this._bufLen < 4) return results;
+			}
+
+			const sealedLen = (buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3]) >>> 0;
+			if (sealedLen === 0 || sealedLen > (maxFrame - 4)) {
+				this._wipe();
+				throw new Error('SerpentStreamOpener: invalid sealed chunk length');
+			}
+			const frameLen = 4 + sealedLen;
+
+			// Sub-case B: partial frame body
+			const haveInBuf = this._bufLen;
+			const needMore  = frameLen - haveInBuf;
+			if (needMore > 0) {
+				const take = Math.min(needMore, bytes.length - consumed);
+				buf.set(bytes.subarray(consumed, consumed + take), haveInBuf);
+				this._bufLen += take;
+				consumed += take;
+				if (this._bufLen < frameLen) return results;
+			}
+
+			const plaintext = this._openRaw(buf.subarray(4, frameLen));
+			results.push(plaintext);
+			this._bufLen = 0;
+
+			if (this._dead) {
+				if (consumed < bytes.length) {
+					this._wipe();
+					throw new Error('SerpentStreamOpener: unexpected bytes after final chunk');
+				}
+				return results;
+			}
+		}
+
+		// ── Phase 2: parse complete frames directly from bytes ────────────
+		let pos = consumed;
+		while (true) {
+			if (bytes.length - pos < 4) break;
+			const sealedLen = (bytes[pos] << 24 | bytes[pos + 1] << 16 | bytes[pos + 2] << 8 | bytes[pos + 3]) >>> 0;
+			if (sealedLen === 0 || sealedLen > (maxFrame - 4)) {
+				this._wipe();
+				throw new Error('SerpentStreamOpener: invalid sealed chunk length');
+			}
+			const frameLen = 4 + sealedLen;
+			if (bytes.length - pos < frameLen) break;
+
+			const plaintext = this._openRaw(bytes.subarray(pos + 4, pos + frameLen));
+			results.push(plaintext);
+
+			if (this._dead) {
+				const remaining = bytes.length - pos - frameLen;
+				if (remaining > 0) {
+					this._wipe();
+					throw new Error('SerpentStreamOpener: unexpected bytes after final chunk');
+				}
+				return results;
+			}
+			pos += frameLen;
+		}
+
+		// ── Carry over any incomplete trailing bytes into _buf ────────────
+		const leftover = bytes.length - pos;
+		if (leftover > 0) {
+			if (leftover > maxFrame) {
+				this._wipe();
+				throw new Error('SerpentStreamOpener: input exceeds maximum frame size');
+			}
+			buf.set(bytes.subarray(pos), 0);
+			this._bufLen = leftover;
+		}
+		return results;
+	}
+
 	private _wipe(): void {
+		if (this._dead) return;
 		wipe(this._key);
 		wipe(this._nonce);
 		this._cbc.dispose();
 		this._hmac.dispose();
 		this._hkdf.dispose();
+		if (this._framed) {
+			wipe(this._buf as Uint8Array); this._bufLen = 0;
+		}
 		this._dead = true;
 	}
 

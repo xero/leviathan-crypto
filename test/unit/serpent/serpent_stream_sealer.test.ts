@@ -25,6 +25,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, SerpentStreamSealer, SerpentStreamOpener, hexToBytes, bytesToHex } from '../../../src/ts/index.js';
 import { SS1, SS2, SS3 } from '../../vectors/serpent_stream_sealer.js';
+import { SE1, SE2, SE3 } from '../../vectors/serpent_stream_encoder.js';
 
 beforeAll(async () => {
 	await init(['serpent', 'sha2']);
@@ -38,7 +39,7 @@ describe('SerpentStreamSealer — Gate 11', () => {
 		const key   = hexToBytes(SS1.key);
 		const nonce = hexToBytes(SS1.nonce);
 		const ivs   = SS1.ivs.map(hexToBytes);
-		const sealer = new SerpentStreamSealer(key, SS1.chunkSize, nonce, ivs);
+		const sealer = new SerpentStreamSealer(key, SS1.chunkSize, undefined, nonce, ivs);
 		const hdr = sealer.header();
 		expect(bytesToHex(hdr)).toBe(SS1.header);
 		const chunk = sealer.final(hexToBytes(SS1.plaintexts[0]));
@@ -61,7 +62,7 @@ describe('SerpentStreamSealer — KAT', () => {
 		const key   = hexToBytes(SS2.key);
 		const nonce = hexToBytes(SS2.nonce);
 		const ivs   = SS2.ivs.map(hexToBytes);
-		const sealer = new SerpentStreamSealer(key, SS2.chunkSize, nonce, ivs);
+		const sealer = new SerpentStreamSealer(key, SS2.chunkSize, undefined, nonce, ivs);
 		const hdr = sealer.header();
 		const c0 = sealer.seal(hexToBytes(SS2.plaintexts[0]));
 		const c1 = sealer.seal(hexToBytes(SS2.plaintexts[1]));
@@ -80,7 +81,7 @@ describe('SerpentStreamSealer — KAT', () => {
 		const key   = hexToBytes(SS3.key);
 		const nonce = hexToBytes(SS3.nonce);
 		const ivs   = SS3.ivs.map(hexToBytes);
-		const sealer = new SerpentStreamSealer(key, SS3.chunkSize, nonce, ivs);
+		const sealer = new SerpentStreamSealer(key, SS3.chunkSize, undefined, nonce, ivs);
 		const hdr = sealer.header();
 		const c0 = sealer.seal(hexToBytes(SS3.plaintexts[0]));
 		const c1 = sealer.final(hexToBytes(SS3.plaintexts[1]));
@@ -97,6 +98,24 @@ describe('SerpentStreamSealer — KAT', () => {
 		expect(bytesToHex(hdr.subarray(0, 16))).toBe(SS2.nonce);
 		const cs = (hdr[16] << 24 | hdr[17] << 16 | hdr[18] << 8 | hdr[19]) >>> 0;
 		expect(cs).toBe(SS2.chunkSize);
+	});
+
+	it('empty final() — round-trips to zero-length plaintext', () => {
+		const key    = new Uint8Array(64);
+		const sealer = new SerpentStreamSealer(key);
+		const header = sealer.header();
+		// seal one full chunk, then final with zero bytes
+		const pt0    = new Uint8Array(65536).fill(0xab);
+		const chunk0 = sealer.seal(pt0);
+		const last   = sealer.final(new Uint8Array(0));
+
+		const opener = new SerpentStreamOpener(key, header);
+		const rec0   = opener.open(chunk0);
+		const recLast = opener.open(last);
+
+		expect(rec0.length).toBe(65536);
+		expect(Array.from(rec0)).toEqual(Array.from(pt0));
+		expect(recLast.length).toBe(0);
 	});
 });
 
@@ -207,6 +226,27 @@ describe('SerpentStreamSealer — state machine', () => {
 	it('opener constructor with wrong header length → RangeError', () => {
 		expect(() => new SerpentStreamOpener(new Uint8Array(64), new Uint8Array(10))).toThrow(RangeError);
 	});
+
+	it('SerpentStreamOpener: header with out-of-range chunkSize → RangeError', () => {
+		const key = new Uint8Array(64);
+		// Craft a header with chunkSize = 0xffffffff
+		const hdr = new Uint8Array(20);
+		hdr[16] = 0xff; hdr[17] = 0xff; hdr[18] = 0xff; hdr[19] = 0xff;
+		expect(() => new SerpentStreamOpener(key, hdr, { framed: true })).toThrow(RangeError);
+	});
+
+	it('SerpentStreamOpener: header with zero chunkSize → RangeError', () => {
+		const key = new Uint8Array(64);
+		const hdr = new Uint8Array(20); // all zeros → chunkSize = 0
+		expect(() => new SerpentStreamOpener(key, hdr, { framed: true })).toThrow(RangeError);
+	});
+
+	it('open() on framed opener → throws with feed() guidance', () => {
+		const key    = hexToBytes(SE1.key);
+		const header = hexToBytes(SE1.header);
+		const opener = new SerpentStreamOpener(key, header, { framed: true });
+		expect(() => opener.open(hexToBytes(SE1.encodedChunks[0]))).toThrow('feed()');
+	});
 });
 
 // ── Lifecycle ───────────────────────────────────────────────────────────────
@@ -235,5 +275,196 @@ describe('SerpentStreamSealer — lifecycle', () => {
 		sealer.header();
 		sealer.final(new Uint8Array(0));
 		expect(() => sealer.dispose()).not.toThrow();
+	});
+});
+
+// ── Gate 12 — framed mode ────────────────────────────────────────────────────
+
+describe('SerpentStreamSealer — Gate 12 (framed mode)', () => {
+	// GATE
+	it('SE1: framed sealer matches KAT header', () => {
+		const enc = new SerpentStreamSealer(hexToBytes(SE1.key), SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		expect(bytesToHex(enc.header())).toBe(SE1.header);
+		enc.dispose();
+	});
+
+	it('SE1: framed sealer final() matches KAT encodedChunk', () => {
+		const enc   = new SerpentStreamSealer(hexToBytes(SE1.key), SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		enc.header();
+		const frame = enc.final(hexToBytes(SE1.plaintexts[0]));
+		expect(bytesToHex(frame)).toBe(SE1.encodedChunks[0]);
+	});
+
+	it('SE1: framed opener round-trips via feed()', () => {
+		const key   = hexToBytes(SE1.key);
+		const enc   = new SerpentStreamSealer(key, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		const hdr   = enc.header();
+		const frame = enc.final(hexToBytes(SE1.plaintexts[0]));
+		const dec     = new SerpentStreamOpener(key, hdr, { framed: true });
+		const results = dec.feed(frame);
+		expect(results.length).toBe(1);
+		expect(bytesToHex(results[0])).toBe(SE1.plaintexts[0]);
+	});
+
+	it('SE1: framed opener — byte-at-a-time feed', () => {
+		const key = hexToBytes(SE1.key);
+		const enc = new SerpentStreamSealer(key, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		const hdr = enc.header();
+		const frame = enc.final(hexToBytes(SE1.plaintexts[0]));
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		let all: Uint8Array[] = [];
+		for (let i = 0; i < frame.length; i++) all = all.concat(dec.feed(frame.subarray(i, i + 1)));
+		expect(all.length).toBe(1);
+		expect(bytesToHex(all[0])).toBe(SE1.plaintexts[0]);
+	});
+
+	it('feed() throws on unframed opener', () => {
+		const dec = new SerpentStreamOpener(hexToBytes(SE1.key), hexToBytes(SE1.header));
+		expect(() => dec.feed(new Uint8Array(4))).toThrow('feed() requires { framed: true }');
+		dec.dispose();
+	});
+
+	it('SE2: three-chunk framed round-trip — seal×2 + final, feed each frame', () => {
+		const key  = hexToBytes(SE2.key);
+		const enc  = new SerpentStreamSealer(key, SE2.chunkSize, { framed: true }, hexToBytes(SE2.nonce), SE2.ivs.map(hexToBytes));
+		const hdr  = enc.header();
+		const f0   = enc.seal(hexToBytes(SE2.plaintexts[0]));
+		const f1   = enc.seal(hexToBytes(SE2.plaintexts[1]));
+		const f2   = enc.final(hexToBytes(SE2.plaintexts[2]));
+		expect(bytesToHex(f0)).toBe(SE2.encodedChunks[0]);
+		expect(bytesToHex(f1)).toBe(SE2.encodedChunks[1]);
+		expect(bytesToHex(f2)).toBe(SE2.encodedChunks[2]);
+
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		const r0  = dec.feed(f0);
+		const r1  = dec.feed(f1);
+		const r2  = dec.feed(f2);
+		expect(r0.length).toBe(1); expect(bytesToHex(r0[0])).toBe(SE2.plaintexts[0]);
+		expect(r1.length).toBe(1); expect(bytesToHex(r1[0])).toBe(SE2.plaintexts[1]);
+		expect(r2.length).toBe(1); expect(bytesToHex(r2[0])).toBe(SE2.plaintexts[2]);
+	});
+
+	it('SE2: multi-frame feed — all three frames concatenated', () => {
+		const key = hexToBytes(SE2.key);
+		const enc = new SerpentStreamSealer(key, SE2.chunkSize, { framed: true }, hexToBytes(SE2.nonce), SE2.ivs.map(hexToBytes));
+		const hdr = enc.header();
+		const f0  = enc.seal(hexToBytes(SE2.plaintexts[0]));
+		const f1  = enc.seal(hexToBytes(SE2.plaintexts[1]));
+		const f2  = enc.final(hexToBytes(SE2.plaintexts[2]));
+
+		const all = new Uint8Array(f0.length + f1.length + f2.length);
+		all.set(f0, 0);
+		all.set(f1, f0.length);
+		all.set(f2, f0.length + f1.length);
+
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		const out = dec.feed(all);
+		expect(out.length).toBe(3);
+		for (let i = 0; i < 3; i++) expect(bytesToHex(out[i])).toBe(SE2.plaintexts[i]);
+	});
+
+	it('feed(): oversized sealedLen prefix → throws immediately', () => {
+		const key = hexToBytes(SE1.key);
+		const enc = new SerpentStreamSealer(key, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		const hdr = enc.header(); enc.dispose();
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		const bad = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
+		expect(() => dec.feed(bad)).toThrow('invalid sealed chunk length');
+	});
+
+	it('feed(): zero sealedLen prefix → throws immediately', () => {
+		const key = hexToBytes(SE1.key);
+		const enc = new SerpentStreamSealer(key, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		const hdr = enc.header(); enc.dispose();
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		const bad = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
+		expect(() => dec.feed(bad)).toThrow('invalid sealed chunk length');
+	});
+
+	it('SE3: two-chunk framed round-trip', () => {
+		const key  = hexToBytes(SE3.key);
+		const enc  = new SerpentStreamSealer(key, SE3.chunkSize, { framed: true }, hexToBytes(SE3.nonce), SE3.ivs.map(hexToBytes));
+		const hdr  = enc.header();
+		const f0   = enc.seal(hexToBytes(SE3.plaintexts[0]));
+		const f1   = enc.final(hexToBytes(SE3.plaintexts[1]));
+		expect(bytesToHex(f0)).toBe(SE3.encodedChunks[0]);
+		expect(bytesToHex(f1)).toBe(SE3.encodedChunks[1]);
+
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		const r0  = dec.feed(f0);
+		const r1  = dec.feed(f1);
+		expect(r0.length).toBe(1); expect(bytesToHex(r0[0])).toBe(SE3.plaintexts[0]);
+		expect(r1.length).toBe(1); expect(bytesToHex(r1[0])).toBe(SE3.plaintexts[1]);
+	});
+
+	it('SE1: split feed at midpoint — correct plaintext emitted on second call', () => {
+		const key   = hexToBytes(SE1.key);
+		const enc   = new SerpentStreamSealer(key, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		const hdr   = enc.header();
+		const frame = enc.final(hexToBytes(SE1.plaintexts[0]));
+		const split = Math.floor(frame.length / 2);
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		const r1 = dec.feed(frame.subarray(0, split));
+		expect(r1.length).toBe(0);
+		const r2 = dec.feed(frame.subarray(split));
+		expect(r2.length).toBe(1);
+		expect(bytesToHex(r2[0])).toBe(SE1.plaintexts[0]);
+	});
+
+	it('SE2: post-final leftover bytes → throws', () => {
+		const key  = hexToBytes(SE2.key);
+		const enc  = new SerpentStreamSealer(key, SE2.chunkSize, { framed: true }, hexToBytes(SE2.nonce), SE2.ivs.map(hexToBytes));
+		const hdr  = enc.header();
+		const f0   = enc.seal(hexToBytes(SE2.plaintexts[0]));
+		const f1   = enc.seal(hexToBytes(SE2.plaintexts[1]));
+		const f2   = enc.final(hexToBytes(SE2.plaintexts[2]));
+		const withExtra = new Uint8Array(f2.length + 1);
+		withExtra.set(f2); withExtra[f2.length] = 0xff;
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		dec.feed(f0); dec.feed(f1);
+		expect(() => dec.feed(withExtra)).toThrow('unexpected bytes after final chunk');
+	});
+
+	it('SE1: tampered framed chunk → throws', () => {
+		const key   = hexToBytes(SE1.key);
+		const enc   = new SerpentStreamSealer(key, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		const hdr   = enc.header();
+		const frame = enc.final(hexToBytes(SE1.plaintexts[0]));
+		const tampered = frame.slice();
+		tampered[24] ^= 0xff;
+		const dec = new SerpentStreamOpener(key, hdr, { framed: true });
+		expect(() => dec.feed(tampered)).toThrow('authentication failed');
+	});
+
+	it('SE1: cross-stream splice: SE1 framed chunk fed to SE3 opener → throws', () => {
+		const key1 = hexToBytes(SE1.key);
+		const enc1 = new SerpentStreamSealer(key1, SE1.chunkSize, { framed: true }, hexToBytes(SE1.nonce), SE1.ivs.map(hexToBytes));
+		enc1.header();
+		const f1 = enc1.final(hexToBytes(SE1.plaintexts[0]));
+
+		const key3 = hexToBytes(SE3.key);
+		const enc3 = new SerpentStreamSealer(key3, SE3.chunkSize, { framed: true }, hexToBytes(SE3.nonce), SE3.ivs.map(hexToBytes));
+		const hdr3 = enc3.header(); enc3.dispose();
+
+		const dec3 = new SerpentStreamOpener(key3, hdr3, { framed: true });
+		expect(() => dec3.feed(f1)).toThrow('authentication failed');
+	});
+
+	it('framed — empty final() round-trips via feed()', () => {
+		const key    = new Uint8Array(64);
+		const sealer = new SerpentStreamSealer(key, 1024, { framed: true });
+		const header = sealer.header();
+		const pt0    = new Uint8Array(1024).fill(0xcd);
+		const frame0 = sealer.seal(pt0);
+		const last   = sealer.final(new Uint8Array(0));
+
+		const opener = new SerpentStreamOpener(key, header, { framed: true });
+		const res0   = opener.feed(frame0);
+		const resLast = opener.feed(last);
+
+		expect(res0.length).toBe(1);
+		expect(Array.from(res0[0])).toEqual(Array.from(pt0));
+		expect(resLast.length).toBe(1);
+		expect(resLast[0].length).toBe(0);
 	});
 });

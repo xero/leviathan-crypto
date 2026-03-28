@@ -87,7 +87,7 @@ await serpentInit()
 
 | Classes | `init()` call |
 |---------|--------------|
-| `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `SerpentStreamEncoder`, `SerpentStreamDecoder`, `Serpent`, `SerpentCtr`, `SerpentCbc` | `init(['serpent', 'sha2'])` |
+| `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` | `init(['serpent', 'sha2'])` |
 | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool` | `init(['chacha20'])` |
 | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init(['sha2'])` |
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init(['sha3'])` |
@@ -134,23 +134,24 @@ const ptLast = opener.open(last)
 
 ### Length-prefixed streaming (for files and buffered transports)
 
-`SerpentStreamEncoder`/`SerpentStreamDecoder` wrap the sealer/opener with
-`u32be` length-prefixed framing so chunk boundaries are self-delimiting.
+Pass `{ framed: true }` to `SerpentStreamSealer`/`SerpentStreamOpener` for self-delimiting
+`u32be` length-prefixed framing. Use when chunks will be concatenated into a flat byte
+stream. Omit when the transport frames messages itself (WebSocket, IPC).
 
 ```typescript
-import { init, SerpentStreamEncoder, SerpentStreamDecoder, randomBytes } from 'leviathan-crypto'
+import { init, SerpentStreamSealer, SerpentStreamOpener, randomBytes } from 'leviathan-crypto'
 
 await init(['serpent', 'sha2'])
 
-const key     = randomBytes(64)
-const encoder = new SerpentStreamEncoder(key, 65536)
-const header  = encoder.header()
+const key    = randomBytes(64)
+const sealer = new SerpentStreamSealer(key, 65536, { framed: true })
+const header = sealer.header()
 
-const frame0  = encoder.encode(data0)         // u32be(len) || sealed chunk
-const last    = encoder.encodeFinal(tail)
+const frame0 = sealer.seal(data0)        // u32be(len) || sealed chunk
+const last   = sealer.final(tail)
 
-const decoder = new SerpentStreamDecoder(key, header)
-const chunks  = decoder.feed(frame0)          // returns Uint8Array[], throws on auth failure
+const opener = new SerpentStreamOpener(key, header, { framed: true })
+const chunks = opener.feed(frame0)       // Uint8Array[] — throws on auth failure
 ```
 
 ### XChaCha20-Poly1305
@@ -255,7 +256,7 @@ The complete API reference ships in `docs/` alongside this file:
 
 | File | Contents |
 |------|----------|
-| `docs/serpent.md` | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `SerpentStreamEncoder`, `SerpentStreamDecoder`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
+| `docs/serpent.md` | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
 | `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool` |
 | `docs/sha2.md` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` |
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |

@@ -306,10 +306,6 @@ export type { StreamPoolOpts } from './stream-pool.js';
 
 export { SerpentStreamSealer, SerpentStreamOpener } from './stream-sealer.js';
 
-// ── SerpentStreamEncoder / SerpentStreamDecoder re-export ─────────────────────
-
-export { SerpentStreamEncoder, SerpentStreamDecoder } from './stream-encoder.js';
-
 // ── Ready check ──────────────────────────────────────────────────────────────
 
 export function _serpentReady(): boolean {

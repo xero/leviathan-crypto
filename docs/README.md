@@ -46,7 +46,6 @@ For more: streaming, chunking, hashing, key derivation, and both ciphers: see th
 
 | Document | Description |
 |----------|-------------|
-| [architecture.md](./architecture.md) | Architecture overview, build pipeline, module relationships, buffer layouts |
 | [init.md](./init.md) | `init()` API, three loading modes, subpath imports, tree-shaking |
 | [wasm.md](./wasm.md) | WebAssembly primer in the context of this library |
 | [examples.md](./examples.md) | Code examples for every primitive |
@@ -95,7 +94,7 @@ For more: streaming, chunking, hashing, key derivation, and both ciphers: see th
 
 | Module | Description |
 |--------|-------------|
-| [utils.md](./utils.md) | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes` _no `init()` required_ |
+| [utils.md](./utils.md) | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`, `hasSIMD` _no `init()` required_ |
 | [types.md](./types.md) | TypeScript interfaces: `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
 
 ### Internal

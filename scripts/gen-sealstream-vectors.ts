@@ -90,7 +90,7 @@ interface GeneratedVector {
 }
 
 function generateVector(def: VectorDef): GeneratedVector {
-	const sealer = new SerpentStreamSealer(def.key, def.chunkSize, def.nonce, def.ivs);
+	const sealer = new SerpentStreamSealer(def.key, def.chunkSize, undefined, def.nonce, def.ivs);
 	const hdr    = sealer.header();
 
 	const chunkHexes: string[] = [];

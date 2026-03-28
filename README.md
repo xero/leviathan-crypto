@@ -48,7 +48,7 @@ npm install leviathan-crypto
 
 **`lvthn-web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/lvthn-web) · [readme](https://github.com/xero/leviathan-demos/blob/main/lvthn-web/README.md) ]
 
-A browser encryption tool in a single, self-contained HTML file. Encrypt text or files using Serpent-256-CBC and Argon2id key derivation, then share the armored output. No server, installation, or network connection required after initial load. The code in is written to be read. The Encrypt-then-MAC construction, HMAC input (header with HMAC field zeroed + ciphertext), and Argon2id parameters are all intentional examples worth reading.
+A browser encryption tool in a single, self-contained HTML file. Encrypt text or files using Serpent-256-CBC and Argon2id key derivation, then share the armored output. No server, installation, or network connection required after initial load. The code is written to be read. The Encrypt-then-MAC construction, HMAC input (header with HMAC field zeroed + ciphertext), and Argon2id parameters are all intentional examples worth reading.
 
 **`lvthn-chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/lvthn-chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/lvthn-chat/README.md) ]
 
@@ -69,26 +69,32 @@ cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 
 ## Primitives
 
-| Classes                                                                   | Module            | Auth    | Notes                                                                                                |
-| ------------------------------------------------------------------------- | ----------------- | ------- | ---------------------------------------------------------------------------------------------------- |
-| `SerpentSeal`                                                             | `serpent`, `sha2` | **Yes** | Authenticated encryption: Serpent-CBC + HMAC-SHA256. Recommended for most use cases.                 |
-| `SerpentStream`, `SerpentStreamPool`                                      | `serpent`, `sha2` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers.                  |
-| `SerpentStreamSealer`, `SerpentStreamOpener`                              | `serpent`, `sha2` | **Yes** | Incremental streaming AEAD: seal and open one chunk at a time without buffering the full message.    |
-| `SerpentStreamEncoder`, `SerpentStreamDecoder`                            | `serpent`, `sha2` | **Yes** | Length-prefixed framing over SerpentStreamSealer/Opener for flat byte streams (files, buffered TCP). |
-| `Serpent`, `SerpentCtr`, `SerpentCbc`                                     | `serpent`         | **No**  | Raw ECB, CTR, CBC modes. Unauthenticated — pair with HMAC-SHA256 for authentication.                 |
-| `XChaCha20Poly1305`, `ChaCha20Poly1305`                                   | `chacha20`        | **Yes** | AEAD — RFC 8439. XChaCha20 recommended (192-bit nonce).                                              |
-| `ChaCha20`                                                                | `chacha20`        | **No**  | Raw stream cipher. Unauthenticated — use with `Poly1305` for authentication.                         |
-| `Poly1305`                                                                | `chacha20`        | **No**  | One-time MAC — RFC 8439. Use via the AEAD classes unless you have a specific reason not to.          |
-| `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | `sha2`            | -       | FIPS 180-4, RFC 2104                                                                                 |
-| `HKDF_SHA256`, `HKDF_SHA512`                                              | `sha2`            | -       | Key derivation — RFC 5869. Extract-and-expand over HMAC.                                             |
-| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`    | `sha3`            | -       | FIPS 202                                                                                             |
-| `Fortuna`                                                                 | `fortuna`         | -       | Fortuna CSPRNG (Ferguson & Schneier). Requires `Fortuna.create()`.                                   |
+| Class | Module | Auth | Notes |
+|-------|--------|------|-------|
+|  **Authenticated encryption** | | | |
+| `SerpentSeal` | `serpent`, `sha2` | **Yes** | Serpent-CBC + HMAC-SHA256. Recommended default for most use cases. 64-byte key. |
+| `SerpentStream`, `SerpentStreamPool` | `serpent`, `sha2` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers. 32-byte key. |
+| `SerpentStreamSealer`, `SerpentStreamOpener` | `serpent`, `sha2` | **Yes** | Incremental streaming AEAD: seal/open one chunk at a time. Pass `{ framed: true }` for self-delimiting `u32be` length-prefix framing. 64-byte key. |
+| `XChaCha20Poly1305` | `chacha20` | **Yes** | XChaCha20-Poly1305 AEAD. Recommended when you want a simpler API or a 192-bit nonce safe for random generation. 32-byte key. |
+| `XChaCha20Poly1305Pool` | `chacha20` | **Yes** | Worker-pool wrapper for `XChaCha20Poly1305`. Parallelises encryption across isolated WASM instances. |
+| `ChaCha20Poly1305` | `chacha20` | **Yes** | ChaCha20-Poly1305 AEAD — RFC 8439. 12-byte nonce; prefer `XChaCha20Poly1305` unless you need RFC 8439 exact compliance. |
+| **Unauthenticated primitives** _pair with HMAC or use AEAD_ | | | |
+| `Serpent` | `serpent` | **No** | Serpent-256 ECB block cipher. Single-block encrypt/decrypt.|
+| `SerpentCtr` | `serpent` | **No** | Serpent-256 CTR mode stream cipher. Requires `{ dangerUnauthenticated: true }`. |
+| `SerpentCbc` | `serpent` | **No** | Serpent-256 CBC mode with PKCS7 padding. Requires `{ dangerUnauthenticated: true }`. |
+| `ChaCha20` | `chacha20` | **No** | ChaCha20 stream cipher — RFC 8439. Unauthenticated; use `XChaCha20Poly1305` unless you need raw keystream. |
+| `Poly1305` | `chacha20` | **No** | Poly1305 one-time MAC — RFC 8439. Use via the AEAD classes unless you have a specific reason not to. |
+| **Hashing and key derivation** | | | |
+| `SHA256`, `SHA384`, `SHA512` | `sha2` | — | SHA-2 family — FIPS 180-4. |
+| `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512` | `sha2` | — | HMAC construction over SHA-2 — RFC 2104. |
+| `HKDF_SHA256`, `HKDF_SHA512` | `sha2` | — | Extract-and-expand key derivation over HMAC — RFC 5869. |
+| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512` | `sha3` | — | SHA-3 family — FIPS 202. Keccak-based, structurally independent of SHA-2. |
+| `SHAKE128`, `SHAKE256` | `sha3` | — | Extendable output functions (XOF) — FIPS 202. Variable-length output; useful for key derivation and stream generation. |
+| **CSPRNG**  | | | |
+| `Fortuna` | `serpent`, `sha2` | — | Fortuna CSPRNG (Ferguson & Schneier). 32 entropy pools, forward secrecy. Use `Fortuna.create()`. |
 
 > [!IMPORTANT]
 > All cryptographic computation runs in WASM (AssemblyScript), isolated outside the JavaScript JIT. The TypeScript layer provides the public API with input validation, type safety, and developer ergonomics.
-
-> [!WARNING]
-> `SerpentCtr` and `SerpentCbc` are **unauthenticated** cipher modes. They provide confidentiality but not integrity or authenticity. An attacker can modify ciphertext without detection. For authenticated Serpent encryption use `SerpentSeal` or `SerpentStreamSealer`. When using CBC/CTR directly, pair with `HMAC_SHA256` using the Encrypt-then-MAC pattern.
 
 ---
 
@@ -190,7 +196,7 @@ await chacha20Init()
 | ------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | serpent      | [▼](./docs/serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/serpent)           | Serpent-256 TypeScript API (`SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc`) |
 | asm_serpent  | [▼](./docs/asm_serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_serpent)   | Serpent-256 WASM implementation (bitslice S-boxes, key schedule, CTR/CBC)                                                                                             |
-| chacha20     | [▼](./docs/chacha20.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha20)         | ChaCha20/Poly1305 TypeScript API (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)                                                                    |
+| chacha20     | [▼](./docs/chacha20.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha20)         | ChaCha20/Poly1305 TypeScript API (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool`)                                            |
 | asm_chacha   | [▼](./docs/asm_chacha.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_chacha)     | ChaCha20/Poly1305 WASM implementation (quarter-round, HChaCha20)                                                                                                      |
 | sha2         | [▼](./docs/sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha2)                 | SHA-2 TypeScript API (`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`)                                                                      |
 | asm_sha2     | [▼](./docs/asm_sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_sha2)         | SHA-2 WASM implementation (compression functions, HMAC)                                                                                                               |
@@ -217,6 +223,7 @@ These helpers are available immediately on import with no `init()` required.
 | `wipe(data)`                 | [▼](./docs/utils.md#wipe) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#wipe)                           | Zero a typed array in place                                    |
 | `xor(a, b)`                  | [▼](./docs/utils.md#xor) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#xor)                             | XOR two equal-length `Uint8Array`s                             |
 | `concat(a, b)`               | [▼](./docs/utils.md#concat) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#concat)                       | Concatenate two `Uint8Array`s                                  |
+| `hasSIMD()`                  | [▼](./docs/utils.md#hassimd) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#hassimd)                     | Detects WebAssembly SIMD support. Cached after first call. Used internally for CTR/CBC/ChaCha20 dispatch. |
 
 ### Algorithm correctness and verifications
 

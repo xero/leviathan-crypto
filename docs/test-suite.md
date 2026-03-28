@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 459 | All pass |
-| Playwright (e2e) | 165 (55 tests × 3 browsers) | All pass |
-| **Total** | **624** | |
+| Vitest (unit) | 456 | All pass |
+| Playwright (e2e) | 183 (61 tests × 3 browsers) | All pass |
+| **Total** | **639** | All pass |
 
 ---
 
@@ -31,8 +31,7 @@
 | `serpent/serpent_cbc_montecarlo.test.ts` | CBC Monte Carlo (1200 × 10000 enc + dec) | 2400 outer, 4 tests | — |
 | `serpent/serpent_stream.test.ts` | SerpentStream round-trip, auth, position binding, validation, lifecycle | 19 tests | Gate 9 |
 | `serpent/serpent_stream_pool.test.ts` | SerpentStreamPool correctness, parallel, auth, lifecycle | 15 tests | Gate 10 |
-| `serpent/serpent_stream_sealer.test.ts` | SerpentStreamSealer/Opener: KAT (SS1–SS3), round-trip, tamper, truncation, cross-stream splice, reorder, state machine guards, lifecycle | 21 tests | Gate 11 |
-| `serpent/serpent_stream_encoder.test.ts` | SerpentStreamEncoder/Decoder: KAT (SE1–SE3), length prefix, byte-at-a-time feed, split feed, multi-frame feed, post-final leftover, tamper, cross-stream, reorder, state machine, lifecycle | 22 tests | Gate 12 |
+| `serpent/serpent_stream_sealer.test.ts` | SerpentStreamSealer/Opener: KAT (SS1–SS3), framed mode KAT (SE1–SE3), byte-at-a-time feed, split feed, multi-frame, tamper, invalid-length, header chunkSize validation, state machine, lifecycle | 37 tests | Gate 11+12 |
 | `serpent/serpent_seal_kat.test.ts` | SerpentSeal KAT: known-answer (TC1, TC2), auth failure (ciphertext + tag), round-trip | 6 tests | — |
 | `serpent/serpent_stream_kat.test.ts` | SerpentStream KAT: known-answer (SS-1, SS-3, SS-6), header field decomposition, per-chunk tag verification, truncation, reorder, cross-stream splice, auth failure, min/max chunk size round-trip | 12 tests | — |
 | `chacha20/chacha20.test.ts` | ChaCha20 block + encryption + round-trips | 6 tests | Gate 3 |
@@ -101,7 +100,7 @@
 | `serpent.ts` | SerpentStream round-trip fixture (3 × 1024-byte chunks) | 1 | VERIFIED (Gate 9) |
 | `serpent_composition.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-seal-vectors.ts) — SerpentSeal (TC1, TC2) and SerpentStream (SS-1, SS-3, SS-6) KAT vectors. Generated with fixed IV/nonce seams, decomposed and verified against underlying primitives independently. | 5 | SELF-GENERATED |
 | `serpent_stream_sealer.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-sealstream-vectors.ts) — SerpentStreamSealer/Opener (SS1, SS2, SS3) KAT vectors. Generated with fixed nonce/IV seams, decomposed and verified against SerpentCbc + HMAC_SHA256 + HKDF_SHA256 independently. | 3 | SELF-GENERATED |
-| `serpent_stream_encoder.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-streamencoder-vectors.ts) — SerpentStreamEncoder/Decoder (SE1, SE2, SE3) KAT vectors. Generated with fixed nonce/IV seams, verified by round-trip through SerpentStreamDecoder (single feed + byte-at-a-time). | 3 | SELF-GENERATED |
+| `serpent_stream_encoder.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-streamencoder-vectors.ts) — SerpentStreamSealer framed mode (SE1, SE2, SE3) KAT vectors. Used by `serpent_stream_sealer.test.ts` for Gate 12 framed-mode coverage. Generated with fixed nonce/IV seams, verified by round-trip through SerpentStreamOpener `feed()`. | 3 | SELF-GENERATED |
 | `shake_xof.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/test/vectors/shake_xof.ts) — SHAKE128/256 multi-squeeze vectors (MS-1–MS-9). All chunks are slices of externally-verified KATs from `sha3.ts`, verified against Node.js `crypto.createHash`. | 8 | SELF-GENERATED |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.2.1 — ChaCha20 block function | 1 | VERIFIED (Gate 3) |
 | `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.4.2 — ChaCha20 114-byte encryption | 1 | VERIFIED |
@@ -135,17 +134,18 @@
 | `sha3.ts` | Node.js crypto / Python hashlib — SHAKE256 multi-block (empty×200, empty×272, empty×300, "abc"×200) | 4 | VERIFIED |
 
 > [!IMPORTANT]
-> All vector files are read-only. Integrity is verified via [`SHA256SUMS`](https://github.com/xero/leviathan-crypto/blob/main/test/vectors/SHA256SUMS)
-> with expected values sourced directly from authoritative references.
-> They are the **_immutable truth,_** and must never be modified to make tests pass.
+> All vector files are read-only. Integrity is verified via [`SHA256SUMS`](https://github.com/xero/leviathan-crypto/blob/main/test/vectors/SHA256SUMS) with expected values sourced directly from authoritative references. They are the **_immutable truth,_** and must never be modified to make tests pass.
 
 > [!NOTE]
 > `serpent_composition.ts`, `serpent_stream_sealer.ts`, `serpent_stream_encoder.ts`, and
 > `shake_xof.ts` are self-generated — there is no external authority for these wire formats
 > or multi-squeeze output slices. Each was produced with fixed inputs and independently
-> verified against the underlying primitives. These vectors are regression trip-wires for
-> format stability, not proof of correctness against an external reference. Generation
-> scripts are kept in the repo so derivations can be audited or reproduced.
+> verified against the underlying primitives. `serpent_stream_encoder.ts` vectors are now
+> consumed by `serpent_stream_sealer.test.ts` for Gate 12 framed-mode coverage; the wire
+> format is byte-identical to our legacy framed/bare Serpent stream format. These vectors
+> are regression trip-wires for format stability, not proof of correctness against an
+> external reference. Generation scripts are kept in the repo so derivations can be
+> audited or reproduced.
 
 > ## Cross-References
 >
