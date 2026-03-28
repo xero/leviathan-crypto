@@ -28,6 +28,7 @@ import { getInstance, initModule } from '../init.js';
 import type { Mode, InitOpts } from '../init.js';
 import type { ChaChaExports } from './types.js';
 import { aeadEncrypt, aeadDecrypt, xcEncrypt, xcDecrypt } from './ops.js';
+import { hasSIMD } from '../utils.js';
 
 const _embedded = () => import('../embedded/chacha.js').then(m => m.WASM_BASE64);
 
@@ -73,7 +74,8 @@ export class ChaCha20 {
 		const ptOff = this.x.getChunkPtOffset();
 		const ctOff = this.x.getChunkCtOffset();
 		mem.set(chunk, ptOff);
-		this.x.chachaEncryptChunk(chunk.length);
+		const fn = hasSIMD() ? this.x.chachaEncryptChunk_simd : this.x.chachaEncryptChunk;
+		fn(chunk.length);
 		return mem.slice(ctOff, ctOff + chunk.length);
 	}
 

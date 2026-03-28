@@ -26,6 +26,7 @@
 
 import { getInstance, initModule } from '../init.js';
 import type { Mode, InitOpts } from '../init.js';
+import { hasSIMD } from '../utils.js';
 
 const _embedded = () => import('../embedded/serpent.js').then(m => m.WASM_BASE64);
 
@@ -65,30 +66,6 @@ interface SerpentExports {
 
 function getExports(): SerpentExports {
 	return getInstance('serpent').exports as unknown as SerpentExports;
-}
-
-// Detects WASM SIMD support once and caches the result.
-// Gates CTR and CBC-decrypt dispatch. CBC mode is always scalar
-// (sequential dependency). Both paths exist in the same binary.
-// serpent.wasm requires SIMD to instantiate; this check does not
-// protect against instantiation failure on non-SIMD runtimes.
-let _simd: boolean | null = null;
-function hasSIMD(): boolean {
-	if (_simd !== null) return _simd;
-	if (typeof WebAssembly === 'undefined' || typeof WebAssembly.validate !== 'function') {
-		_simd = false;
-		return _simd;
-	}
-	// Minimal WASM module using v128 — validates iff SIMD is supported
-	try {
-		_simd = WebAssembly.validate(new Uint8Array([
-			0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,
-			3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
-		]));
-	} catch {
-		_simd = false;
-	}
-	return _simd;
 }
 
 // ── Serpent ──────────────────────────────────────────────────────────────────

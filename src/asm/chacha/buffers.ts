@@ -24,7 +24,7 @@
 // ChaCha20 module — static buffer layout.
 // Independent linear memory starting at offset 0.
 //
-// Total: 131460 bytes < 3 × 64KB = 196608 (65148 bytes spare).
+// Total: 131824 bytes < 3 × 64KB = 196608 (64784 bytes spare).
 //
 // Offset   Size     Name
 // 0        32       KEY_BUFFER (ChaCha20 256-bit key)
@@ -45,7 +45,9 @@
 // 131492   16       POLY_S_BUFFER (s pad: 4 × u32)
 // 131508   24       XCHACHA_NONCE_BUFFER (full 24-byte XChaCha20 nonce)
 // 131532   32       XCHACHA_SUBKEY_BUFFER (HChaCha20 output, key material)
-// 131564            END (< 196608 = 3 × 64KB ✓)
+// 131564   4        (padding for 16-byte SIMD alignment)
+// 131568   256      CHACHA_SIMD_WORK_BUFFER (4-wide inter-block keystream: 4 × 64 bytes)
+// 131824            END (< 196608 = 3 × 64KB ✓)
 
 export const CHUNK_SIZE:           i32 = 65536;
 
@@ -65,9 +67,11 @@ export const POLY_H_OFFSET:        i32 = 131380;
 export const POLY_R_OFFSET:        i32 = 131420;
 export const POLY_RS_OFFSET:       i32 = 131460;
 export const POLY_S_OFFSET:        i32 = 131492;
-export const XCHACHA_NONCE_OFFSET: i32 = 131508;
-export const XCHACHA_SUBKEY_OFFSET:i32 = 131532;
-// END = 131564 < 196608 ✓
+export const XCHACHA_NONCE_OFFSET:      i32 = 131508;
+export const XCHACHA_SUBKEY_OFFSET:     i32 = 131532;
+// 4 bytes padding for 16-byte SIMD alignment (131564 % 16 = 12 → +4)
+export const CHACHA_SIMD_WORK_OFFSET:   i32 = 131568;  // 16 × v128 = 256 bytes
+// END = 131824 < 196608 ✓
 
 export function getModuleId():           i32 {
 	return 1;
@@ -123,12 +127,15 @@ export function getPolyRsOffset():       i32 {
 export function getPolySOffset():        i32 {
 	return POLY_S_OFFSET;
 }
-export function getXChaChaNonceOffset(): i32 {
+export function getXChaChaNonceOffset():   i32 {
 	return XCHACHA_NONCE_OFFSET;
 }
-export function getXChaChaSubkeyOffset():i32 {
+export function getXChaChaSubkeyOffset():  i32 {
 	return XCHACHA_SUBKEY_OFFSET;
 }
-export function getMemoryPages():        i32 {
+export function getChachaSimdWorkOffset(): i32 {
+	return CHACHA_SIMD_WORK_OFFSET;
+}
+export function getMemoryPages():          i32 {
 	return memory.size();
 }

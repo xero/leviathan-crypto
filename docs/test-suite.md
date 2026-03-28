@@ -6,9 +6,9 @@
 
 | Runner | Tests | Status |
 |--------|-------|--------|
-| Vitest (unit) | 354 | All pass |
-| Playwright (e2e) | 123 (41 tests × 3 browsers) | All pass |
-| **Total** | **477** | |
+| Vitest (unit) | 459 | All pass |
+| Playwright (e2e) | 165 (55 tests × 3 browsers) | All pass |
+| **Total** | **624** | |
 
 ---
 
@@ -36,6 +36,8 @@
 | `serpent/serpent_seal_kat.test.ts` | SerpentSeal KAT: known-answer (TC1, TC2), auth failure (ciphertext + tag), round-trip | 6 tests | — |
 | `serpent/serpent_stream_kat.test.ts` | SerpentStream KAT: known-answer (SS-1, SS-3, SS-6), header field decomposition, per-chunk tag verification, truncation, reorder, cross-stream splice, auth failure, min/max chunk size round-trip | 12 tests | — |
 | `chacha20/chacha20.test.ts` | ChaCha20 block + encryption + round-trips | 6 tests | Gate 3 |
+| `chacha20/chacha20_simd_4x_gate.test.ts` | 4-wide inter-block SIMD: byte-identical to scalar for 192/256/320/512/337 bytes | 5 tests | Gate 13 |
+| `chacha20/chacha20_simd.test.ts` | SIMD cross-check: RFC §2.4.2 vector + size sweep (64–65536B) + round-trip | 11 tests | — |
 | `chacha20/poly1305.test.ts` | Poly1305 MAC vectors (§2.5.2, §2.6.2, A.3 #1–#6) | 9 tests | Gate 4 |
 | `chacha20/chacha20poly1305.test.ts` | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation) | 16 tests | Gate 5 |
 | `chacha20/xchacha20.test.ts` | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation) | 14 tests | Gate 6 |
@@ -63,6 +65,7 @@
 | `serpent_ctr.spec.ts` | CTR mode cases A–E | 1 |
 | `serpent_montecarlo.spec.ts` | ECB MC + CBC MC enc + CBC MC dec (50 outer × 10000 inner) | 3 |
 | `chacha20.spec.ts` | ChaCha20 RFC §2.4.2 encryption + 128B round-trip | 2 |
+| `chacha20_simd.spec.ts` | SIMD ChaCha20: 114B/256B/320B SIMD === scalar | 3 |
 | `poly1305.spec.ts` | Poly1305 RFC §2.5.2 gate + wipeBuffers verification | 2 |
 | `chacha20poly1305.spec.ts` | ChaCha20-Poly1305 RFC §2.8.2 sunscreen AEAD + round-trip | 2 |
 | `xchacha20.spec.ts` | XChaCha20-Poly1305 draft §A.3.2 AEAD + round-trip | 2 |

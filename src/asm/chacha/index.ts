@@ -40,6 +40,7 @@ export {
 	getPolySOffset,
 	getXChaChaNonceOffset,
 	getXChaChaSubkeyOffset,
+	getChachaSimdWorkOffset,
 	getMemoryPages,
 } from './buffers';
 
@@ -52,6 +53,11 @@ export {
 	chachaGenPolyKey,
 	hchacha20,
 } from './chacha20';
+
+export {
+	chachaEncryptChunk_simd,
+	chachaDecryptChunk_simd,
+} from './chacha20_simd_4x';
 
 export {
 	polyInit,

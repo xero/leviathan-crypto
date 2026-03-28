@@ -679,9 +679,11 @@ Source: `src/asm/chacha/buffers.ts`
 | 131492 | 16 | `POLY_S_BUFFER` — s pad: 4 × u32 |
 | 131508 | 24 | `XCHACHA_NONCE_BUFFER` — full 24-byte XChaCha20 nonce |
 | 131532 | 32 | `XCHACHA_SUBKEY_BUFFER` — HChaCha20 output (key material) |
-| 131564 | — | END |
+| 131564 | 4 | *(padding for 16-byte SIMD alignment)* |
+| 131568 | 256 | `CHACHA_SIMD_WORK_BUFFER` — 4-wide inter-block keystream (4 × 64 bytes) |
+| 131824 | — | END |
 
-`wipeBuffers()` zeroes all 14 buffer regions (key, chacha nonce/ctr/block/state, chunk pt/ct, poly key/msg/buf/tag/h/r/rs/s, xchacha nonce/subkey).
+`wipeBuffers()` zeroes all 15 buffer regions (key, chacha nonce/ctr/block/state, chunk pt/ct, poly key/msg/buf/tag/h/r/rs/s, xchacha nonce/subkey, SIMD work).
 
 ### SHA-2 module — 3 pages (192 KB)
 
