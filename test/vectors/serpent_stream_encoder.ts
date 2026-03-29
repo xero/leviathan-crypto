@@ -22,9 +22,9 @@
 // SELF-GENERATED
 // test/vectors/serpent_stream_encoder.ts
 //
-// Known-answer vectors for SerpentStreamEncoder / SerpentStreamDecoder.
+// Known-answer vectors for SerpentStreamSealer({ framed: true }) / SerpentStreamOpener({ framed: true }).
 // Generated via scripts/gen-streamencoder-vectors.ts using the _nonce/_ivs test seams.
-// Verified by round-trip through SerpentStreamDecoder (single feed + byte-at-a-time).
+// Verified by round-trip through SerpentStreamOpener.feed() (single feed + byte-at-a-time).
 
 export interface StreamEncoderVector {
 	description:    string;

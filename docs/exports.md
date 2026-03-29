@@ -31,8 +31,8 @@ Subpath: `leviathan-crypto/serpent` — see [serpent.md](./serpent).
 | `SerpentSeal` | class | Authenticated encryption: Serpent-CBC + HMAC-SHA256. `encrypt(key, plaintext)`, `decrypt(key, ciphertext)`. 64-byte key. |
 | `SerpentStream` | class | Chunked one-shot AEAD for large payloads. `seal(key, plaintext, chunkSize?)`, `open(key, ciphertext)`. 32-byte key. |
 | `SerpentStreamPool` | class | Worker-pool wrapper for `SerpentStream`. Parallelises chunk encryption across isolated WASM instances. `SerpentStreamPool.create(opts?)` static factory. |
-| `SerpentStreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 64-byte key. |
-| `SerpentStreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `dispose()`. Initialized from sealer `header()` output. |
+| `SerpentStreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 64-byte key. `opts?: { framed?: boolean }` prepends `u32be` length prefix. |
+| `SerpentStreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. Initialized from sealer `header()` output. `opts?: { framed?: boolean }` enables `feed()`. |
 | `Serpent` | class | Serpent-256 ECB block cipher. `loadKey()`, `encryptBlock()`, `decryptBlock()`. Unauthenticated. |
 | `SerpentCtr` | class | Serpent-256 CTR mode. `beginEncrypt()`, `encryptChunk()`, `beginDecrypt()`, `decryptChunk()`. Unauthenticated. |
 | `SerpentCbc` | class | Serpent-256 CBC mode with PKCS7 padding. `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. Unauthenticated. |

@@ -516,7 +516,7 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 | `SerpentStream` | HMAC-SHA256(macKey, ct) + HKDF-SHA256 | Streaming AEAD | Yes |
 | `SerpentStreamSealer` | HMAC-SHA256 + HKDF-SHA256 | Chunk AEAD | Yes |
 | `SerpentStreamPool` | HKDF-SHA256 for key derivation | KDF | Yes |
-| `SerpentStreamEncoder` | Via SerpentStreamSealer | Framed AEAD | Yes |
+| `SerpentStreamSealer { framed: true }` | Via SerpentStreamSealer | Framed AEAD | Yes |
 | `Fortuna` | Raw SHA-256 for internal state | CSPRNG state chaining | Yes (by design) |
 
 **Key findings:**

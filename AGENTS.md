@@ -23,16 +23,28 @@ rather than resolving it silently.
 
 ## Build & Test
 
+Always run `bun i` first. Every session, no exceptions. Missing devDependencies
+(eslint, playwright, tsx, etc.) have caused agents to waste time debugging tool
+errors that were simply install problems. Don't be that agent.
+
+Use these shorthands — they are the correct commands:
+
 ```sh
-bun run build        # build:asm → build:embed → build:ts → copy WASM
-bun run test         # build:asm → build:embed → vitest run
-bun run test:browser # build → playwright test (Chromium, Firefox, WebKit)
-bun run test:all     # unit + browser
-bun run lint         # eslint check
-bun run lint:fix     # eslint autofix
+bun i       # install — always run first, every session
+bun bake    # full build (asm → embed → ts → wasm copy → docs)
+bun check   # full test suite — unit + browser, correct timeouts
+bun fix     # eslint autofix — run before marking any task done
+bun pin     # re-pin action SHAs — run after any workflow file change
 ```
 
-**Note:** You can use npm if bun in unavailable. But bun is the preferred tool for speed.
+**Never use `bun build`, `bun run build`, `bun run test`, or `bun run test:all`
+directly.** `bun bake` and `bun check` include all required steps in the correct
+order with the correct timeout configuration. The raw `bun run` equivalents are
+missing steps, slower, or will timeout on the Monte Carlo tests.
+
+**Workflow file changes require `bun pin` before committing.** Any edit to a
+`.github/workflows/*.yml` file must be followed by `bun pin` to re-pin action
+SHAs. Never skip this step.
 
 ---
 
@@ -74,9 +86,9 @@ cannot be changed to make a failing test pass. If a test fails:
 - Debug the implementation
 - Verify the vector against the authoritative source independently
 - If the vector is wrong (sourced incorrectly), fix the vector and document why
-- Never change a vector to match implementation output without independent verification.
-  If this occurs, you are required to produce a document explaining your findings
-  and present it to the user post-session for review and acceptance.
+- Never change a vector to match implementation output without independent
+  verification. If this occurs, you are required to produce a document explaining
+  your findings and present it to the user post-session for review and acceptance.
 
 A test suite that passes because vectors were adjusted to match the implementation
 provides zero correctness assurance. It is worse than no tests.
@@ -136,7 +148,7 @@ that way.
 ## Code Style
 
 - **Tabs, not spaces** for indentation (AssemblyScript and TypeScript)
-- **Unix Line endings** follow what's defined in `.gitattributes`
+- **Unix line endings** — follow what's defined in `.gitattributes`
 - **Terse over verbose**: inline conditionals, short variable names, no
   unnecessary intermediate variables
 - **No comments that restate the code**: comments explain *why*, not *what*
@@ -145,6 +157,7 @@ that way.
 - **Exports are the public contract**: keep internal functions unexported;
   only export what the TypeScript layer needs to call
 - **The ASCII art header** goes on every source file (see any existing file)
+- **Run `bun fix` before committing**: lint errors are not the reviewer's problem
 
 ---
 
@@ -167,7 +180,7 @@ These are decisions already made. Do not relitigate them without raising it firs
   See `docs/architecture.md` for the full class name table.
 - **`src/ts/embedded/` is gitignored**: these files are build artifacts generated
   by `scripts/embed-wasm.ts`. Do not create or edit them manually.
-- **`sideEffects: false`** in package.json. Every module must be genuinely
+- **`sideEffects: false`** in `package.json`. Every module must be genuinely
   side-effect-free for tree-shaking.
 
 ---
@@ -181,7 +194,7 @@ These are decisions already made. Do not relitigate them without raising it firs
 - **Constant-time operations**: MAC verification, padding validation, and any
   comparison of secret-derived values must use XOR-accumulate patterns. No early
   return on mismatch. No branch on secret bytes.
-- **AEAD.decrypt() throws on authentication failure** — never returns null.
+- **AEAD `decrypt()` throws on authentication failure** — never returns null.
   Null returns are a footgun for callers who might forget to check.
 - **No polyfill for `crypto.getRandomValues`**: fail loudly in environments
   that don't have it.
@@ -199,16 +212,22 @@ the spec, the spec wins and the doc is wrong.
 
 However, docs ARE authoritative on API shape. If `docs/serpent.md` says
 `serpentInit(mode?, opts?)` and the source says something different, that is
-a discrepancy that needs to be flagged, not silently resolved in either direction.
+a discrepancy that must be flagged, not silently resolved in either direction.
+
+`docs/CLAUDE_consumer.md` ships inside the npm package. It is read by AI
+assistants consuming this library. It must be kept in sync with any public API
+change — if a class is added, removed, renamed, or its signature changes,
+`CLAUDE_consumer.md` gets updated in the same commit.
 
 ---
 
 ## Key Files
 
 - Architecture: `docs/architecture.md`
-- Testing guide: `docs/testing.md`
+- Test suite reference: `docs/test-suite.md`
 - Test vectors: `test/vectors/` (tracked by `test/vectors/SHA256SUMS`)
 - Per-module docs: `docs/*.md`
+- Consumer AI guide: `docs/CLAUDE_consumer.md`
 
 ---
 
@@ -216,16 +235,28 @@ a discrepancy that needs to be flagged, not silently resolved in either directio
 
 A task is complete when **all** of the following are true:
 
-1. All tests pass — `bun run test` and `bun run test:browser`
-2. The gate test for any new primitive is sourced from the authoritative spec
-3. `wipeBuffers()` covers all new buffers
-4. Documentation is updated (`docs/architecture.md` buffer layout table,
-   `docs/testing.md` test counts, `README.md` primitives table)
+1. `bun check` passes — all unit and e2e tests green
+2. `bun fix` has been run — no lint errors remain
+3. The gate test for any new primitive is sourced from the authoritative spec
+4. `wipeBuffers()` covers all new buffers
 5. No existing tests were modified to make new tests pass
 6. The implementation matches the spec, not just the tests
-7. Docs reflect the implementation — any public API addition, removal, or
-   signature change has a matching update in the relevant `docs/*.md` file
-   and `docs/architecture.md` if the module structure changed.
+7. Any public API addition, removal, or signature change has matching updates in:
+   - the relevant `docs/*.md` file
+   - `docs/exports.md`
+   - `docs/CLAUDE_consumer.md`
+   - `docs/architecture.md` if the module structure changed
+   - `docs/test-suite.md` if test counts changed
+
+**Release tasks additionally require:**
+
+8. `SECURITY.md` supported versions table updated
+9. `CHANGELOG` entry added with breaking changes, migration table if applicable,
+   and added/fixed/removed summary
+10. `npm pack --dry-run` run and output reviewed — confirm deleted files are
+    absent, no unexpected files included
+11. Version bump in `package.json` is **not** part of any task — it is handled
+    by the release workflow at tag time. Never touch `package.json` version.
 
 ---
 
@@ -241,12 +272,13 @@ If you are ever in any of these situations:
 - Two authoritative sources contradict each other
 - The task as written is ambiguous and proceeding requires an assumption
   you are not confident in
-- You have attempted to fix the same failure more than twice without success
+- You have attempted to fix the same failure **more than twice** without success
 - Anything else where the honest answer is "I am not sure"
 
-**Do not guess. Do not proceed. Raise an issue.**
+**Stop. Do not guess. Do not proceed. Raise an issue.**
 
-Create `ISSUE.md` in the repository root with:
+Two failed attempts at the same problem is the limit. On the third attempt you
+are guessing. Create `ISSUE.md` in the repository root:
 
 ```markdown
 # Issue — [short title]

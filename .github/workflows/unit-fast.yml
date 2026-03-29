@@ -27,6 +27,7 @@ jobs:
           test/unit/serpent/serpent_ctr.test.ts
           test/unit/serpent/serpent_cbc.test.ts
           test/unit/serpent/serpent_stream.test.ts
+          test/unit/serpent/serpent_stream_sealer.test.ts
           test/unit/serpent/serpent_wipe.test.ts
           test/unit/serpent/serpent_simd_gate.test.ts
           test/unit/serpent/serpent_simd_ctr.test.ts

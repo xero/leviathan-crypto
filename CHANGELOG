@@ -1,0 +1,78 @@
+# Changelog
+
+## v1.3.0 (2026-03-28)
+
+### Breaking Changes
+
+- **Removed:** `SerpentStreamEncoder` and `SerpentStreamDecoder` — deleted with no grace period.
+
+### Migration
+
+| Old | New |
+|-----|-----|
+| `new SerpentStreamEncoder(key, cs)` | `new SerpentStreamSealer(key, cs, { framed: true })` |
+| `encoder.encode(pt)` | `sealer.seal(pt)` |
+| `encoder.encodeFinal(pt)` | `sealer.final(pt)` |
+| `new SerpentStreamDecoder(key, hdr)` | `new SerpentStreamOpener(key, hdr, { framed: true })` |
+| `decoder.feed(bytes)` | `opener.feed(bytes)` (same signature) |
+
+### Added
+
+- `SerpentStreamSealer`: `opts?: { framed?: boolean }` constructor parameter. When `framed: true`,
+  `seal()` and `final()` prepend `u32be(sealedLen)` to each output chunk.
+- `SerpentStreamOpener`: `opts?: { framed?: boolean }` constructor parameter and `feed()` method.
+  `feed(bytes: Uint8Array): Uint8Array[]` accumulates incoming bytes, parses `u32be` length
+  prefixes, and dispatches complete frames to `open()` internally.
+
+---
+
+## v1.2.0 (2026-03-27)
+
+### Added
+
+- WASM SIMD acceleration for Serpent-256 CTR, Serpent-256 CBC-decrypt, and ChaCha20.
+- 4-wide inter-block parallelism via WebAssembly v128 instructions.
+- `hasSIMD()` utility — detects WASM SIMD support once and caches the result.
+- Dispatch is fully transparent: `SerpentCtr.encryptChunk`, `SerpentCbc.decrypt`, and
+  `ChaCha20.encryptChunk` auto-select the SIMD path when available. No API change.
+- New auto-generated source: `serpent_simd.ts`, `ctr_simd.ts`, `cbc_simd.ts`,
+  `chacha20_simd_4x.ts`. Serpent SIMD regenerated via `scripts/generate_simd.ts`.
+- New buffer region: `SIMD_WORK_BUFFER` at offset 131744 (80 bytes, 5 × v128).
+- Benchmark results: ~2.5× on V8, ~2× on SpiderMonkey and JSC (Apple Silicon).
+
+---
+
+## v1.1.0
+
+### Fixed
+
+- **HMAC / HKDF:** zero all intermediate key material after use — `buf`, `oldPrev`,
+  final `T(N)`, and PRK now `fill(0)` before returning. Previously these values
+  lingered in WASM linear memory until the next operation overwrote them.
+
+---
+
+## v1.0.0
+
+Initial public release. Combines both alpha and beta efforts.
+
+Primitives: Serpent-256 (ECB / CTR / CBC), XChaCha20-Poly1305, SHA-256/384/512,
+SHA3-224/256/384/512, SHAKE128/256, HMAC-SHA256/384/512, HKDF-SHA256/512,
+Fortuna CSPRNG.
+
+415 unit tests · 135 e2e tests across Chromium, Firefox, and WebKit.
+
+---
+
+## v0.2.0 (unpublished)
+
+Pure WASM beta. AssemblyScript → WASM pipeline established. All primitives ported
+to linear memory with static buffer layouts against their respective specs, then
+validated aginst our alpha versions. Lean TypeScript API layer over WASM exports.
+
+---
+
+## v0.1.0 (unpublished)
+
+Pure TypeScript alpha. Initial implementations of Serpent-256 and ChaCha20 used
+as reference for later WASM ports and test vector derivation.

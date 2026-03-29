@@ -26,7 +26,7 @@
  * output: test/vectors/serpent_stream_encoder.ts
  */
 import {
-	init, SerpentStreamEncoder, SerpentStreamDecoder,
+	init, SerpentStreamSealer, SerpentStreamOpener,
 	bytesToHex, hexToBytes,
 } from '../src/ts/index.js';
 import { writeFileSync } from 'fs';
@@ -65,22 +65,22 @@ interface GeneratedVector {
 }
 
 function generateVector(def: VectorDef): GeneratedVector {
-	const encoder = new SerpentStreamEncoder(def.key, def.chunkSize, def.nonce, def.ivs);
-	const hdr     = encoder.header();
+	const sealer = new SerpentStreamSealer(def.key, def.chunkSize, { framed: true }, def.nonce, def.ivs);
+	const hdr    = sealer.header();
 
 	const encodedHexes: string[] = [];
 	for (let i = 0; i < def.plaintexts.length; i++) {
 		const isLast = i === def.plaintexts.length - 1;
 		const encoded = isLast
-			? encoder.encodeFinal(def.plaintexts[i])
-			: encoder.encode(def.plaintexts[i]);
+			? sealer.final(def.plaintexts[i])
+			: sealer.seal(def.plaintexts[i]);
 		encodedHexes.push(hex(encoded));
 	}
 
-	// Verify round-trip: concatenate all encoded chunks, feed to decoder at once
+	// Verify round-trip: concatenate all encoded chunks, feed to opener at once
 	const allEncoded = hexToBytes(encodedHexes.join(''));
-	const decoder1 = new SerpentStreamDecoder(def.key, hdr);
-	const results1 = decoder1.feed(allEncoded);
+	const opener1  = new SerpentStreamOpener(def.key, hdr, { framed: true });
+	const results1 = opener1.feed(allEncoded);
 	assert(results1.length === def.plaintexts.length,
 		`${def.name} single-feed: expected ${def.plaintexts.length} results, got ${results1.length}`);
 	for (let i = 0; i < results1.length; i++) {
@@ -89,10 +89,10 @@ function generateVector(def: VectorDef): GeneratedVector {
 	}
 
 	// Verify byte-at-a-time feed
-	const decoder2 = new SerpentStreamDecoder(def.key, hdr);
+	const opener2  = new SerpentStreamOpener(def.key, hdr, { framed: true });
 	const results2: Uint8Array[] = [];
 	for (let i = 0; i < allEncoded.length; i++) {
-		const out = decoder2.feed(allEncoded.subarray(i, i + 1));
+		const out = opener2.feed(allEncoded.subarray(i, i + 1));
 		results2.push(...out);
 	}
 	assert(results2.length === def.plaintexts.length,
@@ -196,9 +196,9 @@ const fileHeader = `//                  ▄▄▄▄▄▄▄▄▄▄
 // SELF-GENERATED
 // test/vectors/serpent_stream_encoder.ts
 //
-// Known-answer vectors for SerpentStreamEncoder / SerpentStreamDecoder.
+// Known-answer vectors for SerpentStreamSealer({ framed: true }) / SerpentStreamOpener({ framed: true }).
 // Generated via scripts/gen-streamencoder-vectors.ts using the _nonce/_ivs test seams.
-// Verified by round-trip through SerpentStreamDecoder (single feed + byte-at-a-time).`;
+// Verified by round-trip through SerpentStreamOpener.feed() (single feed + byte-at-a-time).`;
 
 function vectorBlock(v: GeneratedVector): string {
 	const ptHexes = v.def.plaintexts.map(p => splitHex(hex(p)));
