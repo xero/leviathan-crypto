@@ -8,14 +8,17 @@ Source: [logo.svg](./logo.svg)
 
 ## Color Palette
 
-| Color | Hex | RGB | Name |
-| ----- | --- | --- | ---- |
-| ![161925 color swatch](https://placehold.co/100x35/161925/161925) | #161925 | (22,25,37)    | Depths   |
-| ![114b5f color swatch](https://placehold.co/100x35/114b5f/114b5f) | #114b5f | (17,75,95)    | Poseidon |
-| ![1c7293 color swatch](https://placehold.co/100x35/1c7293/1c7293) | #1c7293 | (28,114,147)  | Ocean    |
-| ![1a936f color swatch](https://placehold.co/100x35/1a936f/1a936f) | #1a936f | (26,147,111)  | Scales   |
-| ![c6dabf color swatch](https://placehold.co/100x35/c6dabf/c6dabf) | #c6dabf | (198,218,191) | Mist     |
-
+| Color                                                             | Hex     | RGB             | Name     |
+|:----------------------------------------------------------------- |:------- |:--------------- |:-------- |
+| ![161925 color swatch](https://placehold.co/100x35/161925/161925) | #161925 | (22,25,37)      | Depths   |
+| ![114b5f color swatch](https://placehold.co/100x35/114b5f/114b5f) | #114b5f | (17,75,95)      | Poseidon |
+| ![1c7293 color swatch](https://placehold.co/100x35/1c7293/1c7293) | #1c7293 | (28,114,147)    | Ocean    |
+| ![1a936f color swatch](https://placehold.co/100x35/1a936f/1a936f) | #1a936f | (26,147,111)    | Scales   |
+| ![2a6013 color swatch](https://placehold.co/100x35/2a6013/2a6013) | #2a6013 | (42, 96, 19)    | Leaf     |
+| ![c6dabf color swatch](https://placehold.co/100x35/c6dabf/c6dabf) | #c6dabf | (198,218,191)   | Mist     |
+| ![d4d6b6 color swatch](https://placehold.co/100x35/d4d6b6/d4d6b6) | #d4d6b6 | (212, 214, 182) | Bone     |
+| ![931a3e color swatch](https://placehold.co/100x35/931a3e/931a3e) | #931a3e | (147, 26, 62)   | Ruby     |
+| ![252216 color swatch](https://placehold.co/100x35/252216/252216) | #252216 | (37, 34, 22)    | Charcoal |
 
 ## Ascii Art
 
