@@ -66,8 +66,8 @@ leviathan-crypto/
 │   │   │   ├── cbc.ts              ← CBC mode
 │   │   │   ├── ctr.ts              ← CTR mode
 │   │   │   └── buffers.ts          ← static buffer layout + offset getters
-│   │   ├── chacha/
-│   │   │   ├── index.ts            ← asc entry point → chacha.wasm
+│   │   ├── chacha20/
+│   │   │   ├── index.ts            ← asc entry point → chacha20.wasm
 │   │   │   ├── chacha20.ts
 │   │   │   ├── poly1305.ts
 │   │   │   ├── wipe.ts
@@ -91,7 +91,7 @@ leviathan-crypto/
 │       ├── fortuna.ts              ← Fortuna CSPRNG (requires serpent + sha2)
 │       ├── embedded/               ← generated base64 files (gitignored, build artifact)
 │       │   ├── serpent.ts
-│       │   ├── chacha.ts
+│       │   ├── chacha20.ts
 │       │   ├── sha2.ts
 │       │   └── sha3.ts
 │       ├── serpent/
@@ -164,7 +164,7 @@ independent, separate linear memories, separate buffer layouts, no shared state.
 | Module | Binary | Primitives |
 |--------|--------|------------|
 | `serpent` | `serpent.wasm` | Serpent-256 block cipher: ECB, CTR mode, CBC mode |
-| `chacha20` | `chacha.wasm` | ChaCha20, Poly1305, ChaCha20-Poly1305 AEAD, XChaCha20-Poly1305 AEAD |
+| `chacha20` | `chacha20.wasm` | ChaCha20, Poly1305, ChaCha20-Poly1305 AEAD, XChaCha20-Poly1305 AEAD |
 | `sha2` | `sha2.wasm` | SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, HMAC-SHA512 |
 | `sha3` | `sha3.wasm` | SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256 |
 
@@ -190,11 +190,11 @@ parallel AEAD), and `SerpentStreamSealer` / `SerpentStreamOpener` (incremental
 streaming AEAD). All Tier 2 classes use HKDF-SHA256 for per-chunk key derivation
 and require both `serpent` and `sha2` to be initialized.
 
-**`chacha.wasm`**
+**`chacha20.wasm`**
 ChaCha20 stream cipher (RFC 8439). Poly1305 MAC (RFC 8439 §2.5). ChaCha20-Poly1305
 AEAD (RFC 8439 §2.8). XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha).
 HChaCha20 subkey derivation.
-Source: `src/asm/chacha/`
+Source: `src/asm/chacha20/`
 
 The chacha20 TypeScript module also includes `pool.ts` (`XChaCha20Poly1305Pool`)
 and `pool.worker.ts`. The worker file compiles to `dist/chacha20/pool.worker.js`
@@ -257,7 +257,7 @@ await init(['serpent', 'sha3'])
 **`'streaming'` (performance path)**
 Uses `WebAssembly.instantiateStreaming()` for maximum load performance. The
 browser compiles the WASM binary while still downloading it. `wasmUrl` is a
-base URL, the loader appends the filename (`serpent.wasm`, `chacha.wasm`, etc.).
+base URL, the loader appends the filename (`serpent.wasm`, `chacha20.wasm`, etc.).
 Requires the `.wasm` files to be served with `Content-Type: application/wasm`.
 
 ```typescript
@@ -398,7 +398,7 @@ index.ts
   re-exports: buffers + serpent + serpent_unrolled + cbc + ctr
 ```
 
-**ChaCha (`src/asm/chacha/`)**
+**ChaCha (`src/asm/chacha20/`)**
 
 ```
 buffers.ts
@@ -467,7 +467,7 @@ index.ts
           |             |     |            |       |                    isInitialized()
           v             v     v            v       v
    embedded/     embedded/  embedded/  embedded/
-   serpent.ts    chacha.ts  sha2.ts    sha3.ts
+   serpent.ts    chacha20.ts  sha2.ts    sha3.ts
    (each module owns its own embedded thunk, no cross-module imports)
 ```
 
@@ -493,7 +493,7 @@ The loader calls the thunk, decodes base64, and instantiates the WASM binary.
 | `serpent/stream.ts` | `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `SerpentCtr`, `HMAC_SHA256`, `HKDF_SHA256`, `constantTimeEqual`, `concat` |
 | `serpent/stream-pool.ts` | `serpent/stream.ts` | `sealChunk`, `openChunk`, `chunkInfo` |
 | `serpent/stream-sealer.ts` | `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `SerpentCbc`, `HMAC_SHA256`, `HKDF_SHA256`, `concat`, `constantTimeEqual`, `wipe` |
-| `chacha20/index.ts` | `init.ts`, `utils.ts`, `chacha20/types.ts`, `embedded/chacha.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `constantTimeEqual`, `ChaChaExports`, `WASM_BASE64` |
+| `chacha20/index.ts` | `init.ts`, `utils.ts`, `chacha20/types.ts`, `embedded/chacha20.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `constantTimeEqual`, `ChaChaExports`, `WASM_BASE64` |
 | `sha2/index.ts` | `init.ts`, `embedded/sha2.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
 | `sha3/index.ts` | `init.ts`, `embedded/sha3.ts` | `getInstance`, `initModule`, `Mode`, `InitOpts`, `WASM_BASE64` |
 | `fortuna.ts` | `init.ts`, `serpent/index.ts`, `sha2/index.ts`, `utils.ts` | `isInitialized`, `Serpent`, `SHA256`, `wipe`/`concat`/`utf8ToBytes` |
@@ -523,7 +523,7 @@ TypeScript, they call Tier 1 classes rather than WASM functions directly.
 | `SerpentStreamSealer` | `SerpentCbc` + `HMAC_SHA256` + `HKDF_SHA256` |
 | `SerpentStreamOpener` | `SerpentCbc` + `HMAC_SHA256` + `HKDF_SHA256` |
 
-**chacha20/index.ts → asm/chacha/**
+**chacha20/index.ts → asm/chacha20/**
 
 | TS Class | WASM functions called |
 |----------|---------------------|
@@ -657,7 +657,7 @@ Source: `src/asm/serpent/buffers.ts`
 
 ### ChaCha20 module — 3 pages (192 KB)
 
-Source: `src/asm/chacha/buffers.ts`
+Source: `src/asm/chacha20/buffers.ts`
 
 | Offset | Size | Name |
 |--------|------|------|

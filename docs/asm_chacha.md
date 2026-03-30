@@ -1,7 +1,7 @@
 # ChaCha20/Poly1305 WASM Reference
 
 > [!NOTE]
-> ChaCha20/Poly1305 WASM module (AssemblyScript -> `chacha.wasm`)
+> ChaCha20/Poly1305 WASM module (AssemblyScript -> `chacha20.wasm`)
 
 ## Overview
 
@@ -359,7 +359,7 @@ module's total memory footprint is 131,824 bytes (< 3 x 64KB pages = 192KB).
 
 ## Internal Architecture
 
-The module is composed of five source files compiled into a single `chacha.wasm`
+The module is composed of five source files compiled into a single `chacha20.wasm`
 binary (built with `--enable simd`):
 
 ### `buffers.ts` -- Static Memory Layout

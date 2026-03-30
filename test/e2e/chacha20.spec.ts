@@ -22,7 +22,7 @@
 import { test, expect } from '@playwright/test';
 import { chacha20EncryptionVectors } from '../vectors/chacha20';
 
-const JS_URL = 'http://localhost:1337/build/chacha.js';
+const JS_URL = 'http://localhost:1337/build/chacha20.js';
 
 const INIT = `
 var __wasmCache = null;

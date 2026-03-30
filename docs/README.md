@@ -1,55 +1,14 @@
-# Leviathan Crypto Library
-
-```
-  ██     ▐█████ ██     ▐█▌  ▄█▌   ███▌ ▀███████▀▄██▌  ▐█▌  ███▌    ██▌   ▓▓
- ▐█▌     ▐█▌    ▓█     ▐█▌  ▓██  ▐█▌██    ▐█▌   ███   ██▌ ▐█▌██    ▓██   ██
- ██▌     ░███   ▐█▌    ██   ▀▀   ██ ▐█▌   ██   ▐██▌   █▓  ▓█ ▐█▌  ▐███▌  █▓
- ██      ██     ▐█▌    █▓  ▐██  ▐█▌  █▓   ██   ▐██▄▄ ▐█▌ ▐█▌  ██  ▐█▌██ ▐█▌
-▐█▌     ▐█▌      ██   ▐█▌  ██   ██   ██  ▐█▌   ██▀▀████▌ ██   ██  ██ ▐█▌▐█▌
-▐▒▌     ▐▒▌      ▐▒▌  ██   ▒█   ██▀▀▀██▌ ▐▒▌   ▒█    █▓░ ▒█▀▀▀██▌ ▒█  ██▐█
-█▓ ▄▄▓█ █▓ ▄▄▓█   ▓▓ ▐▓▌  ▐▓▌  ▐█▌   ▐▒▌ █▓   ▐▓▌   ▐▓█ ▐▓▌   ▐▒▌▐▓▌  ▐███
-▓██▀▀   ▓██▀▀      ▓█▓█   ▐█▌  ▐█▌   ▐▓▌ ▓█   ▐█▌   ▐█▓ ▐█▌   ▐▓▌▐█▌   ██▓
-                    ▓█                               ▀▀        ▐█▌▌▌
-```
-
-Web cryptography built on Serpent-256 paranoia and XChaCha20-Poly1305 elegance.
-
----
-
-## Quick Start
-
-```bash
-bun i leviathan-crypto
-# or npm
-npm install leviathan-crypto
-```
-
-```typescript
-import { init, SerpentSeal, randomBytes } from 'leviathan-crypto'
-
-await init(['serpent', 'sha2'])
-
-const key = randomBytes(64)
-const seal = new SerpentSeal()
-
-const ciphertext = seal.encrypt(key, plaintext)
-const decrypted  = seal.decrypt(key, ciphertext) // throws on tamper
-
-seal.dispose()
-```
-
-For more: streaming, chunking, hashing, key derivation, and both ciphers: see the [examples](./examples.md) page.
-
----
+# Leviathan Crypto Library Documentation Index
 
 ## Getting Started
 
 | Document | Description |
 |----------|-------------|
-| [init.md](./init.md) | `init()` API, three loading modes, subpath imports, tree-shaking |
-| [wasm.md](./wasm.md) | WebAssembly primer in the context of this library |
 | [examples.md](./examples.md) | Code examples for every primitive |
+| [cdn.md](./cdn.md) | CDN usage examples. _"no bundler? no problem"_ |
 | [exports.md](./exports.md) | Comprehensive export reference detailing each class, function, and type |
+| [init.md](./init.md) | `init()` API, three loading modes, subpath imports, tree-shaking |
+| [loader.md](./loader.md) | WASM binary loading options: embedded (base64), streaming (fetch), manual |
 
 ---
 
@@ -97,24 +56,7 @@ For more: streaming, chunking, hashing, key derivation, and both ciphers: see th
 | [utils.md](./utils.md) | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`, `hasSIMD` _no `init()` required_ |
 | [types.md](./types.md) | TypeScript interfaces: `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
 
-### Internal
-
-| Module | Description |
-|--------|-------------|
-| [loader.md](./loader.md) | WASM binary loading: embedded (base64), streaming (fetch), manual |
-
 ---
-
-## Project Documentation
-
-| Document | Description |
-|----------|-------------|
-| [architecture.md](./architecture.md) | Repository structure, architecture diagram, build pipeline, module relationships, buffer layouts, correctness contract, limitations |
-| [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
-| [serpent_reference.md](./serpent_reference.md) | Serpent algorithm: S-boxes, linear transform, round structure, known attacks |
-| [wasm.md](./wasm.md) | WebAssembly primer in the context of this library |
-| [argon2id.md](./argon2id.md) | Key derivation and password hashing with Argon2id alongside Leviathan primitives |
-| [branding.md](./branding.md) | Project artwork and branding materials |
 
 ## Performance
 
@@ -134,10 +76,14 @@ For more: streaming, chunking, hashing, key derivation, and both ciphers: see th
 | [hmac_audit.md](./hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
 | [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
 
-## Demos
+## Project Documentation
 
-| Name             | Link                                       | Code                                                              | Docs                                                                        | Description                                                                                                                                                                                             |
-| ---------------- | ------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`lvthn-web`**  | [▼](https://leviathan.3xi.club/web)        | [🛈](https://github.com/xero/leviathan-demos/tree/main/lvthn-web)  | [¶](https://github.com/xero/leviathan-demos/blob/main/lvthn-web/README.md)  | Encrypt text or files using Serpent-256-CBC and Argon2id key derivation from a single local html file, with armored output. No server, installation, or network connection required after initial load. |
-| **`lvthn-chat`** | [▼](https://leviathan.3xi.club/chat)       | [🛈](https://github.com/xero/leviathan-demos/tree/main/lvthn-chat) | [¶](https://github.com/xero/leviathan-demos/blob/main/lvthn-chat/README.md) | End-to-end encrypted chat featuring two-party messaging over X25519 key exchange and XChaCha20-Poly1305 message encryption. Relay server functions as a dumb WebSocket pipe never seeing plaintexts.    |
-| **`lvthn-cli`**  | [▼](https://www.npmjs.com/package/lvthn)   | [🛈](https://github.com/xero/leviathan-demos/tree/main/lvthn-cli)  | [¶](https://github.com/xero/leviathan-demos/blob/main/lvthn-cli/README.md)  | File encryption CLI tool supporting both Serpent-256 and XChaCha20-Poly1305 via the `--cipher` flag. Keyfiles are compatible with both ciphers; the header byte determines decryption automatically.    |
+| Document | Description |
+|----------|-------------|
+| [architecture.md](./architecture.md) | Repository structure, architecture diagram, build pipeline, module relationships, buffer layouts, correctness contract, limitations |
+| [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
+| [serpent_reference.md](./serpent_reference.md) | Serpent algorithm: S-boxes, linear transform, round structure, known attacks |
+| [wasm.md](./wasm.md) | WebAssembly primer in the context of this library |
+| [argon2id.md](./argon2id.md) | Key derivation and password hashing with Argon2id alongside Leviathan primitives |
+| [branding.md](./branding.md) | Project artwork and branding materials |
+

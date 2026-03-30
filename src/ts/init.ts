@@ -34,7 +34,7 @@ const instances = new Map<Module, WebAssembly.Instance>();
 // Map from public module name to WASM filename
 const WASM_FILES: Record<Module, string> = {
 	serpent: 'serpent.wasm',
-	chacha20: 'chacha.wasm',
+	chacha20: 'chacha20.wasm',
 	sha2: 'sha2.wasm',
 	sha3: 'sha3.wasm',
 };

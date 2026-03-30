@@ -43,7 +43,7 @@ if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true })
 
 const modules = [
   { name: 'serpent', wasm: 'serpent.wasm' },
-  { name: 'chacha',  wasm: 'chacha.wasm' },
+  { name: 'chacha20', wasm: 'chacha20.wasm' },
   { name: 'sha2',    wasm: 'sha2.wasm' },
   { name: 'sha3',    wasm: 'sha3.wasm' },
 ]

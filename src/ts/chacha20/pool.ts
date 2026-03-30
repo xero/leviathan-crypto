@@ -45,7 +45,7 @@ let _wasmModule: WebAssembly.Module | undefined;
 
 async function getWasmModule(): Promise<WebAssembly.Module> {
 	if (_wasmModule) return _wasmModule;
-	const { WASM_BASE64 } = await import('../embedded/chacha.js');
+	const { WASM_BASE64 } = await import('../embedded/chacha20.js');
 	const bytes = base64ToBytes(WASM_BASE64);
 	_wasmModule = await WebAssembly.compile(bytes.buffer as ArrayBuffer);
 	return _wasmModule;

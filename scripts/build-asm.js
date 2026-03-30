@@ -37,7 +37,7 @@ const ASC_OPTS = '--runtime stub --initialMemory 3 --maximumMemory 3 --noAssert 
 
 const modules = [
   { name: 'serpent', entry: 'src/asm/serpent/index.ts', extra: '--enable simd' },
-  { name: 'chacha',  entry: 'src/asm/chacha/index.ts',  extra: '--enable simd' },
+  { name: 'chacha20', entry: 'src/asm/chacha20/index.ts', extra: '--enable simd' },
   { name: 'sha2',    entry: 'src/asm/sha2/index.ts' },
   { name: 'sha3',    entry: 'src/asm/sha3/index.ts' },
 ]

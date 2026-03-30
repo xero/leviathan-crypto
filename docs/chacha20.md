@@ -370,7 +370,7 @@ Wipes all key material and intermediate state from WASM memory.
 
 For high-throughput workloads where multiple XChaCha20-Poly1305 operations should
 run concurrently, `XChaCha20Poly1305Pool` dispatches work across a configurable
-number of Web Workers, each holding an isolated `chacha.wasm` instance in its own
+number of Web Workers, each holding an isolated `chacha20.wasm` instance in its own
 linear memory. This removes the single-threaded bottleneck of a shared WASM
 instance and allows encryption and decryption operations to proceed in parallel.
 The pool requires `init(['chacha20'])` to be called before construction and is

@@ -30,7 +30,7 @@
 
 ### 1.1 Quarter Round
 
-The quarter round (`src/asm/chacha/chacha20.ts:64–79`) implements four ARX operations on four 32-bit words loaded from WASM linear memory at computed offsets:
+The quarter round (`src/asm/chacha20/chacha20.ts:64–79`) implements four ARX operations on four 32-bit words loaded from WASM linear memory at computed offsets:
 
 | Step | RFC 8439 §2.1 | leviathan-crypto (`qr`) |
 |------|---------------|------------------------|
@@ -109,7 +109,7 @@ The inner nonce construction (`ops.ts:155–159`) correctly places the 8 bytes a
 
 ### 1.4 Poly1305
 
-The Poly1305 implementation (`src/asm/chacha/poly1305.ts`) uses a radix-2^26 representation with 5 × `u64` limbs, stored in WASM linear memory at `POLY_H_OFFSET` (accumulator), `POLY_R_OFFSET` (clamped key), and `POLY_RS_OFFSET` (precomputed 5×r values).
+The Poly1305 implementation (`src/asm/chacha20/poly1305.ts`) uses a radix-2^26 representation with 5 × `u64` limbs, stored in WASM linear memory at `POLY_H_OFFSET` (accumulator), `POLY_R_OFFSET` (clamped key), and `POLY_RS_OFFSET` (precomputed 5×r values).
 
 #### r Clamping (RFC 8439 §2.5)
 
@@ -299,7 +299,7 @@ XOR-accumulate pattern with no early return. The loop always executes all 16 ite
 
 ### 1.8 Buffer Layout and Memory Safety
 
-The ChaCha20 WASM module uses static buffer allocation in linear memory (`src/asm/chacha/buffers.ts`):
+The ChaCha20 WASM module uses static buffer allocation in linear memory (`src/asm/chacha20/buffers.ts`):
 
 | Offset | Size | Name | Purpose |
 |--------|------|------|---------|
@@ -476,7 +476,7 @@ This is not nonce-misuse resistant (unlike AES-SIV or AEGIS). The library mitiga
 | Nonce handling | 192-bit (XChaCha20) — safe for random | 128-bit CTR — safe for sequential |
 | Key derivation per chunk | Not needed (nonce binding) | HKDF-SHA256 per chunk |
 | Tag size | 16 bytes | 32 bytes |
-| WASM modules required | 1 (chacha.wasm) | 2 (serpent.wasm + sha2.wasm) |
+| WASM modules required | 1 (chacha20.wasm) | 2 (serpent.wasm + sha2.wasm) |
 
 ChaCha20-Poly1305 is a simpler construction with fewer moving parts. Poly1305's forgery bound is information-theoretic (unconditional) rather than computational, though the bound is weaker than HMAC-SHA256's. For the message sizes supported by leviathan-crypto (≤ 64KB per AEAD operation), both constructions provide equivalent practical security.
 

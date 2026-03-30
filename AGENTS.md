@@ -165,7 +165,7 @@ that way.
 
 These are decisions already made. Do not relitigate them without raising it first.
 
-- **Four WASM modules**: `serpent.wasm`, `chacha.wasm`, `sha2.wasm`, `sha3.wasm`.
+- **Four WASM modules**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`, `sha3.wasm`.
   Each is independent — separate linear memory, separate buffer layout, separate
   AssemblyScript entry point.
 - **Static buffers only**: no dynamic allocation (`memory.grow()` is not used).
