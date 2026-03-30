@@ -27,7 +27,7 @@
 //   - 320 bytes: 1 SIMD group + 1 scalar tail block
 import { test, expect } from '@playwright/test';
 
-const JS_URL = 'http://localhost:1337/build/chacha.js';
+const JS_URL = 'http://localhost:1337/build/chacha20.js';
 
 const INIT = `
 var __wasmCache = null;

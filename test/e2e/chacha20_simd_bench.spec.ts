@@ -24,7 +24,7 @@
 // Primary purpose: document Firefox (SpiderMonkey) SIMD gain.
 import { test } from '@playwright/test';
 
-const JS_URL = 'http://localhost:1337/build/chacha.js';
+const JS_URL = 'http://localhost:1337/build/chacha20.js';
 
 const KEY   = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f';
 const NONCE = '000000090000004a00000000';

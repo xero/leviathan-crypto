@@ -20,7 +20,7 @@
 
 		<text x="40" y="112" font-size="14" fill="#00526d" font-weight="600">src/asm/</text>
 		<text x="40" y="132" font-size="13" fill="#4a5568">serpent/index.ts</text>
-		<text x="40" y="150" font-size="13" fill="#4a5568">chacha/index.ts</text>
+		<text x="40" y="150" font-size="13" fill="#4a5568">chacha20/index.ts</text>
 		<text x="40" y="168" font-size="13" fill="#4a5568">sha2/index.ts</text>
 		<text x="40" y="186" font-size="13" fill="#4a5568">sha3/index.ts</text>
 
@@ -38,7 +38,7 @@
 
 		<text x="270" y="112" font-size="14" fill="#154e62" font-weight="600">build/</text>
 		<text x="270" y="132" font-size="13" fill="#4a5568">serpent.wasm</text>
-		<text x="270" y="150" font-size="13" fill="#4a5568">chacha.wasm</text>
+		<text x="270" y="150" font-size="13" fill="#4a5568">chacha20.wasm</text>
 		<text x="270" y="168" font-size="13" fill="#4a5568">sha2.wasm</text>
 		<text x="270" y="186" font-size="13" fill="#4a5568">sha3.wasm</text>
 
@@ -54,7 +54,7 @@
 
 		<text x="480" y="112" font-size="14" fill="#015453" font-weight="600">src/ts/embedded/</text>
 		<text x="480" y="132" font-size="13" fill="#4a5568">serpent.ts</text>
-		<text x="480" y="150" font-size="13" fill="#4a5568">chacha.ts</text>
+		<text x="480" y="150" font-size="13" fill="#4a5568">chacha20.ts</text>
 		<text x="480" y="168" font-size="13" fill="#4a5568">sha2.ts</text>
 		<text x="480" y="186" font-size="13" fill="#4a5568">sha3.ts</text>
 

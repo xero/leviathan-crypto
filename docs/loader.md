@@ -174,7 +174,7 @@ modules.
 | Module      | Thunk defined in              | Embedded file path         |
 |-------------|-------------------------------|----------------------------|
 | `serpent`   | `serpent/index.ts`            | `./embedded/serpent.js`    |
-| `chacha20`  | `chacha20/index.ts`           | `./embedded/chacha.js`     |
+| `chacha20`  | `chacha20/index.ts`           | `./embedded/chacha20.js`   |
 | `sha2`      | `sha2/index.ts`               | `./embedded/sha2.js`       |
 | `sha3`      | `sha3/index.ts`               | `./embedded/sha3.js`       |
 

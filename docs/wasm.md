@@ -131,7 +131,7 @@ memory layout without requiring C, C++, or Rust.
 
 In this project, a **thunk** is a base64-encoded WASM binary embedded directly
 within a TypeScript file. The files in `src/ts/embedded/`
-(such as chacha.ts and serpent.ts) each export a single constant:
+(such as chacha20.ts and serpent.ts) each export a single constant:
 
 ```typescript
 export const WASM_BASE64 = 'AGFzbQEAAAAB...'

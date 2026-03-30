@@ -30,7 +30,7 @@ import type { ChaChaExports } from './types.js';
 import { aeadEncrypt, aeadDecrypt, xcEncrypt, xcDecrypt } from './ops.js';
 import { hasSIMD } from '../utils.js';
 
-const _embedded = () => import('../embedded/chacha.js').then(m => m.WASM_BASE64);
+const _embedded = () => import('../embedded/chacha20.js').then(m => m.WASM_BASE64);
 
 export async function chacha20Init(
 	mode: Mode = 'embedded',
