@@ -2,6 +2,8 @@
 
 > [!NOTE]
 > SHA-2 hashing algorithm family WASM module (AssemblyScript -> `sha2.wasm`)
+>
+> See [SHA-2 implementation audit](./sha2_audit.md), [HMAC audit](./hmac_audit.md), and [HKDF audit](./hkdf_audit.md) for algorithm correctness verifications.
 
 ## Overview
 
@@ -539,8 +541,11 @@ implementation and the TypeScript wrapper:
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2.md](./sha2.md) — TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF)
-> - [asm_sha3.md](./asm_sha3.md) — alternative hash family (SHA-3/SHAKE WASM module)
-> - [asm_serpent.md](./asm_serpent.md) — Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG)
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [sha2](./sha2.md) — TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF)
+> - [asm_sha3](./asm_sha3.md) — alternative hash family (SHA-3/SHAKE WASM module)
+> - [asm_serpent](./asm_serpent.md) — Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG)
+> - [sha2_audit.md](./sha2_audit.md) — SHA-2 implementation audit
+> - [hmac_audit.md](./hmac_audit.md) — HMAC implementation audit
+> - [hkdf_audit.md](./hkdf_audit.md) — HKDF implementation audit

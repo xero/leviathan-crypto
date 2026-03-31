@@ -1,5 +1,8 @@
 # ChaCha20, Poly1305, and AEAD TypeScript API
 
+> [!NOTE]
+> See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
+
 ## Overview
 
 **ChaCha20** is a modern stream cipher designed by Daniel J. Bernstein. It is fast
@@ -594,9 +597,10 @@ cipher.dispose()
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [asm_chacha.md](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-> - [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
-> - [serpent.md](./serpent.md) — alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
-> - [sha2.md](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
-> - [types.md](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes
+> - [index](./README.md) — Project Documentation index
+> - [asm_chacha](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
+> - [chacha20_pool](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+> - [serpent](./serpent.md) — alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
+> - [sha2](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
+> - [types](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

@@ -3,6 +3,8 @@
 > [!NOTE]
 > A worker pool that dispatches independent XChaCha20-Poly1305 AEAD operations
 > across multiple Web Workers, each with its own isolated WebAssembly instance.
+>
+> See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
 
 ## Overview
 
@@ -298,9 +300,10 @@ const result = concat(chunk1, chunk2)
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [chacha20.md](./chacha20.md) — single-instance XChaCha20-Poly1305 API
-> - [asm_chacha.md](./asm_chacha.md) — WASM implementation details (quarter-round, Poly1305 accumulator, HChaCha20)
-> - [wasm.md](./wasm.md) — WebAssembly primer: how one compiled module spawns many worker instances
-> - [fortuna.md](./fortuna.md) — another class using the `static async create()` factory pattern
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [index](./README.md) — Project Documentation index
+> - [chacha20](./chacha20.md) — single-instance XChaCha20-Poly1305 API
+> - [asm_chacha](./asm_chacha.md) — WASM implementation details (quarter-round, Poly1305 accumulator, HChaCha20)
+> - [wasm](./wasm.md) — WebAssembly primer: how one compiled module spawns many worker instances
+> - [fortuna](./fortuna.md) — another class using the `static async create()` factory pattern
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

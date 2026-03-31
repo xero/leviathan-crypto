@@ -2,6 +2,8 @@
 
 > [!NOTE]
 > ChaCha20/Poly1305 WASM module (AssemblyScript -> `chacha20.wasm`)
+>
+> See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
 
 ## Overview
 
@@ -499,8 +501,9 @@ TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [chacha20.md](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
-> - [chacha20_pool.md](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
-> - [asm_serpent.md](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [chacha20](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
+> - [chacha20_pool](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+> - [asm_serpent](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

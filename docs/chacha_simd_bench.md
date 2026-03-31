@@ -23,6 +23,9 @@
 
 # ChaCha20 SIMD 4-Wide Benchmark Results
 
+> [!NOTE]
+> See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
+
 4-wide inter-block SIMD (`chachaEncryptChunk_simd`): each v128 register lane
 holds word `w` from a different block (counters ctr, ctr+1, ctr+2, ctr+3).
 This is the same parallelism model used in Serpent CTR-4.
@@ -137,6 +140,8 @@ require no shuffles). And the v128 local loads are genuinely beneficial since th
 ---
 
 > **Cross-references:**
-> - [asm_chacha.md](./asm_chacha.md) — WASM API reference including SIMD exports
-> - [chacha20.md](./chacha20.md) — TypeScript wrapper classes
-> - [serpent_simd_bench.md](./serpent_simd_bench.md) — Serpent-256 SIMD benchmark (same inter-block model)
+> - [index](./README.md) — Project Documentation index
+> - [asm_chacha](./asm_chacha.md) — WASM API reference including SIMD exports
+> - [chacha20](./chacha20.md) — TypeScript wrapper classes
+> - [serpent_simd_bench](./serpent_simd_bench.md) — Serpent-256 SIMD benchmark (same inter-block model)
+> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

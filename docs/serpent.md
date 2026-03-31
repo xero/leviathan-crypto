@@ -3,6 +3,8 @@
 > [!NOTE]
 > Authenticated encryption via `SerpentSeal`, plus low-level block, CTR, and CBC
 > classes for advanced use.
+>
+> See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
 
 ## Overview
 
@@ -936,13 +938,13 @@ cipher.dispose();
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [asm_serpent.md](./asm_serpent.md) — WASM implementation details and buffer layout
-> - [serpent_reference.md](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
-> - [serpent_audit.md](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)
-> - [chacha20.md](./chacha20.md) — XChaCha20Poly1305 authenticated encryption (alternative AEAD)
-> - [sha2.md](./sha2.md) — HMAC-SHA256 and HKDF used internally by SerpentSeal and SerpentStream
-> - [types.md](./types.md) — `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes
-> - [utils.md](./utils.md) — `constantTimeEqual`, `wipe`, `randomBytes` used by Serpent wrappers
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [asm_serpent](./asm_serpent.md) — WASM implementation details and buffer layout
+> - [serpent_reference](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
+> - [serpent_audit](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)
+> - [chacha20](./chacha20.md) — XChaCha20Poly1305 authenticated encryption (alternative AEAD)
+> - [sha2](./sha2.md) — HMAC-SHA256 and HKDF used internally by SerpentSeal and SerpentStream
+> - [types](./types.md) — `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes
+> - [utils](./utils.md) — `constantTimeEqual`, `wipe`, `randomBytes` used by Serpent wrappers
 

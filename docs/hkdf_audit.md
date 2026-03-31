@@ -378,10 +378,10 @@ The `info` field is always unique per chunk (due to the chunkIndex counter), so 
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2_audit.md](./sha2_audit.md) — SHA-256 implementation audit
-> - [hmac_audit.md](./hmac_audit.md) — HMAC-SHA256 audit (HKDF builds on HMAC)
-> - [serpent_audit.md](./serpent_audit.md) — HKDF used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
-> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 uses nonce-based key binding instead of HKDF
-> - [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [sha2_audit](./sha2_audit.md) — SHA-256 implementation audit
+> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (HKDF builds on HMAC)
+> - [serpent_audit](./serpent_audit.md) — HKDF used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
+> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 uses nonce-based key binding instead of HKDF
+> - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit

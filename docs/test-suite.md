@@ -153,12 +153,12 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [serpent.md](./serpent.md) — Serpent-256 TypeScript API (tested primitives)
-> - [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
-> - [sha2.md](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
-> - [sha3.md](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
-> - [fortuna.md](./fortuna.md) — Fortuna CSPRNG (tested primitive)
-> - [utils.md](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)
-> - [types.md](./types.md) — public interfaces verified by the test suite
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [serpent](./serpent.md) — Serpent-256 TypeScript API (tested primitives)
+> - [chacha20](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
+> - [sha2](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
+> - [sha3](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
+> - [fortuna](./fortuna.md) — Fortuna CSPRNG (tested primitive)
+> - [utils](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)
+> - [types](./types.md) — public interfaces verified by the test suite

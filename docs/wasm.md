@@ -185,9 +185,10 @@ See [init.md](./init.md) for the full API.
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [init.md](./init.md) — `init()` API and the three loading modes
-> - [loader.md](./loader.md) — how WASM binaries are loaded and instantiated
-> - [chacha20_pool.md](./chacha20_pool.md) — example of one compiled module
->   spawning many instances across workers
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [serpent_simd_bench](./serpent_simd_bench.md) Serpent-256 SIMD benchmark results: CTR and CBC-decrypt inter-block 4-wide, scalar vs SIMD across V8, SpiderMonkey, and JSC
+> - [chacha_simd_bench](./chacha_simd_bench.md) ChaCha20 SIMD benchmark results: 4-wide inter-block parallelism, scalar vs SIMD across V8, SpiderMonkey, and JSC. Includes documented negative result for intra-block approach
+> - [init](./init.md) — `init()` API and the three loading modes
+> - [loader](./loader.md) — how WASM binaries are loaded and instantiated
+> - [chacha20_pool](./chacha20_pool.md) — example of one compiled module spawning many instances across workers

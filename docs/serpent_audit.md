@@ -640,13 +640,13 @@ The SSL/TLS vulnerability arises because the MAC covers the plaintext (MAC-then-
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2_audit.md](./sha2_audit.md) — SHA-256 / SHA-512 / SHA-384 implementation audit
-> - [sha3_audit.md](./sha3_audit.md) — SHA-3 / Keccak implementation audit
-> - [hmac_audit.md](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentStream)
-> - [hkdf_audit.md](./hkdf_audit.md) — HKDF-SHA256 audit (used in SerpentStream)
-> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
-> - [serpent.md](./serpent.md) — TypeScript API for Serpent-256
-> - [asm_serpent.md](./asm_serpent.md) — WASM implementation details
-> - [serpent_reference.md](./serpent_reference.md) — algorithm specification and known attacks
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [sha2_audit](./sha2_audit.md) — SHA-256 / SHA-512 / SHA-384 implementation audit
+> - [sha3_audit](./sha3_audit.md) — SHA-3 / Keccak implementation audit
+> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentStream)
+> - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 audit (used in SerpentStream)
+> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+> - [serpent](./serpent.md) — TypeScript API for Serpent-256
+> - [asm_serpent](./asm_serpent.md) — WASM implementation details
+> - [serpent_reference](./serpent_reference.md) — algorithm specification and known attacks

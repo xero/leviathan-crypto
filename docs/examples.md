@@ -419,3 +419,11 @@ const block3 = shake.squeeze(32)  // next 32 bytes
 
 shake.dispose()
 ```
+
+---
+
+> ## Cross-References
+>
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [cdn](./cdn.md) CDN usage examples. _"no bundler? no problem"_

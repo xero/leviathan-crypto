@@ -282,9 +282,9 @@ xc2.dispose();
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [sha2.md](./sha2.md) — HKDF-SHA256 for key expansion from Argon2id root keys
-> - [serpent.md](./serpent.md) — SerpentSeal: Serpent-256 authenticated encryption (pairs with Argon2id-derived keys)
-> - [chacha20.md](./chacha20.md) — XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys)
-> - [utils.md](./utils.md) — `randomBytes` for generating salts, `constantTimeEqual` for hash verification
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [index](./README.md) — Project Documentation index
+> - [sha2](./sha2.md) — HKDF-SHA256 for key expansion from Argon2id root keys
+> - [serpent](./serpent.md) — SerpentSeal: Serpent-256 authenticated encryption (pairs with Argon2id-derived keys)
+> - [chacha20](./chacha20.md) — XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys)
+> - [utils](./utils.md) — `randomBytes` for generating salts, `constantTimeEqual` for hash verification
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

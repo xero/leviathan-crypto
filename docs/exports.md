@@ -135,3 +135,10 @@ No `init()` required — see [utils.md](./utils).
 | `concat` | function | Concatenate two `Uint8Array`s, returns new array. |
 | `randomBytes` | function | Cryptographically secure random bytes via Web Crypto API. |
 | `hasSIMD` | function | Returns `true` if the runtime supports WebAssembly SIMD. Cached after first call. Used internally for CTR/CBC-decrypt and ChaCha20 dispatch — exported for informational use. |
+
+---
+
+> ## Cross-References
+>
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

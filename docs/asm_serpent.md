@@ -2,6 +2,8 @@
 
 > [!NOTE]
 > Serpent-256 WASM module (AssemblyScript -> `serpent.wasm`)
+>
+> See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
 
 ## Overview
 
@@ -509,9 +511,9 @@ serpent_unrolled.ts     serpent_simd.ts
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [serpent.md](./serpent.md) — TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentSeal`, `SerpentStream`)
-> - [serpent_reference.md](./serpent_reference.md) — algorithm specification, S-box tables, linear transform, and known attacks
-> - [serpent_audit.md](./serpent_audit.md) — security audit results (algorithm correctness, side-channel analysis)
-> - [asm_sha2.md](./asm_sha2.md) — SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [index](./README.md) — Project Documentation index
+> - [serpent](./serpent.md) — TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentSeal`, `SerpentStream`)
+> - [serpent_reference](./serpent_reference.md) — algorithm specification, S-box tables, linear transform, and known attacks
+> - [serpent_audit](./serpent_audit.md) — security audit results (algorithm correctness, side-channel analysis)
+> - [asm_sha2](./asm_sha2.md) — SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

@@ -1,16 +1,12 @@
 # Leviathan Crypto Library: CDN Usage
 
-> [!NOTE]
-> leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com).
-> All three [WASM loading modes](./init.md#usage-examples) work directly from the
-> CDN — no install, no bundler.
+>[!NOTE]
+> leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com). All three [WASM loading modes](./init.md#usage-examples) work directly from the CDN with no install or bundler required.
 
----
+## Embedded mode (Zero config)
 
-## Embedded mode (recommended)
-
-The default. WASM is baked into the JS as base64, so there are no extra network
-requests beyond the module files themselves. Zero config.
+This is the default mode. WASM is baked into the JS as base64, so there are no
+extra network requests beyond the module files themselves.
 
 ```html
 <script type="module">
@@ -28,7 +24,8 @@ requests beyond the module files themselves. Zero config.
 </script>
 ```
 
-Subpath imports also work with full URLs:
+[Subpath imports](init#initmodules-mode-opts--public-api-exported-from-root-barrel) also work with full URLs:
+
 
 ```html
 <script type="module">
@@ -44,9 +41,9 @@ Subpath imports also work with full URLs:
 ## Streaming mode
 
 Uses [`WebAssembly.instantiateStreaming`](./loader.md#loadstreaming) to compile
-WASM directly from the network response — more efficient than the embedded base64
-path for performance-sensitive applications. Pass `wasmUrl` pointing at the
-directory containing the `.wasm` files.
+WASM directly from the network response. This is more efficient than the
+embedded base64 path for performance-sensitive applications. Pass `wasmUrl`
+pointing at the directory containing the `.wasm` files.
 
 ```html
 <script type="module">
@@ -65,7 +62,8 @@ directory containing the `.wasm` files.
 ```
 
 [`init()`](./init.md) appends the module's filename to `wasmUrl` automatically.
-WASM filenames by module:
+
+**WASM filenames by module:**
 
 | Module     | File            |
 |------------|-----------------|
@@ -79,15 +77,20 @@ WASM filenames by module:
 ## Manual mode
 
 Fetch the WASM binary yourself and hand it to [`init()`](./init.md#manual-mode-full-control).
-Maximum control — useful when you want to cache the binary, load from a custom
-endpoint, or verify integrity before instantiation.
+Useful when you want to cache the binary, load from a custom endpoint, or verify integrity
+before instantiation.
+
+See [`InitOpts.wasmBinary`](./init.md#types) for the full manual mode API.
 
 ```html
 <script type="module">
-  // can point at unpkg or your own CDN
+  // can point to unpkg or your own CDN
   import { init, XChaCha20Poly1305, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.3.0/dist/index.js'
 
-  const res    = await fetch('https://unpkg.com/leviathan-crypto@1.3.0/dist/chacha20.wasm')
+  const res = await fetch('https://unpkg.com/leviathan-crypto@1.3.0/dist/chacha20.wasm', {
+    // integrity hash is version-specific, update when upgrading
+    integrity: 'sha384-7nR+lSL292CzGG9U4NiIQFuA0oBLdvAqKtkOukeTiD/Ar1ptVtctrIQyKCsKM3c8'
+  })
   const binary = await res.arrayBuffer()
 
   await init(['chacha20'], 'manual', {
@@ -105,15 +108,17 @@ endpoint, or verify integrity before instantiation.
 </script>
 ```
 
-See [`InitOpts.wasmBinary`](./init.md#types) for the full manual mode API.
+>[!TIP]
+> The `integrity` option is standard SRI ([Subresource Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity)).
+> The browser verifies the hash before resolving the response, and throws a network error if it doesn't match.
 
 ---
 
 ## Optional: cleaner imports with an import map
 
-Browsers don't read `package.json` exports — bare specifiers like
+Browsers don't read `package.json` exports, so bare specifiers like
 `import { init } from 'leviathan-crypto'` don't work without an import map.
-If you want the same import style as the npm docs, define one in `<head>`:
+If you want the same import style as the npm docs, add one before your module scripts:
 
 ```html
 <script type="importmap">
@@ -134,7 +139,15 @@ If you want the same import style as the npm docs, define one in `<head>`:
 </script>
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > The import map must appear before any `<script type="module">` that uses bare
 > specifiers. Import maps are [supported in all modern browsers](https://caniuse.com/import-maps)
 > (Chrome 89+, Firefox 108+, Safari 16.4+).
+
+---
+
+> ## Cross-References
+>
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [examples](./examples.md) — Code examples for every primitive

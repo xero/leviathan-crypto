@@ -786,16 +786,16 @@ They are the immutable truth, and must never be modified to make tests pass.
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [test-suite.md](./test-suite.md) — testing methodology, vector corpus, and gate discipline
-> - [init.md](./init.md) — `init()` API, three loading modes, and idempotent behavior
-> - [loader.md](./loader.md) — internal WASM binary loading strategies (embedded, streaming, manual)
-> - [wasm.md](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate
-> - [types.md](./types.md) — public TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`)
-> - [utils.md](./utils.md) — encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`
-> - [serpent.md](./serpent.md) — Serpent-256 TypeScript API (SerpentSeal, SerpentStream, raw modes)
-> - [chacha20.md](./chacha20.md) — ChaCha20/Poly1305 TypeScript API and XChaCha20-Poly1305 AEAD
-> - [sha2.md](./sha2.md) — SHA-2 hashes, HMAC, and HKDF TypeScript API
-> - [sha3.md](./sha3.md) — SHA-3 hashes and SHAKE XOFs TypeScript API
-> - [fortuna.md](./fortuna.md) — Fortuna CSPRNG with forward secrecy and entropy pooling
-> - [argon2id.md](./argon2id.md) — Argon2id password hashing and key derivation
+> - [index](./README.md) — Project Documentation index
+> - [test-suite](./test-suite.md) — testing methodology, vector corpus, and gate discipline
+> - [init](./init.md) — `init()` API, three loading modes, and idempotent behavior
+> - [loader](./loader.md) — internal WASM binary loading strategies (embedded, streaming, manual)
+> - [wasm](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate
+> - [types](./types.md) — public TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`)
+> - [utils](./utils.md) — encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`
+> - [serpent](./serpent.md) — Serpent-256 TypeScript API (SerpentSeal, SerpentStream, raw modes)
+> - [chacha20](./chacha20.md) — ChaCha20/Poly1305 TypeScript API and XChaCha20-Poly1305 AEAD
+> - [sha2](./sha2.md) — SHA-2 hashes, HMAC, and HKDF TypeScript API
+> - [sha3](./sha3.md) — SHA-3 hashes and SHAKE XOFs TypeScript API
+> - [fortuna](./fortuna.md) — Fortuna CSPRNG with forward secrecy and entropy pooling
+> - [argon2id](./argon2id.md) — Argon2id password hashing and key derivation

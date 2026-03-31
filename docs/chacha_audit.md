@@ -530,12 +530,12 @@ Both approaches provide equivalent chunk-binding security. The ChaCha20 approach
 
 > ## Cross-References
 >
-> - [README.md](./README.md) — project overview and quick-start guide
-> - [architecture.md](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [serpent_audit.md](./serpent_audit.md) — Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties)
-> - [sha2_audit.md](./sha2_audit.md) — SHA-256 / HMAC-SHA256 audit
-> - [sha3_audit.md](./sha3_audit.md) — SHA-3 companion audit
-> - [hmac_audit.md](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentStream, not ChaCha)
-> - [hkdf_audit.md](./hkdf_audit.md) — HKDF audit (used in SerpentStream, not ChaCha)
-> - [chacha20.md](./chacha20.md) — TypeScript API documentation
-> - [asm_chacha.md](./asm_chacha.md) — WASM implementation details
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [serpent_audit](./serpent_audit.md) — Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties)
+> - [sha2_audit](./sha2_audit.md) — SHA-256 / HMAC-SHA256 audit
+> - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit
+> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentStream, not ChaCha)
+> - [hkdf_audit](./hkdf_audit.md) — HKDF audit (used in SerpentStream, not ChaCha)
+> - [chacha20](./chacha20.md) — TypeScript API documentation
+> - [asm_chacha](./asm_chacha.md) — WASM implementation details

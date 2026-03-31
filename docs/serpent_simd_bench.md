@@ -23,6 +23,9 @@
 
 # Serpent-256 SIMD Benchmark Results
 
+> [!NOTE]
+> See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+
 4-wide inter-block SIMD (`encryptChunk_simd`): each v128 register lane holds
 word `w` from a different block (counters ctr, ctr+1, ctr+2, ctr+3). Same
 parallelism model as ChaCha20 CTR-4.
@@ -94,6 +97,8 @@ purpose of SIMD throughput.
 ---
 
 > **Cross-references:**
-> - [asm_serpent.md](./asm_serpent.md) — WASM API reference including SIMD exports
-> - [serpent.md](./serpent.md) — TypeScript wrapper classes
-> - [chacha_simd_bench.md](./chacha_simd_bench.md) — ChaCha20 SIMD benchmark (same inter-block model)
+> - [index](./README.md) — Project Documentation index
+> - [asm_serpent](./asm_serpent.md) — WASM API reference including SIMD exports
+> - [serpent](./serpent.md) — TypeScript wrapper classes
+> - [chacha_simd_bench](./chacha_simd_bench.md) — ChaCha20 SIMD benchmark (same inter-block model)
+> - [serpent_audit.md](./serpent_audit.md) — Serpent-256 implementation audit
