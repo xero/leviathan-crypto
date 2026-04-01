@@ -1,5 +1,106 @@
 # Changelog
 
+## v1.4.0 (2026-04-01)
+
+### Breaking Changes
+
+- **⚠ SerpentStreamSealer wire format: explicit isLast byte.**
+  Each sealed chunk now prepends a cleartext `isLast(1)` byte.
+  Wire format: `isLast(1) || IV(16) || ciphertext || HMAC(32)`.
+  Previously non-final chunks required two HKDF derivations + two HMAC
+  verifications to distinguish from final chunks — a per-chunk timing
+  differential that leaked stream position to observers with oracle access.
+  Existing SerpentStream ciphertexts are unreadable by the new opener.
+
+- **⚠ SerpentSeal / SerpentStreamSealer: AAD support changes wire format.**
+  Optional `aad?: Uint8Array` parameter added to encrypt/decrypt/seal/final/open/feed.
+  AAD is folded into the HMAC input with domain separation (4-byte length prefix).
+  Existing SerpentSeal ciphertexts cannot be decrypted by the new version
+  unless AAD is empty AND the HMAC input construction is identical to the old
+  path — it is not, due to the length prefix.
+
+- **⚠ hexToBytes: odd-length input now throws.**
+  Previously right-padded: `'abc'` → `'abc0'` → `[0xab, 0xc0]`.
+  Now throws `RangeError('hexToBytes: odd-length string')`.
+  Silent corruption in a crypto context is unacceptable — every other crypto
+  library throws on odd-length hex.
+
+- **⚠ base64url: encoding drops padding per RFC 4648 §5.**
+  `bytesToBase64(bytes, true)` previously emitted `%3d` for `=` padding.
+  Now omits padding entirely. Decode path still accepts `%3d` for
+  backward compatibility with existing encoded data.
+
+- **⚠ Fortuna.get() always returns Uint8Array.**
+  Return type changed from `Uint8Array | undefined` to `Uint8Array`.
+  `create()` now guarantees the instance is seeded before resolving.
+  The `undefined` path was unreachable in any runtime that supports
+  WASM SIMD (which implies `globalThis.crypto`).
+
+### Security
+
+- **SerpentStreamSealer timing oracle (see breaking changes above).**
+  The isLast wire byte eliminates the per-chunk timing differential
+  that leaked stream position. This is a side-channel fix.
+
+- **hexToBytes silent corruption (see breaking changes above).**
+  Odd-length hex input to key material or hash functions would silently
+  produce wrong bytes. Now fails loudly.
+
+### Added
+
+- **XChaCha20Seal** — high-level AEAD class that binds key at construction and
+  manages nonces internally. Fresh random 24-byte nonce per `encrypt()` call.
+  Wire format: `nonce(24) || ciphertext || tag(16)`.
+  Recommended entry point for XChaCha20 encryption.
+
+- **XChaCha20StreamSealer / XChaCha20StreamOpener** — chunked streaming
+  authenticated encryption for large payloads using XChaCha20-Poly1305.
+  Per-chunk random nonces, position-bound AAD, framed mode for network
+  transports. API mirrors SerpentStreamSealer/Opener.
+
+- **concat() variadic.** `concat(a, b)` → `concat(...arrays)`.
+  Single allocation for N arrays. Backward compatible.
+
+- **AAD on SerpentSeal and SerpentStreamSealer** (see breaking changes).
+
+### Performance
+
+- **Gzip-compressed embedded WASM.** 198KB → ~33KB total embedded footprint.
+  Serpent alone: 167KB → 20KB. Fully internal to the loader — consumers
+  call `init('embedded')` identically. DecompressionStream availability
+  is gated by the same floor as WASM SIMD.
+
+### Fixed
+
+- **decodeWasm() DecompressionStream guard.** Throws a descriptive error
+  when `DecompressionStream` is unavailable instead of a bare
+  `ReferenceError`. Message directs callers to streaming or manual mode.
+
+- **embed-wasm.ts deterministic gzip output.** Zeroes the gzip mtime
+  header (bytes 4–7) for reproducible builds across identical WASM input.
+
+### Internal
+
+- Consolidated three divergent private `base64ToBytes` copies (loader,
+  chacha20 pool, serpent stream pool) into a single import from utils.
+
+### Documentation
+
+- **XChaCha20Poly1305 no longer claims to implement the AEAD interface.**
+  The class is the RFC-faithful stateless primitive. Its method signature
+  (`encrypt(key, nonce, pt, aad)`) never matched the AEAD interface
+  (`encrypt(msg, aad?)`). Updated types.md, chacha20.md, and JSDoc.
+  `XChaCha20Seal` is now the recommended AEAD entry point.
+
+### Test Suite
+
+- 503 unit tests (Vitest), 183 e2e tests (Playwright × 3 browsers), 686 total.
+- New test files: `xchacha20seal.test.ts` (17), `xchacha20stream.test.ts` (26).
+- Self-generated vectors regenerated for SerpentSeal and SerpentStreamSealer
+  wire format changes. VERIFIED vectors (NIST/RFC/NESSIE) unchanged.
+
+---
+
 ## v1.3.1 (2026-03-30)
 
 ### Changes

@@ -13,8 +13,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| v1.3.x  | ︎✓         |
-| v1.2.x  | ✓         |
+| v1.4.x  | ✓         |
+| v1.3.x  | ✓         |
+| v1.2.x  | ✗         |
 | v1.1.x  | ✗         |
 | v1.0.x  | ✗         |
 
@@ -92,17 +93,28 @@ See: [`xero/BicliqueFinder/biclique_research.md`][biclique]
 
 ### Authenticated Encryption by Default
 
-Raw unauthenticated cipher modes (`SerpentCbc`, `SerpentCtr`) are exposed
-for power users but are not the recommended entry point. The primary API
-surfaces — `SerpentSeal`, `SerpentStream`, `SerpentStreamSealer` — are
-authenticated by construction.
+Raw unauthenticated cipher modes (`SerpentCbc`, `SerpentCtr`, `ChaCha20`) and
+stateless caller-managed-nonce primitives (`ChaCha20Poly1305`,
+`XChaCha20Poly1305`) are exposed for power users but are not the recommended
+entry point. The primary API surfaces — `SerpentSeal`, `SerpentStream`,
+`SerpentStreamSealer`, `XChaCha20Seal`, and `XChaCha20StreamSealer` — are
+authenticated by construction with internally managed nonces.
 
-**`SerpentStreamSealer` satisfies the _Cryptographic Doom Principle_:**
+**Both streaming constructions satisfy the _Cryptographic Doom Principle_:**
 
-MAC verification is the unconditional gate on the open path,
-decryption is unreachable until that gate clears, and per-chunk
+`SerpentStreamSealer` uses encrypt-then-MAC (SerpentCbc + HMAC-SHA256).
+MAC verification is the unconditional gate on the open path.
+Decryption is unreachable until that gate clears. Per-chunk
 HKDF key derivation with position-bound info extends this
 guarantee to full stream integrity.
+
+`XChaCha20StreamSealer` uses XChaCha20-Poly1305 AEAD per chunk.
+The Poly1305 tag is verified inside the WASM `xcDecrypt` call
+before any plaintext is produced. On authentication failure,
+plaintext bytes are never generated and never returned. Stream-level
+binding via per-chunk AAD (`stream_id || index || isLast || user AAD`)
+ensures reorder, splice, truncation, and cross-stream substitution
+all fail AEAD verification before decryption.
 
 ### Dependency Management
 

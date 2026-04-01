@@ -10,7 +10,7 @@ extra network requests beyond the module files themselves.
 
 ```html
 <script type="module">
-  import { init, SerpentSeal, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.3.0/dist/index.js'
+  import { init, SerpentSeal, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js'
 
   await init(['serpent', 'sha2'])
 
@@ -29,7 +29,7 @@ extra network requests beyond the module files themselves.
 
 ```html
 <script type="module">
-  import { serpentInit, SerpentSeal } from 'https://unpkg.com/leviathan-crypto@1.3.0/dist/serpent/index.js'
+  import { serpentInit, SerpentSeal } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/serpent/index.js'
 
   await serpentInit()
   // ...
@@ -48,10 +48,10 @@ pointing at the directory containing the `.wasm` files.
 ```html
 <script type="module">
   // can point at unpkg or your own CDN
-  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@1.3.0/dist/index.js'
+  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js'
 
   await init(['sha2'], 'streaming', {
-    wasmUrl: 'https://unpkg.com/leviathan-crypto@1.3.0/dist/'
+    wasmUrl: 'https://unpkg.com/leviathan-crypto@1.4.0/dist/'
   })
 
   const sha    = new SHA256()
@@ -85,11 +85,11 @@ See [`InitOpts.wasmBinary`](./init.md#types) for the full manual mode API.
 ```html
 <script type="module">
   // can point to unpkg or your own CDN
-  import { init, XChaCha20Poly1305, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.3.0/dist/index.js'
+  import { init, XChaCha20Seal, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js'
 
-  const res = await fetch('https://unpkg.com/leviathan-crypto@1.3.0/dist/chacha20.wasm', {
+  const res = await fetch('https://unpkg.com/leviathan-crypto@1.4.0/dist/chacha20.wasm', {
     // integrity hash is version-specific, update when upgrading
-    integrity: 'sha384-7nR+lSL292CzGG9U4NiIQFuA0oBLdvAqKtkOukeTiD/Ar1ptVtctrIQyKCsKM3c8'
+    integrity: 'sha384-...'
   })
   const binary = await res.arrayBuffer()
 
@@ -97,14 +97,12 @@ See [`InitOpts.wasmBinary`](./init.md#types) for the full manual mode API.
     wasmBinary: { chacha20: binary }
   })
 
-  const aead      = new XChaCha20Poly1305()
-  const key       = randomBytes(32)
-  const nonce     = randomBytes(24)
-  const sealed    = aead.encrypt(key, nonce, new TextEncoder().encode('manual mode'))
-  const plaintext = aead.decrypt(key, nonce, sealed)
+  const seal      = new XChaCha20Seal(randomBytes(32))
+  const sealed    = seal.encrypt(new TextEncoder().encode('manual mode'))
+  const plaintext = seal.decrypt(sealed)
 
   console.log(new TextDecoder().decode(plaintext))
-  aead.dispose()
+  seal.dispose()
 </script>
 ```
 
@@ -124,11 +122,11 @@ If you want the same import style as the npm docs, add one before your module sc
 <script type="importmap">
 {
   "imports": {
-    "leviathan-crypto":          "https://unpkg.com/leviathan-crypto@1.3.0/dist/index.js",
-    "leviathan-crypto/serpent":  "https://unpkg.com/leviathan-crypto@1.3.0/dist/serpent/index.js",
-    "leviathan-crypto/chacha20": "https://unpkg.com/leviathan-crypto@1.3.0/dist/chacha20/index.js",
-    "leviathan-crypto/sha2":     "https://unpkg.com/leviathan-crypto@1.3.0/dist/sha2/index.js",
-    "leviathan-crypto/sha3":     "https://unpkg.com/leviathan-crypto@1.3.0/dist/sha3/index.js"
+    "leviathan-crypto":          "https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js",
+    "leviathan-crypto/serpent":  "https://unpkg.com/leviathan-crypto@1.4.0/dist/serpent/index.js",
+    "leviathan-crypto/chacha20": "https://unpkg.com/leviathan-crypto@1.4.0/dist/chacha20/index.js",
+    "leviathan-crypto/sha2":     "https://unpkg.com/leviathan-crypto@1.4.0/dist/sha2/index.js",
+    "leviathan-crypto/sha3":     "https://unpkg.com/leviathan-crypto@1.4.0/dist/sha3/index.js"
   }
 }
 </script>

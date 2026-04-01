@@ -600,27 +600,25 @@ aead.dispose()
 
 ### Example 3: Detecting Tampered Ciphertext
 
-AEAD decryption fails loudly if anyone has modified the ciphertext, the tag, or
-the associated data. This is a feature — it prevents you from processing corrupted
-or maliciously altered data.
+AEAD decryption fails loudly if anyone has modified the ciphertext or
+the associated data. This is a feature — it prevents you from processing
+corrupted or maliciously altered data.
 
 ```typescript
-import { init, XChaCha20Poly1305, randomBytes, utf8ToBytes } from 'leviathan-crypto'
+import { init, XChaCha20Seal, randomBytes, utf8ToBytes } from 'leviathan-crypto'
 
 await init(['chacha20'])
 
-const key = randomBytes(32)
-const nonce = randomBytes(24)
-const aead = new XChaCha20Poly1305()
+const seal = new XChaCha20Seal(randomBytes(32))
 
-const sealed = aead.encrypt(key, nonce, utf8ToBytes('Original message'))
+const sealed = seal.encrypt(utf8ToBytes('Original message'))
 
 // Simulate tampering: flip one bit in the ciphertext
 const tampered = new Uint8Array(sealed)
-tampered[0] ^= 0x01
+tampered[24] ^= 0x01  // byte 24 is the first ciphertext byte (after the nonce)
 
 try {
-	const plaintext = aead.decrypt(key, nonce, tampered)
+	const plaintext = seal.decrypt(tampered)
 	// This line is never reached
 	console.log(plaintext)
 } catch (err) {
@@ -629,7 +627,7 @@ try {
 	// The plaintext is never returned — decryption stops immediately on failure.
 }
 
-aead.dispose()
+seal.dispose()
 ```
 
 ### Example 4: Using Associated Data (AAD)
@@ -639,36 +637,34 @@ not encrypt. Common uses: user IDs, message sequence numbers, protocol version
 headers, routing information.
 
 ```typescript
-import { init, XChaCha20Poly1305, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+import { init, XChaCha20Seal, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
 
 await init(['chacha20'])
 
-const key = randomBytes(32)
-const nonce = randomBytes(24)
-const aead = new XChaCha20Poly1305()
+const seal = new XChaCha20Seal(randomBytes(32))
 
 // The user ID travels in the clear, but decryption will fail if anyone changes it
-const userId = utf8ToBytes('user-12345')
+const userId  = utf8ToBytes('user-12345')
 const message = utf8ToBytes('Your account balance is $1,000,000')
 
-const sealed = aead.encrypt(key, nonce, message, userId)
+const sealed = seal.encrypt(message, userId)
 
 // Decrypt — pass the same AAD
-const decrypted = aead.decrypt(key, nonce, sealed, userId)
+const decrypted = seal.decrypt(sealed, userId)
 console.log(bytesToUtf8(decrypted))
 // "Your account balance is $1,000,000"
 
 // If someone changes the AAD, decryption fails
 const wrongUserId = utf8ToBytes('user-99999')
 try {
-	aead.decrypt(key, nonce, sealed, wrongUserId)
+	seal.decrypt(sealed, wrongUserId)
 } catch (err) {
 	console.error(err.message)
 	// "ChaCha20Poly1305: authentication failed"
 	// Even though the ciphertext was not modified, the AAD mismatch is detected.
 }
 
-aead.dispose()
+seal.dispose()
 ```
 
 ### Example 5: Encrypting and Decrypting Binary Data
@@ -677,29 +673,27 @@ The API works with raw bytes — not just text. Here is an example encrypting
 arbitrary binary content.
 
 ```typescript
-import { init, XChaCha20Poly1305, randomBytes } from 'leviathan-crypto'
+import { init, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
 
 await init(['chacha20'])
 
-const key = randomBytes(32)
-const nonce = randomBytes(24)
-const aead = new XChaCha20Poly1305()
+const seal = new XChaCha20Seal(randomBytes(32))
 
 // Encrypt binary data (e.g., an image thumbnail, a protobuf, a file chunk)
 const binaryData = new Uint8Array([0x89, 0x50, 0x4e, 0x47, /* ...more bytes... */])
-const sealed = aead.encrypt(key, nonce, binaryData)
+const sealed = seal.encrypt(binaryData)
 
 // Decrypt
-const recovered = aead.decrypt(key, nonce, sealed)
+const recovered = seal.decrypt(sealed)
 // `recovered` is byte-identical to `binaryData`
 
-aead.dispose()
+seal.dispose()
 ```
 
 ### Example 6: Raw ChaCha20 Stream Cipher (Advanced)
 
 Use this only if you are building a custom protocol and will add your own
-authentication layer. For almost all use cases, use `XChaCha20Poly1305` instead.
+authentication layer. For almost all use cases, use `XChaCha20Seal` instead.
 
 ```typescript
 import { init, ChaCha20, randomBytes } from 'leviathan-crypto'

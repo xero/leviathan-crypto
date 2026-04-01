@@ -126,17 +126,20 @@ cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 | Class                                                       | Module            | Auth    | Notes                                                                                                                                              |
 | ----------------------------------------------------------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Authenticated encryption**                                |                   |         |                                                                                                                                                    |
-| `SerpentSeal`                                               | `serpent`, `sha2` | **Yes** | Serpent-CBC + HMAC-SHA256. Recommended default for most use cases. 64-byte key.                                                                    |
+| `SerpentSeal`                                               | `serpent`, `sha2` | **Yes** | Serpent-CBC + HMAC-SHA256. Recommended Serpent default. 64-byte key.                                                                                |
+| `XChaCha20Seal`                                             | `chacha20`        | **Yes** | XChaCha20-Poly1305 with internal nonce management. Recommended ChaCha20 default. 32-byte key.                                                      |
 | `SerpentStream`, `SerpentStreamPool`                        | `serpent`, `sha2` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers. 32-byte key.                                                   |
 | `SerpentStreamSealer`, `SerpentStreamOpener`                | `serpent`, `sha2` | **Yes** | Incremental streaming AEAD: seal/open one chunk at a time. Pass `{ framed: true }` for self-delimiting `u32be` length-prefix framing. 64-byte key. |
-| `XChaCha20Poly1305`                                         | `chacha20`        | **Yes** | XChaCha20-Poly1305 AEAD. Recommended when you want a simpler API or a 192-bit nonce safe for random generation. 32-byte key.                       |
+| `XChaCha20StreamSealer`, `XChaCha20StreamOpener`            | `chacha20`        | **Yes** | Incremental streaming AEAD using XChaCha20-Poly1305. Per-chunk random nonces, position-bound AAD. `{ framed: true }` for length-prefixed framing. 32-byte key. |
 | `XChaCha20Poly1305Pool`                                     | `chacha20`        | **Yes** | Worker-pool wrapper for `XChaCha20Poly1305`. Parallelises encryption across isolated WASM instances.                                               |
-| `ChaCha20Poly1305`                                          | `chacha20`        | **Yes** | ChaCha20-Poly1305 AEAD — RFC 8439. 12-byte nonce; prefer `XChaCha20Poly1305` unless you need RFC 8439 exact compliance.                            |
+| **Stateless primitives** _caller manages nonces_            |                   |         |                                                                                                                                                    |
+| `XChaCha20Poly1305`                                         | `chacha20`        | **Yes** | RFC-faithful stateless AEAD. 24-byte nonce, caller-managed. Use `XChaCha20Seal` unless you need explicit nonce control.                            |
+| `ChaCha20Poly1305`                                          | `chacha20`        | **Yes** | RFC 8439 stateless AEAD. 12-byte nonce, caller-managed. Prefer `XChaCha20Seal` unless you need RFC 8439 exact compliance.                          |
 | **Unauthenticated primitives** _pair with HMAC or use AEAD_ |                   |         |                                                                                                                                                    |
 | `Serpent`                                                   | `serpent`         | **No**  | Serpent-256 ECB block cipher. Single-block encrypt/decrypt.                                                                                        |
 | `SerpentCtr`                                                | `serpent`         | **No**  | Serpent-256 CTR mode stream cipher. Requires `{ dangerUnauthenticated: true }`.                                                                    |
 | `SerpentCbc`                                                | `serpent`         | **No**  | Serpent-256 CBC mode with PKCS7 padding. Requires `{ dangerUnauthenticated: true }`.                                                               |
-| `ChaCha20`                                                  | `chacha20`        | **No**  | ChaCha20 stream cipher — RFC 8439. Unauthenticated; use `XChaCha20Poly1305` unless you need raw keystream.                                         |
+| `ChaCha20`                                                  | `chacha20`        | **No**  | ChaCha20 stream cipher — RFC 8439. Unauthenticated; use `XChaCha20Seal` unless you need raw keystream.                                             |
 | `Poly1305`                                                  | `chacha20`        | **No**  | Poly1305 one-time MAC — RFC 8439. Use via the AEAD classes unless you have a specific reason not to.                                               |
 | **Hashing and key derivation**                              |                   |         |                                                                                                                                                    |
 | `SHA256`, `SHA384`, `SHA512`                                | `sha2`            | —       | SHA-2 family — FIPS 180-4.                                                                                                                         |
@@ -174,25 +177,24 @@ const decrypted = seal.decrypt(key, ciphertext)
 seal.dispose()
 ```
 
-### Authenticated encryption with XChaCha20-Poly1305
+### Authenticated encryption with XChaCha20
 
 ```typescript
-import { init, XChaCha20Poly1305, randomBytes } from 'leviathan-crypto'
+import { init, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
 
 await init(['chacha20'])
 
-const key   = randomBytes(32)  // 32-byte key
-const nonce = randomBytes(24)  // 24-byte nonce (XChaCha20 extended nonce)
+const key = randomBytes(32)  // 32-byte key
 
-const chacha = new XChaCha20Poly1305()
+const seal = new XChaCha20Seal(key)
 
-// Encrypt and authenticate
-const ciphertext = chacha.encrypt(key, nonce, plaintext)
+// Encrypt and authenticate (nonce generated internally)
+const ciphertext = seal.encrypt(plaintext)
 
 // Decrypt and verify (throws on tamper)
-const decrypted = chacha.decrypt(key, nonce, ciphertext)
+const decrypted = seal.decrypt(ciphertext)
 
-chacha.dispose()
+seal.dispose()
 ```
 
 For more examples, including streaming, chunking, hashing, and key derivation,
@@ -224,7 +226,7 @@ import { serpentInit, SerpentSeal } from 'leviathan-crypto/serpent'
 await serpentInit()
 
 // Only chacha20.wasm ends up in your bundle
-import { chacha20Init, XChaCha20Poly1305 } from 'leviathan-crypto/chacha20'
+import { chacha20Init, XChaCha20Seal } from 'leviathan-crypto/chacha20'
 await chacha20Init()
 ```
 
@@ -252,7 +254,7 @@ await chacha20Init()
 | ----------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | serpent     | [▼](./docs/serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/serpent)         | Serpent-256 TypeScript API (`SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc`) |
 | asm_serpent | [▼](./docs/asm_serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_serpent) | Serpent-256 WASM implementation (bitslice S-boxes, key schedule, CTR/CBC)                                                                                             |
-| chacha20    | [▼](./docs/chacha20.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha20)       | ChaCha20/Poly1305 TypeScript API (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool`)                                           |
+| chacha20    | [▼](./docs/chacha20.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha20)       | ChaCha20/Poly1305 TypeScript API (`XChaCha20Seal`, `XChaCha20StreamSealer`, `XChaCha20StreamOpener`, `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool`) |
 | asm_chacha  | [▼](./docs/asm_chacha.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_chacha)   | ChaCha20/Poly1305 WASM implementation (quarter-round, HChaCha20)                                                                                                      |
 | sha2        | [▼](./docs/sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha2)               | SHA-2 TypeScript API (`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`)                                                                      |
 | asm_sha2    | [▼](./docs/asm_sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_sha2)       | SHA-2 WASM implementation (compression functions, HMAC)                                                                                                               |
@@ -278,7 +280,7 @@ These helpers are available immediately on import with no `init()` required.
 | `constantTimeEqual(a, b)`    | [▼](./docs/utils.md#constanttimeequal) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) | Constant-time byte comparison (XOR-accumulate)                                                            |
 | `wipe(data)`                 | [▼](./docs/utils.md#wipe) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#wipe)                           | Zero a typed array in place                                                                               |
 | `xor(a, b)`                  | [▼](./docs/utils.md#xor) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#xor)                             | XOR two equal-length `Uint8Array`s                                                                        |
-| `concat(a, b)`               | [▼](./docs/utils.md#concat) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#concat)                       | Concatenate two `Uint8Array`s                                                                             |
+| `concat(...arrays)`          | [▼](./docs/utils.md#concat) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#concat)                       | Concatenate `Uint8Array`s (variadic)                                                                      |
 | `hasSIMD()`                  | [▼](./docs/utils.md#hassimd) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#hassimd)                     | Detects WebAssembly SIMD support. Cached after first call. Used internally for CTR/CBC/ChaCha20 dispatch. |
 
 ### Algorithm correctness and verifications

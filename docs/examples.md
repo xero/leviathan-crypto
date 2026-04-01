@@ -33,26 +33,31 @@ seal.dispose()
 
 ---
 
-### [XChaCha20Poly1305](./chacha20.md): authenticated encryption
+### [XChaCha20Seal](./chacha20.md): authenticated encryption
 
-The recommended ChaCha AEAD. 24-byte nonce, safe to generate randomly for
-any practical message volume.
+The recommended ChaCha20 AEAD. Binds key at construction, generates a fresh
+random 24-byte nonce on every `encrypt()` call. No nonce management needed.
 
 ```typescript
-import { init, XChaCha20Poly1305, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+import { init, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
 
 await init(['chacha20'])
 
-const key   = randomBytes(32)
-const nonce = randomBytes(24)  // 192-bit nonce: no collision risk
-const aead  = new XChaCha20Poly1305()
+const seal = new XChaCha20Seal(randomBytes(32))
 
-const ciphertext = aead.encrypt(key, nonce, utf8ToBytes('Hello, world!'))
-const decrypted  = aead.decrypt(key, nonce, ciphertext)  // throws on tamper
+const plaintext  = new TextEncoder().encode('Authenticated secret message.')
+const ciphertext = seal.encrypt(plaintext)               // nonce(24) || ct || tag(16)
+const decrypted  = seal.decrypt(ciphertext)               // throws on tamper
 
-console.log(bytesToUtf8(decrypted))  // => "Hello, world!"
+console.log(new TextDecoder().decode(decrypted))
+// => "Authenticated secret message."
 
-aead.dispose()
+// Optional: bind metadata without encrypting it
+const metadata   = new TextEncoder().encode('document-v2')
+const ct2        = seal.encrypt(plaintext, metadata)      // AAD bound to ciphertext
+const pt2        = seal.decrypt(ct2, metadata)            // must pass same AAD
+
+seal.dispose()
 ```
 
 ---
@@ -91,6 +96,67 @@ const ptN = opener.open(lastChunk)  // detects final chunk, wipes key on return
 ```
 
 ---
+
+### [XChaCha20StreamSealer / XChaCha20StreamOpener](./chacha20.md): incremental streaming AEAD
+
+For data arriving in chunks. Each chunk gets its own random nonce and is
+cryptographically bound to its position in the stream. Reorder, truncation,
+and cross-stream splicing all fail authentication.
+
+```typescript
+import { init, XChaCha20StreamSealer, XChaCha20StreamOpener, randomBytes } from 'leviathan-crypto'
+
+await init(['chacha20'])
+
+const key       = randomBytes(32)
+const chunkSize = 65536  // 1024..65536
+
+// ── Seal side ───────────────────────────────────────────────────────────────
+
+const sealer = new XChaCha20StreamSealer(key, chunkSize)
+const header = sealer.header()    // 20 bytes: stream_id(16) + chunkSize(4)
+
+const chunk0    = sealer.seal(plaintext0)      // exactly chunkSize bytes
+const chunk1    = sealer.seal(plaintext1)
+const lastChunk = sealer.final(lastPlaintext)  // ≤ chunkSize, wipes key
+
+// ── Open side ───────────────────────────────────────────────────────────────
+
+const opener = new XChaCha20StreamOpener(key, header)
+
+const pt0 = opener.open(chunk0)
+const pt1 = opener.open(chunk1)
+const ptN = opener.open(lastChunk)  // detects final chunk, wipes key
+```
+
+#### Framed mode (for network transports)
+
+```typescript
+// Each sealed chunk gets a 4-byte big-endian length prefix
+const sealer = new XChaCha20StreamSealer(key, 65536, { framed: true })
+const header = sealer.header()
+const frame0 = sealer.seal(plaintext0)    // len(4) || isLast(1) || nonce(24) || ct || tag(16)
+const frame1 = sealer.final(plaintext1)
+
+// feed() accepts arbitrary byte slices and reassembles frames internally
+const opener = new XChaCha20StreamOpener(key, header, { framed: true })
+const results = opener.feed(networkBytes)  // Uint8Array[] — zero or more plaintexts
+```
+
+#### With AAD
+
+```typescript
+const metadata = new TextEncoder().encode('backup-2026-04-01')
+
+const sealer = new XChaCha20StreamSealer(key, 65536, { aad: metadata })
+// ... seal chunks ...
+
+const opener = new XChaCha20StreamOpener(key, header, { aad: metadata })
+// AAD mismatch → authentication failure on every chunk
+```
+
+---
+
 
 ### [SerpentStream](./serpent.md): chunked large payload
 
@@ -360,6 +426,55 @@ const mac = new Poly1305()
 const tag = mac.mac(key, message)  // 16-byte tag
 
 mac.dispose()
+```
+
+---
+
+### [XChaCha20Poly1305](./chacha20.md): stateless AEAD primitive
+
+*The RFC-faithful stateless primitive. Caller is responsible for nonce
+management — reusing a nonce with the same key is catastrophic. Use
+`XChaCha20Seal` unless you need explicit nonce control for protocol
+interoperability.*
+
+```typescript
+import { init, XChaCha20Poly1305, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+
+await init(['chacha20'])
+
+const key   = randomBytes(32)
+const nonce = randomBytes(24)  // caller must guarantee uniqueness per key
+const aead  = new XChaCha20Poly1305()
+
+const ciphertext = aead.encrypt(key, nonce, utf8ToBytes('Hello, world!'))
+const decrypted  = aead.decrypt(key, nonce, ciphertext)  // throws on tamper
+
+console.log(bytesToUtf8(decrypted))  // => "Hello, world!"
+
+aead.dispose()
+```
+
+---
+
+### [ChaCha20Poly1305](./chacha20.md): stateless AEAD primitive (RFC 8439)
+
+*12-byte nonce variant. Same caller-managed-nonce hazard as `XChaCha20Poly1305`.
+The 12-byte nonce space is small enough that random generation risks collision
+at scale. Prefer `XChaCha20Seal` for new protocols.*
+
+```typescript
+import { init, ChaCha20Poly1305, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+
+await init(['chacha20'])
+
+const key   = randomBytes(32)
+const nonce = randomBytes(12)  // 12-byte nonce: collision risk at ~2^32 messages
+const aead  = new ChaCha20Poly1305()
+
+const ciphertext = aead.encrypt(key, nonce, utf8ToBytes('Hello, world!'))
+const decrypted  = aead.decrypt(key, nonce, ciphertext)
+
+aead.dispose()
 ```
 
 ---

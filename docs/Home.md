@@ -31,16 +31,22 @@ No bundler? Load directly from a CDN. See: [CDN usage](cdn.md).
 
 ## Quick Start
 ```typescript
-import { init, SerpentSeal, randomBytes } from 'leviathan-crypto'
+import { init, SerpentSeal, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
 
-await init(['serpent', 'sha2'])
+await init(['serpent', 'sha2', 'chacha20'])
 
-const key        = randomBytes(64)
+// Serpent-256
+const sKey       = randomBytes(64)
 const seal       = new SerpentSeal()
-const ciphertext = seal.encrypt(key, plaintext)
-const decrypted  = seal.decrypt(key, ciphertext)  // throws on tamper
-
+const ciphertext = seal.encrypt(sKey, plaintext)
+const decrypted  = seal.decrypt(sKey, ciphertext)     // throws on tamper
 seal.dispose()
+
+// XChaCha20-Poly1305
+const xSeal      = new XChaCha20Seal(randomBytes(32))
+const ct         = xSeal.encrypt(plaintext)           // nonce managed internally
+const pt         = xSeal.decrypt(ct)                  // throws on tamper
+xSeal.dispose()
 ```
 
 See [examples](examples.md) for streaming, chunking, hashing, key derivation, and both ciphers.
