@@ -27,6 +27,7 @@
 import { SerpentCbc, _serpentReady } from './index.js';
 import { HMAC_SHA256, _sha2Ready } from '../sha2/index.js';
 import { concat, constantTimeEqual } from '../utils.js';
+import { u32be } from './stream.js';
 
 export class SerpentSeal {
 	private readonly _cbc: SerpentCbc;
@@ -40,7 +41,8 @@ export class SerpentSeal {
 	}
 
 	// _iv: test seam only — inject a fixed IV for deterministic KAT vectors
-	encrypt(key: Uint8Array, plaintext: Uint8Array, _iv?: Uint8Array): Uint8Array {
+	// aad: authenticated but not encrypted; bound into HMAC-SHA256 tag
+	encrypt(key: Uint8Array, plaintext: Uint8Array, aad: Uint8Array = new Uint8Array(0), _iv?: Uint8Array): Uint8Array {
 		if (key.length !== 64)
 			throw new RangeError(`SerpentSeal key must be 64 bytes (got ${key.length})`);
 		const encKey = key.subarray(0, 32);
@@ -48,11 +50,11 @@ export class SerpentSeal {
 		const iv = (_iv && _iv.length === 16) ? _iv : new Uint8Array(16);
 		if (!_iv || _iv.length !== 16) crypto.getRandomValues(iv);
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
-		const tag = this._hmac.hash(macKey, concat(iv, ciphertext));
-		return concat(concat(iv, ciphertext), tag);
+		const tag = this._hmac.hash(macKey, concat(u32be(aad.length), aad, iv, ciphertext));
+		return concat(iv, ciphertext, tag);
 	}
 
-	decrypt(key: Uint8Array, data: Uint8Array): Uint8Array {
+	decrypt(key: Uint8Array, data: Uint8Array, aad: Uint8Array = new Uint8Array(0)): Uint8Array {
 		if (key.length !== 64)
 			throw new RangeError(`SerpentSeal key must be 64 bytes (got ${key.length})`);
 		if (data.length < 64)
@@ -62,7 +64,7 @@ export class SerpentSeal {
 		const iv = data.subarray(0, 16);
 		const tag = data.subarray(data.length - 32);
 		const ciphertext = data.subarray(16, data.length - 32);
-		const expectedTag = this._hmac.hash(macKey, concat(iv, ciphertext));
+		const expectedTag = this._hmac.hash(macKey, concat(u32be(aad.length), aad, iv, ciphertext));
 		if (!constantTimeEqual(tag, expectedTag))
 			throw new Error('SerpentSeal: authentication failed');
 		return this._cbc.decrypt(encKey, iv, ciphertext);

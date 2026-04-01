@@ -30,7 +30,7 @@ import {
 	HMAC_SHA256, HKDF_SHA256,
 	bytesToHex, concat,
 } from '../src/ts/index.js';
-import { chunkInfo } from '../src/ts/serpent/stream.js';
+import { chunkInfo, u32be } from '../src/ts/serpent/stream.js';
 import { writeFileSync } from 'fs';
 
 await init(['serpent', 'sha2']);
@@ -62,14 +62,14 @@ function splitHex(h: string, indent = '\t\t'): string {
 const tc1_key = new Uint8Array(64);
 const tc1_iv = new Uint8Array(16);
 const tc1_pt = new Uint8Array(32).fill(0xab);
-const tc1_out = seal.encrypt(tc1_key, tc1_pt, tc1_iv);
+const tc1_out = seal.encrypt(tc1_key, tc1_pt, undefined, tc1_iv);
 const tc1_tag = tc1_out.subarray(tc1_out.length - 32);
 
 // Verify
 const tc1_encKey = tc1_key.subarray(0, 32);
 const tc1_macKey = tc1_key.subarray(32, 64);
 const tc1_ct = tc1_out.subarray(16, tc1_out.length - 32);
-assert(hex(hmac.hash(tc1_macKey, concat(tc1_out.subarray(0, 16), tc1_ct))) === hex(tc1_tag), 'TC1 HMAC');
+assert(hex(hmac.hash(tc1_macKey, concat(u32be(0), tc1_out.subarray(0, 16), tc1_ct))) === hex(tc1_tag), 'TC1 HMAC');
 assert(hex(cbc.decrypt(tc1_encKey, tc1_out.subarray(0, 16), tc1_ct)) === hex(tc1_pt), 'TC1 CBC');
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -80,7 +80,7 @@ for (let i = 0; i < 64; i++) tc2_key[i] = [1, 2, 3, 4][i % 4];
 const tc2_iv = new Uint8Array(16);
 for (let i = 0; i < 16; i++) tc2_iv[i] = [0xff, 0xfe, 0xfd, 0xfc][i % 4];
 const tc2_pt = new Uint8Array(0);
-const tc2_out = seal.encrypt(tc2_key, tc2_pt, tc2_iv);
+const tc2_out = seal.encrypt(tc2_key, tc2_pt, undefined, tc2_iv);
 const tc2_tag = tc2_out.subarray(tc2_out.length - 32);
 assert(tc2_out.length === 64, 'TC2 len');
 

@@ -27,9 +27,10 @@ you get an error instead of corrupted data. The nonce is 96 bits (12 bytes).
 **XChaCha20-Poly1305** extends the nonce to 192 bits (24 bytes) using the HChaCha20
 subkey derivation step. This makes random nonce generation completely safe — with a
 24-byte nonce, the probability of a collision is negligible even after billions of
-messages. **For most users, XChaCha20Poly1305 is the recommended choice.** It gives
-you encryption and authentication in one call, with a nonce size that eliminates
-the most common footgun (accidental nonce reuse).
+messages. **For most users, `XChaCha20Seal` is the recommended choice.** It binds the key
+at construction, generates a fresh nonce per call, and provides the simplest
+correct API. For protocol interop requiring explicit nonce control, use
+`XChaCha20Poly1305` directly.
 
 ## Security Notes
 
@@ -37,9 +38,10 @@ the most common footgun (accidental nonce reuse).
 > Read this section before writing any code. These are not theoretical concerns —
 > they are the mistakes that cause real-world breaches.
 
-- **Use `XChaCha20Poly1305` unless you have a specific reason not to.** It is the
-  safest default: authenticated encryption with a nonce large enough for random
-  generation. If you are unsure which class to pick, pick this one.
+- **Use `XChaCha20Seal` unless you need explicit nonce control.** It is the
+  safest default: authenticated encryption with automatic nonce generation.
+  If you are unsure which class to pick, pick this one. Use `XChaCha20Poly1305`
+  when protocol interop requires you to manage nonces yourself.
 
 - **Never reuse a nonce with the same key.** This is the single most important
   rule. If you encrypt two different messages with the same key and the same nonce,
@@ -300,8 +302,10 @@ Wipes all key material and intermediate state from WASM memory.
 
 ### `XChaCha20Poly1305`
 
-XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha). **This is the recommended
-authenticated encryption class for most use cases.**
+XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha). RFC-faithful stateless
+primitive — key and nonce are passed per-call. Use when protocol interop
+requires explicit nonce control. For most use cases, prefer `XChaCha20Seal`
+(bound key, automatic nonce management).
 
 It uses a 24-byte (192-bit) nonce, which is large enough that randomly generated
 nonces will never collide in practice. Internally, it derives a subkey via
@@ -369,6 +373,151 @@ Wipes all key material and intermediate state from WASM memory.
 
 ---
 
+## `XChaCha20Seal`
+
+XChaCha20-Poly1305 AEAD with a bound key and automatic nonce management.
+**This is the recommended authenticated encryption class.** It implements the
+`AEAD` interface — `encrypt()` and `decrypt()` require only plaintext and
+optional AAD. Each `encrypt()` call generates a fresh 24-byte random nonce
+internally, eliminating any risk of nonce reuse.
+
+**Wire format:** `nonce(24) || ciphertext || tag(16)`
+
+> [!NOTE]
+> The nonce is generated internally via `crypto.getRandomValues` — you never
+> need to manage nonces. For protocol interop requiring explicit nonce control,
+> use `XChaCha20Poly1305` directly.
+
+#### Constructor
+
+```typescript
+new XChaCha20Seal(key: Uint8Array)   // 32 bytes
+```
+
+Binds the key at construction. Throws if `init(['chacha20'])` has not been
+called. Throws `RangeError` if key is not 32 bytes. The key is copied
+internally — the caller's buffer can be wiped after construction.
+
+---
+
+#### `encrypt(plaintext, aad?): Uint8Array`
+
+Encrypts plaintext and returns a sealed blob with nonce prepended and tag
+appended.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `plaintext` | `Uint8Array` | | Data to encrypt (any length, including empty) |
+| `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data — authenticated but not encrypted |
+
+**Returns** `Uint8Array` — `nonce(24) || ciphertext || tag(16)` (length = plaintext.length + 40).
+
+---
+
+#### `decrypt(ciphertext, aad?): Uint8Array`
+
+Reads the nonce from the first 24 bytes, verifies the tag, and decrypts.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ciphertext` | `Uint8Array` | | Sealed blob from `encrypt()` |
+| `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data (must match what was passed to `encrypt()`) |
+
+**Returns** `Uint8Array` — the decrypted plaintext.
+
+**Throws:**
+- `RangeError` if `ciphertext` is shorter than 40 bytes (nonce + tag minimum)
+- `Error('ChaCha20Poly1305: authentication failed')` if the tag does not match
+
+---
+
+#### `dispose(): void`
+
+Wipes the key copy and all WASM buffers.
+
+---
+
+#### Usage
+
+```typescript
+await init(['chacha20'])
+const key  = randomBytes(32)
+const seal = new XChaCha20Seal(key)
+const ct   = seal.encrypt(plaintext)               // nonce generated internally
+const pt   = seal.decrypt(ct)                       // throws on tamper
+seal.dispose()
+```
+
+---
+
+## `XChaCha20StreamSealer` / `XChaCha20StreamOpener`
+
+Incremental streaming AEAD using XChaCha20-Poly1305 — counterpart to
+`SerpentStreamSealer` / `SerpentStreamOpener` for the ChaCha20 family.
+
+Each chunk is independently encrypted with `XChaCha20-Poly1305` using a fresh
+random 24-byte nonce. Stream binding (preventing cross-stream splice and
+reordering) is achieved through per-chunk AAD that includes the stream ID,
+chunk index, and finality flag. Simpler than `SerpentStreamSealer` — no HKDF
+key derivation, no separate HMAC.
+
+**Wire format:**
+```
+header:  stream_id (16) || chunkSize_u32be (4)                          = 20 bytes
+chunk:   isLast (1) || nonce (24) || ciphertext || tag (16)
+```
+
+```typescript
+class XChaCha20StreamSealer {
+	constructor(key: Uint8Array, chunkSize?: number, opts?: {
+		framed?: boolean;
+		aad?: Uint8Array;
+	})
+	header(): Uint8Array
+	seal(plaintext: Uint8Array): Uint8Array
+	final(plaintext: Uint8Array): Uint8Array
+	dispose(): void
+}
+
+class XChaCha20StreamOpener {
+	constructor(key: Uint8Array, header: Uint8Array, opts?: {
+		framed?: boolean;
+		aad?: Uint8Array;
+	})
+	open(chunk: Uint8Array): Uint8Array
+	feed(bytes: Uint8Array): Uint8Array[]
+	dispose(): void
+}
+```
+
+- **key** — 32 bytes. Throws `RangeError` if wrong length.
+- **chunkSize** — 1024–65536. Default: 65536.
+- **opts.framed** — prepend `u32be(sealedLen)` to each output for flat streams.
+- **opts.aad** — associated data folded into every chunk's internal AAD.
+
+The API shape is identical to `SerpentStreamSealer` / `SerpentStreamOpener` —
+same state machine (`fresh → sealing → dead`), same `header()` / `seal()` /
+`final()` / `open()` / `feed()` contract.
+
+#### Usage
+
+```typescript
+await init(['chacha20'])
+
+const key    = randomBytes(32)
+const sealer = new XChaCha20StreamSealer(key, 65536)
+const header = sealer.header()
+
+const chunk0 = sealer.seal(data0)        // exactly chunkSize bytes
+const last   = sealer.final(tail)        // any size up to chunkSize; wipes key
+
+const opener = new XChaCha20StreamOpener(key, header)
+const pt0    = opener.open(chunk0)       // throws on auth failure
+const ptLast = opener.open(last)
+```
+
+---
+
 ## Parallel pool — `XChaCha20Poly1305Pool`
 
 For high-throughput workloads where multiple XChaCha20-Poly1305 operations should
@@ -385,39 +534,38 @@ guidance, and lifecycle docs.
 
 ## Usage Examples
 
-### Example 1: XChaCha20Poly1305 — Encrypt and Decrypt (Recommended)
+### Example 1: XChaCha20Seal — Encrypt and Decrypt (Recommended)
 
-This is the pattern most users should follow. Generate a random 24-byte nonce for
-each message — no counter management, no collision risk.
+This is the pattern most users should follow. Bind the key at construction —
+nonces are generated internally, no nonce management needed.
 
 ```typescript
-import { init, XChaCha20Poly1305, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+import { init, XChaCha20Seal, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
 
 // Step 1: Initialize the chacha20 WASM module (once, at application startup)
 await init(['chacha20'])
 
 // Step 2: Generate a 256-bit encryption key
-// In a real application, this comes from a key derivation function or key exchange.
 const key = randomBytes(32)
 
-// Step 3: Create the AEAD instance
-const aead = new XChaCha20Poly1305()
+// Step 3: Create the seal instance — key is bound at construction
+const seal = new XChaCha20Seal(key)
 
-// Step 4: Encrypt
-const nonce = randomBytes(24)     // Safe to generate randomly — 24 bytes means no collision risk
+// Step 4: Encrypt — nonce is generated internally, no nonce management needed
 const plaintext = utf8ToBytes('Hello, world!')
-const sealed = aead.encrypt(key, nonce, plaintext)
-// `sealed` contains the ciphertext + 16-byte authentication tag
+const ciphertext = seal.encrypt(plaintext)
+// `ciphertext` = nonce(24) || encrypted data || tag(16)
 
-// Step 5: Decrypt
-// You need the same key and nonce to decrypt.
-// Store or transmit the nonce alongside the ciphertext — the nonce is not secret.
-const decrypted = aead.decrypt(key, nonce, sealed)
+// Step 5: Decrypt — nonce is read from the ciphertext automatically
+const decrypted = seal.decrypt(ciphertext)
 console.log(bytesToUtf8(decrypted))  // "Hello, world!"
 
-// Step 6: Clean up — wipe key material from WASM memory
-aead.dispose()
+// Step 6: Clean up
+seal.dispose()
 ```
+
+> **Need explicit nonce control?** See Example 2 (`ChaCha20Poly1305`) or use
+> `XChaCha20Poly1305` directly — same API shape, 24-byte nonce passed per call.
 
 ### Example 2: ChaCha20Poly1305 — Encrypt and Decrypt
 

@@ -35,7 +35,7 @@ The encoding functions (`hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`
 hexToBytes(hex: string): Uint8Array
 ```
 
-Converts a hex string to a `Uint8Array`. Accepts lowercase or uppercase characters. An optional `0x` or `0X` prefix is stripped automatically. If the hex string has an odd number of characters, a trailing `0` is appended before decoding.
+Converts a hex string to a `Uint8Array`. Accepts lowercase or uppercase characters. An optional `0x` or `0X` prefix is stripped automatically. Throws `RangeError` on odd-length input.
 
 ---
 
@@ -75,11 +75,7 @@ Decodes UTF-8 bytes to a JavaScript string using the platform `TextDecoder`.
 base64ToBytes(b64: string): Uint8Array | undefined
 ```
 
-Decodes a base64 or base64url string to a `Uint8Array`. Base64url characters (`-`, `_`, `%3d`) are normalized to standard base64 before decoding. Returns `undefined` if the input is not valid base64 (e.g., incorrect length or illegal characters).
-
-> [!NOTE]
-> Valid base64 characters are `A-Z`, `a-z`, `0-9`, `+`, `/`, and `=`.
-> Any other character causes the function to return `undefined`.
+Decodes a base64 or base64url string to a `Uint8Array`. Handles padded, unpadded, and legacy `%3d` padding. Unpadded base64url input is accepted (RFC 4648 §5). Returns `undefined` if the input is not valid base64 (e.g., illegal characters or `rem=1` length).
 
 ---
 
@@ -89,7 +85,7 @@ Decodes a base64 or base64url string to a `Uint8Array`. Base64url characters (`-
 bytesToBase64(bytes: Uint8Array, url?: boolean): string
 ```
 
-Encodes a `Uint8Array` to a base64 string. Pass `url = true` to get base64url encoding (uses `-` and `_` instead of `+` and `/`, and `%3d` instead of `=`). Defaults to standard base64.
+Encodes a `Uint8Array` to a base64 string. Pass `url = true` for base64url (RFC 4648 §5 — uses `-` and `_` instead of `+` and `/`, no padding characters). Defaults to standard base64.
 
 ---
 
@@ -126,10 +122,10 @@ Returns a new `Uint8Array` where each byte is `a[i] ^ b[i]`. Both arrays must ha
 ### concat
 
 ```typescript
-concat(a: Uint8Array, b: Uint8Array): Uint8Array
+concat(...arrays: Uint8Array[]): Uint8Array
 ```
 
-Returns a new `Uint8Array` containing `a` followed by `b`.
+Concatenate one or more `Uint8Array`s into a new array.
 
 ---
 
@@ -194,9 +190,9 @@ const data = utf8ToBytes('leviathan-crypto')
 const b64 = bytesToBase64(data)
 console.log(b64) // "bGV2aWF0aGFuLWNyeXB0bw=="
 
-// base64url variant (safe for URLs and filenames)
+// base64url variant (safe for URLs and filenames, no padding)
 const b64url = bytesToBase64(data, true)
-console.log(b64url) // "bGV2aWF0aGFuLWNyeXB0bw%3d%3d"
+console.log(b64url) // "bGV2aWF0aGFuLWNyeXB0bw"
 
 // Decoding (accepts both standard and url variants)
 const decoded = base64ToBytes(b64)
@@ -272,7 +268,7 @@ console.log(combined.length) // 32
 
 | Function | Condition | Behavior |
 |---|---|---|
-| `hexToBytes` | Odd-length string | Trailing `0` appended (no error) |
+| `hexToBytes` | Odd-length string | Throws `RangeError` |
 | `hexToBytes` | Invalid hex characters | Bytes decode as `NaN` -> `0` |
 | `base64ToBytes` | Invalid length or characters | Returns `undefined` |
 | `constantTimeEqual` | Arrays differ in length | Returns `false` immediately |

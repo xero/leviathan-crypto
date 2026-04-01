@@ -28,11 +28,11 @@ Subpath: `leviathan-crypto/serpent` — see [serpent.md](./serpent).
 | Export | Kind | Description |
 |--------|------|-------------|
 | `serpentInit` | function | Module-scoped init. `serpentInit(mode?, opts?)` loads only serpent. |
-| `SerpentSeal` | class | Authenticated encryption: Serpent-CBC + HMAC-SHA256. `encrypt(key, plaintext)`, `decrypt(key, ciphertext)`. 64-byte key. |
+| `SerpentSeal` | class | Authenticated encryption: Serpent-CBC + HMAC-SHA256. `encrypt(key, plaintext, aad?)`, `decrypt(key, ciphertext, aad?)`. 64-byte key. |
 | `SerpentStream` | class | Chunked one-shot AEAD for large payloads. `seal(key, plaintext, chunkSize?)`, `open(key, ciphertext)`. 32-byte key. |
 | `SerpentStreamPool` | class | Worker-pool wrapper for `SerpentStream`. Parallelises chunk encryption across isolated WASM instances. `SerpentStreamPool.create(opts?)` static factory. |
-| `SerpentStreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 64-byte key. `opts?: { framed?: boolean }` prepends `u32be` length prefix. |
-| `SerpentStreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. Initialized from sealer `header()` output. `opts?: { framed?: boolean }` enables `feed()`. |
+| `SerpentStreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 64-byte key. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
+| `SerpentStreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. Initialized from sealer `header()` output. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
 | `Serpent` | class | Serpent-256 ECB block cipher. `loadKey()`, `encryptBlock()`, `decryptBlock()`. Unauthenticated. |
 | `SerpentCtr` | class | Serpent-256 CTR mode. `beginEncrypt()`, `encryptChunk()`, `beginDecrypt()`, `decryptChunk()`. Unauthenticated. |
 | `SerpentCbc` | class | Serpent-256 CBC mode with PKCS7 padding. `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. Unauthenticated. |
@@ -48,7 +48,10 @@ Subpath: `leviathan-crypto/chacha20` — see [chacha20.md](./chacha20), [chacha2
 | Export | Kind | Description |
 |--------|------|-------------|
 | `chacha20Init` | function | Module-scoped init. `chacha20Init(mode?, opts?)` loads only chacha20. |
+| `XChaCha20Seal` | class | Recommended authenticated encryption. Binds key at construction, generates nonce per-call. `encrypt(plaintext, aad?)`, `decrypt(ciphertext, aad?)`. 32-byte key. Implements `AEAD`. |
 | `XChaCha20Poly1305` | class | XChaCha20-Poly1305 AEAD. 24-byte nonce. `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
+| `XChaCha20StreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 32-byte key. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
+| `XChaCha20StreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
 | `XChaCha20Poly1305Pool` | class | Worker-pool wrapper for `XChaCha20Poly1305`. `XChaCha20Poly1305Pool.create(opts?)` static factory. |
 | `ChaCha20Poly1305` | class | ChaCha20-Poly1305 AEAD (RFC 8439). 12-byte nonce. `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
 | `ChaCha20` | class | ChaCha20 stream cipher (RFC 8439). `beginEncrypt()`, `encryptChunk()`. Unauthenticated. |
@@ -123,7 +126,7 @@ No `init()` required — see [utils.md](./utils).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `hexToBytes` | function | Hex string to `Uint8Array`. Accepts `0x` prefix, uppercase/lowercase. |
+| `hexToBytes` | function | Hex string to `Uint8Array`. Accepts `0x` prefix, uppercase/lowercase. Throws `RangeError` on odd-length input. |
 | `bytesToHex` | function | `Uint8Array` to lowercase hex string. |
 | `utf8ToBytes` | function | UTF-8 string to `Uint8Array`. |
 | `bytesToUtf8` | function | `Uint8Array` to UTF-8 string. |
@@ -132,7 +135,7 @@ No `init()` required — see [utils.md](./utils).
 | `constantTimeEqual` | function | Constant-time byte-array equality (XOR-accumulate, no early return). |
 | `wipe` | function | Zero a typed array in place. |
 | `xor` | function | XOR two equal-length `Uint8Array`s, returns new array. |
-| `concat` | function | Concatenate two `Uint8Array`s, returns new array. |
+| `concat` | function | Concatenate one or more `Uint8Array`s into a new array. Variadic. |
 | `randomBytes` | function | Cryptographically secure random bytes via Web Crypto API. |
 | `hasSIMD` | function | Returns `true` if the runtime supports WebAssembly SIMD. Cached after first call. Used internally for CTR/CBC-decrypt and ChaCha20 dispatch — exported for informational use. |
 

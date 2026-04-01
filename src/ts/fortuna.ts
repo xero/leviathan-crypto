@@ -76,6 +76,10 @@ export class Fortuna {
 
 		const f = new Fortuna(opts?.msPerReseed ?? Fortuna.MS_PER_RESEED);
 		f.initialize(opts?.entropy);
+		// Force the first reseed — pool[0] is saturated by initialize(),
+		// so this call triggers an immediate reseed and guarantees get() never
+		// returns undefined. The byte is discarded.
+		f.get(1);
 		return f;
 	}
 
@@ -103,8 +107,8 @@ export class Fortuna {
 
 	// ── Public API ────────────────────────────────────────────────────────
 
-	/** Get n random bytes. Returns undefined if not yet seeded (reseedCnt === 0). */
-	get(length: number): Uint8Array | undefined {
+	/** Get n random bytes. Always returns Uint8Array — instance is guaranteed seeded after create(). */
+	get(length: number): Uint8Array {
 		if (this.disposed) throw new Error('Fortuna instance has been disposed');
 		// Capture hrtime jitter at call time (Node.js) — spec §9.5
 		if (isNode) this.captureHrtime();
@@ -130,7 +134,6 @@ export class Fortuna {
 			this.reseed(seed);
 		}
 
-		if (this.reseedCnt === 0) return undefined;
 		return this.pseudoRandomData(length);
 	}
 
@@ -230,7 +233,7 @@ export class Fortuna {
 		this.eventId = (this.eventId + 1) >>> 0; // u32 wrap
 
 		// Chain: poolHash[i] = SHA256(poolHash[i] ‖ id ‖ data)
-		this.poolHash[poolIdx] = this.sha.hash(concat(concat(this.poolHash[poolIdx], id), data));
+		this.poolHash[poolIdx] = this.sha.hash(concat(this.poolHash[poolIdx], id, data));
 
 		this.poolEntropy[poolIdx] += entropyBits;
 		this.entropyLevel += entropyBits;

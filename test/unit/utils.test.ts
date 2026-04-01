@@ -52,10 +52,9 @@ describe('hexToBytes / bytesToHex', () => {
 		expect(bytesToHex(hexToBytes('0xCAFE'))).toBe('cafe');
 	});
 
-	test('odd-length input padded', () => {
-		const bytes = hexToBytes('abc');
-		expect(bytes.length).toBe(2);
-		expect(bytesToHex(bytes)).toBe('abc0');
+	test('odd-length input throws', () => {
+		expect(() => hexToBytes('abc')).toThrow(RangeError);
+		expect(() => hexToBytes('0xabc')).toThrow(RangeError); // odd after prefix strip
 	});
 });
 
@@ -92,17 +91,44 @@ describe('base64ToBytes / bytesToBase64', () => {
 		const b64url = bytesToBase64(bytes, true);
 		expect(b64url).not.toContain('+');
 		expect(b64url).not.toContain('/');
+		expect(b64url).not.toContain('=');
+		expect(b64url).not.toContain('%3d');
 		const decoded = base64ToBytes(b64url);
 		expect(decoded).toEqual(bytes);
 	});
 
 	test('invalid input returns undefined', () => {
-		expect(base64ToBytes('abc')).toBeUndefined(); // not multiple of 4
+		expect(base64ToBytes('!!!!')).toBeUndefined();  // invalid charset
+		expect(base64ToBytes('a')).toBeUndefined();     // rem=1, always invalid
 	});
 
 	test('empty input', () => {
 		expect(bytesToBase64(new Uint8Array(0))).toBe('');
 		expect(base64ToBytes('')).toEqual(new Uint8Array(0));
+	});
+
+	test('base64url unpadded input decodes correctly', () => {
+		// rem=2 case: 1 byte encodes to 2 base64url chars (needs == to pad)
+		const one = new Uint8Array([0xf0]);
+		const enc = bytesToBase64(one, true);
+		expect(enc.length % 4).not.toBe(0); // confirm it is unpadded
+		expect(base64ToBytes(enc)).toEqual(one);
+
+		// rem=3 case: 2 bytes encode to 3 base64url chars (needs = to pad)
+		const two = new Uint8Array([0xf0, 0x0f]);
+		const enc2 = bytesToBase64(two, true);
+		expect(enc2.length % 4).not.toBe(0);
+		expect(base64ToBytes(enc2)).toEqual(two);
+	});
+
+	test('base64ToBytes accepts legacy %3d padding', () => {
+		// %3d was the old bytesToBase64(x, true) output — must remain decodable
+		const one = new Uint8Array([0xf0]);
+		const oldStyle = bytesToBase64(one)
+			.replace(/\+/g, '-')
+			.replace(/\//g, '_')
+			.replace(/=/g, '%3d');
+		expect(base64ToBytes(oldStyle)).toEqual(one);
 	});
 });
 
@@ -198,6 +224,24 @@ describe('concat', () => {
 
 	test('both empty', () => {
 		expect(concat(new Uint8Array(0), new Uint8Array(0))).toEqual(new Uint8Array(0));
+	});
+
+	test('three arrays', () => {
+		const a = new Uint8Array([1]);
+		const b = new Uint8Array([2, 3]);
+		const c = new Uint8Array([4, 5, 6]);
+		expect(concat(a, b, c)).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6]));
+	});
+
+	test('single array returns copy', () => {
+		const a = new Uint8Array([1, 2, 3]);
+		const result = concat(a);
+		expect(result).toEqual(a);
+		expect(result).not.toBe(a); // must be a new allocation
+	});
+
+	test('no args returns empty', () => {
+		expect(concat()).toEqual(new Uint8Array(0));
 	});
 });
 

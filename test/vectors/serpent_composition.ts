@@ -83,8 +83,8 @@ export const sealTC1: SerpentSealVector = {
 	ciphertext:
 		'000000000000000000000000000000007921462e232b91b9819d82db0c66c195' +
 		'33298f173a6bdbea208724be62f2dc0aa80b9e350938a1c897edb9b130aaa759' +
-		'4c798e5b0b655026276aaabefa81c850fa5f13ccdc4e204cda03045074487c92',
-	tag: '4c798e5b0b655026276aaabefa81c850fa5f13ccdc4e204cda03045074487c92',
+		'fc98213415fc8b314b06757b60dc3b7d41d0c4558c1b59efd2c3e4fdcb069d2f',
+	tag: 'fc98213415fc8b314b06757b60dc3b7d41d0c4558c1b59efd2c3e4fdcb069d2f',
 };
 
 /** SerpentSeal TC2: patterned key, patterned IV, empty plaintext */
@@ -97,8 +97,8 @@ export const sealTC2: SerpentSealVector = {
 	plaintext: '',
 	ciphertext:
 		'fffefdfcfffefdfcfffefdfcfffefdfc65e408574619d73adfd8c492084a2532' +
-		'd8b7a470538ead1c04025aa2c573c42ce90360185651137ddf4fc55fd891aca2',
-	tag: 'd8b7a470538ead1c04025aa2c573c42ce90360185651137ddf4fc55fd891aca2',
+		'9553fa9eb7a1a94aa7efba913608d8dcf62d0b62f8ef7fd0ec81449bad77c782',
+	tag: '9553fa9eb7a1a94aa7efba913608d8dcf62d0b62f8ef7fd0ec81449bad77c782',
 };
 
 // ============================================================

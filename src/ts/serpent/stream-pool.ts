@@ -27,6 +27,7 @@
 
 import { isInitialized } from '../init.js';
 import { HKDF_SHA256 } from '../sha2/index.js';
+import { decodeWasm } from '../loader.js';
 import { u32be, u64be, deriveChunkKeys } from './stream.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -55,18 +56,6 @@ const CHUNK_MIN = 1024;
 const CHUNK_MAX = 65536;
 const CHUNK_DEF = 65536;
 
-// ── Module-private base64 decoder ─────────────────────────────────────────────
-
-function base64ToBytes(b64: string): Uint8Array {
-	if (typeof atob === 'function') {
-		const raw = atob(b64);
-		const out = new Uint8Array(raw.length);
-		for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-		return out;
-	}
-	return new Uint8Array(Buffer.from(b64, 'base64'));
-}
-
 // ── WASM module singletons ──────────────────────────────────────────────────
 
 let _serpentModule: WebAssembly.Module | undefined;
@@ -74,16 +63,16 @@ let _sha2Module:    WebAssembly.Module | undefined;
 
 async function getSerpentModule(): Promise<WebAssembly.Module> {
 	if (_serpentModule) return _serpentModule;
-	const { WASM_BASE64 } = await import('../embedded/serpent.js');
-	const bytes = base64ToBytes(WASM_BASE64);
+	const { WASM_GZ_BASE64 } = await import('../embedded/serpent.js');
+	const bytes = await decodeWasm(WASM_GZ_BASE64);
 	_serpentModule = await WebAssembly.compile(bytes.buffer as ArrayBuffer);
 	return _serpentModule;
 }
 
 async function getSha2Module(): Promise<WebAssembly.Module> {
 	if (_sha2Module) return _sha2Module;
-	const { WASM_BASE64 } = await import('../embedded/sha2.js');
-	const bytes = base64ToBytes(WASM_BASE64);
+	const { WASM_GZ_BASE64 } = await import('../embedded/sha2.js');
+	const bytes = await decodeWasm(WASM_GZ_BASE64);
 	_sha2Module = await WebAssembly.compile(bytes.buffer as ArrayBuffer);
 	return _sha2Module;
 }

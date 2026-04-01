@@ -5,6 +5,7 @@
 // its own WebAssembly.Instance and isolated linear memory.
 
 import { isInitialized } from '../init.js';
+import { decodeWasm } from '../loader.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,26 +28,14 @@ interface QueuedJob {
 	aad:   Uint8Array;
 }
 
-// ── Module-private base64 decoder (copied from loader.ts) ────────────────────
-
-function base64ToBytes(b64: string): Uint8Array {
-	if (typeof atob === 'function') {
-		const raw = atob(b64);
-		const out = new Uint8Array(raw.length);
-		for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-		return out;
-	}
-	return new Uint8Array(Buffer.from(b64, 'base64'));
-}
-
 // ── WASM module singleton ────────────────────────────────────────────────────
 
 let _wasmModule: WebAssembly.Module | undefined;
 
 async function getWasmModule(): Promise<WebAssembly.Module> {
 	if (_wasmModule) return _wasmModule;
-	const { WASM_BASE64 } = await import('../embedded/chacha20.js');
-	const bytes = base64ToBytes(WASM_BASE64);
+	const { WASM_GZ_BASE64 } = await import('../embedded/chacha20.js');
+	const bytes = await decodeWasm(WASM_GZ_BASE64);
 	_wasmModule = await WebAssembly.compile(bytes.buffer as ArrayBuffer);
 	return _wasmModule;
 }

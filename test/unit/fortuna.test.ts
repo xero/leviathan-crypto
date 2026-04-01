@@ -54,7 +54,7 @@ describe('Fortuna', () => {
 		fortuna = await Fortuna.create({ msPerReseed: 0 });
 		const bytes = fortuna.get(32);
 		expect(bytes).toBeInstanceOf(Uint8Array);
-		expect(bytes!.length).toBe(32);
+		expect(bytes.length).toBe(32);
 	});
 
 	test('get(1), get(64), get(128) return correct lengths', async () => {
@@ -62,9 +62,9 @@ describe('Fortuna', () => {
 		const b1 = fortuna.get(1);
 		const b64 = fortuna.get(64);
 		const b128 = fortuna.get(128);
-		expect(b1!.length).toBe(1);
-		expect(b64!.length).toBe(64);
-		expect(b128!.length).toBe(128);
+		expect(b1.length).toBe(1);
+		expect(b64.length).toBe(64);
+		expect(b128.length).toBe(128);
 	});
 
 	test('two calls to get(32) return different values', async () => {
@@ -72,23 +72,6 @@ describe('Fortuna', () => {
 		const a = fortuna.get(32);
 		const b = fortuna.get(32);
 		expect(a).not.toEqual(b);
-	});
-
-	test('get() before first reseed returns undefined', async () => {
-		// Create with a very high reseed interval so it won't auto-reseed
-		fortuna = await Fortuna.create({ msPerReseed: 999999 });
-		// The initial crypto seeding during create() adds entropy to pool 0.
-		// With msPerReseed: 999999, the reseed condition won't trigger immediately
-		// if lastReseed is set. But reseedCnt starts at 0.
-		// Actually, the create() calls initialize() which calls collectorCryptoRandom
-		// NUM_POOLS * 4 times, adding entropy. With msPerReseed: 999999, the first
-		// get() will check the reseed condition. If poolEntropy[0] >= 64 AND
-		// Date.now() >= lastReseed + 999999, it will reseed.
-		// Since lastReseed starts at 0, Date.now() >= 0 + 999999 is true (now > ~17 min epoch).
-		// So it WILL reseed on the first get() call if poolEntropy[0] >= 64.
-		// We need a way to test the "not yet seeded" state.
-		// The cleanest way: check reseedCnt before any get().
-		expect(fortuna._getReseedCnt()).toBe(0);
 	});
 
 	test('addEntropy() increases getEntropy() return value', async () => {
@@ -123,25 +106,23 @@ describe('Fortuna', () => {
 	test('pool selection: P0 consumed every reseed, P1 every other', async () => {
 		fortuna = await Fortuna.create({ msPerReseed: 0 });
 
-		// Force first reseed
+		// After create(), reseedCnt is already 1 (forced reseed in create()).
+		// Pool[0] was drained — refill it to trigger reseed #2.
+		fortuna.addEntropy(new Uint8Array(64));
 		fortuna.get(16);
 		const reseed1 = fortuna._getReseedCnt();
-		expect(reseed1).toBe(1); // binary: 01 — P0 consumed
+		expect(reseed1).toBe(2); // binary: 10 — P1 consumed (reseed #2)
+		expect(reseed1 & 1).toBe(0); // P0 NOT used on reseed #2
+		expect(reseed1 & 2).toBe(2); // P1 used on reseed #2
 
-		// Pool 0 should have been consumed (reset to 0)
-		// But new entropy was added via hrtime capture in get()
-		// Check that reseed happened correctly
-		expect(reseed1 & 1).toBe(1); // P0 was used (bit 0 set)
-
-		// Add entropy to trigger second reseed
+		// Pool[0] still has entropy (not consumed on reseed #2).
+		// Add more entropy and trigger reseed #3.
 		fortuna.addEntropy(new Uint8Array(64));
 		fortuna.get(16);
 		const reseed2 = fortuna._getReseedCnt();
-		expect(reseed2).toBe(2); // binary: 10 — P1 consumed, P0 not
-
-		// reseedCnt=2 (binary 10): P1 used (bit 1 set), P0 not used (bit 0 clear)
-		expect(reseed2 & 1).toBe(0); // P0 NOT used
-		expect(reseed2 & 2).toBe(2); // P1 used
+		expect(reseed2).toBe(3); // binary: 11 — P0 and P1 both consumed
+		expect(reseed2 & 1).toBe(1); // P0 used on reseed #3
+		expect(reseed2 & 2).toBe(2); // P1 used on reseed #3
 	});
 
 	test('key replacement: genKey differs before and after get()', async () => {

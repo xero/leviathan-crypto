@@ -192,7 +192,7 @@ function cleanup(ctx: EncryptionContext): void {
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [utils](./utils.md) — encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
 > - [serpent](./serpent.md) — Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD`
-> - [chacha20](./chacha20.md) — ChaCha20/Poly1305 classes implement `Streamcipher` and `AEAD`
+> - [chacha20](./chacha20.md) — `XChaCha20Seal` and `XChaCha20StreamSealer`/`Opener` implement `AEAD`; `ChaCha20`/`ChaCha20Poly1305`/`XChaCha20Poly1305` are stateless primitives
 > - [sha2](./sha2.md) — SHA-2 classes implement `Hash`; HMAC classes implement `KeyedHash`
 > - [sha3](./sha3.md) — SHA-3 classes implement `Hash`; SHAKE classes extend with XOF API
 > - [test-suite](./test-suite.md) — test suite structure and vector corpus

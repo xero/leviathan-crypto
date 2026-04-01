@@ -28,9 +28,9 @@ import { getInstance, initModule } from '../init.js';
 import type { Mode, InitOpts } from '../init.js';
 import type { ChaChaExports } from './types.js';
 import { aeadEncrypt, aeadDecrypt, xcEncrypt, xcDecrypt } from './ops.js';
-import { hasSIMD } from '../utils.js';
+import { hasSIMD, randomBytes, wipe } from '../utils.js';
 
-const _embedded = () => import('../embedded/chacha20.js').then(m => m.WASM_BASE64);
+const _embedded = () => import('../embedded/chacha20.js').then(m => m.WASM_GZ_BASE64);
 
 export async function chacha20Init(
 	mode: Mode = 'embedded',
@@ -227,6 +227,61 @@ export class XChaCha20Poly1305 {
 		this.x.wipeBuffers();
 	}
 }
+
+// ── XChaCha20Seal ────────────────────────────────────────────────────────────
+
+/**
+ * XChaCha20-Poly1305 AEAD with bound key and automatic nonce management.
+ * Implements the AEAD interface — encrypt()/decrypt() require only plaintext
+ * and optional AAD. Each encrypt() call generates a fresh 24-byte random nonce.
+ *
+ * Wire format: nonce(24) || ciphertext || tag(16)
+ *
+ * Use this when you want the simplest correct API and do not need to manage
+ * nonces yourself. For protocol interop requiring explicit nonce control,
+ * use XChaCha20Poly1305 directly.
+ */
+export class XChaCha20Seal {
+	private readonly _x:   ChaChaExports;
+	private readonly _key: Uint8Array;
+
+	constructor(key: Uint8Array) {
+		if (!_chachaReady())
+			throw new Error('leviathan-crypto: call init([\'chacha20\']) before using XChaCha20Seal');
+		if (key.length !== 32)
+			throw new RangeError(`XChaCha20Seal key must be 32 bytes (got ${key.length})`);
+		this._x   = getExports();
+		this._key = key.slice();
+	}
+
+	// _nonce: test seam only — inject a fixed nonce for deterministic KAT vectors
+	encrypt(plaintext: Uint8Array, aad: Uint8Array = new Uint8Array(0), _nonce?: Uint8Array): Uint8Array {
+		const nonce = (_nonce && _nonce.length === 24) ? _nonce : randomBytes(24);
+		const sealed = xcEncrypt(this._x, this._key, nonce, plaintext, aad);
+		// Prepend nonce to sealed output (ciphertext || tag)
+		const out = new Uint8Array(24 + sealed.length);
+		out.set(nonce, 0);
+		out.set(sealed, 24);
+		return out;
+	}
+
+	decrypt(ciphertext: Uint8Array, aad: Uint8Array = new Uint8Array(0)): Uint8Array {
+		if (ciphertext.length < 40)
+			throw new RangeError(
+				`XChaCha20Seal ciphertext too short — need nonce(24)+tag(16)=40 bytes minimum (got ${ciphertext.length})`,
+			);
+		const nonce   = ciphertext.subarray(0, 24);
+		const payload = ciphertext.subarray(24);
+		return xcDecrypt(this._x, this._key, nonce, payload, aad);
+	}
+
+	dispose(): void {
+		wipe(this._key);
+		this._x.wipeBuffers();
+	}
+}
+
+export { XChaCha20StreamSealer, XChaCha20StreamOpener } from './stream-sealer.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

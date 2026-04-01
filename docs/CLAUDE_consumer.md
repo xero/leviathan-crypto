@@ -88,7 +88,7 @@ await serpentInit()
 | Classes | `init()` call |
 |---------|--------------|
 | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` | `init(['serpent', 'sha2'])` |
-| `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool` | `init(['chacha20'])` |
+| `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20Poly1305Pool` | `init(['chacha20'])` |
 | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init(['sha2'])` |
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init(['sha3'])` |
 | `Fortuna` | `init(['serpent', 'sha2'])` |
@@ -106,8 +106,9 @@ await init(['serpent', 'sha2'])
 
 const key = randomBytes(64)       // 64-byte key (encKey + macKey)
 const seal = new SerpentSeal()
-const ciphertext = seal.encrypt(key, plaintext)   // Serpent-CBC + HMAC-SHA256
-const decrypted  = seal.decrypt(key, ciphertext)  // throws on tamper
+const ciphertext = seal.encrypt(key, plaintext)        // Serpent-CBC + HMAC-SHA256
+const decrypted  = seal.decrypt(key, ciphertext)       // throws on tamper
+// Optional AAD: seal.encrypt(key, plaintext, aad) / seal.decrypt(key, ciphertext, aad)
 seal.dispose()
 ```
 
@@ -153,6 +154,23 @@ const last   = sealer.final(tail)
 const opener = new SerpentStreamOpener(key, header, { framed: true })
 const chunks = opener.feed(frame0)       // Uint8Array[] — throws on auth failure
 ```
+
+### XChaCha20Seal (recommended)
+
+```typescript
+import { init, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
+
+await init(['chacha20'])
+
+const seal = new XChaCha20Seal(randomBytes(32))   // 32-byte key
+const ct   = seal.encrypt(plaintext)              // nonce(24) || ct || tag(16)
+const pt   = seal.decrypt(ct)                     // throws on tamper
+seal.dispose()
+```
+
+Binds key at construction, generates a fresh nonce per `encrypt()` call. No nonce
+management needed. For protocol interop requiring explicit nonces, use
+`XChaCha20Poly1305` directly.
 
 ### XChaCha20-Poly1305
 
@@ -257,7 +275,7 @@ The complete API reference ships in `docs/` alongside this file:
 | File | Contents |
 |------|----------|
 | `docs/serpent.md` | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
-| `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Poly1305Pool` |
+| `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20Poly1305Pool` |
 | `docs/sha2.md` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` |
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `docs/fortuna.md` | `Fortuna` CSPRNG |

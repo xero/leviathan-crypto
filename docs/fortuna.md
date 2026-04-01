@@ -81,7 +81,9 @@ you must use the `Fortuna.create()` static factory rather than `new Fortuna()`.
 
 ### `Fortuna.create(opts?)`
 
-Static async factory. Returns a `Promise<Fortuna>`.
+Static async factory. Returns a `Promise<Fortuna>`. The returned instance is
+guaranteed to be seeded -- `create()` forces an initial reseed before resolving,
+so `get()` is immediately usable.
 
 ```typescript
 static async create(opts?: {
@@ -107,12 +109,11 @@ private. Always use `Fortuna.create()`.
 Generate `length` random bytes.
 
 ```typescript
-get(length: number): Uint8Array | undefined
+get(length: number): Uint8Array
 ```
 
-Returns a `Uint8Array` of the requested length, or `undefined` if the generator
-has not been seeded yet (this should not happen under normal usage, since
-`create()` seeds the generator immediately).
+Returns a `Uint8Array` of the requested length. The instance is always seeded
+after `create()` resolves, so this method is guaranteed to return data.
 
 After producing the output, the generation key is replaced with fresh
 pseudorandom material. This is the forward secrecy mechanism -- the key used to
@@ -281,7 +282,6 @@ rng.stop()
 | `init()` not called | `Fortuna.create()` throws: `leviathan-crypto: call init(['serpent', 'sha2']) before using Fortuna` |
 | Only one module initialized | Same error -- both `serpent` and `sha2` must be initialized. |
 | `new Fortuna()` | Compile-time error -- the constructor is private. TypeScript will not allow it. |
-| `get()` before first reseed | Returns `undefined`. Under normal usage this does not happen because `create()` seeds the generator during initialization. |
 | Any method after `stop()` | Throws: `Fortuna instance has been disposed`. The instance is permanently disposed. |
 
 ---

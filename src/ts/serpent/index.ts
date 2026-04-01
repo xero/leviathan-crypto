@@ -28,7 +28,7 @@ import { getInstance, initModule } from '../init.js';
 import type { Mode, InitOpts } from '../init.js';
 import { hasSIMD } from '../utils.js';
 
-const _embedded = () => import('../embedded/serpent.js').then(m => m.WASM_BASE64);
+const _embedded = () => import('../embedded/serpent.js').then(m => m.WASM_GZ_BASE64);
 
 export async function serpentInit(
 	mode: Mode = 'embedded',

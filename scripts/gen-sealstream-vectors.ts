@@ -110,11 +110,12 @@ function generateVector(def: VectorDef): GeneratedVector {
 		const encKey  = derived.subarray(0, 32);
 		const macKey  = derived.subarray(32, 64);
 		const chunkBytes = hexToBytes(chunkHexes[i]);
-		const iv   = chunkBytes.subarray(0, 16);
-		const ct   = chunkBytes.subarray(16, chunkBytes.length - 32);
+		// New format: isLast(1) || IV(16) || ciphertext || tag(32)
+		const iv   = chunkBytes.subarray(1, 17);
+		const ct   = chunkBytes.subarray(17, chunkBytes.length - 32);
 		const tag  = chunkBytes.subarray(chunkBytes.length - 32);
-		// Verify HMAC
-		const expectedTag = hmac.hash(macKey, concat(iv, ct));
+		// Verify HMAC — empty AAD = u32be(0) prefix
+		const expectedTag = hmac.hash(macKey, concat(u32be(0), iv, ct));
 		assert(hex(tag) === hex(expectedTag), `${def.name} chunk ${i} HMAC mismatch`);
 		// Verify CBC decrypt
 		const pt = cbc.decrypt(encKey, iv, ct);

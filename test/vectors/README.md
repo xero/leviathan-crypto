@@ -55,19 +55,27 @@
 | `sha3.ts`                   | Node.js crypto / Python hashlib — SHAKE256 multi-block (empty×200, empty×272, empty×300, "abc"×200)                                                                                                                                                                                                                                                                                                              | 4           | VERIFIED          |
 
 > [!IMPORTANT]
-> All vector files are read-only. Integrity is verified via
-> [`SHA256SUMS`](https://github.com/xero/leviathan-crypto/blob/main/test/vectors/SHA256SUMS)
-> with expected values sourced directly from authoritative references. They are
-> the **_immutable truth,_** and must never be modified to make tests pass.
+> Vector files are the _immutable truth_ — tests must never modify
+> vectors to make themselves pass. **VERIFIED** vectors are sourced from
+> authoritative references (NIST, RFC, NESSIE) and must never change.
+> **SELF-GENERATED** vectors are immutable within a wire format version;
+> when a breaking format change is intentional, they are regenerated
+> from their generation scripts and the new output becomes the new
+> truth. Integrity of all vectors is enforced via `SHA256SUMS`.
 
 > [!NOTE]
 > `serpent_composition.ts`, `serpent_stream_sealer.ts`,
-> `serpent_stream_encoder.ts`, and `shake_xof.ts` are self-generated — there is
-> no external authority for these wire formats or multi-squeeze output slices.
-> Each was produced with fixed inputs and independently verified against the
-> underlying primitives. These vectors are regression trip-wires for format
-> stability, not proof of correctness against an external reference. Generation
-> scripts are kept in the repo so derivations can be audited or reproduced.
+> `serpent_stream_encoder.ts`, and `shake_xof.ts` are _self-generated_.
+> There is no external authority for these wire formats or multi-squeeze
+> output slices. Each was produced with fixed inputs and independently
+> verified against the underlying primitives. [Generation scripts](https://github.com/xero/leviathan-crypto/tree/main/scripts)
+> live in the repo so derivations can be audited or reproduced.
+> These vectors are regression trip-wires for format stability, not
+> proof of correctness against an external reference. When a wire
+> format break occurs, the generation scripts are re-run and
+> `SHA256SUMS` is regenerated with `sha256sum *.ts *.txt > SHA256SUMS`
+> The audit trail for any regeneration is the PR that introduced
+> the format change.
 
-See: [test-suite](https://github.com/xero/leviathan-crypto/wiki/test-suite)
-for our full testing methodology
+> See: [test-suite](https://github.com/xero/leviathan-crypto/wiki/test-suite)
+> for our full testing methodology

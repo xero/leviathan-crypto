@@ -20,23 +20,45 @@
 //                           ▀█████▀▀
 //
 import type { Module } from './init.js';
+import { base64ToBytes as _b64 } from './utils.js';
 
-function base64ToBytes(b64: string): Uint8Array {
-	if (typeof atob === 'function') {
-		const raw = atob(b64);
-		const out = new Uint8Array(raw.length);
-		for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-		return out;
+/**
+ * Decode a gzip+base64 embedded WASM string to raw bytes.
+ * Throws if the base64 is malformed (should never happen for build artifacts).
+ * Used by loadEmbedded() and the pool worker launchers.
+ */
+export async function decodeWasm(b64: string): Promise<Uint8Array> {
+	if (typeof DecompressionStream === 'undefined')
+		throw new Error(
+			'leviathan-crypto: DecompressionStream not available — '
+			+ 'use streaming or manual init mode in this runtime',
+		);
+	const compressed = _b64(b64);
+	if (!compressed) throw new Error('leviathan-crypto: corrupt embedded WASM — base64 decode failed');
+	const ds = new DecompressionStream('gzip');
+	const writer = ds.writable.getWriter();
+	const reader = ds.readable.getReader();
+	const writePromise = writer.write(compressed as unknown as BufferSource).then(() => writer.close());
+	const chunks: Uint8Array[] = [];
+	let done: boolean, value: Uint8Array | undefined;
+	while ({ done, value } = await reader.read(), !done)
+		if (value) chunks.push(value);
+	await writePromise;
+	const len = chunks.reduce((s, c) => s + c.length, 0);
+	const out = new Uint8Array(len);
+	let off = 0;
+	for (const c of chunks) {
+		out.set(c, off); off += c.length;
 	}
-	return new Uint8Array(Buffer.from(b64, 'base64'));
+	return out;
 }
 
 async function instantiateFromBytes(
 	bytes: Uint8Array,
 ): Promise<WebAssembly.Instance> {
 	const result = await WebAssembly.instantiate(
-    bytes.buffer as ArrayBuffer,
-    { env: { memory: new WebAssembly.Memory({ initial: 3, maximum: 3 }) } },
+		bytes.buffer as ArrayBuffer,
+		{ env: { memory: new WebAssembly.Memory({ initial: 3, maximum: 3 }) } },
 	);
 	return result.instance;
 }
@@ -45,7 +67,7 @@ export async function loadEmbedded(
 	thunk: () => Promise<string>,
 ): Promise<WebAssembly.Instance> {
 	const b64 = await thunk();
-	const bytes = base64ToBytes(b64);
+	const bytes = await decodeWasm(b64);
 	return instantiateFromBytes(bytes);
 }
 

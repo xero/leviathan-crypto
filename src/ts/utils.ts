@@ -26,10 +26,11 @@
 
 // ── Encoding ─────────────────────────────────────────────────────────────────
 
-/** Hex string to Uint8Array. Accepts lowercase/uppercase, optional 0x prefix. */
+/** Hex string to Uint8Array. Accepts lowercase/uppercase, optional 0x prefix. Throws RangeError on odd-length input. */
 export const hexToBytes = (hex: string): Uint8Array => {
 	if (hex.startsWith('0x') || hex.startsWith('0X')) hex = hex.slice(2);
-	if (hex.length % 2) hex += '0';
+	if (hex.length % 2)
+		throw new RangeError(`hexToBytes: odd-length string (${hex.length} chars) — input must be an even-length hex string`);
 	const bin = new Uint8Array(hex.length >>> 1);
 	for (let i = 0, len = hex.length >>> 1; i < len; i++)
 		bin[i] = parseInt(hex.slice(i << 1, (i << 1) + 2), 16);
@@ -55,11 +56,15 @@ export const bytesToUtf8 = (bytes: Uint8Array): string => {
 	return new TextDecoder().decode(bytes);
 };
 
-/** Base64 or base64url string to Uint8Array. Returns undefined on invalid input. */
+/** Base64 or base64url string to Uint8Array. Handles padded, unpadded, and legacy %3d padding. Returns undefined on invalid input. */
 export const base64ToBytes = (b64: string): Uint8Array | undefined => {
 	// Normalise base64url → base64
-	b64 = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/%3d/g, '=');
-	if (b64.length % 4 !== 0) return undefined;
+	b64 = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/%3d/gi, '=');
+	// Re-pad if unpadded (RFC 4648 §5 base64url omits '=')
+	const rem = b64.length % 4;
+	if (rem === 1) return undefined; // always invalid — no valid b64 produces this
+	if (rem === 2) b64 += '==';
+	if (rem === 3) b64 += '=';
 	if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) return undefined;
 
 	let strlen = b64.length / 4 * 3;
@@ -100,11 +105,11 @@ export const base64ToBytes = (b64: string): Uint8Array | undefined => {
 	return bin;
 };
 
-/** Uint8Array to base64 string. Pass url=true for base64url encoding. */
+/** Uint8Array to base64 string. Pass url=true for base64url (RFC 4648 §5 — no padding characters). */
 export const bytesToBase64 = (bytes: Uint8Array, url = false): string => {
 	if (typeof btoa !== 'undefined') {
 		const raw = btoa(String.fromCharCode.apply(null, Array.from(bytes)));
-		return url ? raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '%3d') : raw;
+		return url ? raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') : raw;
 	}
 
 	// Fallback: manual encode
@@ -119,8 +124,8 @@ export const bytesToBase64 = (bytes: Uint8Array, url = false): string => {
 		const triple = (a << 0x10) + (b << 0x08) + c;
 		base64 += table.charAt((triple >>> 18) & 0x3F);
 		base64 += table.charAt((triple >>> 12) & 0x3F);
-		base64 += (i < bytes.length + 2) ? table.charAt((triple >>> 6) & 0x3F) : (url ? '%3d' : '=');
-		base64 += (i < bytes.length + 1) ? table.charAt(triple & 0x3F) : (url ? '%3d' : '=');
+		base64 += (i < bytes.length + 2) ? table.charAt((triple >>> 6) & 0x3F) : (url ? '' : '=');
+		base64 += (i < bytes.length + 1) ? table.charAt(triple & 0x3F) : (url ? '' : '=');
 	}
 	return base64;
 };
@@ -151,12 +156,15 @@ export const xor = (a: Uint8Array, b: Uint8Array): Uint8Array => {
 	return a.map((val, i) => val ^ b[i]);
 };
 
-/** Concatenate two Uint8Arrays, returns new array. */
-export const concat = (a: Uint8Array, b: Uint8Array): Uint8Array => {
-	const result = new Uint8Array(a.length + b.length);
-	result.set(a, 0);
-	result.set(b, a.length);
-	return result;
+/** Concatenate one or more Uint8Arrays into a new array. */
+export const concat = (...arrays: Uint8Array[]): Uint8Array => {
+	const len = arrays.reduce((s, a) => s + a.length, 0);
+	const out = new Uint8Array(len);
+	let off = 0;
+	for (const a of arrays) {
+		out.set(a, off); off += a.length;
+	}
+	return out;
 };
 
 /** Cryptographically secure random bytes via Web Crypto API. */

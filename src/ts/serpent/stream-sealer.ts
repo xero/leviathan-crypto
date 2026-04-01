@@ -79,25 +79,26 @@ export class SerpentStreamSealer {
 	private readonly _hmac:   HMAC_SHA256;
 	private readonly _hkdf:   HKDF_SHA256;
 	private readonly _framed: boolean;
+	private readonly _aad:    Uint8Array;
 	private readonly _ivs:    Uint8Array[] | undefined;  // test seam: fixed IVs
 	private _ivIdx: number;
 	private _index: number;
 	private _state: SealerState;
 
 	/** Public: consumers use this 3-param form. */
-	constructor(key: Uint8Array, chunkSize?: number, opts?: { framed?: boolean })
+	constructor(key: Uint8Array, chunkSize?: number, opts?: { framed?: boolean; aad?: Uint8Array })
 	/** @internal Test-only overload to inject fixed nonce/IVs for deterministic KAT vectors. */
 	constructor(
 		key:       Uint8Array,
 		chunkSize: number | undefined,
-		opts:      { framed?: boolean } | undefined,
+		opts:      { framed?: boolean; aad?: Uint8Array } | undefined,
 		_nonce:    Uint8Array,
 		_ivs?:     Uint8Array[],
 	)
 	constructor(
 		key:        Uint8Array,
 		chunkSize?: number,
-		opts?:      { framed?: boolean },
+		opts?:      { framed?: boolean; aad?: Uint8Array },
 		_nonce?:    Uint8Array,
 		_ivs?:      Uint8Array[],
 	) {
@@ -110,6 +111,7 @@ export class SerpentStreamSealer {
 		this._key    = key.slice();
 		this._cs     = cs;
 		this._framed = opts?.framed ?? false;
+		this._aad    = opts?.aad ? opts.aad.slice() : new Uint8Array(0);
 		this._nonce  = new Uint8Array(16);
 		if (_nonce && _nonce.length === 16) {
 			this._nonce.set(_nonce);
@@ -164,9 +166,9 @@ export class SerpentStreamSealer {
 			crypto.getRandomValues(iv);
 		}
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
-		const tag        = this._hmac.hash(macKey, concat(iv, ciphertext));
+		const tag        = this._hmac.hash(macKey, concat(u32be(this._aad.length), this._aad, iv, ciphertext));
 		this._index++;
-		const sealed = concat(concat(iv, ciphertext), tag);
+		const sealed = concat(new Uint8Array([isLast ? 1 : 0]), iv, ciphertext, tag);
 		if (!this._framed) return sealed;
 		const out = new Uint8Array(4 + sealed.length);
 		out.set(u32be(sealed.length), 0);
@@ -177,6 +179,7 @@ export class SerpentStreamSealer {
 	private _wipe(): void {
 		wipe(this._key);
 		wipe(this._nonce);
+		wipe(this._aad);
 		this._cbc.dispose();
 		this._hmac.dispose();
 		this._hkdf.dispose();
@@ -196,13 +199,14 @@ export class SerpentStreamOpener {
 	private readonly _hmac:     HMAC_SHA256;
 	private readonly _hkdf:     HKDF_SHA256;
 	private readonly _framed:   boolean;
+	private readonly _aad:      Uint8Array;
 	private readonly _buf:      Uint8Array | undefined;
 	private readonly _maxFrame: number | undefined;
 	private _bufLen:  number;
 	private _index:   number;
 	private _dead:    boolean;
 
-	constructor(key: Uint8Array, header: Uint8Array, opts?: { framed?: boolean }) {
+	constructor(key: Uint8Array, header: Uint8Array, opts?: { framed?: boolean; aad?: Uint8Array }) {
 		if (!_serpentReady()) throw new Error('leviathan-crypto: call init([\'serpent\']) before using SerpentStreamOpener');
 		if (!_sha2Ready())    throw new Error('leviathan-crypto: call init([\'sha2\']) before using SerpentStreamOpener');
 		if (key.length !== 64)     throw new RangeError(`SerpentStreamOpener key must be 64 bytes (got ${key.length})`);
@@ -213,6 +217,7 @@ export class SerpentStreamOpener {
 		if (this._cs < CHUNK_MIN || this._cs > CHUNK_MAX)
 			throw new RangeError(`SerpentStreamOpener: header contains invalid chunkSize ${this._cs} (expected ${CHUNK_MIN}..${CHUNK_MAX})`);
 		this._framed = opts?.framed ?? false;
+		this._aad    = opts?.aad ? opts.aad.slice() : new Uint8Array(0);
 		this._cbc    = new SerpentCbc({ dangerUnauthenticated: true });
 		this._hmac   = new HMAC_SHA256();
 		this._hkdf   = new HKDF_SHA256();
@@ -221,7 +226,7 @@ export class SerpentStreamOpener {
 		this._bufLen = 0;
 		if (this._framed) {
 			const cs        = this._cs;
-			const maxSealed = 16 + (cs + (16 - (cs % 16))) + 32;
+			const maxSealed = 1 + 16 + (cs + (16 - (cs % 16))) + 32;
 			this._maxFrame  = 4 + maxSealed;
 			this._buf       = new Uint8Array(this._maxFrame);
 		}
@@ -238,28 +243,23 @@ export class SerpentStreamOpener {
 	}
 
 	private _openRaw(chunk: Uint8Array): Uint8Array {
-		// Try isLast = true first, then false.
-		// Whichever passes auth is the correct interpretation.
-		for (const isLast of [true, false]) {
-			const { encKey, macKey } = deriveChunkKeys(
-				this._hkdf, this._key, this._nonce, this._cs, this._index, isLast,
-			);
-			// chunk = IV (16) || ciphertext || HMAC (32)
-			if (chunk.length < 16 + 16 + 32) continue; // too short to be valid
-			const iv         = chunk.subarray(0, 16);
-			const ciphertext = chunk.subarray(16, chunk.length - 32);
-			const tag        = chunk.subarray(chunk.length - 32);
-			const expectedTag = this._hmac.hash(macKey, concat(iv, ciphertext));
-			if (!constantTimeEqual(tag, expectedTag)) continue;
-			const plaintext = this._cbc.decrypt(encKey, iv, ciphertext);
-			this._index++;
-			if (isLast) {
-				this._wipe();
-			}
-			return plaintext;
-		}
-
-		throw new Error('SerpentStreamOpener: authentication failed');
+		// isLast(1) || IV(16) || ciphertext || HMAC(32)
+		if (chunk.length < 1 + 16 + 16 + 32)
+			throw new RangeError('SerpentStreamOpener: chunk wire data too short');
+		const isLast     = chunk[0] !== 0;
+		const { encKey, macKey } = deriveChunkKeys(
+			this._hkdf, this._key, this._nonce, this._cs, this._index, isLast,
+		);
+		const iv         = chunk.subarray(1, 17);
+		const ciphertext = chunk.subarray(17, chunk.length - 32);
+		const tag        = chunk.subarray(chunk.length - 32);
+		const expectedTag = this._hmac.hash(macKey, concat(u32be(this._aad.length), this._aad, iv, ciphertext));
+		if (!constantTimeEqual(tag, expectedTag))
+			throw new Error('SerpentStreamOpener: authentication failed');
+		const plaintext = this._cbc.decrypt(encKey, iv, ciphertext);
+		this._index++;
+		if (isLast) this._wipe();
+		return plaintext;
 	}
 
 	feed(bytes: Uint8Array): Uint8Array[] {
@@ -357,6 +357,7 @@ export class SerpentStreamOpener {
 		if (this._dead) return;
 		wipe(this._key);
 		wipe(this._nonce);
+		wipe(this._aad);
 		this._cbc.dispose();
 		this._hmac.dispose();
 		this._hkdf.dispose();

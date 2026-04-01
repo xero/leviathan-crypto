@@ -114,8 +114,8 @@ and verification internally -- no manual IV or MAC management required.
 ```typescript
 class SerpentSeal {
 	constructor()
-	encrypt(key: Uint8Array, plaintext: Uint8Array): Uint8Array
-	decrypt(key: Uint8Array, data: Uint8Array): Uint8Array
+	encrypt(key: Uint8Array, plaintext: Uint8Array, aad?: Uint8Array): Uint8Array
+	decrypt(key: Uint8Array, data: Uint8Array, aad?: Uint8Array): Uint8Array
 	dispose(): void
 }
 ```
@@ -127,7 +127,7 @@ been called.
 
 ---
 
-#### `encrypt(key: Uint8Array, plaintext: Uint8Array): Uint8Array`
+#### `encrypt(key: Uint8Array, plaintext: Uint8Array, aad?: Uint8Array): Uint8Array`
 
 Encrypts plaintext and returns a sealed blob containing the ciphertext and
 authentication data. The output is opaque -- pass it directly to `decrypt()`.
@@ -135,13 +135,15 @@ authentication data. The output is opaque -- pass it directly to `decrypt()`.
 - **key** -- exactly 64 bytes (32 bytes encryption key + 32 bytes MAC key).
   Throws `RangeError` if the length is not 64.
 - **plaintext** -- any length.
+- **aad** -- optional associated data. Authenticated but not encrypted. Bound
+  into the HMAC-SHA256 tag. If omitted, equivalent to empty.
 
 A fresh random IV is generated internally for each call. Two encryptions of the
 same plaintext with the same key produce different output.
 
 ---
 
-#### `decrypt(key: Uint8Array, data: Uint8Array): Uint8Array`
+#### `decrypt(key: Uint8Array, data: Uint8Array, aad?: Uint8Array): Uint8Array`
 
 Verifies the authentication tag and decrypts the sealed blob. MAC verification
 happens before decryption -- if the data has been tampered with, `decrypt()` throws
@@ -151,6 +153,8 @@ and never returns corrupted plaintext.
   `RangeError` if the length is not 64.
 - **data** -- the sealed blob from `encrypt()`. Must be at least 64 bytes. Throws
   `RangeError` if shorter. Throws `Error` if authentication fails.
+- **aad** -- optional associated data. If `aad` was passed to `encrypt()`, the
+  same value must be passed to `decrypt()`. Mismatch causes authentication failure.
 
 ---
 
@@ -528,11 +532,17 @@ the full message in memory. Unlike `SerpentStream` (which is one-shot),
 `SerpentStreamSealer` produces chunks as data arrives and `SerpentStreamOpener`
 authenticates and decrypts them individually.
 
-**Wire format:**
+**Wire format (v1.4.0+):**
 ```
-header:  nonce (16) || chunkSize_u32be (4)                = 20 bytes
-chunk:   IV (16) || CBC_ciphertext (PKCS7-padded) || HMAC-SHA256 (32)
+header:  nonce (16) || chunkSize_u32be (4)                          = 20 bytes
+chunk:   isLast (1) || IV (16) || CBC_ciphertext (PKCS7-padded) || HMAC-SHA256 (32)
 ```
+
+> [!WARNING]
+> **Breaking change from v1.3.x:** Each chunk now prepends an explicit `isLast`
+> flag byte, and AAD is folded into the HMAC input with a 4-byte length prefix.
+> Ciphertexts produced by v1.3.x are not compatible with v1.4.0 openers, and
+> vice versa, even with empty AAD.
 
 Per-chunk keys are derived via HKDF-SHA256 from the stream key and a `chunkInfo`
 blob binding the stream nonce, chunk size, chunk index, and `isLast` flag. Each
@@ -549,7 +559,10 @@ and cross-stream splicing are all detected.
 
 ```typescript
 class SerpentStreamSealer {
-	constructor(key: Uint8Array, chunkSize?: number, opts?: { framed?: boolean })
+	constructor(key: Uint8Array, chunkSize?: number, opts?: {
+		framed?: boolean;
+		aad?: Uint8Array;   // authenticated per-chunk, not encrypted
+	})
 	header(): Uint8Array        // call once before seal() — returns 20 bytes
 	seal(plaintext: Uint8Array): Uint8Array   // exactly chunkSize bytes
 	final(plaintext: Uint8Array): Uint8Array  // <= chunkSize bytes; wipes on return
@@ -557,7 +570,10 @@ class SerpentStreamSealer {
 }
 
 class SerpentStreamOpener {
-	constructor(key: Uint8Array, header: Uint8Array, opts?: { framed?: boolean })
+	constructor(key: Uint8Array, header: Uint8Array, opts?: {
+		framed?: boolean;
+		aad?: Uint8Array;   // must match value used by sealer
+	})
 	open(chunk: Uint8Array): Uint8Array  // throws on auth failure or post-final
 	feed(bytes: Uint8Array): Uint8Array[]  // framed mode only — accumulates and parses frames
 	dispose(): void
@@ -602,6 +618,7 @@ wipes its key material and transitions to `dead`. Subsequent `open()` calls thro
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `framed` | `boolean` | `false` | Prepend `u32be(sealedLen)` to each `seal()`/`final()` output. Use for flat byte streams (files, pipes, TCP). Omit when the transport already frames messages (WebSocket, IPC). |
+| `aad` | `Uint8Array` | `undefined` | Associated data — authenticated but not encrypted. Bound into each chunk's HMAC-SHA256 tag with a 4-byte length prefix for domain separation. If omitted, equivalent to empty. |
 
 ---
 
@@ -647,6 +664,7 @@ Safe to call after `final()` — no-op if already dead.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `framed` | `boolean` | `false` | Enable byte-accumulation mode. Parses `u32be` length prefixes and dispatches complete frames to `open()` internally. Required to use `feed()`. |
+| `aad` | `Uint8Array` | `undefined` | Associated data — must match the value used by the sealer. Mismatch causes authentication failure on `open()`. |
 
 ---
 
