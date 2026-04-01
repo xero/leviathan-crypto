@@ -49,8 +49,8 @@ See [examples](examples.md) for streaming, chunking, hashing, key derivation, an
 
 | Name | Link | Code | Docs | Description |
 | ---- | ---- | ---- | ---- | ----------- |
-| **`lvthn-web`**  | [▼](https://leviathan.3xi.club/web)      | [🛈](https://github.com/xero/leviathan-demos/tree/main/lvthn-web)  | [¶](https://github.com/xero/leviathan-demos/blob/main/lvthn-web/README.md)  | Encrypt text or files using Serpent-256-CBC and Argon2id key derivation from a single local HTML file, with armored output. No server, installation, or network connection required after initial load. |
-| **`lvthn-chat`** | [▼](https://leviathan.3xi.club/chat)     | [🛈](https://github.com/xero/leviathan-demos/tree/main/lvthn-chat) | [¶](https://github.com/xero/leviathan-demos/blob/main/lvthn-chat/README.md) | End-to-end encrypted chat over X25519 key exchange and XChaCha20-Poly1305. Relay server functions as a dumb WebSocket pipe and never sees plaintexts. |
+| **`lvthn-web`**  | [▼](https://leviathan.3xi.club/web)      | [🛈](https://github.com/xero/leviathan-demos/tree/main/web)  | [¶](https://github.com/xero/leviathan-demos/blob/main/web/README.md)  | Encrypt text or files using Serpent-256-CBC and Argon2id key derivation from a single local HTML file, with armored output. No server, installation, or network connection required after initial load. |
+| **`lvthn-chat`** | [▼](https://leviathan.3xi.club/chat)     | [🛈](https://github.com/xero/leviathan-demos/tree/main/chat) | [¶](https://github.com/xero/leviathan-demos/blob/main/chat/README.md) | End-to-end encrypted chat over X25519 key exchange and XChaCha20-Poly1305. Relay server functions as a dumb WebSocket pipe and never sees plaintexts. |
 | **`lvthn-cli`**  | [▼](https://www.npmjs.com/package/lvthn) | [🛈](https://github.com/xero/leviathan-demos/tree/main/lvthn-cli)  | [¶](https://github.com/xero/leviathan-demos/blob/main/lvthn-cli/README.md)  | File encryption CLI supporting both Serpent-256 and XChaCha20-Poly1305 via `--cipher`. Keyfiles are compatible across both ciphers; the header byte determines decryption automatically. |
 
 ## [Full Documentation Index](README.md)

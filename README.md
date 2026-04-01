@@ -85,7 +85,7 @@ npm install leviathan-crypto
 
 ## Demos
 
-**`lvthn-web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/lvthn-web) · [readme](https://github.com/xero/leviathan-demos/blob/main/lvthn-web/README.md) ]
+**`lvthn-web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/web) · [readme](https://github.com/xero/leviathan-demos/blob/main/web/README.md) ]
 
 A browser encryption tool in a single, self-contained HTML file. Encrypt text
 or files using Serpent-256-CBC and Argon2id key derivation, then share the
@@ -94,7 +94,7 @@ initial load. The code is written to be read. The Encrypt-then-MAC
 construction, HMAC input (header with HMAC field zeroed + ciphertext), and
 Argon2id parameters are all intentional examples worth reading.
 
-**`lvthn-chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/lvthn-chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/lvthn-chat/README.md) ]
+**`lvthn-chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/chat/README.md) ]
 
 End-to-end encrypted chat featuring two-party messaging over X25519 key
 exchange and XChaCha20-Poly1305 message encryption. The relay server functions
