@@ -282,6 +282,8 @@ export class XChaCha20Seal {
 }
 
 export { XChaCha20StreamSealer, XChaCha20StreamOpener } from './stream-sealer.js';
+export { XChaCha20StreamPool } from './stream-pool.js';
+export type { XcStreamPoolOpts, SealOpts } from './stream-pool.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

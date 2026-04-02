@@ -88,7 +88,7 @@ await serpentInit()
 | Classes | `init()` call |
 |---------|--------------|
 | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` | `init(['serpent', 'sha2'])` |
-| `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20Poly1305Pool` | `init(['chacha20'])` |
+| `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20StreamSealer`, `XChaCha20StreamOpener`, `XChaCha20StreamPool`, `XChaCha20Poly1305Pool` | `init(['chacha20'])` |
 | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init(['sha2'])` |
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init(['sha3'])` |
 | `Fortuna` | `init(['serpent', 'sha2'])` |
@@ -275,7 +275,7 @@ The complete API reference ships in `docs/` alongside this file:
 | File | Contents |
 |------|----------|
 | `docs/serpent.md` | `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
-| `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20Poly1305Pool` |
+| `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20StreamSealer`, `XChaCha20StreamOpener`, `XChaCha20StreamPool`, `XChaCha20Poly1305Pool` |
 | `docs/sha2.md` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` |
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `docs/fortuna.md` | `Fortuna` CSPRNG |

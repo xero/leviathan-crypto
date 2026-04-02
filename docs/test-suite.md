@@ -6,9 +6,9 @@
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 503                         | All pass |
+| Unit | Vitest     | 518                         | All pass |
 | e2e  | PlayWright | 183 (61 tests × 3 browsers) | all pass |
-|      | **Total**  | **686**                     | All pass |
+|      | **Total**  | **701**                     | All pass |
 
 ---
 
@@ -43,6 +43,7 @@
 | `chacha20/pool.test.ts`                  | XChaCha20Poly1305Pool correctness, parallel, auth, lifecycle                                                                                                                                                                  | 21 tests              | —          |
 | `chacha20/xchacha20seal.test.ts`         | XChaCha20Seal: gate, wire format (nonce‖ct‖tag), AAD, authentication (tamper, truncation), input validation, key isolation, lifecycle                                                                                         | 17 tests              | —          |
 | `chacha20/xchacha20stream.test.ts`       | XChaCha20StreamSealer/Opener: gate, round-trip (single + multi-chunk), authentication (tamper, reorder, truncation), AAD, state machine guards, framed mode (feed, split, multi-frame), lifecycle                             | 26 tests              | —          |
+| `chacha20/xchacha20_stream_pool.test.ts` | XChaCha20StreamPool: gate, round-trip (large, empty, small, custom chunk), AAD, authentication (tamper, wrong key, truncation), validation, lifecycle, parallel correctness                                                    | 15 tests              | —          |
 | `sha2/sha256.test.ts`                    | SHA-256 vectors, streaming, wipeBuffers, leviathan cross-check                                                                                                                                                                | 11 tests              | Gate 3     |
 | `sha2/sha512.test.ts`                    | SHA-512, SHA-384 vectors, streaming, leviathan cross-check                                                                                                                                                                    | 14 tests              | Gate 4     |
 | `sha2/hmac.test.ts`                      | HMAC-SHA256/512/384 vectors, leviathan cross-check                                                                                                                                                                            | 14 tests              | Gate 5, 6  |

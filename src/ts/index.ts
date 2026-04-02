@@ -45,7 +45,7 @@ export async function init(
 export { type Module, type Mode, type InitOpts, isInitialized, _resetForTesting } from './init.js';
 export { serpentInit, SerpentSeal, Serpent, SerpentCtr, SerpentCbc, SerpentStream, SerpentStreamPool, SerpentStreamSealer, SerpentStreamOpener, _serpentReady } from './serpent/index.js';
 export type { StreamPoolOpts } from './serpent/index.js';
-export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Seal, XChaCha20StreamSealer, XChaCha20StreamOpener, _chachaReady } from './chacha20/index.js';
+export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Seal, XChaCha20StreamSealer, XChaCha20StreamOpener, XChaCha20StreamPool, _chachaReady } from './chacha20/index.js';
 export { XChaCha20Poly1305Pool } from './chacha20/pool.js';
 export type { PoolOpts } from './chacha20/pool.js';
 export { sha2Init, SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, _sha2Ready } from './sha2/index.js';

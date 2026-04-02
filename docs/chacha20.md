@@ -518,6 +518,53 @@ const ptLast = opener.open(last)
 
 ---
 
+## `XChaCha20StreamPool`
+
+Parallel worker pool for chunked XChaCha20-Poly1305 streaming AEAD. Counterpart
+to `SerpentStreamPool`. Dispatches chunk-level encrypt/decrypt across Web Workers,
+each with its own WASM instance and isolated linear memory.
+
+Same chunk-level crypto as `XChaCha20StreamSealer` (per-chunk random nonce,
+position-bound AAD). Different wire format header — 28 bytes with `chunkCount`
+for parallel open, vs the sealer's 20-byte header.
+
+**Wire format:**
+```
+header:  stream_id (16) || chunkSize_u32be (4) || chunkCount_u64be (8) = 28 bytes
+chunk:   isLast (1) || nonce (24) || ciphertext || tag (16)
+```
+
+```typescript
+class XChaCha20StreamPool {
+	static async create(opts?: { workers?: number }): Promise<XChaCha20StreamPool>
+	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number, opts?: { aad?: Uint8Array }): Promise<Uint8Array>
+	open(key: Uint8Array, ciphertext: Uint8Array, opts?: { aad?: Uint8Array }): Promise<Uint8Array>
+	dispose(): void
+	get size(): number
+	get queueDepth(): number
+}
+```
+
+- **key** — 32 bytes.
+- **chunkSize** — 1024–65536. Default: 65536.
+- **opts.aad** — associated data folded into every chunk's internal AAD.
+
+#### Usage
+
+```typescript
+await init(['chacha20'])
+
+const pool = await XChaCha20StreamPool.create({ workers: 4 })
+const key  = randomBytes(32)
+
+const sealed    = await pool.seal(key, largePlaintext, 65536)
+const recovered = await pool.open(key, sealed)
+
+pool.dispose()
+```
+
+---
+
 ## Parallel pool — `XChaCha20Poly1305Pool`
 
 For high-throughput workloads where multiple XChaCha20-Poly1305 operations should

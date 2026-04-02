@@ -52,6 +52,7 @@ Subpath: `leviathan-crypto/chacha20` — see [chacha20.md](./chacha20), [chacha2
 | `XChaCha20Poly1305` | class | XChaCha20-Poly1305 AEAD. 24-byte nonce. `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
 | `XChaCha20StreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 32-byte key. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
 | `XChaCha20StreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
+| `XChaCha20StreamPool` | class | Parallel worker pool for chunked streaming AEAD. `seal(key, plaintext, chunkSize?, opts?)`, `open(key, ciphertext, opts?)`. 32-byte key. Same chunk crypto as `XChaCha20StreamSealer`; 28-byte header with chunkCount. |
 | `XChaCha20Poly1305Pool` | class | Worker-pool wrapper for `XChaCha20Poly1305`. `XChaCha20Poly1305Pool.create(opts?)` static factory. |
 | `ChaCha20Poly1305` | class | ChaCha20-Poly1305 AEAD (RFC 8439). 12-byte nonce. `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
 | `ChaCha20` | class | ChaCha20 stream cipher (RFC 8439). `beginEncrypt()`, `encryptChunk()`. Unauthenticated. |

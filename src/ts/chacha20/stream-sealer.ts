@@ -38,14 +38,14 @@ const CHUNK_DEF = 65536;
 
 type SealerState = 'fresh' | 'sealing' | 'dead';
 
-function u32be(n: number): Uint8Array {
+export function u32be(n: number): Uint8Array {
 	const b = new Uint8Array(4);
 	b[0] = (n >>> 24) & 0xff; b[1] = (n >>> 16) & 0xff;
 	b[2] = (n >>> 8)  & 0xff; b[3] = n & 0xff;
 	return b;
 }
 
-function u64be(n: number): Uint8Array {
+export function u64be(n: number): Uint8Array {
 	const b  = new Uint8Array(8);
 	const hi = Math.floor(n / 0x100000000);
 	const lo = n >>> 0;
@@ -61,7 +61,7 @@ function getExports(): ChaChaExports {
 }
 
 /** Build internal AAD: stream_id(16) || u64be(index) || isLast(1) || u32be(userAad.length) || userAad */
-function chunkAAD(streamId: Uint8Array, index: number, isLast: boolean, userAad: Uint8Array): Uint8Array {
+export function chunkAAD(streamId: Uint8Array, index: number, isLast: boolean, userAad: Uint8Array): Uint8Array {
 	const out = new Uint8Array(16 + 8 + 1 + 4 + userAad.length);
 	let off = 0;
 	out.set(streamId, off); off += 16;
