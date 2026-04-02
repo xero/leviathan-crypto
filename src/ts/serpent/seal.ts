@@ -40,31 +40,33 @@ export class SerpentSeal {
 		this._hmac = new HMAC_SHA256();
 	}
 
-	// _iv: test seam only — inject a fixed IV for deterministic KAT vectors
-	// aad: authenticated but not encrypted; bound into HMAC-SHA256 tag
-	encrypt(key: Uint8Array, plaintext: Uint8Array, aad: Uint8Array = new Uint8Array(0), _iv?: Uint8Array): Uint8Array {
+	encrypt(key: Uint8Array, plaintext: Uint8Array, aad?: Uint8Array): Uint8Array {
 		if (key.length !== 64)
 			throw new RangeError(`SerpentSeal key must be 64 bytes (got ${key.length})`);
+		const aadBytes = aad ?? new Uint8Array(0);
 		const encKey = key.subarray(0, 32);
 		const macKey = key.subarray(32, 64);
+		// eslint-disable-next-line prefer-rest-params
+		const _iv = arguments[3] as Uint8Array | undefined;
 		const iv = (_iv && _iv.length === 16) ? _iv : new Uint8Array(16);
 		if (!_iv || _iv.length !== 16) crypto.getRandomValues(iv);
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
-		const tag = this._hmac.hash(macKey, concat(u32be(aad.length), aad, iv, ciphertext));
+		const tag = this._hmac.hash(macKey, concat(u32be(aadBytes.length), aadBytes, iv, ciphertext));
 		return concat(iv, ciphertext, tag);
 	}
 
-	decrypt(key: Uint8Array, data: Uint8Array, aad: Uint8Array = new Uint8Array(0)): Uint8Array {
+	decrypt(key: Uint8Array, data: Uint8Array, aad?: Uint8Array): Uint8Array {
 		if (key.length !== 64)
 			throw new RangeError(`SerpentSeal key must be 64 bytes (got ${key.length})`);
 		if (data.length < 64)
 			throw new RangeError('SerpentSeal ciphertext too short');
+		const aadBytes = aad ?? new Uint8Array(0);
 		const encKey = key.subarray(0, 32);
 		const macKey = key.subarray(32, 64);
 		const iv = data.subarray(0, 16);
 		const tag = data.subarray(data.length - 32);
 		const ciphertext = data.subarray(16, data.length - 32);
-		const expectedTag = this._hmac.hash(macKey, concat(u32be(aad.length), aad, iv, ciphertext));
+		const expectedTag = this._hmac.hash(macKey, concat(u32be(aadBytes.length), aadBytes, iv, ciphertext));
 		if (!constantTimeEqual(tag, expectedTag))
 			throw new Error('SerpentSeal: authentication failed');
 		return this._cbc.decrypt(encKey, iv, ciphertext);

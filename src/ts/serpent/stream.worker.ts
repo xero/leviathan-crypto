@@ -153,6 +153,8 @@ self.onmessage = async (e: MessageEvent) => {
 		const result = op === 'seal'
 			? workerSealChunk(encKey, macKey, data)
 			: workerOpenChunk(encKey, macKey, data);
+		(sx as SerpentExports).wipeBuffers();
+		(hx as Sha2Exports).wipeBuffers();
 		self.postMessage({ type: 'result', id, data: result }, [result.buffer] as never);
 	} catch (err) {
 		self.postMessage({ type: 'error', id: msg.id, message: (err as Error).message });

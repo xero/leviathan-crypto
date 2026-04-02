@@ -69,7 +69,8 @@ describe('XChaCha20Seal — wire format', () => {
 		const key   = new Uint8Array(32);
 		const nonce = new Uint8Array(24).fill(0xab);
 		const seal  = new XChaCha20Seal(key);
-		const ct    = seal.encrypt(new Uint8Array([0x01, 0x02]), new Uint8Array(0), nonce);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const ct    = (seal as any).encrypt(new Uint8Array([0x01, 0x02]), new Uint8Array(0), nonce);
 		expect(toHex(ct.subarray(0, 24))).toBe('ab'.repeat(24));
 		seal.dispose();
 	});
@@ -183,8 +184,10 @@ describe('XChaCha20Seal — key isolation', () => {
 		const pt    = new Uint8Array(16).fill(0xaa);
 		// Use same injected nonce so only key differs
 		const nonce = new Uint8Array(24);
-		const ct1   = seal1.encrypt(pt, new Uint8Array(0), nonce);
-		const ct2   = seal2.encrypt(pt, new Uint8Array(0), nonce);
+		/* eslint-disable @typescript-eslint/no-explicit-any */
+		const ct1   = (seal1 as any).encrypt(pt, new Uint8Array(0), nonce);
+		const ct2   = (seal2 as any).encrypt(pt, new Uint8Array(0), nonce);
+		/* eslint-enable @typescript-eslint/no-explicit-any */
 		// Nonces are equal, ciphertext bodies must differ
 		expect(toHex(ct1.subarray(24))).not.toBe(toHex(ct2.subarray(24)));
 		seal1.dispose(); seal2.dispose();

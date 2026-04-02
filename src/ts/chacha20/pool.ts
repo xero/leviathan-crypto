@@ -172,7 +172,6 @@ export class XChaCha20Poly1305Pool {
 		for (const w of this._workers) w.terminate();
 		const err = new Error('leviathan-crypto: pool disposed');
 		for (const { reject } of this._pending.values()) reject(err);
-		for (const job of this._queue) this._pending.get(job.id)?.reject(err);
 		this._pending.clear();
 		this._queue.length = 0;
 	}

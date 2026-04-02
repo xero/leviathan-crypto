@@ -236,12 +236,18 @@ export class XChaCha20StreamPool {
 				throw new RangeError('XChaCha20StreamPool: ciphertext truncated');
 
 			const chunkWire = ciphertext.subarray(pos, pos + wireLen);
+			const wireIsLast = chunkWire[0] !== 0;
+			if (wireIsLast !== isLast)
+				throw new Error('XChaCha20StreamPool: isLast flag mismatch');
 			const nonce   = chunkWire.subarray(1, 25);
 			const payload = chunkWire.subarray(25); // ct || tag(16)
 			const aad     = chunkAAD(streamId, i, isLast, userAad);
 			chunkPromises.push(this._dispatch('decrypt', key.slice(), nonce.slice(), payload.slice(), aad));
 			pos += wireLen;
 		}
+
+		if (pos !== ciphertext.length)
+			throw new RangeError('XChaCha20StreamPool: unexpected trailing bytes');
 
 		const results = await Promise.all(chunkPromises);
 
@@ -262,7 +268,6 @@ export class XChaCha20StreamPool {
 		for (const w of this._workers) w.terminate();
 		const err = new Error('leviathan-crypto: pool disposed');
 		for (const { reject } of this._pending.values()) reject(err);
-		for (const job of this._queue) this._pending.get(job.id)?.reject(err);
 		this._pending.clear();
 		this._queue.length = 0;
 	}

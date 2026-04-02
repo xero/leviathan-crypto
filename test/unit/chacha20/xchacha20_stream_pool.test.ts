@@ -124,6 +124,23 @@ describe('XChaCha20StreamPool — authentication', () => {
 		await expect(pool.open(key2, ct)).rejects.toThrow();
 	});
 
+	it('trailing bytes after final chunk → open rejects', async () => {
+		const key = randomBytes(32);
+		const ct  = await pool.seal(key, randomBytes(2048), 1024);
+		const bad = new Uint8Array(ct.length + 1);
+		bad.set(ct);
+		bad[ct.length] = 0x00;
+		await expect(pool.open(key, bad)).rejects.toThrow();
+	});
+
+	it('tampered isLast byte → open rejects', async () => {
+		const key = randomBytes(32);
+		const ct  = await pool.seal(key, randomBytes(2048), 1024);
+		const bad = ct.slice();
+		bad[28] ^= 0x01; // flip isLast byte of first chunk
+		await expect(pool.open(key, bad)).rejects.toThrow();
+	});
+
 	it('truncated ciphertext → open rejects', async () => {
 		const key = randomBytes(32);
 		const ct  = await pool.seal(key, randomBytes(2048), 1024);

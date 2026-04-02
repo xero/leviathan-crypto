@@ -62,7 +62,8 @@ function splitHex(h: string, indent = '\t\t'): string {
 const tc1_key = new Uint8Array(64);
 const tc1_iv = new Uint8Array(16);
 const tc1_pt = new Uint8Array(32).fill(0xab);
-const tc1_out = seal.encrypt(tc1_key, tc1_pt, undefined, tc1_iv);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const tc1_out = (seal as any).encrypt(tc1_key, tc1_pt, undefined, tc1_iv);
 const tc1_tag = tc1_out.subarray(tc1_out.length - 32);
 
 // Verify
@@ -80,7 +81,8 @@ for (let i = 0; i < 64; i++) tc2_key[i] = [1, 2, 3, 4][i % 4];
 const tc2_iv = new Uint8Array(16);
 for (let i = 0; i < 16; i++) tc2_iv[i] = [0xff, 0xfe, 0xfd, 0xfc][i % 4];
 const tc2_pt = new Uint8Array(0);
-const tc2_out = seal.encrypt(tc2_key, tc2_pt, undefined, tc2_iv);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const tc2_out = (seal as any).encrypt(tc2_key, tc2_pt, undefined, tc2_iv);
 const tc2_tag = tc2_out.subarray(tc2_out.length - 32);
 assert(tc2_out.length === 64, 'TC2 len');
 

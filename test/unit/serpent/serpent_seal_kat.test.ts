@@ -36,13 +36,14 @@ beforeAll(async () => {
 
 // ── TC1 known-answer ────────────────────────────────────────────────────────
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 describe('SerpentSeal KAT — TC1', () => {
 	// GATE
 	it('TC1 known-answer: encrypt with injected IV matches expected output', () => {
 		const key = hexToBytes(sealTC1.key);
 		const pt = hexToBytes(sealTC1.plaintext);
 		const iv = hexToBytes(sealTC1.iv);
-		const out = seal.encrypt(key, pt, undefined, iv);
+		const out = (seal as any).encrypt(key, pt, undefined, iv);
 		expect(bytesToHex(out)).toBe(sealTC1.ciphertext);
 	});
 
@@ -64,7 +65,7 @@ describe('SerpentSeal KAT — TC1', () => {
 		const key = hexToBytes(sealTC1.key);
 		const pt = hexToBytes(sealTC1.plaintext);
 		const iv = hexToBytes(sealTC1.iv);
-		const ct = seal.encrypt(key, pt, undefined, iv);
+		const ct = (seal as any).encrypt(key, pt, undefined, iv);
 		const recovered = seal.decrypt(key, ct);
 		expect(bytesToHex(recovered)).toBe(sealTC1.plaintext);
 	});
@@ -77,7 +78,7 @@ describe('SerpentSeal KAT — TC2', () => {
 		const key = hexToBytes(sealTC2.key);
 		const pt = hexToBytes(sealTC2.plaintext);
 		const iv = hexToBytes(sealTC2.iv);
-		const out = seal.encrypt(key, pt, undefined, iv);
+		const out = (seal as any).encrypt(key, pt, undefined, iv);
 		expect(bytesToHex(out)).toBe(sealTC2.ciphertext);
 	});
 

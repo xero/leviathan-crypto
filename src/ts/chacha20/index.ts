@@ -254,10 +254,12 @@ export class XChaCha20Seal {
 		this._key = key.slice();
 	}
 
-	// _nonce: test seam only — inject a fixed nonce for deterministic KAT vectors
-	encrypt(plaintext: Uint8Array, aad: Uint8Array = new Uint8Array(0), _nonce?: Uint8Array): Uint8Array {
+	encrypt(plaintext: Uint8Array, aad?: Uint8Array): Uint8Array {
+		const aadBytes = aad ?? new Uint8Array(0);
+		// eslint-disable-next-line prefer-rest-params
+		const _nonce = arguments[2] as Uint8Array | undefined;
 		const nonce = (_nonce && _nonce.length === 24) ? _nonce : randomBytes(24);
-		const sealed = xcEncrypt(this._x, this._key, nonce, plaintext, aad);
+		const sealed = xcEncrypt(this._x, this._key, nonce, plaintext, aadBytes);
 		// Prepend nonce to sealed output (ciphertext || tag)
 		const out = new Uint8Array(24 + sealed.length);
 		out.set(nonce, 0);
