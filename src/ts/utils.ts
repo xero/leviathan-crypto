@@ -130,15 +130,60 @@ export const bytesToBase64 = (bytes: Uint8Array, url = false): string => {
 	return base64;
 };
 
-// ── Crypto utilities ─────────────────────────────────────────────────────────
+// ── Constant-time comparison ─────────────────────────────────────────────────
+
+import { CT_WASM } from './ct-wasm.js';
+
+let _ctCompare: ((a: number, b: number, len: number) => number) | null = null;
+let _ctMem: WebAssembly.Memory | null = null;
+let _ctInit = false;
+
+// CT WASM module uses 1 page (64KB) of linear memory with both buffers
+// laid out side-by-side: a at offset 0, b at offset a.length.
+// Max per-side = _ctMem.buffer.byteLength >>> 1 = 32768 bytes.
+// In practice the largest comparison is a 32-byte HMAC-SHA-256 tag.
+const CT_MAX_BYTES = 32768;
+
+/** Try to compile the SIMD WASM ct module. Returns false if unavailable. */
+function _initCt(): boolean {
+	if (_ctInit) return _ctCompare !== null;
+	_ctInit = true;
+	try {
+		if (!hasSIMD()) return false;
+		_ctMem = new WebAssembly.Memory({ initial: 1, maximum: 1 });
+		const buf = CT_WASM.buffer.slice(CT_WASM.byteOffset, CT_WASM.byteOffset + CT_WASM.byteLength);
+		const mod = new WebAssembly.Module(buf as ArrayBuffer);
+		const inst = new WebAssembly.Instance(mod, { env: { memory: _ctMem } });
+		_ctCompare = (inst.exports as { compare(a: number, b: number, len: number): number }).compare;
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 /**
  * Constant-time byte-array equality.
- * XOR-accumulate pattern — no early return on mismatch.
+ * Uses WASM SIMD when available (no JIT short-circuiting, no speculative
+ * optimization). Falls back to a JS XOR-accumulate loop on runtimes
+ * without SIMD support.
  * Length check is not constant-time (length is non-secret in all protocols).
+ * Max input size: 32768 bytes per side (enforced regardless of code path).
  */
 export const constantTimeEqual = (a: Uint8Array, b: Uint8Array): boolean => {
 	if (a.length !== b.length) return false;
+	if (a.length > CT_MAX_BYTES)
+		throw new RangeError(`constantTimeEqual: max ${CT_MAX_BYTES} bytes (got ${a.length})`);
+	if (_initCt() && _ctMem && _ctCompare) {
+		const mem = new Uint8Array(_ctMem.buffer);
+		mem.set(a, 0);
+		mem.set(b, a.length);
+		try {
+			return _ctCompare(0, a.length, a.length) === 1;
+		} finally {
+			mem.fill(0, 0, a.length * 2);
+		}
+	}
+	// JS fallback — best-effort constant-time via XOR accumulate
 	let diff = 0;
 	for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
 	return diff === 0;
@@ -180,7 +225,8 @@ let _simd: boolean | null = null;
 
 /**
  * Detects WASM SIMD support once and caches the result.
- * Gates CTR/CBC-decrypt dispatch in Serpent and encryptChunk dispatch in ChaCha20.
+ * Used by init() to preflight-check before loading serpent/chacha20 modules.
+ * Exported for consumers who want to feature-detect before calling init().
  */
 export function hasSIMD(): boolean {
 	if (_simd !== null) return _simd;

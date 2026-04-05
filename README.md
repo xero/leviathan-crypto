@@ -123,33 +123,33 @@ cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 
 ## Primitives
 
-| Class                                                       | Module            | Auth    | Notes                                                                                                                                              |
-| ----------------------------------------------------------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authenticated encryption**                                |                   |         |                                                                                                                                                    |
-| `SerpentSeal`                                               | `serpent`, `sha2` | **Yes** | Serpent-CBC + HMAC-SHA256. Recommended Serpent default. 64-byte key.                                                                               |
-| `XChaCha20Seal`                                             | `chacha20`        | **Yes** | XChaCha20-Poly1305 with internal nonce management. Recommended ChaCha20 default. 32-byte key.                                                      |
-| `SerpentStream`, `SerpentStreamPool`                        | `serpent`, `sha2` | **Yes** | Chunked one-shot AEAD for large payloads. Pool variant parallelises across workers. 32-byte key.                                                   |
-| `SerpentStreamSealer`, `SerpentStreamOpener`                | `serpent`, `sha2` | **Yes** | Incremental streaming AEAD: seal/open one chunk at a time. Pass `{ framed: true }` for self-delimiting `u32be` length-prefix framing. 64-byte key. |
-| `XChaCha20StreamSealer`, `XChaCha20StreamOpener`            | `chacha20`        | **Yes** | Incremental streaming AEAD using XChaCha20-Poly1305. Per-chunk random nonces, position-bound AAD. `{ framed: true }` for length-prefixed framing. 32-byte key. |
-| `XChaCha20StreamPool`                                       | `chacha20`        | **Yes** | Parallel chunked streaming AEAD. Same chunk crypto as XChaCha20StreamSealer; dispatches across workers. 32-byte key.                               |
-| `XChaCha20Poly1305Pool`                                     | `chacha20`        | **Yes** | Worker-pool wrapper for `XChaCha20Poly1305`. Parallelises encryption across isolated WASM instances.                                               |
-| **Stateless primitives** _caller manages nonces_            |                   |         |                                                                                                                                                    |
-| `XChaCha20Poly1305`                                         | `chacha20`        | **Yes** | RFC-faithful stateless AEAD. 24-byte nonce, caller-managed. Use `XChaCha20Seal` unless you need explicit nonce control.                            |
-| `ChaCha20Poly1305`                                          | `chacha20`        | **Yes** | RFC 8439 stateless AEAD. 12-byte nonce, caller-managed. Prefer `XChaCha20Seal` unless you need RFC 8439 exact compliance.                          |
-| **Unauthenticated primitives** _pair with HMAC or use AEAD_ |                   |         |                                                                                                                                                    |
-| `Serpent`                                                   | `serpent`         | **No**  | Serpent-256 ECB block cipher. Single-block encrypt/decrypt.                                                                                        |
-| `SerpentCtr`                                                | `serpent`         | **No**  | Serpent-256 CTR mode stream cipher. Requires `{ dangerUnauthenticated: true }`.                                                                    |
-| `SerpentCbc`                                                | `serpent`         | **No**  | Serpent-256 CBC mode with PKCS7 padding. Requires `{ dangerUnauthenticated: true }`.                                                               |
-| `ChaCha20`                                                  | `chacha20`        | **No**  | ChaCha20 stream cipher — RFC 8439. Unauthenticated; use `XChaCha20Seal` unless you need raw keystream.                                             |
-| `Poly1305`                                                  | `chacha20`        | **No**  | Poly1305 one-time MAC — RFC 8439. Use via the AEAD classes unless you have a specific reason not to.                                               |
-| **Hashing and key derivation**                              |                   |         |                                                                                                                                                    |
-| `SHA256`, `SHA384`, `SHA512`                                | `sha2`            | —       | SHA-2 family — FIPS 180-4.                                                                                                                         |
-| `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`                 | `sha2`            | —       | HMAC construction over SHA-2 — RFC 2104.                                                                                                           |
-| `HKDF_SHA256`, `HKDF_SHA512`                                | `sha2`            | —       | Extract-and-expand key derivation over HMAC — RFC 5869.                                                                                            |
-| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`              | `sha3`            | —       | SHA-3 family — FIPS 202. Keccak-based, structurally independent of SHA-2.                                                                          |
-| `SHAKE128`, `SHAKE256`                                      | `sha3`            | —       | Extendable output functions (XOF) — FIPS 202. Variable-length output; useful for key derivation and stream generation.                             |
-| **CSPRNG**                                                  |                   |         |                                                                                                                                                    |
-| `Fortuna`                                                   | `serpent`, `sha2` | —       | Fortuna CSPRNG (Ferguson & Schneier). 32 entropy pools, forward secrecy. Use `Fortuna.create()`.                                                   |
+| Class                                                       | Module                     | Auth    | Notes                                                                                                                                              |
+| ----------------------------------------------------------- | -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authenticated encryption**                                |                            |         |                                                                                                                                                    |
+| `SerpentSeal`                                               | `serpent`, `sha2`          | **Yes** | Serpent-CBC + HMAC-SHA256. Recommended Serpent default. 64-byte key.                                                                               |
+| `XChaCha20Seal`                                             | `chacha20`                 | **Yes** | XChaCha20-Poly1305 with internal nonce management. Recommended ChaCha20 default. 32-byte key.                                                      |
+| **Streaming AEAD**                                          |                            |         |                                                                                                                                                    |
+| `SealStream`, `OpenStream`                                  | depends on cipher + `sha2` | **Yes** | Cipher-agnostic chunked streaming AEAD (STREAM construction). Per-chunk auth, counter-bound nonces, final-chunk detection. 32-byte key.            |
+| `SealStreamPool`                                            | depends on cipher + `sha2` | **Yes** | Parallel batch seal/open via Web Workers. Same wire format as SealStream. Single-use seal guard.                                                   |
+| `XChaCha20Cipher`                                           | `chacha20`, `sha2`         | **Yes** | CipherSuite for SealStream: HKDF → HChaCha20 → ChaCha20-Poly1305 per chunk. 16-byte tag.                                                           |
+| `SerpentCipher`                                             | `serpent`, `sha2`          | **Yes** | CipherSuite for SealStream: 3-key HKDF → Serpent-CBC + HMAC-SHA-256 per chunk. 32-byte tag.                                                        |
+| **Stateless primitives** _caller manages nonces_            |                            |         |                                                                                                                                                    |
+| `XChaCha20Poly1305`                                         | `chacha20`                 | **Yes** | RFC-faithful stateless AEAD. 24-byte nonce, caller-managed. Single-use encrypt guard. Use `XChaCha20Seal` unless you need explicit nonce control.  |
+| `ChaCha20Poly1305`                                          | `chacha20`                 | **Yes** | RFC 8439 stateless AEAD. 12-byte nonce, caller-managed. Single-use encrypt guard. Prefer `XChaCha20Seal` unless you need RFC 8439 exact compliance.|
+| **Unauthenticated primitives** _pair with HMAC or use AEAD_ |                            |         |                                                                                                                                                    |
+| `Serpent`                                                   | `serpent`                  | **No**  | Serpent-256 ECB block cipher. Single-block encrypt/decrypt.                                                                                        |
+| `SerpentCtr`                                                | `serpent`                  | **No**  | Serpent-256 CTR mode stream cipher. Requires `{ dangerUnauthenticated: true }`.                                                                    |
+| `SerpentCbc`                                                | `serpent`                  | **No**  | Serpent-256 CBC mode with PKCS7 padding. Requires `{ dangerUnauthenticated: true }`.                                                               |
+| `ChaCha20`                                                  | `chacha20`                 | **No**  | ChaCha20 stream cipher — RFC 8439. Unauthenticated; use `XChaCha20Seal` unless you need raw keystream.                                             |
+| `Poly1305`                                                  | `chacha20`                 | **No**  | Poly1305 one-time MAC — RFC 8439. Use via the AEAD classes unless you have a specific reason not to.                                               |
+| **Hashing and key derivation**                              |                            |         |                                                                                                                                                    |
+| `SHA256`, `SHA384`, `SHA512`                                | `sha2`                     | —       | SHA-2 family — FIPS 180-4.                                                                                                                         |
+| `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`                 | `sha2`                     | —       | HMAC construction over SHA-2 — RFC 2104.                                                                                                           |
+| `HKDF_SHA256`, `HKDF_SHA512`                                | `sha2`                     | —       | Extract-and-expand key derivation over HMAC — RFC 5869.                                                                                            |
+| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`              | `sha3`                     | —       | SHA-3 family — FIPS 202. Keccak-based, structurally independent of SHA-2.                                                                          |
+| `SHAKE128`, `SHAKE256`                                      | `sha3`                     | —       | Extendable output functions (XOF) — FIPS 202. Variable-length output; useful for key derivation and stream generation.                             |
+| **CSPRNG**                                                  |                            |         |                                                                                                                                                    |
+| `Fortuna`                                                   | `serpent`, `sha2`          | —       | Fortuna CSPRNG (Ferguson & Schneier). 32 entropy pools, forward secrecy. Use `Fortuna.create()`.                                                   |
 
 > [!IMPORTANT]
 > All cryptographic computation runs in WASM (AssemblyScript), isolated outside the JavaScript JIT. The TypeScript layer provides the public API with input validation, type safety, and developer ergonomics.
@@ -159,11 +159,12 @@ cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 ## Quick Start
 
 ### Authenticated encryption with Serpent
-
 ```typescript
 import { init, SerpentSeal, randomBytes } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['serpent', 'sha2'])
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 const key = randomBytes(64)  // 64-byte key (encKey + macKey)
 
@@ -179,11 +180,11 @@ seal.dispose()
 ```
 
 ### Authenticated encryption with XChaCha20
-
 ```typescript
 import { init, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 const key = randomBytes(32)  // 32-byte key
 
@@ -203,41 +204,49 @@ see the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
 
 ---
 
-## Loading Modes
-
+## Loading
 ```typescript
-// Embedded (default): zero-config, base64-encoded WASM inline
-await init(['serpent', 'sha3'])
+import { init } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-// Streaming: uses instantiateStreaming for performance
-await init(['serpent'], 'streaming', { wasmUrl: '/assets/wasm/' })
+// Embedded: gzip+base64 blobs bundled in the package
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
-// Manual: provide your own binary
-await init(['serpent'], 'manual', { wasmBinary: { serpent: myBuffer } })
+// URL: streaming compilation from a served .wasm file
+await init({ serpent: new URL('/assets/wasm/serpent.wasm', import.meta.url) })
+
+// Pre-compiled: pass a WebAssembly.Module directly (edge runtimes, KV cache)
+await init({ serpent: compiledModule })
 ```
 
 ### Tree-shaking with subpath imports
 
-Each cipher ships as its own subpath export. A bundler with tree-shaking
+Each module ships as its own subpath export. A bundler with tree-shaking
 support and `"sideEffects": false` will exclude every module you don't import:
-
 ```typescript
-// Only serpent.wasm ends up in your bundle
-import { serpentInit, SerpentSeal } from 'leviathan-crypto/serpent'
-await serpentInit()
+// Only serpent.wasm + sha2.wasm end up in your bundle
+import { serpentInit } from 'leviathan-crypto/serpent'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Init } from 'leviathan-crypto/sha2'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-// Only chacha20.wasm ends up in your bundle
-import { chacha20Init, XChaCha20Seal } from 'leviathan-crypto/chacha20'
-await chacha20Init()
+await serpentInit(serpentWasm)
+await sha2Init(sha2Wasm)
 ```
 
-| Subpath                     | Entry point                |
-| --------------------------- | -------------------------- |
-| `leviathan-crypto`          | `./dist/index.js`          |
-| `leviathan-crypto/serpent`  | `./dist/serpent/index.js`  |
-| `leviathan-crypto/chacha20` | `./dist/chacha20/index.js` |
-| `leviathan-crypto/sha2`     | `./dist/sha2/index.js`     |
-| `leviathan-crypto/sha3`     | `./dist/sha3/index.js`     |
+| Subpath                            | Entry point                    |
+| ---------------------------------- | ------------------------------ |
+| `leviathan-crypto`                 | `./dist/index.js`              |
+| `leviathan-crypto/stream`          | `./dist/stream/index.js`       |
+| `leviathan-crypto/serpent`         | `./dist/serpent/index.js`      |
+| `leviathan-crypto/serpent/embedded`| `./dist/serpent/embedded.js`   |
+| `leviathan-crypto/chacha20`        | `./dist/chacha20/index.js`     |
+| `leviathan-crypto/chacha20/embedded`| `./dist/chacha20/embedded.js` |
+| `leviathan-crypto/sha2`            | `./dist/sha2/index.js`         |
+| `leviathan-crypto/sha2/embedded`   | `./dist/sha2/embedded.js`      |
+| `leviathan-crypto/sha3`            | `./dist/sha3/index.js`         |
+| `leviathan-crypto/sha3/embedded`   | `./dist/sha3/embedded.js`      |
 
 ---
 

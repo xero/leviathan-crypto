@@ -82,24 +82,25 @@ correct API. For protocol interop requiring explicit nonce control, use
 Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `chacha20Init(mode?, opts?)`
+### `chacha20Init(source)`
 
 Initializes only the chacha20 WASM binary. Equivalent to calling the
-root `init(['chacha20'], mode, opts)` but without pulling the other three
+root `init({ chacha20: chacha20Wasm })` but without pulling the other three
 modules into the bundle.
 
 **Signature:**
 
 ```typescript
-async function chacha20Init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function chacha20Init(source: WasmSource): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
 import { chacha20Init, XChaCha20Poly1305 } from 'leviathan-crypto/chacha20'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await chacha20Init()
+await chacha20Init(chacha20Wasm)
 const aead = new XChaCha20Poly1305()
 ```
 
@@ -107,10 +108,10 @@ const aead = new XChaCha20Poly1305()
 
 ## API Reference
 
-All classes require calling `await init(['chacha20'])` or the subpath `chacha20Init()`
+All classes require calling `await init({ chacha20: chacha20Wasm })` or the subpath `chacha20Init()`
 before construction. If you construct a class before initialization, it throws:
 ```
-Error: leviathan-crypto: call init(['chacha20']) before using this class
+Error: leviathan-crypto: call init({ chacha20: ... }) before using this class
 ```
 
 ---
@@ -126,7 +127,7 @@ unless you are building a custom protocol and understand the risks.
 new ChaCha20()
 ```
 
-Throws if `init(['chacha20'])` has not been called.
+Throws if `init({ chacha20: chacha20Wasm })` has not been called.
 
 ---
 
@@ -202,7 +203,7 @@ handle Poly1305 key derivation automatically.
 new Poly1305()
 ```
 
-Throws if `init(['chacha20'])` has not been called.
+Throws if `init({ chacha20: chacha20Wasm })` has not been called.
 
 ---
 
@@ -242,13 +243,19 @@ to avoid collision risk.
 new ChaCha20Poly1305()
 ```
 
-Throws if `init(['chacha20'])` has not been called.
+Throws if `init({ chacha20: chacha20Wasm })` has not been called.
 
 ---
 
-#### `encrypt(key, nonce, plaintext, aad?): { ciphertext: Uint8Array; tag: Uint8Array }`
+#### `encrypt(key, nonce, plaintext, aad?): Uint8Array`
 
-Encrypts plaintext and produces a 16-byte authentication tag.
+Encrypts plaintext and returns the ciphertext with the 16-byte Poly1305 tag
+appended.
+
+> [!WARNING]
+> Each `ChaCha20Poly1305` instance allows only **one** `encrypt()` call. A second
+> call throws to prevent accidental nonce reuse. Create a new instance for each
+> encryption, or use `XChaCha20Seal` for automatic nonce management.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -257,20 +264,22 @@ Encrypts plaintext and produces a 16-byte authentication tag.
 | `plaintext` | `Uint8Array` | | Data to encrypt (up to the module's chunk size limit) |
 | `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data — authenticated but not encrypted |
 
-**Returns** `{ ciphertext: Uint8Array; tag: Uint8Array }` — the ciphertext (same
-length as plaintext) and a 16-byte authentication tag. You need both to decrypt.
+**Returns** `Uint8Array` — ciphertext + 16-byte tag (length = plaintext.length + 16).
 
 **Throws:**
 - `RangeError` if `key` is not 32 bytes
 - `RangeError` if `nonce` is not 12 bytes
 - `RangeError` if `plaintext` exceeds the maximum chunk size
+- `Error` if `encrypt()` has already been called on this instance
 
 ---
 
-#### `decrypt(key, nonce, ciphertext, tag, aad?): Uint8Array`
+#### `decrypt(key, nonce, ciphertext, aad?): Uint8Array`
 
-Verifies the authentication tag and decrypts the ciphertext. If authentication
-fails, an error is thrown and no plaintext is returned.
+Verifies the authentication tag and decrypts the ciphertext. The `ciphertext`
+parameter must include the appended 16-byte tag (i.e., the exact output of
+`encrypt()`). If authentication fails, an error is thrown and no plaintext is
+returned.
 
 Tag comparison uses a constant-time XOR-accumulate pattern — no timing side
 channel leaks whether the tag was "close" to correct.
@@ -279,8 +288,7 @@ channel leaks whether the tag was "close" to correct.
 |-----------|------|---------|-------------|
 | `key` | `Uint8Array` | | 32 bytes (same key used for encryption) |
 | `nonce` | `Uint8Array` | | 12 bytes (same nonce used for encryption) |
-| `ciphertext` | `Uint8Array` | | Encrypted data |
-| `tag` | `Uint8Array` | | 16-byte authentication tag from `encrypt()` |
+| `ciphertext` | `Uint8Array` | | Encrypted data with appended tag (output of `encrypt()`) |
 | `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data (must match what was passed to `encrypt()`) |
 
 **Returns** `Uint8Array` — the decrypted plaintext.
@@ -288,8 +296,7 @@ channel leaks whether the tag was "close" to correct.
 **Throws:**
 - `RangeError` if `key` is not 32 bytes
 - `RangeError` if `nonce` is not 12 bytes
-- `RangeError` if `tag` is not 16 bytes
-- `RangeError` if `ciphertext` exceeds the maximum chunk size
+- `RangeError` if `ciphertext` is shorter than 16 bytes (no room for a tag)
 - `Error('ChaCha20Poly1305: authentication failed')` if the tag does not match
 
 ---
@@ -311,7 +318,7 @@ It uses a 24-byte (192-bit) nonce, which is large enough that randomly generated
 nonces will never collide in practice. Internally, it derives a subkey via
 HChaCha20 and delegates to `ChaCha20Poly1305`.
 
-Unlike `ChaCha20Poly1305`, the `encrypt()` method returns a single `Uint8Array`
+Like `ChaCha20Poly1305`, the `encrypt()` method returns a single `Uint8Array`
 with the tag appended to the ciphertext. The `decrypt()` method expects this
 combined format and splits it internally.
 
@@ -321,7 +328,7 @@ combined format and splits it internally.
 new XChaCha20Poly1305()
 ```
 
-Throws if `init(['chacha20'])` has not been called.
+Throws if `init({ chacha20: chacha20Wasm })` has not been called.
 
 ---
 
@@ -394,7 +401,7 @@ internally, eliminating any risk of nonce reuse.
 new XChaCha20Seal(key: Uint8Array)   // 32 bytes
 ```
 
-Binds the key at construction. Throws if `init(['chacha20'])` has not been
+Binds the key at construction. Throws if `init({ chacha20: chacha20Wasm })` has not been
 called. Throws `RangeError` if key is not 32 bytes. The key is copied
 internally — the caller's buffer can be wiped after construction.
 
@@ -440,7 +447,7 @@ Wipes the key copy and all WASM buffers.
 #### Usage
 
 ```typescript
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 const key  = randomBytes(32)
 const seal = new XChaCha20Seal(key)
 const ct   = seal.encrypt(plaintext)               // nonce generated internally
@@ -450,132 +457,30 @@ seal.dispose()
 
 ---
 
-## `XChaCha20StreamSealer` / `XChaCha20StreamOpener`
+## XChaCha20Cipher
 
-Incremental streaming AEAD using XChaCha20-Poly1305 — counterpart to
-`SerpentStreamSealer` / `SerpentStreamOpener` for the ChaCha20 family.
+`CipherSuite` implementation for XChaCha20-Poly1305. Used with `SealStream` and `OpenStream` for streaming encryption.
 
-Each chunk is independently encrypted with `XChaCha20-Poly1305` using a fresh
-random 24-byte nonce. Stream binding (preventing cross-stream splice and
-reordering) is achieved through per-chunk AAD that includes the stream ID,
-chunk index, and finality flag. Simpler than `SerpentStreamSealer` — no HKDF
-key derivation, no separate HMAC.
+```ts
+import { SealStream } from 'leviathan-crypto/stream';
+import { XChaCha20Cipher } from 'leviathan-crypto/chacha20';
 
-**Wire format:**
-```
-header:  stream_id (16) || chunkSize_u32be (4)                          = 20 bytes
-chunk:   isLast (1) || nonce (24) || ciphertext || tag (16)
+const sealer = new SealStream(XChaCha20Cipher, key);
 ```
 
-```typescript
-class XChaCha20StreamSealer {
-	constructor(key: Uint8Array, chunkSize?: number, opts?: {
-		framed?: boolean;
-		aad?: Uint8Array;
-	})
-	header(): Uint8Array
-	seal(plaintext: Uint8Array): Uint8Array
-	final(plaintext: Uint8Array): Uint8Array
-	dispose(): void
-}
+| Property | Value |
+|----------|-------|
+| `formatEnum` | `0x01` |
+| `keySize` | `32` |
+| `tagSize` | `16` (Poly1305) |
+| `padded` | `false` |
+| `wasmModules` | `['chacha20']` |
 
-class XChaCha20StreamOpener {
-	constructor(key: Uint8Array, header: Uint8Array, opts?: {
-		framed?: boolean;
-		aad?: Uint8Array;
-	})
-	open(chunk: Uint8Array): Uint8Array
-	feed(bytes: Uint8Array): Uint8Array[]
-	dispose(): void
-}
-```
+> [!NOTE]
+> The stream layer requires `sha2` for HKDF key derivation. Initialize both
+> modules: `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })`.
 
-- **key** — 32 bytes. Throws `RangeError` if wrong length.
-- **chunkSize** — 1024–65536. Default: 65536.
-- **opts.framed** — prepend `u32be(sealedLen)` to each output for flat streams.
-- **opts.aad** — associated data folded into every chunk's internal AAD.
-
-The API shape is identical to `SerpentStreamSealer` / `SerpentStreamOpener` —
-same state machine (`fresh → sealing → dead`), same `header()` / `seal()` /
-`final()` / `open()` / `feed()` contract.
-
-#### Usage
-
-```typescript
-await init(['chacha20'])
-
-const key    = randomBytes(32)
-const sealer = new XChaCha20StreamSealer(key, 65536)
-const header = sealer.header()
-
-const chunk0 = sealer.seal(data0)        // exactly chunkSize bytes
-const last   = sealer.final(tail)        // any size up to chunkSize; wipes key
-
-const opener = new XChaCha20StreamOpener(key, header)
-const pt0    = opener.open(chunk0)       // throws on auth failure
-const ptLast = opener.open(last)
-```
-
----
-
-## `XChaCha20StreamPool`
-
-Parallel worker pool for chunked XChaCha20-Poly1305 streaming AEAD. Counterpart
-to `SerpentStreamPool`. Dispatches chunk-level encrypt/decrypt across Web Workers,
-each with its own WASM instance and isolated linear memory.
-
-Same chunk-level crypto as `XChaCha20StreamSealer` (per-chunk random nonce,
-position-bound AAD). Different wire format header — 28 bytes with `chunkCount`
-for parallel open, vs the sealer's 20-byte header.
-
-**Wire format:**
-```
-header:  stream_id (16) || chunkSize_u32be (4) || chunkCount_u64be (8) = 28 bytes
-chunk:   isLast (1) || nonce (24) || ciphertext || tag (16)
-```
-
-```typescript
-class XChaCha20StreamPool {
-	static async create(opts?: { workers?: number }): Promise<XChaCha20StreamPool>
-	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number, opts?: { aad?: Uint8Array }): Promise<Uint8Array>
-	open(key: Uint8Array, ciphertext: Uint8Array, opts?: { aad?: Uint8Array }): Promise<Uint8Array>
-	dispose(): void
-	get size(): number
-	get queueDepth(): number
-}
-```
-
-- **key** — 32 bytes.
-- **chunkSize** — 1024–65536. Default: 65536.
-- **opts.aad** — associated data folded into every chunk's internal AAD.
-
-#### Usage
-
-```typescript
-await init(['chacha20'])
-
-const pool = await XChaCha20StreamPool.create({ workers: 4 })
-const key  = randomBytes(32)
-
-const sealed    = await pool.seal(key, largePlaintext, 65536)
-const recovered = await pool.open(key, sealed)
-
-pool.dispose()
-```
-
----
-
-## Parallel pool — `XChaCha20Poly1305Pool`
-
-For high-throughput workloads where multiple XChaCha20-Poly1305 operations should
-run concurrently, `XChaCha20Poly1305Pool` dispatches work across a configurable
-number of Web Workers, each holding an isolated `chacha20.wasm` instance in its own
-linear memory. This removes the single-threaded bottleneck of a shared WASM
-instance and allows encryption and decryption operations to proceed in parallel.
-The pool requires `init(['chacha20'])` to be called before construction and is
-created via the static factory `XChaCha20Poly1305Pool.create(opts?)` — see
-[chacha20_pool.md](./chacha20_pool.md) for the full API reference, pool sizing
-guidance, and lifecycle docs.
+See stream documentation for full `SealStream`/`OpenStream` API.
 
 ---
 
@@ -588,9 +493,10 @@ nonces are generated internally, no nonce management needed.
 
 ```typescript
 import { init, XChaCha20Seal, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
 // Step 1: Initialize the chacha20 WASM module (once, at application startup)
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 // Step 2: Generate a 256-bit encryption key
 const key = randomBytes(32)
@@ -619,15 +525,20 @@ seal.dispose()
 Same idea as above, but with a 12-byte nonce. Use this if you are implementing
 a protocol that specifies RFC 8439 ChaCha20-Poly1305 explicitly.
 
-Note the differences from `XChaCha20Poly1305`:
-- The nonce is 12 bytes, not 24
-- `encrypt()` returns `{ ciphertext, tag }` as separate fields
-- `decrypt()` takes the tag as a separate parameter
+Both `ChaCha20Poly1305` and `XChaCha20Poly1305` return a single `Uint8Array`
+with the tag appended, and `decrypt()` expects the same combined format.
+The only difference is the nonce size (12 vs 24 bytes).
+
+> [!NOTE]
+> Each `ChaCha20Poly1305` instance allows only one `encrypt()` call. A second
+> call throws to prevent accidental nonce reuse. Create a new instance for each
+> encryption.
 
 ```typescript
 import { init, ChaCha20Poly1305, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 const key = randomBytes(32)
 const aead = new ChaCha20Poly1305()
@@ -635,14 +546,16 @@ const aead = new ChaCha20Poly1305()
 // Encrypt
 const nonce = randomBytes(12)     // 12 bytes — be cautious with random generation under high volume
 const plaintext = utf8ToBytes('Sensitive data')
-const { ciphertext, tag } = aead.encrypt(key, nonce, plaintext)
-// You must store/transmit nonce, ciphertext, AND tag — all three are needed to decrypt
+const sealed = aead.encrypt(key, nonce, plaintext)
+// sealed = ciphertext || tag(16) — store/transmit nonce and sealed together
 
-// Decrypt
-const decrypted = aead.decrypt(key, nonce, ciphertext, tag)
+// Decrypt (new instance — encrypt is single-use)
+const aead2 = new ChaCha20Poly1305()
+const decrypted = aead2.decrypt(key, nonce, sealed)
 console.log(bytesToUtf8(decrypted))  // "Sensitive data"
 
 aead.dispose()
+aead2.dispose()
 ```
 
 ### Example 3: Detecting Tampered Ciphertext
@@ -653,8 +566,9 @@ corrupted or maliciously altered data.
 
 ```typescript
 import { init, XChaCha20Seal, randomBytes, utf8ToBytes } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 const seal = new XChaCha20Seal(randomBytes(32))
 
@@ -685,8 +599,9 @@ headers, routing information.
 
 ```typescript
 import { init, XChaCha20Seal, randomBytes, utf8ToBytes, bytesToUtf8 } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 const seal = new XChaCha20Seal(randomBytes(32))
 
@@ -721,8 +636,9 @@ arbitrary binary content.
 
 ```typescript
 import { init, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 const seal = new XChaCha20Seal(randomBytes(32))
 
@@ -744,8 +660,9 @@ authentication layer. For almost all use cases, use `XChaCha20Seal` instead.
 
 ```typescript
 import { init, ChaCha20, randomBytes } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 
-await init(['chacha20'])
+await init({ chacha20: chacha20Wasm })
 
 const key = randomBytes(32)
 const nonce = randomBytes(12)
@@ -773,13 +690,14 @@ cipher.dispose()
 
 | Condition | Error Type | Message |
 |-----------|-----------|---------|
-| `init(['chacha20'])` not called before constructing a class | `Error` | `leviathan-crypto: call init(['chacha20']) before using this class` |
+| `init({ chacha20: ... })` not called before constructing a class | `Error` | `leviathan-crypto: call init({ chacha20: ... }) before using this class` |
 | Key is not 32 bytes | `RangeError` | `ChaCha20 key must be 32 bytes (got N)` / `key must be 32 bytes (got N)` / `Poly1305 key must be 32 bytes (got N)` |
 | `ChaCha20` nonce is not 12 bytes | `RangeError` | `ChaCha20 nonce must be 12 bytes (got N)` |
 | `ChaCha20Poly1305` nonce is not 12 bytes | `RangeError` | `nonce must be 12 bytes (got N)` |
 | `XChaCha20Poly1305` nonce is not 24 bytes | `RangeError` | `XChaCha20 nonce must be 24 bytes (got N)` |
-| `ChaCha20Poly1305` tag is not 16 bytes | `RangeError` | `tag must be 16 bytes (got N)` |
+| `ChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short — must include 16-byte tag (got N)` |
 | `XChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short — must include 16-byte tag (got N)` |
+| `ChaCha20Poly1305.encrypt()` called a second time | `Error` | Single-use encrypt guard — create a new instance for each encryption |
 | Chunk or plaintext exceeds WASM buffer size | `RangeError` | `plaintext exceeds N bytes — split into smaller chunks` / `chunk exceeds maximum size of N bytes — split into smaller chunks` |
 | Authentication tag does not match on decrypt | `Error` | `ChaCha20Poly1305: authentication failed` |
 | Empty plaintext | — | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
@@ -788,7 +706,6 @@ cipher.dispose()
 >
 > - [index](./README.md) — Project Documentation index
 > - [asm_chacha](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-> - [chacha20_pool](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
 > - [serpent](./serpent.md) — alternative: Serpent block cipher modes (CBC, CTR — unauthenticated, needs HMAC pairing)
 > - [sha2](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
 > - [types](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes

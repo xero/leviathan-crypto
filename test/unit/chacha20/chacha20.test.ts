@@ -29,6 +29,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, ChaCha20 } from '../../../src/ts/index.js';
 import { chacha20BlockVectors, chacha20EncryptionVectors } from '../../vectors/chacha20.js';
+import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 
 const toHex = (b: Uint8Array): string =>
 	Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
@@ -37,7 +38,7 @@ const fromHex = (h: string): Uint8Array =>
 	Uint8Array.from(h.match(/.{2}/g)!.map(b => parseInt(b, 16)));
 
 beforeAll(async () => {
-	await init('chacha20');
+	await init({ chacha20: chacha20Wasm });
 });
 
 describe('ChaCha20 — RFC 8439 vectors', () => {

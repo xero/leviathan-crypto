@@ -1,18 +1,21 @@
 # Leviathan Crypto Library: CDN Usage
 
 >[!NOTE]
-> leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com). All three [WASM loading modes](./init.md#usage-examples) work directly from the CDN with no install or bundler required.
+> leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com). All `WasmSource` types work directly from the CDN with no install or bundler required.
 
 ## Embedded mode (Zero config)
 
-This is the default mode. WASM is baked into the JS as base64, so there are no
-extra network requests beyond the module files themselves.
+Import the embedded blobs alongside the main library. WASM is baked into the JS
+as gzip+base64, so there are no extra network requests beyond the module files
+themselves.
 
 ```html
 <script type="module">
-  import { init, SerpentSeal, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js'
+  import { init, SerpentSeal, randomBytes } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/embedded.js'
+  import { sha2Wasm } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/embedded.js'
 
-  await init(['serpent', 'sha2'])
+  await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
   const key        = randomBytes(64)
   const seal       = new SerpentSeal()
@@ -24,34 +27,31 @@ extra network requests beyond the module files themselves.
 </script>
 ```
 
-[Subpath imports](init#initmodules-mode-opts--public-api-exported-from-root-barrel) also work with full URLs:
-
+Subpath imports also work with full URLs:
 
 ```html
 <script type="module">
-  import { serpentInit, SerpentSeal } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/serpent/index.js'
+  import { serpentInit, SerpentSeal } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/embedded.js'
 
-  await serpentInit()
+  await serpentInit(serpentWasm)
   // ...
 </script>
 ```
 
 ---
 
-## Streaming mode
+## URL-based loading
 
-Uses [`WebAssembly.instantiateStreaming`](./loader.md#loadstreaming) to compile
-WASM directly from the network response. This is more efficient than the
-embedded base64 path for performance-sensitive applications. Pass `wasmUrl`
-pointing at the directory containing the `.wasm` files.
+Pass a `URL` pointing at the `.wasm` file on the CDN. The browser uses
+`WebAssembly.compileStreaming` to compile the binary while it downloads.
 
 ```html
 <script type="module">
-  // can point at unpkg or your own CDN
-  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js'
+  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js'
 
-  await init(['sha2'], 'streaming', {
-    wasmUrl: 'https://unpkg.com/leviathan-crypto@1.4.0/dist/'
+  await init({
+    sha2: new URL('https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2.wasm')
   })
 
   const sha    = new SHA256()
@@ -61,7 +61,7 @@ pointing at the directory containing the `.wasm` files.
 </script>
 ```
 
-[`init()`](./init.md) appends the module's filename to `wasmUrl` automatically.
+The server must respond with `Content-Type: application/wasm`.
 
 **WASM filenames by module:**
 
@@ -74,28 +74,23 @@ pointing at the directory containing the `.wasm` files.
 
 ---
 
-## Manual mode
+## Manual loading (fetch + ArrayBuffer)
 
-Fetch the WASM binary yourself and hand it to [`init()`](./init.md#manual-mode-full-control).
-Useful when you want to cache the binary, load from a custom endpoint, or verify integrity
+Fetch the WASM binary yourself and pass the `ArrayBuffer` directly. Useful when
+you want to cache the binary, load from a custom endpoint, or verify integrity
 before instantiation.
-
-See [`InitOpts.wasmBinary`](./init.md#types) for the full manual mode API.
 
 ```html
 <script type="module">
-  // can point to unpkg or your own CDN
-  import { init, XChaCha20Seal, randomBytes } from 'https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js'
+  import { init, XChaCha20Seal, randomBytes } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js'
 
-  const res = await fetch('https://unpkg.com/leviathan-crypto@1.4.0/dist/chacha20.wasm', {
+  const res = await fetch('https://unpkg.com/leviathan-crypto@2.0.0/dist/chacha20.wasm', {
     // integrity hash is version-specific, update when upgrading
     integrity: 'sha384-...'
   })
-  const binary = await res.arrayBuffer()
+  const binary = new Uint8Array(await res.arrayBuffer())
 
-  await init(['chacha20'], 'manual', {
-    wasmBinary: { chacha20: binary }
-  })
+  await init({ chacha20: binary })
 
   const seal      = new XChaCha20Seal(randomBytes(32))
   const sealed    = seal.encrypt(new TextEncoder().encode('manual mode'))
@@ -122,17 +117,24 @@ If you want the same import style as the npm docs, add one before your module sc
 <script type="importmap">
 {
   "imports": {
-    "leviathan-crypto":          "https://unpkg.com/leviathan-crypto@1.4.0/dist/index.js",
-    "leviathan-crypto/serpent":  "https://unpkg.com/leviathan-crypto@1.4.0/dist/serpent/index.js",
-    "leviathan-crypto/chacha20": "https://unpkg.com/leviathan-crypto@1.4.0/dist/chacha20/index.js",
-    "leviathan-crypto/sha2":     "https://unpkg.com/leviathan-crypto@1.4.0/dist/sha2/index.js",
-    "leviathan-crypto/sha3":     "https://unpkg.com/leviathan-crypto@1.4.0/dist/sha3/index.js"
+    "leviathan-crypto":                    "https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js",
+    "leviathan-crypto/serpent":            "https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/index.js",
+    "leviathan-crypto/serpent/embedded":   "https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/embedded.js",
+    "leviathan-crypto/chacha20":           "https://unpkg.com/leviathan-crypto@2.0.0/dist/chacha20/index.js",
+    "leviathan-crypto/chacha20/embedded":  "https://unpkg.com/leviathan-crypto@2.0.0/dist/chacha20/embedded.js",
+    "leviathan-crypto/sha2":               "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/index.js",
+    "leviathan-crypto/sha2/embedded":      "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/embedded.js",
+    "leviathan-crypto/sha3":               "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha3/index.js",
+    "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha3/embedded.js",
+    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto@2.0.0/dist/stream/index.js"
   }
 }
 </script>
 
 <script type="module">
   import { init, SerpentSeal, randomBytes } from 'leviathan-crypto'
+  import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+  import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
   // identical to the npm usage docs from here
 </script>
 ```
@@ -146,6 +148,6 @@ If you want the same import style as the npm docs, add one before your module sc
 
 > ## Cross-References
 >
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [examples](./examples.md) — Code examples for every primitive
+> - [index](./README.md) -- Project Documentation index
+> - [architecture](./architecture.md) -- architecture overview, module relationships, buffer layouts, and build pipeline
+> - [examples](./examples.md) -- Code examples for every primitive

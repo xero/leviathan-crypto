@@ -34,6 +34,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
 import { chacha20EncryptionVectors } from '../../vectors/chacha20.js';
+import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 
 interface ChachaSIMDExports {
 	memory:                  WebAssembly.Memory
@@ -60,7 +61,7 @@ function toHex(b: Uint8Array): string {
 }
 
 beforeAll(async () => {
-	await init('chacha20');
+	await init({ chacha20: chacha20Wasm });
 });
 
 describe('ChaCha20 SIMD cross-check — RFC vectors via chachaEncryptChunk_simd', () => {

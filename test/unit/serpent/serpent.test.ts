@@ -27,13 +27,15 @@ import {
 	init, _resetForTesting,
 	SerpentSeal, SerpentCbc, SerpentCtr,
 } from '../../../src/ts/index.js';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 
 let seal: SerpentSeal;
 const key = new Uint8Array(64);
 for (let i = 0; i < 64; i++) key[i] = i;
 
 beforeAll(async () => {
-	await init(['serpent', 'sha2']);
+	await init({ serpent: serpentWasm, sha2: sha2Wasm });
 	seal = new SerpentSeal();
 });
 
@@ -53,7 +55,7 @@ describe('SerpentSeal', () => {
 		const ct = seal.encrypt(key, pt).slice();
 		// Flip a byte in the tag (last 32 bytes)
 		ct[ct.length - 1] ^= 0x01;
-		expect(() => seal.decrypt(key, ct)).toThrow('SerpentSeal: authentication failed');
+		expect(() => seal.decrypt(key, ct)).toThrow('serpent: authentication failed');
 	});
 
 	it('decrypt() throws on ciphertext corruption', () => {
@@ -61,7 +63,7 @@ describe('SerpentSeal', () => {
 		const ct = seal.encrypt(key, pt).slice();
 		// Flip a byte in the ciphertext portion (between iv and tag)
 		ct[20] ^= 0x01;
-		expect(() => seal.decrypt(key, ct)).toThrow('SerpentSeal: authentication failed');
+		expect(() => seal.decrypt(key, ct)).toThrow('serpent: authentication failed');
 	});
 
 	it('decrypt() throws on iv corruption', () => {
@@ -69,7 +71,7 @@ describe('SerpentSeal', () => {
 		const ct = seal.encrypt(key, pt).slice();
 		// Flip a byte in the IV (first 16 bytes)
 		ct[0] ^= 0x01;
-		expect(() => seal.decrypt(key, ct)).toThrow('SerpentSeal: authentication failed');
+		expect(() => seal.decrypt(key, ct)).toThrow('serpent: authentication failed');
 	});
 
 	it('two encrypt() calls with same key and plaintext produce different output', () => {
@@ -119,22 +121,22 @@ describe('SerpentSeal', () => {
 describe('SerpentSeal — init guards', () => {
 	it('constructor throws if serpent not initialized', async () => {
 		_resetForTesting();
-		await init('sha2');
+		await init({ sha2: sha2Wasm });
 		expect(() => new SerpentSeal()).toThrow(
-			'leviathan-crypto: call init([\'serpent\', \'sha2\']) before using SerpentSeal'
+			'leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using SerpentSeal'
 		);
 		// Restore
-		await init(['serpent', 'sha2']);
+		await init({ serpent: serpentWasm, sha2: sha2Wasm });
 	});
 
 	it('constructor throws if sha2 not initialized', async () => {
 		_resetForTesting();
-		await init('serpent');
+		await init({ serpent: serpentWasm });
 		expect(() => new SerpentSeal()).toThrow(
-			'leviathan-crypto: call init([\'serpent\', \'sha2\']) before using SerpentSeal'
+			'leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using SerpentSeal'
 		);
 		// Restore
-		await init(['serpent', 'sha2']);
+		await init({ serpent: serpentWasm, sha2: sha2Wasm });
 	});
 });
 

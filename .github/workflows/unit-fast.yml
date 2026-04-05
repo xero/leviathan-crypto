@@ -21,19 +21,26 @@ jobs:
         run: >
           bun vitest run --reporter=verbose --no-coverage
           test/unit/init.test.ts
+          test/unit/errors.test.ts
           test/unit/serpent/serpent_kat.test.ts
           test/unit/serpent/serpent_iv.test.ts
           test/unit/serpent/serpent_sbox.test.ts
           test/unit/serpent/serpent_ctr.test.ts
           test/unit/serpent/serpent_cbc.test.ts
-          test/unit/serpent/serpent_stream.test.ts
-          test/unit/serpent/serpent_stream_sealer.test.ts
           test/unit/serpent/serpent_wipe.test.ts
+          test/unit/serpent/serpent.test.ts
+          test/unit/serpent/serpent_seal_kat.test.ts
           test/unit/serpent/serpent_simd_gate.test.ts
           test/unit/serpent/serpent_simd_ctr.test.ts
           test/unit/serpent/serpent_simd_cbc_gate.test.ts
           test/unit/serpent/serpent_simd_cbc.test.ts
           test/unit/chacha20/chacha20.test.ts
+          test/unit/chacha20/chacha20_simd.test.ts
+          test/unit/chacha20/chacha20_simd_4x_gate.test.ts
           test/unit/chacha20/poly1305.test.ts
           test/unit/chacha20/chacha20poly1305.test.ts
           test/unit/chacha20/xchacha20.test.ts
+          test/unit/chacha20/xchacha20seal.test.ts
+          test/unit/stream/header.test.ts
+          test/unit/stream/sealstream.test.ts
+          test/unit/stream/sealstream_kat.test.ts

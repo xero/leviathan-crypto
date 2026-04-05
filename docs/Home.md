@@ -33,7 +33,11 @@ No bundler? Load directly from a CDN. See: [CDN usage](cdn.md).
 ```typescript
 import { init, SerpentSeal, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
 
-await init(['serpent', 'sha2', 'chacha20'])
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ serpent: serpentWasm, sha2: sha2Wasm, chacha20: chacha20Wasm })
 
 // Serpent-256
 const sKey       = randomBytes(64)

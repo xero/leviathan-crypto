@@ -289,21 +289,19 @@ The MAC covers `IV || ciphertext` (`seal.ts:51`), not just ciphertext. This bind
 
 On decrypt, the tag is verified before decryption (`seal.ts:65–67`) — correct Encrypt-then-MAC order.
 
-#### SerpentStream (CTR + HMAC + HKDF)
+#### SerpentCipher (CBC + HMAC + HKDF)
 
-`SerpentStream` (`src/ts/serpent/stream.ts`) uses HKDF-SHA256 to derive per-chunk `encKey` and `macKey` from a master key:
+`SerpentCipher` (`src/ts/serpent/cipher-suite.ts`) uses HKDF-SHA256 to derive three keys from a master key at stream construction:
 
 ```typescript
-function deriveChunkKeys(hkdf, masterKey, streamNonce, index) {
-    const derived = hkdf.deriveKey(masterKey, info, 64);
-    return { encKey: derived.subarray(0, 32), macKey: derived.subarray(32, 64) };
-}
+const derived = hkdf.derive(masterKey, nonce, INFO, 96);
+// bytes[0:32]=enc_key, bytes[32:64]=mac_key, bytes[64:96]=iv_key
 ```
 
-Each chunk gets independent encryption and MAC keys derived from `(masterKey, streamNonce, chunkIndex)`. This provides:
-- **Key separation:** `encKey` and `macKey` are derived from disjoint portions of the HKDF output
-- **Per-chunk isolation:** Compromising one chunk's keys does not reveal other chunks' keys
-- **Position binding:** The chunk index is part of the HKDF info, binding each key pair to its position
+The three keys provide:
+- **Key separation:** `enc_key`, `mac_key`, and `iv_key` are derived from disjoint portions of the HKDF output (T(1), T(2), T(3))
+- **Position binding:** The HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`, binding authentication to chunk position and associated data
+- **IV derivation:** Per-chunk CBC IV is `HMAC-SHA-256(iv_key, counterNonce)[0:16]`, deterministically derived on both sides
 
 #### HKDF-SHA256
 
@@ -319,6 +317,6 @@ Each chunk gets independent encryption and MAC keys derived from `(masterKey, st
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [sha2_audit](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
 > - [hkdf_audit](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
-> - [serpent_audit](./serpent_audit.md) — HMAC-SHA256 used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
+> - [serpent_audit](./serpent_audit.md) — HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
 > - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 uses a different MAC (Poly1305)
 > - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit

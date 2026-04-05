@@ -182,6 +182,23 @@ These are decisions already made. Do not relitigate them without raising it firs
   by `scripts/embed-wasm.ts`. Do not create or edit them manually.
 - **`sideEffects: false`** in `package.json`. Every module must be genuinely
   side-effect-free for tree-shaking.
+- **`stream/` is cipher-agnostic**: `SealStream`, `OpenStream`, and
+  `SealStreamPool` take a `CipherSuite` object at construction. The two
+  shipped implementations are `XChaCha20Cipher` and `SerpentCipher`. Do not
+  add cipher-specific stream classes — the generic pattern replaces them.
+- **Stream layer requires sha2**: HKDF-SHA256 is a stream-layer dependency,
+  not a cipher choice. All stream classes validate `isInitialized('sha2')`
+  and throw if not. This is separate from the cipher's own module requirements.
+- **Pool workers bypass the module cache**: each worker instantiates its own
+  WASM from pre-compiled `WebAssembly.Module` objects. They do not call
+  `initModule()` or share the main-thread cache.
+- **`/embedded` subpath exports**: each module has a `*/embedded.ts` that
+  re-exports the gzip+base64 blob as a named export (`serpentWasm`,
+  `chacha20Wasm`, etc.). The `src/ts/embedded/` directory is the generated
+  source; the per-module files re-export from it.
+- **Single-use encrypt guards**: `SealStream.finalize()`, `SealStreamPool.seal()`,
+  `ChaCha20Poly1305.encrypt()`, and `XChaCha20Poly1305.encrypt()` can only be
+  called once per instance. This prevents nonce reuse.
 
 ---
 
@@ -211,8 +228,9 @@ cryptographic values or algorithm behavior. The spec is. If a doc contradicts
 the spec, the spec wins and the doc is wrong.
 
 However, docs ARE authoritative on API shape. If `docs/serpent.md` says
-`serpentInit(mode?, opts?)` and the source says something different, that is
-a discrepancy that must be flagged, not silently resolved in either direction.
+`SerpentCipher` has `formatEnum: 0x02` and the source says something different,
+that is a discrepancy that must be flagged, not silently resolved in either
+direction.
 
 `docs/CLAUDE_consumer.md` ships inside the npm package. It is read by AI
 assistants consuming this library. It must be kept in sync with any public API
@@ -247,6 +265,7 @@ A task is complete when **all** of the following are true:
    - `docs/CLAUDE_consumer.md`
    - `docs/architecture.md` if the module structure changed
    - `docs/test-suite.md` if test counts changed
+   - `docs/stream.md` if the streaming API or wire format changed
 
 **Release tasks additionally require:**
 

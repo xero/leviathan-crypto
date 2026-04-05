@@ -507,5 +507,5 @@ considered cryptographically secure for all foreseeable use cases.
 >
 > - [index](./README.md) — Project Documentation index
 > - [serpent_audit](./serpent_audit.md) — security audit results: algorithm correctness verification and side-channel analysis
-> - [serpent](./serpent.md) — TypeScript API for Serpent-256 (SerpentSeal, SerpentStream, raw modes)
+> - [serpent](./serpent.md) — TypeScript API for Serpent-256 (SerpentSeal, SerpentCipher, raw modes)
 > - [asm_serpent](./asm_serpent.md) — WASM implementation: bitslice S-boxes, key schedule, CTR/CBC in AssemblyScript

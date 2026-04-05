@@ -19,59 +19,29 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+import type { WasmSource } from './wasm-source.js';
+import { loadWasm } from './loader.js';
+import { hasSIMD } from './utils.js';
+
 export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3'
-
-export type Mode = 'embedded' | 'streaming' | 'manual'
-
-export interface InitOpts {
-  wasmUrl?: URL | string
-  wasmBinary?: Partial<Record<Module, Uint8Array | ArrayBuffer>>
-}
 
 // Module-scope cache: one WebAssembly.Instance per module
 const instances = new Map<Module, WebAssembly.Instance>();
 
-// Map from public module name to WASM filename
-const WASM_FILES: Record<Module, string> = {
-	serpent: 'serpent.wasm',
-	chacha20: 'chacha20.wasm',
-	sha2: 'sha2.wasm',
-	sha3: 'sha3.wasm',
-};
-
-export async function initModule(
-	mod: Module,
-	embeddedThunk: () => Promise<string>,
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
+export async function initModule(mod: Module, source: WasmSource): Promise<void> {
 	if (instances.has(mod)) return;
-
-	let instance: WebAssembly.Instance;
-
-	if (mode === 'embedded') {
-		const { loadEmbedded } = await import('./loader.js');
-		instance = await loadEmbedded(embeddedThunk);
-	} else if (mode === 'streaming') {
-		if (!opts?.wasmUrl) throw new Error('leviathan-crypto: streaming mode requires wasmUrl');
-		const { loadStreaming } = await import('./loader.js');
-		instance = await loadStreaming(mod, opts.wasmUrl, WASM_FILES[mod]);
-	} else if (mode === 'manual') {
-		const binary = opts?.wasmBinary?.[mod];
-		if (!binary) throw new Error(`leviathan-crypto: manual mode requires wasmBinary['${mod}']`);
-		const { loadManual } = await import('./loader.js');
-		instance = await loadManual(binary);
-	} else {
-		throw new Error(`leviathan-crypto: unknown mode '${mode}'`);
-	}
-
-	instances.set(mod, instance);
+	if ((mod === 'serpent' || mod === 'chacha20') && !hasSIMD())
+		throw new Error(
+			'leviathan-crypto: serpent and chacha20 require WebAssembly SIMD — '
+			+ 'this runtime does not support it',
+		);
+	instances.set(mod, await loadWasm(source));
 }
 
 export function getInstance(mod: Module): WebAssembly.Instance {
 	const inst = instances.get(mod);
 	if (!inst) {
-		throw new Error(`leviathan-crypto: call init(['${mod}']) before using this class`);
+		throw new Error(`leviathan-crypto: call init({ ${mod}: ... }) before using this class`);
 	}
 	return inst;
 }

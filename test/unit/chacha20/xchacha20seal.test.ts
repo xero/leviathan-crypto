@@ -22,13 +22,20 @@
 // XChaCha20Seal unit tests.
 //
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init, XChaCha20Seal, randomBytes } from '../../../src/ts/index.js';
+import { init, XChaCha20Seal, AuthenticationError, randomBytes } from '../../../src/ts/index.js';
+import { getInstance } from '../../../src/ts/init.js';
+import type { ChaChaExports } from '../../../src/ts/chacha20/types.js';
+import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
+
+function getWasm() {
+	return getInstance('chacha20').exports as unknown as ChaChaExports;
+}
 
 const toHex = (b: Uint8Array): string =>
 	Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
 
 beforeAll(async () => {
-	await init('chacha20');
+	await init({ chacha20: chacha20Wasm });
 });
 
 // ── Gate ──────────────────────────────────────────────────────────────────────
@@ -175,6 +182,20 @@ describe('XChaCha20Seal — input validation', () => {
 	});
 });
 
+// ── Hidden nonce validation ───────────────────────────────────────────────────
+
+describe('XChaCha20Seal — hidden nonce validation', () => {
+	it('wrong _nonce length throws RangeError', () => {
+		const seal = new XChaCha20Seal(randomBytes(32));
+		const pt = new Uint8Array([0x01, 0x02]);
+		const badNonce = randomBytes(12);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		expect(() => (seal as any).encrypt(pt, new Uint8Array(0), badNonce))
+			.toThrow(/_nonce must be 24 bytes/);
+		seal.dispose();
+	});
+});
+
 // ── Key isolation ─────────────────────────────────────────────────────────────
 
 describe('XChaCha20Seal — key isolation', () => {
@@ -208,5 +229,35 @@ describe('XChaCha20Seal — lifecycle', () => {
 	it('dispose() does not throw', () => {
 		const seal = new XChaCha20Seal(randomBytes(32));
 		expect(() => seal.dispose()).not.toThrow();
+	});
+});
+
+// ── Wipe-before-throw ─────────────────────────────────────────────────────────
+
+describe('XChaCha20Seal — wipe-before-throw', () => {
+	it('WASM chunk output buffer is zeroed after auth failure', () => {
+		const key  = randomBytes(32);
+		const seal = new XChaCha20Seal(key);
+		const pt   = randomBytes(64);
+		const ct   = seal.encrypt(pt);
+
+		// Tamper with the tag (last 16 bytes of the ciphertext payload after nonce)
+		const bad = ct.slice();
+		bad[bad.length - 1] ^= 0xff;
+
+		let caught: unknown;
+		try {
+			seal.decrypt(bad);
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(AuthenticationError);
+
+		// Verify WASM chunk ct buffer is zeroed after wipe
+		const x      = getWasm();
+		const ctOff  = x.getChunkCtOffset();
+		const region = new Uint8Array(x.memory.buffer).slice(ctOff, ctOff + pt.length);
+		expect(Array.from(region).every(b => b === 0)).toBe(true);
+		seal.dispose();
 	});
 });

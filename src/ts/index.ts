@@ -24,37 +24,63 @@ import { serpentInit } from './serpent/index.js';
 import { chacha20Init } from './chacha20/index.js';
 import { sha2Init } from './sha2/index.js';
 import { sha3Init } from './sha3/index.js';
-import type { Module, Mode, InitOpts } from './init.js';
+import type { Module } from './init.js';
+import type { WasmSource } from './wasm-source.js';
+import { hasSIMD } from './utils.js';
 
-const _dispatchers: Record<string, (mode: Mode, opts?: InitOpts) => Promise<void>> = {
+const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	serpent: serpentInit,
 	chacha20: chacha20Init,
 	sha2: sha2Init,
 	sha3: sha3Init,
 };
 
+/**
+ * Load one or more WASM modules. Each key is a module name; the value is the
+ * WasmSource to load it from (embedded blob, URL, ArrayBuffer, etc.).
+ *
+ * ```ts
+ * import { init } from 'leviathan-crypto';
+ * import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
+ * import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded';
+ * await init({ serpent: serpentWasm, sha2: sha2Wasm });
+ * ```
+ */
 export async function init(
-	modules: Module | Module[],
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
+	sources: Partial<Record<Module, WasmSource>>,
 ): Promise<void> {
-	const list = Array.isArray(modules) ? modules : [modules];
-	await Promise.all(list.map(mod => _dispatchers[mod](mode, opts)));
+	const entries = Object.entries(sources) as [string, WasmSource][];
+	// SIMD preflight — serpent and chacha20 modules contain SIMD instructions
+	if (('serpent' in sources || 'chacha20' in sources) && !hasSIMD())
+		throw new Error(
+			'leviathan-crypto: serpent and chacha20 require WebAssembly SIMD — '
+			+ 'this runtime does not support it',
+		);
+	for (const [mod, src] of entries) {
+		if (!Object.hasOwn(_dispatchers, mod))
+			throw new Error(`leviathan-crypto: unknown module "${mod}" — expected one of: ${Object.keys(_dispatchers).join(', ')}`);
+		if (src == null)
+			throw new TypeError(`leviathan-crypto: source for "${mod}" is null or undefined`);
+	}
+	await Promise.all(
+		(entries as [Module, WasmSource][]).map(([mod, src]) => _dispatchers[mod](src)),
+	);
 }
 
-export { type Module, type Mode, type InitOpts, isInitialized, _resetForTesting } from './init.js';
-export { serpentInit, SerpentSeal, Serpent, SerpentCtr, SerpentCbc, SerpentStream, SerpentStreamPool, SerpentStreamSealer, SerpentStreamOpener, _serpentReady } from './serpent/index.js';
-export type { StreamPoolOpts } from './serpent/index.js';
-export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Seal, XChaCha20StreamSealer, XChaCha20StreamOpener, XChaCha20StreamPool, _chachaReady } from './chacha20/index.js';
-export { XChaCha20Poly1305Pool } from './chacha20/pool.js';
-export type { PoolOpts } from './chacha20/pool.js';
+export type { Module, WasmSource };
+export { isInitialized, _resetForTesting } from './init.js';
+export { AuthenticationError } from './errors.js';
+export { serpentInit, SerpentSeal, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, _serpentReady } from './serpent/index.js';
+export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Seal, XChaCha20Cipher, _chachaReady } from './chacha20/index.js';
 export { sha2Init, SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, _sha2Ready } from './sha2/index.js';
 export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, _sha3Ready } from './sha3/index.js';
+export { SealStream, OpenStream, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
+export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';
 export { Fortuna } from './fortuna.js';
 export type { Hash, KeyedHash, Blockcipher, Streamcipher, AEAD } from './types.js';
 export {
 	hexToBytes, bytesToHex, utf8ToBytes, bytesToUtf8,
 	base64ToBytes, bytesToBase64,
 	constantTimeEqual, wipe, xor, concat,
-	randomBytes,
+	randomBytes, hasSIMD,
 } from './utils.js';

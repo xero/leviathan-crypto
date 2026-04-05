@@ -22,6 +22,7 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
+import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
 import {
 	sha3_256Vectors, sha3_512Vectors, sha3_384Vectors, sha3_224Vectors,
 	shake128Vectors, shake256Vectors,
@@ -40,7 +41,7 @@ function fromHex(hex: string): Uint8Array {
 }
 
 beforeAll(async () => {
-	await init('sha3');
+	await init({ sha3: sha3Wasm });
 });
 
 // ── Gate 7: SHA3-256 empty message ──────────────────────────────────────────

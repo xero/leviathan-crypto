@@ -27,7 +27,14 @@
 import { SerpentCbc, _serpentReady } from './index.js';
 import { HMAC_SHA256, _sha2Ready } from '../sha2/index.js';
 import { concat, constantTimeEqual } from '../utils.js';
-import { u32be } from './stream.js';
+import { AuthenticationError } from '../errors.js';
+import { getInstance } from '../init.js';
+
+function u32be(n: number): Uint8Array {
+	const b = new Uint8Array(4);
+	new DataView(b.buffer).setUint32(0, n, false);
+	return b;
+}
 
 export class SerpentSeal {
 	private readonly _cbc: SerpentCbc;
@@ -35,7 +42,7 @@ export class SerpentSeal {
 
 	constructor() {
 		if (!_serpentReady() || !_sha2Ready())
-			throw new Error('leviathan-crypto: call init([\'serpent\', \'sha2\']) before using SerpentSeal');
+			throw new Error('leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using SerpentSeal');
 		this._cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		this._hmac = new HMAC_SHA256();
 	}
@@ -48,8 +55,10 @@ export class SerpentSeal {
 		const macKey = key.subarray(32, 64);
 		// eslint-disable-next-line prefer-rest-params
 		const _iv = arguments[3] as Uint8Array | undefined;
-		const iv = (_iv && _iv.length === 16) ? _iv : new Uint8Array(16);
-		if (!_iv || _iv.length !== 16) crypto.getRandomValues(iv);
+		if (_iv !== undefined && _iv.length !== 16)
+			throw new RangeError(`_iv must be 16 bytes (got ${_iv.length})`);
+		const iv = _iv ?? new Uint8Array(16);
+		if (!_iv) crypto.getRandomValues(iv);
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
 		const tag = this._hmac.hash(macKey, concat(u32be(aadBytes.length), aadBytes, iv, ciphertext));
 		return concat(iv, ciphertext, tag);
@@ -67,9 +76,15 @@ export class SerpentSeal {
 		const tag = data.subarray(data.length - 32);
 		const ciphertext = data.subarray(16, data.length - 32);
 		const expectedTag = this._hmac.hash(macKey, concat(u32be(aadBytes.length), aadBytes, iv, ciphertext));
-		if (!constantTimeEqual(tag, expectedTag))
-			throw new Error('SerpentSeal: authentication failed');
-		return this._cbc.decrypt(encKey, iv, ciphertext);
+		try {
+			if (!constantTimeEqual(tag, expectedTag)) {
+				(getInstance('serpent').exports as { wipeBuffers(): void }).wipeBuffers();
+				throw new AuthenticationError('serpent');
+			}
+			return this._cbc.decrypt(encKey, iv, ciphertext);
+		} finally {
+			expectedTag.fill(0);
+		}
 	}
 
 	dispose(): void {

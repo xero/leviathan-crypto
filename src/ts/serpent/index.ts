@@ -22,20 +22,16 @@
 // src/ts/serpent/index.ts
 //
 // Public API classes for the Serpent-256 WASM module.
-// Uses the init() module cache — call init('serpent') before constructing.
+// Uses the init() module cache — call serpentInit(source) before constructing.
 
 import { getInstance, initModule } from '../init.js';
-import type { Mode, InitOpts } from '../init.js';
-import { hasSIMD } from '../utils.js';
+import type { WasmSource } from '../wasm-source.js';
 
-const _embedded = () => import('../embedded/serpent.js').then(m => m.WASM_GZ_BASE64);
-
-export async function serpentInit(
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
-	return initModule('serpent', _embedded, mode, opts);
+export async function serpentInit(source: WasmSource): Promise<void> {
+	return initModule('serpent', source);
 }
+
+export type { WasmSource };
 
 // Exports needed from the serpent WASM module
 interface SerpentExports {
@@ -156,8 +152,7 @@ export class SerpentCtr {
 		const ptOff = this.x.getChunkPtOffset();
 		const ctOff = this.x.getChunkCtOffset();
 		mem.set(chunk, ptOff);
-		const fn = hasSIMD() ? this.x.encryptChunk_simd : this.x.encryptChunk;
-		fn(chunk.length);
+		this.x.encryptChunk_simd(chunk.length);
 		return mem.slice(ctOff, ctOff + chunk.length);
 	}
 
@@ -264,8 +259,7 @@ export class SerpentCbc {
 		for (let off = 0; off < ciphertext.length; off += maxChunk) {
 			const chunk = ciphertext.subarray(off, Math.min(off + maxChunk, ciphertext.length));
 			this.mem.set(chunk, ctOff);
-			const fn = hasSIMD() ? this.x.cbcDecryptChunk_simd : this.x.cbcDecryptChunk;
-			fn(chunk.length);
+			this.x.cbcDecryptChunk_simd(chunk.length);
 			output.set(new Uint8Array(this.x.memory.buffer).subarray(ptOff, ptOff + chunk.length), off);
 		}
 		return pkcs7Strip(output);
@@ -292,19 +286,11 @@ export class SerpentCbc {
 // ── SerpentSeal re-export ─────────────────────────────────────────────────────
 
 export { SerpentSeal } from './seal.js';
+export { AuthenticationError } from '../errors.js';
 
-// ── SerpentStream re-export ───────────────────────────────────────────────────
+// ── SerpentCipher re-export ───────────────────────────────────────────────────
 
-export { SerpentStream, sealChunk, openChunk } from './stream.js';
-
-// ── SerpentStreamPool re-export ───────────────────────────────────────────────
-
-export { SerpentStreamPool } from './stream-pool.js';
-export type { StreamPoolOpts } from './stream-pool.js';
-
-// ── SerpentStreamSealer / SerpentStreamOpener re-export ───────────────────────
-
-export { SerpentStreamSealer, SerpentStreamOpener } from './stream-sealer.js';
+export { SerpentCipher } from './cipher-suite.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

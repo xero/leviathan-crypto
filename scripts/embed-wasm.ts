@@ -71,4 +71,17 @@ for (const { name, wasm } of modules) {
   console.log(`  ${wasm} → embedded/${name}.ts  (${kb} KB → ${gzKb} KB gzip → ${b64kb} KB base64)`)
 }
 
+// CT module: raw byte array (too small for gzip+base64 — raw is smaller)
+const ctWasmPath = resolve(BUILD_DIR, 'ct.wasm')
+if (!existsSync(ctWasmPath)) {
+  console.error(`Missing: ${ctWasmPath} — run build:asm first`)
+  process.exit(1)
+}
+const ctBytes = readFileSync(ctWasmPath)
+const ctLiteral = `new Uint8Array([${Array.from(ctBytes).join(',')}])`
+const ctOutPath = resolve(ROOT, 'src/ts/ct-wasm.ts')
+writeFileSync(ctOutPath,
+  `// auto-generated — do not edit\n// raw WASM bytes for constant-time comparison module\nexport const CT_WASM = ${ctLiteral};\n`)
+console.log(`  ct.wasm → src/ts/ct-wasm.ts  (${ctBytes.length} bytes raw)`)
+
 console.log('All WASM modules embedded successfully.')

@@ -33,21 +33,23 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 const BUILD_DIR = 'build'
 if (!existsSync(BUILD_DIR)) mkdirSync(BUILD_DIR)
 
-const ASC_OPTS = '--runtime stub --initialMemory 3 --maximumMemory 3 --noAssert --optimizeLevel 3 --shrinkLevel 1'
+const ASC_OPTS = '--runtime stub --noAssert --optimizeLevel 3 --shrinkLevel 1'
 
 const modules = [
-  { name: 'serpent', entry: 'src/asm/serpent/index.ts', extra: '--enable simd' },
-  { name: 'chacha20', entry: 'src/asm/chacha20/index.ts', extra: '--enable simd' },
-  { name: 'sha2',    entry: 'src/asm/sha2/index.ts' },
-  { name: 'sha3',    entry: 'src/asm/sha3/index.ts' },
+  { name: 'serpent', entry: 'src/asm/serpent/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
+  { name: 'chacha20', entry: 'src/asm/chacha20/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
+  { name: 'sha2',    entry: 'src/asm/sha2/index.ts', memory: '--initialMemory 3 --maximumMemory 3' },
+  { name: 'sha3',    entry: 'src/asm/sha3/index.ts', memory: '--initialMemory 3 --maximumMemory 3' },
+  { name: 'ct', entry: 'src/asm/ct/index.ts', memory: '--importMemory --initialMemory 1 --maximumMemory 1', extra: '--enable simd', noSourceMap: true },
 ]
 
-for (const { name, entry, extra = '' } of modules) {
+for (const { name, entry, memory, extra = '', noSourceMap = false } of modules) {
   // --config none: prevent asc from picking up asconfig.json entries
   // when invoked per-module; each module is built with explicit options only.
-  const cmd = `npx asc ${entry} -o build/${name}.wasm --bindings esm --sourceMap --config none ${ASC_OPTS}`
+  const srcMap = noSourceMap ? '' : '--sourceMap'
+  const cmd = `npx asc ${entry} -o build/${name}.wasm --bindings esm ${srcMap} --config none ${ASC_OPTS} ${memory} ${extra}`
   console.log(`  asc ${entry} → build/${name}.wasm + build/${name}.js`)
-  execSync(extra ? `${cmd} ${extra}` : cmd, { stdio: 'inherit' })
+  execSync(cmd, { stdio: 'inherit' })
   // ASC ESM bindings can emit duplicate names in the export destructuring
   // Deduplicate to avoid SyntaxError in strict mode (e.g. browsers)
   const jsPath = `build/${name}.js`

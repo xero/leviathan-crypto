@@ -513,17 +513,16 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 | Component | SHA-2 Usage | Construction | Secure? |
 |-----------|-------------|--------------|---------|
 | `SerpentSeal` | HMAC-SHA256(macKey, iv\|\|ct) | Encrypt-then-MAC | Yes |
-| `SerpentStream` | HMAC-SHA256(macKey, ct) + HKDF-SHA256 | Streaming AEAD | Yes |
-| `SerpentStreamSealer` | HMAC-SHA256 + HKDF-SHA256 | Chunk AEAD | Yes |
-| `SerpentStreamPool` | HKDF-SHA256 for key derivation | KDF | Yes |
-| `SerpentStreamSealer { framed: true }` | Via SerpentStreamSealer | Framed AEAD | Yes |
+| `SerpentCipher` | HMAC-SHA256(mac_key, counterNonce\|\|aad\|\|ct) + HKDF-SHA256 | Streaming AEAD (CBC+HMAC) | Yes |
+| `XChaCha20Cipher` | HKDF-SHA256 for stream key derivation | KDF | Yes |
+| `SealStreamPool` | HKDF-SHA256 for key derivation | KDF | Yes |
 | `Fortuna` | Raw SHA-256 for internal state | CSPRNG state chaining | Yes (by design) |
 
 **Key findings:**
 
 1. **No raw SHA-2 used for MAC.** Every authentication tag in the library is computed via HMAC-SHA256 or HMAC-SHA512. Length extension is not a concern.
 
-2. **No key reuse across constructions.** SerpentSeal splits its 64-byte key into a 32-byte encryption key and a 32-byte MAC key. SerpentStream uses HKDF to derive separate keys. No context shares a key for both hashing and another purpose.
+2. **No key reuse across constructions.** SerpentSeal splits its 64-byte key into a 32-byte encryption key and a 32-byte MAC key. SerpentCipher uses HKDF to derive separate keys (enc_key, mac_key, iv_key). No context shares a key for both hashing and another purpose.
 
 3. **Fortuna's raw SHA-256 usage is by design.** The CSPRNG uses `SHA256(genKey || seed)` for rekeying and `SHA256(poolHash || id || data)` for pool chaining. These follow the published Fortuna specification (Ferguson & Schneier, "Practical Cryptography"). The hash outputs are internal state — never exposed to callers. An attacker cannot mount a length extension attack because they never see the intermediate hash values.
 
@@ -538,5 +537,5 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 > - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit (independent construction)
 > - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 builds on SHA-256
 > - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 builds on HMAC-SHA256
-> - [serpent_audit](./serpent_audit.md) — uses HMAC-SHA256 in SerpentStream
+> - [serpent_audit](./serpent_audit.md) — uses HMAC-SHA256 in SerpentCipher
 > - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 companion audit

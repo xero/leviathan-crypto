@@ -22,19 +22,16 @@
 // src/ts/sha2/index.ts
 //
 // Public API classes for the SHA-2 WASM module.
-// Uses the init() module cache — call init('sha2') before constructing.
+// Uses the init() module cache — call sha2Init(source) before constructing.
 
 import { getInstance, initModule } from '../init.js';
-import type { Mode, InitOpts } from '../init.js';
+import type { WasmSource } from '../wasm-source.js';
 
-const _embedded = () => import('../embedded/sha2.js').then(m => m.WASM_GZ_BASE64);
-
-export async function sha2Init(
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
-	return initModule('sha2', _embedded, mode, opts);
+export async function sha2Init(source: WasmSource): Promise<void> {
+	return initModule('sha2', source);
 }
+
+export type { WasmSource };
 
 interface Sha2Exports {
 	memory:              WebAssembly.Memory;

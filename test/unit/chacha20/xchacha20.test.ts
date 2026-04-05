@@ -29,10 +29,11 @@
  *   §A.3.2 — XChaCha20-Poly1305 AEAD vector
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init, XChaCha20Poly1305 } from '../../../src/ts/index.js';
+import { init, XChaCha20Poly1305, AuthenticationError } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
 import type { ChaChaExports } from '../../../src/ts/chacha20/types.js';
 import { hchacha20Vectors, xchacha20Poly1305Vectors } from '../../vectors/chacha20.js';
+import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 
 const toHex = (b: Uint8Array): string =>
 	Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
@@ -41,7 +42,7 @@ const fromHex = (h: string): Uint8Array =>
 	Uint8Array.from(h.match(/.{2}/g)!.map(b => parseInt(b, 16)));
 
 beforeAll(async () => {
-	await init('chacha20');
+	await init({ chacha20: chacha20Wasm });
 });
 
 function getWasm() {
@@ -105,8 +106,8 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 
 	// Round-trips
 	it('5 round-trips with random key/nonce/plaintext/aad', () => {
-		const xchacha = new XChaCha20Poly1305();
 		for (let i = 0; i < 5; i++) {
+			const xchacha = new XChaCha20Poly1305();
 			const key   = crypto.getRandomValues(new Uint8Array(32));
 			const nonce = crypto.getRandomValues(new Uint8Array(24));
 			const pt    = crypto.getRandomValues(new Uint8Array(64 * i + 7));
@@ -115,8 +116,8 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 			const ct        = xchacha.encrypt(key, nonce, pt, aad);
 			const recovered = xchacha.decrypt(key, nonce, ct, aad);
 			expect(toHex(recovered)).toBe(toHex(pt));
+			xchacha.dispose();
 		}
-		xchacha.dispose();
 	});
 
 	it('empty plaintext round-trips (result is tag only)', () => {
@@ -231,5 +232,97 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 		const subkeyPost = mem().slice(x.getXChaChaSubkeyOffset(), x.getXChaChaSubkeyOffset() + 32);
 		expect(noncePost.every((b: number)  => b === 0)).toBe(true);
 		expect(subkeyPost.every((b: number) => b === 0)).toBe(true);
+	});
+});
+
+// ── Single-use encrypt guard ──────────────────────────────────────────────────
+
+describe('XChaCha20Poly1305 — single-use encrypt guard', () => {
+	it('encrypt() once succeeds', () => {
+		const xchacha = new XChaCha20Poly1305();
+		const key     = crypto.getRandomValues(new Uint8Array(32));
+		const nonce   = crypto.getRandomValues(new Uint8Array(24));
+		const result  = xchacha.encrypt(key, nonce, new Uint8Array(8));
+		expect(result).toBeInstanceOf(Uint8Array);
+		xchacha.dispose();
+	});
+
+	it('encrypt() twice on same instance throws plain Error (not AuthenticationError)', () => {
+		const xchacha = new XChaCha20Poly1305();
+		const key     = crypto.getRandomValues(new Uint8Array(32));
+		const nonce   = crypto.getRandomValues(new Uint8Array(24));
+		xchacha.encrypt(key, nonce, new Uint8Array(8));
+		let caught: unknown;
+		try {
+			xchacha.encrypt(key, nonce, new Uint8Array(8));
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(Error);
+		expect(caught).not.toBeInstanceOf(AuthenticationError);
+		expect((caught as Error).message).toContain('encrypt() already called');
+		xchacha.dispose();
+	});
+
+	it('decrypt() still works after encrypt() was called', () => {
+		const key     = crypto.getRandomValues(new Uint8Array(32));
+		const nonce   = crypto.getRandomValues(new Uint8Array(24));
+		const pt      = crypto.getRandomValues(new Uint8Array(32));
+		const xchacha = new XChaCha20Poly1305();
+		const ct      = xchacha.encrypt(key, nonce, pt);
+		const recovered = xchacha.decrypt(key, nonce, ct);
+		expect(toHex(recovered)).toBe(toHex(pt));
+		xchacha.dispose();
+	});
+
+	it('decrypt() can be called multiple times on same instance', () => {
+		const key        = crypto.getRandomValues(new Uint8Array(32));
+		const nonce      = crypto.getRandomValues(new Uint8Array(24));
+		const pt         = crypto.getRandomValues(new Uint8Array(32));
+		const encryptor  = new XChaCha20Poly1305();
+		const ct         = encryptor.encrypt(key, nonce, pt);
+		encryptor.dispose();
+
+		const xchacha    = new XChaCha20Poly1305();
+		const first      = xchacha.decrypt(key, nonce, ct);
+		const second     = xchacha.decrypt(key, nonce, ct);
+		expect(toHex(first)).toBe(toHex(pt));
+		expect(toHex(second)).toBe(toHex(pt));
+		xchacha.dispose();
+	});
+});
+
+// ── Wipe-before-throw ─────────────────────────────────────────────────────────
+
+describe('XChaCha20Poly1305 — wipe-before-throw', () => {
+	it('WASM chunk output buffer is zeroed after auth failure', () => {
+		const key   = crypto.getRandomValues(new Uint8Array(32));
+		const nonce = crypto.getRandomValues(new Uint8Array(24));
+		const pt    = crypto.getRandomValues(new Uint8Array(64));
+
+		const encryptor = new XChaCha20Poly1305();
+		const sealed    = encryptor.encrypt(key, nonce, pt);
+		encryptor.dispose();
+
+		// Tamper with the tag
+		const tampered = sealed.slice();
+		tampered[tampered.length - 1] ^= 0xff;
+
+		const xchacha = new XChaCha20Poly1305();
+		let caught: unknown;
+		try {
+			xchacha.decrypt(key, nonce, tampered);
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(AuthenticationError);
+
+		// Verify WASM chunk ct buffer is zeroed after wipe
+		const x      = getWasm();
+		const ctOff  = x.getChunkCtOffset();
+		// ciphertext portion is pt.length = 64 bytes (tag is excluded before aeadDecrypt)
+		const region = new Uint8Array(x.memory.buffer).slice(ctOff, ctOff + pt.length);
+		expect(Array.from(region).every(b => b === 0)).toBe(true);
+		xchacha.dispose();
 	});
 });

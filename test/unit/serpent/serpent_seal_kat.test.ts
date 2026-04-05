@@ -24,13 +24,16 @@
  * Vectors are self-generated with IV injection seam, verified against primitives.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init, SerpentSeal, hexToBytes, bytesToHex } from '../../../src/ts/index.js';
+import { init, SerpentSeal, AuthenticationError, hexToBytes, bytesToHex } from '../../../src/ts/index.js';
+import { getWasm, readBytes } from '../helpers';
 import { sealTC1, sealTC2 } from '../../vectors/serpent_composition.js';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 
 let seal: SerpentSeal;
 
 beforeAll(async () => {
-	await init(['serpent', 'sha2']);
+	await init({ serpent: serpentWasm, sha2: sha2Wasm });
 	seal = new SerpentSeal();
 });
 
@@ -51,14 +54,14 @@ describe('SerpentSeal KAT — TC1', () => {
 		const ct = hexToBytes(sealTC1.ciphertext).slice();
 		ct[20] ^= 0x01; // flip a byte in the CBC ciphertext region
 		const key = hexToBytes(sealTC1.key);
-		expect(() => seal.decrypt(key, ct)).toThrow('SerpentSeal: authentication failed');
+		expect(() => seal.decrypt(key, ct)).toThrow('serpent: authentication failed');
 	});
 
 	it('TC1 auth: flip byte in tag → throws', () => {
 		const ct = hexToBytes(sealTC1.ciphertext).slice();
 		ct[ct.length - 1] ^= 0x01; // flip last byte (tag region)
 		const key = hexToBytes(sealTC1.key);
-		expect(() => seal.decrypt(key, ct)).toThrow('SerpentSeal: authentication failed');
+		expect(() => seal.decrypt(key, ct)).toThrow('serpent: authentication failed');
 	});
 
 	it('TC1 round-trip: encrypt then decrypt returns original plaintext', () => {
@@ -87,5 +90,65 @@ describe('SerpentSeal KAT — TC2', () => {
 		const ct = hexToBytes(sealTC2.ciphertext);
 		const recovered = seal.decrypt(key, ct);
 		expect(recovered.length).toBe(0);
+	});
+});
+
+// ── Hidden IV validation ──────────────────────────────────────────────────────
+
+describe('SerpentSeal — hidden IV validation', () => {
+	it('wrong _iv length throws RangeError', () => {
+		const key = hexToBytes(sealTC1.key);
+		const pt = hexToBytes(sealTC1.plaintext);
+		const badIv = new Uint8Array(8);
+		expect(() => (seal as any).encrypt(key, pt, undefined, badIv))
+			.toThrow(/_iv must be 16 bytes/);
+	});
+});
+
+// ── Wipe-before-throw ─────────────────────────────────────────────────────────
+
+describe('SerpentSeal — wipe-before-throw', () => {
+	it('dispose() on auth failure wipes plaintext left by prior successful decrypt', () => {
+		const key = hexToBytes(sealTC1.key);
+		const goodCt = hexToBytes(sealTC1.ciphertext);
+
+		// Step 1: successful decrypt — PT buffer now holds real plaintext
+		const pt = seal.decrypt(key, goodCt);
+		expect(pt.length).toBeGreaterThan(0);
+
+		// Step 2: verify PT buffer in WASM is non-zero (contains prior plaintext)
+		const ptOff = getWasm().getChunkPtOffset();
+		const before = readBytes(ptOff, pt.length);
+		expect(Array.from(before).some(b => b !== 0)).toBe(true);
+
+		// Step 3: tampered decrypt — auth fails, dispose() wipes buffers
+		const bad = goodCt.slice();
+		bad[20] ^= 0x01;
+		let caught: unknown;
+		try {
+			seal.decrypt(key, bad);
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(AuthenticationError);
+
+		// Step 4: verify PT buffer is now zeroed — prior plaintext wiped
+		const after = readBytes(ptOff, pt.length);
+		expect(Array.from(after).every(b => b === 0)).toBe(true);
+	});
+});
+
+// ── No single-use guard on SerpentSeal ───────────────────────────────────────
+
+describe('SerpentSeal — no encrypt guard (auto-nonce)', () => {
+	it('encrypt() can be called multiple times — each call generates a fresh nonce', () => {
+		const key = hexToBytes(sealTC1.key);
+		const pt  = hexToBytes(sealTC1.plaintext);
+		// Two encrypts on the same instance must both succeed
+		const ct1 = seal.encrypt(key, pt);
+		const ct2 = seal.encrypt(key, pt);
+		// Both must decrypt correctly
+		expect(bytesToHex(seal.decrypt(key, ct1))).toBe(sealTC1.plaintext);
+		expect(bytesToHex(seal.decrypt(key, ct2))).toBe(sealTC1.plaintext);
 	});
 });

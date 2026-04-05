@@ -8,22 +8,23 @@
 ## Overview
 
 When you call `init()`, it delegates the work of obtaining and compiling the
-WASM binary to the loader. The loader supports three strategies:
+WASM binary to the loader. The loading strategy is inferred from the
+`WasmSource` type, so no mode string is required:
 
-- **Embedded** -- The WASM binary is bundled in the package as a
-  gzip-compressed, base64-encoded string. The loader decodes and decompresses
-  it at `init()` time using `DecompressionStream`. No network requests are
-  made. This is the default and simplest option.
-- **Streaming** -- The loader fetches the `.wasm` file from a URL you provide
-  and uses the browser's streaming compilation API. The browser can start
-  compiling the binary while it is still downloading, which can improve
-  load times for larger modules.
-- **Manual** -- You provide the raw binary data (as a `Uint8Array` or
-  `ArrayBuffer`) and the loader instantiates it directly. This gives you
-  full control over how the binary is obtained.
+- **Embedded string** — gzip-compressed, base64-encoded WASM bundled in
+  the package. Decoded and decompressed at `init()` time using
+  `DecompressionStream`. No network requests. This is the default and
+  simplest option.
+- **URL** — fetches the `.wasm` file and uses the browser's streaming
+  compilation API. The browser can start compiling while still downloading.
+- **ArrayBuffer / Uint8Array** — raw WASM bytes, compiled directly.
+- **WebAssembly.Module** — already compiled. Instantiated immediately.
+  Useful for edge runtimes and KV-cached modules.
+- **Response / Promise\<Response\>** — streaming compilation from an
+  in-flight or deferred fetch.
 
-All three strategies produce the same result: a `WebAssembly.Instance` that
-the wrapper classes use to perform cryptographic operations.
+All strategies produce the same result: a `WebAssembly.Instance` that the
+wrapper classes use to perform cryptographic operations.
 
 ---
 
@@ -32,177 +33,125 @@ the wrapper classes use to perform cryptographic operations.
 - **Embedded mode requires no network access.** The WASM binary is part of
   the installed package. This eliminates the risk of a compromised CDN or
   man-in-the-middle attack altering the binary at load time.
-- **Streaming mode requires correct MIME type.** The `.wasm` files must be
+- **URL-based loading requires correct MIME type.** The `.wasm` files must be
   served with `Content-Type: application/wasm`. This is a browser requirement
   for `WebAssembly.instantiateStreaming`. If the header is missing or wrong,
   the browser will reject the response.
-- **Manual mode places integrity responsibility on you.** The loader
-  instantiates whatever binary you provide. If you use manual mode, you are
-  responsible for verifying that the binary is authentic and unmodified.
+- **Raw binary / Module sources place integrity responsibility on you.** The
+  loader instantiates whatever binary you provide. If you supply your own
+  bytes or pre-compiled Module, you are responsible for verifying authenticity.
 - **Each module gets its own memory.** Every instantiation creates a fresh
   `WebAssembly.Memory` with 3 pages (192 KB). Modules cannot share or
-  access each other's memory. This means key material loaded into one
-  module's memory space is isolated from all other modules.
+  access each other's memory. Key material in one module's memory space is
+  isolated from all other modules.
 
 ---
 
 ## API Reference
 
 These functions are exported from `loader.ts` and called by `init.ts`. They
-are not part of the public API -- they are documented here for completeness
+are not part of the public API — they are documented here for completeness
 and for contributors working on the internals.
 
-### `loadEmbedded(thunk)`
-
+### `loadWasm(source)`
 ```typescript
-async function loadEmbedded(
-  thunk: () => Promise<string>,
-): Promise<WebAssembly.Instance>
+async function loadWasm(source: WasmSource): Promise<WebAssembly.Instance>
 ```
 
-Loads a WASM module from an embedded base64-encoded string obtained by calling
-the provided thunk.
+Loads and instantiates a WASM module from any accepted source type. Each
+instance receives a fresh 3-page `WebAssembly.Memory`.
 
-**How it works:**
+**Source type handling:**
 
-1. Calls the thunk, which dynamically imports the embedded binary file and
-   returns the gzip-compressed, base64-encoded WASM string.
-2. Decodes the base64 string and decompresses the result using
-   `DecompressionStream('gzip')`.
-3. Instantiates the WASM module with a fresh 3-page `WebAssembly.Memory`.
+| Source type                    | Loading path                                                         |
+|--------------------------------|----------------------------------------------------------------------|
+| `string`                       | Decoded from gzip+base64 via `decodeWasm()`, then `WebAssembly.instantiate()`. |
+| `URL`                          | `WebAssembly.instantiateStreaming(fetch(url))`.                      |
+| `ArrayBuffer`                  | `WebAssembly.instantiate()`.                                         |
+| `Uint8Array`                   | `WebAssembly.instantiate()`.                                         |
+| `WebAssembly.Module`           | `WebAssembly.instantiate(module, imports)`.                          |
+| `Response` / `Promise<Response>` | `WebAssembly.instantiateStreaming()`.                              |
 
-The thunk is provided by each module's own `init()` function (e.g.
-`serpent/index.ts` passes `() => import('../embedded/serpent.js').then(m => m.WASM_GZ_BASE64)`).
-This design means `loader.ts` has no knowledge of module names or embedded file
-paths -- each module owns its own embedded import, enabling tree-shaking.
+**Throws:**
 
-**Parameters:**
+- `TypeError` if `source` is null, numeric, or otherwise unrecognised.
+- `TypeError` with `"empty string"` if `source` is an empty string.
 
-- `thunk` -- A function that returns a Promise resolving to a gzip-compressed,
-  base64-encoded WASM binary string. Each module's `index.ts` defines its own
-  thunk pointing to its own embedded file.
-
-**Returns:** A Promise that resolves to a `WebAssembly.Instance`.
-
-**Error conditions:**
-
-- If the embedded binary file does not exist, this means the build step
-  (`scripts/embed-wasm.ts`) has not been run. Run `npm run build` to
-  generate the embedded files.
+**Runtime guards:** `Response` and `Promise` checks are guarded with
+`typeof Response !== 'undefined'` to avoid `ReferenceError` in runtimes
+where these globals do not exist (Node < 18).
 
 ---
 
-### `loadStreaming(mod, baseUrl, filename)`
-
+### `compileWasm(source)`
 ```typescript
-async function loadStreaming(
-  _mod: Module,
-  baseUrl: URL | string,
-  filename: string,
-): Promise<WebAssembly.Instance>
+async function compileWasm(source: WasmSource): Promise<WebAssembly.Module>
 ```
 
-Loads a WASM module by fetching it from a URL and using streaming compilation.
+Compiles a `WasmSource` to a `WebAssembly.Module` without instantiating it.
+Used by pool infrastructure to send a compiled module to workers — workers
+receive the `Module` and instantiate it with their own isolated memory.
 
-**How it works:**
+**Source type handling:** Same dispatch table as `loadWasm()`, but calls
+`WebAssembly.compile()` / `WebAssembly.compileStreaming()` instead of the
+`instantiate` variants. `WebAssembly.Module` sources are returned as-is.
 
-1. Constructs the full URL by combining `baseUrl` and `filename`
-   (e.g. `https://example.com/wasm/` + `serpent.wasm`).
-2. Calls `WebAssembly.instantiateStreaming(fetch(url), imports)`, which
-   allows the browser to compile the module while it downloads.
-3. Creates a fresh 3-page `WebAssembly.Memory` for the instance.
-
-**Parameters:**
-
-- `_mod` -- The module name (currently unused in the function body, but
-  passed for consistency).
-- `baseUrl` -- The base URL where `.wasm` files are hosted. Can be a
-  `URL` object or a string.
-- `filename` -- The `.wasm` filename (e.g. `'serpent.wasm'`). This is
-  determined by `init.ts` using its internal filename mapping.
-
-**Returns:** A Promise that resolves to a `WebAssembly.Instance`.
-
-**Error conditions:**
-
-- Network failure (server unreachable, 404, etc.) will cause the Promise
-  to reject.
-- If the server does not respond with `Content-Type: application/wasm`,
-  the browser will reject the streaming compilation. This is a common
-  issue with misconfigured web servers -- ensure your server is configured
-  to serve `.wasm` files with the correct MIME type.
+**Throws:** Same as `loadWasm()`.
 
 ---
 
-### `loadManual(binary)`
-
+### `decodeWasm(b64)`
 ```typescript
-async function loadManual(
-  binary: Uint8Array | ArrayBuffer,
-): Promise<WebAssembly.Instance>
+async function decodeWasm(b64: string): Promise<Uint8Array>
 ```
 
-Loads a WASM module from a raw binary you provide directly.
+Decodes a gzip-compressed, base64-encoded WASM string to raw bytes.
 
-**How it works:**
+1. Base64-decodes the string using the shared `base64ToBytes` utility.
+2. Decompresses the result using `DecompressionStream('gzip')`.
 
-1. Converts `ArrayBuffer` to `Uint8Array` if needed.
-2. Instantiates the WASM module with a fresh 3-page `WebAssembly.Memory`.
+**Throws:**
 
-**Parameters:**
+- `Error` if `DecompressionStream` is not available in the runtime.
+  The error message directs the user to provide a URL, ArrayBuffer, or
+  WebAssembly.Module source instead.
+- `Error` if base64 decoding fails (corrupt embedded blob).
 
-- `binary` -- The raw WASM binary as a `Uint8Array` or `ArrayBuffer`.
-
-**Returns:** A Promise that resolves to a `WebAssembly.Instance`.
-
-**Error conditions:**
-
-- If the binary is not a valid WASM module, `WebAssembly.instantiate` will
-  throw. The error message will come from the browser's WASM engine and
-  will typically mention a validation or compilation failure.
+Exported for use by pool worker launchers that need to decode blobs
+before spawning threads.
 
 ---
 
 ## Internal Details
 
-### Embedded binary ownership
+### Embedded binary structure
 
-Each module's `index.ts` owns the dynamic import to its own embedded binary
-file. The loader has no knowledge of module names or file paths -- it receives
-a thunk from `initModule()` and calls it. This means `loader.ts` has no
-dependency on any embedded file, which enables bundlers to tree-shake unused
-modules.
+Each module provides two paths to its embedded blob:
 
-| Module      | Thunk defined in              | Embedded file path         |
-|-------------|-------------------------------|----------------------------|
-| `serpent`   | `serpent/index.ts`            | `./embedded/serpent.js`    |
-| `chacha20`  | `chacha20/index.ts`           | `./embedded/chacha20.js`   |
-| `sha2`      | `sha2/index.ts`               | `./embedded/sha2.js`       |
-| `sha3`      | `sha3/index.ts`               | `./embedded/sha3.js`       |
+| Path                                   | Export          | Used by                     |
+|----------------------------------------|-----------------|-----------------------------|
+| `src/ts/embedded/serpent.ts`           | (raw blob)      | Build artifact, gitignored  |
+| `src/ts/serpent/embedded.ts`           | `serpentWasm`   | Consumer import             |
 
-The embedded `.js` files are generated by the build script
-(`scripts/embed-wasm.ts`) and are gitignored. They are not meant to be
-created or edited by hand.
+The per-module `embedded.ts` re-exports the generated blob as a named
+export. Consumers import from the `/embedded` subpath:
+```typescript
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+```
 
-### Embedded binary decoding
+The `src/ts/embedded/` directory is generated by `scripts/embed-wasm.ts`
+and is gitignored. These files are not meant to be created or edited by hand.
 
-The `decodeWasm()` helper handles both decoding and decompression:
+### Embedded compression
 
-1. Base64-decodes the string using the shared `base64ToBytes` utility
-   (handles both browser `atob` and Node.js `Buffer` paths).
-2. Decompresses the result using the platform `DecompressionStream('gzip')`.
-   This API is available in all runtimes that support WASM SIMD, which is
-   the library's minimum requirement.
-
-The embedded files export `WASM_GZ_BASE64` — a gzip-compressed WASM binary
-encoded as base64. Compression reduces the embedded footprint from ~198 KB
-to ~33 KB across all four modules, with Serpent alone shrinking from 167 KB
-to ~20 KB.
+The embedded files contain gzip-compressed WASM encoded as base64.
+Compression reduces the embedded footprint from ~198 KB to ~33 KB across
+all four modules, with Serpent alone shrinking from ~167 KB to ~20 KB.
 
 ### Memory allocation
 
 Every WASM instance receives a `WebAssembly.Memory` with exactly 3 pages
-(192 KB total). The memory size is fixed -- modules do not grow their memory
+(192 KB total). The memory size is fixed — modules do not grow their memory
 at runtime. This is a deliberate design choice: fixed memory prevents
 unexpected allocations and makes the memory layout predictable and auditable.
 

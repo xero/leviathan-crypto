@@ -17,8 +17,9 @@ jobs:
         run: bun i
       - name: build wasm + embedded modules
         run: bun run build:asm && bun run build:embed
-      - name: run fast unit tests
+      - name: run utility unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
           test/unit/utils.test.ts
           test/unit/fortuna.test.ts
+          test/unit/loader/wasm_source.test.ts

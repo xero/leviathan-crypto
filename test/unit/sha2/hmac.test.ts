@@ -21,6 +21,7 @@
 //
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384 } from '../../../src/ts/index.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import {
 	hmacSha256Vectors, hmacSha512Vectors, hmacSha384Vectors,
 	hmacCrossCheck,
@@ -37,7 +38,7 @@ function fromHex(hex: string): Uint8Array {
 }
 
 beforeAll(async () => {
-	await init('sha2');
+	await init({ sha2: sha2Wasm });
 });
 
 // ── Gate 5: HMAC-SHA256 TC1 (RFC 4231 §4.2) ───────────────────────────────

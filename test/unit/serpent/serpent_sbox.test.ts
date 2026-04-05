@@ -31,9 +31,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { loadKey, encryptBlock } from '../helpers';
 import { parseTblFile } from './vector_parser';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 describe('S-box table entry tests — serpent_ecb_tbl.txt (Gate 1)', () => {

@@ -11,64 +11,98 @@ Root barrel `leviathan-crypto` — no module required.
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `init` | function | Load and cache WASM modules. Dispatches to per-module init functions. |
+| `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3'` |
-| `Mode` | type | `'embedded' \| 'streaming' \| 'manual'` |
-| `InitOpts` | type | Options for `init()`: `wasmUrl`, `wasmBinary` |
+| `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
-See [init.md](./init) for full loading mode documentation.
+**`WasmSource`** — accepted by every init function:
+
+| Value | Strategy |
+|-------|----------|
+| `string` | Decode gzip+base64 embedded blob |
+| `URL` | `fetch` + `instantiateStreaming` |
+| `ArrayBuffer` | Compile from raw WASM bytes |
+| `Uint8Array` | Compile from raw WASM bytes |
+| `WebAssembly.Module` | Instantiate pre-compiled module |
+| `Response` | `instantiateStreaming` from fetch response |
+| `Promise<Response>` | `instantiateStreaming` from deferred fetch |
+
+See [init.md](./init.md) for full loading documentation.
 
 ---
 
 ## Serpent-256
 
-Requires `init(['serpent', 'sha2'])` for authenticated classes, `init(['serpent'])` for raw modes.
-Subpath: `leviathan-crypto/serpent` — see [serpent.md](./serpent).
+Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })` for authenticated classes, `init({ serpent: serpentWasm })` for raw modes.
+Subpath: `leviathan-crypto/serpent` — see [serpent.md](./serpent.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `serpentInit` | function | Module-scoped init. `serpentInit(mode?, opts?)` loads only serpent. |
+| `serpentInit` | function | Module-scoped init. `serpentInit(source: WasmSource)` loads only serpent. |
 | `SerpentSeal` | class | Authenticated encryption: Serpent-CBC + HMAC-SHA256. `encrypt(key, plaintext, aad?)`, `decrypt(key, ciphertext, aad?)`. 64-byte key. |
-| `SerpentStream` | class | Chunked one-shot AEAD for large payloads. `seal(key, plaintext, chunkSize?)`, `open(key, ciphertext)`. 32-byte key. |
-| `SerpentStreamPool` | class | Worker-pool wrapper for `SerpentStream`. Parallelises chunk encryption across isolated WASM instances. `SerpentStreamPool.create(opts?)` static factory. |
-| `SerpentStreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 64-byte key. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
-| `SerpentStreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. Initialized from sealer `header()` output. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
+| `SerpentCipher` | const | CipherSuite implementation for Serpent-256 CBC+HMAC-SHA-256. `formatEnum: 0x02`, `keySize: 32`, `tagSize: 32`. |
 | `Serpent` | class | Serpent-256 ECB block cipher. `loadKey()`, `encryptBlock()`, `decryptBlock()`. Unauthenticated. |
 | `SerpentCtr` | class | Serpent-256 CTR mode. `beginEncrypt()`, `encryptChunk()`, `beginDecrypt()`, `decryptChunk()`. Unauthenticated. |
 | `SerpentCbc` | class | Serpent-256 CBC mode with PKCS7 padding. `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. Unauthenticated. |
-| `StreamPoolOpts` | type | Options for `SerpentStreamPool.create()`: worker count. |
+
+---
+
+## Stream
+
+Cipher-agnostic streaming encryption using the STREAM construction.
+Subpath: `leviathan-crypto/stream`.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `SealStream` | class | Cipher-agnostic streaming encryption (STREAM construction). `push(chunk)`, `finalize(chunk)`, `toTransformStream()`. |
+| `OpenStream` | class | Cipher-agnostic streaming decryption. `pull(chunk)`, `finalize(chunk)`, `seek(index)`, `toTransformStream()`. |
+| `SealStreamPool` | class | Parallel batch seal/open via Web Workers. `SealStreamPool.create(cipher, key, opts)` static factory. |
+| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`. |
+| `DerivedKeys` | interface | Opaque key material returned by `CipherSuite.deriveKeys()`. |
+| `SealStreamOpts` | type | Options for SealStream: `chunkSize?`, `framed?`. |
+| `PoolOpts` | type | Options for SealStreamPool: `wasm`, `workers?`, `chunkSize?`, `framed?`, `jobTimeout?`. |
+| `HEADER_SIZE` | const | Stream header size in bytes (20). |
+| `CHUNK_MIN` | const | Minimum chunk size (1024). |
+| `CHUNK_MAX` | const | Maximum chunk size (16777215 — u24 max). |
+| `FLAG_FRAMED` | const | Header byte 0 framed flag (0x80). |
+| `TAG_DATA` | const | Counter nonce final flag for data chunks (0x00). |
+| `TAG_FINAL` | const | Counter nonce final flag for final chunk (0x01). |
+
+---
+
+## Errors
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
 
 ---
 
 ## XChaCha20 / Poly1305
 
-Requires `init(['chacha20'])` or subpath `chacha20Init()`.
-Subpath: `leviathan-crypto/chacha20` — see [chacha20.md](./chacha20), [chacha20_pool.md](./chacha20_pool).
+Requires `init({ chacha20: chacha20Wasm })` or subpath `chacha20Init()`.
+Subpath: `leviathan-crypto/chacha20` — see [chacha20.md](./chacha20.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `chacha20Init` | function | Module-scoped init. `chacha20Init(mode?, opts?)` loads only chacha20. |
+| `chacha20Init` | function | Module-scoped init. `chacha20Init(source: WasmSource)` loads only chacha20. |
 | `XChaCha20Seal` | class | Recommended authenticated encryption. Binds key at construction, generates nonce per-call. `encrypt(plaintext, aad?)`, `decrypt(ciphertext, aad?)`. 32-byte key. Implements `AEAD`. |
-| `XChaCha20Poly1305` | class | XChaCha20-Poly1305 AEAD. 24-byte nonce. `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
-| `XChaCha20StreamSealer` | class | Incremental streaming AEAD: seal one chunk at a time. `header()`, `seal(plaintext)`, `final(plaintext)`, `dispose()`. 32-byte key. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
-| `XChaCha20StreamOpener` | class | Incremental streaming AEAD: open one chunk at a time. `open(chunk)`, `feed(bytes)` (framed mode), `dispose()`. `opts?: { framed?: boolean; aad?: Uint8Array }`. |
-| `XChaCha20StreamPool` | class | Parallel worker pool for chunked streaming AEAD. `seal(key, plaintext, chunkSize?, opts?)`, `open(key, ciphertext, opts?)`. 32-byte key. Same chunk crypto as `XChaCha20StreamSealer`; 28-byte header with chunkCount. |
-| `XChaCha20Poly1305Pool` | class | Worker-pool wrapper for `XChaCha20Poly1305`. `XChaCha20Poly1305Pool.create(opts?)` static factory. |
-| `ChaCha20Poly1305` | class | ChaCha20-Poly1305 AEAD (RFC 8439). 12-byte nonce. `encrypt(key, nonce, plaintext, aad?)`, `decrypt(key, nonce, ciphertext, aad?)`. |
+| `XChaCha20Poly1305` | class | XChaCha20-Poly1305 AEAD. 24-byte nonce. `encrypt()` returns single `Uint8Array` (ct‖tag), `decrypt()` accepts same format. Single-use encrypt guard. |
+| `XChaCha20Cipher` | const | CipherSuite implementation for XChaCha20-Poly1305. `formatEnum: 0x01`, `keySize: 32`, `tagSize: 16`. |
+| `ChaCha20Poly1305` | class | ChaCha20-Poly1305 AEAD (RFC 8439). 12-byte nonce. `encrypt()` returns single `Uint8Array` (ct‖tag), `decrypt()` accepts same format. Single-use encrypt guard. |
 | `ChaCha20` | class | ChaCha20 stream cipher (RFC 8439). `beginEncrypt()`, `encryptChunk()`. Unauthenticated. |
 | `Poly1305` | class | Poly1305 one-time MAC (RFC 8439). `mac(key, msg)`. |
-| `PoolOpts` | type | Options for `XChaCha20Poly1305Pool.create()`: worker count, worker script URL. |
 
 ---
 
 ## SHA-2
 
-Requires `init(['sha2'])` or subpath `sha2Init()`.
-Subpath: `leviathan-crypto/sha2` — see [sha2.md](./sha2).
+Requires `init({ sha2: sha2Wasm })` or subpath `sha2Init(source)`.
+Subpath: `leviathan-crypto/sha2` — see [sha2.md](./sha2.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `sha2Init` | function | Module-scoped init. `sha2Init(mode?, opts?)` loads only sha2. |
+| `sha2Init` | function | Module-scoped init. `sha2Init(source: WasmSource)` loads only sha2. |
 | `SHA256` | class | SHA-256 hash (FIPS 180-4). `hash(msg)` returns 32 bytes. |
 | `SHA384` | class | SHA-384 hash (FIPS 180-4). `hash(msg)` returns 48 bytes. |
 | `SHA512` | class | SHA-512 hash (FIPS 180-4). `hash(msg)` returns 64 bytes. |
@@ -82,12 +116,12 @@ Subpath: `leviathan-crypto/sha2` — see [sha2.md](./sha2).
 
 ## SHA-3
 
-Requires `init(['sha3'])` or subpath `sha3Init()`.
-Subpath: `leviathan-crypto/sha3` — see [sha3.md](./sha3).
+Requires `init({ sha3: sha3Wasm })` or subpath `sha3Init(source)`.
+Subpath: `leviathan-crypto/sha3` — see [sha3.md](./sha3.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `sha3Init` | function | Module-scoped init. `sha3Init(mode?, opts?)` loads only sha3. |
+| `sha3Init` | function | Module-scoped init. `sha3Init(source: WasmSource)` loads only sha3. |
 | `SHA3_224` | class | SHA3-224 hash (FIPS 202). `hash(msg)` returns 28 bytes. |
 | `SHA3_256` | class | SHA3-256 hash (FIPS 202). `hash(msg)` returns 32 bytes. |
 | `SHA3_384` | class | SHA3-384 hash (FIPS 202). `hash(msg)` returns 48 bytes. |
@@ -99,7 +133,7 @@ Subpath: `leviathan-crypto/sha3` — see [sha3.md](./sha3).
 
 ## Fortuna CSPRNG
 
-Requires `init(['serpent', 'sha2'])` — see [fortuna.md](./fortuna).
+Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })` — see [fortuna.md](./fortuna.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -109,7 +143,7 @@ Requires `init(['serpent', 'sha2'])` — see [fortuna.md](./fortuna).
 
 ## Types
 
-No `init()` required — see [types.md](./types).
+No `init()` required — see [types.md](./types.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -123,7 +157,7 @@ No `init()` required — see [types.md](./types).
 
 ## Utilities
 
-No `init()` required — see [utils.md](./utils).
+No `init()` required — see [utils.md](./utils.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|

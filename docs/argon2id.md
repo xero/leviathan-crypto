@@ -159,7 +159,10 @@ expands the 32-byte Argon2id output to 64 bytes:
 import loadArgon2idWasm from 'argon2id';
 import { init, SerpentSeal, HKDF_SHA256 } from 'leviathan-crypto';
 
-await init(['serpent', 'sha2']);
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded';
+
+await init({ serpent: serpentWasm, sha2: sha2Wasm });
 const argon2id = await loadArgon2idWasm();
 
 // ── Encrypt ──────────────────────────────────────────────────────────────────
@@ -214,7 +217,10 @@ generated fresh per encryption; only the Argon2id salt needs to be stored:
 import loadArgon2idWasm from 'argon2id';
 import { init, XChaCha20Poly1305, HKDF_SHA256 } from 'leviathan-crypto';
 
-await init(['chacha20', 'sha2']);
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded';
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded';
+
+await init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 const argon2id = await loadArgon2idWasm();
 
 // ── Encrypt ──────────────────────────────────────────────────────────────────

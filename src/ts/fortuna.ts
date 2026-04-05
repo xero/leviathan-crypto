@@ -23,7 +23,7 @@
 //
 // Fortuna CSPRNG — Ferguson & Schneier, Practical Cryptography (2003), Chapter 9.
 // Backed by WASM Serpent-256 ECB (generator) and WASM SHA-256 (accumulator pools).
-// Requires init(['serpent', 'sha2']) before Fortuna.create().
+// Requires init({ serpent: ..., sha2: ... }) before Fortuna.create().
 
 import { isInitialized } from './init.js';
 import { Serpent } from './serpent/index.js';
@@ -70,9 +70,9 @@ export class Fortuna {
 
 	static async create(opts?: { msPerReseed?: number; entropy?: Uint8Array }): Promise<Fortuna> {
 		if (!isInitialized('serpent'))
-			throw new Error('leviathan-crypto: call init([\'serpent\', \'sha2\']) before using Fortuna');
+			throw new Error('leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using Fortuna');
 		if (!isInitialized('sha2'))
-			throw new Error('leviathan-crypto: call init([\'serpent\', \'sha2\']) before using Fortuna');
+			throw new Error('leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using Fortuna');
 
 		const f = new Fortuna(opts?.msPerReseed ?? Fortuna.MS_PER_RESEED);
 		f.initialize(opts?.entropy);
@@ -193,8 +193,8 @@ export class Fortuna {
 
 	/** Get length pseudo-random bytes. — spec §9.4 */
 	private pseudoRandomData(length: number): Uint8Array {
-		// Generate ceil(length/16) + 1 blocks — +1 ensures extra block before key replacement
-		const blocks = Math.ceil(length / 16) + 1;
+		// Generate ceil(length/16) blocks — spec §9.4
+		const blocks = Math.ceil(length / 16);
 		const raw = this.generateBlocks(blocks);
 		const output = raw.slice(0, length);
 

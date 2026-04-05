@@ -77,24 +77,25 @@ in memory longer than necessary.
 Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `serpentInit(mode?, opts?)`
+### `serpentInit(source)`
 
 Initializes only the serpent WASM binary. Equivalent to calling the
-root `init(['serpent'], mode, opts)` but without pulling the other three
+root `init({ serpent: serpentWasm })` but without pulling the other three
 modules into the bundle.
 
 **Signature:**
 
 ```typescript
-async function serpentInit(mode?: Mode, opts?: InitOpts): Promise<void>
+async function serpentInit(source: WasmSource): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
 import { serpentInit, Serpent } from 'leviathan-crypto/serpent'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
 
-await serpentInit()
+await serpentInit(serpentWasm)
 const cipher = new Serpent()
 ```
 
@@ -122,7 +123,7 @@ class SerpentSeal {
 
 #### `constructor()`
 
-Creates a new SerpentSeal instance. Throws if `init(['serpent', 'sha2'])` has not
+Creates a new SerpentSeal instance. Throws if `init({ serpent: serpentWasm, sha2: sha2Wasm })` has not
 been called.
 
 ---
@@ -183,7 +184,7 @@ class Serpent {
 
 #### `constructor()`
 
-Creates a new Serpent instance. Throws if `init(['serpent'])` has not been called.
+Creates a new Serpent instance. Throws if `init({ serpent: serpentWasm })` has not been called.
 
 ---
 
@@ -242,7 +243,7 @@ class SerpentCtr {
 
 #### `constructor(opts: { dangerUnauthenticated: true })`
 
-Creates a new SerpentCtr instance. Throws if `init(['serpent'])` has not been
+Creates a new SerpentCtr instance. Throws if `init({ serpent: serpentWasm })` has not been
 called. Throws if `{ dangerUnauthenticated: true }` is not passed:
 
 ```
@@ -325,7 +326,7 @@ class SerpentCbc {
 
 #### `constructor(opts: { dangerUnauthenticated: true })`
 
-Creates a new SerpentCbc instance. Throws if `init(['serpent'])` has not been
+Creates a new SerpentCbc instance. Throws if `init({ serpent: serpentWasm })` has not been
 called. Throws if `{ dangerUnauthenticated: true }` is not passed:
 
 ```
@@ -379,316 +380,26 @@ Wipes all key material and intermediate state from WASM memory.
 
 ---
 
-### SerpentStream
+## SerpentCipher
 
-Chunked authenticated encryption for large payloads. Each chunk is independently
-encrypted with Serpent-CTR and authenticated with HMAC-SHA256 using per-chunk
-keys derived via HKDF-SHA256. Position binding and truncation detection are
-enforced at the key-derivation layer.
+`CipherSuite` implementation for Serpent-256 CBC+HMAC-SHA-256. Used with `SealStream` and `OpenStream` for streaming encryption.
 
-Use `SerpentStream` when the payload is large or when holding the entire
-plaintext in memory is undesirable. For small/medium payloads where a single
-`encrypt()`/`decrypt()` call is sufficient, use `SerpentSeal` instead.
+```ts
+import { SealStream } from 'leviathan-crypto/stream';
+import { SerpentCipher } from 'leviathan-crypto/serpent';
 
-> [!NOTE]
-> `SerpentStream` takes a 32-byte key (HKDF handles expansion internally).
-> This differs from `SerpentSeal`, which takes 64 bytes.
-
-```typescript
-class SerpentStream {
-	constructor()
-	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Uint8Array
-	open(key: Uint8Array, ciphertext: Uint8Array): Uint8Array
-	dispose(): void
-}
+const sealer = new SealStream(SerpentCipher, key);
 ```
 
-#### `constructor()`
-
-Creates a new SerpentStream instance. Throws if `init(['serpent', 'sha2'])` has
-not been called.
-
----
-
-#### `seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Uint8Array`
-
-Encrypts plaintext into a chunked authenticated wire format.
-
-- **key** -- exactly 32 bytes. Throws `RangeError` if not.
-- **plaintext** -- any length (including zero).
-- **chunkSize** -- optional, default 64KB. Valid range: 1KB to 64KB. Throws
-  `RangeError` if outside range.
-
-A fresh random stream nonce is generated internally for each call. Two seals of
-the same plaintext with the same key produce different output.
-
-Wire format: `stream_nonce (16) || chunk_size (4, u32_be) || chunk_count (8, u64_be) || chunk_0 || ... || chunk_N-1`
-
-Each chunk on the wire: `ciphertext || hmac_tag (32 bytes)`.
-
----
-
-#### `open(key: Uint8Array, ciphertext: Uint8Array): Uint8Array`
-
-Verifies authentication and decrypts the chunked wire format. Each chunk's MAC
-is verified before decryption (Encrypt-then-MAC). If any chunk fails
-authentication, `open()` throws immediately and never returns partial plaintext.
-
-- **key** -- exactly 32 bytes. Must be the same key used for `seal()`.
-- **ciphertext** -- the wire format from `seal()`. Throws `RangeError` if too
-  short.
-
----
-
-#### `dispose(): void`
-
-Wipes all key material and intermediate state from WASM memory. Delegates to
-internal SerpentCtr, HMAC_SHA256, and HKDF_SHA256 instances.
-
-**Security properties:**
-
-- **Per-chunk EtM** -- HMAC-SHA256 over ciphertext, verified before decrypt.
-- **Position binding** -- chunk index encoded in HKDF `info`. Reordering chunks
-  produces wrong keys; MAC fails.
-- **Truncation detection** -- final chunk derives different keys than any
-  intermediate chunk at the same index.
-- **Implicit header integrity** -- HKDF `info` embeds the full header. Tampering
-  with any header field invalidates every chunk's MAC.
-- **Domain separation** -- `"serpent-stream-v1"` prefix prevents key confusion
-  with SerpentSeal or other constructions.
-
-> [!IMPORTANT]
-> This is a bespoke construction (no external RFC). The compositional security
-> argument rests on HKDF (RFC 5869), HMAC-EtM, and Serpent-CTR. See
-> [sha2.md](./sha2.md) for HKDF details.
-
-> [!NOTE]
-> `sealChunk` and `openChunk` are exported from the serpent submodule for
-> internal use by the pool worker. They are not public API -- callers should use
-> `SerpentStream` or `SerpentStreamPool`.
-
----
-
-### SerpentStreamPool
-
-Parallel worker pool for `SerpentStream`. Same wire format, same security
-properties, faster on multi-core hardware for large payloads. Each worker owns
-its own `serpent.wasm` and `sha2.wasm` instances with isolated linear memory.
-
-`SerpentStream.seal()` and `SerpentStreamPool.seal()` produce compatible wire
-formats -- either can decrypt the other's output.
-
-```typescript
-class SerpentStreamPool {
-	static async create(opts?: StreamPoolOpts): Promise<SerpentStreamPool>
-	seal(key: Uint8Array, plaintext: Uint8Array, chunkSize?: number): Promise<Uint8Array>
-	open(key: Uint8Array, ciphertext: Uint8Array): Promise<Uint8Array>
-	dispose(): void
-	get size(): number
-	get queueDepth(): number
-}
-```
-
-#### `static async create(opts?: StreamPoolOpts): Promise<SerpentStreamPool>`
-
-Creates a new pool. Requires `init(['serpent', 'sha2'])` to have been called.
-Compiles both WASM modules once and distributes them to all workers.
-
-- **opts.workers** -- number of workers to spawn. Default:
-  `navigator.hardwareConcurrency ?? 4`.
-
-Uses a static factory pattern because worker initialization is async (WASM
-compilation and instantiation happen per worker).
-
----
-
-#### `seal(key, plaintext, chunkSize?)`
-
-Same parameters as `SerpentStream.seal()`, but returns a `Promise`. Key
-derivation happens on the main thread; chunk encryption is parallelised across
-workers.
-
----
-
-#### `open(key, ciphertext)`
-
-Same parameters as `SerpentStream.open()`, but returns a `Promise`. If any chunk
-fails authentication, the promise rejects immediately -- no partial plaintext is
-returned.
-
----
-
-#### `dispose()`
-
-Terminates all workers. Rejects all pending and queued jobs. Must be called to
-release worker resources when the pool is no longer needed.
-
----
-
-### SerpentStreamSealer / SerpentStreamOpener
-
-Incremental streaming AEAD — seal and open one chunk at a time without holding
-the full message in memory. Unlike `SerpentStream` (which is one-shot),
-`SerpentStreamSealer` produces chunks as data arrives and `SerpentStreamOpener`
-authenticates and decrypts them individually.
-
-**Wire format (v1.4.0+):**
-```
-header:  nonce (16) || chunkSize_u32be (4)                          = 20 bytes
-chunk:   isLast (1) || IV (16) || CBC_ciphertext (PKCS7-padded) || HMAC-SHA256 (32)
-```
-
-> [!WARNING]
-> **Breaking change from v1.3.x:** Each chunk now prepends an explicit `isLast`
-> flag byte, and AAD is folded into the HMAC input with a 4-byte length prefix.
-> Ciphertexts produced by v1.3.x are not compatible with v1.4.0 openers, and
-> vice versa, even with empty AAD.
-
-Per-chunk keys are derived via HKDF-SHA256 from the stream key and a `chunkInfo`
-blob binding the stream nonce, chunk size, chunk index, and `isLast` flag. Each
-chunk is independently authenticated and position-bound — reordering, truncation,
-and cross-stream splicing are all detected.
-
-> [!NOTE]
-> `SerpentStreamSealer` requires a 64-byte key (same as `SerpentSeal`). HKDF
-> derives a fresh `encKey` + `macKey` pair for every chunk.
-
-> [!IMPORTANT]
-> The sealer produces a 20-byte header that **must** be transmitted to the opener
-> before any chunks. The opener is initialized with this header.
-
-```typescript
-class SerpentStreamSealer {
-	constructor(key: Uint8Array, chunkSize?: number, opts?: {
-		framed?: boolean;
-		aad?: Uint8Array;   // authenticated per-chunk, not encrypted
-	})
-	header(): Uint8Array        // call once before seal() — returns 20 bytes
-	seal(plaintext: Uint8Array): Uint8Array   // exactly chunkSize bytes
-	final(plaintext: Uint8Array): Uint8Array  // <= chunkSize bytes; wipes on return
-	dispose(): void             // abort mid-stream; wipes without final chunk
-}
-
-class SerpentStreamOpener {
-	constructor(key: Uint8Array, header: Uint8Array, opts?: {
-		framed?: boolean;
-		aad?: Uint8Array;   // must match value used by sealer
-	})
-	open(chunk: Uint8Array): Uint8Array  // throws on auth failure or post-final
-	feed(bytes: Uint8Array): Uint8Array[]  // framed mode only — accumulates and parses frames
-	dispose(): void
-}
-```
-
-#### Sealer state machine
-
-| State | Valid calls |
-|---|---|
-| `fresh` | `header()`, `dispose()` |
-| `sealing` | `seal()`, `final()`, `dispose()` |
-| `dead` | `dispose()` (no-op) |
-
-`header()` transitions `fresh → sealing`. `final()` seals the last chunk, wipes
-all key material, and transitions to `dead`. `dispose()` wipes and transitions to
-`dead` from any state — use it to abort a stream before `final()` is called.
-
-Calling `header()` twice, `seal()` before `header()`, or any method after `final()`
-all throw immediately.
-
----
-
-#### Opener state machine
-
-The opener is ready as soon as it is constructed. It calls `open()` for each
-chunk in order. Once a chunk with `isLast` set passes authentication, the opener
-wipes its key material and transitions to `dead`. Subsequent `open()` calls throw.
-
-`dispose()` wipes and marks the instance dead from any state.
-
----
-
-#### `constructor(key, chunkSize?, opts?)`
-
-- **key** — 64-byte key. Throws `RangeError` if wrong length.
-- **chunkSize** — bytes per chunk. Must be 1024–65536. Default: 65536. Throws
-  `RangeError` if out of range.
-
-##### Options (`opts`)
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `framed` | `boolean` | `false` | Prepend `u32be(sealedLen)` to each `seal()`/`final()` output. Use for flat byte streams (files, pipes, TCP). Omit when the transport already frames messages (WebSocket, IPC). |
-| `aad` | `Uint8Array` | `undefined` | Associated data — authenticated but not encrypted. Bound into each chunk's HMAC-SHA256 tag with a 4-byte length prefix for domain separation. If omitted, equivalent to empty. |
-
----
-
-#### `header()`
-
-Returns the 20-byte stream header (`nonce || u32be(chunkSize)`). Must be called
-once before the first `seal()`. Throws if called a second time or after `final()`.
-
----
-
-#### `seal(plaintext)`
-
-Seals one chunk. **Plaintext must be exactly `chunkSize` bytes.** Returns
-`IV (16) || ciphertext || HMAC (32)`. Throws `RangeError` if wrong size. Throws
-if called before `header()` or after `final()`.
-
----
-
-#### `final(plaintext)`
-
-Seals the last chunk. Plaintext may be 0–`chunkSize` bytes (partial chunk is
-valid). After producing output, wipes all key material and marks the sealer dead.
-Throws `RangeError` if plaintext exceeds `chunkSize`.
-
----
-
-#### `dispose()` (sealer)
-
-Aborts the stream. Wipes key material without producing a final chunk. The opener
-will see an incomplete stream and throw when it detects a missing final chunk.
-Safe to call after `final()` — no-op if already dead.
-
----
-
-#### `constructor(key, header, opts?)` (opener)
-
-- **key** — 64-byte key. Throws `RangeError` if wrong length.
-- **header** — 20-byte stream header from `sealer.header()`. Throws `RangeError`
-  if wrong length.
-
-##### Options (`opts`)
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `framed` | `boolean` | `false` | Enable byte-accumulation mode. Parses `u32be` length prefixes and dispatches complete frames to `open()` internally. Required to use `feed()`. |
-| `aad` | `Uint8Array` | `undefined` | Associated data — must match the value used by the sealer. Mismatch causes authentication failure on `open()`. |
-
----
-
-#### `open(chunk)`
-
-Authenticates and decrypts one chunk. Throws `Error` on authentication failure.
-Throws `Error` if called after the final chunk has already been opened. Returns
-plaintext bytes (PKCS7 padding stripped).
-
----
-
-#### `feed(bytes: Uint8Array): Uint8Array[]`
-
-Only callable when constructed with `{ framed: true }`. Accumulates incoming bytes,
-parses `u32be` length prefixes, dispatches complete frames to `open()` internally.
-Returns an array of decrypted chunks — zero, one, or more per call depending on how
-many complete frames were buffered. Throws if called on an unframed opener.
-
----
-
-#### `dispose()` (opener)
-
-Wipes key material. Safe to call at any point — use to abort opening a stream
-early.
+| Property | Value |
+|----------|-------|
+| `formatEnum` | `0x02` |
+| `keySize` | `32` |
+| `tagSize` | `32` (HMAC-SHA-256) |
+| `padded` | `true` (PKCS7) |
+| `wasmModules` | `['serpent', 'sha2']` |
+
+See stream documentation for full `SealStream`/`OpenStream` API.
 
 ---
 
@@ -698,8 +409,10 @@ early.
 
 ```typescript
 import { init, SerpentSeal, randomBytes } from 'leviathan-crypto';
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded';
 
-await init(['serpent', 'sha2']);
+await init({ serpent: serpentWasm, sha2: sha2Wasm });
 
 // 64-byte key: 32 bytes encryption + 32 bytes MAC
 const key = randomBytes(64);
@@ -725,8 +438,9 @@ that is the same length as the plaintext -- no padding overhead.
 
 ```typescript
 import { init, SerpentCtr, randomBytes } from 'leviathan-crypto';
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
 
-await init(['serpent']);
+await init({ serpent: serpentWasm });
 
 const key   = randomBytes(32); // 256-bit key
 const nonce = randomBytes(16); // 16-byte nonce -- NEVER reuse with the same key
@@ -762,8 +476,9 @@ Use `SerpentCbc` for message-level encryption with automatic PKCS7 padding.
 
 ```typescript
 import { init, SerpentCbc, randomBytes } from 'leviathan-crypto';
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
 
-await init(['serpent']);
+await init({ serpent: serpentWasm });
 
 const key = randomBytes(32); // 256-bit key
 const iv  = randomBytes(16); // Random IV -- must be unique per message
@@ -785,107 +500,16 @@ cbc.dispose();
 > [!IMPORTANT]
 > CBC mode is unauthenticated. Use `SerpentSeal` for authenticated encryption.
 
-### Example 4: SerpentStream (chunked authenticated encryption)
-
-Use `SerpentStream` for large payloads where holding the entire plaintext in
-memory is undesirable.
-
-```typescript
-import { init, SerpentStream, randomBytes } from 'leviathan-crypto';
-
-await init(['serpent', 'sha2']);
-
-const key = randomBytes(32); // 32-byte key (HKDF handles expansion)
-
-const stream = new SerpentStream();
-
-const plaintext  = new Uint8Array(1024 * 1024); // 1 MB
-crypto.getRandomValues(plaintext);
-
-const ciphertext = stream.seal(key, plaintext);       // default 64KB chunks
-const decrypted  = stream.open(key, ciphertext);
-
-// decrypted is byte-identical to plaintext
-
-stream.dispose();
-```
-
-### Example 5: SerpentStreamPool (parallel chunked encryption)
-
-Use `SerpentStreamPool` for maximum throughput on multi-core hardware.
-
-```typescript
-import { init, SerpentStreamPool, randomBytes } from 'leviathan-crypto';
-
-await init(['serpent', 'sha2']);
-
-const pool = await SerpentStreamPool.create({ workers: 4 });
-
-const key       = randomBytes(32);
-const plaintext = new Uint8Array(10 * 1024 * 1024); // 10 MB
-
-const ciphertext = await pool.seal(key, plaintext);
-const decrypted  = await pool.open(key, ciphertext);
-
-// decrypted is byte-identical to plaintext
-
-pool.dispose(); // terminates workers
-```
-
-### Example 6: SerpentStreamSealer / SerpentStreamOpener (incremental streaming)
-
-Use `SerpentStreamSealer` when data arrives in chunks and you cannot buffer the
-entire plaintext before encrypting — network streams, file processors, live feeds.
-
-```typescript
-import { init, SerpentStreamSealer, SerpentStreamOpener, randomBytes } from 'leviathan-crypto';
-
-await init(['serpent', 'sha2']);
-
-const key       = randomBytes(64);  // 64-byte key
-const chunkSize = 65536;            // 64 KB chunks
-
-// ── Seal side ────────────────────────────────────────────────────────────────
-
-const sealer = new SerpentStreamSealer(key, chunkSize);
-const header = sealer.header();  // transmit this to the opener first
-
-// seal() as data arrives — each chunk must be exactly chunkSize bytes
-const chunk0 = sealer.seal(plaintext0);
-const chunk1 = sealer.seal(plaintext1);
-
-// final() for the last chunk — may be shorter than chunkSize
-const lastChunk = sealer.final(lastPlaintext);
-// sealer is now dead — key material wiped
-
-// ── Open side ────────────────────────────────────────────────────────────────
-
-const opener = new SerpentStreamOpener(key, header);
-
-const pt0  = opener.open(chunk0);
-const pt1  = opener.open(chunk1);
-const ptN  = opener.open(lastChunk);  // opener detects isLast, wipes on return
-// opener is now dead
-
-// Truncation and reordering are detected — open() throws on auth failure
-```
-
-To abort a stream mid-way (e.g. on connection drop):
-
-```typescript
-sealer.dispose();  // wipes key material without producing a final chunk
-// opener will throw when it receives no more chunks
-```
-
-### Example 7: Raw block operations (low-level)
+### Example 4: Raw block operations (low-level)
 
 Use the `Serpent` class for single 16-byte block operations. This is the lowest
 level API, most users should use `SerpentSeal` instead.
 
 ```typescript
 import { init, Serpent } from 'leviathan-crypto';
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
 
-await init(['serpent']);
+await init({ serpent: serpentWasm });
 
 const cipher = new Serpent();
 
@@ -915,11 +539,11 @@ cipher.dispose();
 
 | Condition | Error type | Message |
 |-----------|-----------|---------|
-| `SerpentSeal` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent', 'sha2']) before using SerpentSeal` |
+| `SerpentSeal` constructed before `init({ serpent: ..., sha2: ... })` | `Error` | `leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using SerpentSeal` |
 | `SerpentSeal` key is not 64 bytes | `RangeError` | `SerpentSeal key must be 64 bytes (got N)` |
 | `SerpentSeal` data too short for decrypt | `RangeError` | `SerpentSeal ciphertext too short` |
 | `SerpentSeal` authentication failed | `Error` | `SerpentSeal: authentication failed` |
-| `init(['serpent'])` not called before constructing `Serpent` | `Error` | `leviathan-crypto: call init(['serpent']) before using this class` |
+| `init({ serpent: ... })` not called before constructing `Serpent` | `Error` | `leviathan-crypto: call init({ serpent: ... }) before using this class` |
 | `SerpentCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCbc is unauthenticated — use SerpentSeal instead. To use SerpentCbc directly, pass { dangerUnauthenticated: true }.` |
 | `SerpentCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCtr is unauthenticated — use SerpentSeal instead. To use SerpentCtr directly, pass { dangerUnauthenticated: true }.` |
 | Key is not 16, 24, or 32 bytes (`Serpent.loadKey`) | `RangeError` | `key must be 16, 24, or 32 bytes (got N)` |
@@ -931,26 +555,6 @@ cipher.dispose();
 | IV is not 16 bytes (`SerpentCbc`) | `RangeError` | `CBC IV must be 16 bytes (got N)` |
 | Ciphertext length is zero or not a multiple of 16 (`SerpentCbc.decrypt`) | `RangeError` | `ciphertext length must be a non-zero multiple of 16` |
 | Invalid PKCS7 padding on decrypt (`SerpentCbc.decrypt`) | `RangeError` | `invalid PKCS7 padding` |
-| `SerpentStream` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent', 'sha2']) before using SerpentStream` |
-| `SerpentStream` key is not 32 bytes | `RangeError` | `SerpentStream key must be 32 bytes (got N)` |
-| `SerpentStream` chunkSize out of range | `RangeError` | `SerpentStream chunkSize must be 1024..65536 (got N)` |
-| `SerpentStream` ciphertext too short | `RangeError` | `SerpentStream: ciphertext too short` |
-| `SerpentStream` authentication failed | `Error` | `SerpentStream: authentication failed` |
-| `SerpentStreamPool.create()` before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent', 'sha2']) before using SerpentStreamPool` |
-| `SerpentStreamPool` methods after `dispose()` | `Error` | `leviathan-crypto: pool is disposed` |
-| `SerpentStreamSealer` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent']) before using SerpentStreamSealer` |
-| `SerpentStreamSealer` key is not 64 bytes | `RangeError` | `SerpentStreamSealer key must be 64 bytes (got N)` |
-| `SerpentStreamSealer` chunkSize out of range | `RangeError` | `SerpentStreamSealer chunkSize must be 1024..65536 (got N)` |
-| `SerpentStreamSealer.header()` called twice | `Error` | `SerpentStreamSealer: header() already called` |
-| `SerpentStreamSealer.seal()` before `header()` | `Error` | `SerpentStreamSealer: call header() first` |
-| `SerpentStreamSealer.seal()` or `final()` after `final()` or `dispose()` | `Error` | `SerpentStreamSealer: stream is closed` |
-| `SerpentStreamSealer.seal()` wrong plaintext size | `RangeError` | `SerpentStreamSealer: seal() requires exactly N bytes (got M)` |
-| `SerpentStreamSealer.final()` plaintext exceeds chunkSize | `RangeError` | `SerpentStreamSealer: final() plaintext exceeds chunkSize (got N)` |
-| `SerpentStreamOpener` constructed before `init(['serpent', 'sha2'])` | `Error` | `leviathan-crypto: call init(['serpent']) before using SerpentStreamOpener` |
-| `SerpentStreamOpener` key is not 64 bytes | `RangeError` | `SerpentStreamOpener key must be 64 bytes (got N)` |
-| `SerpentStreamOpener` header is not 20 bytes | `RangeError` | `SerpentStreamOpener header must be 20 bytes (got N)` |
-| `SerpentStreamOpener.open()` authentication failed | `Error` | `SerpentStreamOpener: authentication failed` |
-| `SerpentStreamOpener.open()` after stream closed | `Error` | `SerpentStreamOpener: stream is closed` |
 
 ---
 
@@ -962,7 +566,7 @@ cipher.dispose();
 > - [serpent_reference](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
 > - [serpent_audit](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)
 > - [chacha20](./chacha20.md) — XChaCha20Poly1305 authenticated encryption (alternative AEAD)
-> - [sha2](./sha2.md) — HMAC-SHA256 and HKDF used internally by SerpentSeal and SerpentStream
+> - [sha2](./sha2.md) — HMAC-SHA256 and HKDF used internally by SerpentSeal
 > - [types](./types.md) — `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes
 > - [utils](./utils.md) — `constantTimeEqual`, `wipe`, `randomBytes` used by Serpent wrappers
 

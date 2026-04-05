@@ -20,5 +20,4 @@ jobs:
       - name: run pool tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
-          test/unit/chacha20/pool.test.ts
-          test/unit/serpent/serpent_stream_pool.test.ts
+          test/unit/stream/pool.test.ts

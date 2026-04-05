@@ -503,7 +503,6 @@ TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [chacha20](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
-> - [chacha20_pool](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+> - [chacha20](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Seal`, `XChaCha20Cipher`)
 > - [asm_serpent](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)
 > - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

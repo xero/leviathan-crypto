@@ -29,6 +29,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
 import { CTR_VECTORS } from './ctr_vectors';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 interface CtrExports {
 	memory:             WebAssembly.Memory
@@ -56,7 +57,7 @@ function toHex(bytes: Uint8Array): string {
 }
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 describe('SIMD CTR cross-check — scalar vs encryptChunk_simd', () => {

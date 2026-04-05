@@ -39,17 +39,18 @@ const OUT  = resolve(ROOT, 'dist/docs');
 // consumer API docs only — no branding, internals, or project docs
 const INCLUDE = [
 	'architecture.md',
+	'argon2id.md',
+	'chacha20.md',
+	'exports.md',
+	'fortuna.md',
 	'init.md',
 	'loader.md',
 	'serpent.md',
-	'chacha20.md',
-	'chacha20_pool.md',
 	'sha2.md',
 	'sha3.md',
-	'fortuna.md',
-	'argon2id.md',
-	'utils.md',
+	'stream.md',
 	'types.md',
+	'utils.md',
 	'wasm.md',
 ];
 

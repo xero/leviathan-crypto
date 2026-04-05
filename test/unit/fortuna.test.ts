@@ -22,9 +22,11 @@
 import { describe, test, expect, beforeAll, afterEach } from 'vitest';
 import { init, Fortuna } from '../../src/ts/index.js';
 import { _resetForTesting } from '../../src/ts/init.js';
+import { serpentWasm } from '../../src/ts/serpent/embedded.js';
+import { sha2Wasm } from '../../src/ts/sha2/embedded.js';
 
 beforeAll(async () => {
-	await init(['serpent', 'sha2']);
+	await init({ serpent: serpentWasm, sha2: sha2Wasm });
 });
 
 describe('Fortuna', () => {
@@ -44,10 +46,10 @@ describe('Fortuna', () => {
 	test('Fortuna.create() before init throws a clear error', async () => {
 		_resetForTesting();
 		await expect(Fortuna.create()).rejects.toThrow(
-			'leviathan-crypto: call init([\'serpent\', \'sha2\']) before using Fortuna',
+			'leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using Fortuna',
 		);
 		// Restore init for remaining tests
-		await init(['serpent', 'sha2']);
+		await init({ serpent: serpentWasm, sha2: sha2Wasm });
 	});
 
 	test('get(32) returns a 32-byte Uint8Array after seeding', async () => {
