@@ -1,0 +1,36 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+// src/ts/keccak/index.ts
+//
+// Keccak alias subpath — resolves to the sha3 WASM module slot.
+// Consumers who prefer the Keccak name (e.g. Kyber/ML-KEM implementations)
+// can import from `leviathan-crypto/keccak` instead of `leviathan-crypto/sha3`.
+
+import { initModule } from '../init.js';
+import type { WasmSource } from '../wasm-source.js';
+
+export async function keccakInit(source: WasmSource): Promise<void> {
+	return initModule('keccak', source);
+}
+
+export type { WasmSource };
+export { SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256 } from '../sha3/index.js';

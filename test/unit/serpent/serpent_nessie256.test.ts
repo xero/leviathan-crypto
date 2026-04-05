@@ -30,9 +30,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { toHex, writeBytes, readBytes, getWasm } from '../helpers';
 import { parseNessieFile, prepareNessieKey, prepareNessiePlaintext, prepareNessieCiphertext } from './vector_parser';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 describe('NESSIE Serpent-256 vectors (1284 vectors)', () => {

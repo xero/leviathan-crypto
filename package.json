@@ -8,11 +8,19 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.js",
+    "./stream": "./dist/stream/index.js",
     "./serpent": "./dist/serpent/index.js",
+    "./serpent/embedded": "./dist/serpent/embedded.js",
     "./chacha20": "./dist/chacha20/index.js",
-    "./chacha20/pool": "./dist/chacha20/pool.js",
+    "./chacha20/embedded": "./dist/chacha20/embedded.js",
     "./sha2": "./dist/sha2/index.js",
-    "./sha3": "./dist/sha3/index.js"
+    "./sha2/embedded": "./dist/sha2/embedded.js",
+    "./sha3": "./dist/sha3/index.js",
+    "./sha3/embedded": "./dist/sha3/embedded.js",
+    "./keccak": "./dist/keccak/index.js",
+    "./keccak/embedded": "./dist/keccak/embedded.js",
+    "./kyber": "./dist/kyber/index.js",
+    "./kyber/embedded": "./dist/kyber/embedded.js"
   },
   "types": "./dist/index.d.ts",
   "files": [
@@ -42,23 +50,23 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.58.2",
-    "@types/node": "^25.5.0",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.5.2",
     "@vitest/web-worker": "^3.2.4",
     "assemblyscript": "^0.27.37",
-    "eslint": "^10.1.0",
+    "eslint": "^10.2.0",
     "jiti": "^2.6.1",
     "pin-github-action": "^3.4.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.2",
+    "typescript-eslint": "^8.58.1",
     "vitest": "^3.2.4"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xero/leviathan-crypto.git"
   },
-  "homepage": "https://github.com/xero/leviathan-crypto/wiki",
+  "homepage": "https://leviathan.3xi.club",
   "bugs": {
     "url": "https://github.com/xero/leviathan-crypto/issues"
   },

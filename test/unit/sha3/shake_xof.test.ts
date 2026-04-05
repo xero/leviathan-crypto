@@ -9,6 +9,7 @@
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHAKE128, SHAKE256 } from '../../../src/ts/index.js';
+import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
 import { shake128Vectors, shake256Vectors } from '../../vectors/sha3.js';
 import {
 	shake128MultiSqueezeVectors,
@@ -26,7 +27,7 @@ function fromHex(hex: string): Uint8Array {
 }
 
 beforeAll(async () => {
-	await init('sha3');
+	await init({ sha3: sha3Wasm });
 });
 
 // ── SHAKE128 multi-squeeze KAT ───────────────────────────────────────────────

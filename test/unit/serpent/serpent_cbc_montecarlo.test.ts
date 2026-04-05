@@ -30,11 +30,12 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { fromHex, toHex, getWasm } from '../helpers';
 import { parseMcCbcEncryptFile, parseMcCbcDecryptFile } from './vector_parser';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 const INNER_LOOP = 10000;
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 function wasmLoadKey(mem: Uint8Array, keyBytes: Uint8Array, wasm: ReturnType<typeof getWasm>): void {

@@ -19,65 +19,43 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3'
+import type { WasmSource } from './wasm-source.js';
+import { loadWasm } from './loader.js';
+import { hasSIMD } from './utils.js';
 
-export type Mode = 'embedded' | 'streaming' | 'manual'
+export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber'
 
-export interface InitOpts {
-  wasmUrl?: URL | string
-  wasmBinary?: Partial<Record<Module, Uint8Array | ArrayBuffer>>
+// 'keccak' is an alias for 'sha3' — same WASM binary, same instance slot
+const ALIASES: Partial<Record<Module, Module>> = { keccak: 'sha3' };
+
+function resolve(mod: Module): Module {
+	return ALIASES[mod] ?? mod;
 }
 
-// Module-scope cache: one WebAssembly.Instance per module
+// Module-scope cache: one WebAssembly.Instance per canonical module
 const instances = new Map<Module, WebAssembly.Instance>();
 
-// Map from public module name to WASM filename
-const WASM_FILES: Record<Module, string> = {
-	serpent: 'serpent.wasm',
-	chacha20: 'chacha20.wasm',
-	sha2: 'sha2.wasm',
-	sha3: 'sha3.wasm',
-};
-
-export async function initModule(
-	mod: Module,
-	embeddedThunk: () => Promise<string>,
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
-	if (instances.has(mod)) return;
-
-	let instance: WebAssembly.Instance;
-
-	if (mode === 'embedded') {
-		const { loadEmbedded } = await import('./loader.js');
-		instance = await loadEmbedded(embeddedThunk);
-	} else if (mode === 'streaming') {
-		if (!opts?.wasmUrl) throw new Error('leviathan-crypto: streaming mode requires wasmUrl');
-		const { loadStreaming } = await import('./loader.js');
-		instance = await loadStreaming(mod, opts.wasmUrl, WASM_FILES[mod]);
-	} else if (mode === 'manual') {
-		const binary = opts?.wasmBinary?.[mod];
-		if (!binary) throw new Error(`leviathan-crypto: manual mode requires wasmBinary['${mod}']`);
-		const { loadManual } = await import('./loader.js');
-		instance = await loadManual(binary);
-	} else {
-		throw new Error(`leviathan-crypto: unknown mode '${mode}'`);
-	}
-
-	instances.set(mod, instance);
+export async function initModule(mod: Module, source: WasmSource): Promise<void> {
+	const resolved = resolve(mod);
+	if (instances.has(resolved)) return;
+	if ((resolved === 'serpent' || resolved === 'chacha20' || resolved === 'kyber') && !hasSIMD())
+		throw new Error(
+			'leviathan-crypto: serpent, chacha20, and kyber require WebAssembly SIMD — '
+			+ 'this runtime does not support it',
+		);
+	instances.set(resolved, await loadWasm(source));
 }
 
 export function getInstance(mod: Module): WebAssembly.Instance {
-	const inst = instances.get(mod);
+	const inst = instances.get(resolve(mod));
 	if (!inst) {
-		throw new Error(`leviathan-crypto: call init(['${mod}']) before using this class`);
+		throw new Error(`leviathan-crypto: call init({ ${mod}: ... }) before using this class`);
 	}
 	return inst;
 }
 
 export function isInitialized(mod: Module): boolean {
-	return instances.has(mod);
+	return instances.has(resolve(mod));
 }
 
 /** Reset all cached instances — for testing only */

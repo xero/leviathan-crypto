@@ -21,6 +21,7 @@
 //
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, HKDF_SHA256, HKDF_SHA512 } from '../../../src/ts/index.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import { hkdfSha256Vectors, hkdfSha512Vectors } from '../../vectors/sha2.js';
 
 function toHex(bytes: Uint8Array): string {
@@ -34,7 +35,7 @@ function fromHex(hex: string): Uint8Array {
 }
 
 beforeAll(async () => {
-	await init('sha2');
+	await init({ sha2: sha2Wasm });
 });
 
 // ── HKDF_SHA256 — RFC vectors ───────────────────────────────────────────────

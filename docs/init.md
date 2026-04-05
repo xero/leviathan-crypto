@@ -1,50 +1,42 @@
 # Module Initialization and WASM Loading
 
-> [!NOTE]
-> The `init()` function is the entry point for leviathan-crypto. You must call it
-> before using any cryptographic class. It loads the WebAssembly modules that
-> perform the actual cryptographic work, caches them in memory, and makes them
+> [!IMPORTANT]
+> Call `init()` before using any cryptographic class. It loads the WebAssembly
+> modules that perform cryptographic work, caches them in memory, and makes them
 > available to all wrapper classes.
 
 ## Overview
 
 leviathan-crypto runs all cryptographic computation inside WebAssembly modules.
-These modules are not available automatically, they need to be loaded and
-compiled before any cryptographic class (`Serpent`, `SHA256`, `ChaCha20`, etc.)
-can be used.
+These modules are not loaded automatically. You tell `init()` which modules you
+need and provide a source for each one. After that, every class backed by those
+modules is ready to use.
 
-`init()` handles this process for you. You tell it which modules you need, and
-it loads them. After that, every class backed by those modules is ready to use.
+`init()` is idempotent. Calling it multiple times with the same module is safe.
+It skips modules already loaded, so you can call `init()` in multiple places
+without redundant work. It returns a Promise. Always `await` it before
+constructing any class.
 
-Key properties:
-
-- **Required before use.** If you try to create a cryptographic class before
-  calling `init()`, you will get a clear error telling you what to do.
-- **Three loading modes.** Embedded (default, zero-config), streaming
-  (better performance for large apps), and manual (full control over how
-  binaries are provided).
-- **Idempotent.** Calling `init()` multiple times with the same module is
-  safe, it skips modules that are already loaded. This means you can call
-  `init()` in multiple places in your application without worrying about
-  redundant work.
-- **Async.** `init()` returns a Promise. Use `await` or `.then()` before
-  proceeding.
+If you try to use a cryptographic class before calling `init()`, you get a clear
+error telling you exactly which module to load.
 
 ---
 
 ## Security Notes
 
-- **WASM runs outside the JavaScript JIT.** Cryptographic code executes in
-  WebAssembly, which provides more predictable execution timing compared to
-  optimized JavaScript. This reduces the risk of timing side-channels
-  introduced by the JIT compiler.
-- **Independent memory per module.** Each WASM module gets its own linear
-  memory (3 pages, 192 KB). Key material loaded into one module's memory
-  cannot be read by another module. There is no shared memory between modules.
-- **No silent auto-initialization.** Every wrapper class checks that its
-  backing module has been initialized. If it hasn't, the class throws an
-  error immediately rather than silently loading the module in the
-  background. This makes initialization explicit and auditable.
+**WASM runs outside the JavaScript JIT.** Cryptographic code executes in
+WebAssembly, which provides more predictable execution timing than optimized
+JavaScript. This reduces the risk of timing side-channels introduced by the
+JIT compiler.
+
+**Each module gets its own linear memory.** Every WASM module receives 3 pages
+(192 KB) of independent memory. Key material in one module cannot be read by
+another. There is no shared memory between modules.
+
+**No silent auto-initialization.** Every wrapper class checks that its backing
+module has been initialized. If it has not, the class throws immediately rather
+than loading the module in the background. Initialization is explicit and
+auditable.
 
 ---
 
@@ -53,236 +45,230 @@ Key properties:
 ### Types
 
 ```typescript
-type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3'
+type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber'
 ```
 
-The four WASM module families. Each one backs a group of related classes:
+The WASM module families. Each one backs a group of related classes.
+`'keccak'` is an alias for `'sha3'` — same WASM binary, same instance slot.
 
-| Module      | Classes it enables                                              |
-|-------------|----------------------------------------------------------------|
-| `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `Fortuna` |
-| `'chacha20'`| `ChaCha20`, `XChaCha20Poly1305`                                |
-| `'sha2'`    | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `Fortuna`  |
-| `'sha3'`    | `SHA3`, `SHAKE128`, `SHAKE256`                                 |
+| Module | Classes it enables |
+|---|---|
+| `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr` |
+| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream`, `Fortuna` — see [sealing.md](./sealing.md) |
+| `'chacha20'` | `ChaCha20`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
+| `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [sealing.md](./sealing.md) |
+| `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
+| `'sha3'` / `'keccak'` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
+| `'kyber'` | `MlKem512`, `MlKem768`, `MlKem1024` (also requires `'sha3'`) — see [kyber.md](./kyber.md) |
+| `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024` — see [kyber.md](./kyber.md) |
 
 ```typescript
-type Mode = 'embedded' | 'streaming' | 'manual'
+type WasmSource = string | URL | ArrayBuffer | Uint8Array
+               | WebAssembly.Module | Response | Promise<Response>
 ```
 
-How the WASM binary is loaded. See the [Usage Examples](#usage-examples) section
-for when to use each mode.
+A value that resolves to a WASM binary. The loading strategy is inferred from
+the type:
 
-```typescript
-interface InitOpts {
-  wasmUrl?: URL | string
-  wasmBinary?: Partial<Record<Module, Uint8Array | ArrayBuffer>>
-}
-```
-
-Optional configuration object. Which fields are required depends on the mode:
-
-| Mode        | Required fields    | Description                                     |
-|-------------|--------------------|-------------------------------------------------|
-| `embedded`  | (none)             | Binaries are bundled in the package              |
-| `streaming` | `wasmUrl`          | Base URL where `.wasm` files are served          |
-| `manual`    | `wasmBinary`       | A map of module names to raw WASM binary data    |
+| Source type | What happens |
+|---|---|
+| `string` | Treated as a gzip+base64 embedded blob. Decoded and decompressed. |
+| `URL` | Fetched with streaming compilation (`WebAssembly.compileStreaming`). |
+| `ArrayBuffer` | Compiled directly via `WebAssembly.instantiate`. |
+| `Uint8Array` | Compiled directly via `WebAssembly.instantiate`. |
+| `WebAssembly.Module` | Already compiled. Instantiated immediately. |
+| `Response` / `Promise<Response>` | Streaming compilation via `WebAssembly.instantiateStreaming`. |
 
 ---
 
 ### Functions
 
-#### `init(modules, mode?, opts?)` — public API (exported from root barrel)
-
-> [!NOTE]
-> `init()` is no longer exported from `init.ts`. It is defined in the
-> root barrel (`src/ts/index.ts`) and dispatches to each module's own init
-> function (`serpentInit`, `chacha20Init`, `sha2Init`, `sha3Init`).
-> See [README.md](./README.md) for details.
-
-The public `init()` signature is unchanged:
+#### init()
 
 ```typescript
 async function init(
-  modules: Module | Module[],
-  mode?: Mode,        // default: 'embedded'
-  opts?: InitOpts,
+  sources: Partial<Record<Module, WasmSource>>,
 ): Promise<void>
 ```
+
+Initializes one or more WASM modules. Pass an object mapping module names to
+their `WasmSource`. Only modules present in the object are loaded. Others are
+left untouched.
 
 ---
 
-#### `initModule(mod, embeddedThunk, mode?, opts?)` — internal
+#### Per-module init functions
+
+Each module subpath exports its own init function for tree-shakeable imports.
+These take a single `WasmSource` argument.
 
 ```typescript
-async function initModule(
-  mod: Module,
-  embeddedThunk: () => Promise<string>,
-  mode?: Mode,        // default: 'embedded'
-  opts?: InitOpts,
-): Promise<void>
+async function serpentInit(source: WasmSource): Promise<void>
+async function chacha20Init(source: WasmSource): Promise<void>
+async function sha2Init(source: WasmSource): Promise<void>
+async function sha3Init(source: WasmSource): Promise<void>
+async function keccakInit(source: WasmSource): Promise<void>
+async function kyberInit(source: WasmSource): Promise<void>
 ```
 
-Internal initialization function. Called by each module's own init function
-(`serpentInit`, `chacha20Init`, `sha2Init`, `sha3Init`), not by consumers
-directly. Each module passes its own embedded thunk so the
-dependency graph stays isolated per module, enabling tree-shaking.
+Each function initializes only its own WASM module, keeping other modules out
+of your bundle.
 
-**Parameters:**
+---
 
-- `mod`: The module name to initialize.
-- `embeddedThunk`: A function that returns a Promise resolving to the
-  base64-encoded WASM binary. Each module defines its own thunk pointing to
-  its own embedded file.
-- `mode`: The loading strategy. Defaults to `'embedded'`.
-- `opts`: Configuration for `'streaming'` and `'manual'` modes.
+#### Embedded subpath exports
 
-**Returns:** A Promise that resolves when the module is loaded and cached.
+The `/embedded` subpath for each module provides the gzip+base64 blob as a
+ready-to-use `WasmSource`:
 
-**Idempotent:** If the module is already initialized, returns immediately.
+| Subpath | Export |
+|---|---|
+| `leviathan-crypto/serpent/embedded` | `serpentWasm` |
+| `leviathan-crypto/chacha20/embedded` | `chacha20Wasm` |
+| `leviathan-crypto/sha2/embedded` | `sha2Wasm` |
+| `leviathan-crypto/sha3/embedded` | `sha3Wasm` |
+| `leviathan-crypto/keccak/embedded` | `keccakWasm` |
+| `leviathan-crypto/kyber/embedded` | `kyberWasm` |
 
-**Throws:**
-
-- `'leviathan-crypto: streaming mode requires wasmUrl'` if mode is
-  `'streaming'` and `opts.wasmUrl` is not provided.
-- `'leviathan-crypto: manual mode requires wasmBinary['<mod>']'` if mode
-  is `'manual'` and the binary for the requested module is missing.
-- `'leviathan-crypto: unknown mode '<mode>''` if an invalid mode string
-  is passed.
+`keccakWasm` and `sha3Wasm` are the same gzip+base64 blob. Both point to `sha3.wasm`.
 
 > [!NOTE]
-> The previous design exported `init()` from `init.ts`,
-> which contained a central `embeddedLoaders` record mapping every module name
-> to its embedded import. This meant any consumer importing `init()`,
-> even through a subpath like `leviathan-crypto/serpent`, pulled all four
-> embedded binaries into the bundle. Moving `init()` to the root barrel and
-> giving each module its own thunk isolates the dependency graph so bundlers
-> can tree-shake unused modules, optimizing build size.
+> `MlKem512`, `MlKem768`, and `MlKem1024` require both `kyber` and `sha3`
+> (or `keccak`) to be initialized. The kyber module handles polynomial arithmetic.
+> The sha3 module provides the Keccak sponge operations used for key generation
+> and encapsulation.
 
 ---
 
-#### `getInstance(mod)`
-
-```typescript
-function getInstance(mod: Module): WebAssembly.Instance
-```
-
-Returns the cached WebAssembly instance for a module. This is used internally
-by wrapper classes, you do not normally need to call it yourself.
-
-**Throws:**
-`'leviathan-crypto: call init(['<mod>']) before using this class'` if the
-module has not been initialized.
-
----
-
-#### `isInitialized(mod)`
+#### isInitialized()
 
 ```typescript
 function isInitialized(mod: Module): boolean
 ```
 
-Returns `true` if the given module has been loaded and cached (read-only).
-Exported from both `init.ts` and the root barrel (`src/ts/index.ts`).
+Returns `true` if the given module has been loaded and cached. Exported from
+both `init.ts` and the root barrel.
 
 > [!NOTE]
-> `isInitialized` is a diagnostic indicator only — not a control mechanism.
-> Use `init()` to initialize modules; do not guard calls on this value.
+> `isInitialized` is a diagnostic indicator, not a control mechanism. Use
+> `init()` to load modules. Do not guard calls on this value.
 
 ---
 
-#### `_resetForTesting()`
+#### getInstance()
+
+```typescript
+function getInstance(mod: Module): WebAssembly.Instance
+```
+
+Returns the cached WebAssembly instance for a module. Used internally by
+wrapper classes. You do not normally need to call this yourself.
+
+Throws `'leviathan-crypto: call init({ <mod>: ... }) before using this class'`
+if the module has not been initialized.
+
+---
+
+#### compileWasm()
+
+```typescript
+async function compileWasm(source: WasmSource): Promise<WebAssembly.Module>
+```
+
+Compiles a `WasmSource` to a `WebAssembly.Module` without instantiating it.
+Used by pool infrastructure to send compiled modules to workers. See
+[loader.md](./loader.md) for details.
+
+---
+
+#### _resetForTesting()
 
 ```typescript
 function _resetForTesting(): void
 ```
 
-Clears all cached WASM instances. This is a testing utility, it allows test
-suites to reset the initialization state between test runs. Do not use this in
+Clears all cached WASM instances. Testing utility only. Do not use in
 production code.
 
 ---
 
 ## Usage Examples
 
-### Embedded mode (default: simplest)
+### Embedded init (most common)
 
-This is the recommended mode for most applications. The WASM binaries are
-bundled inside the package as base64-encoded strings, so there are no extra
-files to serve or fetch.
-
-```typescript
-import { init, SHA256 } from 'leviathan-crypto'
-
-await init('sha2')
-
-const hash = new SHA256()
-const digest = hash.hash(myData)
-```
-
-### Initializing multiple modules at once
-
-Pass an array to load several modules in a single call:
+The WASM binaries are bundled inside the package as gzip+base64 strings. Import
+the blob from the module's `/embedded` subpath and pass it to `init()`.
 
 ```typescript
-import { init, Serpent, SHA256 } from 'leviathan-crypto'
+import { init } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded'
 
-await init(['serpent', 'sha2'])
-
-const cipher = new Serpent(key)
-const hash = new SHA256()
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 ```
 
-### Streaming mode (better performance for large apps)
+### Per-module init (tree-shaking)
 
-Streaming mode fetches `.wasm` files from a URL and uses the browser's
-streaming compilation (`WebAssembly.instantiateStreaming`). This can be
-faster than embedded mode because the browser can begin compiling the WASM
-binary while it is still downloading.
-
-You must serve the `.wasm` files from your web server and provide the base
-URL where they are hosted. The files must be served with the
-`Content-Type: application/wasm` header.
+Use the subpath init function when you need one module and want the smallest
+possible bundle:
 
 ```typescript
-import { init, Serpent } from 'leviathan-crypto'
+import { serpentInit } from 'leviathan-crypto/serpent'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
 
-await init('serpent', 'streaming', {
-  wasmUrl: '/static/wasm/'
-})
-
-const cipher = new Serpent(key)
+await serpentInit(serpentWasm)
 ```
 
-The library knows the filename for each module (e.g. `serpent.wasm`,
-`sha2.wasm`). You only need to provide the directory URL.
+### Keccak alias (for ML-KEM)
 
-### Manual mode (full control)
-
-Manual mode lets you provide the raw WASM binary yourself. This is useful if
-you have a custom build pipeline, want to load binaries from a non-standard
-source, or need to verify the binary before passing it to the library.
+`'keccak'` is an alias for `'sha3'`. Both resolve to the same WASM binary and
+the same instance slot. Use it when you want the semantically correct primitive
+name for ML-KEM consumers:
 
 ```typescript
-import { init, SHA256 } from 'leviathan-crypto'
+import { init } from 'leviathan-crypto'
+import { keccakWasm } from 'leviathan-crypto/keccak/embedded'
 
-// Load the binary however you like
-const wasmBinary = await fetch('/my-custom-path/sha2.wasm')
-  .then(r => r.arrayBuffer())
-
-await init('sha2', 'manual', {
-  wasmBinary: { sha2: new Uint8Array(wasmBinary) }
-})
-
-const hash = new SHA256()
+await init({ keccak: keccakWasm })
+// isInitialized('sha3') === true — same slot
+// isInitialized('keccak') === true — alias resolves symmetrically
 ```
 
-### Checking if a module is initialized
+Or via the subpath directly:
+
+```typescript
+import { keccakInit, SHAKE128, SHA3_256 } from 'leviathan-crypto/keccak'
+import { keccakWasm } from 'leviathan-crypto/keccak/embedded'
+
+await keccakInit(keccakWasm)
+```
+
+### URL-based loading (CDN)
+
+Pass a `URL` to fetch and compile the `.wasm` file via streaming compilation.
+The server must respond with `Content-Type: application/wasm`.
+
+```typescript
+await init({ serpent: new URL('https://unpkg.com/leviathan-crypto/dist/serpent.wasm') })
+```
+
+### Pre-compiled module (edge runtimes)
+
+If you have already compiled the binary such as from a KV cache, pass the
+`WebAssembly.Module` directly:
+
+```typescript
+const mod = await WebAssembly.compile(bytes)
+await init({ serpent: mod })
+```
+
+### Checking initialization state
 
 ```typescript
 import { isInitialized } from 'leviathan-crypto'
 
 if (!isInitialized('sha2')) {
-  await init('sha2')
+  // handle accordingly
 }
 ```
 
@@ -290,19 +276,18 @@ if (!isInitialized('sha2')) {
 
 ## Error Conditions
 
-| Situation                                 | What happens                                                                                 |
-|-------------------------------------------|----------------------------------------------------------------------------------------------|
-| Using a class before calling `init()`     | Throws: `"leviathan-crypto: call init(['<mod>']) before using this class"`                    |
-| Streaming mode without `wasmUrl`          | Throws: `"leviathan-crypto: streaming mode requires wasmUrl"`                                |
-| Manual mode without the needed binary     | Throws: `"leviathan-crypto: manual mode requires wasmBinary['<mod>']"`                       |
-| Unknown mode string                       | Throws: `"leviathan-crypto: unknown mode '<mode>'"`                                          |
-| Calling `init()` for an already-loaded module | No error. Module is silently skipped (idempotent behavior)                          |
+| Situation | What happens |
+|---|---|
+| Using a class before calling `init()` | Throws: `"leviathan-crypto: call init({ ${mod}: ... }) before using this class"` |
+| Invalid `WasmSource` (null, number, etc.) | Throws: `TypeError` with a descriptive message |
+| Empty string source | Throws: `"leviathan-crypto: invalid WasmSource — empty string"` |
+| Calling `init()` for an already-loaded module | No error. Module is silently skipped. |
 
 ---
 
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
-> - [loader](./loader.md) — WASM binary loading strategies (internal details)
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [loader](./loader.md) — WASM binary loading strategies (internal details)
 > - [wasm](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate

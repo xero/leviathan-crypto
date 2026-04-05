@@ -22,22 +22,21 @@
 // src/ts/chacha20/index.ts
 //
 // Public API classes for the ChaCha20 WASM module.
-// Uses the init() module cache — call init('chacha20') before constructing.
+// Uses the init() module cache — call chacha20Init(source) before constructing.
 
 import { getInstance, initModule } from '../init.js';
-import type { Mode, InitOpts } from '../init.js';
+import type { WasmSource } from '../wasm-source.js';
 import type { ChaChaExports } from './types.js';
 import { aeadEncrypt, aeadDecrypt, xcEncrypt, xcDecrypt } from './ops.js';
-import { hasSIMD, randomBytes, wipe } from '../utils.js';
+import { AuthenticationError } from '../errors.js';
 
-const _embedded = () => import('../embedded/chacha20.js').then(m => m.WASM_GZ_BASE64);
+export { AuthenticationError };
 
-export async function chacha20Init(
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
-	return initModule('chacha20', _embedded, mode, opts);
+export async function chacha20Init(source: WasmSource): Promise<void> {
+	return initModule('chacha20', source);
 }
+
+export type { WasmSource };
 
 function getExports(): ChaChaExports {
 	return getInstance('chacha20').exports as unknown as ChaChaExports;
@@ -74,8 +73,7 @@ export class ChaCha20 {
 		const ptOff = this.x.getChunkPtOffset();
 		const ctOff = this.x.getChunkCtOffset();
 		mem.set(chunk, ptOff);
-		const fn = hasSIMD() ? this.x.chachaEncryptChunk_simd : this.x.chachaEncryptChunk;
-		fn(chunk.length);
+		this.x.chachaEncryptChunk_simd(chunk.length);
 		return mem.slice(ctOff, ctOff + chunk.length);
 	}
 
@@ -134,11 +132,18 @@ export class Poly1305 {
 /**
  * ChaCha20-Poly1305 AEAD (RFC 8439 §2.8).
  *
+ * `encrypt()` returns ciphertext || tag(16) as a single Uint8Array.
+ * `decrypt()` accepts the same combined format and splits internally.
+ *
+ * Single-use encrypt guard: `encrypt()` may only be called once per instance.
+ * Create a new instance for each encryption to prevent nonce reuse.
+ *
  * `decrypt()` uses constant-time tag comparison — XOR-accumulate pattern,
  * no early return on mismatch. Plaintext is never returned on failure.
  */
 export class ChaCha20Poly1305 {
 	private readonly x: ChaChaExports;
+	private _used = false;
 
 	constructor() {
 		this.x = getExports();
@@ -149,28 +154,39 @@ export class ChaCha20Poly1305 {
 		nonce:     Uint8Array,
 		plaintext: Uint8Array,
 		aad:       Uint8Array = new Uint8Array(0),
-	): { ciphertext: Uint8Array; tag: Uint8Array } {
+	): Uint8Array {
+		if (this._used)
+			throw new Error(
+				'leviathan-crypto: encrypt() already called on this instance. '
+				+ 'Create a new instance for each encryption to prevent nonce reuse.',
+			);
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 12)
 			throw new RangeError(`nonce must be 12 bytes (got ${nonce.length})`);
-		return aeadEncrypt(this.x, key, nonce, plaintext, aad);
+		const { ciphertext, tag } = aeadEncrypt(this.x, key, nonce, plaintext, aad);
+		this._used = true;
+		const out = new Uint8Array(ciphertext.length + 16);
+		out.set(ciphertext);
+		out.set(tag, ciphertext.length);
+		return out;
 	}
 
 	decrypt(
 		key:        Uint8Array,
 		nonce:      Uint8Array,
-		ciphertext: Uint8Array,
-		tag:        Uint8Array,
+		ciphertext: Uint8Array,   // ciphertext || tag(16) combined
 		aad:        Uint8Array = new Uint8Array(0),
 	): Uint8Array {
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 12)
 			throw new RangeError(`nonce must be 12 bytes (got ${nonce.length})`);
-		if (tag.length !== 16)
-			throw new RangeError(`tag must be 16 bytes (got ${tag.length})`);
-		return aeadDecrypt(this.x, key, nonce, ciphertext, tag, aad);
+		if (ciphertext.length < 16)
+			throw new RangeError(`ciphertext too short — must include 16-byte tag (got ${ciphertext.length})`);
+		const ct  = ciphertext.subarray(0, ciphertext.length - 16);
+		const tag = ciphertext.subarray(ciphertext.length - 16);
+		return aeadDecrypt(this.x, key, nonce, ct, tag, aad);
 	}
 
 	dispose(): void {
@@ -186,10 +202,14 @@ export class ChaCha20Poly1305 {
  * Recommended authenticated encryption primitive for most use cases.
  * Uses a 24-byte nonce — safe for random generation via crypto.getRandomValues.
  *
+ * Single-use encrypt guard: `encrypt()` may only be called once per instance.
+ * Create a new instance for each encryption to prevent nonce reuse.
+ *
  * `decrypt()` constant-time guarantee is inherited from the inner AEAD path.
  */
 export class XChaCha20Poly1305 {
 	private readonly x: ChaChaExports;
+	private _used = false;
 
 	constructor() {
 		this.x = getExports();
@@ -201,11 +221,18 @@ export class XChaCha20Poly1305 {
 		plaintext: Uint8Array,
 		aad:       Uint8Array = new Uint8Array(0),
 	): Uint8Array {
+		if (this._used)
+			throw new Error(
+				'leviathan-crypto: encrypt() already called on this instance. '
+				+ 'Create a new instance for each encryption to prevent nonce reuse.',
+			);
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 24)
 			throw new RangeError(`XChaCha20 nonce must be 24 bytes (got ${nonce.length})`);
-		return xcEncrypt(this.x, key, nonce, plaintext, aad);
+		const result = xcEncrypt(this.x, key, nonce, plaintext, aad);
+		this._used = true;
+		return result;
 	}
 
 	decrypt(
@@ -228,64 +255,7 @@ export class XChaCha20Poly1305 {
 	}
 }
 
-// ── XChaCha20Seal ────────────────────────────────────────────────────────────
-
-/**
- * XChaCha20-Poly1305 AEAD with bound key and automatic nonce management.
- * Implements the AEAD interface — encrypt()/decrypt() require only plaintext
- * and optional AAD. Each encrypt() call generates a fresh 24-byte random nonce.
- *
- * Wire format: nonce(24) || ciphertext || tag(16)
- *
- * Use this when you want the simplest correct API and do not need to manage
- * nonces yourself. For protocol interop requiring explicit nonce control,
- * use XChaCha20Poly1305 directly.
- */
-export class XChaCha20Seal {
-	private readonly _x:   ChaChaExports;
-	private readonly _key: Uint8Array;
-
-	constructor(key: Uint8Array) {
-		if (!_chachaReady())
-			throw new Error('leviathan-crypto: call init([\'chacha20\']) before using XChaCha20Seal');
-		if (key.length !== 32)
-			throw new RangeError(`XChaCha20Seal key must be 32 bytes (got ${key.length})`);
-		this._x   = getExports();
-		this._key = key.slice();
-	}
-
-	encrypt(plaintext: Uint8Array, aad?: Uint8Array): Uint8Array {
-		const aadBytes = aad ?? new Uint8Array(0);
-		// eslint-disable-next-line prefer-rest-params
-		const _nonce = arguments[2] as Uint8Array | undefined;
-		const nonce = (_nonce && _nonce.length === 24) ? _nonce : randomBytes(24);
-		const sealed = xcEncrypt(this._x, this._key, nonce, plaintext, aadBytes);
-		// Prepend nonce to sealed output (ciphertext || tag)
-		const out = new Uint8Array(24 + sealed.length);
-		out.set(nonce, 0);
-		out.set(sealed, 24);
-		return out;
-	}
-
-	decrypt(ciphertext: Uint8Array, aad: Uint8Array = new Uint8Array(0)): Uint8Array {
-		if (ciphertext.length < 40)
-			throw new RangeError(
-				`XChaCha20Seal ciphertext too short — need nonce(24)+tag(16)=40 bytes minimum (got ${ciphertext.length})`,
-			);
-		const nonce   = ciphertext.subarray(0, 24);
-		const payload = ciphertext.subarray(24);
-		return xcDecrypt(this._x, this._key, nonce, payload, aad);
-	}
-
-	dispose(): void {
-		wipe(this._key);
-		this._x.wipeBuffers();
-	}
-}
-
-export { XChaCha20StreamSealer, XChaCha20StreamOpener } from './stream-sealer.js';
-export { XChaCha20StreamPool } from './stream-pool.js';
-export type { XcStreamPoolOpts, SealOpts } from './stream-pool.js';
+export { XChaCha20Cipher } from './cipher-suite.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

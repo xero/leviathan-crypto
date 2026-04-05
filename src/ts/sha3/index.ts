@@ -22,19 +22,16 @@
 // src/ts/sha3/index.ts
 //
 // Public API classes for the SHA-3 WASM module.
-// Uses the init() module cache — call init('sha3') before constructing.
+// Uses the init() module cache — call sha3Init(source) before constructing.
 
 import { getInstance, initModule } from '../init.js';
-import type { Mode, InitOpts } from '../init.js';
+import type { WasmSource } from '../wasm-source.js';
 
-const _embedded = () => import('../embedded/sha3.js').then(m => m.WASM_GZ_BASE64);
-
-export async function sha3Init(
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
-	return initModule('sha3', _embedded, mode, opts);
+export async function sha3Init(source: WasmSource): Promise<void> {
+	return initModule('sha3', source);
 }
+
+export type { WasmSource };
 
 interface Sha3Exports {
 	memory:          WebAssembly.Memory;

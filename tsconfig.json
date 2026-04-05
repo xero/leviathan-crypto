@@ -12,7 +12,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "stripInternal": true
   },
   "include": ["src/ts/**/*.ts"],
   "exclude": ["node_modules", "build", "dist", "src/asm", "test", "scripts"]

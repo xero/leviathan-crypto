@@ -34,6 +34,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
+import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 
 interface ChachaSIMDExports {
 	memory:                WebAssembly.Memory
@@ -64,7 +65,7 @@ const KEY   = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'
 const NONCE = '000000000000004a00000000';
 
 beforeAll(async () => {
-	await init('chacha20');
+	await init({ chacha20: chacha20Wasm });
 });
 
 describe('ChaCha20 4-wide SIMD gate — scalar vs chachaEncryptChunk_simd', () => {

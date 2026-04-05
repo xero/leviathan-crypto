@@ -22,6 +22,7 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHA512, SHA384 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import { sha512Vectors, sha384Vectors, sha512CrossCheck, sha384CrossCheck } from '../../vectors/sha2.js';
 
 function toHex(bytes: Uint8Array): string {
@@ -35,7 +36,7 @@ function fromHex(hex: string): Uint8Array {
 }
 
 beforeAll(async () => {
-	await init('sha2');
+	await init({ sha2: sha2Wasm });
 });
 
 // ── Gate 4: SHA-512 "abc" ──────────────────────────────────────────────────

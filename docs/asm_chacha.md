@@ -10,19 +10,10 @@
 This module implements the full ChaCha20-Poly1305 AEAD family in a single
 WASM binary with shared linear memory:
 
-- **ChaCha20** stream cipher (RFC 8439 S2.3-S2.4) -- 256-bit key, 96-bit nonce,
-  32-bit block counter, 20 rounds (10 double rounds of column + diagonal
-  quarter-rounds).
-- **Poly1305** one-time MAC (RFC 8439 S2.5) -- authenticates arbitrary-length
-  messages under a 256-bit one-time key (r || s). Uses a radix-2^26
-  representation with u64 limbs for accumulation.
-- **ChaCha20-Poly1305 AEAD** (RFC 8439 S2.8) -- the TypeScript layer composes
-  `chachaGenPolyKey` + `chachaEncryptChunk` + `polyInit`/`polyUpdate`/`polyFinal`
-  to produce authenticated ciphertext. The WASM module provides the primitives;
-  the TS wrapper orchestrates the AEAD construction.
-- **HChaCha20** subkey derivation (draft-irtf-cfrg-xchacha S2.1) -- extracts a
-  256-bit subkey from a 256-bit key and 128-bit nonce prefix. Used by XChaCha20
-  to extend the nonce space to 192 bits.
+**ChaCha20** stream cipher (RFC 8439 S2.3-S2.4). 256-bit key, 96-bit nonce, 32-bit block counter, 20 rounds (10 double rounds of column + diagonal quarter-rounds).
+**Poly1305** one-time MAC (RFC 8439 S2.5). Authenticates arbitrary-length messages under a 256-bit one-time key (r || s). Uses a radix-2^26 representation with u64 limbs for accumulation.
+**ChaCha20-Poly1305 AEAD** (RFC 8439 S2.8). The TypeScript layer composes `chachaGenPolyKey` + `chachaEncryptChunk` + `polyInit`/`polyUpdate`/`polyFinal` to produce authenticated ciphertext. The WASM module provides the primitives; the TS wrapper orchestrates the AEAD construction.
+**HChaCha20** subkey derivation (draft-irtf-cfrg-xchacha S2.1). Extracts a 256-bit subkey from a 256-bit key and 128-bit nonce prefix. Used by XChaCha20 to extend the nonce space to 192 bits.
 
 All cryptographic computation runs in WASM. The TypeScript layer writes inputs
 to linear memory, calls exported functions, and reads outputs. It never
@@ -35,8 +26,7 @@ implements algorithm logic.
 **Constant-time by construction.** ChaCha20's quarter-round uses only ARX
 operations (add, rotate, XOR). There are no table lookups, no secret-dependent
 branches, and no variable-time multiplications. This makes ChaCha20 inherently
-resistant to cache-timing side channels -- the same property that motivated its
-adoption in TLS 1.3 as the non-AES cipher suite.
+resistant to cache-timing side channels. This is the same property that motivated its adoption in TLS 1.3 as the non-AES cipher suite.
 
 **Poly1305 accumulator arithmetic.** The Poly1305 implementation uses a
 radix-2^26 limb representation stored in u64 words. Multiplication is schoolbook
@@ -55,18 +45,15 @@ If random nonces are required, use XChaCha20-Poly1305 instead.
 **XChaCha20 extends nonce to 192 bits.** HChaCha20 derives a per-message subkey
 from the first 128 bits of a 192-bit nonce, then ChaCha20 encrypts with the
 remaining 64 bits (zero-padded to 96 bits). The 192-bit nonce space makes random
-nonce generation safe for up to ~2^96 messages -- effectively unlimited.
+nonce generation safe for up to ~2^96 messages. Effectively unlimited.
 
-**`wipeBuffers()` zeroes all buffer regions.** Every buffer in the module --
-keys, nonces, counters, keystream blocks, ChaCha20 state (which contains a copy
-of the key in words 4-11), Poly1305 internal state (h, r, 5*r, s), chunk
-buffers, and XChaCha20 subkey material -- is overwritten with zeros. The
+**`wipeBuffers()` zeroes all buffer regions.** Every buffer in the module (keys, nonces, counters, keystream blocks, ChaCha20 state (which contains a copy of the key in words 4-11), Poly1305 internal state (h, r, 5*r, s), chunk buffers, and XChaCha20 subkey material) is overwritten with zeros. The
 TypeScript `dispose()` method must call this unconditionally. Key material and
 intermediate state must not persist in WASM memory after an operation completes.
 
 **Bare ChaCha20 is unauthenticated.** `chachaEncryptChunk` / `chachaDecryptChunk`
 provide confidentiality only. Without Poly1305 authentication, ciphertext is
-malleable -- an attacker can flip plaintext bits by flipping ciphertext bits.
+malleable. An attacker can flip plaintext bits by flipping ciphertext bits.
 Always use ChaCha20-Poly1305 AEAD or pair bare ChaCha20 with HMAC in
 Encrypt-then-MAC construction.
 
@@ -157,9 +144,7 @@ auto-increments after each block.
 
 #### `chachaDecryptChunk(len: i32): i32`
 
-Alias for `chachaEncryptChunk` -- ChaCha20 is a stream cipher; encryption and
-decryption are identical (XOR with keystream). Reads from `CHUNK_PT_OFFSET`,
-writes to `CHUNK_CT_OFFSET`.
+Alias for `chachaEncryptChunk`. ChaCha20 is a stream cipher; encryption and decryption are identical (XOR with keystream). Reads from `CHUNK_PT_OFFSET`, writes to `CHUNK_CT_OFFSET`.
 
 ---
 
@@ -208,9 +193,7 @@ This function requires the WASM binary to be compiled with `--enable simd`.
 
 #### `chachaDecryptChunk_simd(len: i32): i32`
 
-Alias for `chachaEncryptChunk_simd` -- ChaCha20 is a stream cipher; encryption
-and decryption are identical. Reads from `CHUNK_PT_OFFSET`, writes to
-`CHUNK_CT_OFFSET`. Provided for API symmetry; the call is forwarded directly.
+Alias for `chachaEncryptChunk_simd`. ChaCha20 is a stream cipher; encryption and decryption are identical. Reads from `CHUNK_PT_OFFSET`, writes to `CHUNK_CT_OFFSET`. Provided for API symmetry; the call is forwarded directly.
 
 ---
 
@@ -244,8 +227,7 @@ The state is initialized as:
 ```
 
 After 10 double rounds, the output is words 0-3 and 12-15 of the working state
-(NOT added back to the initial state -- this is the key difference from the
-standard ChaCha20 block function). The 32-byte result is written to
+(NOT added back to the initial state. This is the key difference from the standard ChaCha20 block function). The 32-byte result is written to
 `XCHACHA_SUBKEY_OFFSET`.
 
 **Usage in XChaCha20:** The TypeScript wrapper calls `hchacha20()` to derive the
@@ -355,7 +337,7 @@ module's total memory footprint is 131,824 bytes (< 3 x 64KB pages = 192KB).
 | 131,532 | 32 | `XCHACHA_SUBKEY_BUFFER` | HChaCha20 output subkey |
 | 131,564 | 4 | *(alignment padding)* | Pad to 16-byte boundary (131564 % 16 = 12) |
 | 131,568 | 256 | `CHACHA_SIMD_WORK_BUFFER` | 4-wide inter-block SIMD work buffer |
-| 131,824 | -- | END | Total < 196,608 (3 pages) |
+| 131,824 | | END | Total < 196,608 (3 pages) |
 
 ---
 
@@ -364,7 +346,7 @@ module's total memory footprint is 131,824 bytes (< 3 x 64KB pages = 192KB).
 The module is composed of five source files compiled into a single `chacha20.wasm`
 binary (built with `--enable simd`):
 
-### `buffers.ts` -- Static Memory Layout
+### `buffers.ts`: Static Memory Layout
 
 Defines all buffer offsets as `i32` constants starting at offset 0. Exports
 getter functions for each offset so the TypeScript layer can query them at
@@ -373,71 +355,38 @@ and `getMemoryPages()` (returns `memory.size()`).
 
 No dynamic allocation. No `memory.grow()`. The layout is fixed at compile time.
 
-### `chacha20.ts` -- ChaCha20 Stream Cipher + HChaCha20
+### `chacha20.ts`: ChaCha20 Stream Cipher + HChaCha20
 
 Implements from RFC 8439 directly:
 
-- **`rotl32`** -- left rotation (inlined). ChaCha20 uses left rotation
-  exclusively, unlike some other ARX constructions.
-- **`qr`** (quarter-round, RFC 8439 S2.1) -- the fundamental ChaCha20 operation.
-  Four ARX steps with rotations of 16, 12, 8, 7 bits. Operates on four u32
-  words at computed offsets in the state buffer.
-- **`doubleRound`** -- one column round (indices 0,4,8,12 / 1,5,9,13 / 2,6,10,14
-  / 3,7,11,15) followed by one diagonal round (0,5,10,15 / 1,6,11,12 / 2,7,8,13
-  / 3,4,9,14). Applied 10 times for 20 total rounds.
-- **`block`** -- the ChaCha20 block function (RFC 8439 S2.3). Copies state to
-  the block buffer, applies 10 double rounds, then adds the original state back
-  word-by-word. Produces one 64-byte keystream block.
-- **`chachaEncryptChunk`** -- streaming encryption. Iterates over the plaintext
-  in 64-byte blocks, XORing each byte with the corresponding keystream byte.
-  Auto-increments the counter after each block.
-- **`chachaGenPolyKey`** -- generates the one-time Poly1305 key by running ChaCha20
-  with counter = 0 (RFC 8439 S2.6).
-- **`hchacha20`** -- HChaCha20 (draft-irtf-cfrg-xchacha S2.1). Same as the block
-  function but (a) uses the first 16 bytes of the XChaCha20 nonce as words 12-15
-  instead of counter + nonce, and (b) outputs words 0-3 and 12-15 of the
-  post-round state WITHOUT adding back the initial state.
+**`rotl32`**: left rotation (inlined). ChaCha20 uses left rotation exclusively, unlike some other ARX constructions.
+**`qr`** (quarter-round, RFC 8439 S2.1): the fundamental ChaCha20 operation. Four ARX steps with rotations of 16, 12, 8, 7 bits. Operates on four u32 words at computed offsets in the state buffer.
+**`doubleRound`**: one column round (indices 0,4,8,12 / 1,5,9,13 / 2,6,10,14 / 3,7,11,15) followed by one diagonal round (0,5,10,15 / 1,6,11,12 / 2,7,8,13 / 3,4,9,14). Applied 10 times for 20 total rounds.
+**`block`**: the ChaCha20 block function (RFC 8439 S2.3). Copies state to the block buffer, applies 10 double rounds, then adds the original state back word-by-word. Produces one 64-byte keystream block.
+**`chachaEncryptChunk`**: streaming encryption. Iterates over the plaintext in 64-byte blocks, XORing each byte with the corresponding keystream byte. Auto-increments the counter after each block.
+**`chachaGenPolyKey`**: generates the one-time Poly1305 key by running ChaCha20 with counter = 0 (RFC 8439 S2.6).
+**`hchacha20`**: HChaCha20 (draft-irtf-cfrg-xchacha S2.1). Same as the block function but (a) uses the first 16 bytes of the XChaCha20 nonce as words 12-15 instead of counter + nonce, and (b) outputs words 0-3 and 12-15 of the post-round state WITHOUT adding back the initial state.
 
-### `poly1305.ts` -- Poly1305 MAC
+### `poly1305.ts`: Poly1305 MAC
 
 Implements from RFC 8439 S2.5:
 
-- **Radix-2^26 representation.** Both r and h are stored as 5 limbs of up to
-  26 bits each, packed into u64 words. This allows the schoolbook multiplication
-  to use u64 arithmetic without overflow -- the maximum intermediate product is
-  ~2^52 * 5, well within u64 range.
-- **`absorbBlock`** (internal) -- absorbs one 16-byte block into the accumulator.
-  Decomposes the block into 5 radix-2^26 limbs, adds to h, multiplies by r
-  using the identity `h[i] * r[j] mod p = h[i] * (5 * r[j])` for wrapped
-  indices (since p = 2^130 - 5), and performs a carry chain to normalize.
-- **`polyInit`** -- clamps r per RFC 8439 S2.5 (certain bits must be zero for
-  security), decomposes r and s into limb form, precomputes 5*r[1..4], and
-  zeroes the accumulator.
-- **`polyUpdate`** -- feeds message bytes through the accumulator. Handles
-  partial blocks by buffering at `POLY_BUF_OFFSET`. Full 16-byte blocks set
-  the 2^128 high bit before absorption.
-- **`polyFinal`** -- pads and absorbs any remaining partial block (with 0x01
-  byte and hibit = 0), normalizes h via a full carry chain, performs the
-  constant-time conditional reduction mod p, and adds the s pad to produce the
-  final 16-byte tag.
+**Radix-2^26 representation.** Both r and h are stored as 5 limbs of up to 26 bits each, packed into u64 words. This allows the schoolbook multiplication to use u64 arithmetic without overflow. The maximum intermediate product is ~2^52 * 5, well within u64 range.
+**`absorbBlock`** (internal): absorbs one 16-byte block into the accumulator. Decomposes the block into 5 radix-2^26 limbs, adds to h, multiplies by r using the identity `h[i] * r[j] mod p = h[i] * (5 * r[j])` for wrapped indices (since p = 2^130 - 5), and performs a carry chain to normalize.
+**`polyInit`**: clamps r per RFC 8439 S2.5 (certain bits must be zero for security), decomposes r and s into limb form, precomputes 5*r[1..4], and zeroes the accumulator.
+**`polyUpdate`**: feeds message bytes through the accumulator. Handles partial blocks by buffering at `POLY_BUF_OFFSET`. Full 16-byte blocks set the 2^128 high bit before absorption.
+**`polyFinal`**: pads and absorbs any remaining partial block (with 0x01 byte and hibit = 0), normalizes h via a full carry chain, performs the constant-time conditional reduction mod p, and adds the s pad to produce the final 16-byte tag.
 
-### `chacha20_simd_4x.ts` -- 4-Wide Inter-Block SIMD
+### `chacha20_simd_4x.ts`: 4-Wide Inter-Block SIMD
 
 Implements `chachaEncryptChunk_simd` and `chachaDecryptChunk_simd` using
 WebAssembly v128 SIMD operations. Processes four independent ChaCha20 blocks
 simultaneously: each v128 register lane holds word `w` from a different block,
 giving 4× useful work per instruction.
 
-- **`rotl32_4x`** / **`qr_4x`** -- scalar helpers for the tail path, renamed
-  to avoid namespace conflict with the same-named private functions in
-  `chacha20.ts` (same AS compilation unit).
-- **`computeBlock_scalar`** -- scalar block function duplicated here to service
-  the tail path (inputs not a multiple of 256 bytes). Avoids adding an
-  exportable symbol to `chacha20.ts`.
-- **`block4x(ctr: u32)`** -- core SIMD routine. Operates entirely in 16 v128
-  locals (enabling JIT register allocation). Reconstructs initial-state for the
-  add-back step from `CHACHA_STATE_OFFSET` memory + the `ctr` parameter, avoiding
-  the need to save 16 additional v128 locals.
+**`rotl32_4x`** / **`qr_4x`**: scalar helpers for the tail path, renamed to avoid namespace conflict with the same-named private functions in `chacha20.ts` (same AS compilation unit).
+**`computeBlock_scalar`**: scalar block function duplicated here to service the tail path (inputs not a multiple of 256 bytes). Avoids adding an exportable symbol to `chacha20.ts`.
+**`block4x(ctr: u32)`**: core SIMD routine. Operates entirely in 16 v128 locals (enabling JIT register allocation). Reconstructs initial-state for the add-back step from `CHACHA_STATE_OFFSET` memory + the `ctr` parameter, avoiding the need to save 16 additional v128 locals.
 
 > **Note on negative result:** A prior attempt at intra-block SIMD (processing
 > one block via v128 with shuffles) measured 0.60–0.72× scalar across 4 attempts.
@@ -447,7 +396,7 @@ giving 4× useful work per instruction.
 > fixed-address loads for the scalar path. See `docs/chacha_simd_bench.md` for
 > full analysis. Inter-block parallelism avoids all three issues.
 
-### `wipe.ts` -- Buffer Zeroing
+### `wipe.ts`: Buffer Zeroing
 
 Single exported function `wipeBuffers()` that calls `memory.fill(offset, 0, size)`
 for every buffer region. Covers key material, nonces, state, intermediate
@@ -467,8 +416,7 @@ chacha20.ts   poly1305.ts   wipe.ts   chacha20_simd_4x.ts
 	                     index.ts (re-exports all)
 ```
 
-`chacha20.ts`, `poly1305.ts`, and `chacha20_simd_4x.ts` are independent of each
-other -- they all import only from `buffers.ts`. The AEAD composition (calling
+`chacha20.ts`, `poly1305.ts`, and `chacha20_simd_4x.ts` are independent of each other. They all import only from `buffers.ts`. The AEAD composition (calling
 `chachaGenPolyKey` then feeding ciphertext through `polyUpdate`) happens in the
 TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
 `buffers.ts` and has no dependency on any algorithm implementation.
@@ -484,7 +432,7 @@ TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
 | `chachaEncryptChunk_simd(len)` | `len <= 0` or `len > 65536` | Returns `-1` |
 | `chachaDecryptChunk_simd(len)` | Same as above (alias) | Returns `-1` |
 | `polyUpdate(len)` | `len <= 0` | No-op (returns immediately) |
-| All other functions | -- | No error returns; preconditions are the caller's responsibility |
+| All other functions | | No error returns. Preconditions are the caller's responsibility. |
 
 **Implicit constraints enforced by the TypeScript layer:**
 
@@ -503,7 +451,6 @@ TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [chacha20](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`)
-> - [chacha20_pool](./chacha20_pool.md) — `XChaCha20Poly1305Pool` worker-pool wrapper for parallel encryption
+> - [chacha20](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`)
 > - [asm_serpent](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)
 > - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

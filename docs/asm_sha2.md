@@ -1,4 +1,4 @@
-# SHA-2 WASM module Reference
+# SHA-2 WASM Reference
 
 > [!NOTE]
 > SHA-2 hashing algorithm family WASM module (AssemblyScript -> `sha2.wasm`)
@@ -9,8 +9,7 @@
 
 The `sha2` WASM module implements the SHA-2 hash family and its HMAC
 constructions entirely in AssemblyScript, compiled to WebAssembly. All
-cryptographic computation runs in WASM linear memory with static buffer
-allocation -- no heap, no `memory.grow()`.
+cryptographic computation runs in WASM linear memory with static buffer allocation. No heap, no `memory.grow()`.
 
 Primitives provided:
 
@@ -24,8 +23,7 @@ Primitives provided:
 | HMAC-SHA384 | RFC 2104       | 48 bytes    | 128 bytes  |
 
 SHA-384 is SHA-512 with different initial hash values and a truncated
-output. It shares all SHA-512 buffers and compression logic -- no
-separate implementation exists.
+output. It shares all SHA-512 buffers and compression logic. No separate implementation exists.
 
 Every primitive supports a streaming API: `init` / `update` / `final`.
 The caller writes input bytes to the module's input staging buffer,
@@ -45,8 +43,7 @@ SHA-512, provides 192-bit collision resistance.
 **Length extension.** SHA-256 and SHA-512 use the Merkle-Damgard
 construction and are vulnerable to length extension attacks: given
 `H(m)` and `len(m)`, an attacker can compute `H(m || padding || m')`
-without knowing `m`. HMAC is not vulnerable to length extension -- the
-outer hash step prevents it. If you need to authenticate data, use HMAC,
+without knowing `m`. HMAC is not vulnerable to length extension. The outer hash step prevents it. If you need to authenticate data, use HMAC,
 not a bare hash.
 
 **HMAC key secrecy.** HMAC provides message authentication only if the
@@ -136,7 +133,7 @@ sha384Init(): void
 
 Initialize SHA-384 state. Loads the SHA-384 initial hash values (FIPS
 180-4 S5.3.4) into `SHA512_H_OFFSET`. All SHA-512 buffers and
-compression logic are shared -- only the IVs differ. Call
+compression logic are shared. Only the IVs differ. Call
 `sha384Final()` (not `sha512Final()`) to get the correct 48-byte output.
 
 ```
@@ -191,8 +188,7 @@ hmac256Update(len: i32): void
 ```
 
 Write message bytes (up to 64) to `SHA256_INPUT_OFFSET`, then call.
-Passes through directly to `sha256Update(len)` -- the inner hash
-accumulates the message data.
+Passes through directly to `sha256Update(len)`. The inner hash accumulates the message data.
 
 ```
 hmac256Final(): void
@@ -309,7 +305,7 @@ getHmac512InnerOffset():  i32    // 1912
 getModuleId(): i32
 ```
 
-Returns `2` -- the numeric identifier for the SHA-2 module.
+Returns `2`. The numeric identifier for the SHA-2 module.
 
 ```
 getMemoryPages(): i32
@@ -331,10 +327,9 @@ ipad/opad, inner hashes, and digest outputs. Must be called on dispose.
 ## Buffer Layout
 
 All offsets start at byte 0. The SHA-2 module uses a single contiguous
-region of 1976 bytes in WASM linear memory. SHA-384 does not have its
-own buffers -- it shares all SHA-512 buffers.
+region of 1976 bytes in WASM linear memory. SHA-384 does not have its own buffers. It shares all SHA-512 buffers.
 
-### SHA-256 Region (offsets 0 -- 619)
+### SHA-256 Region (offsets 0 to 619)
 
 | Buffer                 | Offset | Size      | Purpose                               |
 |------------------------|--------|-----------|---------------------------------------|
@@ -351,7 +346,7 @@ own buffers -- it shares all SHA-512 buffers.
 
 ---
 
-### SHA-512 / SHA-384 Region (offsets 620 -- 1975)
+### SHA-512 / SHA-384 Region (offsets 620 to 1975)
 
 | Buffer                 | Offset | Size      | Purpose                               |
 |------------------------|--------|-----------|---------------------------------------|
@@ -396,7 +391,7 @@ query buffer positions at runtime. Also exports `getModuleId()` (returns
 
 ---
 
-### sha256.ts -- SHA-256 (FIPS 180-4 S6.2)
+### sha256.ts: SHA-256 (FIPS 180-4 S6.2)
 
 Implements the complete SHA-256 algorithm:
 
@@ -422,7 +417,7 @@ Implements the complete SHA-256 algorithm:
 
 ---
 
-### sha512.ts -- SHA-512 and SHA-384 (FIPS 180-4 S6.4, S6.5)
+### sha512.ts: SHA-512 and SHA-384 (FIPS 180-4 S6.4, S6.5)
 
 Implements SHA-512 with SHA-384 as a variant:
 
@@ -431,8 +426,7 @@ Implements SHA-512 with SHA-384 as a variant:
 - **Functions** (FIPS 180-4 S4.1.3): same structure as SHA-256 but with
   64-bit operands and different rotation amounts.
   Sigma0(28/34/39), Sigma1(14/18/41), sigma0(1/8/SHR7),
-  sigma1(19/61/SHR6). These are NOT the same as SHA-256 rotation
-  amounts -- the source includes a warning about this.
+  sigma1(19/61/SHR6). These are NOT the same as SHA-256 rotation amounts. The source includes a warning about this.
 - **Big-endian helpers**: `load64be` and `store64be` for 64-bit words.
 - **Compression**: `sha512Compress()` processes one 1024-bit (128-byte)
   block. Expands W[0..15], extends W[16..79], runs 80 rounds.
@@ -440,8 +434,7 @@ Implements SHA-512 with SHA-384 as a variant:
   (S5.3.4) are separate constant sets. `loadIVs()` is an internal
   helper that stores any set of 8 i64 values into `SHA512_H_OFFSET`.
 - **SHA-384 differences**: `sha384Init()` loads SHA-384 IVs.
-  `sha384Final()` calls `sha512Final()` -- the caller reads only the
-  first 48 bytes of the 64-byte output. There is no separate SHA-384
+  `sha384Final()` calls `sha512Final()`. The caller reads only the first 48 bytes of the 64-byte output. There is no separate SHA-384
   compression or update function.
 - **Padding** (FIPS 180-4 S5.1.2): 0x80 byte, zero-padding, 128-bit
   big-endian bit length at the end of the final block. The threshold is
@@ -449,7 +442,7 @@ Implements SHA-512 with SHA-384 as a variant:
 
 ---
 
-### hmac.ts -- HMAC-SHA256 (RFC 2104)
+### hmac.ts: HMAC-SHA256 (RFC 2104)
 
 Implements HMAC-SHA256 using the inner/outer hash pattern:
 
@@ -464,16 +457,14 @@ HMAC(K, m) = SHA256((K' XOR opad) || SHA256((K' XOR ipad) || m))
   64-byte ipad block as the first block of the inner hash.
 - `hmac256Update(len)`: thin wrapper around `sha256Update(len)`.
 - `hmac256Final()`: finalizes the inner hash, saves the 32-byte
-  digest to `HMAC256_INNER_OFFSET`, then starts a fresh SHA-256 for
-  the outer hash -- feeds the 64-byte opad block, then the 32-byte
-  inner digest, then finalizes. Result lands at `SHA256_OUT_OFFSET`.
+  digest to `HMAC256_INNER_OFFSET`, then starts a fresh SHA-256 for the outer hash. Feeds the 64-byte opad block, then the 32-byte inner digest, then finalizes. Result lands at `SHA256_OUT_OFFSET`.
 
 Keys longer than 64 bytes are not handled in WASM. The TypeScript
 wrapper pre-hashes long keys with SHA-256 and passes the 32-byte result.
 
 ---
 
-### hmac512.ts -- HMAC-SHA512 and HMAC-SHA384 (RFC 2104)
+### hmac512.ts: HMAC-SHA512 and HMAC-SHA384 (RFC 2104)
 
 Same HMAC construction, scaled up:
 
@@ -489,7 +480,7 @@ Both variants share `HMAC512_IPAD_OFFSET`, `HMAC512_OPAD_OFFSET`, and
 
 ---
 
-### index.ts -- Barrel re-export + wipeBuffers
+### index.ts: Barrel re-export + wipeBuffers
 
 Re-exports all public functions from the four implementation files.
 Defines `wipeBuffers()` which zeroes all 1976 bytes of module memory

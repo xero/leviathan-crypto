@@ -1,5 +1,148 @@
 # Changelog
 
+## v2.0.0 (2026-04-05)
+
+### Breaking Changes
+
+- **⚠ Streaming layer replaced.** `SerpentStreamSealer`, `SerpentStreamOpener`,
+  `XChaCha20StreamSealer`, and `XChaCha20StreamOpener` are removed. Replaced by
+  cipher-agnostic `SealStream`, `OpenStream`, and `SealStreamPool` which take a
+  `CipherSuite` interface. The new wire format is incompatible with v1 streams.
+
+- **⚠ New 20-byte header wire format.**
+  Byte 0: compound enum (bit 7 = framed flag, bits 0–6 = cipher format enum).
+  Bytes 1–16: nonce. Bytes 17–19: u24 big-endian chunk size.
+  Per-chunk: 12-byte counter nonce (11-byte BE counter + 1-byte TAG_DATA/TAG_FINAL).
+  STREAM construction per Rogaway OAE.
+
+- **⚠ init() API redesigned.** `init(modules, mode, opts)` → `init(sources)` where
+  `sources` is `Partial<Record<Module, WasmSource>>`. The loading strategy is
+  inferred from the source type — no mode string. Accepts 7 source types:
+  embedded string, URL, ArrayBuffer, Uint8Array, WebAssembly.Module, Response,
+  or Promise\<Response\>.
+
+- **⚠ SIMD is required for serpent and chacha20.** `init()` and `initModule()`
+  perform a SIMD preflight check and throw a clear error on non-SIMD runtimes.
+  The three `hasSIMD()` dispatch ternaries are removed — serpent and chacha20
+  always use their SIMD code paths. sha2 and sha3 modules are unaffected.
+
+- **⚠ `hasSIMD()` is now a public utility, not an internal dispatch mechanism.**
+  Exported from the barrel for consumers who want to feature-detect before
+  calling init().
+
+### Security
+
+- **WASM SIMD `constantTimeEqual`.** Tag comparison is now performed by a
+  dedicated WASM SIMD module (v128 XOR + `any_true`), eliminating JIT
+  short-circuiting and speculative optimization as theoretical side-channel
+  vectors. Lazy-initialized on first call; falls back to JS XOR-accumulate
+  on runtimes without SIMD (sha2/sha3-only consumers). Max 32768 bytes per
+  side — enforced on both code paths. WASM memory wiped after every comparison.
+
+- **aeadDecrypt wipes full chunk buffer on auth failure.** Previously only
+  wiped `ciphertext.length` bytes; now wipes the full `maxChunk` region.
+
+- **SerpentSeal.decrypt wipes expectedTag.** HMAC output (derived from macKey)
+  is zeroed via `try/finally` on both success and failure paths, consistent
+  with SerpentCipher.openChunk.
+
+- **SerpentCipher.openChunk and SerpentSeal.decrypt wipe WASM buffers
+  on auth failure** via `getInstance('serpent').exports.wipeBuffers()`.
+
+- **TransformStream key wipe on error.** Both `SealStream.toTransformStream()`
+  and `OpenStream.toTransformStream()` wrap transform/flush in `try/catch` and
+  call `dispose()` before rethrowing. Previously, a cipher error in the stream
+  pipeline would leave derived keys in memory.
+
+- **OpenStream enforces max wire chunk size.** Computed from `chunkSize` +
+  padding + tag. Rejects oversized ciphertext in both `pull()` and `finalize()`.
+
+- **Pool workers transfer ArrayBuffer ownership in both directions.** Job
+  dispatch transfers `data` (and `counterNonce` where applicable); result
+  handoff transfers the result buffer. Prevents redundant plaintext/ciphertext
+  copies for large payloads.
+
+### Added
+
+- **SealStream / OpenStream** — cipher-agnostic chunked streaming AEAD.
+  HKDF key derivation at construction. Counter nonces with final-flag
+  domain separation. Seekable via `seek(index)`. Framed mode for network
+  transports. `toTransformStream()` for Web Streams API integration.
+
+- **SealStreamPool** — parallel batch AEAD via Web Workers. Round-robin
+  chunk dispatch across N workers. Single-use seal guard (nonce reuse
+  prevention). Any auth error kills all workers and wipes keys — no retry.
+
+- **CipherSuite interface** — protocol for cipher-agnostic streaming.
+  `deriveKeys`, `sealChunk`, `openChunk`, `wipeKeys`, `createPoolWorker`.
+  Shipped implementations: `XChaCha20Cipher` (format 0x01) and
+  `SerpentCipher` (format 0x02).
+
+- **ML-KEM (FIPS 203)** — Post-quantum key encapsulation mechanism.
+  `MlKem512`, `MlKem768`, `MlKem1024` classes implementing the full
+  Fujisaki-Okamoto KEM transform. SIMD-enabled WASM module (`kyber.wasm`)
+  requiring WebAssembly SIMD support, with NTT, Montgomery/Barrett reduction,
+  CBD sampling, division-free compression. All three parameter sets validated against 240 NIST ACVP
+  vectors (75 keygen, 75 encap, 30 decap with implicit rejection,
+  60 key validity checks). Constant-time decapsulation path via
+  dedicated WASM `ct_verify`/`ct_cmov`. Requires `sha3` module for
+  Keccak sponge operations (SHAKE128/256, SHA3-256/512).
+
+- **Keccak alias** — `'keccak'` module name resolves to `sha3` WASM
+  binary. `keccakInit()`, `leviathan-crypto/keccak` and
+  `leviathan-crypto/keccak/embedded` subpath exports.
+
+- **AuthenticationError** — dedicated error class with `this.name` set.
+  Replaces generic `Error('authentication failed')` throughout.
+
+- **writeHeader / readHeader / makeCounterNonce** — header codec with full
+  input validation (formatEnum range, nonce length, chunkSize u24 bounds,
+  finalFlag tag whitelist, counter safe integer bounds).
+
+### Changed
+
+- **init() validates source values.** `{ sha2: undefined as any }` now
+  throws a module-scoped TypeError instead of falling through to a
+  generic loader error.
+
+- **init() uses `Object.hasOwn`** for dispatcher key validation instead
+  of `in` operator (prevents prototype-chain bypass).
+
+- **CT_WASM buffer isolation.** `.buffer.slice(byteOffset, byteOffset + byteLength)`
+  ensures correct bytes if a bundler merges the backing ArrayBuffer.
+
+- **Thenable duck-typing in loader.** `instanceof Promise` replaced with
+  `.then` property check in both `compileWasm` and `loadWasm` for
+  cross-realm compatibility.
+
+### Internal
+
+- **WASM CT module.** `src/asm/ct/index.ts` — ~175 bytes compiled,
+  SIMD-only, `--importMemory`, 1 page, no source map. Embedded as raw
+  byte array literal in `src/ts/ct-wasm.ts` (gitignored, generated by build).
+
+- **Build refactor.** `scripts/build-asm.js`: per-module memory flags
+  (no more global `--initialMemory` with last-wins override),
+  per-module `noSourceMap` option for the CT module.
+
+- **ESLint.** `src/ts/ct-wasm.ts` added to ignores.
+
+- **CI workflows.** 9 test files added to GitHub Actions workflows.
+  `unit-fast.yml` +7, `unit-hashing.yml` +1, `unit-utils.yml` +1.
+  Step names corrected. All 39 test files now covered.
+
+### Test Suite
+
+- 568 unit tests (Vitest), 186 e2e tests (Playwright × 3 browsers), 754 total.
+- New test files: `pool.test.ts` (36), `sealstream.test.ts` (95),
+  `sealstream_kat.test.ts` (18), `header.test.ts` (10), `errors.test.ts` (5),
+  `pool.spec.ts` (4 × 3 browsers).
+- Self-generated KAT vectors for SealStream v2: XChaCha20 (XC1, XC3, XCF1)
+  and Serpent (SC1, SC3, SCF1) with framed variants. Each chunk independently
+  verified against raw primitives.
+
+---
+
 ## v1.4.0 (2026-04-01)
 
 ### Breaking Changes

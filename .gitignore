@@ -3,6 +3,7 @@ node_modules/
 build/
 dist/
 src/ts/embedded/
+src/ts/ct-wasm.ts
 test/e2e/results/
 *.tsbuildinfo
 tests/results/

@@ -1,0 +1,28 @@
+name: unit-stream
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+      - name: install dependencies
+        run: bun i
+      - name: build wasm + embedded modules
+        run: bun run build:asm && bun run build:embed
+      - name: run stream unit tests
+        run: >
+          bun vitest run --reporter=verbose --no-coverage
+          test/unit/stream/header.test.ts
+          test/unit/stream/sealstream.test.ts
+          test/unit/stream/sealstream_kat.test.ts
+          test/unit/stream/seal.test.ts
+          test/unit/stream/seal_kat.test.ts
+          test/unit/stream/pool.test.ts

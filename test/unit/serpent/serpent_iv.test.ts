@@ -31,9 +31,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { loadKey, readBytes, getWasm } from '../helpers';
 import { parseIvFile } from './vector_parser';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 function extractSubkeyHex(subkeyBuf: Uint8Array, i: number): string {

@@ -5,20 +5,32 @@
 | Document | Description |
 |----------|-------------|
 | [examples.md](./examples.md) | Code examples for every primitive |
-| [cdn.md](./cdn.md) | CDN usage examples. _"no bundler? no problem"_ |
-| [exports.md](./exports.md) | Comprehensive export reference detailing each class, function, and type |
-| [init.md](./init.md) | `init()` API, three loading modes, subpath imports, tree-shaking |
-| [loader.md](./loader.md) | WASM binary loading options: embedded (base64), streaming (fetch), manual |
+| [cdn.md](./cdn.md) | Use leviathan-crypto directly from a CDN with no bundler |
+| [exports.md](./exports.md) | Complete export reference: every class, function, and type |
+| [init.md](./init.md) | `init()` API, `WasmSource`, subpath imports, tree-shaking |
+| [loader.md](./loader.md) | WASM binary loading internals: `WasmSource` dispatch, `loadWasm()`, `compileWasm()` |
 
 ---
 
 ## API Reference
 
+### Authenticated Encryption
+
+| Module | Description |
+|--------|-------------|
+| [sealing.md](./sealing.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+
+### Post-Quantum KEM
+
+| Module | Description |
+|--------|-------------|
+| [kyber.md](./kyber.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`: ML-KEM key encapsulation (FIPS 203) |
+
 ### Serpent-256
 
 | Module | Description |
 |--------|-------------|
-| [serpent.md](./serpent.md) | TypeScript API: `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
+| [serpent.md](./serpent.md) | TypeScript API: `Serpent`, `SerpentCtr`, `SerpentCbc` |
 | [asm_serpent.md](./asm_serpent.md) | WASM implementation: bitslice S-boxes, key schedule, CTR/CBC modes |
 
 ### XChaCha20 / Poly1305
@@ -26,7 +38,6 @@
 | Module | Description |
 |--------|-------------|
 | [chacha20.md](./chacha20.md) | TypeScript API: `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
-| [chacha20_pool.md](./chacha20_pool.md) | `XChaCha20Poly1305Pool`: parallel worker pool for authenticated encryption |
 | [asm_chacha.md](./asm_chacha.md) | WASM implementation: quarter-round, Poly1305 accumulator, HChaCha20 |
 
 ### SHA-2
@@ -47,43 +58,54 @@
 
 | Module | Description |
 |--------|-------------|
-| [fortuna.md](./fortuna.md) | `Fortuna`: CSPRNG with forward secrecy, 32 entropy pools, browser + Node.js collectors |
+| [fortuna.md](./fortuna.md) | `Fortuna`: CSPRNG with forward secrecy and 32 entropy pools |
 
-### Utilities & Types
+### Utilities and Types
 
 | Module | Description |
 |--------|-------------|
-| [utils.md](./utils.md) | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`, `hasSIMD` _no `init()` required_ |
+| [utils.md](./utils.md) | `randomBytes`, `constantTimeEqual`, `wipe`, encoding helpers. No `init()` required |
 | [types.md](./types.md) | TypeScript interfaces: `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
 
 ---
-
-## Performance
-
-| Document | Description |
-|----------|-------------|
-| [serpent_simd_bench.md](./serpent_simd_bench.md) | Serpent-256 SIMD benchmark results: CTR and CBC-decrypt inter-block 4-wide, scalar vs SIMD across V8, SpiderMonkey, and JSC |
-| [chacha_simd_bench.md](./chacha_simd_bench.md) | ChaCha20 SIMD benchmark results: 4-wide inter-block parallelism, scalar vs SIMD across V8, SpiderMonkey, and JSC. Includes documented negative result for intra-block approach |
-
-## Algorithm Correctness and Verifications
-
-| Primitive | Audit Description |
-|-----------|-------------------|
-| [serpent_audit.md](./serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
-| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
-| [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
-| [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [hmac_audit.md](./hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
 
 ## Project Documentation
 
 | Document | Description |
 |----------|-------------|
-| [architecture.md](./architecture.md) | Repository structure, architecture diagram, build pipeline, module relationships, buffer layouts, correctness contract, limitations |
-| [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, gate discipline |
-| [serpent_reference.md](./serpent_reference.md) | Serpent algorithm: S-boxes, linear transform, round structure, known attacks |
+| [architecture.md](./architecture.md) | Repository structure, build pipeline, module relationships, buffer layouts, and correctness contract |
+| [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, and gate discipline |
 | [wasm.md](./wasm.md) | WebAssembly primer in the context of this library |
-| [argon2id.md](./argon2id.md) | Key derivation and password hashing with Argon2id alongside Leviathan primitives |
+| [argon2id.md](./argon2id.md) | Passphrase-based encryption using Argon2id alongside leviathan primitives |
+| [serpent_reference.md](./serpent_reference.md) | Serpent algorithm: S-boxes, linear transform, round structure, known attacks |
 | [branding.md](./branding.md) | Project artwork and branding materials |
 
+---
+
+## Performance
+
+See the [benchmark index](./benchmarks.md) for full results across V8, SpiderMonkey, and JavaScriptCore.
+
+| Document | Description |
+|----------|-------------|
+| [benchmarks.md](./benchmarks.md) | Benchmark index |
+| [serpent_simd_bench.md](./serpent_simd_bench.md) | Serpent-256 CTR and CBC-decrypt: scalar vs 4-wide SIMD across V8, SpiderMonkey, and JSC |
+| [chacha_simd_bench.md](./chacha_simd_bench.md) | ChaCha20 4-wide inter-block parallelism: scalar vs SIMD across all three engines. Includes documented negative result for intra-block approach |
+
+---
+
+## Algorithm Correctness and Verifications
+
+See the [audit index](./audits.md) for a summary of all reviews.
+
+| Primitive | Description |
+|-----------|-------------|
+| [audits.md](./audits.md) | Audit index |
+| [serpent_audit.md](./serpent_audit.md) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
+| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
+| [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, step verification, round constant derivation |
+| [hmac_audit.md](./hmac_audit.md) | HMAC construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, stream key derivation |
+| [kyber_audit.md](./kyber_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
+| [stream_audit.md](./stream_audit.md) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |

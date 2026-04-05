@@ -4,35 +4,47 @@
 
 - **[Version Support](#supported-versions)**
 - **[Security Posture](#security-posture)**
-- **[Cryptanalytic Audits](#cryptanalytic-reviews)**
+- **[Cryptanalytic Audits](#cryptanalytic-audits)**
 - **[Vulnerability Reporting](#reporting-a-vulnerability)**
 
 ---
 
 ## Supported Versions
 
-| Version | Supported |
-|---------|-----------|
-| v1.4.x  | ✓         |
-| v1.3.x  | ✓         |
-| v1.2.x  | ✗         |
-| v1.1.x  | ✗         |
-| v1.0.x  | ✗         |
+| Version | Supported | Notes       |
+| ------- | --------- | ----------- |
+| v2.0.x  | ✓         |             |
+| v1.4.x  | ✗         | Last stable |
+| v1.3.x  | ✗         |            |
+| v1.2.x  | ✗         |            |
+| v1.1.x  | ✗         |            |
+| v1.0.x  | ✗         |            |
+
+> [!CAUTION]
+> **All v1.x releases are deprecated.** Upgrading to v2 is strongly
+> recommended. v1.x releases will not receive security patches.
 
 > [!WARNING]
-> v1.0.x does not zero intermediate key material in HMAC and HKDF operations.
-> Upgrading to v1.1.0 or later is strongly recommended.
+> **v1.x known issues** (addressed in v2):
+> - Partial WASM buffer wipe on AEAD and serpent auth failure.
+> - HMAC tag and HKDF operations do not zero intermediate key material.
+> - TransformStream error paths leak derived keys.
+> - Pool workers copy result buffers.
+> - Scalar JS `constantTimeEqual` was "best-effort only".
+
 
 ## Security Posture
 
-[`leviathan-crypto`](https://leviathan.3xi.club) is a cryptography library. Security is not an afterthought,
-it is the primary design constraint at every layer of the stack.
+[`leviathan-crypto`](https://leviathan.3xi.club) is a cryptography library.
+Security is not an afterthought, it is the primary design constraint at every
+layer of the stack.
 
 ### Algorithm Correctness
 
 Every primitive in this library was implemented by hand in AssemblyScript
 against the authoritative specification for that algorithm:
 [FIPS 180-4][fips180] (SHA-2), [FIPS 202][fips202] (SHA-3),
+[FIPS 203][fips203] (ML-KEM),
 [RFC 8439][rfc8439] (ChaCha20-Poly1305), [RFC 2104][rfc2104] (HMAC),
 [RFC 5869][rfc5869] (HKDF), and the original
 [Serpent-256 specification][serpent] and S-box reference. No algorithm was
@@ -52,9 +64,13 @@ timing-safe cipher implementation approach available in a WASM runtime,
 where JIT optimisation can otherwise introduce observable timing variation.
 
 All security-sensitive comparisons (e.g. MAC verification, padding validation)
-use XOR-accumulate patterns with no early return on mismatch.
-[`constantTimeEqual`][utils] is the mandated comparison function throughout
-the library and its [demos][demos].
+use [`constantTimeEqual`][utils], which is backed by a dedicated WASM SIMD module
+(v128 XOR accumulate + `any_true`) when WebAssembly SIMD is available. The WASM
+execution path eliminates JIT short-circuiting and speculative optimization as
+theoretical side-channel vectors. On runtimes without SIMD (sha2/sha3-only
+consumers), the function falls back to a JS XOR-accumulate loop. This is best-effort
+constant-time, not a hardware-level guarantee. WASM comparison memory is
+wiped after every call.
 
 ### WASM Execution Model
 
@@ -63,20 +79,36 @@ JavaScript JIT. WASM execution is deterministic and not subject to JIT
 speculation or optimisation. Each primitive family compiles to its own
 isolated binary with its own linear memory. For example, key material in
 the Serpent module cannot interact with memory in the SHA-3 module,
-even in principle.
+even in principle. A dedicated WASM module handles constant-time comparison
+with its own single-page memory that is wiped after every call.
 
-### Cryptanalytic Reviews
+Serpent and ChaCha20 modules require WebAssembly SIMD (`v128` instructions).
+`init()` and `initModule()` perform a SIMD preflight check and throw a
+clear error on runtimes without support. SIMD has been a baseline feature
+of all major browsers and runtimes since 2021. SHA-2 and SHA-3 modules
+run on any WASM-capable runtime.
 
-All of our primitives undergo periodic cryptographic implementation reviews.
+The `kyber` module requires WebAssembly SIMD for NTT and polynomial
+arithmetic (`v128` instructions). The SIMD preflight check is applied on
+`init()` alongside serpent and chacha20. Its linear memory is independent
+from all other modules. The kyber module's constant-time path (FO transform
+decapsulation) uses dedicated `ct_verify` and `ct_cmov` functions implemented
+in the kyber WASM binary. The comparison never passes through JavaScript.
 
-| Primitive | Audit Description |
-|-----------|-------------------|
-| [serpent_audit][serpent_audit] | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
-| [chacha_audit][chacha_audit] | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
-| [sha2_audit][sha2_audit] | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
-| [sha3_audit][sha3_audit] | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [hmac_audit][hmac_audit] | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit][hkdf_audit] | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
+### Cryptanalytic Audits
+
+All primitives undergo periodic cryptographic implementation reviews. See the [audit index][audits] for a full summary.
+
+| Primitive                      | Audit Description                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
+| [serpent_audit][serpent_audit] | Correctness verification, side-channel analysis, cryptanalytic attack paper review     |
+| [chacha_audit][chacha_audit]   | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension   |
+| [sha2_audit][sha2_audit]       | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification          |
+| [sha3_audit][sha3_audit]       | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit][hmac_audit]       | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage             |
+| [hkdf_audit][hkdf_audit]       | HKDF extract-then-expand, info field domain separation, stream key derivation          |
+| [kyber_audit][kyber_audit]     | ML-KEM FIPS 203 correctness, NTT/Montgomery/Barrett verification, FO transform CT analysis, ACVP validation |
+| [stream_audit][stream_audit]   | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 
 #### Additional Serpent-256 research
 
@@ -96,25 +128,29 @@ See: [`xero/BicliqueFinder/biclique_research.md`][biclique]
 Raw unauthenticated cipher modes (`SerpentCbc`, `SerpentCtr`, `ChaCha20`) and
 stateless caller-managed-nonce primitives (`ChaCha20Poly1305`,
 `XChaCha20Poly1305`) are exposed for power users but are not the recommended
-entry point. The primary API surfaces — `SerpentSeal`, `SerpentStream`,
-`SerpentStreamSealer`, `XChaCha20Seal`, and `XChaCha20StreamSealer` — are
-authenticated by construction with internally managed nonces.
+entry point. The primary API surfaces (`Seal`, `SealStream`, `OpenStream`,
+`SealStreamPool`, and `KyberSuite`) are authenticated by construction with
+internally managed nonces.
 
-**Both streaming constructions satisfy the _Cryptographic Doom Principle_:**
+**All streaming constructions satisfy the _Cryptographic Doom Principle_:**
 
-`SerpentStreamSealer` uses encrypt-then-MAC (SerpentCbc + HMAC-SHA256).
-MAC verification is the unconditional gate on the open path.
-Decryption is unreachable until that gate clears. Per-chunk
-HKDF key derivation with position-bound info extends this
-guarantee to full stream integrity.
+`SealStream` / `OpenStream` with `SerpentCipher` uses encrypt-then-MAC
+(SerpentCbc + HMAC-SHA256). MAC verification is the unconditional gate on
+the open path. Decryption is unreachable until that gate clears. HKDF key
+derivation with the stream nonce and counter-nonce domain separation
+extends this guarantee to full stream integrity.
 
-`XChaCha20StreamSealer` uses XChaCha20-Poly1305 AEAD per chunk.
-The Poly1305 tag is verified inside the WASM `xcDecrypt` call
-before any plaintext is produced. On authentication failure,
-plaintext bytes are never generated and never returned. Stream-level
-binding via per-chunk AAD (`stream_id || index || isLast || user AAD`)
-ensures reorder, splice, truncation, and cross-stream substitution
-all fail AEAD verification before decryption.
+`SealStream` / `OpenStream` with `XChaCha20Cipher` uses XChaCha20-Poly1305
+AEAD per chunk. The Poly1305 tag is verified inside the WASM `aeadDecrypt`
+call before any plaintext is produced. On authentication failure, the full
+chunk output buffer is wiped and plaintext bytes are never returned.
+Counter nonces with TAG_DATA/TAG_FINAL final-flag domain separation ensure
+reorder, splice, truncation, and cross-stream substitution all fail AEAD
+verification before decryption.
+
+`SealStreamPool` delegates per-chunk AEAD to isolated Web Workers. Each
+worker holds its own derived subkey and WASM instance. Any authentication
+error kills all workers, wipes all key material, and marks the pool dead. No retry, no partial results.
 
 ### Dependency Management
 
@@ -175,7 +211,7 @@ or research notes, for full hacker scene credit.
 
 If you prefer to contact the maintainer directly:
 
-- **Email:** x﹫xero.style — PGP: [`0xAC1D0000`][pgp]
+- **Email:** x﹫xero.style · PGP: [`0xAC1D0000`][pgp]
 - **Matrix:** x0﹫rx.haunted.computer
 
 > [!NOTE]
@@ -210,6 +246,7 @@ If you prefer to contact the maintainer directly:
 
 [fips180]:        https://csrc.nist.gov/publications/detail/fips/180/4/final
 [fips202]:        https://csrc.nist.gov/publications/detail/fips/202/final
+[fips203]:        https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
 [rfc8439]:        https://www.rfc-editor.org/rfc/rfc8439
 [rfc2104]:        https://www.rfc-editor.org/rfc/rfc2104
 [rfc5869]:        https://www.rfc-editor.org/rfc/rfc5869
@@ -222,6 +259,9 @@ If you prefer to contact the maintainer directly:
 [sha3_audit]:     https://github.com/xero/leviathan-crypto/wiki/sha3_audit
 [hmac_audit]:     https://github.com/xero/leviathan-crypto/wiki/hmac_audit
 [hkdf_audit]:     https://github.com/xero/leviathan-crypto/wiki/hkdf_audit
+[kyber_audit]:    https://github.com/xero/leviathan-crypto/wiki/kyber_audit
+[stream_audit]:   https://github.com/xero/leviathan-crypto/wiki/stream_audit
+[audits]:         https://github.com/xero/leviathan-crypto/wiki/audits
 [biclique]:       https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md
 [argon2id-wiki]:  https://github.com/xero/leviathan-crypto/wiki/argon2id
 [workflows]:      https://github.com/xero/leviathan-crypto/blob/main/scripts/pin-actions.ts

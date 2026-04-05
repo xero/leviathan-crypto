@@ -68,26 +68,44 @@ secret. SHA-3's sponge construction makes this impossible.
 Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `sha3Init(mode?, opts?)`
+### `sha3Init(source)`
 
 Initializes only the sha3 WASM binary. Equivalent to calling the
-root `init(['sha3'], mode, opts)` but without pulling the other three
+root `init({ sha3: source })` but without pulling the other three
 modules into the bundle.
 
 **Signature:**
 
 ```typescript
-async function sha3Init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function sha3Init(source: WasmSource): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
 import { sha3Init, SHA3_256 } from 'leviathan-crypto/sha3'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await sha3Init()
+await sha3Init(sha3Wasm)
 const sha3 = new SHA3_256()
 ```
+
+### keccakInit() (alias)
+
+`'keccak'` is an alias for `'sha3'`. Same WASM binary, same instance slot.
+`keccakInit()` and `sha3Init()` are interchangeable.
+
+```typescript
+import { keccakInit, SHAKE256, SHA3_256 } from 'leviathan-crypto/keccak'
+import { keccakWasm } from 'leviathan-crypto/keccak/embedded'
+
+await keccakInit(keccakWasm)
+// isInitialized('sha3') === true — same slot
+```
+
+Use the `keccak` subpath when the consuming context (such as ML-KEM) makes the
+Keccak primitive name semantically clearer. See [init.md](./init.md#keccak-alias-for-ml-kem)
+for full details.
 
 ---
 
@@ -97,19 +115,18 @@ All SHA-3 classes require initialization before use. Either the root `init()`:
 
 ```typescript
 import { init } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 ```
-
-Both `init('sha3')` and `init(['sha3'])` are valid — the root `init()` accepts
-a single `Module` string or an array.
 
 Or the subpath `sha3Init()`:
 
 ```typescript
 import { sha3Init } from 'leviathan-crypto/sha3'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await sha3Init()
+await sha3Init(sha3Wasm)
 ```
 
 If you use SHA-3 classes without calling `init()` first, the constructor
@@ -255,8 +272,9 @@ Calling `absorb()` while squeezing throws:
 
 ```typescript
 import { init, SHAKE256 } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 const xof = new SHAKE256()
 xof.absorb(ikm)             // input key material
@@ -279,9 +297,10 @@ The most common use case -- hash some data and get a hex digest.
 
 ```typescript
 import { init, SHA3_256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
 // Initialize the SHA-3 WASM module (once, at startup)
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 // Create a hasher
 const sha3 = new SHA3_256()
@@ -303,8 +322,9 @@ sha3.dispose()
 
 ```typescript
 import { init, SHA3_512, bytesToHex } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 const sha3 = new SHA3_512()
 
@@ -327,8 +347,9 @@ You can reuse the same class instance for multiple hashes.
 
 ```typescript
 import { init, SHA3_256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 const sha3 = new SHA3_256()
 
@@ -354,8 +375,9 @@ for key derivation or generating fixed-size tokens.
 
 ```typescript
 import { init, SHAKE128, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 const shake = new SHAKE128()
 
@@ -383,8 +405,9 @@ shake.dispose()
 
 ```typescript
 import { init, SHAKE256, bytesToHex } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 const shake = new SHAKE256()
 
@@ -408,9 +431,11 @@ are secure. SHA3-256 adds defense-in-depth.
 
 ```typescript
 import { init, SHA256, SHA3_256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
 // Initialize both modules
-await init(['sha2', 'sha3'])
+await init({ sha2: sha2Wasm, sha3: sha3Wasm })
 
 const sha2 = new SHA256()
 const sha3 = new SHA3_256()
@@ -437,8 +462,9 @@ deterministic output.
 
 ```typescript
 import { init, SHA3_256, bytesToHex } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await init('sha3')
+await init({ sha3: sha3Wasm })
 
 const sha3 = new SHA3_256()
 const digest = sha3.hash(new Uint8Array(0))
@@ -453,16 +479,16 @@ sha3.dispose()
 
 ## Error Conditions
 
-### `init('sha3')` not called
+### SHA-3 module not initialized
 
 If you construct a SHA-3 class before initializing the module, the constructor
 throws immediately:
 
 ```
-Error: leviathan-crypto: call init(['sha3']) before using this class
+Error: leviathan-crypto: call init({ sha3: ... }) before using this class
 ```
 
-**Fix:** Call `await init('sha3')` once at application startup, before creating
+**Fix:** Call `await init({ sha3: sha3Wasm })` once at application startup, before creating
 any SHA-3 class instances.
 
 ---

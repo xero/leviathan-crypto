@@ -67,7 +67,7 @@ The store-back at lines 221–245 uses the same offsets. All 25 loads and 25 sto
 
 (`keccak.ts:114–130`)
 
-**Step 1 — Column parity C[x]:**
+**Step 1: Column parity C[x]:**
 
 | Spec | Implementation | Match |
 |------|----------------|-------|
@@ -79,7 +79,7 @@ The store-back at lines 221–245 uses the same offsets. All 25 loads and 25 sto
 
 Each C[x] XORs all 5 lanes in column x. Correct.
 
-**Step 2 — D[x] = C[(x-1) mod 5] ^ ROT(C[(x+1) mod 5], 1):**
+**Step 2: D[x] = C[(x-1) mod 5] ^ ROT(C[(x+1) mod 5], 1):**
 
 | Spec | Implementation | Match |
 |------|----------------|-------|
@@ -91,7 +91,7 @@ Each C[x] XORs all 5 lanes in column x. Correct.
 
 All mod-5 indices verified: `(x-1) mod 5` and `(x+1) mod 5` are correct for all x. The rotation amount is 1 bit, applied via `rot64(v, 1)` = `(v << 1) | (v >>> 63)`. Correct.
 
-**Step 3 — XOR D[x] into all lanes of column x:**
+**Step 3: XOR D[x] into all lanes of column x:**
 
 Lines 126–130 apply `a_X_Y ^= d_X` for all 25 lanes, grouped by column. Each column receives the correct D value. Correct.
 
@@ -133,7 +133,7 @@ The rotation offset table (`ROT` array, `keccak.ts:69–75`) stores 25 values in
 
 All 25 rotation offsets verified by independent derivation via FIPS 202 §3.2.2 Algorithm 2: starting at `(x,y) = (1,0)`, following the path `(x,y) -> (y, (2x+3y) mod 5)` for 24 steps, with rotation amount `(t+1)(t+2)/2 mod 64`. Lane (0,0) has offset 0 (never rotated). Exact match.
 
-The `rot64()` function (`keccak.ts:78–80`) implements left rotation as `(v << n) | (v >>> (64 - n))`. For the special case of `rot64(a00, 0)` (line 133), this produces `(v << 0) | (v >>> 64)`. In WASM, `i64.shr_u` with shift amount 64 yields 0 (shift amounts are taken mod 64 for `i64`), so `rot64(v, 0) = v | 0 = v`. Correct — lane (0,0) passes through unrotated.
+The `rot64()` function (`keccak.ts:78–80`) implements left rotation as `(v << n) | (v >>> (64 - n))`. For the special case of `rot64(a00, 0)` (line 133), this produces `(v << 0) | (v >>> 64)`. In WASM, `i64.shr_u` with shift amount 64 yields 0 (shift amounts are taken mod 64 for `i64`), so `rot64(v, 0) = v | 0 = v`. Correct. Lane (0,0) passes through unrotated.
 
 > [!NOTE]
 > The `ROT` static array is declared but not directly indexed in the hot path.
@@ -211,7 +211,7 @@ This pattern repeats for all 5 rows (y=0 through y=4). Verified for all 25 lanes
 
 1. **NOT is applied before AND:** `~b[x+1] & b[x+2]`, not `~(b[x+1] & b[x+2])`. Verified in every line.
 
-2. **Temporary state prevents read-after-write hazard:** The `b[]` variables hold the pre-chi state from the rho+pi step. The `a[]` variables are being overwritten, but `b[]` is never modified during chi. This means `b[x+1]` and `b[x+2]` always reflect the pre-chi state, even after `a[x]` has been updated. This is the correct approach — equivalent to computing chi into a temporary and then copying back, but more efficient.
+2. **Temporary state prevents read-after-write hazard:** The `b[]` variables hold the pre-chi state from the rho+pi step. The `a[]` variables are being overwritten, but `b[]` is never modified during chi. This means `b[x+1]` and `b[x+2]` always reflect the pre-chi state, even after `a[x]` has been updated. This is the correct approach, equivalent to computing chi into a temporary and then copying back, but more efficient.
 
 3. **Mod-5 wrapping is correct:** For x=3, the implementation reads `b40` (x+1=4) and `b00` (x+2=0 mod 5). For x=4, it reads `b00` (x+1=0 mod 5) and `b10` (x+2=1 mod 5). Correct.
 
@@ -277,7 +277,7 @@ Exactly 24 rounds, 0-indexed (round 0 through round 23). This matches FIPS 202: 
 
 The round index is used directly for the iota RC lookup. The if-else chain starts at `round === 0` and ends with `else { a00 ^= RC23 }` (the default for round 23). The mapping from round index to RC value is 0-indexed and correct.
 
-The round count is hardcoded — there is no parameter, configuration, or conditional logic to reduce it.
+The round count is hardcoded. There is no parameter, configuration, or conditional logic to reduce it.
 
 ---
 
@@ -306,7 +306,7 @@ SHA-3 variants use `0x06` (bits `0110` = Keccak domain `01` + pad10*1 `1`). SHAK
    ```
    store<u8>(dsAddr, load<u8>(dsAddr) ^ dsByte)
    ```
-   This XORs (not overwrites) the domain byte into the state at the current absorption position. Correct — the sponge absorbs by XOR.
+   This XORs (not overwrites) the domain byte into the state at the current absorption position. Correct. The sponge absorbs by XOR.
 
 2. XOR `0x80` into the **last byte of the rate block**:
    ```
@@ -314,15 +314,15 @@ SHA-3 variants use `0x06` (bits `0110` = Keccak domain `01` + pad10*1 `1`). SHAK
    ```
    where `lastAddr = STATE_OFFSET + rate - 1`. This sets the final bit of pad10*1, marking the end of the padded message. Correct.
 
-3. Apply `keccakF()` — the final permutation.
+3. Apply `keccakF()`. The final permutation.
 
 4. Squeeze `outLen` bytes from the state to `OUT_OFFSET`.
 
-**Edge case — domain byte and 0x80 at the same position:** If `absorbed == rate - 1` (the message fills all but the last byte of a rate block), then `dsAddr == lastAddr`. In this case, both XORs hit the same byte: `state[rate-1] ^= dsByte; state[rate-1] ^= 0x80`, which is equivalent to `state[rate-1] ^= (dsByte ^ 0x80)`. For SHA-3 (`dsByte = 0x06`), this produces `0x06 ^ 0x80 = 0x86`. This is correct per FIPS 202 — the pad10*1 rule specifies that if the domain byte and the closing `1` bit fall in the same byte, they are both XORed in.
+**Edge case: domain byte and 0x80 at the same position:** If `absorbed == rate - 1` (the message fills all but the last byte of a rate block), then `dsAddr == lastAddr`. In this case, both XORs hit the same byte: `state[rate-1] ^= dsByte; state[rate-1] ^= 0x80`, which is equivalent to `state[rate-1] ^= (dsByte ^ 0x80)`. For SHA-3 (`dsByte = 0x06`), this produces `0x06 ^ 0x80 = 0x86`. This is correct per FIPS 202. The pad10*1 rule specifies that if the domain byte and the closing `1` bit fall in the same byte, they are both XORed in.
 
-**Edge case — message length is a multiple of rate:** If the message length is an exact multiple of rate, then `absorbed == 0` after the last full block is absorbed and permuted. The padding XORs `dsByte` at position 0 and `0x80` at position `rate - 1`, filling an entire padding block. This is correct — a full padding block is always applied, even when the message aligns perfectly with the rate boundary.
+**Edge case: message length is a multiple of rate:** If the message length is an exact multiple of rate, then `absorbed == 0` after the last full block is absorbed and permuted. The padding XORs `dsByte` at position 0 and `0x80` at position `rate - 1`, filling an entire padding block. This is correct. A full padding block is always applied, even when the message aligns perfectly with the rate boundary.
 
-**SHAKE padding (`shakePad`):** The `shakePad()` function (`keccak.ts:327–341`) is structurally identical to the padding portion of `keccakFinal()` — it XORs the domain byte and 0x80, then applies `keccakF()`. This correctly sets up the state for the squeeze phase.
+**SHAKE padding (`shakePad`):** The `shakePad()` function (`keccak.ts:327–341`) is structurally identical to the padding portion of `keccakFinal()`. It XORs the domain byte and 0x80, then applies `keccakF()`. This correctly sets up the state for the squeeze phase.
 
 ---
 
@@ -362,9 +362,9 @@ Total: **545 bytes**. No gaps, no overlaps. All buffers are contiguous and tight
 
 **Off-by-one check in absorption:** The loop guard `absorbed === rate` triggers a permutation when exactly `rate` bytes have been absorbed. The rate is at most 168 (SHAKE128), and the state is 200 bytes, so the XOR target `STATE_OFFSET + absorbed + i` is always within bounds. After permutation, `absorbed` resets to 0. Correct.
 
-**`wipeBuffers()`** (`keccak.ts:354–361`): Zeros all buffers individually — state (200 bytes), input (168 bytes), output (168 bytes), and the three metadata fields (RATE, ABSORBED, DSBYTE). This covers all 545 bytes of SHA-3 module memory. Complete and correct.
+**`wipeBuffers()`** (`keccak.ts:354–361`): Zeros all buffers individually. State (200 bytes), input (168 bytes), output (168 bytes), and the three metadata fields (RATE, ABSORBED, DSBYTE). This covers all 545 bytes of SHA-3 module memory. Complete and correct.
 
-**Input buffer sizing:** The INPUT buffer is 168 bytes, matching the maximum rate (SHAKE128). The TypeScript `absorb()` function chunks messages into 168-byte segments. For variants with smaller rates (e.g., SHA3-512 at 72 bytes), the WASM `keccakAbsorb()` function processes only `rate` bytes per permutation — the extra input buffer space is harmless and never over-indexed.
+**Input buffer sizing:** The INPUT buffer is 168 bytes, matching the maximum rate (SHAKE128). The TypeScript `absorb()` function chunks messages into 168-byte segments. For variants with smaller rates (e.g., SHA3-512 at 72 bytes), the WASM `keccakAbsorb()` function processes only `rate` bytes per permutation. The extra input buffer space is harmless and never over-indexed.
 
 ---
 
@@ -378,7 +378,7 @@ The TypeScript classes in `src/ts/sha3/index.ts` provide the public API.
 
 Each class follows the same pattern:
 1. Call variant-specific init (e.g., `sha3_256Init()`)
-2. Absorb message via `absorb(x, msg)` — chunks into 168-byte segments
+2. Absorb message via `absorb(x, msg)`. Chunks into 168-byte segments
 3. Call variant-specific final (e.g., `sha3_256Final()`)
 4. Return `mem.slice(outOffset, outOffset + digestLen)`
 
@@ -399,12 +399,12 @@ The SHAKE classes implement the XOF (extendable output function) API with absorb
 - `absorb(msg)`: Feeds input. Throws if called after squeeze (enforced by `_squeezing` flag). Correct.
 - `squeeze(n)`: On first call, applies `shakePad()` and sets `_squeezing = true`. Then reads output in rate-sized blocks via `shakeSqueezeBlock()`, buffering one block in `_block` on the TypeScript side. Subsequent calls continue from where the previous squeeze left off. Correct.
 - `reset()`: Reinitializes for a new hash. Clears `_squeezing`, `_block`, and `_blockPos`. Correct.
-- `hash(msg, outputLength)`: One-shot convenience — reset, absorb, squeeze. Correct.
+- `hash(msg, outputLength)`: One-shot convenience. Reset, absorb, squeeze. Correct.
 - `dispose()`: Zeros both `_block` (TypeScript-side buffer) and WASM buffers. Correct.
 
-The SHAKE128 rate is 168 bytes, SHAKE256 rate is 136 bytes — matching the WASM-side configuration. The TypeScript `_block` buffers match these sizes.
+The SHAKE128 rate is 168 bytes, SHAKE256 rate is 136 bytes, matching the WASM-side configuration. The TypeScript `_block` buffers match these sizes.
 
-**Multi-squeeze correctness:** After `shakePad()`, each call to `shakeSqueezeBlock()` copies `rate` bytes from the state to `OUT_OFFSET`, then applies `keccakF()` to advance the state for the next block. The TypeScript layer buffers one block and serves sub-block requests from the buffer, calling `shakeSqueezeBlock()` only when the buffer is exhausted. This produces a contiguous, correct XOF stream. The boundary case where `squeeze(n)` requests exactly `rate` bytes exhausts the buffer at the last byte, setting `_blockPos === rate`, which triggers a `shakeSqueezeBlock()` call at the start of the next `squeeze()` invocation — correct continuation behavior.
+**Multi-squeeze correctness:** After `shakePad()`, each call to `shakeSqueezeBlock()` copies `rate` bytes from the state to `OUT_OFFSET`, then applies `keccakF()` to advance the state for the next block. The TypeScript layer buffers one block and serves sub-block requests from the buffer, calling `shakeSqueezeBlock()` only when the buffer is exhausted. This produces a contiguous, correct XOF stream. The boundary case where `squeeze(n)` requests exactly `rate` bytes exhausts the buffer at the last byte, setting `_blockPos === rate`, which triggers a `shakeSqueezeBlock()` call at the start of the next `squeeze()` invocation. Correct continuation behavior.
 
 ---
 
@@ -440,13 +440,13 @@ and Python `hashlib`:
 | Absorb loop | Byte-by-byte XOR, loop count depends on input length | N/A (public) |
 | Padding | Branch on `absorbed` (public metadata) | N/A (not secret) |
 
-**Keccak has no table lookups.** Every operation is a fixed sequence of XOR, AND, NOT, and 64-bit rotation — all applied unconditionally to all 25 lanes in every round. There are no data-dependent memory accesses that could leak information via cache-timing.
+**Keccak has no table lookups.** Every operation is a fixed sequence of XOR, AND, NOT, and 64-bit rotation, applied unconditionally to all 25 lanes in every round. There are no data-dependent memory accesses that could leak information via cache-timing.
 
 **The chi step is constant-time by construction.** The nonlinear operation `b[x] ^ (~b[x+1] & b[x+2])` uses only bitwise operators, all of which execute in fixed time on all modern architectures. No branch depends on lane values.
 
-**The iota if-else chain** (`keccak.ts:195–218`) branches on the round counter, not on secret data. The round counter is always 0–23, independent of the hash input. While the if-else chain is technically not constant-time with respect to the round number, the round number is not secret — it is a public loop index. This does not constitute a side-channel vulnerability.
+**The iota if-else chain** (`keccak.ts:195–218`) branches on the round counter, not on secret data. The round counter is always 0–23, independent of the hash input. While the if-else chain is technically not constant-time with respect to the round number, the round number is not secret. It is a public loop index. This does not constitute a side-channel vulnerability.
 
-**WASM execution model:** As noted in the [SHA-2](./sha2_audit.md#21-side-channel-analysis) and [Serpent](./serpent_audit.md#21-side-channel-analysis) audits, WASM integer operations have fixed-width semantics compiled ahead-of-time. The entire `keccakF()` function operates on 25 local `i64` variables — all loaded from memory at the start, all stored back at the end. During the 24 rounds, no memory access occurs. This is the optimal constant-time pattern: the permutation is a pure register-to-register computation.
+**WASM execution model:** As noted in the [SHA-2](./sha2_audit.md#21-side-channel-analysis) and [Serpent](./serpent_audit.md#21-side-channel-analysis) audits, WASM integer operations have fixed-width semantics compiled ahead-of-time. The entire `keccakF()` function operates on 25 local `i64` variables, all loaded from memory at the start, all stored back at the end. During the 24 rounds, no memory access occurs. This is the optimal constant-time pattern. The permutation is a pure register-to-register computation.
 
 > [!NOTE]
 > SHA-3/Keccak is inherently more resistant to cache-timing attacks than most
@@ -469,7 +469,7 @@ and Python `hashlib`:
 | SHAKE128 | min(2^(d/2), 2^128) | min(2^d, 2^128) | d (variable) |
 | SHAKE256 | min(2^(d/2), 2^256) | min(2^d, 2^256) | d (variable) |
 
-No practical attacks exist on any full-round (24-round) SHA-3 variant. The best known distinguishing attack on Keccak-f[1600] reaches **8 of 24 rounds** (Dinur, Dunkelman, Shamir, 2012 — zero-sum distinguisher at 8 rounds with 2^1579 complexity). This leaves a **16-round security margin** (67% of the permutation untouched).
+No practical attacks exist on any full-round (24-round) SHA-3 variant. The best known distinguishing attack on Keccak-f[1600] reaches **8 of 24 rounds** (Dinur, Dunkelman, Shamir, 2012, zero-sum distinguisher at 8 rounds with 2^1579 complexity). This leaves a **16-round security margin** (67% of the permutation untouched).
 
 For preimage attacks, the best result on reduced-round Keccak is significantly fewer rounds, and all require complexity close to or exceeding the generic bound.
 
@@ -479,21 +479,21 @@ SHA-3 (sponge construction) is **inherently immune to length extension attacks**
 
 1. The capacity portion of the state (512 bits for SHA3-256) is never directly output.
 2. The squeeze phase reads only the rate portion, which cannot reconstruct the full internal state.
-3. There is no Merkle-Damgard chaining — the sponge construction does not expose intermediate states.
+3. There is no Merkle-Damgard chaining. The sponge construction does not expose intermediate states.
 
 This is a structural advantage of SHA-3 over SHA-2. In leviathan-crypto, SHA-2 requires HMAC to prevent length extension; SHA-3 does not (though HMAC-SHA3 could still be used for keyed authentication).
 
-**Implementation verification:** After `keccakFinal()` squeezes the output, the full internal state remains in WASM memory at `STATE_OFFSET` until `wipeBuffers()` is called. However, the state is not accessible from JavaScript except through the `memory` buffer — and `dispose()` zeros it. The TypeScript API does not expose the raw state at any point. Length extension immunity is preserved.
+**Implementation verification:** After `keccakFinal()` squeezes the output, the full internal state remains in WASM memory at `STATE_OFFSET` until `wipeBuffers()` is called. However, the state is not accessible from JavaScript except through the `memory` buffer. `dispose()` zeros it. The TypeScript API does not expose the raw state at any point. Length extension immunity is preserved.
 
 #### Algebraic Attacks on Chi
 
-Chi (`A'[x] = A[x] ^ (~A[x+1] & A[x+2])`) is the only nonlinear step in Keccak. Its algebraic degree is 2 per round. After 24 rounds, the algebraic degree grows to approximately `2^24` — far beyond any practical algebraic attack threshold. The mixing provided by theta, rho, and pi ensures rapid diffusion, preventing algebraic structure from persisting across rounds.
+Chi (`A'[x] = A[x] ^ (~A[x+1] & A[x+2])`) is the only nonlinear step in Keccak. Its algebraic degree is 2 per round. After 24 rounds, the algebraic degree grows to approximately `2^24`, far beyond any practical algebraic attack threshold. The mixing provided by theta, rho, and pi ensures rapid diffusion, preventing algebraic structure from persisting across rounds.
 
 No algebraic attack on full-round Keccak has been demonstrated.
 
 #### Second-Preimage Resistance
 
-For SHA-3, second-preimage resistance equals preimage resistance: 2^256 for SHA3-256, 2^512 for SHA3-512, etc. The sponge construction does not have a length-extension property that could reduce second-preimage resistance below the generic bound (unlike SHA-2, where long messages theoretically have reduced second-preimage resistance due to the Merkle-Damgard structure — though this is not a practical concern for SHA-2 either).
+For SHA-3, second-preimage resistance equals preimage resistance: 2^256 for SHA3-256, 2^512 for SHA3-512, etc. The sponge construction does not have a length-extension property that could reduce second-preimage resistance below the generic bound (unlike SHA-2, where long messages theoretically have reduced second-preimage resistance due to the Merkle-Damgard structure, though this is not a practical concern for SHA-2 either).
 
 ---
 
@@ -512,7 +512,7 @@ A comprehensive search of the codebase confirmed that SHA-3 is used **only as a 
 
 This is a reasonable design: SHA-3's length extension immunity makes HMAC unnecessary for SHA-3-based MACs (KMAC would be the native keyed mode), but since leviathan already has a complete HMAC-SHA2 stack and SHA-3 is used only for hashing, there is no gap.
 
-**No type confusion between SHA-2 and SHA-3.** The classes are distinctly named (`SHA256` vs `SHA3_256`) and require different `init()` modules (`'sha2'` vs `'sha3'`). They share no buffers, no WASM memory, and no internal state. An application cannot accidentally substitute one for the other — the module gate will throw.
+**No type confusion between SHA-2 and SHA-3.** The classes are distinctly named (`SHA256` vs `SHA3_256`) and require different `init()` modules (`'sha2'` vs `'sha3'`). They share no buffers, no WASM memory, and no internal state. An application cannot accidentally substitute one for the other. The module gate will throw.
 
 **Dual-algorithm defense.** leviathan-crypto provides both SHA-2 and SHA-3, which are structurally independent:
 - SHA-2: Merkle-Damgard construction with ARX-based compression

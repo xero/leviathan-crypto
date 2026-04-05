@@ -39,21 +39,21 @@ const OUT  = resolve(ROOT, 'dist/docs');
 // consumer API docs only — no branding, internals, or project docs
 const INCLUDE = [
 	'architecture.md',
+	'argon2id.md',
+	'chacha20.md',
+	'exports.md',
+	'fortuna.md',
 	'init.md',
 	'loader.md',
 	'serpent.md',
-	'chacha20.md',
-	'chacha20_pool.md',
 	'sha2.md',
 	'sha3.md',
-	'fortuna.md',
-	'argon2id.md',
-	'utils.md',
+	'stream.md',
 	'types.md',
-	'wasm.md',
+	'utils.md',
 ];
 
-// strip SVG img tags — all four reference absolute GitHub URLs,
+// strip SVG img tags and all four reference absolute GitHub URLs.
 // useless for agents in an installed package context
 const SVG_IMG = /<img[^>]+\.svg[^>]*>/g;
 
