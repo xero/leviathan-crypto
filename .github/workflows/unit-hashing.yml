@@ -17,7 +17,7 @@ jobs:
         run: bun i
       - name: build wasm + embedded modules
         run: bun run build:asm && bun run build:embed
-      - name: run fast unit tests
+      - name: run hashing unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
           test/unit/sha2/sha256.test.ts
@@ -25,3 +25,4 @@ jobs:
           test/unit/sha2/hmac.test.ts
           test/unit/sha2/hkdf.test.ts
           test/unit/sha3/sha3.test.ts
+          test/unit/sha3/shake_xof.test.ts

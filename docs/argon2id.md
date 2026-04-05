@@ -145,21 +145,23 @@ const valid = constantTimeEqual(candidate, stored.hash);
 ## Passphrase-based encryption with leviathan-crypto
 
 Argon2id produces a root key from a passphrase. HKDF-SHA256 from leviathan then
-expands that root key into the separate encryption and MAC keys that
-`SerpentSeal` and `XChaCha20Poly1305` expect. Keeping the two steps separate
-means the expensive Argon2id call happens once per passphrase, and HKDF handles
-any further key material needed.
+expands that root key into the key material `Seal` and `XChaCha20Poly1305` expect.
+Keeping the two steps separate means the expensive Argon2id call happens once
+per passphrase, and HKDF handles any further key material needed.
 
-### With SerpentSeal
+### With Seal + SerpentCipher
 
-`SerpentSeal` takes a 64-byte key (32-byte enc key + 32-byte MAC key). HKDF
-expands the 32-byte Argon2id output to 64 bytes:
+`SerpentCipher` takes a 32-byte key. HKDF expands the 32-byte Argon2id output
+to 32 bytes with a domain-separation info string:
 
 ```typescript
 import loadArgon2idWasm from 'argon2id';
-import { init, SerpentSeal, HKDF_SHA256 } from 'leviathan-crypto';
+import { init, Seal, SerpentCipher, HKDF_SHA256 } from 'leviathan-crypto';
 
-await init(['serpent', 'sha2']);
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
+import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded';
+
+await init({ serpent: serpentWasm, sha2: sha2Wasm });
 const argon2id = await loadArgon2idWasm();
 
 // ── Encrypt ──────────────────────────────────────────────────────────────────
@@ -174,16 +176,14 @@ const rootKey = argon2id({
   tagLength:   32,
 });
 
-const hkdf    = new HKDF_SHA256();
-const fullKey = hkdf.derive(rootKey, argonSalt, new TextEncoder().encode('serpent-seal-v1'), 64);
+const hkdf = new HKDF_SHA256();
+const key  = hkdf.derive(rootKey, argonSalt, new TextEncoder().encode('serpent-seal-v2'), 32);
 hkdf.dispose();
 
-const serpent    = new SerpentSeal();
-const ciphertext = serpent.encrypt(fullKey, plaintext);
-serpent.dispose();
+const blob = Seal.encrypt(SerpentCipher, key, plaintext);
 
-// Store with ciphertext — all required for decryption
-const envelope = { ciphertext, argonSalt };
+// Store with blob — all required for decryption
+const envelope = { blob, argonSalt };
 
 // ── Decrypt ──────────────────────────────────────────────────────────────────
 
@@ -196,13 +196,11 @@ const rootKey2 = argon2id({
   tagLength:   32,
 });
 
-const hkdf2    = new HKDF_SHA256();
-const fullKey2 = hkdf2.derive(rootKey2, envelope.argonSalt, new TextEncoder().encode('serpent-seal-v1'), 64);
+const hkdf2 = new HKDF_SHA256();
+const key2  = hkdf2.derive(rootKey2, envelope.argonSalt, new TextEncoder().encode('serpent-seal-v2'), 32);
 hkdf2.dispose();
 
-const serpent2 = new SerpentSeal();
-const decrypted = serpent2.decrypt(fullKey2, envelope.ciphertext);
-serpent2.dispose();
+const decrypted = Seal.decrypt(SerpentCipher, key2, envelope.blob);
 ```
 
 ### With XChaCha20Poly1305
@@ -214,7 +212,10 @@ generated fresh per encryption; only the Argon2id salt needs to be stored:
 import loadArgon2idWasm from 'argon2id';
 import { init, XChaCha20Poly1305, HKDF_SHA256 } from 'leviathan-crypto';
 
-await init(['chacha20', 'sha2']);
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded';
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded';
+
+await init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 const argon2id = await loadArgon2idWasm();
 
 // ── Encrypt ──────────────────────────────────────────────────────────────────
@@ -284,7 +285,8 @@ xc2.dispose();
 >
 > - [index](./README.md) — Project Documentation index
 > - [sha2](./sha2.md) — HKDF-SHA256 for key expansion from Argon2id root keys
-> - [serpent](./serpent.md) — SerpentSeal: Serpent-256 authenticated encryption (pairs with Argon2id-derived keys)
+> - [serpent](./serpent.md) — `SerpentCipher`: Serpent-256 cipher suite (use with `Seal` and Argon2id-derived keys)
+> - [stream](./stream.md) — `Seal`: one-shot AEAD over any `CipherSuite`
 > - [chacha20](./chacha20.md) — XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys)
 > - [utils](./utils.md) — `randomBytes` for generating salts, `constantTimeEqual` for hash verification
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

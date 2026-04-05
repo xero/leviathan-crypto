@@ -186,13 +186,85 @@ function cleanup(ctx: EncryptionContext): void {
 
 ---
 
+## WasmSource
+
+Union type for WASM module sources. Accepted by `init()`, `serpentInit()`, etc.
+
+`string | URL | ArrayBuffer | Uint8Array | WebAssembly.Module | Response | Promise<Response>`
+
+---
+
+## CipherSuite
+
+Cipher-specific logic injected into `SealStream` and `OpenStream`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `formatEnum` | `number` | Wire format identifier (0x01 = xchacha20, 0x02 = serpent) |
+| `hkdfInfo` | `string` | HKDF info string for key derivation |
+| `keySize` | `number` | Required master key length in bytes |
+| `tagSize` | `number` | Authentication tag size in bytes |
+| `padded` | `boolean` | Whether ciphertext includes padding (PKCS7 for CBC) |
+| `wasmModules` | `readonly string[]` | Cipher-specific WASM modules used by pool workers and per-chunk operations (not transitive dependencies such as HKDF-SHA-256 used by `deriveKeys()`) |
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `deriveKeys` | `(masterKey, nonce) → DerivedKeys` | HKDF key derivation |
+| `sealChunk` | `(keys, counterNonce, chunk, aad?) → Uint8Array` | Encrypt one chunk |
+| `openChunk` | `(keys, counterNonce, chunk, aad?) → Uint8Array` | Decrypt one chunk |
+| `wipeKeys` | `(keys) → void` | Zero derived key material |
+| `createPoolWorker` | `() → Worker` | Create a Web Worker for pool use |
+
+Implementations: `XChaCha20Cipher`, `SerpentCipher` (both are plain `const` objects, not classes).
+
+> [!IMPORTANT]
+> All CipherSuite implementations use HKDF-SHA-256 in `deriveKeys()`. The stream layer requires
+> `sha2` to be initialized regardless of which cipher is selected.
+
+---
+
+## DerivedKeys
+
+Opaque key material returned by `CipherSuite.deriveKeys()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bytes` | `readonly Uint8Array` | Raw derived key bytes (opaque to the stream layer) |
+
+---
+
+## SealStreamOpts
+
+Options for `SealStream` constructor.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `chunkSize` | `number` | `65536` | Chunk size in bytes. Range: [1024, 16777215]. |
+| `framed` | `boolean` | `false` | Enable u32be length-prefixed framing. |
+
+---
+
+## PoolOpts
+
+Options for `SealStreamPool.create()`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `wasm` | `WasmSource \| Record<string, WasmSource>` | -- | WASM module source(s). Single source for single-module ciphers, Record for multi-module. |
+| `workers` | `number` | `navigator.hardwareConcurrency ?? 4` | Number of Web Workers. |
+| `chunkSize` | `number` | `65536` | Chunk size in bytes. |
+| `framed` | `boolean` | `false` | Enable framed mode. |
+| `jobTimeout` | `number` | `30000` | Per-job timeout in milliseconds. |
+
+---
+
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [utils](./utils.md) — encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
 > - [serpent](./serpent.md) — Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD`
-> - [chacha20](./chacha20.md) — `XChaCha20Seal` and `XChaCha20StreamSealer`/`Opener` implement `AEAD`; `ChaCha20`/`ChaCha20Poly1305`/`XChaCha20Poly1305` are stateless primitives
+> - [chacha20](./chacha20.md) — `XChaCha20Cipher` is a `CipherSuite` for `SealStream`/`OpenStream`/`Seal`; `Seal` provides one-shot AEAD over any `CipherSuite`; `ChaCha20`/`ChaCha20Poly1305`/`XChaCha20Poly1305` are stateless primitives
 > - [sha2](./sha2.md) — SHA-2 classes implement `Hash`; HMAC classes implement `KeyedHash`
 > - [sha3](./sha3.md) — SHA-3 classes implement `Hash`; SHAKE classes extend with XOF API
 > - [test-suite](./test-suite.md) — test suite structure and vector corpus

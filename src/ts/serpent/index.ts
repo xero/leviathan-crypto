@@ -22,20 +22,16 @@
 // src/ts/serpent/index.ts
 //
 // Public API classes for the Serpent-256 WASM module.
-// Uses the init() module cache — call init('serpent') before constructing.
+// Uses the init() module cache — call serpentInit(source) before constructing.
 
 import { getInstance, initModule } from '../init.js';
-import type { Mode, InitOpts } from '../init.js';
-import { hasSIMD } from '../utils.js';
+import type { WasmSource } from '../wasm-source.js';
 
-const _embedded = () => import('../embedded/serpent.js').then(m => m.WASM_GZ_BASE64);
-
-export async function serpentInit(
-	mode: Mode = 'embedded',
-	opts?: InitOpts,
-): Promise<void> {
-	return initModule('serpent', _embedded, mode, opts);
+export async function serpentInit(source: WasmSource): Promise<void> {
+	return initModule('serpent', source);
 }
+
+export type { WasmSource };
 
 // Exports needed from the serpent WASM module
 interface SerpentExports {
@@ -48,7 +44,6 @@ interface SerpentExports {
   getChunkPtOffset: () => number
   getChunkCtOffset: () => number
   getChunkSize:     () => number
-  getCbcIvOffset:   () => number
   loadKey:          (n: number) => number
   encryptBlock:     () => void
   decryptBlock:     () => void
@@ -56,11 +51,8 @@ interface SerpentExports {
   setCounter:       (lo: bigint, hi: bigint) => void
   encryptChunk:     (n: number) => number
   decryptChunk:     (n: number) => number
-  cbcEncryptChunk:  (n: number) => number
-  cbcDecryptChunk:  (n: number) => number
   encryptChunk_simd: (n: number) => number
   decryptChunk_simd: (n: number) => number
-  cbcDecryptChunk_simd: (n: number) => number
   wipeBuffers:      () => void
 }
 
@@ -127,7 +119,7 @@ export class SerpentCtr {
 	constructor(opts?: { dangerUnauthenticated: true }) {
 		if (!opts?.dangerUnauthenticated) {
 			throw new Error(
-				'leviathan-crypto: SerpentCtr is unauthenticated — use SerpentSeal instead. ' +
+				'leviathan-crypto: SerpentCtr is unauthenticated — use Seal with SerpentCipher instead. ' +
 				'To use SerpentCtr directly, pass { dangerUnauthenticated: true }.'
 			);
 		}
@@ -156,8 +148,7 @@ export class SerpentCtr {
 		const ptOff = this.x.getChunkPtOffset();
 		const ctOff = this.x.getChunkCtOffset();
 		mem.set(chunk, ptOff);
-		const fn = hasSIMD() ? this.x.encryptChunk_simd : this.x.encryptChunk;
-		fn(chunk.length);
+		this.x.encryptChunk_simd(chunk.length);
 		return mem.slice(ctOff, ctOff + chunk.length);
 	}
 
@@ -174,137 +165,15 @@ export class SerpentCtr {
 	}
 }
 
-// ── PKCS7 helpers ────────────────────────────────────────────────────────────
-
-function pkcs7Pad(data: Uint8Array): Uint8Array {
-	const padLen = 16 - (data.length % 16);  // 1..16
-	const out    = new Uint8Array(data.length + padLen);
-	out.set(data);
-	out.fill(padLen, data.length);
-	return out;
-}
-
-function pkcs7Strip(data: Uint8Array): Uint8Array {
-	if (data.length === 0) throw new RangeError('empty ciphertext');
-	const padLen = data[data.length - 1];
-	if (padLen === 0 || padLen > 16)
-		throw new RangeError(`invalid PKCS7 padding byte: ${padLen}`);
-	if (padLen > data.length)
-		throw new RangeError(`invalid PKCS7 padding: pad length ${padLen} exceeds data length ${data.length}`);
-	let bad = 0;
-	for (let i = data.length - padLen; i < data.length; i++)
-		bad |= data[i] ^ padLen;
-	if (bad !== 0) throw new RangeError('invalid PKCS7 padding');
-	return data.subarray(0, data.length - padLen);
-}
-
 // ── SerpentCbc ───────────────────────────────────────────────────────────────
 
-/**
- * Serpent-256 in CBC mode with PKCS7 padding.
- *
- * **WARNING: CBC mode is unauthenticated.** Always authenticate the output
- * with HMAC-SHA256 (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead.
- */
-export class SerpentCbc {
-	private readonly x: SerpentExports;
+export { SerpentCbc } from './serpent-cbc.js';
 
-	constructor(opts?: { dangerUnauthenticated: true }) {
-		if (!opts?.dangerUnauthenticated) {
-			throw new Error(
-				'leviathan-crypto: SerpentCbc is unauthenticated — use SerpentSeal instead. ' +
-				'To use SerpentCbc directly, pass { dangerUnauthenticated: true }.'
-			);
-		}
-		this.x = getExports();
-	}
+export { AuthenticationError } from '../errors.js';
 
-	private get mem(): Uint8Array {
-		return new Uint8Array(this.x.memory.buffer);
-	}
+// ── SerpentCipher re-export ───────────────────────────────────────────────────
 
-	/**
-   * Encrypt plaintext with Serpent-256 CBC + PKCS7 padding.
-   *
-   * @param key       16, 24, or 32 bytes
-   * @param iv        16 bytes — must be random and unique per (key, message)
-   * @param plaintext any length — PKCS7 padding applied automatically
-   * @returns         ciphertext (length = ceil((plaintext.length + 1) / 16) * 16)
-   */
-	encrypt(key: Uint8Array, iv: Uint8Array, plaintext: Uint8Array): Uint8Array {
-		this._loadKey(key);
-		this._setIv(iv);
-		const padded = pkcs7Pad(plaintext);
-		const output = new Uint8Array(padded.length);
-		const ptOff  = this.x.getChunkPtOffset();
-		const ctOff  = this.x.getChunkCtOffset();
-		const maxChunk = 65536;
-		for (let off = 0; off < padded.length; off += maxChunk) {
-			const chunk = padded.subarray(off, Math.min(off + maxChunk, padded.length));
-			this.mem.set(chunk, ptOff);
-			this.x.cbcEncryptChunk(chunk.length);
-			output.set(new Uint8Array(this.x.memory.buffer).subarray(ctOff, ctOff + chunk.length), off);
-		}
-		return output;
-	}
-
-	/**
-   * Decrypt Serpent-256 CBC + PKCS7.
-   * Throws if ciphertext length is not a non-zero multiple of 16 or PKCS7 is invalid.
-   */
-	decrypt(key: Uint8Array, iv: Uint8Array, ciphertext: Uint8Array): Uint8Array {
-		if (ciphertext.length === 0 || ciphertext.length % 16 !== 0)
-			throw new RangeError('ciphertext length must be a non-zero multiple of 16');
-		this._loadKey(key);
-		this._setIv(iv);
-		const output = new Uint8Array(ciphertext.length);
-		const ctOff  = this.x.getChunkCtOffset();
-		const ptOff  = this.x.getChunkPtOffset();
-		const maxChunk = 65536;
-		for (let off = 0; off < ciphertext.length; off += maxChunk) {
-			const chunk = ciphertext.subarray(off, Math.min(off + maxChunk, ciphertext.length));
-			this.mem.set(chunk, ctOff);
-			const fn = hasSIMD() ? this.x.cbcDecryptChunk_simd : this.x.cbcDecryptChunk;
-			fn(chunk.length);
-			output.set(new Uint8Array(this.x.memory.buffer).subarray(ptOff, ptOff + chunk.length), off);
-		}
-		return pkcs7Strip(output);
-	}
-
-	dispose(): void {
-		this.x.wipeBuffers();
-	}
-
-	private _loadKey(key: Uint8Array): void {
-		if (key.length !== 16 && key.length !== 24 && key.length !== 32)
-			throw new RangeError(`Serpent key must be 16, 24, or 32 bytes (got ${key.length})`);
-		this.mem.set(key, this.x.getKeyOffset());
-		this.x.loadKey(key.length);
-	}
-
-	private _setIv(iv: Uint8Array): void {
-		if (iv.length !== 16)
-			throw new RangeError(`CBC IV must be 16 bytes (got ${iv.length})`);
-		this.mem.set(iv, this.x.getCbcIvOffset());
-	}
-}
-
-// ── SerpentSeal re-export ─────────────────────────────────────────────────────
-
-export { SerpentSeal } from './seal.js';
-
-// ── SerpentStream re-export ───────────────────────────────────────────────────
-
-export { SerpentStream, sealChunk, openChunk } from './stream.js';
-
-// ── SerpentStreamPool re-export ───────────────────────────────────────────────
-
-export { SerpentStreamPool } from './stream-pool.js';
-export type { StreamPoolOpts } from './stream-pool.js';
-
-// ── SerpentStreamSealer / SerpentStreamOpener re-export ───────────────────────
-
-export { SerpentStreamSealer, SerpentStreamOpener } from './stream-sealer.js';
+export { SerpentCipher } from './cipher-suite.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

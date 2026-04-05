@@ -12,7 +12,7 @@
   - [1.1 Extract Phase](#11-extract-phase)
   - [1.2 Expand Phase](#12-expand-phase)
   - [1.3 One-Step vs Two-Step](#13-one-step-vs-two-step)
-  - [1.4 Usage in leviathan-crypto (SerpentStream)](#14-usage-in-leviathan-crypto-serpentstream)
+  - [1.4 Usage in leviathan-crypto (stream layer)](#14-usage-in-leviathan-crypto-stream-layer)
   - [1.5 Buffer Layout and Memory Safety](#15-buffer-layout-and-memory-safety)
   - [1.6 TypeScript Wrapper Layer](#16-typescript-wrapper-layer)
   - [1.7 RFC 5869 Test Vectors](#17-rfc-5869-test-vectors)
@@ -141,70 +141,56 @@ The `extract()` method is available separately for callers who need to reuse a P
 
 ---
 
-### 1.4 Usage in leviathan-crypto (SerpentStream)
+### 1.4 Usage in leviathan-crypto (stream layer)
 
-HKDF-SHA256 is used in two streaming AEAD constructions:
+HKDF-SHA256 is used in two streaming AEAD cipher suites:
 
-#### SerpentStream (`src/ts/serpent/stream.ts`)
+#### SerpentCipher (`src/ts/serpent/cipher-suite.ts`)
 
-Per-chunk key derivation via `deriveChunkKeys()` (`stream.ts:87–101`):
+Per-stream key derivation via `deriveKeys()`:
 
 ```typescript
-const info = chunkInfo(streamNonce, chunkSize, chunkCount, index, isLast);
-const derived = hkdf.derive(masterKey, streamNonce, info, 64);
-return {
-    encKey: derived.subarray(0, 32),
-    macKey: derived.subarray(32, 64),
-};
+const hkdf = new HKDF_SHA256();
+const derived = hkdf.derive(masterKey, nonce, INFO, 96);
+// bytes[0:32]=enc_key, bytes[32:64]=mac_key, bytes[64:96]=iv_key
+return { bytes: derived };
 ```
-
-**Info field construction** (`chunkInfo`, `stream.ts:68–85`):
-
-| Offset | Size | Field | Encoding |
-|--------|------|-------|----------|
-| 0 | 17 | DOMAIN (`"serpent-stream-v1"`) | UTF-8 |
-| 17 | 16 | streamNonce | raw bytes |
-| 33 | 4 | chunkSize | u32 big-endian |
-| 37 | 8 | chunkCount | u64 big-endian |
-| 45 | 8 | chunkIndex | u64 big-endian |
-| 53 | 1 | isLast | 0x00 or 0x01 |
-
-Total: **54 bytes**. Fixed-length, unambiguous field layout.
 
 **HKDF parameters:**
 - IKM = masterKey (32 bytes, the stream encryption key)
-- Salt = streamNonce (16 bytes, random per stream)
-- Info = 54-byte chunkInfo (domain-separated, chunk-specific)
-- L = 64 bytes (split into encKey[0:32] + macKey[32:64])
+- Salt = nonce (16 bytes, random per stream, from the stream header)
+- Info = `"serpent-sealstream-v2"` (21-byte UTF-8 string)
+- L = 96 bytes (split into enc_key[0:32] + mac_key[32:64] + iv_key[64:96])
+
+The info field is a plain domain-separation string. Position binding is achieved through the 12-byte counter nonce in the AEAD construction (HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`), not through the HKDF info. The CBC IV for each chunk is derived deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.
 
 > [!NOTE]
-> Using `streamNonce` as the HKDF salt produces `PRK = HMAC-SHA256(streamNonce, masterKey)` — the nonce is the HMAC key and the master key is the HMAC message. This is an intentional inversion from the typical password-based pattern. RFC 5869 §3.1 describes salt as "a non-secret random value" used to strengthen extraction, and the streamNonce satisfies this exactly: it is public, random, and unique per stream. The master key (the secret) is correctly placed as the IKM. The construct is secure and correct per the spec.
+> Using the stream nonce as the HKDF salt produces `PRK = HMAC-SHA256(nonce, masterKey)` — the nonce is the HMAC key and the master key is the HMAC message. This is an intentional inversion from the typical password-based pattern. RFC 5869 §3.1 describes salt as "a non-secret random value" used to strengthen extraction, and the nonce satisfies this exactly: it is public, random, and unique per stream. The master key (the secret) is correctly placed as the IKM. The construct is secure and correct per the spec.
 
-**Verification of info field:**
-- `chunkIndex` is encoded as u64 big-endian (`u64be()`, `stream.ts:50–63`). Big-endian ensures the byte representation is unique for each index value. Correct.
-- `isLast` distinguishes the terminal chunk (0x01) from non-terminal chunks (0x00). This prevents a truncation attack where an attacker drops the last chunk. Correct.
-- `chunkCount` is bound into the info field, preventing an attacker from truncating or extending the stream by changing the total chunk count. Correct.
-- `streamNonce` appears in both the salt and the info field. This is redundant but not harmful — the nonce is bound into the derivation by both paths. Correct.
+#### XChaCha20Cipher (`src/ts/chacha20/cipher-suite.ts`)
 
-#### SerpentStreamSealer (`src/ts/serpent/stream-sealer.ts`)
-
-A separate incremental sealer with a different domain:
+Per-stream key derivation via `deriveKeys()`:
 
 ```typescript
-const derived = hkdf.derive(key, new Uint8Array(0), info, 64);
+const hkdf = new HKDF_SHA256();
+const streamKey = hkdf.derive(masterKey, nonce, INFO, 32);
+// HChaCha20 subkey derivation — nonce[0:16] as XChaCha input
+const subkey = deriveSubkey(x, streamKey, padded);
+wipe(streamKey);
+return { bytes: subkey };
 ```
 
-**Key differences from SerpentStream:**
-- DOMAIN = `"serpent-sealstream-v1"` (21 bytes) — distinct from SerpentStream
-- Salt = empty (defaults to 32 zero bytes inside `extract()`)
-- Info does **not** include `chunkCount` (unknown at sealing time in the incremental API)
-- Info is 50 bytes (21 + 16 + 4 + 8 + 1)
+**HKDF parameters:**
+- IKM = masterKey (32 bytes)
+- Salt = nonce (16 bytes, random per stream)
+- Info = `"xchacha20-sealstream-v2"` (23-byte UTF-8 string)
+- L = 32 bytes → streamKey → HChaCha20(streamKey, nonce[0:16]) → subkey
 
-The `SerpentStreamOpener` derives keys for both `isLast=true` and `isLast=false` and uses authentication success to determine which is correct (`stream-sealer.ts:202–206`). This is secure — the wrong `isLast` value produces a different key, causing authentication to fail.
+The intermediate `streamKey` is wiped immediately after HChaCha20 derivation. The final `subkey` is used for ChaCha20-Poly1305 AEAD per chunk with counter nonces.
 
-#### SerpentStreamPool (`src/ts/serpent/stream-pool.ts`)
+#### SealStreamPool (`src/ts/stream/seal-stream-pool.ts`)
 
-Reuses `deriveChunkKeys` from `stream.ts` (same domain, same parameters). Keys are derived on the main thread and only the derived `encKey`/`macKey` are sent to workers — the master key never leaves the main thread. Correct.
+Uses the same `cipher.deriveKeys()` call as `SealStream` (same domain, same parameters). Keys are derived on the main thread and only the derived key bytes are sent to workers — the master key never leaves the main thread. Correct.
 
 ---
 
@@ -302,7 +288,7 @@ HKDF's security proof (Krawczyk, "Cryptographic Extraction and Key Derivation: T
 1. **Extract** produces a pseudorandom PRK from potentially non-uniform IKM, provided the salt has sufficient min-entropy (or is absent, relying on the HMAC-Hash structure alone).
 2. **Expand** uses PRK as a PRF key to produce computationally independent output blocks, provided PRK is uniform (which Extract guarantees).
 
-**Is the IKM in SerpentStream uniform enough to skip Extract?** No. Stream keys may come from user passwords (via scrypt/Argon2id) or from raw keyfiles that are not uniformly distributed. Even when keys are random, the Extract step is cheap (one HMAC call) and provides defense-in-depth against non-uniform key material. The implementation always calls Extract (via `derive()`), which is the correct approach.
+**Is the IKM in the stream layer uniform enough to skip Extract?** No. Stream keys may come from user passwords (via scrypt/Argon2id) or from raw keyfiles that are not uniformly distributed. Even when keys are random, the Extract step is cheap (one HMAC call) and provides defense-in-depth against non-uniform key material. The implementation always calls Extract (via `derive()`), which is the correct approach.
 
 ---
 
@@ -310,50 +296,49 @@ HKDF's security proof (Krawczyk, "Cryptographic Extraction and Key Derivation: T
 
 The `info` parameter in HKDF-Expand binds the derived key to its context. Two HKDF calls with the same PRK but different `info` values produce computationally independent keys.
 
-**SerpentStream domain separation:**
+**SerpentCipher domain separation:**
 
-| Field | Purpose | Uniqueness guarantee |
-|-------|---------|---------------------|
-| DOMAIN (`"serpent-stream-v1"`) | Distinguishes SerpentStream from other HKDF uses | Unique 17-byte prefix |
-| streamNonce (16 bytes) | Binds to this specific stream | Random per stream |
-| chunkSize (4 bytes, u32be) | Binds to the chunk size parameter | Fixed per stream |
-| chunkCount (8 bytes, u64be) | Binds to total stream length | Fixed per stream |
-| chunkIndex (8 bytes, u64be) | Binds to chunk position | Unique per chunk |
-| isLast (1 byte) | Distinguishes terminal from non-terminal | Prevents truncation |
+| Component | Value | Purpose |
+|-----------|-------|---------|
+| Info string | `"serpent-sealstream-v2"` | Distinguishes SerpentCipher from other HKDF uses |
+| Salt (nonce) | 16 random bytes | Binds to this specific stream |
 
-**SerpentStreamSealer domain separation:**
+Position binding is not in the HKDF info (as in v1) but in the AEAD construction: the 12-byte counter nonce (chunk index + final flag) is included in the HMAC input and CBC IV derivation.
 
-| Field | Purpose |
-|-------|---------|
-| DOMAIN (`"serpent-sealstream-v1"`) | Unique 21-byte prefix, distinct from SerpentStream |
-| streamNonce (16 bytes) | Random per stream |
-| chunkSize (4 bytes, u32be) | Fixed per stream |
-| chunkIndex (8 bytes, u64be) | Unique per chunk |
-| isLast (1 byte) | Prevents truncation |
+**XChaCha20Cipher domain separation:**
 
-The two constructions use **different DOMAIN prefixes** — `"serpent-stream-v1"` vs `"serpent-sealstream-v1"`. Even if the same master key and nonce were used in both constructions (which should not happen in practice), the derived keys would differ. Correct.
+| Component | Value | Purpose |
+|-----------|-------|---------|
+| Info string | `"xchacha20-sealstream-v2"` | Distinguishes XChaCha20Cipher from SerpentCipher and other uses |
+| Salt (nonce) | 16 random bytes | Binds to this specific stream |
 
-**Fixed-length, unambiguous encoding:** All fields have fixed sizes, so the info encoding is injection-free — no two distinct parameter tuples can produce the same info byte string. This prevents canonicalization attacks where an attacker could find two different parameter sets that hash to the same info value.
+The two cipher suites use **different info strings** — `"serpent-sealstream-v2"` vs `"xchacha20-sealstream-v2"`. Even if the same master key and nonce were used in both constructions (which should not happen in practice), the derived keys would differ. Correct.
+
+**String-only info encoding:** The info field is a plain UTF-8 string with no structured binary fields. This is simpler than the v1 approach but equally secure — chunk position binding is handled by the counter nonce in the AEAD layer rather than the HKDF info.
 
 ---
 
 ### 2.3 Key Separation Guarantee
 
-Both SerpentStream and SerpentStreamSealer derive 64 bytes from HKDF and split the result:
+SerpentCipher derives 96 bytes from HKDF and splits the result into three keys:
 
 ```
-encKey = derived[0:32]
-macKey = derived[32:64]
+enc_key = derived[0:32]
+mac_key = derived[32:64]
+iv_key  = derived[64:96]
 ```
 
-This is a single HKDF-Expand call with `L = 64`, which produces `T(1) || T(2)` (two 32-byte HMAC outputs). By the PRF security of HMAC-SHA256, T(1) and T(2) are computationally independent — knowing T(1) gives no information about T(2), because:
+This is a single HKDF-Expand call with `L = 96`, which produces `T(1) || T(2) || T(3)` (three 32-byte HMAC outputs). By the PRF security of HMAC-SHA256, T(1), T(2), and T(3) are computationally independent — knowing any one gives no information about the others, because:
 
 - T(1) = HMAC(PRK, info || 0x01)
 - T(2) = HMAC(PRK, T(1) || info || 0x02)
+- T(3) = HMAC(PRK, T(2) || info || 0x03)
 
-The counter byte (0x01 vs 0x02) and the chaining of T(1) into T(2)'s input ensure distinct HMAC computations. The resulting encKey and macKey are cryptographically independent.
+The counter byte and the chaining of each T(i) into the next T(i+1)'s input ensure distinct HMAC computations. The resulting enc_key, mac_key, and iv_key are cryptographically independent.
 
-This is equivalent to (and more efficient than) making two separate HKDF calls with distinct info strings. Both approaches are secure; the single-call approach avoids redundant Extract computations.
+XChaCha20Cipher derives 32 bytes (`L = 32`, a single T(1) block) and then applies HChaCha20 subkey derivation. The HKDF output is an intermediate streamKey, not a final encryption key. The HChaCha20 step provides additional key isolation per nonce prefix.
+
+This is equivalent to (and more efficient than) making separate HKDF calls with distinct info strings. Both approaches are secure; the single-call approach avoids redundant Extract computations.
 
 ---
 
@@ -370,9 +355,9 @@ HKDF-SHA256's security reduces to the PRF security of HMAC-SHA256:
 | Info field | Does not need to be secret | Public context binding |
 | Salt | Recommended but not required | Strengthens Extract against non-uniform IKM |
 
-For leviathan's use case (64-byte output = encKey + macKey), the security margin is large: only 2 of 255 possible HMAC blocks are used, well within the PRF security bound. The derived keys inherit the full 256-bit security of HMAC-SHA256.
+For leviathan's use cases (96-byte output for SerpentCipher = enc_key + mac_key + iv_key, or 32-byte output for XChaCha20Cipher), the security margin is large: at most 3 of 255 possible HMAC blocks are used, well within the PRF security bound. The derived keys inherit the full 256-bit security of HMAC-SHA256.
 
-The `info` field is always unique per chunk (due to the chunkIndex counter), so no two HKDF-Expand evaluations under the same PRK produce the same output. This guarantees that every chunk has fresh, independent encryption and authentication keys.
+Each stream uses a unique random nonce as the HKDF salt, so each stream produces a unique PRK. This guarantees that every stream has fresh, independent key material. Per-chunk isolation is achieved through the counter nonce in the AEAD construction, not through per-chunk HKDF calls.
 
 ---
 
@@ -382,6 +367,6 @@ The `info` field is always unique per chunk (due to the chunkIndex counter), so 
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [sha2_audit](./sha2_audit.md) — SHA-256 implementation audit
 > - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (HKDF builds on HMAC)
-> - [serpent_audit](./serpent_audit.md) — HKDF used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
+> - [serpent_audit](./serpent_audit.md) — HKDF used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
 > - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 uses nonce-based key binding instead of HKDF
 > - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit

@@ -6,6 +6,7 @@
 
 import type { ChaChaExports } from './types.js';
 import { constantTimeEqual } from '../utils.js';
+import { AuthenticationError } from '../errors.js';
 
 // ── Module-private helpers ───────────────────────────────────────────────────
 
@@ -24,14 +25,14 @@ function polyFeed(x: ChaChaExports, data: Uint8Array): void {
 
 function lenBlock(aadLen: number, ctLen: number): Uint8Array {
 	const b = new Uint8Array(16);
-	let n = aadLen;
-	for (let i = 0; i < 4; i++) {
-		b[i]     = n & 0xff; n >>>= 8;
-	}
-	n = ctLen;
-	for (let i = 0; i < 4; i++) {
-		b[8 + i] = n & 0xff; n >>>= 8;
-	}
+	const dv = new DataView(b.buffer);
+	// RFC 8439 §2.8 — 64-bit LE lengths.
+	// JS numbers are f64 — write low 32 bits directly, high bits via
+	// Math.floor(n / 2^32). Safe for n ≤ Number.MAX_SAFE_INTEGER.
+	dv.setUint32(0, aadLen >>> 0, true);
+	dv.setUint32(4, Math.floor(aadLen / 0x100000000) >>> 0, true);
+	dv.setUint32(8, ctLen >>> 0, true);
+	dv.setUint32(12, Math.floor(ctLen / 0x100000000) >>> 0, true);
 	return b;
 }
 
@@ -54,7 +55,6 @@ export function aeadEncrypt(
 	// Step 1: Generate Poly1305 one-time key at counter=0 (RFC 8439 §2.6)
 	mem.set(key,   x.getKeyOffset());
 	mem.set(nonce, x.getChachaNonceOffset());
-	x.chachaSetCounter(1);
 	x.chachaLoadKey();
 	x.chachaGenPolyKey();
 
@@ -72,7 +72,7 @@ export function aeadEncrypt(
 
 	// Step 5: Encrypt
 	mem.set(plaintext, x.getChunkPtOffset());
-	x.chachaEncryptChunk(plaintext.length);
+	x.chachaEncryptChunk_simd(plaintext.length);
 	const ctOff     = x.getChunkCtOffset();
 	const ciphertext = new Uint8Array(x.memory.buffer).slice(ctOff, ctOff + plaintext.length);
 
@@ -100,6 +100,7 @@ export function aeadDecrypt(
 	ciphertext: Uint8Array,
 	tag:        Uint8Array,
 	aad:        Uint8Array,
+	cipherName  = 'chacha20-poly1305',
 ): Uint8Array {
 	const maxChunk = x.getChunkSize();
 	if (ciphertext.length > maxChunk)
@@ -110,7 +111,6 @@ export function aeadDecrypt(
 	// Compute expected tag
 	mem.set(key,   x.getKeyOffset());
 	mem.set(nonce, x.getChachaNonceOffset());
-	x.chachaSetCounter(1);
 	x.chachaLoadKey();
 	x.chachaGenPolyKey();
 
@@ -127,14 +127,18 @@ export function aeadDecrypt(
 	// Constant-time tag comparison
 	const tagOff      = x.getPolyTagOffset();
 	const expectedTag = new Uint8Array(x.memory.buffer).slice(tagOff, tagOff + 16);
-	if (!constantTimeEqual(expectedTag, tag))
-		throw new Error('ChaCha20Poly1305: authentication failed');
+	if (!constantTimeEqual(expectedTag, tag)) {
+		// Wipe the full chunk output buffer — defense-in-depth before throwing
+		const ctOff = x.getChunkCtOffset();
+		mem.fill(0, ctOff, ctOff + maxChunk);
+		throw new AuthenticationError(cipherName);
+	}
 
 	// Decrypt only after authentication succeeds
 	x.chachaSetCounter(1);
 	x.chachaLoadKey();
 	new Uint8Array(x.memory.buffer).set(ciphertext, x.getChunkPtOffset());
-	x.chachaEncryptChunk(ciphertext.length);
+	x.chachaEncryptChunk_simd(ciphertext.length);
 	const ptOff = x.getChunkCtOffset();
 	return new Uint8Array(x.memory.buffer).slice(ptOff, ptOff + ciphertext.length);
 }
@@ -190,5 +194,5 @@ export function xcDecrypt(
 	const tag    = ciphertext.subarray(ciphertext.length - 16);
 	const subkey = deriveSubkey(x, key, nonce);
 	const inner  = innerNonce(nonce);
-	return aeadDecrypt(x, subkey, inner, ct, tag, aad);
+	return aeadDecrypt(x, subkey, inner, ct, tag, aad, 'xchacha20-poly1305');
 }

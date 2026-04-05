@@ -274,36 +274,23 @@ These bounds assume the key is uniformly random and at least L = 32 bytes.
 
 HMAC-SHA256 is used as a building block in three contexts within leviathan-crypto:
 
-#### SerpentSeal (Encrypt-then-MAC)
+#### Seal with SerpentCipher (STREAM construction, Encrypt-then-MAC)
 
-`SerpentSeal` (`src/ts/serpent/seal.ts:25–73`) uses SerpentCBC + HMAC-SHA256 in Encrypt-then-MAC configuration:
+`SerpentCipher` (`src/ts/serpent/cipher-suite.ts`) implements the `CipherSuite` interface consumed by `Seal`, `SealStream`, and `OpenStream`. Each call to `sealChunk` / `openChunk` performs SerpentCBC + HMAC-SHA256 in Encrypt-then-MAC configuration. Key material is derived per-stream by HKDF, not supplied directly by the caller — see the next section.
 
-```typescript
-const encKey = key.subarray(0, 32);   // first 32 bytes — Serpent encryption key
-const macKey = key.subarray(32, 64);  // last 32 bytes — HMAC-SHA256 key
-```
+#### SerpentCipher (CBC + HMAC + HKDF)
 
-The 64-byte caller-supplied key is split into separate encryption and MAC keys (`seal.ts:46–47`). This is correct key separation — the encryption and MAC operations use independent keys derived from disjoint portions of the input.
-
-The MAC covers `IV || ciphertext` (`seal.ts:51`), not just ciphertext. This binds the IV to the authentication tag, preventing IV substitution attacks.
-
-On decrypt, the tag is verified before decryption (`seal.ts:65–67`) — correct Encrypt-then-MAC order.
-
-#### SerpentStream (CTR + HMAC + HKDF)
-
-`SerpentStream` (`src/ts/serpent/stream.ts`) uses HKDF-SHA256 to derive per-chunk `encKey` and `macKey` from a master key:
+`SerpentCipher` (`src/ts/serpent/cipher-suite.ts`) uses HKDF-SHA256 to derive three keys from a master key at stream construction:
 
 ```typescript
-function deriveChunkKeys(hkdf, masterKey, streamNonce, index) {
-    const derived = hkdf.deriveKey(masterKey, info, 64);
-    return { encKey: derived.subarray(0, 32), macKey: derived.subarray(32, 64) };
-}
+const derived = hkdf.derive(masterKey, nonce, INFO, 96);
+// bytes[0:32]=enc_key, bytes[32:64]=mac_key, bytes[64:96]=iv_key
 ```
 
-Each chunk gets independent encryption and MAC keys derived from `(masterKey, streamNonce, chunkIndex)`. This provides:
-- **Key separation:** `encKey` and `macKey` are derived from disjoint portions of the HKDF output
-- **Per-chunk isolation:** Compromising one chunk's keys does not reveal other chunks' keys
-- **Position binding:** The chunk index is part of the HKDF info, binding each key pair to its position
+The three keys provide:
+- **Key separation:** `enc_key`, `mac_key`, and `iv_key` are derived from disjoint portions of the HKDF output (T(1), T(2), T(3))
+- **Position binding:** The HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`, binding authentication to chunk position and associated data
+- **IV derivation:** Per-chunk CBC IV is `HMAC-SHA-256(iv_key, counterNonce)[0:16]`, deterministically derived on both sides
 
 #### HKDF-SHA256
 
@@ -319,6 +306,6 @@ Each chunk gets independent encryption and MAC keys derived from `(masterKey, st
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [sha2_audit](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
 > - [hkdf_audit](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
-> - [serpent_audit](./serpent_audit.md) — HMAC-SHA256 used in SerpentStream [§2.4](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle)
+> - [serpent_audit](./serpent_audit.md) — HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
 > - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 uses a different MAC (Poly1305)
 > - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit

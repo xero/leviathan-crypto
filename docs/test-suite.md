@@ -6,9 +6,9 @@
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 518                         | All pass |
-| e2e  | PlayWright | 183 (61 tests × 3 browsers) | all pass |
-|      | **Total**  | **701**                     | All pass |
+| Unit | Vitest     | 1006                        | All pass |
+| e2e  | Playwright | 207 (69 tests × 3 browsers) | All pass |
+|      | **Total**  | **1213**                    | All pass |
 
 ---
 
@@ -16,7 +16,7 @@
 
 | File                                     | Description                                                                                                                                                                                                                   | Vectors / Tests       | Gate       |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------- |
-| `init.test.ts`                           | `init()` API: embedded, manual, idempotent, error-before-init                                                                                                                                                                 | 9                     | —          |
+| `init.test.ts`                           | `init()` API: embedded, manual, idempotent, error-before-init, unknown module rejection                                                                                                                                       | 10                    | —          |
 | `serpent/serpent_sbox.test.ts`           | S-box table entries (serpent_ecb_tbl.txt)                                                                                                                                                                                     | 1536 vectors, 2 tests | Gate 1     |
 | `serpent/serpent_iv.test.ts`             | Key schedule intermediate values (serpent_ecb_iv.txt)                                                                                                                                                                         | 3 key sizes, 2 tests  | Gate 2     |
 | `serpent/serpent_kat.test.ts`            | KAT variable-text + variable-key (serpent_ecb_vt/vk.txt)                                                                                                                                                                      | 960 vectors, 6 tests  | —          |
@@ -26,29 +26,33 @@
 | `serpent/serpent_ctr.test.ts`            | CTR mode cases A–E                                                                                                                                                                                                            | 5 tests               | —          |
 | `serpent/serpent_wipe.test.ts`           | wipeBuffers() verification                                                                                                                                                                                                    | 1 test                | —          |
 | `serpent/serpent_cbc.test.ts`            | CBC padding, round-trip, validation                                                                                                                                                                                           | 24 tests              | —          |
-| `serpent/serpent.test.ts`                | SerpentSeal round-trip, tag/ciphertext/IV corruption, non-deterministic IV, key-length and data-too-short RangeErrors, dispose, init guards (serpent missing, sha2 missing), SerpentCbc/SerpentCtr dangerUnauthenticated gate | 15 tests              | —          |
+| `serpent/serpent.test.ts`                | SerpentCbc/SerpentCtr dangerUnauthenticated gate                                                                                                                                                                              | 4 tests               | —          |
 | `serpent/serpent_montecarlo.test.ts`     | ECB Monte Carlo (1200 × 10000 enc + dec)                                                                                                                                                                                      | 2400 outer, 4 tests   | —          |
 | `serpent/serpent_cbc_montecarlo.test.ts` | CBC Monte Carlo (1200 × 10000 enc + dec)                                                                                                                                                                                      | 2400 outer, 4 tests   | —          |
-| `serpent/serpent_stream.test.ts`         | SerpentStream round-trip, auth, position binding, validation, lifecycle                                                                                                                                                       | 19 tests              | Gate 9     |
-| `serpent/serpent_stream_pool.test.ts`    | SerpentStreamPool correctness, parallel, auth, lifecycle                                                                                                                                                                      | 15 tests              | Gate 10    |
-| `serpent/serpent_stream_sealer.test.ts`  | SerpentStreamSealer/Opener: KAT (SS1–SS3), framed mode KAT (SE1–SE3), byte-at-a-time feed, split feed, multi-frame, tamper, invalid-length, header chunkSize validation, AAD, isLast wire byte, state machine, lifecycle      | 40 tests              | Gate 11+12 |
-| `serpent/serpent_seal_kat.test.ts`       | SerpentSeal KAT: known-answer (TC1, TC2) with AAD, auth failure (ciphertext + tag), round-trip                                                                                                                                | 6 tests               | —          |
-| `serpent/serpent_stream_kat.test.ts`     | SerpentStream KAT: known-answer (SS-1, SS-3, SS-6), header field decomposition, per-chunk tag verification, truncation, reorder, cross-stream splice, auth failure, min/max chunk size round-trip                             | 12 tests              | —          |
+| `serpent/serpent_simd_gate.test.ts`      | SIMD 4-wide ECB gate: byte-identical to scalar for two keys                                                                                                                                                                   | 2 tests               | —          |
+| `serpent/serpent_simd_ctr.test.ts`       | SIMD CTR cross-check: cases A–E, SIMD output matches scalar byte-for-byte                                                                                                                                                    | 5 tests               | —          |
+| `serpent/serpent_simd_cbc.test.ts`       | SIMD CBC decrypt cross-check: 1–12 block sweep + 4KB/16KB/64KB, SIMD matches scalar                                                                                                                                          | 15 tests              | —          |
+| `serpent/serpent_simd_cbc_gate.test.ts`  | SIMD CBC decrypt gate: inner loop, scalar tail, multi-iteration, chaining continuity across chunk boundaries                                                                                                                  | 6 tests               | —          |
 | `chacha20/chacha20.test.ts`              | ChaCha20 block + encryption + round-trips                                                                                                                                                                                     | 6 tests               | Gate 3     |
 | `chacha20/chacha20_simd_4x_gate.test.ts` | 4-wide inter-block SIMD: byte-identical to scalar for 192/256/320/512/337 bytes                                                                                                                                               | 5 tests               | Gate 13    |
 | `chacha20/chacha20_simd.test.ts`         | SIMD cross-check: RFC §2.4.2 vector + size sweep (64–65536B) + round-trip                                                                                                                                                     | 11 tests              | —          |
 | `chacha20/poly1305.test.ts`              | Poly1305 MAC vectors (§2.5.2, §2.6.2, A.3 #1–#6)                                                                                                                                                                              | 9 tests               | Gate 4     |
-| `chacha20/chacha20poly1305.test.ts`      | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation)                                                                                                                                                              | 16 tests              | Gate 5     |
-| `chacha20/xchacha20.test.ts`             | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation)                                                                                                                                                       | 14 tests              | Gate 6     |
-| `chacha20/pool.test.ts`                  | XChaCha20Poly1305Pool correctness, parallel, auth, lifecycle                                                                                                                                                                  | 21 tests              | —          |
-| `chacha20/xchacha20seal.test.ts`         | XChaCha20Seal: gate, wire format (nonce‖ct‖tag), AAD, authentication (tamper, truncation), input validation, key isolation, lifecycle                                                                                         | 17 tests              | —          |
-| `chacha20/xchacha20stream.test.ts`       | XChaCha20StreamSealer/Opener: gate, round-trip (single + multi-chunk), authentication (tamper, reorder, truncation), AAD, state machine guards, framed mode (feed, split, multi-frame), lifecycle                             | 26 tests              | —          |
-| `chacha20/xchacha20_stream_pool.test.ts` | XChaCha20StreamPool: gate, round-trip (large, empty, small, custom chunk), AAD, authentication (tamper, wrong key, truncation), validation, lifecycle, parallel correctness                                                    | 15 tests              | —          |
+| `chacha20/chacha20poly1305.test.ts`      | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation)                                                                                                                                                              | 25 tests              | Gate 5     |
+| `chacha20/xchacha20.test.ts`             | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation)                                                                                                                                                       | 19 tests              | Gate 6     |
+| `stream/header.test.ts`                  | readHeader strict length (exact, short, long), makeCounterNonce safe integer guards (0, MAX_SAFE_INTEGER, overflow, negative, fractional, NaN, Infinity)                                                                      | 10 tests              | —          |
+| `stream/sealstream.test.ts`              | SealStream/OpenStream: round-trip, AAD, framed mode, authentication (tamper, reorder, replay), seek, TransformStream round-trip, empty-stream key wipe, state machine, dispose, chunk size validation, key validation, _nonce validation, header chunkSize validation. Both XChaCha20 and Serpent ciphers. Cross-cipher rejection, CipherSuite contract verification, Serpent-specific key separation/IV determinism/counter binding. | 99 tests | — |
+| `stream/sealstream_kat.test.ts`          | SealStream v2 KAT: pinned vectors for XChaCha20 (XC1, XC3, XCF1) and Serpent (SC1, SC3, SCF1), including framed variants. Header match, per-chunk ciphertext match, round-trip. | 18 tests | — |
+| `stream/pool.test.ts`                    | SealStreamPool: round-trip (both ciphers), auth failure, lifecycle (destroy, double-destroy, dead pool), key material wipe (both ciphers), worker count, WASM loading variants, seal-twice guard, header validation (format mismatch, chunkSize mismatch, short ciphertext). | 39 tests | — |
+| `errors.test.ts`                         | AuthenticationError: constructor, message format, prototype chain, instanceof | 5 tests | — |
+| `loader/wasm_source.test.ts`             | WasmSource loading: all 7 source types (embedded string, URL, ArrayBuffer, Uint8Array, WebAssembly.Module, Response, Promise\<Response\>), invalid inputs (null, number, empty string, corrupt base64, truncated ArrayBuffer), double-init idempotency | 14 tests | — |
 | `sha2/sha256.test.ts`                    | SHA-256 vectors, streaming, wipeBuffers, leviathan cross-check                                                                                                                                                                | 11 tests              | Gate 3     |
 | `sha2/sha512.test.ts`                    | SHA-512, SHA-384 vectors, streaming, leviathan cross-check                                                                                                                                                                    | 14 tests              | Gate 4     |
 | `sha2/hmac.test.ts`                      | HMAC-SHA256/512/384 vectors, leviathan cross-check                                                                                                                                                                            | 14 tests              | Gate 5, 6  |
 | `sha2/hkdf.test.ts`                      | HKDF-SHA256 RFC 5869 A.1-A.3, HKDF-SHA512 generated vectors, extract/expand isolation, derive consistency, RangeError guards, salt defaults, dispose                                                                          | 22 tests              | Gate 8     |
 | `sha3/sha3.test.ts`                      | SHA3-224/256/384/512, SHAKE128/256 (single + multi-block), incremental absorb/squeeze, state machine guards, dispose zeroes TS buffer, wipeBuffers, leviathan cross-check                                                     | 61 tests              | Gate 7     |
+| `kyber/poly_arithmetic.test.ts`         | Gate-based WASM primitive tests: Montgomery reduce, Barrett reduce, fqmul, zetas verification, NTT roundtrip, basemul commutativity, serialization roundtrip, compression bounds, message encode/decode, rejection sampling, CBD bounds, CT verify/cmov. | 44 tests | Gates 1-6 |
+| `kyber/ntt_simd_gate.test.ts`           | SIMD NTT/poly gate: ntt_simd byte-identical to ntt_scalar (100 random polys), invntt_simd byte-identical to invntt_scalar (100 random polys), roundtrip identity (100 random polys), poly_add/sub/reduce match scalar semantics (50 trials each), poly_ntt/invntt match (50 trials each). | 11 tests | Gates 1-2 |
+| `kyber/mlkem.test.ts`                   | ML-KEM ACVP validation: init system wiring, IND-CPA keygen (all 3 param sets), encapsulation, valid decapsulation, implicit rejection, encapsulation key validation, decapsulation key validation, round-trip property, implicit rejection property. 240 NIST ACVP vectors. | 314 tests | Gates 0-9 |
 | `sha3/shake_xof.test.ts`                 | SHAKE128/256 multi-squeeze KAT: rate-boundary crossing (MS-1–3, MS-5–7), byte-by-byte squeeze (MS-4, MS-8), reset after multi-squeeze (MS-9)                                                                                  | 10 tests              | —          |
 | `fortuna.test.ts`                        | Fortuna CSPRNG: create, get (always Uint8Array), entropy, stop/start, key replacement, pool selection                                                                                                                         | 10 tests              | —          |
 | `utils.test.ts`                          | hex (odd-length throw), utf8, base64 (url-safe unpadded), constantTimeEqual, wipe, xor, variadic concat, randomBytes                                                                                                          | 35 tests              | —          |
@@ -75,8 +79,12 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | `sha512.spec.ts`              | SHA-512 "abc" (Gate 4), SHA-384 "abc", streaming 4×128B             | 3     |
 | `hmac.spec.ts`                | HMAC-SHA256 TC1 (Gate 5), HMAC-SHA512 TC6 (Gate 6), HMAC-SHA256 TC2 | 3     |
 | `sha3.spec.ts`                | SHA3-256 empty (Gate 7), SHA3-512 "abc", SHAKE128 empty/32B         | 3     |
-| `serpent_stream_pool.spec.ts` | SerpentStreamPool cross-compat, round-trip, tamper, size            | 5     |
-| `xchacha20_pool.spec.ts`      | XChaCha20Poly1305Pool cross-compat, round-trip, tamper, size        | 5     |
+| `chacha20_simd_bench.spec.ts` | ChaCha20 SIMD throughput benchmark (256B, 16KB, 64KB)               | 3     |
+| `serpent_simd_cbc.spec.ts`    | SIMD CBC decrypt round-trip (8-block + 5-block)                     | 2     |
+| `serpent_simd_ctr.spec.ts`    | SIMD CTR mode cases A–E                                             | 1     |
+| `serpent_simd_bench.spec.ts`  | Serpent SIMD throughput benchmark (1KB, 16KB, 64KB)                  | 3     |
+| `pool.spec.ts`                | SealStreamPool: XChaCha20 + Serpent round-trip, pool seal → OpenStream open, large payload multi-worker | 4 |
+| `loader.spec.ts`              | WasmSource loader: all 7 source types (embedded, URL, ArrayBuffer, Uint8Array, WebAssembly.Module, Response, Promise\<Response\>) via `init()` + SHA3-256 FIPS 202 digest proof | 7 |
 
 > [!NOTE]
 > E2E Monte Carlo tests use 50 outer iterations in Playwright (vs 1200 in Vitest) for
@@ -100,10 +108,9 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | `serpent_nessie-128.txt`    | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/)                                                                                                                                                                                                                                                                                   | 1028        | VERIFIED          |
 | `serpent_nessie-192.txt`    | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/)                                                                                                                                                                                                                                                                                   | 1156        | VERIFIED          |
 | `serpent_nessie-256.txt`    | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/)                                                                                                                                                                                                                                                                                   | 1284        | VERIFIED          |
-| `serpent.ts`                | SerpentStream round-trip fixture (3 × 1024-byte chunks)                                                                                                                                                                                                                                                                                              | 1           | VERIFIED (Gate 9) |
-| `serpent_composition.ts`    | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-seal-vectors.ts) — SerpentSeal (TC1, TC2) and SerpentStream (SS-1, SS-3, SS-6) KAT vectors. Generated with fixed IV/nonce seams, decomposed and verified against underlying primitives independently.                                                                | 5           | SELF-GENERATED    |
-| `serpent_stream_sealer.ts`  | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-sealstream-vectors.ts) — SerpentStreamSealer/Opener (SS1, SS2, SS3) KAT vectors. Generated with fixed nonce/IV seams, decomposed and verified against SerpentCbc + HMAC_SHA256 + HKDF_SHA256 independently.                                                          | 3           | SELF-GENERATED    |
-| `serpent_stream_encoder.ts` | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-streamencoder-vectors.ts) — SerpentStreamSealer framed mode (SE1, SE2, SE3) KAT vectors. Used by `serpent_stream_sealer.test.ts` for Gate 12 framed-mode coverage. Generated with fixed nonce/IV seams, verified by round-trip through SerpentStreamOpener `feed()`. | 3           | SELF-GENERATED    |
+| `serpent.ts`                | Serpent round-trip fixture (3 × 1024-byte chunks)                                                                                                                                                                                                                                                                                                     | 1           | VERIFIED          |
+| `seal_v2.ts`                | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-seal-vectors.ts) — Seal v2 KAT vectors for XChaCha20 (XC1, XC_EMPTY) and Serpent (SC1, SC_EMPTY). Single-chunk STREAM construction, independently verified against raw primitives (HKDF-SHA-256, HChaCha20, ChaCha20-Poly1305, SerpentCbc, HMAC-SHA-256).                                                         | 4           | SELF-GENERATED    |
+| `sealstream_v2.ts`          | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/scripts/gen-sealstream-vectors.ts) — SealStream KAT vectors for XChaCha20 (XC1, XC3, XCF1) and Serpent (SC1, SC3, SCF1). Generated with fixed nonce seams, each chunk independently verified against raw primitives (HKDF-SHA-256, HChaCha20, ChaCha20-Poly1305, SerpentCbc, HMAC-SHA-256). Includes framed mode variants. | 6 | SELF-GENERATED |
 | `shake_xof.ts`              | [Self-generated](https://github.com/xero/leviathan-crypto/blob/main/test/vectors/shake_xof.ts) — SHAKE128/256 multi-squeeze vectors (MS-1–MS-9). All chunks are slices of externally-verified KATs from `sha3.ts`, verified against Node.js `crypto.createHash`.                                                                                     | 8           | SELF-GENERATED    |
 | `chacha20.ts`               | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.2.1 — ChaCha20 block function                                                                                                                                                                                                                                                                  | 1           | VERIFIED (Gate 3) |
 | `chacha20.ts`               | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.4.2 — ChaCha20 114-byte encryption                                                                                                                                                                                                                                                             | 1           | VERIFIED          |
@@ -135,6 +142,8 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | `sha3.ts`                   | Node.js crypto / Python hashlib — SHAKE128 multi-block (empty×200, empty×336, empty×400, "abc"×200)                                                                                                                                                                                                                                                  | 4           | VERIFIED          |
 | `sha3.ts`                   | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) — SHAKE256 (empty×32, "abc"×64, rate boundary)                                                                                                                                                                                                                                  | 4           | VERIFIED          |
 | `sha3.ts`                   | Node.js crypto / Python hashlib — SHAKE256 multi-block (empty×200, empty×272, empty×300, "abc"×200)                                                                                                                                                                                                                                                  | 4           | VERIFIED          |
+| `kyber_keygen.ts`           | [NIST ACVP](https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files/ML-KEM-keyGen-FIPS203) — ML-KEM keygen (d+z → ek+dk) | 75 (25×3) | VERIFIED |
+| `kyber_encapdecap.ts`       | [NIST ACVP](https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files/ML-KEM-encapDecap-FIPS203) — ML-KEM encap (75 AFT), decap (30 VAL including implicit rejection), key validity checks (60 VAL) | 165 | VERIFIED |
 
 > [!IMPORTANT]
 > All vector files are read-only. Integrity is verified via
@@ -143,16 +152,13 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 > the **_immutable truth,_** and must never be modified to make tests pass.
 
 > [!NOTE]
-> `serpent_composition.ts`, `serpent_stream_sealer.ts`,
-> `serpent_stream_encoder.ts`, and `shake_xof.ts` are self-generated — there is
-> no external authority for these wire formats or multi-squeeze output slices.
-> Each was produced with fixed inputs and independently verified against the
-> underlying primitives. `serpent_stream_encoder.ts` vectors are now consumed
-> by `serpent_stream_sealer.test.ts` for Gate 12 framed-mode coverage; the wire
-> format is byte-identical to our legacy framed/bare Serpent stream format.
-> These vectors are regression trip-wires for format stability, not proof of
-> correctness against an external reference. Generation scripts are kept in the
-> repo so derivations can be audited or reproduced.
+> `seal_v2.ts`, `sealstream_v2.ts`, and `shake_xof.ts` are
+> self-generated — there is no external authority for these wire formats or
+> multi-squeeze output slices. Each was produced with fixed inputs and
+> independently verified against the underlying primitives. These vectors are
+> regression trip-wires for format stability, not proof of correctness against
+> an external reference. Generation scripts are kept in the repo so derivations
+> can be audited or reproduced.
 
 > ## Cross-References
 >
@@ -162,6 +168,8 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 > - [chacha20](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
 > - [sha2](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
 > - [sha3](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
+> - [stream](./stream.md) — SealStream, OpenStream, SealStreamPool (tested primitives)
+> - [loader](./loader.md) — WASM binary loading strategies (tested in unit + e2e)
 > - [fortuna](./fortuna.md) — Fortuna CSPRNG (tested primitive)
 > - [utils](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)
 > - [types](./types.md) — public interfaces verified by the test suite

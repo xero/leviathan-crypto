@@ -66,7 +66,9 @@ export class HKDF_SHA256 {
 		}
 
 		prev.fill(0);
-		return okm.slice(0, length);
+		const result = okm.slice(0, length);
+		okm.fill(0);
+		return result;
 	}
 
 	// One-shot: extract then expand
@@ -122,7 +124,9 @@ export class HKDF_SHA512 {
 		}
 
 		prev.fill(0);
-		return okm.slice(0, length);
+		const result = okm.slice(0, length);
+		okm.fill(0);
+		return result;
 	}
 
 	// One-shot: extract then expand

@@ -30,9 +30,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { loadKey, fromHex, toHex, writeBytes, readBytes, getWasm } from '../helpers';
 import { CTR_VECTORS } from './ctr_vectors';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 describe('CTR mode — cross-check against leviathan 09_ctr_vectors.test.ts', () => {

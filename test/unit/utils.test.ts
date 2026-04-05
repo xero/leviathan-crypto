@@ -153,18 +153,9 @@ describe('constantTimeEqual', () => {
 		expect(constantTimeEqual(new Uint8Array(0), new Uint8Array(0))).toBe(true);
 	});
 
-	test('large input does not short-circuit', () => {
-		const size = 100_000;
-		const a = new Uint8Array(size).fill(0xAA);
-		const b = new Uint8Array(size).fill(0xAA);
-		b[0] = 0xBB; // differ at first byte
-		const c = new Uint8Array(size).fill(0xAA);
-		c[size - 1] = 0xBB; // differ at last byte
-
-		// Both should return false — timing difference is not testable
-		// deterministically, but we verify correctness
-		expect(constantTimeEqual(a, b)).toBe(false);
-		expect(constantTimeEqual(a, c)).toBe(false);
+	test('oversized input throws RangeError', () => {
+		const big = new Uint8Array(33_000);
+		expect(() => constantTimeEqual(big, big)).toThrow(RangeError);
 	});
 });
 

@@ -21,8 +21,7 @@
 - [2. Security Analysis](#2-security-analysis)
   - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
   - [2.2 Known Attacks on ChaCha20](#22-known-attacks-on-chacha20)
-  - [2.3 AEAD Security Properties](#23-aead-security-properties)
-  - [2.4 ChaChaStream: Nonce Construction and Chunk Binding](#24-chachastream-nonce-construction-and-chunk-binding)
+  - [2.3 Stream Composition](#23-stream-composition)
 
 ---
 
@@ -331,6 +330,10 @@ Total: 131,564 bytes < 196,608 (3 × 64KB pages). No dynamic allocation (`memory
 - **Input views:** `.subarray()` is used for input data views (`ops.ts:19`, `ops.ts:148`, `ops.ts:157`, `ops.ts:189–190`). These views are immediately copied into WASM memory via `mem.set()`, so the view lifetime is bounded. No view crosses a `postMessage` boundary within the core library.
 
 > [!NOTE]
+> This note references the v1 `XChaCha20Poly1305Pool` (`chacha20/pool.ts`).
+> The v2 equivalent is `SealStreamPool` (`stream/seal-stream-pool.ts`) with
+> cipher-specific workers (`chacha20/pool-worker.ts`, `serpent/pool-worker.ts`).
+>
 > The `XChaCha20Poly1305Pool` worker pool (`pool.ts`) uses `Transferable` buffer transfer when dispatching to workers — input buffers are neutered after dispatch. The worker receives ownership of the `ArrayBuffer`, deserializes its own copy into WASM memory, and returns a new `ArrayBuffer` with the result. This avoids the [`.subarray()` + `postMessage` hazard that caused the 2.8TB memcpy](./serpent_audit.md#18-buffer-layout-and-memory-safety) in the Serpent worker pool.
 
 ---
@@ -448,83 +451,14 @@ Even for the maximum single-chunk size of 65,536 bytes, the forgery probability 
 
 ---
 
-### 2.3 AEAD Security Properties
+### 2.3 Stream Composition
 
-The ChaCha20-Poly1305 AEAD construction provides:
-
-| Property | Guarantee | Mechanism |
-|----------|-----------|-----------|
-| **Confidentiality** | Ciphertext indistinguishable from random | ChaCha20 is a PRF; keystream XOR hides plaintext |
-| **Integrity** | Any bit flip in ciphertext or AAD causes tag failure | Poly1305 MAC covers padded AAD + padded CT + lengths |
-| **Authenticity** | Forgery requires breaking Poly1305 | Forgery bound: ⌈l/16⌉/2^{106} per message |
-| **Associated data** | AAD authenticated but not encrypted | AAD fed to Poly1305 before ciphertext |
-
-**Nonce misuse behavior:** If the same (key, nonce) pair is used twice:
-- ChaCha20 keystream is reused → XOR of plaintexts is revealed (confidentiality loss)
-- Poly1305 one-time key is reused → algebraic recovery of `r` enables forgery (authenticity loss)
-- However, nonce reuse does not directly enable plaintext recovery from the ciphertext alone — an attacker needs a second ciphertext under the same nonce to exploit the two-time-pad
-
-This is not nonce-misuse resistant (unlike AES-SIV or AEGIS). The library mitigates this risk by defaulting to XChaCha20 with 192-bit nonces, where random generation is safe (see §2.2).
-
-**Comparison to [SerpentStream Encrypt-then-MAC](./serpent_audit.md#24-serpentstream-encrypt-then-mac-and-the-cryptographic-doom-principle):**
-
-| Property | ChaCha20-Poly1305 | SerpentStream (CTR + HMAC-SHA256) |
-|----------|-------------------|-----------------------------------|
-| Construction | Native AEAD | Composed EtM |
-| MAC security | 2^{-106} (Poly1305, information-theoretic) | 2^{-128} (HMAC-SHA256, computational) |
-| Side-channel resistance | ARX — no tables, no cache timing | Boolean circuit S-boxes — also no tables |
-| Nonce handling | 192-bit (XChaCha20) — safe for random | 128-bit CTR — safe for sequential |
-| Key derivation per chunk | Not needed (nonce binding) | HKDF-SHA256 per chunk |
-| Tag size | 16 bytes | 32 bytes |
-| WASM modules required | 1 (chacha20.wasm) | 2 (serpent.wasm + sha2.wasm) |
-
-ChaCha20-Poly1305 is a simpler construction with fewer moving parts. Poly1305's forgery bound is information-theoretic (unconditional) rather than computational, though the bound is weaker than HMAC-SHA256's. For the message sizes supported by leviathan-crypto (≤ 64KB per AEAD operation), both constructions provide equivalent practical security.
-
-SerpentStream's HKDF-based per-chunk key derivation provides domain separation at the key level; ChaCha20-Poly1305 achieves equivalent separation through the nonce. The HChaCha20 subkey derivation in XChaCha20 provides additional key isolation — each distinct nonce prefix produces an independent subkey.
-
-**Assessment:** Both constructions are secure for their intended use cases. ChaCha20-Poly1305 is the simpler and more widely analyzed construction; SerpentStream provides a marginally higher MAC security bound at the cost of greater complexity.
-
----
-
-### 2.4 ChaChaStream: Nonce Construction and Chunk Binding
-
-The `lvthncli-chacha` demo ([`demos/lvthncli-chacha/src/pool.ts:26–33`](https://github.com/xero/leviathan-demos/blob/main/cli-chacha/src/pool.ts)) constructs per-chunk nonces for XChaCha20-Poly1305:
-
-```
-xcnonce(24) = streamNonce(16) || u64be(chunkIndex)(8)
-```
-
-| Byte range | Content | Source |
-|------------|---------|--------|
-| 0–15 | `streamNonce` | `crypto.getRandomValues(new Uint8Array(16))` |
-| 16–23 | `u64be(chunkIndex)` | Sequential index (0, 1, 2, ...) |
-
-This 24-byte nonce is fed to `XChaCha20Poly1305`, which internally splits it:
-- Bytes 0–15 → HChaCha20 subkey derivation (same for all chunks in a stream, since `streamNonce` is fixed per message)
-- Bytes 16–23 → inner 12-byte nonce (`0x00000000 || u64be(index)`)
-
-**Chunk reordering prevention:** The chunk index is encoded directly in the nonce. Reordering chunks changes the nonce used for decryption, which causes authentication failure. This is inherent to the AEAD — no additional binding mechanism is needed.
-
-Unlike SerpentStream, which uses HKDF-SHA256 to derive per-chunk encryption and MAC keys (two derivations per chunk), ChaCha20-Poly1305 relies solely on the nonce for chunk position binding. This is sufficient because:
-
-1. XChaCha20 is an AEAD — nonce uniqueness guarantees both confidentiality and authenticity.
-2. HChaCha20 provides subkey isolation — even if an attacker controls part of the nonce, the subkey derivation prevents related-key attacks.
-3. The inner nonce contains the chunk index, preventing keystream or Poly1305 key reuse across chunks.
-
-**Stream nonce entropy:** 16 bytes from `crypto.getRandomValues` provides 128 bits of entropy. Birthday collision across streams (different messages) reaches 50% after 2^64 streams — approximately 18 billion billion messages. Combined with the chunk index, the full 24-byte nonce has no practical collision risk.
-
-**Duplicate chunk index prevention:** The encryption loop in `pool.ts` iterates sequentially (`for i = 0; i < chunkCount; i++`), making duplicate indices structurally impossible in normal operation. There is no explicit runtime check for duplicate indices, but the sequential loop structure provides a static guarantee.
-
-**Comparison to SerpentStream HKDF position-binding:**
-
-| Property | ChaCha20 nonce-binding | SerpentStream HKDF-binding |
-|----------|----------------------|---------------------------|
-| Mechanism | Nonce contains chunk index | HKDF derives per-chunk key from (master, index) |
-| Derivation cost | Zero (nonce concatenation) | 2 × HKDF-SHA256 per chunk |
-| Key isolation | HChaCha20 subkey (same for all chunks) | Independent key per chunk |
-| Reordering protection | AEAD auth failure | MAC verification failure |
-
-Both approaches provide equivalent chunk-binding security. The ChaCha20 approach is more efficient (no per-chunk key derivation) while the SerpentStream approach provides stronger key isolation between chunks.
+The ChaCha20-Poly1305 AEAD is used as a per-chunk cipher in the
+`SealStream` / `OpenStream` streaming layer via `XChaCha20Cipher`
+(`src/ts/chacha20/cipher-suite.ts`). The streaming composition —
+key derivation, nonce construction, wire format, pool workers, and
+the relationship to the Rogaway STREAM construction — has been audited
+separately in [stream_audit.md](./stream_audit.md).
 
 ---
 
@@ -535,7 +469,7 @@ Both approaches provide equivalent chunk-binding security. The ChaCha20 approach
 > - [serpent_audit](./serpent_audit.md) — Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties)
 > - [sha2_audit](./sha2_audit.md) — SHA-256 / HMAC-SHA256 audit
 > - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit
-> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentStream, not ChaCha)
-> - [hkdf_audit](./hkdf_audit.md) — HKDF audit (used in SerpentStream, not ChaCha)
+> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentCipher, not ChaCha)
+> - [hkdf_audit](./hkdf_audit.md) — HKDF audit (used in stream layer key derivation)
 > - [chacha20](./chacha20.md) — TypeScript API documentation
 > - [asm_chacha](./asm_chacha.md) — WASM implementation details

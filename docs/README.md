@@ -7,8 +7,8 @@
 | [examples.md](./examples.md) | Code examples for every primitive |
 | [cdn.md](./cdn.md) | CDN usage examples. _"no bundler? no problem"_ |
 | [exports.md](./exports.md) | Comprehensive export reference detailing each class, function, and type |
-| [init.md](./init.md) | `init()` API, three loading modes, subpath imports, tree-shaking |
-| [loader.md](./loader.md) | WASM binary loading options: embedded (base64), streaming (fetch), manual |
+| [init.md](./init.md) | `init()` API, `WasmSource`, subpath imports, tree-shaking |
+| [loader.md](./loader.md) | WASM binary loading: `WasmSource` type dispatch, `loadWasm()`, `compileWasm()` |
 
 ---
 
@@ -18,15 +18,14 @@
 
 | Module | Description |
 |--------|-------------|
-| [serpent.md](./serpent.md) | TypeScript API: `SerpentSeal`, `SerpentStream`, `SerpentStreamPool`, `SerpentStreamSealer`, `SerpentStreamOpener`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
+| [serpent.md](./serpent.md) | TypeScript API: `SerpentCipher`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
 | [asm_serpent.md](./asm_serpent.md) | WASM implementation: bitslice S-boxes, key schedule, CTR/CBC modes |
 
 ### XChaCha20 / Poly1305
 
 | Module | Description |
 |--------|-------------|
-| [chacha20.md](./chacha20.md) | TypeScript API: `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
-| [chacha20_pool.md](./chacha20_pool.md) | `XChaCha20Poly1305Pool`: parallel worker pool for authenticated encryption |
+| [chacha20.md](./chacha20.md) | TypeScript API: `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher` |
 | [asm_chacha.md](./asm_chacha.md) | WASM implementation: quarter-round, Poly1305 accumulator, HChaCha20 |
 
 ### SHA-2
@@ -42,6 +41,18 @@
 |--------|-------------|
 | [sha3.md](./sha3.md) | TypeScript API: `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | [asm_sha3.md](./asm_sha3.md) | WASM implementation: Keccak permutation (1600-bit state), sponge construction |
+
+### ML-KEM (Post-Quantum KEM)
+
+| Module | Description |
+|--------|-------------|
+| [kyber.md](./kyber.md) | TypeScript API: `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite` |
+
+### Streaming AEAD
+
+| Module | Description |
+|--------|-------------|
+| [stream.md](./stream.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`: one-shot and streaming cipher-agnostic AEAD |
 
 ### Fortuna CSPRNG
 
@@ -74,7 +85,8 @@
 | [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
 | [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
 | [hmac_audit.md](./hmac_audit.md) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
+| [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, stream key derivation |
+| [kyber_audit.md](./kyber_audit.md) | ML-KEM (FIPS 203) implementation audit: NTT correctness, IND-CCA2 decapsulation, NIST KAT coverage |
 
 ## Project Documentation
 

@@ -97,7 +97,7 @@ static async create(opts?: {
 | `opts.msPerReseed` | `number` | `100` | Minimum milliseconds between reseeds. |
 | `opts.entropy` | `Uint8Array` | -- | Optional extra entropy to mix in during creation. |
 
-Throws if `init(['serpent', 'sha2'])` has not been called.
+Throws if `init({ serpent: serpentWasm, sha2: sha2Wasm })` has not been called.
 
 Direct construction with `new Fortuna()` is not possible -- the constructor is
 private. Always use `Fortuna.create()`.
@@ -184,9 +184,11 @@ There is no `start()` or restart capability.
 
 ```typescript
 import { init, Fortuna } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
 // Initialize both WASM modules that Fortuna depends on
-await init(['serpent', 'sha2'])
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 // Create the CSPRNG
 const rng = await Fortuna.create()
@@ -205,8 +207,10 @@ rng.stop()
 
 ```typescript
 import { init, Fortuna, utf8ToBytes } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['serpent', 'sha2'])
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 const rng = await Fortuna.create()
 
 // Feed application-specific data as additional entropy.
@@ -227,8 +231,10 @@ rng.stop()
 
 ```typescript
 import { init, Fortuna } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['serpent', 'sha2'])
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 // Fortuna automatically registers browser event listeners on creation:
 // - mousemove (throttled to 50ms)
@@ -259,8 +265,10 @@ window.addEventListener('beforeunload', () => rng.stop())
 
 ```typescript
 import { init, Fortuna } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['serpent', 'sha2'])
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 // You can pass extra entropy at creation time.
 // This is mixed into the pools during initialization, before the
@@ -279,7 +287,7 @@ rng.stop()
 
 | Condition | What happens |
 |-----------|-------------|
-| `init()` not called | `Fortuna.create()` throws: `leviathan-crypto: call init(['serpent', 'sha2']) before using Fortuna` |
+| `init()` not called | `Fortuna.create()` throws: `leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using Fortuna` |
 | Only one module initialized | Same error -- both `serpent` and `sha2` must be initialized. |
 | `new Fortuna()` | Compile-time error -- the constructor is private. TypeScript will not allow it. |
 | Any method after `stop()` | Throws: `Fortuna instance has been disposed`. The instance is permanently disposed. |

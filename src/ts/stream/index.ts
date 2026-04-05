@@ -1,0 +1,33 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+// src/ts/stream/index.ts
+
+export { SealStream } from './seal-stream.js';
+export { OpenStream } from './open-stream.js';
+export { Seal } from './seal.js';
+export type { CipherSuite, DerivedKeys, SealStreamOpts } from './types.js';
+export {
+	FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE,
+	CHUNK_MIN, CHUNK_MAX,
+} from './constants.js';
+export { SealStreamPool } from './seal-stream-pool.js';
+export type { PoolOpts } from './seal-stream-pool.js';

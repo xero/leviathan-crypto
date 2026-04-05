@@ -38,9 +38,15 @@ bun pin     # re-pin action SHAs — run after any workflow file change
 ```
 
 **Never use `bun build`, `bun run build`, `bun run test`, or `bun run test:all`
-directly.** `bun bake` and `bun check` include all required steps in the correct
-order with the correct timeout configuration. The raw `bun run` equivalents are
-missing steps, slower, or will timeout on the Monte Carlo tests.
+directly.** `bun bake` and `bun check` include all required steps in the
+correct order with the correct timeout configuration. The raw `bun run`
+equivalents are missing steps, slower, or will timeout on the Monte Carlo or
+kyber poly arithmetic tests. `bun check` does a full build, runs unit and e2e
+tests. Always capture output to a log file and inspect from there, to avoid
+running it twice:
+`bun check 2>&1 | tee /tmp/check.log; grep -E "passed|failed|error" /tmp/check.log`
+The summary lines appear at the end. If failures are present, inspect with:
+`grep -A 10 "FAIL" /tmp/check.log`
 
 **Workflow file changes require `bun pin` before committing.** Any edit to a
 `.github/workflows/*.yml` file must be followed by `bun pin` to re-pin action
@@ -165,9 +171,13 @@ that way.
 
 These are decisions already made. Do not relitigate them without raising it first.
 
-- **Four WASM modules**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`, `sha3.wasm`.
-  Each is independent — separate linear memory, separate buffer layout, separate
-  AssemblyScript entry point.
+- **Six WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
+  `sha3.wasm`, `ct.wasm`, `kyber.wasm`. Each is independent — separate
+  linear memory, separate buffer layout, separate AssemblyScript entry
+  point. `ct.wasm` is an internal utility (SIMD constant-time compare,
+  not a user-facing module). `'keccak'` is an alias for `'sha3'` in the
+  TypeScript layer — it is not a separate module. No `keccak.wasm` exists
+  or should be created.
 - **Static buffers only**: no dynamic allocation (`memory.grow()` is not used).
   All buffers are fixed offsets in linear memory defined in `buffers.ts`.
 - **Buffer layout starts at 0**: each module's layout is independent and starts
@@ -182,6 +192,23 @@ These are decisions already made. Do not relitigate them without raising it firs
   by `scripts/embed-wasm.ts`. Do not create or edit them manually.
 - **`sideEffects: false`** in `package.json`. Every module must be genuinely
   side-effect-free for tree-shaking.
+- **`stream/` is cipher-agnostic**: `SealStream`, `OpenStream`, and
+  `SealStreamPool` take a `CipherSuite` object at construction. The two
+  shipped implementations are `XChaCha20Cipher` and `SerpentCipher`. Do not
+  add cipher-specific stream classes — the generic pattern replaces them.
+- **Stream layer requires sha2**: HKDF-SHA256 is a stream-layer dependency,
+  not a cipher choice. All stream classes validate `isInitialized('sha2')`
+  and throw if not. This is separate from the cipher's own module requirements.
+- **Pool workers bypass the module cache**: each worker instantiates its own
+  WASM from pre-compiled `WebAssembly.Module` objects. They do not call
+  `initModule()` or share the main-thread cache.
+- **`/embedded` subpath exports**: each module has a `*/embedded.ts` that
+  re-exports the gzip+base64 blob as a named export (`serpentWasm`,
+  `chacha20Wasm`, etc.). The `src/ts/embedded/` directory is the generated
+  source; the per-module files re-export from it.
+- **Single-use encrypt guards**: `SealStream.finalize()`, `SealStreamPool.seal()`,
+  `ChaCha20Poly1305.encrypt()`, and `XChaCha20Poly1305.encrypt()` can only be
+  called once per instance. This prevents nonce reuse.
 
 ---
 
@@ -211,8 +238,9 @@ cryptographic values or algorithm behavior. The spec is. If a doc contradicts
 the spec, the spec wins and the doc is wrong.
 
 However, docs ARE authoritative on API shape. If `docs/serpent.md` says
-`serpentInit(mode?, opts?)` and the source says something different, that is
-a discrepancy that must be flagged, not silently resolved in either direction.
+`SerpentCipher` has `formatEnum: 0x02` and the source says something different,
+that is a discrepancy that must be flagged, not silently resolved in either
+direction.
 
 `docs/CLAUDE_consumer.md` ships inside the npm package. It is read by AI
 assistants consuming this library. It must be kept in sync with any public API
@@ -247,6 +275,7 @@ A task is complete when **all** of the following are true:
    - `docs/CLAUDE_consumer.md`
    - `docs/architecture.md` if the module structure changed
    - `docs/test-suite.md` if test counts changed
+   - `docs/stream.md` if the streaming API or wire format changed
 
 **Release tasks additionally require:**
 

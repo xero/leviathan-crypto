@@ -31,6 +31,7 @@ import { init, Poly1305 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
 import type { ChaChaExports } from '../../../src/ts/chacha20/types.js';
 import { poly1305Vectors, poly1305KeyGenVectors } from '../../vectors/chacha20.js';
+import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 
 const toHex = (b: Uint8Array): string =>
 	Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
@@ -39,7 +40,7 @@ const fromHex = (h: string): Uint8Array =>
 	Uint8Array.from(h.match(/.{2}/g)!.map(b => parseInt(b, 16)));
 
 beforeAll(async () => {
-	await init('chacha20');
+	await init({ chacha20: chacha20Wasm });
 });
 
 // Helper to get raw WASM exports for low-level tests

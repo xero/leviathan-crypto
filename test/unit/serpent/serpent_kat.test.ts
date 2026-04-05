@@ -30,9 +30,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { loadKey, encryptBlock, decryptBlock } from '../helpers';
 import { parseVtFile, parseVkFile } from './vector_parser';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 });
 
 describe('KAT — serpent_ecb_vt.txt variable-text (384 vectors)', () => {

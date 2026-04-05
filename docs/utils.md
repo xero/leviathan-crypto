@@ -15,7 +15,7 @@ The module covers four areas:
 
 ## Security Notes
 
-**`constantTimeEqual`** uses an XOR-accumulate pattern with no early return on byte mismatch. Use this function whenever you compare MACs, hashes, authentication tags, or any secret-derived values. **Never** use `===`, `Buffer.equals`, or manual loop-with-break for security comparisons -- those leak timing information that can be exploited to recover secrets.
+**`constantTimeEqual`** uses a WASM SIMD module when available to remove the JS JIT compiler from the timing picture, falling back to an XOR-accumulate loop on older runtimes. Use this function whenever you compare MACs, hashes, authentication tags, or any secret-derived values. **Never** use `===`, `Buffer.equals`, or manual loop-with-break for security comparisons — those leak timing information that can be exploited to recover secrets. Inputs are limited to [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side.
 
 The length check in `constantTimeEqual` is _not_ constant-time, because array length is non-secret in all standard protocols. If your use case treats length as secret, you must pad to equal length before comparing.
 
@@ -95,7 +95,38 @@ Encodes a `Uint8Array` to a base64 string. Pass `url = true` for base64url (RFC 
 constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean
 ```
 
-Returns `true` if `a` and `b` contain identical bytes. Uses XOR-accumulate with no early return on mismatch. Returns `false` immediately if the arrays differ in length (length is non-secret).
+Returns `true` if `a` and `b` contain identical bytes. Returns `false` immediately if the arrays differ in length (length is non-secret in all standard protocols).
+
+When WebAssembly SIMD is available the comparison runs inside a WASM module, removing the JS JIT compiler from the timing picture — speculative optimisation and branch prediction inside the engine cannot short-circuit the loop. On runtimes without SIMD support the function falls back to an XOR-accumulate loop in JavaScript, which is best-effort but not a hardware-level guarantee. The overall posture is **best-available constant-time**, not a cryptographic proof of timing safety.
+
+Maximum input size is [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side. Throws `RangeError` if either array exceeds this limit.
+
+This function is exported specifically to support consumers working with the lower-level unauthenticated primitives or building custom authenticated protocols on top of the hashing and KDF APIs. Three common cases where you need it:
+
+- **Encrypt-then-MAC with `SerpentCbc` or `SerpentCtr`** — if you use the `dangerUnauthenticated` primitive directly and compute your own HMAC-SHA256 tag, compare that tag with `constantTimeEqual`. See the [example below](#encrypt-then-mac-with-serpentcbc).
+- **Argon2id key verification** — when re-deriving an Argon2id hash to verify a passphrase, the final comparison must be constant-time. See [argon2id.md](./argon2id.md#password-hashing-and-verification) for the full example.
+- **Custom HMAC protocols** — any protocol where you derive a MAC with `HMAC_SHA256`/`HMAC_SHA512` and compare it against a received value. See [examples.md](./examples.md#hmac-sha256-message-authentication) for a complete example.
+
+---
+
+### CT_MAX_BYTES
+
+```typescript
+const CT_MAX_BYTES: 32768
+```
+
+Maximum input size accepted by [`constantTimeEqual`](#constanttimeequal) per side, in bytes. Reflects the physical layout of the WASM comparison module: one 64 KiB page of linear memory split equally between the two input buffers (32 KiB each).
+
+In practice the largest comparison performed anywhere in this library is a 32-byte HMAC-SHA-256 tag. This limit only matters for custom protocols that compare unusually large values. Use this constant to guard your own inputs programmatically rather than hardcoding the magic number:
+
+```typescript
+import { constantTimeEqual, CT_MAX_BYTES } from 'leviathan-crypto'
+
+if (a.length > CT_MAX_BYTES || b.length > CT_MAX_BYTES) {
+  throw new RangeError(`comparison input exceeds CT_MAX_BYTES (${CT_MAX_BYTES})`)
+}
+const match = constantTimeEqual(a, b)
+```
 
 ---
 
@@ -201,20 +232,61 @@ if (decoded) console.log(bytesToUtf8(decoded)) // "leviathan-crypto"
 
 ---
 
-### Secure MAC comparison
+### Encrypt-then-MAC with SerpentCbc
+
+If you use `SerpentCbc` or `SerpentCtr` directly with `{ dangerUnauthenticated: true }`, you are responsible for authentication. The correct pattern is Encrypt-then-MAC: encrypt first, then compute HMAC-SHA256 over the ciphertext, and use `constantTimeEqual` to verify on decrypt.
 
 ```typescript
-import { constantTimeEqual } from 'leviathan-crypto'
+import {
+  init, SerpentCbc, HMAC_SHA256,
+  constantTimeEqual, randomBytes, wipe, concat,
+} from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded'
 
-// After computing a MAC over received data, compare it to the expected tag.
-// NEVER use === or .every() for this -- timing leaks enable forgery attacks.
-const computedMac: Uint8Array = hmac.hash(key, message)
-const receivedMac: Uint8Array = getTagFromNetwork()
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
-if (!constantTimeEqual(computedMac, receivedMac)) {
-  throw new Error('Authentication failed: MAC mismatch')
+const encKey = randomBytes(32)
+const macKey = randomBytes(32)
+const iv     = randomBytes(16)
+
+// ── Encrypt ──────────────────────────────────────────────────────────────────
+
+const cbc = new SerpentCbc({ dangerUnauthenticated: true })
+const ct  = cbc.encrypt(encKey, iv, plaintext)
+cbc.dispose()
+
+// MAC covers iv || ct so the IV is authenticated too
+const hmac = new HMAC_SHA256()
+const tag  = hmac.hash(macKey, concat(iv, ct))
+hmac.dispose()
+
+const envelope = concat(iv, ct, tag)  // store or transmit this
+
+// ── Decrypt ──────────────────────────────────────────────────────────────────
+
+const receivedIv  = envelope.subarray(0, 16)
+const receivedCt  = envelope.subarray(16, envelope.length - 32)
+const receivedTag = envelope.subarray(envelope.length - 32)
+
+const hmac2      = new HMAC_SHA256()
+const expectedTag = hmac2.hash(macKey, concat(receivedIv, receivedCt))
+hmac2.dispose()
+
+// ALWAYS verify before decrypting — never decrypt unauthenticated ciphertext
+if (!constantTimeEqual(expectedTag, receivedTag)) {
+  wipe(expectedTag)
+  throw new Error('Authentication failed')
 }
+
+const cbc2 = new SerpentCbc({ dangerUnauthenticated: true })
+const pt   = cbc2.decrypt(encKey, receivedIv, receivedCt)
+cbc2.dispose()
+wipe(expectedTag)
 ```
+
+> [!NOTE]
+> `Seal` with `SerpentCipher` does all of this for you — key derivation, IV handling, Encrypt-then-MAC, and constant-time verification — with no manual steps. The pattern above is only relevant if you need direct access to the raw `SerpentCbc` primitive.
 
 ---
 
@@ -272,6 +344,7 @@ console.log(combined.length) // 32
 | `hexToBytes` | Invalid hex characters | Bytes decode as `NaN` -> `0` |
 | `base64ToBytes` | Invalid length or characters | Returns `undefined` |
 | `constantTimeEqual` | Arrays differ in length | Returns `false` immediately |
+| `constantTimeEqual` | Either array exceeds `CT_MAX_BYTES` | Throws `RangeError` |
 | `xor` | Arrays differ in length | Throws `RangeError` |
 | `randomBytes` | `crypto` not available | Throws (runtime-dependent) |
 | `hasSIMD` | `WebAssembly` not available | Returns `false` |
@@ -286,5 +359,7 @@ console.log(combined.length) // 32
 > - [chacha20](./chacha20.md) — ChaCha20/Poly1305 classes use `randomBytes` for nonce generation
 > - [sha2](./sha2.md) — SHA-2 and HMAC classes; output often converted with `bytesToHex`
 > - [sha3](./sha3.md) — SHA-3 and SHAKE classes; output often converted with `bytesToHex`
+> - [argon2id](./argon2id.md) — passphrase-based encryption; uses `constantTimeEqual` for hash verification
+> - [examples](./examples.md) — full HMAC-SHA256 custom protocol example using `constantTimeEqual`
 > - [types](./types.md) — public interfaces whose implementations rely on these utilities
 > - [test-suite](./test-suite.md) — test suite structure and vector corpus

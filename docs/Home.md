@@ -31,22 +31,22 @@ No bundler? Load directly from a CDN. See: [CDN usage](cdn.md).
 
 ## Quick Start
 ```typescript
-import { init, SerpentSeal, XChaCha20Seal, randomBytes } from 'leviathan-crypto'
+import { init, Seal, XChaCha20Cipher, SerpentCipher } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { serpentWasm }  from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
 
-await init(['serpent', 'sha2', 'chacha20'])
+await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm })
 
-// Serpent-256
-const sKey       = randomBytes(64)
-const seal       = new SerpentSeal()
-const ciphertext = seal.encrypt(sKey, plaintext)
-const decrypted  = seal.decrypt(sKey, ciphertext)     // throws on tamper
-seal.dispose()
+// XChaCha20-Poly1305 (recommended — IETF standard, fast)
+const key  = XChaCha20Cipher.keygen()
+const blob = Seal.encrypt(XChaCha20Cipher, key, plaintext)
+const pt   = Seal.decrypt(XChaCha20Cipher, key, blob)
 
-// XChaCha20-Poly1305
-const xSeal      = new XChaCha20Seal(randomBytes(32))
-const ct         = xSeal.encrypt(plaintext)           // nonce managed internally
-const pt         = xSeal.decrypt(ct)                  // throws on tamper
-xSeal.dispose()
+// Serpent-256 CBC+HMAC (cipher diversity / defense in depth)
+const skey  = SerpentCipher.keygen()
+const sblob = Seal.encrypt(SerpentCipher, skey, plaintext)
+const spt   = Seal.decrypt(SerpentCipher, skey, sblob)
 ```
 
 See [examples](examples.md) for streaming, chunking, hashing, key derivation, and both ciphers.

@@ -28,6 +28,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, SerpentCbc } from '../../../src/ts/index.js';
 import { getWasm } from '../helpers';
+import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 function toHex(b: Uint8Array): string {
 	return Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
@@ -36,7 +37,7 @@ function toHex(b: Uint8Array): string {
 let cbc: SerpentCbc;
 
 beforeAll(async () => {
-	await init('serpent');
+	await init({ serpent: serpentWasm });
 	cbc = new SerpentCbc({ dangerUnauthenticated: true });
 });
 

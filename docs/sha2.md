@@ -121,24 +121,25 @@ with a hash or HMAC instance.
 Each module subpath exports its own init function for consumers who want
 tree-shakeable imports.
 
-### `sha2Init(mode?, opts?)`
+### `sha2Init(source)`
 
 Initializes only the sha2 WASM binary. Equivalent to calling the
-root `init(['sha2'], mode, opts)` but without pulling the other three
+root `init({ sha2: source })` but without pulling the other three
 modules into the bundle.
 
 **Signature:**
 
 ```typescript
-async function sha2Init(mode?: Mode, opts?: InitOpts): Promise<void>
+async function sha2Init(source: WasmSource): Promise<void>
 ```
 
 **Usage:**
 
 ```typescript
 import { sha2Init, SHA256 } from 'leviathan-crypto/sha2'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await sha2Init()
+await sha2Init(sha2Wasm)
 const sha = new SHA256()
 ```
 
@@ -146,7 +147,7 @@ const sha = new SHA256()
 
 ## API Reference
 
-All classes require `init(['sha2'])` or the subpath `sha2Init()` to be called first.
+All classes require `init({ sha2: sha2Wasm })` or the subpath `sha2Init(sha2Wasm)` to be called first.
 Constructing any SHA-2 class before initialization throws an error.
 
 ### SHA256
@@ -161,7 +162,7 @@ class SHA256 {
 }
 ```
 
-**`constructor()`** -- Creates a new SHA256 instance. Throws if `init(['sha2'])`
+**`constructor()`** -- Creates a new SHA256 instance. Throws if `init({ sha2: sha2Wasm })`
 has not been called.
 
 **`hash(msg: Uint8Array): Uint8Array`** -- Hashes the entire message and returns
@@ -303,7 +304,7 @@ class HKDF_SHA256 {
 ```
 
 **`constructor()`** -- Creates a new HKDF_SHA256 instance. Throws if
-`init(['sha2'])` has not been called.
+`init({ sha2: sha2Wasm })` has not been called.
 
 **`extract(salt, ikm): Uint8Array`** -- RFC 5869 section 2.2. Computes
 `PRK = HMAC-SHA256(salt, IKM)`. Returns a 32-byte pseudorandom key. If `salt`
@@ -355,8 +356,9 @@ be between 1 and 16320. Throws `RangeError` otherwise.
 
 ```typescript
 import { init, HKDF_SHA256, bytesToHex } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 const hkdf = new HKDF_SHA256()
 const ikm = new Uint8Array(32) // your input keying material
@@ -379,9 +381,10 @@ The most common operation: hash a string and get a hex-encoded digest.
 
 ```typescript
 import { init, SHA256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
 // Step 1: Initialize the SHA-2 WASM module (do this once at app startup)
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 // Step 2: Create a SHA256 instance
 const sha = new SHA256()
@@ -407,8 +410,9 @@ response.
 
 ```typescript
 import { init, SHA256, bytesToHex } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 // Suppose you have file contents as an ArrayBuffer (from FileReader, fetch, etc.)
 const response = await fetch('https://example.com/file.bin')
@@ -430,8 +434,9 @@ The API is identical for all three hash variants. Only the output size differs.
 
 ```typescript
 import { init, SHA256, SHA384, SHA512, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 const msg = utf8ToBytes('Same message, different hashes')
 
@@ -459,8 +464,9 @@ import {
 	init, HMAC_SHA256, constantTimeEqual, randomBytes,
 	bytesToHex, utf8ToBytes
 } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 // Generate a random 32-byte key (do this once, store it securely)
 const key = randomBytes(32)
@@ -495,8 +501,9 @@ two approaches is the difference between a secure system and a broken one.
 
 ```typescript
 import { init, HMAC_SHA256, constantTimeEqual, bytesToHex } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 const hmac = new HMAC_SHA256()
 
 // Suppose you received a message with a tag and you recomputed the expected tag:
@@ -529,8 +536,9 @@ The pattern is identical to HMAC-SHA256. Use a 64-byte key for full security.
 
 ```typescript
 import { init, HMAC_SHA512, constantTimeEqual, randomBytes, utf8ToBytes } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 // 64-byte key for HMAC-SHA512
 const key = randomBytes(64)
@@ -552,8 +560,9 @@ SHA-2 is well-defined for empty inputs. This can be useful as a sanity check.
 
 ```typescript
 import { init, SHA256, bytesToHex } from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 
 const sha = new SHA256()
 const digest = sha.hash(new Uint8Array(0))
@@ -570,14 +579,14 @@ sha.dispose()
 
 ### Module not initialized
 
-If you construct any SHA-2 class before calling `init(['sha2'])`, the
+If you construct any SHA-2 class before calling `init({ sha2: sha2Wasm })`, the
 constructor throws immediately:
 
 ```
-Error: leviathan-crypto: call init(['sha2']) before using this class
+Error: leviathan-crypto: call init({ sha2: ... }) before using this class
 ```
 
-**Fix:** Call `await init(['sha2'])` at application startup, before creating any
+**Fix:** Call `await init({ sha2: sha2Wasm })` at application startup, before creating any
 SHA-2 instances.
 
 ```typescript
@@ -585,7 +594,7 @@ SHA-2 instances.
 const sha = new SHA256() // Error!
 
 // Do this instead:
-await init(['sha2'])
+await init({ sha2: sha2Wasm })
 const sha = new SHA256() // OK
 ```
 
@@ -616,7 +625,7 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [asm_sha2](./asm_sha2.md) — WASM implementation details (AssemblyScript buffer layout, compression functions)
 > - [sha3](./sha3.md) — alternative: SHA-3 family (immune to length extension attacks)
-> - [serpent](./serpent.md) — SerpentSeal and SerpentStream use HMAC-SHA256 and HKDF internally
+> - [serpent](./serpent.md) — `SerpentCipher` uses HMAC-SHA256 and HKDF internally via `Seal` and `SealStream`
 > - [argon2id](./argon2id.md) — Argon2id password hashing; HKDF expands Argon2id root keys
 > - [fortuna](./fortuna.md) — Fortuna CSPRNG uses SHA-256 for entropy accumulation
 > - [utils](./utils.md) — `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
