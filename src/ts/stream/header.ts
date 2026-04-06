@@ -25,6 +25,11 @@
 
 import { FLAG_FRAMED, HEADER_SIZE, TAG_DATA, TAG_FINAL } from './constants.js';
 
+// The 16-byte nonce is a HKDF salt — not a direct cipher nonce.
+// Both XChaCha20Cipher and SerpentCipher derive their actual key material
+// and nonces from this value via HKDF-SHA-256. The 16-byte size is chosen
+// to satisfy HChaCha20's 16-byte input requirement while also serving as a
+// sufficient HKDF salt for the Serpent construction.
 export function writeHeader(
 	formatEnum: number,
 	framed: boolean,

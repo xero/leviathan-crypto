@@ -6,9 +6,9 @@
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 563                         | All pass |
-| e2e  | PlayWright | 174 (58 tests × 3 browsers) | All pass |
-|      | **Total**  | **737**                     | All pass |
+| Unit | Vitest     | 575                         | All pass |
+| e2e  | PlayWright | 186 (62 tests × 3 browsers) | All pass |
+|      | **Total**  | **761**                     | All pass |
 
 ---
 
@@ -42,9 +42,9 @@
 | `chacha20/xchacha20.test.ts`             | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation)                                                                                                                                                       | 19 tests              | Gate 6     |
 | `chacha20/xchacha20seal.test.ts`         | XChaCha20Seal: gate, wire format (nonce‖ct‖tag), AAD, authentication (tamper, truncation), input validation, _nonce validation, key isolation, lifecycle                                                                      | 19 tests              | —          |
 | `stream/header.test.ts`                  | readHeader strict length (exact, short, long), makeCounterNonce safe integer guards (0, MAX_SAFE_INTEGER, overflow, negative, fractional, NaN, Infinity)                                                                      | 10 tests              | —          |
-| `stream/sealstream.test.ts`              | SealStream/OpenStream: round-trip, AAD, framed mode, authentication (tamper, reorder, replay), seek, TransformStream round-trip, state machine, dispose, chunk size validation, key validation, _nonce validation, header chunkSize validation. Both XChaCha20 and Serpent ciphers. Cross-cipher rejection, CipherSuite contract verification, Serpent-specific key separation/IV determinism/counter binding. | 95 tests | — |
+| `stream/sealstream.test.ts`              | SealStream/OpenStream: round-trip, AAD, framed mode, authentication (tamper, reorder, replay), seek, TransformStream round-trip, empty-stream key wipe, state machine, dispose, chunk size validation, key validation, _nonce validation, header chunkSize validation. Both XChaCha20 and Serpent ciphers. Cross-cipher rejection, CipherSuite contract verification, Serpent-specific key separation/IV determinism/counter binding. | 99 tests | — |
 | `stream/sealstream_kat.test.ts`          | SealStream v2 KAT: pinned vectors for XChaCha20 (XC1, XC3, XCF1) and Serpent (SC1, SC3, SCF1), including framed variants. Header match, per-chunk ciphertext match, round-trip. | 18 tests | — |
-| `stream/pool.test.ts`                    | SealStreamPool: round-trip (both ciphers), auth failure, lifecycle (destroy, double-destroy, dead pool), key material wipe (both ciphers), worker count, WASM loading variants, seal-twice guard. | 31 tests | — |
+| `stream/pool.test.ts`                    | SealStreamPool: round-trip (both ciphers), auth failure, lifecycle (destroy, double-destroy, dead pool), key material wipe (both ciphers), worker count, WASM loading variants, seal-twice guard, header validation (format mismatch, chunkSize mismatch, short ciphertext). | 39 tests | — |
 | `errors.test.ts`                         | AuthenticationError: constructor, message format, prototype chain, instanceof | 5 tests | — |
 | `loader/wasm_source.test.ts`             | WasmSource loading: all 7 source types (embedded string, URL, ArrayBuffer, Uint8Array, WebAssembly.Module, Response, Promise\<Response\>), invalid inputs (null, number, empty string, corrupt base64, truncated ArrayBuffer), double-init idempotency | 14 tests | — |
 | `sha2/sha256.test.ts`                    | SHA-256 vectors, streaming, wipeBuffers, leviathan cross-check                                                                                                                                                                | 11 tests              | Gate 3     |
@@ -82,6 +82,7 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | `serpent_simd_cbc.spec.ts`    | SIMD CBC decrypt round-trip (8-block + 5-block)                     | 2     |
 | `serpent_simd_ctr.spec.ts`    | SIMD CTR mode cases A–E                                             | 1     |
 | `serpent_simd_bench.spec.ts`  | Serpent SIMD throughput benchmark (1KB, 16KB, 64KB)                  | 3     |
+| `pool.spec.ts`                | SealStreamPool: XChaCha20 + Serpent round-trip, pool seal → OpenStream open, large payload multi-worker | 4 |
 | `loader.spec.ts`              | WasmSource loader: all 7 source types (embedded, URL, ArrayBuffer, Uint8Array, WebAssembly.Module, Response, Promise\<Response\>) via `init()` + SHA3-256 FIPS 202 digest proof | 7 |
 
 > [!NOTE]

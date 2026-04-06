@@ -72,7 +72,7 @@ export function aeadEncrypt(
 
 	// Step 5: Encrypt
 	mem.set(plaintext, x.getChunkPtOffset());
-	x.chachaEncryptChunk(plaintext.length);
+	x.chachaEncryptChunk_simd(plaintext.length);
 	const ctOff     = x.getChunkCtOffset();
 	const ciphertext = new Uint8Array(x.memory.buffer).slice(ctOff, ctOff + plaintext.length);
 
@@ -138,7 +138,7 @@ export function aeadDecrypt(
 	x.chachaSetCounter(1);
 	x.chachaLoadKey();
 	new Uint8Array(x.memory.buffer).set(ciphertext, x.getChunkPtOffset());
-	x.chachaEncryptChunk(ciphertext.length);
+	x.chachaEncryptChunk_simd(ciphertext.length);
 	const ptOff = x.getChunkCtOffset();
 	return new Uint8Array(x.memory.buffer).slice(ptOff, ptOff + ciphertext.length);
 }

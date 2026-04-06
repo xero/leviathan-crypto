@@ -11,22 +11,33 @@
 
 ## Supported Versions
 
-| Version | Supported |
-|---------|-----------|
-| v1.4.x  | ✓         |
-| v1.3.x  | ✓         |
-| v1.2.x  | ✗         |
-| v1.1.x  | ✗         |
-| v1.0.x  | ✗         |
+| Version | Supported | Notes       |
+| ------- | --------- | ----------- |
+| v2.0.x  | ✓         | Pre-release |
+| v1.4.x  | ✗         | Last stable |
+| v1.3.x  | ✗         |            |
+| v1.2.x  | ✗         |            |
+| v1.1.x  | ✗         |            |
+| v1.0.x  | ✗         |            |
+
+> [!CAUTION]
+> **All v1.x releases are deprecated.** Upgrading to v2 is strongly
+> recommended. v1.x releases will not receive security patches.
 
 > [!WARNING]
-> v1.0.x does not zero intermediate key material in HMAC and HKDF operations.
-> Upgrading to v1.1.0 or later is strongly recommended.
+> **v1.x known issues** (addressed in v2):
+> - Partial WASM buffer wipe on AEAD and serpent auth failure.
+> - HMAC tag and HKDF operations do not zero intermediate key material.
+> - TransformStream error paths leak derived keys.
+> - Pool workers copy result buffers.
+> - Scalar JS `constantTimeEqual` was "best-effort only".
+
 
 ## Security Posture
 
-[`leviathan-crypto`](https://leviathan.3xi.club) is a cryptography library. Security is not an afterthought,
-it is the primary design constraint at every layer of the stack.
+[`leviathan-crypto`](https://leviathan.3xi.club) is a cryptography library.
+Security is not an afterthought, it is the primary design constraint at every
+layer of the stack.
 
 ### Algorithm Correctness
 
@@ -52,9 +63,13 @@ timing-safe cipher implementation approach available in a WASM runtime,
 where JIT optimisation can otherwise introduce observable timing variation.
 
 All security-sensitive comparisons (e.g. MAC verification, padding validation)
-use XOR-accumulate patterns with no early return on mismatch.
-[`constantTimeEqual`][utils] is the mandated comparison function throughout
-the library and its [demos][demos].
+use [`constantTimeEqual`][utils], which is backed by a dedicated WASM SIMD module
+(v128 XOR accumulate + `any_true`) when WebAssembly SIMD is available. The WASM
+execution path eliminates JIT short-circuiting and speculative optimization as
+theoretical side-channel vectors. On runtimes without SIMD (sha2/sha3-only
+consumers), the function falls back to a JS XOR-accumulate loop — best-effort
+constant-time, but not guaranteed by the platform. WASM comparison memory is
+wiped after every call.
 
 ### WASM Execution Model
 
@@ -63,20 +78,27 @@ JavaScript JIT. WASM execution is deterministic and not subject to JIT
 speculation or optimisation. Each primitive family compiles to its own
 isolated binary with its own linear memory. For example, key material in
 the Serpent module cannot interact with memory in the SHA-3 module,
-even in principle.
+even in principle. A dedicated WASM module handles constant-time comparison
+with its own single-page memory that is wiped after every call.
+
+Serpent and ChaCha20 modules require WebAssembly SIMD (`v128` instructions).
+`init()` and `initModule()` perform a SIMD preflight check and throw a
+clear error on runtimes without support. SIMD has been a baseline feature
+of all major browsers and runtimes since 2021. SHA-2 and SHA-3 modules
+run on any WASM-capable runtime.
 
 ### Cryptanalytic Reviews
 
 All of our primitives undergo periodic cryptographic implementation reviews.
 
-| Primitive | Audit Description |
-|-----------|-------------------|
-| [serpent_audit][serpent_audit] | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
-| [chacha_audit][chacha_audit] | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
-| [sha2_audit][sha2_audit] | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
-| [sha3_audit][sha3_audit] | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [hmac_audit][hmac_audit] | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit][hkdf_audit] | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation |
+| Primitive                      | Audit Description                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
+| [serpent_audit][serpent_audit] | Correctness verification, side-channel analysis, cryptanalytic attack paper review     |
+| [chacha_audit][chacha_audit]   | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension   |
+| [sha2_audit][sha2_audit]       | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification          |
+| [sha3_audit][sha3_audit]       | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [hmac_audit][hmac_audit]       | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage             |
+| [hkdf_audit][hkdf_audit]       | HKDF extract-then-expand, info field domain separation, stream key derivation          |
 
 #### Additional Serpent-256 research
 
@@ -96,25 +118,30 @@ See: [`xero/BicliqueFinder/biclique_research.md`][biclique]
 Raw unauthenticated cipher modes (`SerpentCbc`, `SerpentCtr`, `ChaCha20`) and
 stateless caller-managed-nonce primitives (`ChaCha20Poly1305`,
 `XChaCha20Poly1305`) are exposed for power users but are not the recommended
-entry point. The primary API surfaces — `SerpentSeal`, `SerpentStream`,
-`SerpentStreamSealer`, `XChaCha20Seal`, and `XChaCha20StreamSealer` — are
-authenticated by construction with internally managed nonces.
+entry point. The primary API surfaces — `SerpentSeal`, `XChaCha20Seal`,
+`SealStream`, `OpenStream`, and `SealStreamPool` — are authenticated by
+construction with internally managed nonces.
 
-**Both streaming constructions satisfy the _Cryptographic Doom Principle_:**
+**All streaming constructions satisfy the _Cryptographic Doom Principle_:**
 
-`SerpentStreamSealer` uses encrypt-then-MAC (SerpentCbc + HMAC-SHA256).
-MAC verification is the unconditional gate on the open path.
-Decryption is unreachable until that gate clears. Per-chunk
-HKDF key derivation with position-bound info extends this
-guarantee to full stream integrity.
+`SealStream` / `OpenStream` with `SerpentCipher` uses encrypt-then-MAC
+(SerpentCbc + HMAC-SHA256). MAC verification is the unconditional gate on
+the open path. Decryption is unreachable until that gate clears. HKDF key
+derivation with the stream nonce and counter-nonce domain separation
+extends this guarantee to full stream integrity.
 
-`XChaCha20StreamSealer` uses XChaCha20-Poly1305 AEAD per chunk.
-The Poly1305 tag is verified inside the WASM `xcDecrypt` call
-before any plaintext is produced. On authentication failure,
-plaintext bytes are never generated and never returned. Stream-level
-binding via per-chunk AAD (`stream_id || index || isLast || user AAD`)
-ensures reorder, splice, truncation, and cross-stream substitution
-all fail AEAD verification before decryption.
+`SealStream` / `OpenStream` with `XChaCha20Cipher` uses XChaCha20-Poly1305
+AEAD per chunk. The Poly1305 tag is verified inside the WASM `aeadDecrypt`
+call before any plaintext is produced. On authentication failure, the full
+chunk output buffer is wiped and plaintext bytes are never returned.
+Counter nonces with TAG_DATA/TAG_FINAL final-flag domain separation ensure
+reorder, splice, truncation, and cross-stream substitution all fail AEAD
+verification before decryption.
+
+`SealStreamPool` delegates per-chunk AEAD to isolated Web Workers. Each
+worker holds its own derived subkey and WASM instance. Any authentication
+error kills all workers, wipes all key material, and marks the pool dead —
+no retry, no partial results.
 
 ### Dependency Management
 

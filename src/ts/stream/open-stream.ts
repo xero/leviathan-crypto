@@ -162,6 +162,8 @@ export class OpenStream {
 				try {
 					if (buffered !== null) {
 						controller.enqueue(this.finalize(buffered));
+					} else {
+						this.dispose(); // no chunks piped — wipe keys, emit nothing
 					}
 				} catch (err) {
 					this.dispose();

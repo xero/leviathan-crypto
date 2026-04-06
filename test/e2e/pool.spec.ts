@@ -88,7 +88,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const header = pool.header;
 			pool.destroy();
 			const opener = new lib.OpenStream(lib.XChaCha20Cipher, key, header);
-			const dec = opener.finalize(ct);
+			const dec = opener.finalize(ct.subarray(20));
 			return dec.length === pt.length
 				&& (dec as Uint8Array).every((b: number, i: number) => b === pt[i]);
 		}, BASE);

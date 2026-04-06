@@ -53,12 +53,22 @@ export class SerpentSeal {
 		const aadBytes = aad ?? new Uint8Array(0);
 		const encKey = key.subarray(0, 32);
 		const macKey = key.subarray(32, 64);
-		// eslint-disable-next-line prefer-rest-params
-		const _iv = arguments[3] as Uint8Array | undefined;
-		if (_iv !== undefined && _iv.length !== 16)
-			throw new RangeError(`_iv must be 16 bytes (got ${_iv.length})`);
-		const iv = _iv ?? new Uint8Array(16);
-		if (!_iv) crypto.getRandomValues(iv);
+		const iv = new Uint8Array(16);
+		crypto.getRandomValues(iv);
+		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
+		const tag = this._hmac.hash(macKey, concat(u32be(aadBytes.length), aadBytes, iv, ciphertext));
+		return concat(iv, ciphertext, tag);
+	}
+
+	/** @internal — KAT testing only. Stripped from published .d.ts by stripInternal. */
+	_encryptWithIv(key: Uint8Array, plaintext: Uint8Array, aad: Uint8Array, iv: Uint8Array): Uint8Array {
+		if (key.length !== 64)
+			throw new RangeError(`SerpentSeal key must be 64 bytes (got ${key.length})`);
+		if (iv.length !== 16)
+			throw new RangeError(`_iv must be 16 bytes (got ${iv.length})`);
+		const aadBytes = aad;
+		const encKey = key.subarray(0, 32);
+		const macKey = key.subarray(32, 64);
 		const ciphertext = this._cbc.encrypt(encKey, iv, plaintext);
 		const tag = this._hmac.hash(macKey, concat(u32be(aadBytes.length), aadBytes, iv, ciphertext));
 		return concat(iv, ciphertext, tag);

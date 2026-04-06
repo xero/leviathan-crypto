@@ -36,6 +36,10 @@ function u32beFrame(n: number): Uint8Array {
 	return b;
 }
 
+// Module-level nonce injection slot — used only by _fromNonce for KAT tests.
+// Set immediately before constructing, cleared inside the constructor.
+let _injectNonce: Uint8Array | undefined;
+
 export class SealStream {
 	readonly header: Uint8Array;
 
@@ -46,7 +50,7 @@ export class SealStream {
 	private counter = 0;
 	private state: 'ready' | 'finalized' = 'ready';
 
-	constructor(cipher: CipherSuite, key: Uint8Array, opts?: SealStreamOpts, _nonce?: Uint8Array) {
+	constructor(cipher: CipherSuite, key: Uint8Array, opts?: SealStreamOpts) {
 		this.cipher = cipher;
 		this.chunkSize = opts?.chunkSize ?? 65536;
 		this.framed = opts?.framed ?? false;
@@ -61,11 +65,26 @@ export class SealStream {
 		if (this.chunkSize < CHUNK_MIN || this.chunkSize > CHUNK_MAX)
 			throw new RangeError(`chunkSize must be in [${CHUNK_MIN}, ${CHUNK_MAX}] (got ${this.chunkSize})`);
 
-		if (_nonce !== undefined && _nonce.length !== 16)
-			throw new RangeError(`_nonce must be 16 bytes (got ${_nonce.length})`);
-		const nonce = _nonce ?? randomBytes(16);
+		const nonce = _injectNonce ?? randomBytes(16);
+		_injectNonce = undefined;
 		this.keys = cipher.deriveKeys(key, nonce);
 		this.header = writeHeader(cipher.formatEnum, this.framed, nonce, this.chunkSize);
+	}
+
+	/**
+	 * @internal
+	 * KAT-only factory — injects a fixed nonce so seal output is deterministic.
+	 * Stripped from published `.d.ts` by `stripInternal`. Do not use in production.
+	 */
+	static _fromNonce(cipher: CipherSuite, key: Uint8Array, opts: SealStreamOpts, nonce: Uint8Array): SealStream {
+		if (nonce.length !== 16)
+			throw new RangeError(`_nonce must be 16 bytes (got ${nonce.length})`);
+		_injectNonce = nonce;
+		try {
+			return new SealStream(cipher, key, opts);
+		} finally {
+			_injectNonce = undefined;
+		}
 	}
 
 	push(chunk: Uint8Array, opts?: { aad?: Uint8Array }): Uint8Array {

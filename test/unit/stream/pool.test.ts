@@ -87,7 +87,7 @@ for (const cfg of configs) {
 				const pt = randomBytes(500);
 				const ct = await pool.seal(pt);
 				const opener = new OpenStream(cfg.cipher, key, pool.header);
-				const dec = opener.finalize(ct);
+				const dec = opener.finalize(ct.subarray(20));
 				expect(dec).toEqual(pt);
 				pool.destroy();
 			});
@@ -144,8 +144,8 @@ for (const cfg of configs) {
 					wasm: cfg.wasm, workers: 1, chunkSize: 1024,
 				});
 				const ct = await pool.seal(randomBytes(500));
-				// Tamper a byte
-				ct[10] ^= 0xff;
+				// Tamper a byte in the body (past the 20-byte header)
+				ct[20] ^= 0xff;
 				await expect(pool.open(ct)).rejects.toThrow();
 				expect(pool.dead).toBe(true);
 			});
@@ -308,5 +308,51 @@ describe('WASM loading', () => {
 			wasm: { serpent: serpentWasm } as Record<string, WasmSource>,
 			workers: 1, chunkSize: 1024,
 		})).rejects.toThrow(/sha2/);
+	});
+});
+
+// ── Header validation (C-1) ──────────────────────────────────────────────────
+
+describe('SealStreamPool.open() — header validation', () => {
+	const xcKey = randomBytes(32);
+	const serpKey = randomBytes(32);
+
+	it('rejects XChaCha20 ciphertext in a Serpent pool', async () => {
+		const xcPool = await SealStreamPool.create(XChaCha20Cipher, xcKey, {
+			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
+		});
+		const pt = randomBytes(512);
+		const ct = await xcPool.seal(pt);
+		xcPool.destroy();
+
+		const serpPool = await SealStreamPool.create(SerpentCipher, serpKey, {
+			wasm: { serpent: serpentWasm, sha2: sha2Wasm }, workers: 1, chunkSize: 1024,
+		});
+		await expect(serpPool.open(ct)).rejects.toThrow(/format/);
+		serpPool.destroy();
+	});
+
+	it('rejects ciphertext with mismatched chunkSize', async () => {
+		const pool1 = await SealStreamPool.create(XChaCha20Cipher, xcKey, {
+			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
+		});
+		const pt = randomBytes(2048);
+		const ct = await pool1.seal(pt);
+		pool1.destroy();
+
+		const pool2 = await SealStreamPool.create(XChaCha20Cipher, xcKey, {
+			wasm: chacha20Wasm, workers: 1, chunkSize: 2048,
+		});
+		await expect(pool2.open(ct)).rejects.toThrow(/chunkSize/);
+		pool2.destroy();
+	});
+
+	it('rejects ciphertext shorter than HEADER_SIZE', async () => {
+		const pool = await SealStreamPool.create(XChaCha20Cipher, xcKey, {
+			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
+		});
+		const tiny = new Uint8Array(10);
+		await expect(pool.open(tiny)).rejects.toThrow(RangeError);
+		pool.destroy();
 	});
 });

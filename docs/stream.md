@@ -56,6 +56,8 @@ bytes:
 
 **Format IDs:** `0x01` = XChaCha20-Poly1305, `0x02` = Serpent-256.
 
+The 16-byte nonce is a HKDF salt, not a direct cipher nonce. `XChaCha20Cipher` passes it to HChaCha20 for subkey derivation; `SerpentCipher` uses it as the HKDF-SHA-256 salt to derive 96 bytes of enc/mac/iv key material.
+
 The framed flag (bit 7) indicates whether each chunk is prefixed with a `u32be` length. Framed mode is for flat byte streams where chunks are concatenated without an external framing layer. Unframed mode assumes the transport provides its own message boundaries (WebSocket, IPC, etc).
 
 ### Counter Nonce (12 bytes)

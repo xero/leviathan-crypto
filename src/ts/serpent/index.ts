@@ -179,6 +179,10 @@ function pkcs7Pad(data: Uint8Array): Uint8Array {
 	return out;
 }
 
+// pkcs7Strip is only called after HMAC authentication succeeds (verify-then-decrypt).
+// The early throw on invalid padLen is not a padding oracle in this context —
+// the HMAC check is the oracle gate and runs in constant time before this point.
+// If you move this call to a pre-auth site, revisit the timing properties.
 function pkcs7Strip(data: Uint8Array): Uint8Array {
 	if (data.length === 0) throw new RangeError('empty ciphertext');
 	const padLen = data[data.length - 1];

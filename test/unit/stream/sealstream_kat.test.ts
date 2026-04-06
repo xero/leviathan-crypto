@@ -59,13 +59,13 @@ function runKAT(name: string, v: SealStreamV2Vector): void {
 		const opts = { chunkSize: v.chunkSize, framed: v.framed };
 
 		it('header matches pinned hex', () => {
-			const sealer = new SealStream(cipher, key, opts, nonce);
+			const sealer = SealStream._fromNonce(cipher, key, opts, nonce);
 			expect(toHex(sealer.header)).toBe(v.header);
 			sealer.finalize(new Uint8Array(0)); // clean up
 		});
 
 		it('seal output matches pinned ciphertext per chunk', () => {
-			const sealer = new SealStream(cipher, key, opts, nonce);
+			const sealer = SealStream._fromNonce(cipher, key, opts, nonce);
 			for (let i = 0; i < v.chunks.length; i++) {
 				const pt = hexToBytes(v.chunks[i].plaintext);
 				const isLast = i === v.chunks.length - 1;
@@ -75,7 +75,7 @@ function runKAT(name: string, v: SealStreamV2Vector): void {
 		});
 
 		it('round-trip through OpenStream', () => {
-			const sealer = new SealStream(cipher, key, opts, nonce);
+			const sealer = SealStream._fromNonce(cipher, key, opts, nonce);
 			const header = sealer.header;
 			const cts: Uint8Array[] = [];
 			for (let i = 0; i < v.chunks.length; i++) {

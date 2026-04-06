@@ -282,15 +282,22 @@ export class XChaCha20Seal {
 		this._key = key.slice();
 	}
 
+
 	encrypt(plaintext: Uint8Array, aad?: Uint8Array): Uint8Array {
 		const aadBytes = aad ?? new Uint8Array(0);
-		// eslint-disable-next-line prefer-rest-params
-		const _nonce = arguments[2] as Uint8Array | undefined;
-		if (_nonce !== undefined && _nonce.length !== 24)
-			throw new RangeError(`_nonce must be 24 bytes (got ${_nonce.length})`);
-		const nonce = _nonce ?? randomBytes(24);
+		const nonce = randomBytes(24);
 		const sealed = xcEncrypt(this._x, this._key, nonce, plaintext, aadBytes);
-		// Prepend nonce to sealed output (ciphertext || tag)
+		const out = new Uint8Array(24 + sealed.length);
+		out.set(nonce, 0);
+		out.set(sealed, 24);
+		return out;
+	}
+
+	/** @internal — KAT testing only. Stripped from published .d.ts by stripInternal. */
+	_encryptWithNonce(plaintext: Uint8Array, aad: Uint8Array, nonce: Uint8Array): Uint8Array {
+		if (nonce.length !== 24)
+			throw new RangeError(`_nonce must be 24 bytes (got ${nonce.length})`);
+		const sealed = xcEncrypt(this._x, this._key, nonce, plaintext, aad);
 		const out = new Uint8Array(24 + sealed.length);
 		out.set(nonce, 0);
 		out.set(sealed, 24);

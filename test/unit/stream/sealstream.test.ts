@@ -374,6 +374,56 @@ for (const [name, cipher, keyLen] of suites) {
 				}
 			});
 
+			it('SealStream: keys wiped even when no chunks piped', async () => {
+				const sealer = new SealStream(cipher, key, { chunkSize: 2048 });
+
+				const ts = sealer.toTransformStream();
+				const reader = ts.readable.getReader();
+				const writer = ts.writable.getWriter();
+
+				// Close writer immediately without writing any chunks
+				await Promise.all([
+					writer.close(),
+					(async () => {
+						let done = false;
+						while (!done) {
+							const r = await reader.read();
+							done = r.done;
+						}
+					})(),
+				]);
+
+				// After the stream closes, the sealer should be in finalized state.
+				// Attempting to push should throw.
+				expect(() => sealer.push(new Uint8Array(32))).toThrow();
+			});
+
+			it('OpenStream: keys wiped even when no chunks piped', async () => {
+				const pt = randomBytes(100);
+				const { header } = sealAndCollect(cipher, key, [pt]);
+				const opener = new OpenStream(cipher, key, header);
+
+				const ts = opener.toTransformStream();
+				const reader = ts.readable.getReader();
+				const writer = ts.writable.getWriter();
+
+				// Close writer immediately without writing any chunks
+				await Promise.all([
+					writer.close(),
+					(async () => {
+						let done = false;
+						while (!done) {
+							const r = await reader.read();
+							done = r.done;
+						}
+					})(),
+				]);
+
+				// After the stream closes, the opener should be in finalized state
+				// (dispose was called). Attempting to pull should throw.
+				expect(() => opener.pull(new Uint8Array(32))).toThrow();
+			});
+
 			it('last chunk gets TAG_FINAL — no extra empty chunk', async () => {
 				const sealer = new SealStream(cipher, key, { chunkSize: 2048 });
 				const sealTs = sealer.toTransformStream();
@@ -507,15 +557,15 @@ for (const [name, cipher, keyLen] of suites) {
 			});
 
 			it('wrong _nonce length → throws RangeError', () => {
-				expect(() => new SealStream(cipher, key, {}, randomBytes(12)))
+				expect(() => SealStream._fromNonce(cipher, key, {}, randomBytes(12)))
 					.toThrow(/_nonce must be 16 bytes/);
-				expect(() => new SealStream(cipher, key, {}, randomBytes(32)))
+				expect(() => SealStream._fromNonce(cipher, key, {}, randomBytes(32)))
 					.toThrow(/_nonce must be 16 bytes/);
 			});
 
 			it('valid _nonce is accepted', () => {
 				const nonce = randomBytes(16);
-				const sealer = new SealStream(cipher, key, {}, nonce);
+				const sealer = SealStream._fromNonce(cipher, key, {}, nonce);
 				expect(sealer.header).toBeDefined();
 			});
 		});
@@ -660,8 +710,8 @@ describe('SerpentCipher specific', () => {
 		const key = randomBytes(32);
 		const nonce = randomBytes(16);
 		const pt = randomBytes(100);
-		const sealer1 = new SealStream(SerpentCipher, key, { chunkSize: 1024 }, nonce);
-		const sealer2 = new SealStream(SerpentCipher, key, { chunkSize: 1024 }, nonce);
+		const sealer1 = SealStream._fromNonce(SerpentCipher, key, { chunkSize: 1024 }, nonce);
+		const sealer2 = SealStream._fromNonce(SerpentCipher, key, { chunkSize: 1024 }, nonce);
 		const ct1 = sealer1.finalize(pt);
 		const ct2 = sealer2.finalize(pt);
 		expect(ct1).toEqual(ct2);

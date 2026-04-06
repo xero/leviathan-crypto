@@ -32,8 +32,8 @@ import { compileWasm } from '../loader.js';
 import { AuthenticationError } from '../errors.js';
 import type { WasmSource } from '../wasm-source.js';
 import type { CipherSuite, DerivedKeys } from './types.js';
-import { CHUNK_MIN, CHUNK_MAX, TAG_DATA, TAG_FINAL } from './constants.js';
-import { writeHeader, makeCounterNonce } from './header.js';
+import { CHUNK_MIN, CHUNK_MAX, HEADER_SIZE, TAG_DATA, TAG_FINAL } from './constants.js';
+import { writeHeader, readHeader, makeCounterNonce } from './header.js';
 
 export interface PoolOpts {
 	wasm: WasmSource | Record<string, WasmSource>;
@@ -214,10 +214,11 @@ export class SealStreamPool {
 
 		try {
 			const results = await Promise.all(jobs);
-			let totalLen = 0;
+			let totalLen = HEADER_SIZE;
 			for (const r of results) totalLen += this._framed ? r.length + 4 : r.length;
 			const ciphertext = new Uint8Array(totalLen);
-			let pos = 0;
+			ciphertext.set(this._header, 0);
+			let pos = HEADER_SIZE;
 			for (const r of results) {
 				if (this._framed) {
 					new DataView(ciphertext.buffer, pos).setUint32(0, r.length, false);
@@ -235,48 +236,80 @@ export class SealStreamPool {
 
 	async open(ciphertext: Uint8Array): Promise<Uint8Array> {
 		if (this._dead) throw new Error('leviathan-crypto: pool is dead');
-		if (ciphertext.length === 0)
+		if (ciphertext.length < HEADER_SIZE)
+			throw new RangeError(
+				`leviathan-crypto: ciphertext too short — need at least ${HEADER_SIZE} bytes for header`,
+			);
+
+		// Validate header before splitting chunks
+		const h = readHeader(ciphertext.subarray(0, HEADER_SIZE));
+		if (h.formatEnum !== this._cipher.formatEnum)
+			throw new Error(
+				`leviathan-crypto: pool expected format 0x${this._cipher.formatEnum.toString(16).padStart(2, '0')}, `
+				+ `got 0x${h.formatEnum.toString(16).padStart(2, '0')}`,
+			);
+		if (h.chunkSize !== this._chunkSize)
+			throw new RangeError(
+				`leviathan-crypto: pool chunkSize mismatch — pool expects ${this._chunkSize}, `
+				+ `header says ${h.chunkSize}`,
+			);
+
+		// Strip header before chunk splitting
+		const body = ciphertext.subarray(HEADER_SIZE);
+		if (body.length === 0)
 			throw new RangeError('leviathan-crypto: empty ciphertext — seal() always produces at least one chunk');
 
-		// Split ciphertext into chunks
+		// Compute max wire chunk size for per-chunk validation
+		const tagSize = this._cipher.tagSize;
+		const paddedSize = this._cipher.padded
+			? this._chunkSize + 16 - (this._chunkSize % 16)
+			: this._chunkSize;
+		const maxWireChunk = paddedSize + tagSize;
+
+		// Split ciphertext body into chunks
 		const chunks: Uint8Array[] = [];
 		let pos = 0;
 		if (this._framed) {
-			while (pos < ciphertext.length) {
-				if (pos + 4 > ciphertext.length)
+			while (pos < body.length) {
+				if (pos + 4 > body.length)
 					throw new RangeError('leviathan-crypto: truncated frame header');
-				const dv = new DataView(ciphertext.buffer, ciphertext.byteOffset + pos);
+				const dv = new DataView(body.buffer, body.byteOffset + pos);
 				const len = dv.getUint32(0, false);
 				pos += 4;
-				if (pos + len > ciphertext.length)
+				if (pos + len > body.length)
 					throw new RangeError(
-						`leviathan-crypto: frame claims ${len} bytes but only ${ciphertext.length - pos} remain`,
+						`leviathan-crypto: frame claims ${len} bytes but only ${body.length - pos} remain`,
 					);
-				chunks.push(ciphertext.subarray(pos, pos + len));
+				chunks.push(body.subarray(pos, pos + len));
 				pos += len;
 			}
 		} else {
 			// Unframed: split by expected wire chunk size
-			const tagSize = this._cipher.tagSize;
-			// For padded ciphers (CBC): PKCS7 always adds 1-16 bytes
-			// paddedLen = chunkSize + 16 - (chunkSize % 16) — gives +16 when aligned
-			const paddedSize = this._cipher.padded
-				? this._chunkSize + 16 - (this._chunkSize % 16)
-				: this._chunkSize;
-			const fullChunkWire = paddedSize + tagSize;
-			while (pos < ciphertext.length) {
-				const remaining = ciphertext.length - pos;
+			const fullChunkWire = maxWireChunk;
+			while (pos < body.length) {
+				const remaining = body.length - pos;
 				if (remaining <= fullChunkWire) {
-					chunks.push(ciphertext.subarray(pos));
+					chunks.push(body.subarray(pos));
 					break;
 				}
-				chunks.push(ciphertext.subarray(pos, pos + fullChunkWire));
+				chunks.push(body.subarray(pos, pos + fullChunkWire));
 				pos += fullChunkWire;
 			}
 		}
 
+		// Validate and dispatch chunks
 		const jobs: Promise<Uint8Array>[] = [];
 		for (let i = 0; i < chunks.length; i++) {
+			if (chunks[i].length < tagSize)
+				throw new RangeError(
+					`leviathan-crypto: chunk ${i} too short — need at least ${tagSize} bytes for tag `
+					+ `(got ${chunks[i].length})`,
+				);
+			if (chunks[i].length > maxWireChunk)
+				throw new RangeError(
+					`leviathan-crypto: chunk ${i} exceeds max wire size `
+					+ `(${chunks[i].length} > ${maxWireChunk})`,
+				);
 			const isLast = i === chunks.length - 1;
 			const counterNonce = makeCounterNonce(i, isLast ? TAG_FINAL : TAG_DATA);
 			jobs.push(this._dispatch({ op: 'open', counterNonce, data: chunks[i] }));
@@ -321,7 +354,19 @@ export class SealStreamPool {
 	}
 
 	private _send(worker: Worker, job: QueuedJob): void {
-		worker.postMessage(job);
+		const transfer: ArrayBuffer[] = [];
+		// Only transfer data.buffer when the Uint8Array owns the buffer exclusively.
+		// Subarrays from open() share the caller's ciphertext buffer — transferring
+		// one would detach all sibling views dispatched as parallel jobs.
+		if (job.data.buffer instanceof ArrayBuffer
+			&& job.data.byteOffset === 0
+			&& job.data.byteLength === job.data.buffer.byteLength)
+			transfer.push(job.data.buffer);
+		if (job.counterNonce.buffer instanceof ArrayBuffer
+			&& job.counterNonce.buffer !== job.data.buffer)
+			transfer.push(job.counterNonce.buffer);
+		// aad is intentionally not transferred — caller may retain the reference
+		worker.postMessage(job, { transfer });
 	}
 
 	private _onMessage(worker: Worker, e: MessageEvent): void {
