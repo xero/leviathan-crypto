@@ -1,16 +1,12 @@
-# Serpent-256 block cipher TypeScript API
+# Serpent-256 TypeScript API
 
 > [!NOTE]
-> `SerpentCipher` is the primary API — use with `Seal`, `SealStream`, and `OpenStream`
-> for authenticated Serpent-256 encryption. Lower-level block, CTR, and CBC classes
-> are available for advanced use.
->
 > See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
 
 ## Overview
 
 `SerpentCipher` is the primary API for authenticated Serpent-256 encryption. Pass it
-to `Seal` for one-shot AEAD, or to `SealStream`/`OpenStream` for streaming — no
+to `Seal` for one-shot AEAD, or to `SealStream`/`OpenStream` for streaming. No
 manual IV generation, no separate MAC step, no room for misuse. Internally it
 uses Encrypt-then-MAC (Serpent-CBC + HMAC-SHA-256) with HKDF key derivation.
 
@@ -19,7 +15,7 @@ For advanced use cases, three lower-level classes are available: `Serpent` (raw
 (cipher block chaining with PKCS7 padding). These are unauthenticated and require
 explicit opt-in.
 
-Serpent was an AES finalist. It uses 32 rounds versus AES's 10--14, yielding a
+Serpent was an AES finalist. It uses 32 rounds versus AES's 10 to 14, yielding a
 larger security margin at comparable speed in WASM.
 
 ---
@@ -34,9 +30,7 @@ larger security margin at comparable speed in WASM.
 
 This is the most dangerous mistake you can make with this module. An attacker who
 can modify ciphertext encrypted with `SerpentCbc` or `SerpentCtr` will produce
-corrupted plaintext on decryption -- and decryption will succeed without any
-indication of tampering. There is no integrity check. The caller receives garbage
-and has no way to distinguish it from the original message.
+corrupted plaintext on decryption. Decryption will succeed without any indication of tampering. There is no integrity check. The caller receives garbage and has no way to distinguish it from the original message.
 
 `Seal` with `SerpentCipher` eliminates this problem. It computes an HMAC tag over
 the ciphertext and verifies it before decryption. If anything has been modified,
@@ -47,14 +41,12 @@ See [chacha20.md](./chacha20.md).
 
 ### Never reuse a nonce or IV with the same key
 
-- **CTR mode**: Reusing a nonce with the same key is catastrophic. It produces the
+In CTR mode, reusing a nonce with the same key is catastrophic. It produces the
   same keystream, which means an attacker can XOR two ciphertexts together and
   recover both plaintexts. Always generate a fresh random nonce for each message.
-- **CBC mode**: The IV (initialization vector) must be random and unpredictable for
-  each encryption. A predictable IV enables chosen-plaintext attacks.
+In CBC mode, the IV must be random and unpredictable for each encryption. A predictable IV enables chosen-plaintext attacks.
 
-Use `randomBytes(16)` to generate nonces and IVs. `Seal` with `SerpentCipher` handles IV
-generation internally.
+Use `randomBytes(16)` to generate nonces and IVs. `Seal` with `SerpentCipher` handles IV generation internally.
 
 ### Always use 256-bit keys
 
@@ -123,7 +115,7 @@ Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })`.
 
 #### `SerpentCipher.keygen(): Uint8Array`
 
-Returns `randomBytes(32)`. Convenience method — not on the `CipherSuite` interface.
+Returns `randomBytes(32)`. Convenience method. Not on the `CipherSuite` interface.
 
 #### Usage with `Seal`
 
@@ -146,7 +138,7 @@ import { SealStream, OpenStream } from 'leviathan-crypto/stream'
 import { SerpentCipher } from 'leviathan-crypto/serpent'
 
 const sealer   = new SealStream(SerpentCipher, key)
-const preamble = sealer.preamble       // 20 bytes — send before first chunk
+const preamble = sealer.preamble       // 20 bytes, send before first chunk
 const ct0      = sealer.push(chunk0)
 const ctLast   = sealer.finalize(lastChunk)
 
@@ -155,7 +147,7 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
-See [stream.md](./stream.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
+See [sealing.md](./sealing.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
 
 ---
 
@@ -186,7 +178,7 @@ Creates a new Serpent instance. Throws if `init({ serpent: serpentWasm })` has n
 Loads and expands a key for subsequent block operations. Must be called before
 `encryptBlock()` or `decryptBlock()`.
 
-- **key** -- 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
+- **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
 
 ---
 
@@ -194,7 +186,7 @@ Loads and expands a key for subsequent block operations. Must be called before
 
 Encrypts a single 16-byte block and returns the 16-byte ciphertext.
 
-- **plaintext** -- exactly 16 bytes. Throws `RangeError` if the length is not 16.
+- **plaintext**: exactly 16 bytes. Throws `RangeError` if the length is not 16.
 
 ---
 
@@ -202,7 +194,7 @@ Encrypts a single 16-byte block and returns the 16-byte ciphertext.
 
 Decrypts a single 16-byte block and returns the 16-byte plaintext.
 
-- **ciphertext** -- exactly 16 bytes. Throws `RangeError` if the length is not 16.
+- **ciphertext**: exactly 16 bytes. Throws `RangeError` if the length is not 16.
 
 ---
 
@@ -251,8 +243,8 @@ To use SerpentCtr directly, pass { dangerUnauthenticated: true }.
 Initializes the CTR state for encryption. Loads the key, sets the nonce, and
 resets the internal counter to zero.
 
-- **key** -- 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
-- **nonce** -- exactly 16 bytes. Throws `RangeError` if the length is not 16.
+- **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
+- **nonce**: exactly 16 bytes. Throws `RangeError` if the length is not 16.
 
 ---
 
@@ -262,24 +254,19 @@ Encrypts a chunk of plaintext and returns the same-length ciphertext. Call this
 one or more times after `beginEncrypt()`. The internal counter advances
 automatically.
 
-- **chunk** -- any length up to the module's internal chunk buffer size. Throws
-  `RangeError` if the chunk exceeds the maximum size.
+- **chunk**: any length up to the module's internal chunk buffer size. Throws `RangeError` if the chunk exceeds the maximum size.
 
 > [!NOTE]
-> Automatically dispatches to the 4-wide SIMD path (`encryptChunk_simd`) when
-> the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise
-> falls back to the scalar unrolled path. The dispatch is transparent — no API
-> change required.
+> Automatically dispatches to the 4-wide SIMD path (`encryptChunk_simd`) when the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise falls back to the scalar unrolled path. The dispatch is transparent with no API change required.
 
 ---
 
 #### `beginDecrypt(key: Uint8Array, nonce: Uint8Array): void`
 
-Initializes the CTR state for decryption. Functionally identical to
-`beginEncrypt()` -- CTR mode uses the same operation in both directions.
+Initializes the CTR state for decryption. Functionally identical to `beginEncrypt()`. CTR mode uses the same operation in both directions.
 
-- **key** -- 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
-- **nonce** -- exactly 16 bytes. Throws `RangeError` if the length is not 16.
+- **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
+- **nonce**: exactly 16 bytes. Throws `RangeError` if the length is not 16.
 
 ---
 
@@ -288,8 +275,7 @@ Initializes the CTR state for decryption. Functionally identical to
 Decrypts a chunk of ciphertext and returns the same-length plaintext.
 Functionally identical to `encryptChunk()`.
 
-- **chunk** -- any length up to the module's internal chunk buffer size. Throws
-  `RangeError` if the chunk exceeds the maximum size.
+- **chunk**: any length up to the module's internal chunk buffer size. Throws `RangeError` if the chunk exceeds the maximum size.
 
 ---
 
@@ -335,11 +321,9 @@ Encrypts plaintext with Serpent CBC and PKCS7 padding. The returned ciphertext i
 always a multiple of 16 bytes and is at least 16 bytes longer than the input (due
 to padding).
 
-- **key** -- 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
-- **iv** -- exactly 16 bytes. Must be random and unique for each (key, message)
-  pair. Throws `RangeError` if the length is not 16.
-- **plaintext** -- any length (including zero). PKCS7 padding is applied
-  automatically.
+- **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
+- **iv**: exactly 16 bytes. Must be random and unique per (key, message) pair. Throws `RangeError` if the length is not 16.
+- **plaintext**: any length including zero. PKCS7 padding is applied automatically.
 
 Returns the ciphertext as a new `Uint8Array`.
 
@@ -349,21 +333,14 @@ Returns the ciphertext as a new `Uint8Array`.
 
 Decrypts Serpent CBC ciphertext and strips PKCS7 padding.
 
-- **key** -- 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
-- **iv** -- exactly 16 bytes. Must be the same IV that was used for encryption.
-  Throws `RangeError` if the length is not 16.
-- **ciphertext** -- must be a non-zero multiple of 16 bytes. Throws `RangeError`
-  if the length is zero or not a multiple of 16. Also throws `RangeError` if PKCS7
-  padding is invalid (which typically indicates the wrong key, wrong IV, or
-  corrupted ciphertext).
+- **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
+- **iv**: exactly 16 bytes. Must match the IV used for encryption. Throws `RangeError` if the length is not 16.
+- **ciphertext**: must be a non-zero multiple of 16 bytes. Throws `RangeError` if the length is zero or not a multiple of 16. Also throws if PKCS7 padding is invalid, which typically indicates the wrong key, wrong IV, or corrupted ciphertext.
 
 Returns the decrypted plaintext as a new `Uint8Array`.
 
 > [!NOTE]
-> Automatically dispatches to the 4-wide SIMD path (`cbcDecryptChunk_simd`) when
-> the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise
-> falls back to the scalar unrolled path. CBC encryption has no SIMD variant —
-> each ciphertext block depends on the previous one.
+> Automatically dispatches to the 4-wide SIMD path (`cbcDecryptChunk_simd`) when the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise falls back to the scalar unrolled path. CBC encryption has no SIMD variant since each ciphertext block depends on the previous one.
 
 ---
 
@@ -397,8 +374,7 @@ console.log(new TextDecoder().decode(decrypted))
 
 Advanced use. For authenticated encryption, use `Seal` with `SerpentCipher`.
 
-Use `SerpentCtr` to encrypt data of any length. CTR mode produces ciphertext
-that is the same length as the plaintext -- no padding overhead.
+Use `SerpentCtr` to encrypt data of any length. CTR mode produces ciphertext that is the same length as the plaintext with no padding overhead.
 
 ```typescript
 import { init, SerpentCtr, randomBytes } from 'leviathan-crypto';
@@ -407,7 +383,7 @@ import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
 await init({ serpent: serpentWasm });
 
 const key   = randomBytes(32); // 256-bit key
-const nonce = randomBytes(16); // 16-byte nonce -- NEVER reuse with the same key
+const nonce = randomBytes(16); // 16-byte nonce, NEVER reuse with the same key
 
 const ctr = new SerpentCtr({ dangerUnauthenticated: true });
 
@@ -445,7 +421,7 @@ import { serpentWasm } from 'leviathan-crypto/serpent/embedded';
 await init({ serpent: serpentWasm });
 
 const key = randomBytes(32); // 256-bit key
-const iv  = randomBytes(16); // Random IV -- must be unique per message
+const iv  = randomBytes(16); // Random IV, must be unique per message
 
 const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 
@@ -525,7 +501,7 @@ cipher.dispose();
 > - [asm_serpent](./asm_serpent.md) — WASM implementation details and buffer layout
 > - [serpent_reference](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
 > - [serpent_audit](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)
-> - [stream](./stream.md) — `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument
+> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument
 > - [chacha20](./chacha20.md) — `XChaCha20Cipher`: alternative `CipherSuite` for `Seal` and streaming
 > - [sha2](./sha2.md) — HMAC-SHA256 and HKDF used internally by `SerpentCipher`
 > - [types](./types.md) — `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes

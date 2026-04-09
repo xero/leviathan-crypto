@@ -57,7 +57,7 @@ is a field, and every nonzero element has a multiplicative inverse. FIPS 203 §3
 |----------|-------|---------|
 | `Q` | 3329 | Prime modulus |
 | `QINV` | −3327 (mod 2¹⁶) = 62209 | `Q * QINV ≡ 1 (mod 2¹⁶)`, enabling Montgomery reduction |
-| `MONT` | 2285 (centered: −1044) | `2¹⁶ mod Q` — Montgomery form scaling factor |
+| `MONT` | 2285 (centered: −1044) | `2¹⁶ mod Q`. Montgomery form scaling factor. |
 
 `QINV` satisfies `Q × QINV ≡ 1 (mod 2¹⁶)`. This identity is the basis of
 Montgomery reduction. Verified via: `3329 × 62209 = 207,093,761 = 3160 × 2¹⁶ + 1`. ✓
@@ -365,8 +365,7 @@ secure KEM. FIPS 203 Algorithm 15, 16, 17.
 
 **Encapsulation** (Algorithm 16):
 1. Generate 32-byte randomness `m`.
-2. `(K, r) = G(m ‖ H(ek))` — SHA3-512 produces both the shared secret K
-   and re-encryption randomness `r`.
+2. `(K, r) = G(m ‖ H(ek))`. SHA3-512 produces both the shared secret K and re-encryption randomness `r`.
 3. `c = cpakemEncrypt(ek, m, r)`.
 4. Output `(c, K)`.
 
@@ -375,13 +374,13 @@ secure KEM. FIPS 203 Algorithm 15, 16, 17.
 2. `m' = cpakemDecrypt(sk_PKE, c)`.
 3. `(K', r') = G(m' ‖ h)`.
 4. `c' = cpakemEncrypt(ek, m', r')`.
-5. `K = ct_verify(c, c') ? K' : J(z ‖ c)` — constant-time selection.
+5. `K = ct_verify(c, c') ? K' : J(z ‖ c)`. Constant-time selection.
 
 The FO transform ensures that a decryption failure (wrong ciphertext) produces
 an implicit rejection via `J(z ‖ c)` rather than exposing the failure. The
 `ct_verify` function returns a constant-time boolean with no early exit, and
 `ct_cmov` conditionally assigns `K'` or `J(z ‖ c)` via a mask. The JS layer
-never sees the comparison result — the selection happens inside WASM. Correct
+never sees the comparison result. The selection happens inside WASM. Correct
 per FIPS 203 Algorithm 17.
 
 ---
@@ -395,7 +394,7 @@ decapsulation keys.
 for the parameter set. Then the polyvec portion of `ek` is decoded via
 `ByteDecode₁₂` (`polyvec_frombytes`) and re-encoded via `ByteEncode₁₂`
 (`polyvec_tobytes`). If any coefficient was ≥ Q, `frombytes` stores it
-modulo 2¹², and `tobytes` re-encodes the reduced value — so the round-trip
+modulo 2¹², and `tobytes` re-encodes the reduced value. The round-trip
 bytes differ from the original and the check fails. This is the
 encode-decode-reencode check from FIPS 203 §7.2 line 3. If the check fails,
 the implementation returns `false` (a gate, not a throw). FIPS 203 §7.2
@@ -412,11 +411,11 @@ without detection. FIPS 203 §7.3. Correct.
 
 ### 2.1 Side-Channel Analysis
 
-**Montgomery reduction:** Implemented as pure arithmetic — multiply, mask,
+**Montgomery reduction:** Implemented as pure arithmetic. Multiply, mask,
 multiply, subtract, shift. No branches, no table lookups, no data-dependent
 operations. Best-available constant-time within the WASM execution model.
 
-**Barrett reduction:** Implemented as pure arithmetic — multiply, shift,
+**Barrett reduction:** Implemented as pure arithmetic. Multiply, shift,
 multiply, subtract. No branches. Best-available constant-time.
 
 **NTT butterflies:** The inner loop performs fixed-pattern memory accesses and
@@ -434,7 +433,7 @@ magic constant arithmetic. No data-dependent branches.
 `poly_tomsg` uses an analogous mask. Best-available constant-time.
 
 **`rej_uniform`:** Contains data-dependent branching on whether a candidate
-value is in `[0, Q)`. This is acceptable — the candidates are derived from
+value is in `[0, Q)`. This is acceptable. The candidates are derived from
 a public seed `ρ`, not from secret key material. FIPS 203 §A.2 explicitly
 permits timing variability in `SampleNTT`.
 
@@ -472,7 +471,7 @@ Functions not vectorized (irregular structure or low payoff):
 `poly_compress`, `poly_decompress`, `poly_basemul_montgomery`, `poly_tobytes`,
 `poly_frombytes`, CBD sampling, rejection sampling, `ct_verify`, `ct_cmov`.
 
-**`fqmul_8x` — vectorized Montgomery reduction:**
+**`fqmul_8x`: vectorized Montgomery reduction:**
 
 8 × `fqmul(a, b)` in one v128 operation. Input: two `v128` (8 × i16 each).
 Output: one `v128` (8 × i16 results, each `= a·b·R⁻¹ mod Q`, R = 2¹⁶).
@@ -483,7 +482,7 @@ prod_hi = i32x4.extmul_high_i16x8_s(a, b)  // lanes 4-7: full 32-bit products
 
 // t = (i16)(a * b * QINV) computed entirely in i16 arithmetic.
 // By Z/2^16Z ring property: low16(a·b·QINV) = low16(a · low16(b·QINV)).
-// i16x8.mul gives the low 16 bits of each lane product — exactly (i16)(x*y).
+// i16x8.mul gives the low 16 bits of each lane product, exactly (i16)(x*y).
 t_i16 = i16x8.mul(a, i16x8.mul(b, i16x8.splat(QINV)))
 
 // Sign-extend t to i32 for the final subtraction.
@@ -501,11 +500,11 @@ The key implementation decision is computing `t` in i16 via `i16x8.mul`
 rather than via the `shl/shr_s` sign-extend trick (`shr_s(shl(x*QINV, 16), 16)`).
 The i16 approach avoids potential overflow when `prod` is a large 32-bit value
 (up to ~10⁹), since the shl/shr path requires the i32 product `prod*QINV` to
-behave correctly under a shl-then-shr sequence — which is fragile when the
+behave correctly under a shl-then-shr sequence. This is fragile when the
 result is large. `i16x8.mul` is definitionally correct: it always gives the
 low 16 bits, matching the scalar `(i16)(prod * QINV)` cast exactly.
 
-**`barrett_reduce_8x` — vectorized Barrett reduction:**
+**`barrett_reduce_8x`: vectorized Barrett reduction:**
 
 ```
 a_lo = i32x4.extend_low_i16x8_s(a)

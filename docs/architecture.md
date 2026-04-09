@@ -927,7 +927,7 @@ They are the immutable truth, and must never be modified to make tests pass.
 > - [wasm](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate
 > - [types](./types.md) — public TypeScript interfaces and `CipherSuite`
 > - [utils](./utils.md) — encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`
-> - [stream](./stream.md) — SealStream, OpenStream, SealStreamPool, wire format
+> - [sealing](./sealing.md) — SealStream, OpenStream, SealStreamPool, wire format
 > - [serpent](./serpent.md) — Serpent-256 TypeScript API, SerpentCipher
 > - [chacha20](./chacha20.md) — ChaCha20/Poly1305 TypeScript API, XChaCha20Cipher
 > - [sha2](./sha2.md) — SHA-2 hashes, HMAC, and HKDF TypeScript API

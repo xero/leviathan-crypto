@@ -1,4 +1,4 @@
-# SHA-2 hash functions and HMAC TypeScript API
+# SHA-2 TypeScript API
 
 > [!NOTE]
 > Cryptographic hashing and message authentication using SHA-256, SHA-384,
@@ -10,38 +10,31 @@
 
 SHA-2 is a family of cryptographic hash functions standardized in
 [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final).
-A hash function takes an input of any size -- a password, a file, a single
-byte -- and produces a fixed-size output called a **digest** (sometimes called
+A hash function takes an input of any size (a password, a file, a single byte) and produces a fixed-size output called a **digest** (sometimes called
 a "fingerprint" or "hash"). Even the smallest change to the input produces a
 completely different digest. This makes hash functions useful for verifying that
 data has not been tampered with.
 
 leviathan-crypto provides three SHA-2 variants:
 
-- **SHA-256** -- 32-byte (256-bit) digest. The most widely used variant. Use
-  this unless you have a specific reason to choose another.
-- **SHA-512** -- 64-byte (512-bit) digest. Higher security margin. Faster than
-  SHA-256 on 64-bit platforms.
-- **SHA-384** -- 48-byte (384-bit) digest. A truncated variant of SHA-512.
-  Useful when you need a digest longer than 256 bits but shorter than 512 bits,
-  or when a protocol specifies it (e.g. TLS cipher suites).
+**SHA-256.** 32-byte (256-bit) digest. The most widely used variant. Use this unless you have a specific reason to choose another.
+**SHA-512.** 64-byte (512-bit) digest. Higher security margin. Faster than SHA-256 on 64-bit platforms.
+**SHA-384.** 48-byte (384-bit) digest. A truncated variant of SHA-512. Useful when you need a digest longer than 256 bits but shorter than 512 bits, or when a protocol specifies it (e.g. TLS cipher suites).
 
 **HMAC** (Hash-based Message Authentication Code, [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104))
 combines a secret key with a hash function to produce a **tag** that proves both
 the integrity and the authenticity of a message. Anyone can compute a plain SHA-256
-hash of a message -- but only someone who holds the secret key can compute the
-correct HMAC tag. This means the recipient can verify that the message was sent by
+hash of a message. But only someone who holds the secret key can compute the correct HMAC tag. This means the recipient can verify that the message was sent by
 someone who knows the key, and that it was not modified in transit.
 
 leviathan-crypto provides three HMAC variants corresponding to each hash:
 
-- **HMAC_SHA256** -- 32-byte tag, using SHA-256
-- **HMAC_SHA512** -- 64-byte tag, using SHA-512
-- **HMAC_SHA384** -- 48-byte tag, using SHA-384
+**HMAC_SHA256.** 32-byte tag.
+**HMAC_SHA512.** 64-byte tag.
+**HMAC_SHA384.** 48-byte tag.
 
 All computation runs in WebAssembly. The TypeScript classes handle input
-validation and the JS/WASM boundary -- they never implement cryptographic
-algorithms directly.
+validation and the JS/WASM boundary. They never implement cryptographic algorithms directly.
 
 ---
 
@@ -70,7 +63,7 @@ encryption with leviathan primitives.
 Never construct a MAC by concatenating a secret and a message and hashing them:
 
 ```typescript
-// DANGEROUS -- DO NOT DO THIS
+// DANGEROUS: DO NOT DO THIS
 const bad = sha256.hash(concat(secret, message))
 ```
 
@@ -94,8 +87,7 @@ HMAC keys should be **at least as long as the hash output**:
 Keys shorter than this are technically valid (they will be zero-padded
 internally) but provide less security than the hash function offers. Keys
 longer than the hash block size (64 bytes for SHA-256, 128 bytes for
-SHA-384/SHA-512) are pre-hashed automatically per RFC 2104 section 3 -- this is
-handled for you, but there is no benefit to using very long keys.
+SHA-384/SHA-512) are pre-hashed automatically per RFC 2104 section 3. There is no benefit to using very long keys.
 
 ### Always use constant-time comparison for HMAC verification
 
@@ -162,16 +154,11 @@ class SHA256 {
 }
 ```
 
-**`constructor()`** -- Creates a new SHA256 instance. Throws if `init({ sha2: sha2Wasm })`
-has not been called.
+**`constructor()`** Creates a new SHA256 instance. Throws if `init({ sha2: sha2Wasm })` has not been called.
 
-**`hash(msg: Uint8Array): Uint8Array`** -- Hashes the entire message and returns
-a 32-byte `Uint8Array` digest. The message can be any length (including empty).
-Large messages are internally chunked and streamed through the WASM hash function,
-so memory usage stays constant regardless of input size.
+**`hash(msg: Uint8Array): Uint8Array`** Hashes the entire message and returns a 32-byte `Uint8Array` digest. The message can be any length including empty. Large messages are internally chunked and streamed through the WASM hash function, so memory usage stays constant regardless of input size.
 
-**`dispose(): void`** -- Wipes all internal WASM buffers (hash state, input
-buffer, output buffer). Call this when you are done with the instance.
+**`dispose(): void`** Wipes all internal WASM buffers (hash state, input buffer, output buffer). Call this when you are done with the instance.
 
 ---
 
@@ -187,11 +174,11 @@ class SHA512 {
 }
 ```
 
-**`constructor()`** -- Creates a new SHA512 instance. Throws if not initialized.
+**`constructor()`** Creates a new SHA512 instance. Throws if not initialized.
 
-**`hash(msg: Uint8Array): Uint8Array`** -- Returns a 64-byte digest.
+**`hash(msg: Uint8Array): Uint8Array`** Returns a 64-byte digest.
 
-**`dispose(): void`** -- Wipes all internal WASM buffers.
+**`dispose(): void`** Wipes all internal WASM buffers.
 
 ---
 
@@ -208,11 +195,11 @@ class SHA384 {
 }
 ```
 
-**`constructor()`** -- Creates a new SHA384 instance. Throws if not initialized.
+**`constructor()`** Creates a new SHA384 instance. Throws if not initialized.
 
-**`hash(msg: Uint8Array): Uint8Array`** -- Returns a 48-byte digest.
+**`hash(msg: Uint8Array): Uint8Array`** Returns a 48-byte digest.
 
-**`dispose(): void`** -- Wipes all internal WASM buffers.
+**`dispose(): void`** Wipes all internal WASM buffers.
 
 ---
 
@@ -228,15 +215,11 @@ class HMAC_SHA256 {
 }
 ```
 
-**`constructor()`** -- Creates a new HMAC_SHA256 instance. Throws if not
-initialized.
+**`constructor()`** Creates a new HMAC_SHA256 instance. Throws if not initialized.
 
-**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** -- Computes the
-HMAC-SHA256 tag for the given message using the given key. Returns a 32-byte
-`Uint8Array`. Keys longer than 64 bytes are automatically pre-hashed with
-SHA-256 per RFC 2104 section 3.
+**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** Computes the HMAC-SHA256 tag for the given message using the given key. Returns a 32-byte `Uint8Array`. Keys longer than 64 bytes are automatically pre-hashed with SHA-256 per RFC 2104 section 3.
 
-**`dispose(): void`** -- Wipes all internal WASM buffers, including key material.
+**`dispose(): void`** Wipes all internal WASM buffers, including key material.
 
 ---
 
@@ -252,13 +235,11 @@ class HMAC_SHA512 {
 }
 ```
 
-**`constructor()`** -- Creates a new HMAC_SHA512 instance. Throws if not
-initialized.
+**`constructor()`** Creates a new HMAC_SHA512 instance. Throws if not initialized.
 
-**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** -- Returns a 64-byte
-HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-512.
+**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** Returns a 64-byte HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-512.
 
-**`dispose(): void`** -- Wipes all internal WASM buffers.
+**`dispose(): void`** Wipes all internal WASM buffers.
 
 ---
 
@@ -274,13 +255,11 @@ class HMAC_SHA384 {
 }
 ```
 
-**`constructor()`** -- Creates a new HMAC_SHA384 instance. Throws if not
-initialized.
+**`constructor()`** Creates a new HMAC_SHA384 instance. Throws if not initialized.
 
-**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** -- Returns a 48-byte
-HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-384.
+**`hash(key: Uint8Array, msg: Uint8Array): Uint8Array`** Returns a 48-byte HMAC tag. Keys longer than 128 bytes are pre-hashed with SHA-384.
 
-**`dispose(): void`** -- Wipes all internal WASM buffers.
+**`dispose(): void`** Wipes all internal WASM buffers.
 
 ---
 
@@ -303,26 +282,15 @@ class HKDF_SHA256 {
 }
 ```
 
-**`constructor()`** -- Creates a new HKDF_SHA256 instance. Throws if
-`init({ sha2: sha2Wasm })` has not been called.
+**`constructor()`** Creates a new HKDF_SHA256 instance. Throws if `init({ sha2: sha2Wasm })` has not been called.
 
-**`extract(salt, ikm): Uint8Array`** -- RFC 5869 section 2.2. Computes
-`PRK = HMAC-SHA256(salt, IKM)`. Returns a 32-byte pseudorandom key. If `salt`
-is `null` or empty, defaults to 32 zero bytes per RFC section 2.2.
+**`extract(salt, ikm): Uint8Array`** RFC 5869 section 2.2. Computes `PRK = HMAC-SHA256(salt, IKM)`. Returns a 32-byte pseudorandom key. If `salt` is `null` or empty, defaults to 32 zero bytes per RFC section 2.2.
 
-**`expand(prk, info, length): Uint8Array`** -- RFC 5869 section 2.3. Derives
-`length` bytes of output keying material from a 32-byte PRK. `info` provides
-application-specific context (can be empty). `length` must be between 1 and
-8160 (255 x 32). Throws `RangeError` if `prk` is not exactly 32 bytes or if
-`length` is out of range.
+**`expand(prk, info, length): Uint8Array`** RFC 5869 section 2.3. Derives `length` bytes of output keying material from a 32-byte PRK. `info` provides application-specific context (can be empty). `length` must be between 1 and 8160 (255 x 32). Throws `RangeError` if `prk` is not exactly 32 bytes or if `length` is out of range.
 
-**`derive(ikm, salt, info, length): Uint8Array`** -- One-shot: calls
-`extract(salt, ikm)` then `expand(prk, info, length)`. This is the correct
-path for most callers. `extract()` and `expand()` are exposed separately for
-advanced use cases such as key separation and ratchets -- callers who reach for
-them should know why.
+**`derive(ikm, salt, info, length): Uint8Array`** One-shot: calls `extract(salt, ikm)` then `expand(prk, info, length)`. This is the correct path for most callers. `extract()` and `expand()` are exposed separately for advanced use cases such as key separation and ratchets. Callers who reach for them should know why.
 
-**`dispose(): void`** -- Releases the internal HMAC instance.
+**`dispose(): void`** Releases the internal HMAC instance.
 
 ---
 
@@ -341,11 +309,9 @@ class HKDF_SHA512 {
 }
 ```
 
-**`extract(salt, ikm)`** -- If `salt` is `null` or empty, defaults to 64 zero
-bytes.
+**`extract(salt, ikm)`** If `salt` is `null` or empty, defaults to 64 zero bytes.
 
-**`expand(prk, info, length)`** -- PRK must be exactly 64 bytes. `length` must
-be between 1 and 16320. Throws `RangeError` otherwise.
+**`expand(prk, info, length)`** PRK must be exactly 64 bytes. `length` must be between 1 and 16320. Throws `RangeError` otherwise.
 
 > [!NOTE]
 > HKDF is a pure TypeScript composition over the WASM-backed HMAC classes.
@@ -398,7 +364,7 @@ const digest = sha.hash(message)
 console.log(bytesToHex(digest))
 // => "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"
 
-// Step 5: Clean up -- wipes hash state from WASM memory
+// Step 5: Clean up, wipes hash state from WASM memory
 sha.dispose()
 ```
 
@@ -425,8 +391,7 @@ console.log('SHA-256:', bytesToHex(digest))
 sha.dispose()
 ```
 
-The library handles large inputs automatically -- it streams the data through
-the WASM hash function in chunks, so you do not need to worry about memory.
+The library handles large inputs automatically. It streams the data through the WASM hash function in chunks, so you do not need to worry about memory.
 
 ### Example 3: Using SHA-512 or SHA-384
 
@@ -486,7 +451,7 @@ const recomputed = hmac.hash(key, message)
 
 // Use constant-time comparison to check the tags
 if (constantTimeEqual(tag, recomputed)) {
-	console.log('Message is authentic -- it was not tampered with')
+	console.log('Message is authentic. It was not tampered with.')
 } else {
 	console.log('WARNING: message has been modified or key is wrong')
 }
@@ -494,7 +459,7 @@ if (constantTimeEqual(tag, recomputed)) {
 hmac.dispose()
 ```
 
-### Example 5: HMAC verification -- the wrong way vs. the right way
+### Example 5: HMAC verification — the right way
 
 This is important enough to call out separately. The difference between these
 two approaches is the difference between a secure system and a broken one.
@@ -510,16 +475,16 @@ const hmac = new HMAC_SHA256()
 const receivedTag = hmac.hash(key, message)
 const expectedTag = hmac.hash(key, message)
 
-// WRONG -- timing attack vulnerable!
+// WRONG: timing attack vulnerable
 // JavaScript's === operator compares byte-by-byte and returns false as soon as
 // it finds a mismatch. An attacker can measure the response time to figure out
 // how many leading bytes of the tag are correct, then forge a valid tag one
 // byte at a time.
 if (bytesToHex(receivedTag) === bytesToHex(expectedTag)) {
-	// This "works" but is insecure
+	// This works but is insecure
 }
 
-// RIGHT -- constant-time comparison
+// RIGHT: constant-time comparison
 // constantTimeEqual always examines every byte, regardless of where the first
 // difference is. The comparison takes the same amount of time whether zero
 // bytes match or all bytes match.

@@ -4,7 +4,7 @@
 
 - **[Version Support](#supported-versions)**
 - **[Security Posture](#security-posture)**
-- **[Cryptanalytic Audits](#cryptanalytic-reviews)**
+- **[Cryptanalytic Audits](#cryptanalytic-audits)**
 - **[Vulnerability Reporting](#reporting-a-vulnerability)**
 
 ---
@@ -13,7 +13,7 @@
 
 | Version | Supported | Notes       |
 | ------- | --------- | ----------- |
-| v2.0.x  | ✓         | Pre-release |
+| v2.0.x  | ✓         |             |
 | v1.4.x  | ✗         | Last stable |
 | v1.3.x  | ✗         |            |
 | v1.2.x  | ✗         |            |
@@ -68,8 +68,8 @@ use [`constantTimeEqual`][utils], which is backed by a dedicated WASM SIMD modul
 (v128 XOR accumulate + `any_true`) when WebAssembly SIMD is available. The WASM
 execution path eliminates JIT short-circuiting and speculative optimization as
 theoretical side-channel vectors. On runtimes without SIMD (sha2/sha3-only
-consumers), the function falls back to a JS XOR-accumulate loop — best-effort
-constant-time, but not guaranteed by the platform. WASM comparison memory is
+consumers), the function falls back to a JS XOR-accumulate loop. This is best-effort
+constant-time, not a hardware-level guarantee. WASM comparison memory is
 wiped after every call.
 
 ### WASM Execution Model
@@ -93,11 +93,11 @@ arithmetic (`v128` instructions). The SIMD preflight check is applied on
 `init()` alongside serpent and chacha20. Its linear memory is independent
 from all other modules. The kyber module's constant-time path (FO transform
 decapsulation) uses dedicated `ct_verify` and `ct_cmov` functions implemented
-in the kyber WASM binary — the comparison never passes through JavaScript.
+in the kyber WASM binary. The comparison never passes through JavaScript.
 
-### Cryptanalytic Reviews
+### Cryptanalytic Audits
 
-All of our primitives undergo periodic cryptographic implementation reviews.
+All primitives undergo periodic cryptographic implementation reviews. See the [audit index][audits] for a full summary.
 
 | Primitive                      | Audit Description                                                                      |
 | ------------------------------ | -------------------------------------------------------------------------------------- |
@@ -108,6 +108,7 @@ All of our primitives undergo periodic cryptographic implementation reviews.
 | [hmac_audit][hmac_audit]       | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage             |
 | [hkdf_audit][hkdf_audit]       | HKDF extract-then-expand, info field domain separation, stream key derivation          |
 | [kyber_audit][kyber_audit]     | ML-KEM FIPS 203 correctness, NTT/Montgomery/Barrett verification, FO transform CT analysis, ACVP validation |
+| [stream_audit][stream_audit]   | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 
 #### Additional Serpent-256 research
 
@@ -127,8 +128,8 @@ See: [`xero/BicliqueFinder/biclique_research.md`][biclique]
 Raw unauthenticated cipher modes (`SerpentCbc`, `SerpentCtr`, `ChaCha20`) and
 stateless caller-managed-nonce primitives (`ChaCha20Poly1305`,
 `XChaCha20Poly1305`) are exposed for power users but are not the recommended
-entry point. The primary API surfaces — `Seal`, `SealStream`, `OpenStream`,
-`SealStreamPool`, and `KyberSuite` — are authenticated by construction with
+entry point. The primary API surfaces (`Seal`, `SealStream`, `OpenStream`,
+`SealStreamPool`, and `KyberSuite`) are authenticated by construction with
 internally managed nonces.
 
 **All streaming constructions satisfy the _Cryptographic Doom Principle_:**
@@ -149,8 +150,7 @@ verification before decryption.
 
 `SealStreamPool` delegates per-chunk AEAD to isolated Web Workers. Each
 worker holds its own derived subkey and WASM instance. Any authentication
-error kills all workers, wipes all key material, and marks the pool dead —
-no retry, no partial results.
+error kills all workers, wipes all key material, and marks the pool dead. No retry, no partial results.
 
 ### Dependency Management
 
@@ -211,7 +211,7 @@ or research notes, for full hacker scene credit.
 
 If you prefer to contact the maintainer directly:
 
-- **Email:** x﹫xero.style — PGP: [`0xAC1D0000`][pgp]
+- **Email:** x﹫xero.style · PGP: [`0xAC1D0000`][pgp]
 - **Matrix:** x0﹫rx.haunted.computer
 
 > [!NOTE]
@@ -259,7 +259,9 @@ If you prefer to contact the maintainer directly:
 [sha3_audit]:     https://github.com/xero/leviathan-crypto/wiki/sha3_audit
 [hmac_audit]:     https://github.com/xero/leviathan-crypto/wiki/hmac_audit
 [hkdf_audit]:     https://github.com/xero/leviathan-crypto/wiki/hkdf_audit
-[kyber_audit]:    ./docs/kyber_audit.md
+[kyber_audit]:    https://github.com/xero/leviathan-crypto/wiki/kyber_audit
+[stream_audit]:   https://github.com/xero/leviathan-crypto/wiki/stream_audit
+[audits]:         https://github.com/xero/leviathan-crypto/wiki/audits
 [biclique]:       https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md
 [argon2id-wiki]:  https://github.com/xero/leviathan-crypto/wiki/argon2id
 [workflows]:      https://github.com/xero/leviathan-crypto/blob/main/scripts/pin-actions.ts

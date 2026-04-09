@@ -11,26 +11,14 @@ ML-KEM (formerly Kyber) is a lattice-based key encapsulation mechanism
 standardized by NIST in FIPS 203. It provides key agreement that is secure
 against both classical and quantum adversaries.
 
-This module provides three things:
-
-- **`MlKem512` / `MlKem768` / `MlKem1024`** — raw KEM operations: keygen,
-  encapsulate, decapsulate. Use these when you need direct access to the KEM.
-
-- **`KyberSuite`** — a factory that wraps a `MlKemBase` instance and an inner
-  `CipherSuite` into a hybrid KEM + AEAD suite. Pass the result to `Seal`,
-  `SealStream`, or `OpenStream` exactly as you would a symmetric cipher suite.
-
-- **ACVP-verified implementation** — all three parameter sets verified against
-  240 NIST ACVP test vectors (keygen, encap, decap, including implicit rejection).
-
-### Requires
-
-```typescript
-await init({ kyber: kyberWasm, sha3: sha3Wasm, /* + inner cipher modules */ })
-```
-
-Both `kyber` and `sha3` are required. If using `KyberSuite` with `XChaCha20Cipher`,
-also load `chacha20` and `sha2`. With `SerpentCipher`, load `serpent` and `sha2`.
+This module provides three things. `MlKem512`, `MlKem768`, and `MlKem1024`
+give you raw KEM operations: keygen, encapsulate, and decapsulate. Use these
+when you need direct access to the KEM. `KyberSuite` is a factory that wraps
+a `MlKemBase` instance and an inner `CipherSuite` into a hybrid KEM + AEAD
+suite. Pass the result to `Seal`, `SealStream`, or `OpenStream` exactly as
+you would a symmetric cipher suite. All three parameter sets are verified
+against 240 NIST ACVP test vectors covering keygen, encap, decap, and
+implicit rejection.
 
 ---
 
@@ -42,9 +30,9 @@ also load `chacha20` and `sha2`. With `SerpentCipher`, load `serpent` and `sha2`
 | `MlKem768` | ML-KEM-768 | 1184 B | 2400 B | 1088 B | Category 3 |
 | `MlKem1024` | ML-KEM-1024 | 1568 B | 3168 B | 1568 B | Category 5 |
 
-**Recommendation:** use `MlKem768` for general-purpose applications.
-Use `MlKem512` only if you have strict size or performance constraints.
-Use `MlKem1024` for long-lived keys or high-assurance requirements.
+Use `MlKem768` for general-purpose applications. Use `MlKem512` only if you
+have strict size or performance constraints. Use `MlKem1024` for long-lived
+keys or high-assurance requirements.
 
 ---
 
@@ -52,18 +40,26 @@ Use `MlKem1024` for long-lived keys or high-assurance requirements.
 
 ```typescript
 import { init } from 'leviathan-crypto'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
-import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
-// also load inner cipher modules if using KyberSuite
+import { kyberWasm }    from 'leviathan-crypto/kyber/embedded'
+import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
 import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
 
 await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
 ```
 
+Both `kyber` and `sha3` are required. The kyber module handles polynomial
+arithmetic. The sha3 module provides the Keccak sponge operations used for
+key generation and encapsulation. If using `KyberSuite` with `XChaCha20Cipher`,
+also load `chacha20` and `sha2`. With `SerpentCipher`, load `serpent` and `sha2`.
+
+`'keccak'` is an alias for `'sha3'` — same WASM binary, same instance slot.
+You can substitute `keccakWasm` and `init({ keccak: keccakWasm })` anywhere
+`sha3` is used. See [init.md](./init.md#keccak-alias-for-ml-kem) for details.
+
 ---
 
-## MlKem classes
+## MlKem API
 
 All three classes share the same interface via `MlKemBase`. Construct the
 parameter set you want and call methods on the instance.
@@ -74,7 +70,7 @@ import { MlKem768 } from 'leviathan-crypto/kyber'
 const kem = new MlKem768()
 ```
 
-### `kem.keygen()`
+### kem.keygen()
 
 Generates a fresh keypair using CSPRNG randomness.
 
@@ -84,18 +80,18 @@ const { encapsulationKey, decapsulationKey } = kem.keygen()
 // decapsulationKey: Uint8Array — keep secret, never transmit
 ```
 
-The encapsulation key (`ek`) is the public key — share it freely. The
-decapsulation key (`dk`) is the private key — store it securely, never
+The encapsulation key (`ek`) is the public key. Share it freely. The
+decapsulation key (`dk`) is the private key. Store it securely and never
 transmit it.
 
-### `kem.keygenDerand(d, z)`
+### kem.keygenDerand(d, z)
 
 Deterministic keygen for testing. Both `d` and `z` must be 32 bytes.
-Do not use in production — randomness must come from the CSPRNG.
+Do not use in production. Randomness must come from the CSPRNG.
 
-### `kem.encapsulate(ek)`
+### kem.encapsulate(ek)
 
-Generates a shared secret and KEM ciphertext. Called by the **sender**.
+Generates a shared secret and KEM ciphertext. The sender calls this.
 
 ```typescript
 const { ciphertext, sharedSecret } = kem.encapsulate(encapsulationKey)
@@ -104,28 +100,28 @@ const { ciphertext, sharedSecret } = kem.encapsulate(encapsulationKey)
 ```
 
 The shared secret is 32 bytes. It is never transmitted. The sender and
-recipient independently derive the same secret.
+recipient independently derive the same value.
 
-### `kem.encapsulateDerand(ek, m)`
+### kem.encapsulateDerand(ek, m)
 
-Deterministic encapsulation. `m` is 32 bytes of randomness. KAT/testing only.
+Deterministic encapsulation. `m` is 32 bytes of randomness. KAT and testing only.
 
-### `kem.decapsulate(dk, ciphertext)`
+### kem.decapsulate(dk, ciphertext)
 
-Recovers the shared secret. Called by the **recipient**.
+Recovers the shared secret. The recipient calls this.
 
 ```typescript
 const sharedSecret = kem.decapsulate(decapsulationKey, ciphertext)
 // sharedSecret: Uint8Array (32 bytes)
 ```
 
-ML-KEM uses implicit rejection — if the ciphertext was tampered with,
-decapsulate returns a pseudorandom value derived from a secret random
-string rather than throwing. This prevents timing attacks on decapsulation
-failure. The shared secret simply won't match, causing authentication
-failure at the AEAD layer.
+ML-KEM uses implicit rejection. If the ciphertext was tampered with,
+`decapsulate` returns a pseudorandom value derived from a secret random string
+rather than throwing. This prevents timing attacks on decapsulation failure.
+The shared secret simply won't match, causing authentication failure at the
+AEAD layer.
 
-### `kem.checkEncapsulationKey(ek)`
+### kem.checkEncapsulationKey(ek)
 
 Returns `true` if `ek` is a well-formed encapsulation key per FIPS 203 §7.2.
 Checks length and runs the ByteDecode₁₂ → ByteEncode₁₂ round-trip test.
@@ -134,11 +130,11 @@ Checks length and runs the ByteDecode₁₂ → ByteEncode₁₂ round-trip test
 if (!kem.checkEncapsulationKey(ek)) throw new Error('invalid ek')
 ```
 
-### `kem.checkDecapsulationKey(dk)`
+### kem.checkDecapsulationKey(dk)
 
 Returns `true` if `dk` is a well-formed decapsulation key per FIPS 203 §7.3.
 
-### `kem.dispose()`
+### kem.dispose()
 
 Wipes the WASM memory buffers. Call when done with the instance.
 
@@ -155,10 +151,9 @@ Wipes the WASM memory buffers. Call when done with the instance.
 
 ## KyberSuite
 
-`KyberSuite` is a factory that combines a `MlKemBase` instance with an inner
-`CipherSuite` (`XChaCha20Cipher` or `SerpentCipher`) into a new object that
-satisfies the `CipherSuite` interface. Pass it anywhere you would pass a
-symmetric cipher suite.
+`KyberSuite` combines a `MlKemBase` instance with an inner `CipherSuite`
+(`XChaCha20Cipher` or `SerpentCipher`) into a new object that satisfies the
+`CipherSuite` interface. Pass it anywhere you would pass a symmetric cipher suite.
 
 ```typescript
 import { KyberSuite, MlKem768 } from 'leviathan-crypto/kyber'
@@ -168,7 +163,7 @@ const kem   = new MlKem768()
 const suite = KyberSuite(kem, XChaCha20Cipher)
 ```
 
-### `suite.keygen()`
+### suite.keygen()
 
 Delegates to `kem.keygen()`. Returns `{ encapsulationKey, decapsulationKey }`.
 
@@ -176,7 +171,7 @@ Delegates to `kem.keygen()`. Returns `{ encapsulationKey, decapsulationKey }`.
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 ```
 
-### One-shot encryption with `Seal`
+### One-shot encryption with Seal
 
 The sender encrypts with `ek`. The recipient decrypts with `dk`.
 
@@ -190,16 +185,16 @@ const blob = Seal.encrypt(suite, ek, plaintext)
 const pt = Seal.decrypt(suite, dk, blob)
 ```
 
-The blob wire format is: `preamble || ciphertext`. For KEM suites the
-preamble includes the KEM ciphertext:
+The blob wire format is `preamble || ciphertext`. For KEM suites the preamble
+includes the KEM ciphertext:
 
 | Param set | Preamble size |
 |-----------|--------------|
-| ML-KEM-512 + any cipher | 20 + 768 = **788 bytes** |
-| ML-KEM-768 + any cipher | 20 + 1088 = **1108 bytes** |
-| ML-KEM-1024 + any cipher | 20 + 1568 = **1588 bytes** |
+| ML-KEM-512 + any cipher | 788 bytes |
+| ML-KEM-768 + any cipher | 1108 bytes |
+| ML-KEM-1024 + any cipher | 1588 bytes |
 
-### Streaming encryption with `SealStream` / `OpenStream`
+### Streaming encryption with SealStream and OpenStream
 
 ```typescript
 import { SealStream, OpenStream } from 'leviathan-crypto'
@@ -218,7 +213,7 @@ const ptFinal = opener.finalize(ctFinal)
 
 ### Mix and match
 
-Any combination of param set and inner cipher works:
+Any combination of parameter set and inner cipher works:
 
 ```typescript
 import { SerpentCipher } from 'leviathan-crypto/serpent'
@@ -231,13 +226,11 @@ const suite = KyberSuite(new MlKem1024(), SerpentCipher)
 
 ### Key management
 
-- Generate a keypair once: `suite.keygen()` or `kem.keygen()`
-- Distribute `ek` to all senders
-- Store `dk` securely on the recipient — it never leaves
-- There is no session concept at this layer — each `Seal.encrypt` call
-  performs a fresh encapsulation with fresh randomness
-- Key validation: call `kem.checkEncapsulationKey(ek)` before trusting
-  a received public key
+Generate a keypair once on the recipient side. Distribute `ek` to all senders
+and store `dk` securely. The decapsulation key never leaves the recipient.
+There is no session concept at this layer. Each `Seal.encrypt` call performs a
+fresh encapsulation with fresh randomness. Before trusting a received public
+key, validate it with `kem.checkEncapsulationKey(ek)`.
 
 ---
 
@@ -255,20 +248,20 @@ in byte 0 of the 20-byte header (bits 4-6 = KEM, bits 0-3 = cipher):
 | MlKem1024 + XChaCha20 | `0x31` |
 | MlKem1024 + Serpent | `0x32` |
 
-Symmetric suites have KEM bits = `0x00` — backward compatible.
+Symmetric suites have KEM bits = `0x00` and are backward compatible.
 
 ---
 
 ## Full example
 
 ```typescript
-import { init, Seal }               from 'leviathan-crypto'
-import { KyberSuite, MlKem768 }     from 'leviathan-crypto/kyber'
-import { XChaCha20Cipher }          from 'leviathan-crypto/chacha20'
-import { kyberWasm }   from 'leviathan-crypto/kyber/embedded'
-import { sha3Wasm }    from 'leviathan-crypto/sha3/embedded'
-import { chacha20Wasm} from 'leviathan-crypto/chacha20/embedded'
-import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded'
+import { init, Seal }           from 'leviathan-crypto'
+import { KyberSuite, MlKem768 } from 'leviathan-crypto/kyber'
+import { XChaCha20Cipher }      from 'leviathan-crypto/chacha20'
+import { kyberWasm }    from 'leviathan-crypto/kyber/embedded'
+import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
 
 await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
 
@@ -308,9 +301,12 @@ kem.dispose()
 
 ---
 
-## See also
-
-- [stream.md](./stream.md) — `Seal`, `SealStream`, `OpenStream`, `KyberSuite` usage
-- [kyber_audit.md](./kyber_audit.md) — security audit of the ML-KEM implementation
-- [init.md](./init.md) — module initialization
-- [exports.md](./exports.md) — full export list
+> ## Cross-References
+>
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
+> - [ciphersuite](./ciphersuite.md) — `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`
+> - [kyber_audit](./kyber_audit.md) — ML-KEM implementation audit
+> - [init](./init.md) — module initialization and WASM loading
+> - [exports](./exports.md) — full export list

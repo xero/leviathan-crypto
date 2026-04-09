@@ -7,16 +7,16 @@ For deeper documentation on each class follow the module links.
 
 ## Initialization
 
-Root barrel `leviathan-crypto` — no module required.
+Root barrel `leviathan-crypto`. No module required.
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
-| `isInitialized` | function | `isInitialized(mod: Module): boolean` — returns `true` if the given module has already been loaded. Useful for diagnostic checks. |
+| `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
 | `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber'` |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
-**`WasmSource`** — accepted by every init function:
+**`WasmSource`** accepted by every init function:
 
 | Value | Strategy |
 |-------|----------|
@@ -35,7 +35,7 @@ See [init.md](./init.md) for full loading documentation.
 ## Serpent-256
 
 Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })` for authenticated classes, `init({ serpent: serpentWasm })` for raw modes.
-Subpath: `leviathan-crypto/serpent` — see [serpent.md](./serpent.md).
+Subpath: `leviathan-crypto/serpent`. See [serpent.md](./serpent.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -50,7 +50,7 @@ Subpath: `leviathan-crypto/serpent` — see [serpent.md](./serpent.md).
 ## Stream
 
 Cipher-agnostic streaming encryption using the STREAM construction.
-Subpath: `leviathan-crypto/stream`.
+Subpath: `leviathan-crypto/stream`. See [sealing.md](./sealing.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -58,13 +58,13 @@ Subpath: `leviathan-crypto/stream`.
 | `SealStream` | class | Cipher-agnostic streaming encryption (STREAM construction). `push(chunk)`, `finalize(chunk)`, `toTransformStream()`. |
 | `OpenStream` | class | Cipher-agnostic streaming decryption. `pull(chunk)`, `finalize(chunk)`, `seek(index)`, `toTransformStream()`. |
 | `SealStreamPool` | class | Parallel batch seal/open via Web Workers. `SealStreamPool.create(cipher, key, opts)` static factory. |
-| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`. |
+| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`, `KyberSuite`. See [ciphersuite.md](./ciphersuite.md). |
 | `DerivedKeys` | interface | Opaque key material returned by `CipherSuite.deriveKeys()`. |
 | `SealStreamOpts` | type | Options for SealStream: `chunkSize?`, `framed?`. |
 | `PoolOpts` | type | Options for SealStreamPool: `wasm`, `workers?`, `chunkSize?`, `framed?`, `jobTimeout?`. |
 | `HEADER_SIZE` | const | Stream header size in bytes (20). |
 | `CHUNK_MIN` | const | Minimum chunk size (1024). |
-| `CHUNK_MAX` | const | Maximum chunk size (16777215 — u24 max). |
+| `CHUNK_MAX` | const | Maximum chunk size (16777215, u24 max). |
 | `FLAG_FRAMED` | const | Header byte 0 framed flag (0x80). |
 | `TAG_DATA` | const | Counter nonce final flag for data chunks (0x00). |
 | `TAG_FINAL` | const | Counter nonce final flag for final chunk (0x01). |
@@ -82,7 +82,7 @@ Subpath: `leviathan-crypto/stream`.
 ## XChaCha20 / Poly1305
 
 Requires `init({ chacha20: chacha20Wasm })` or subpath `chacha20Init()`.
-Subpath: `leviathan-crypto/chacha20` — see [chacha20.md](./chacha20.md).
+Subpath: `leviathan-crypto/chacha20`. See [chacha20.md](./chacha20.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -98,7 +98,7 @@ Subpath: `leviathan-crypto/chacha20` — see [chacha20.md](./chacha20.md).
 ## SHA-2
 
 Requires `init({ sha2: sha2Wasm })` or subpath `sha2Init(source)`.
-Subpath: `leviathan-crypto/sha2` — see [sha2.md](./sha2.md).
+Subpath: `leviathan-crypto/sha2`. See [sha2.md](./sha2.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -117,7 +117,7 @@ Subpath: `leviathan-crypto/sha2` — see [sha2.md](./sha2.md).
 ## SHA-3
 
 Requires `init({ sha3: sha3Wasm })` or subpath `sha3Init(source)`.
-Subpath: `leviathan-crypto/sha3` — see [sha3.md](./sha3.md).
+Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -133,7 +133,7 @@ Subpath: `leviathan-crypto/sha3` — see [sha3.md](./sha3.md).
 
 ## Keccak (alias for SHA-3)
 
-`'keccak'` is an alias for `'sha3'` — same WASM binary, same instance slot.
+`'keccak'` is an alias for `'sha3'`. Same WASM binary, same instance slot.
 Both `init({ sha3: sha3Wasm })` and `init({ keccak: keccakWasm })` load the same module.
 Provided so Kyber/ML-KEM consumers can use the semantically correct primitive name.
 Subpath: `leviathan-crypto/keccak`.
@@ -153,12 +153,12 @@ Subpath: `leviathan-crypto/keccak`.
 ## ML-KEM (Post-quantum KEM)
 
 Requires `init({ kyber: kyberWasm, sha3: sha3Wasm })`.
-Subpath: `leviathan-crypto/kyber` — see [kyber.md](./kyber.md).
+Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `kyberInit` | function | Module-scoped init. `kyberInit(source: WasmSource)` loads only kyber WASM. |
-| `MlKemBase` | class | Abstract base class for all ML-KEM variants. Holds `params: KyberParams`. Not normally instantiated directly — use `MlKem512`, `MlKem768`, or `MlKem1024`. |
+| `MlKemBase` | class | Abstract base class for all ML-KEM variants. Holds `params: KyberParams`. Not normally instantiated directly. Use `MlKem512`, `MlKem768`, or `MlKem1024`. |
 | `MlKem512` | class | ML-KEM-512. k=2, η₁=3. `keygen()`, `encapsulate(ek)`, `decapsulate(dk, c)`, `checkEncapsulationKey(ek)`, `checkDecapsulationKey(dk)`. |
 | `MlKem768` | class | ML-KEM-768. k=3, η₁=2. Recommended default. Same API as MlKem512. |
 | `MlKem1024` | class | ML-KEM-1024. k=4, η₁=2. Same API as MlKem512. |
@@ -170,14 +170,13 @@ Subpath: `leviathan-crypto/kyber` — see [kyber.md](./kyber.md).
 | `MLKEM768` | const | Parameter set for ML-KEM-768. |
 | `MLKEM1024` | const | Parameter set for ML-KEM-1024. |
 
-> `ntt_scalar`, `invntt_scalar` — scalar NTT references, exported for
-> SIMD gate tests. Not part of the public API.
+> `ntt_scalar`, `invntt_scalar` are scalar NTT references exported for SIMD gate tests. Not part of the public API.
 
 ---
 
 ## Fortuna CSPRNG
 
-Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })` — see [fortuna.md](./fortuna.md).
+Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })`. See [fortuna.md](./fortuna.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -187,7 +186,7 @@ Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })` — see [fortuna.md](.
 
 ## Types
 
-No `init()` required — see [types.md](./types.md).
+No `init()` required. See [types.md](./types.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -201,7 +200,7 @@ No `init()` required — see [types.md](./types.md).
 
 ## Utilities
 
-No `init()` required — see [utils.md](./utils.md).
+No `init()` required. See [utils.md](./utils.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -212,12 +211,12 @@ No `init()` required — see [utils.md](./utils.md).
 | `base64ToBytes` | function | Base64/base64url string to `Uint8Array`. Returns `undefined` on invalid input. |
 | `bytesToBase64` | function | `Uint8Array` to base64 string. Pass `url=true` for base64url. |
 | `constantTimeEqual` | function | Best-available constant-time byte-array equality. Uses WASM SIMD when available to eliminate JIT timing leaks; falls back to XOR-accumulate in JS. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CT_MAX_BYTES`. |
-| `CT_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes — one 64 KiB WASM page split between two buffers). |
+| `CT_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes, one 64 KiB WASM page split between two buffers). |
 | `wipe` | function | Zero a typed array in place. |
 | `xor` | function | XOR two equal-length `Uint8Array`s, returns new array. |
 | `concat` | function | Concatenate one or more `Uint8Array`s into a new array. Variadic. |
 | `randomBytes` | function | Cryptographically secure random bytes via Web Crypto API. |
-| `hasSIMD` | function | Returns `true` if the runtime supports WebAssembly SIMD. Cached after first call. Used internally for CTR/CBC-decrypt and ChaCha20 dispatch — exported for informational use. |
+| `hasSIMD` | function | Returns `true` if the runtime supports WebAssembly SIMD. Cached after first call. Used internally for CTR/CBC-decrypt and ChaCha20 dispatch. Exported for informational use. |
 
 ---
 

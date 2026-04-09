@@ -11,17 +11,11 @@ When you call `init()`, it delegates the work of obtaining and compiling the
 WASM binary to the loader. The loading strategy is inferred from the
 `WasmSource` type, so no mode string is required:
 
-- **Embedded string** — gzip-compressed, base64-encoded WASM bundled in
-  the package. Decoded and decompressed at `init()` time using
-  `DecompressionStream`. No network requests. This is the default and
-  simplest option.
-- **URL** — fetches the `.wasm` file and uses the browser's streaming
-  compilation API. The browser can start compiling while still downloading.
-- **ArrayBuffer / Uint8Array** — raw WASM bytes, compiled directly.
-- **WebAssembly.Module** — already compiled. Instantiated immediately.
-  Useful for edge runtimes and KV-cached modules.
-- **Response / Promise\<Response\>** — streaming compilation from an
-  in-flight or deferred fetch.
+**Embedded string.** gzip-compressed, base64-encoded WASM bundled in the package. Decoded and decompressed at `init()` time using `DecompressionStream`. No network requests. This is the default and simplest option.
+**URL.** Fetches the `.wasm` file and uses the browser's streaming compilation API. The browser can start compiling while still downloading.
+**ArrayBuffer / Uint8Array.** Raw WASM bytes, compiled directly.
+**WebAssembly.Module.** Already compiled. Instantiated immediately. Useful for edge runtimes and KV-cached modules.
+**Response / Promise\<Response\>.** Streaming compilation from an in-flight or deferred fetch.
 
 All strategies produce the same result: a `WebAssembly.Instance` that the
 wrapper classes use to perform cryptographic operations.
@@ -30,28 +24,17 @@ wrapper classes use to perform cryptographic operations.
 
 ## Security Notes
 
-- **Embedded mode requires no network access.** The WASM binary is part of
-  the installed package. This eliminates the risk of a compromised CDN or
-  man-in-the-middle attack altering the binary at load time.
-- **URL-based loading requires correct MIME type.** The `.wasm` files must be
-  served with `Content-Type: application/wasm`. This is a browser requirement
-  for `WebAssembly.instantiateStreaming`. If the header is missing or wrong,
-  the browser will reject the response.
-- **Raw binary / Module sources place integrity responsibility on you.** The
-  loader instantiates whatever binary you provide. If you supply your own
-  bytes or pre-compiled Module, you are responsible for verifying authenticity.
-- **Each module gets its own memory.** Every instantiation creates a fresh
-  `WebAssembly.Memory` with 3 pages (192 KB). Modules cannot share or
-  access each other's memory. Key material in one module's memory space is
-  isolated from all other modules.
+**Embedded mode requires no network access.** The WASM binary is part of the installed package. This eliminates the risk of a compromised CDN or man-in-the-middle attack altering the binary at load time.
+**URL-based loading requires correct MIME type.** The `.wasm` files must be served with `Content-Type: application/wasm`. This is a browser requirement for `WebAssembly.instantiateStreaming`. If the header is missing or wrong, the browser will reject the response.
+**Raw binary / Module sources place integrity responsibility on you.** The loader instantiates whatever binary you provide. If you supply your own bytes or pre-compiled Module, you are responsible for verifying authenticity.
+**Each module gets its own memory.** Every instantiation creates a fresh `WebAssembly.Memory` with 3 pages (192 KB). Modules cannot share or access each other's memory. Key material in one module's memory space is isolated from all other modules.
 
 ---
 
 ## API Reference
 
 These functions are exported from `loader.ts` and called by `init.ts`. They
-are not part of the public API — they are documented here for completeness
-and for contributors working on the internals.
+are not part of the public API. They are documented here for completeness and for contributors working on the internals.
 
 ### `loadWasm(source)`
 ```typescript
@@ -89,8 +72,7 @@ async function compileWasm(source: WasmSource): Promise<WebAssembly.Module>
 ```
 
 Compiles a `WasmSource` to a `WebAssembly.Module` without instantiating it.
-Used by pool infrastructure to send a compiled module to workers — workers
-receive the `Module` and instantiate it with their own isolated memory.
+Used by pool infrastructure to send a compiled module to workers. Each worker receives the `Module` and instantiates it with their own isolated memory.
 
 **Source type handling:** Same dispatch table as `loadWasm()`, but calls
 `WebAssembly.compile()` / `WebAssembly.compileStreaming()` instead of the
@@ -151,8 +133,7 @@ all four modules, with Serpent alone shrinking from ~167 KB to ~20 KB.
 ### Memory allocation
 
 Every WASM instance receives a `WebAssembly.Memory` with exactly 3 pages
-(192 KB total). The memory size is fixed — modules do not grow their memory
-at runtime. This is a deliberate design choice: fixed memory prevents
+(192 KB total). The memory size is fixed. Modules do not grow their memory at runtime. This is a deliberate design choice: fixed memory prevents
 unexpected allocations and makes the memory layout predictable and auditable.
 
 ---

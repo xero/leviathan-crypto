@@ -27,7 +27,7 @@
 > [!NOTE]
 > HKDF is implemented as pure TypeScript composition over the already-audited
 > HMAC-SHA256 and HMAC-SHA512 (see [sha2_audit.md §1.10](./sha2_audit.md#110-hmac-sha256--hmac-sha512--hmac-sha384)). No cryptographic
-> computation occurs in the HKDF code — only concatenation, loop control, and
+> computation occurs in the HKDF code. Only concatenation, loop control, and
 > HMAC calls. All three RFC 5869 Appendix A test vectors were independently
 > verified against Python `hmac`/`hashlib`.
 
@@ -55,11 +55,11 @@ extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array {
 | Default salt trigger | When salt is not provided | `!salt \|\| salt.length === 0` | Yes |
 | PRK length | HashLen = 32 bytes | HMAC-SHA256 always returns 32 bytes | Yes |
 
-**Critical verification — argument order:** The extract function passes salt as the HMAC key and IKM as the HMAC message. This is correct per RFC 5869 §2.1: "HMAC-Hash(salt, IKM)". The HMAC_SHA256 `hash(key, msg)` signature takes the key first and message second ([sha2_audit.md §1.10](./sha2_audit.md#110-hmac-sha256--hmac-sha512--hmac-sha384)), so `hash(s, ikm)` computes `HMAC(salt, IKM)`. Correct.
+**Critical verification, argument order:** The extract function passes salt as the HMAC key and IKM as the HMAC message. This is correct per RFC 5869 §2.1: "HMAC-Hash(salt, IKM)". The HMAC_SHA256 `hash(key, msg)` signature takes the key first and message second ([sha2_audit.md §1.10](./sha2_audit.md#110-hmac-sha256--hmac-sha512--hmac-sha384)), so `hash(s, ikm)` computes `HMAC(salt, IKM)`. Correct.
 
 **Default salt:** When salt is `null` or empty (`length === 0`), a 32-byte zero array is used. RFC 5869 §2.2: "if not provided, [salt] is set to a string of HashLen zeros." The implementation correctly treats both `null` and zero-length arrays as "not provided." The HKDF_SHA512 variant uses `new Uint8Array(64)` (64 zero bytes). Both correct.
 
-**IKM longer than HMAC block size:** When IKM is longer than 64 bytes (the HMAC-SHA256 block size), HMAC handles this internally by pre-hashing the key — but here IKM is the HMAC *message*, not the key. HMAC messages have no length restriction; they are processed by the streaming `feedHash()` function. This is correct.
+**IKM longer than HMAC block size:** When IKM is longer than 64 bytes (the HMAC-SHA256 block size), HMAC handles this internally by pre-hashing the key. But here IKM is the HMAC *message*, not the key. HMAC messages have no length restriction; they are processed by the streaming `feedHash()` function. This is correct.
 
 **Salt longer than HMAC block size:** When salt exceeds 64 bytes, it is passed as the HMAC key. The HMAC_SHA256 class pre-hashes keys > 64 bytes ([sha2_audit.md §1.10](./sha2_audit.md#110-hmac-sha256--hmac-sha512--hmac-sha384)), which is correct per RFC 2104 §3.
 
@@ -104,7 +104,7 @@ expand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array {
 | Maximum L | 255 * HashLen = 8160 | `length > 255 * 32` throws RangeError | Yes |
 | PRK length validation | HashLen = 32 bytes | `prk.length !== 32` throws RangeError | Yes |
 
-**T(0) is empty:** The initial `prev` is `new Uint8Array(0)` — a zero-length array. On the first iteration (`i = 1`), the buffer is constructed as `[prev(0 bytes), info, 0x01]` = `[info, 0x01]`. This matches RFC 5869: `T(1) = HMAC-Hash(PRK, T(0) || info || 0x01)` where T(0) = "". Correct.
+**T(0) is empty:** The initial `prev` is `new Uint8Array(0)`, a zero-length array. On the first iteration (`i = 1`), the buffer is constructed as `[prev(0 bytes), info, 0x01]` = `[info, 0x01]`. This matches RFC 5869: `T(1) = HMAC-Hash(PRK, T(0) || info || 0x01)` where T(0) = "". Correct.
 
 **Counter byte:** The counter `i` is written as a single byte: `buf[prev.length + info.length] = i`. Since `i` ranges from 1 to N (maximum 255), and JavaScript assignment to a Uint8Array element truncates to 8 bits, the counter is always a single byte 0x01–0xFF. Correct.
 
@@ -122,8 +122,8 @@ The implementation exposes **both** individual phases and a combined one-shot:
 
 | Method | Description |
 |--------|-------------|
-| `extract(salt, ikm)` | Extract only — returns 32-byte PRK |
-| `expand(prk, info, length)` | Expand only — PRK must be 32 bytes |
+| `extract(salt, ikm)` | Extract only. Returns 32-byte PRK. |
+| `expand(prk, info, length)` | Expand only. PRK must be 32 bytes. |
 | `derive(ikm, salt, info, length)` | Combined: `expand(extract(salt, ikm), info, length)` |
 
 The `derive()` method (`hkdf.ts:67–69`) always calls Extract before Expand:
@@ -137,7 +137,7 @@ derive(ikm, salt, info, length) {
 
 Extract is never skipped. The `expand()` method enforces `prk.length === 32`, which prevents callers from accidentally passing raw key material that isn't HashLen bytes.
 
-The `extract()` method is available separately for callers who need to reuse a PRK across multiple `expand()` calls with different `info` values — a valid optimization per RFC 5869 §3.
+The `extract()` method is available separately for callers who need to reuse a PRK across multiple `expand()` calls with different `info` values, a valid optimization per RFC 5869 §3.
 
 ---
 
@@ -165,7 +165,7 @@ return { bytes: derived };
 The info field is a plain domain-separation string. Position binding is achieved through the 12-byte counter nonce in the AEAD construction (HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`), not through the HKDF info. The CBC IV for each chunk is derived deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.
 
 > [!NOTE]
-> Using the stream nonce as the HKDF salt produces `PRK = HMAC-SHA256(nonce, masterKey)` — the nonce is the HMAC key and the master key is the HMAC message. This is an intentional inversion from the typical password-based pattern. RFC 5869 §3.1 describes salt as "a non-secret random value" used to strengthen extraction, and the nonce satisfies this exactly: it is public, random, and unique per stream. The master key (the secret) is correctly placed as the IKM. The construct is secure and correct per the spec.
+> Using the stream nonce as the HKDF salt produces `PRK = HMAC-SHA256(nonce, masterKey)`. The nonce is the HMAC key and the master key is the HMAC message. This is an intentional inversion from the typical password-based pattern. RFC 5869 §3.1 describes salt as "a non-secret random value" used to strengthen extraction, and the nonce satisfies this exactly: it is public, random, and unique per stream. The master key (the secret) is correctly placed as the IKM. The construct is secure and correct per the spec.
 
 #### XChaCha20Cipher (`src/ts/chacha20/cipher-suite.ts`)
 
@@ -174,7 +174,7 @@ Per-stream key derivation via `deriveKeys()`:
 ```typescript
 const hkdf = new HKDF_SHA256();
 const streamKey = hkdf.derive(masterKey, nonce, INFO, 32);
-// HChaCha20 subkey derivation — nonce[0:16] as XChaCha input
+// HChaCha20 subkey derivation, nonce[0:16] as XChaCha input
 const subkey = deriveSubkey(x, streamKey, padded);
 wipe(streamKey);
 return { bytes: subkey };
@@ -190,21 +190,21 @@ The intermediate `streamKey` is wiped immediately after HChaCha20 derivation. Th
 
 #### SealStreamPool (`src/ts/stream/seal-stream-pool.ts`)
 
-Uses the same `cipher.deriveKeys()` call as `SealStream` (same domain, same parameters). Keys are derived on the main thread and only the derived key bytes are sent to workers — the master key never leaves the main thread. Correct.
+Uses the same `cipher.deriveKeys()` call as `SealStream` (same domain, same parameters). Keys are derived on the main thread and only the derived key bytes are sent to workers. The master key never leaves the main thread. Correct.
 
 ---
 
 ### 1.5 Buffer Layout and Memory Safety
 
-HKDF is implemented in pure TypeScript — no WASM buffers are involved. All intermediate values live in JavaScript garbage-collected memory.
+HKDF is implemented in pure TypeScript. No WASM buffers are involved. All intermediate values live in JavaScript garbage-collected memory.
 
 **T(i-1) availability and zeroing:** The `expand()` loop captures a reference to T(i-1) in `oldPrev` before overwriting `prev` with T(i). After `okm.set(prev, ...)` copies T(i) into the output buffer, both `buf` (the HMAC input concatenation) and `oldPrev` (T(i-1)) are zeroed via `.fill(0)`. After the loop, the final `prev` (T(N)) is zeroed after its copy into `okm`. No T(i) block or concatenation buffer persists on the heap beyond its use. Correct.
 
-**PRK lifetime:** In `derive()`, the PRK returned by `extract()` is zeroed via `.fill(0)` immediately after `expand()` returns and before the OKM is returned to the caller. The `expand()` method does not zero the PRK itself, because callers may invoke `expand()` multiple times with the same PRK (valid per RFC 5869 §3) — zeroing is the one-shot `derive()` method's responsibility.
+**PRK lifetime:** In `derive()`, the PRK returned by `extract()` is zeroed via `.fill(0)` immediately after `expand()` returns and before the OKM is returned to the caller. The `expand()` method does not zero the PRK itself, because callers may invoke `expand()` multiple times with the same PRK (valid per RFC 5869 §3). Zeroing is the one-shot `derive()` method's responsibility.
 
-**Info buffer integrity:** The `info` parameter to `expand()` is read-only — it is copied into `buf` via `buf.set(info, ...)` on each iteration but never modified. Correct.
+**Info buffer integrity:** The `info` parameter to `expand()` is read-only. It is copied into `buf` via `buf.set(info, ...)` on each iteration but never modified. Correct.
 
-**Output copy:** `okm.slice(0, length)` creates a new independent array. The returned OKM does not alias any internal state and is intentionally not zeroed — it belongs to the caller. In `deriveChunkKeys()`, the split uses `derived.subarray(0, 32)` and `derived.subarray(32, 64)` — these *do* alias the same underlying buffer, but since the derived buffer is a fresh `slice()` from `expand()`, this is safe: the encKey and macKey views are independent of any HKDF internal state.
+**Output copy:** `okm.slice(0, length)` creates a new independent array. The returned OKM does not alias any internal state and is intentionally not zeroed. It belongs to the caller. In `deriveChunkKeys()`, the split uses `derived.subarray(0, 32)` and `derived.subarray(32, 64)`. These *do* alias the same underlying buffer, but since the derived buffer is a fresh `slice()` from `expand()`, this is safe: the encKey and macKey views are independent of any HKDF internal state.
 
 > [!NOTE]
 > After this fix, all intermediate key material allocated during
@@ -312,9 +312,9 @@ Position binding is not in the HKDF info (as in v1) but in the AEAD construction
 | Info string | `"xchacha20-sealstream-v2"` | Distinguishes XChaCha20Cipher from SerpentCipher and other uses |
 | Salt (nonce) | 16 random bytes | Binds to this specific stream |
 
-The two cipher suites use **different info strings** — `"serpent-sealstream-v2"` vs `"xchacha20-sealstream-v2"`. Even if the same master key and nonce were used in both constructions (which should not happen in practice), the derived keys would differ. Correct.
+The two cipher suites use **different info strings**: `"serpent-sealstream-v2"` vs `"xchacha20-sealstream-v2"`. Even if the same master key and nonce were used in both constructions (which should not happen in practice), the derived keys would differ. Correct.
 
-**String-only info encoding:** The info field is a plain UTF-8 string with no structured binary fields. This is simpler than the v1 approach but equally secure — chunk position binding is handled by the counter nonce in the AEAD layer rather than the HKDF info.
+**String-only info encoding:** The info field is a plain UTF-8 string with no structured binary fields. This is simpler than the v1 approach but equally secure. Chunk position binding is handled by the counter nonce in the AEAD layer rather than the HKDF info.
 
 ---
 
@@ -328,7 +328,7 @@ mac_key = derived[32:64]
 iv_key  = derived[64:96]
 ```
 
-This is a single HKDF-Expand call with `L = 96`, which produces `T(1) || T(2) || T(3)` (three 32-byte HMAC outputs). By the PRF security of HMAC-SHA256, T(1), T(2), and T(3) are computationally independent — knowing any one gives no information about the others, because:
+This is a single HKDF-Expand call with `L = 96`, which produces `T(1) || T(2) || T(3)` (three 32-byte HMAC outputs). By the PRF security of HMAC-SHA256, T(1), T(2), and T(3) are computationally independent. Knowing any one gives no information about the others, because:
 
 - T(1) = HMAC(PRK, info || 0x01)
 - T(2) = HMAC(PRK, T(1) || info || 0x02)

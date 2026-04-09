@@ -515,11 +515,11 @@ The 16-byte random nonce provides 2^128 bits of collision resistance. Birthday-b
 
 For context, 2^64 streams at 1 million streams per second would take ~584,942 years.
 
-This matches the birthday bound for 128-bit nonces and is documented in `docs/stream.md` under "Stream isolation."
+This matches the birthday bound for 128-bit nonces and is documented in `docs/sealing.md` under "Stream isolation."
 
 A nonce collision between two streams with the same master key would produce identical derived keys, effectively creating two streams encrypted with the same key and counter nonces — a catastrophic nonce reuse. However, 2^64 is the standard security target for 128-bit nonce spaces and is accepted in practice (e.g., XSalsa20 with 192-bit nonces targets 2^96).
 
-**Verdict:** Acceptable. The 2^64 birthday bound is standard for 128-bit nonces and far exceeds practical usage limits. No additional documentation needed — the security model in `docs/stream.md` already describes stream isolation.
+**Verdict:** Acceptable. The 2^64 birthday bound is standard for 128-bit nonces and far exceeds practical usage limits. No additional documentation needed — the security model in `docs/sealing.md` already describes stream isolation.
 
 ### HKDF Output Binding
 
@@ -699,7 +699,7 @@ The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `sc
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, three-tier design
-> - [stream](./stream.md) — wire format spec, security model, API reference
+> - [sealing](./sealing.md) — wire format spec, security model, API reference
 > - [serpent_audit](./serpent_audit.md) — Serpent-256 audit, §2.4 Verify-then-Decrypt
 > - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 audit, §1.7 AEAD construction
 > - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 audit, §1.4 stream layer usage

@@ -1,4 +1,4 @@
-# SHA-3 WASM module Reference
+# SHA-3 WASM Reference
 
 > [!NOTE]
 > SHA-3/SHAKE WASM module (AssemblyScript -> `sha3.wasm`)
@@ -14,10 +14,8 @@ All six variants share a single core: the **Keccak-f[1600]** permutation operati
 on a 5x5 matrix of 64-bit lanes (200 bytes of state). The sponge construction
 wraps the permutation into two phases:
 
-1. **Absorb** -- input bytes are XORed into the state, rate bytes at a time, with
-   a permutation call after each full block.
-2. **Squeeze** -- output bytes are read from the state after padding and a final
-   permutation.
+1. **Absorb.** Input bytes are XORed into the state, rate bytes at a time, with a permutation call after each full block.
+2. **Squeeze.** Output bytes are read from the state after padding and a final permutation.
 
 The six variants differ only in three parameters: the **rate** (how many bytes per
 sponge block), the **domain separation byte** (which distinguishes SHA-3 from SHAKE
@@ -43,8 +41,7 @@ multi-rate padding (FIPS 202 SS6.1-6.2):
 - `0x1f` for SHAKE (extendable-output)
 
 This means `SHA3-256(M)` and `SHAKE256(M, 256)` produce different digests even
-though both use rate=136 -- the domain separation byte is XORed into the state
-during padding, making the two functions cryptographically independent.
+though both use rate=136. The domain separation byte is XORed into the state during padding, making the two functions cryptographically independent.
 
 **Constant-time permutation.** Keccak-f[1600] uses only bitwise XOR, AND, NOT, and
 fixed rotations on 64-bit lanes. There are no data-dependent branches, no table
@@ -54,8 +51,7 @@ constant-time by construction.
 **SHAKE output cap.** This implementation squeezes at most one block of output per
 `shakeFinal()` call. That means SHAKE128 output is capped at 168 bytes and SHAKE256
 at 136 bytes. For the common use case (deriving a fixed-size key), this is
-sufficient. If you need more output than one squeeze block, you will need to extend
-the squeeze loop -- this is a known limitation of the v1.0 module.
+sufficient. If you need more output than one squeeze block, you will need to extend the squeeze loop. This is a known limitation of the v1.0 module.
 
 **wipeBuffers().** Zeroes all 545 bytes of module state: the 200-byte Keccak lane
 matrix, the input staging buffer, the output buffer, and the rate/absorbed/dsByte
@@ -135,8 +131,7 @@ shakeFinal(outLen: i32): void
 Same as the fixed-output finals, but the caller specifies the output length.
 
 **Constraint:** `outLen` must not exceed the rate of the initialized SHAKE variant
-(168 for SHAKE128, 136 for SHAKE256). This implementation performs a single squeeze
--- it does not loop additional permutations for longer output.
+(168 for SHAKE128, 136 for SHAKE256). This implementation performs a single squeeze. It does not loop additional permutations for longer output.
 
 ---
 
@@ -198,8 +193,7 @@ dynamic allocation (`memory.grow()` is not used).
 | 377 | 168 | `KECCAK_OUT` | Output buffer (one full SHAKE128 squeeze block) |
 | **545** | | **END** | Total footprint: 545 bytes (well within 3 x 64KB = 192KB) |
 
-The input and output buffers are both sized to 168 bytes -- the maximum rate across
-all variants (SHAKE128). For SHA3-512 (rate=72), only the first 72 bytes of the
+The input and output buffers are both sized to 168 bytes, the maximum rate across all variants (SHAKE128). For SHA3-512 (rate=72), only the first 72 bytes of the
 input buffer and the first 64 bytes of the output buffer are used.
 
 ---
@@ -221,15 +215,11 @@ Contains all cryptographic logic:
 **Keccak-f[1600] permutation** (`keccakF`): 24 rounds, each consisting of five
 steps (FIPS 202 SS3.2):
 
-1. **theta** (SS3.2.1) -- column parity mixing. Computes the XOR of each column, then
-   XORs each lane with the parity of its neighboring columns.
-2. **rho** (SS3.2.2) -- lane rotation. Each of the 25 lanes is rotated left by a
-   fixed offset from the rotation table (FIPS 202 Table 2).
-3. **pi** (SS3.2.3) -- lane permutation. Lanes are rearranged: `B[y][2x+3y] = A[x][y]`.
-4. **chi** (SS3.2.4) -- nonlinear mixing. `A[x] = B[x] XOR (NOT B[x+1] AND B[x+2])`.
-   This is the only nonlinear step and provides the cryptographic strength.
-5. **iota** (SS3.2.5) -- round constant addition. A round-dependent constant is XORed
-   into lane `A[0][0]`. The 24 constants are derived from an LFSR (FIPS 202 SS3.2.5).
+1. **theta** (SS3.2.1): column parity mixing. Computes the XOR of each column, then XORs each lane with the parity of its neighboring columns.
+2. **rho** (SS3.2.2): lane rotation. Each of the 25 lanes is rotated left by a fixed offset from the rotation table (FIPS 202 Table 2).
+3. **pi** (SS3.2.3): lane permutation. Lanes are rearranged: `B[y][2x+3y] = A[x][y]`.
+4. **chi** (SS3.2.4): nonlinear mixing. `A[x] = B[x] XOR (NOT B[x+1] AND B[x+2])`. This is the only nonlinear step and provides the cryptographic strength.
+5. **iota** (SS3.2.5): round constant addition. A round-dependent constant is XORed into lane `A[0][0]`. The 24 constants are derived from an LFSR (FIPS 202 SS3.2.5).
 
 The implementation loads all 25 lanes into local variables at the top of `keccakF`
 and stores them back at the end. The rho and pi steps are combined into a single
@@ -239,11 +229,9 @@ access.
 
 **Sponge functions:**
 
-- `keccakInit(rate, dsByte)` -- zeroes state, sets variant parameters.
-- `keccakAbsorb(len)` -- XORs input into state, permuting when a full rate block
-  is absorbed. Tracks position via `ABSORBED` counter.
-- `keccakFinal(outLen)` -- applies pad10*1 (domain byte at `absorbed`, `0x80` at
-  `rate-1`), permutes, squeezes `outLen` bytes to the output buffer.
+**`keccakInit(rate, dsByte)`**: zeroes state, sets variant parameters.
+**`keccakAbsorb(len)`**: XORs input into state, permuting when a full rate block is absorbed. Tracks position via `ABSORBED` counter.
+**`keccakFinal(outLen)`**: applies pad10*1 (domain byte at `absorbed`, `0x80` at `rate-1`), permutes, squeezes `outLen` bytes to the output buffer.
 
 ---
 
@@ -282,9 +270,7 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
   168-byte segments.
 
 - **Output length:** `keccakFinal(outLen)` copies `outLen` bytes from state to
-  `OUT_OFFSET`. If `outLen` exceeds the rate, the squeeze reads past the
-  rate-portion of the state into the capacity -- those bytes are not meaningful
-  output and the result will be incorrect. For SHA-3 variants, the typed final
+  `OUT_OFFSET`. If `outLen` exceeds the rate, the squeeze reads past the rate-portion of the state into the capacity. Those bytes are not meaningful output and the result will be incorrect. For SHA-3 variants, the typed final
   functions (`sha3_256Final`, etc.) enforce correct output lengths. For SHAKE,
   the caller must ensure `outLen <= rate`.
 

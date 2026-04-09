@@ -6,65 +6,29 @@
 
 # Leviathan-Crypto
 
-> Web cryptography built on Serpent-256 paranoia and XChaCha20-Poly1305 elegance.
-
-**Serpent-256 is the cipher for those who distrust consensus.** In 2001, when
-NIST selected AES, Serpent actually received more first-place security votes
-from the evaluation committee. However, it lost because the competition also
-considered performance on hardware embedded systems, which are no longer
-representative of the environments for which we develop software. Serpent's
-designers made no compromises: thirty-two rounds, S-boxes implemented using
-pure Boolean logic gates without table lookups, and every bit processed for
-each block. You use Serpent not because a committee recommended it, but because
-you trust the cryptanalysis. The current best attack on the full
-thirty-two-round Serpent-256 achieves 2²⁵⁵·¹⁹ — less than one bit below the
-brute-force ceiling, and strictly impractical. This includes our own
-independent research, which improved upon the published result. See
-[`serpent_audit.md`](https://github.com/xero/leviathan-crypto/wiki/serpent_audit).
-
-**XChaCha20-Poly1305 is the cipher for those who appreciate design that has
-nothing to hide.** Daniel Bernstein built ChaCha20 as a twenty-round ARX
-construction: add, rotate, and XOR, in a precise choreography that simply
-doesn't have the attack surface that table-based ciphers do. It has no S-boxes,
-no cache-timing leakage, and requires no hardware acceleration to be fast.
-Poly1305 adds a final layer of security: a one-time authenticator with an
-unconditional forgery bound, mathematically guaranteed regardless of attacker
-compute power. XChaCha20-Poly1305 is the construction you reach for when you
-want an AEAD whose security proof you can actually read without a PhD. See
-[`chacha_audit.md`](https://github.com/xero/leviathan-crypto/wiki/chacha_audit).
-
-The tension between these two approaches constitutes the library's core
-identity. Serpent embodies defiance, ChaCha embodies elegance, yet both arrive
-at the same place: constant-time, side-channel resistant implementations,
-independently audited against their specifications. They represent two design
-philosophies that do not agree on anything, except the answer.
-
-**WebAssembly provides a correctness layer.** Each primitive compiles into its
-own isolated binary, executing outside the JavaScript JIT. This prevents
-speculative optimization from affecting key material and ensures that
-data-dependent timing vulnerabilities do not cross the boundary.
-
-**TypeScript acts as the ergonomics layer.** Fully typed classes, explicit
-`init()` gates, input validation, and authenticated compositions ensure
-primitives are connected correctly.
-
 ---
 
-#### **Zero Dependencies.**
+> A WebAssembly cryptography library built on the paranoia of Serpent-256 and the elegance of XChaCha20-Poly1305.
 
-With no npm dependency graph to audit, the supply chain attack surface is
-eliminated.
+**Serpent-256** won the AES security vote but lost the competition. The deciding factor was performance on embedded hardware, a constraint that doesn't apply to modern software. 32 rounds. S-boxes in pure Boolean logic with no table lookups. It processes every bit in every block. You use it because you trust the cryptanalysis, not because a committee endorsed it.
 
-#### **Tree-shakeable.**
+**XChaCha20-Poly1305** has nothing to hide. An ARX construction with 20 rounds. Add, rotate, XOR. No S-boxes. No cache-timing leakage. It needs no hardware acceleration to be fast. Poly1305 adds an unconditional forgery bound. The security proof is readable.
 
-Import only the cipher(s) you intend to use. Subpath exports allow bundlers to
-exclude everything else.
+**_Two ciphers from opposite design philosophies, only agreeing on security properties._**
 
-#### **Side-effect Free.**
+**WebAssembly** is the correctness layer. Every primitive runs in its own isolated binary with its own linear memory. Execution is deterministic with no JIT speculation. Key material in one module can't interact with another, even in principle. See the [security policy](./SECURITY.md).
 
-Nothing runs upon import. Initialization via `init()` is explicit and
-asynchronous.
+**TypeScript** is the ergonomics layer. The `Seal` and `SealStream` family are cipher-agnostic. Drop in `SerpentCipher` or `XChaCha20Cipher` and they handle nonces, key derivation, and authentication for you. Explicit `init()` gates give you full control over how and when WASM loads. Strict typing catches misuse before it reaches production.
 
+**Zero dependencies.** No npm graph to audit. No supply chain attack surface.
+
+**Tree-shakeable.** Import only what you use. Subpath exports let bundlers exclude everything else.
+
+**Side-effect free.** Nothing runs on import. `init()` is explicit and asynchronous.
+
+**Audited primitives.** Every implementation is verified against its specification. See the [audit index](https://github.com/xero/leviathan-crypto/wiki/README#algorithm-correctness-and-verifications).
+
+---
 
 ## Installation
 
@@ -76,155 +40,12 @@ npm install leviathan-crypto
 ```
 
 > [!NOTE]
-> The Serpent and ChaCha20 modules require a runtime with WebAssembly SIMD
-> support. [This has been a feature of all major browsers and runtimes since
-> 2021](https://caniuse.com/wasm-simd). All other primitives (SHA-2, SHA-3,
-> Poly1305) run on any WASM-capable runtime.
+> [Serpent](./docs/serpent.md), [ChaCha20](./docs/chacha20.md), [ML-KEM](./docs/kyber.md), and [constantTimeEqual](./docs/utils.md#constanttimeequal) require WebAssembly SIMD support. This has been a baseline feature of all major browsers and runtimes since 2021. SHA-2 and SHA-3 run on any WASM-capable runtime.
 
----
+### Loading
 
-## Demos
+Three loading strategies are available. Choose based on your runtime and bundler setup.
 
-**`lvthn-web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/web) · [readme](https://github.com/xero/leviathan-demos/blob/main/web/README.md) ]
-
-A browser encryption tool in a single, self-contained HTML file. Encrypt text
-or files using Serpent-256-CBC and Argon2id key derivation, then share the
-armored output. No server, installation, or network connection required after
-initial load. The code is written to be read. The Encrypt-then-MAC
-construction, HMAC input (header with HMAC field zeroed + ciphertext), and
-Argon2id parameters are all intentional examples worth reading.
-
-**`lvthn-chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/chat/README.md) ]
-
-End-to-end encrypted chat featuring two-party messaging over X25519 key
-exchange and XChaCha20-Poly1305 message encryption. The relay server functions
-as a dumb WebSocket pipe that never sees plaintext. Each message incorporates
-sequence numbers, which allows the system to detect and reject replayed
-messages from an attacker. The demo deconstructs the protocol step by step,
-with visual feedback for both injection and replays.
-
-**`lvthn-cli`** [ [npm](https://www.npmjs.com/package/lvthn) · [source](https://github.com/xero/leviathan-demos/tree/main/lvthn-cli) · [readme](https://github.com/xero/leviathan-demos/blob/main/lvthn-cli/README.md) ]
-
-File encryption CLI. Supports both Serpent-256 and XChaCha20-Poly1305,
-selectable via the `--cipher` flag. A single keyfile is compatible with both
-ciphers; the header byte determines decryption automatically. Encryption and
-decryption distribute 64KB chunks across a worker pool sized to
-hardwareConcurrency. Each worker owns an isolated WASM instance with no shared
-memory between workers.
-
-```sh
-bun i -g lvthn # or npm slow mode
-lvthn keygen --armor -o my.key
-cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
-```
-*[`lvthncli-serpent`](https://github.com/xero/leviathan-demos/tree/main/lvthncli-serpent) and [`lvthncli-chacha`](https://github.com/xero/leviathan-demos/tree/main/lvthncli-chacha) are additional educational tools: structurally identical to the main CLI tool, each implementing only a single cipher. By comparing the two, you can pinpoint the exact changes that occur when primitives are swapped; these are limited to `src/pool.ts` and `src/worker.ts`.*
-
----
-
-## Primitives
-
-| Class                                                       | Module                     | Auth    | Notes                                                                                                                                              |
-| ----------------------------------------------------------- | -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authenticated encryption**                                |                            |         |                                                                                                                                                    |
-| `Seal`                                                      | depends on cipher + `sha2` | **Yes** | One-shot AEAD. `Seal.encrypt(suite, key, pt)` / `Seal.decrypt(suite, key, blob)`. Works with any `CipherSuite`.                                    |
-| **Streaming AEAD**                                          |                            |         |                                                                                                                                                    |
-| `SealStream`, `OpenStream`                                  | depends on cipher + `sha2` | **Yes** | Cipher-agnostic chunked streaming AEAD (STREAM construction). Per-chunk auth, counter-bound nonces, final-chunk detection. 32-byte key.            |
-| `SealStreamPool`                                            | depends on cipher + `sha2` | **Yes** | Parallel batch seal/open via Web Workers. Same wire format as SealStream. Single-use seal guard.                                                   |
-| `XChaCha20Cipher`                                           | `chacha20`, `sha2`         | **Yes** | CipherSuite for SealStream: HKDF → HChaCha20 → ChaCha20-Poly1305 per chunk. 16-byte tag.                                                           |
-| `SerpentCipher`                                             | `serpent`, `sha2`          | **Yes** | CipherSuite for SealStream: 3-key HKDF → Serpent-CBC + HMAC-SHA-256 per chunk. 32-byte tag.                                                        |
-| **Stateless primitives** _caller manages nonces_            |                            |         |                                                                                                                                                    |
-| `XChaCha20Poly1305`                                         | `chacha20`                 | **Yes** | RFC-faithful stateless AEAD. 24-byte nonce, caller-managed. Single-use encrypt guard. Use `Seal` with `XChaCha20Cipher` unless you need explicit nonce control.  |
-| `ChaCha20Poly1305`                                          | `chacha20`                 | **Yes** | RFC 8439 stateless AEAD. 12-byte nonce, caller-managed. Single-use encrypt guard. Prefer `Seal` with `XChaCha20Cipher` unless you need RFC 8439 exact compliance.|
-| **Unauthenticated primitives** _pair with HMAC or use AEAD_ |                            |         |                                                                                                                                                    |
-| `Serpent`                                                   | `serpent`                  | **No**  | Serpent-256 ECB block cipher. Single-block encrypt/decrypt.                                                                                        |
-| `SerpentCtr`                                                | `serpent`                  | **No**  | Serpent-256 CTR mode stream cipher. Requires `{ dangerUnauthenticated: true }`.                                                                    |
-| `SerpentCbc`                                                | `serpent`                  | **No**  | Serpent-256 CBC mode with PKCS7 padding. Requires `{ dangerUnauthenticated: true }`.                                                               |
-| `ChaCha20`                                                  | `chacha20`                 | **No**  | ChaCha20 stream cipher — RFC 8439. Unauthenticated; use `Seal` with `XChaCha20Cipher` unless you need raw keystream.                                             |
-| `Poly1305`                                                  | `chacha20`                 | **No**  | Poly1305 one-time MAC — RFC 8439. Use via the AEAD classes unless you have a specific reason not to.                                               |
-| **Hashing and key derivation**                              |                            |         |                                                                                                                                                    |
-| `SHA256`, `SHA384`, `SHA512`                                | `sha2`                     | —       | SHA-2 family — FIPS 180-4.                                                                                                                         |
-| `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`                 | `sha2`                     | —       | HMAC construction over SHA-2 — RFC 2104.                                                                                                           |
-| `HKDF_SHA256`, `HKDF_SHA512`                                | `sha2`                     | —       | Extract-and-expand key derivation over HMAC — RFC 5869.                                                                                            |
-| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`              | `sha3`                     | —       | SHA-3 family — FIPS 202. Keccak-based, structurally independent of SHA-2.                                                                          |
-| `SHAKE128`, `SHAKE256`                                      | `sha3`                     | —       | Extendable output functions (XOF) — FIPS 202. Variable-length output; useful for key derivation and stream generation.                             |
-| **Post-quantum KEM**                                        |                            |         |                                                                                                                                                    |
-| `MlKem512`                                                  | `kyber`, `sha3`            | —       | ML-KEM-512 (FIPS 203). k=2, 128-bit post-quantum security. `keygen()`, `encapsulate(ek)`, `decapsulate(dk, c)`.                                   |
-| `MlKem768`                                                  | `kyber`, `sha3`            | —       | ML-KEM-768 (FIPS 203). k=3, 192-bit post-quantum security. Recommended default.                                                                   |
-| `MlKem1024`                                                 | `kyber`, `sha3`            | —       | ML-KEM-1024 (FIPS 203). k=4, 256-bit post-quantum security.                                                                                       |
-| **CSPRNG**                                                  |                            |         |                                                                                                                                                    |
-| `Fortuna`                                                   | `serpent`, `sha2`          | —       | Fortuna CSPRNG (Ferguson & Schneier). 32 entropy pools, forward secrecy. Use `Fortuna.create()`.                                                   |
-
-> [!IMPORTANT]
-> All cryptographic computation runs in WASM (AssemblyScript), isolated outside the JavaScript JIT. The TypeScript layer provides the public API with input validation, type safety, and developer ergonomics.
-
----
-
-## Quick Start
-
-### Authenticated encryption with Serpent
-```typescript
-import { init, Seal, SerpentCipher, randomBytes } from 'leviathan-crypto'
-import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
-import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded'
-
-await init({ serpent: serpentWasm, sha2: sha2Wasm })
-
-const key = SerpentCipher.keygen()  // 32-byte key
-
-// Encrypt and authenticate
-const blob = Seal.encrypt(SerpentCipher, key, plaintext)
-
-// Decrypt and verify (throws AuthenticationError on tamper)
-const decrypted = Seal.decrypt(SerpentCipher, key, blob)
-```
-
-### Authenticated encryption with XChaCha20
-```typescript
-import { init, Seal, XChaCha20Cipher, randomBytes } from 'leviathan-crypto'
-import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
-import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
-
-await init({ chacha20: chacha20Wasm, sha2: sha2Wasm })
-
-const key = XChaCha20Cipher.keygen()  // 32-byte key
-
-// Encrypt and authenticate (nonce generated internally)
-const blob = Seal.encrypt(XChaCha20Cipher, key, plaintext)
-
-// Decrypt and verify (throws AuthenticationError on tamper)
-const decrypted = Seal.decrypt(XChaCha20Cipher, key, blob)
-```
-
-### Post-quantum key encapsulation with ML-KEM
-
-```ts
-import { init, MlKem768 } from 'leviathan-crypto'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
-import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
-
-await init({ kyber: kyberWasm, sha3: sha3Wasm })
-
-const kem = new MlKem768()
-
-// Key generation (one-time)
-const { encapsulationKey, decapsulationKey } = kem.keygen()
-
-// Encapsulation (sender — needs only the public encapsulation key)
-const { ciphertext, sharedSecret: senderSecret } = kem.encapsulate(encapsulationKey)
-
-// Decapsulation (recipient — needs the private decapsulation key)
-const recipientSecret = kem.decapsulate(decapsulationKey, ciphertext)
-
-// senderSecret === recipientSecret (32 bytes)
-// Use as symmetric key for ChaCha20-Poly1305 or Serpent
-```
-
-For more examples, including streaming, chunking, hashing, and key derivation,
-see the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
-
----
-
-## Loading
 ```typescript
 import { init } from 'leviathan-crypto'
 import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
@@ -242,8 +63,8 @@ await init({ serpent: compiledModule })
 
 ### Tree-shaking with subpath imports
 
-Each module ships as its own subpath export. A bundler with tree-shaking
-support and `"sideEffects": false` will exclude every module you don't import:
+Each module ships as its own subpath export. Bundlers with tree-shaking support and `"sideEffects": false` drop every module you don't import.
+
 ```typescript
 // Only serpent.wasm + sha2.wasm end up in your bundle
 import { serpentInit } from 'leviathan-crypto/serpent'
@@ -264,83 +85,166 @@ await kyberInit(kyberWasm)
 await sha3Init(sha3Wasm)
 ```
 
-| Subpath                            | Entry point                    |
-| ---------------------------------- | ------------------------------ |
-| `leviathan-crypto`                 | `./dist/index.js`              |
-| `leviathan-crypto/stream`          | `./dist/stream/index.js`       |
-| `leviathan-crypto/serpent`         | `./dist/serpent/index.js`      |
-| `leviathan-crypto/serpent/embedded`| `./dist/serpent/embedded.js`   |
-| `leviathan-crypto/chacha20`        | `./dist/chacha20/index.js`     |
-| `leviathan-crypto/chacha20/embedded`| `./dist/chacha20/embedded.js` |
-| `leviathan-crypto/sha2`            | `./dist/sha2/index.js`         |
-| `leviathan-crypto/sha2/embedded`   | `./dist/sha2/embedded.js`      |
-| `leviathan-crypto/sha3`            | `./dist/sha3/index.js`         |
-| `leviathan-crypto/sha3/embedded`   | `./dist/sha3/embedded.js`      |
-| `leviathan-crypto/kyber`           | `./dist/kyber/index.js`        |
-| `leviathan-crypto/kyber/embedded`  | `./dist/kyber/embedded.js`     |
+| Subpath                              | Entry point                    |
+| ------------------------------------ | ------------------------------ |
+| `leviathan-crypto`                   | `./dist/index.js`              |
+| `leviathan-crypto/stream`            | `./dist/stream/index.js`       |
+| `leviathan-crypto/serpent`           | `./dist/serpent/index.js`      |
+| `leviathan-crypto/serpent/embedded`  | `./dist/serpent/embedded.js`   |
+| `leviathan-crypto/chacha20`          | `./dist/chacha20/index.js`     |
+| `leviathan-crypto/chacha20/embedded` | `./dist/chacha20/embedded.js`  |
+| `leviathan-crypto/sha2`              | `./dist/sha2/index.js`         |
+| `leviathan-crypto/sha2/embedded`     | `./dist/sha2/embedded.js`      |
+| `leviathan-crypto/sha3`              | `./dist/sha3/index.js`         |
+| `leviathan-crypto/sha3/embedded`     | `./dist/sha3/embedded.js`      |
+| `leviathan-crypto/kyber`             | `./dist/kyber/index.js`        |
+| `leviathan-crypto/kyber/embedded`    | `./dist/kyber/embedded.js`     |
+
+See [init.md](https://github.com/xero/leviathan-crypto/wiki/init) for the full WASM loading reference.
 
 ---
 
-## Documentation
+## Quick Start
 
-| Document     | MD/Wiki                                                                                       | Description                                                      |
-| ------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| architecture | [▼](./docs/architecture.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/architecture) | Architecture overview, build pipeline, module relationships      |
-| test-suite   | [▼](./docs/test-suite.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/test-suite)     | Test suite structure, vector corpus, gate discipline             |
-| security     | [▼](./SECURITY.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/security_policy)       | Project security policy covering posture, disclosure, and scopes |
+*One-shot authenticated encryption.* [`Seal`](./docs/sealing.md#seal) handles nonces, key derivation, and authentication. Zero config beyond [`init()`](./docs/init.md#init).
 
-### API Surface
+```typescript
+import { init, Seal, XChaCha20Cipher } from 'leviathan-crypto'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
 
-| Module      | MD/Wiki                                                                                     | Description                                                                                                                                                           |
-| ----------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| serpent     | [▼](./docs/serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/serpent)         | Serpent-256 TypeScript API (`SerpentCipher`, `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `Serpent`, `SerpentCtr`, `SerpentCbc`) |
-| asm_serpent | [▼](./docs/asm_serpent.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_serpent) | Serpent-256 WASM implementation (bitslice S-boxes, key schedule, CTR/CBC)                                                                                             |
-| chacha20    | [▼](./docs/chacha20.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha20)       | ChaCha20/Poly1305 TypeScript API (`XChaCha20Cipher`, `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`) |
-| asm_chacha  | [▼](./docs/asm_chacha.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_chacha)   | ChaCha20/Poly1305 WASM implementation (quarter-round, HChaCha20)                                                                                                      |
-| sha2        | [▼](./docs/sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha2)               | SHA-2 TypeScript API (`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`)                                        |
-| asm_sha2    | [▼](./docs/asm_sha2.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_sha2)       | SHA-2 WASM implementation (compression functions, HMAC)                                                                                                               |
-| sha3        | [▼](./docs/sha3.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha3)               | SHA-3 TypeScript API (`SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`)                                                                         |
-| asm_sha3    | [▼](./docs/asm_sha3.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/asm_sha3)       | SHA-3 WASM implementation (Keccak-f[1600], sponge construction)                                                                                                       |
-| kyber       | [▼](./docs/kyber.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/kyber)             | ML-KEM TypeScript API (`MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`) post-quantum key encapsulation (FIPS 203)                                                  |
-| stream      | [▼](./docs/stream.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/stream)           | Streaming AEAD TypeScript API (`Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite`)                                                                   |
-| fortuna     | [▼](./docs/fortuna.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/fortuna)         | Fortuna CSPRNG (forward secrecy, 32 entropy pools)                                                                                                                    |
-| init        | [▼](./docs/init.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/init)               | `init()` API and WASM loading modes                                                                                                                                   |
-| utils       | [▼](./docs/utils.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils)             | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`                                                                                                          |
-| types       | [▼](./docs/types.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/types)             | TypeScript interfaces (`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`)                                                                                    |
+await init({ chacha20: chacha20Wasm, sha2: sha2Wasm })
 
-### Utilities
+const key  = XChaCha20Cipher.keygen()
+const blob = Seal.encrypt(XChaCha20Cipher, key, plaintext)
+const pt   = Seal.decrypt(XChaCha20Cipher, key, blob)  // throws AuthenticationError on tamper
+```
 
-These helpers are available immediately on import with no `init()` required.
+_Prefer Serpent-256?_ Swap the cipher object and everything else stays the same.
 
-| Function                     | MD/Wiki                                                                                                             | Description                                                                                               |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `hexToBytes(hex)`            | [▼](./docs/utils.md#hextobytes) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#hextobytes)               | Hex string to `Uint8Array` (accepts uppercase, `0x` prefix)                                               |
-| `bytesToHex(bytes)`          | [▼](./docs/utils.md#bytestohex) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#bytestohex)               | `Uint8Array` to lowercase hex string                                                                      |
-| `utf8ToBytes(str)`           | [▼](./docs/utils.md#utf8tobytes) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#utf8tobytes)             | UTF-8 string to `Uint8Array`                                                                              |
-| `bytesToUtf8(bytes)`         | [▼](./docs/utils.md#bytestoutf8) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#bytestoutf8)             | `Uint8Array` to UTF-8 string                                                                              |
-| `base64ToBytes(b64)`         | [▼](./docs/utils.md#base64tobytes) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#base64tobytes)         | Base64/base64url string to `Uint8Array` (undefined on invalid)                                            |
-| `bytesToBase64(bytes, url?)` | [▼](./docs/utils.md#bytestobase64) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#bytestobase64)         | `Uint8Array` to base64 string (url=true for base64url)                                                    |
-| `constantTimeEqual(a, b)`    | [▼](./docs/utils.md#constanttimeequal) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) | Constant-time byte comparison (XOR-accumulate)                                                            |
-| `wipe(data)`                 | [▼](./docs/utils.md#wipe) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#wipe)                           | Zero a typed array in place                                                                               |
-| `xor(a, b)`                  | [▼](./docs/utils.md#xor) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#xor)                             | XOR two equal-length `Uint8Array`s                                                                        |
-| `concat(...arrays)`          | [▼](./docs/utils.md#concat) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#concat)                       | Concatenate `Uint8Array`s (variadic)                                                                      |
-| `hasSIMD()`                  | [▼](./docs/utils.md#hassimd) · [¶](https://github.com/xero/leviathan-crypto/wiki/utils#hassimd)                     | Detects WebAssembly SIMD support. Cached after first call. Used internally for CTR/CBC/ChaCha20 dispatch. |
+```typescript
+import { SerpentCipher } from 'leviathan-crypto'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
 
-### Algorithm correctness and verifications
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
-| Primitive     | MD/Wiki                                                                                         | Description                                                                            |
-| ------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| serpent_audit | [▼](./docs/serpent_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/serpent_audit) | Correctness verification, side-channel analysis, cryptanalytic paper review            |
-| chacha_audit  | [▼](./docs/chacha_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/chacha_audit)   | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension   |
-| sha2_audit    | [▼](./docs/sha2_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha2_audit)       | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification          |
-| sha3_audit    | [▼](./docs/sha3_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/sha3_audit)       | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| hmac_audit    | [▼](./docs/hmac_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/hmac_audit)       | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage             |
-| hkdf_audit    | [▼](./docs/hkdf_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/hkdf_audit)       | HKDF extract-then-expand, info field domain separation, SerpentStream key derivation   |
-| kyber_audit   | [▼](./docs/kyber_audit.md) · [¶](https://github.com/xero/leviathan-crypto/wiki/kyber_audit)     | ML-KEM FIPS 203 correctness, NTT/Montgomery/Barrett verification, FO transform CT analysis, ACVP validation |
+const key  = SerpentCipher.keygen()
+const blob = Seal.encrypt(SerpentCipher, key, plaintext)
+```
 
->[!NOTE]
-> Additional documentation available in [./docs](./docs/README.md) and on the
-> [project wiki](https://github.com/xero/leviathan-crypto/wiki/).
+_Data too large to buffer in memory?_ [`SealStream`](./docs/sealing.md#sealstream) and [`OpenStream`](./docs/sealing.md#openstream) encrypt and decrypt in chunks without loading the full message.
+
+```typescript
+import { SealStream, OpenStream } from 'leviathan-crypto/stream'
+
+const sealer   = new SealStream(XChaCha20Cipher, key, { chunkSize: 65536 })
+const preamble = sealer.preamble       // send first
+
+const ct0    = sealer.push(chunk0)
+const ct1    = sealer.push(chunk1)
+const ctLast = sealer.finalize(lastChunk)
+
+const opener = new OpenStream(XChaCha20Cipher, key, preamble)
+const pt0    = opener.pull(ct0)
+const pt1    = opener.pull(ct1)
+const ptLast = opener.finalize(ctLast)
+```
+
+_Need parallel throughput?_ [`SealStreamPool`](./docs/sealing.md#sealstreampool) distributes chunks across Web Workers with the same wire format.
+
+```typescript
+import { SealStreamPool } from 'leviathan-crypto/stream'
+
+const pool      = await SealStreamPool.create(XChaCha20Cipher, key, { wasm: chacha20Wasm })
+const encrypted = await pool.seal(plaintext)
+const decrypted = await pool.open(encrypted)
+pool.destroy()
+```
+
+_Want post-quantum security?_ [`KyberSuite`](./docs/kyber.md#kybersuite) wraps ML-KEM and a cipher suite into a hybrid construction. It plugs directly into [`SealStream`](./docs/sealing.md#sealstream). The sender encrypts with the public encapsulation key and only the recipient's private decapsulation key can open it.
+
+```typescript
+import { KyberSuite, MlKem768 } from 'leviathan-crypto/kyber'
+import { kyberWasm }    from 'leviathan-crypto/kyber/embedded'
+import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
+
+await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
+
+const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
+const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
+
+// sender — encrypts with the public key
+const sealer   = new SealStream(suite, ek)
+const preamble = sealer.preamble       // 1108 bytes: 20B header + 1088B KEM ciphertext
+const ct0      = sealer.push(chunk0)
+const ctLast   = sealer.finalize(lastChunk)
+
+// recipient — decrypts with the private key
+const opener = new OpenStream(suite, dk, preamble)
+const pt0    = opener.pull(ct0)
+const ptLast = opener.finalize(ctLast)
+```
+
+_More examples including hashing, key derivation, Fortuna, and raw primitives?_ See the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
+
+---
+
+## Demos
+
+**`lvthn-web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/web) · [readme](https://github.com/xero/leviathan-demos/blob/main/web/README.md) ]
+
+A self-contained browser encryption tool in a single HTML file. Encrypt text or files with Serpent-256-CBC and Argon2id key derivation, then share the armored output. No server, no install, no network connection after initial load. The code is written to be read. The Encrypt-then-MAC construction, HMAC input, and Argon2id parameters are all intentional examples worth studying.
+
+**`lvthn-chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/chat/README.md) ]
+
+End-to-end encrypted chat over X25519 key exchange and XChaCha20-Poly1305 message encryption. The relay server is a dumb WebSocket pipe that never sees plaintext. Messages carry sequence numbers so the protocol detects and rejects replayed messages. The demo deconstructs the protocol step by step with visual feedback for injection and replay attacks.
+
+**`lvthn-cli`** [ [npm](https://www.npmjs.com/package/lvthn) · [source](https://github.com/xero/leviathan-demos/tree/main/lvthn-cli) · [readme](https://github.com/xero/leviathan-demos/blob/main/lvthn-cli/README.md) ]
+
+File encryption CLI supporting both Serpent-256 and XChaCha20-Poly1305 via `--cipher`. A single keyfile works with both ciphers. The header byte determines decryption automatically. Chunks distribute across a worker pool sized to `hardwareConcurrency`. Each worker owns an isolated WASM instance with no shared memory.
+
+```sh
+bun i -g lvthn # or npm slow mode
+lvthn keygen --armor -o my.key
+cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
+```
+
+*[`lvthncli-serpent`](https://github.com/xero/leviathan-demos/tree/main/lvthncli-serpent) and [`lvthncli-chacha`](https://github.com/xero/leviathan-demos/tree/main/lvthncli-chacha) are educational tools, each implementing a single cipher. Compare the two and the diff is exactly `src/pool.ts` and `src/worker.ts`.*
+
+---
+
+## Highlights
+
+| I want to... | |
+|---|---|
+| Encrypt data | [`Seal`]() with [`SerpentCipher`]() or [`XChaCha20Cipher`]() |
+| Encrypt a stream or large file | [`SealStream`]() to encrypt, [`OpenStream`]() to decrypt |
+| Encrypt in parallel | [`SealStreamPool`]() distributes chunks across Web Workers |
+| Add post-quantum security | [`KyberSuite`]() wraps [`MlKem512`](), [`MlKem768`](), or [`MlKem1024`]() with any cipher suite |
+| Hash data | [`SHA256`](), [`SHA384`](), [`SHA512`](), [`SHA3_256`](), [`SHA3_512`](), [`SHAKE256`]() ... |
+| Authenticate a message | [`HMAC_SHA256`](), [`HMAC_SHA384`](), or [`HMAC_SHA512`]() |
+| Derive keys | [`HKDF_SHA256`]() or [`HKDF_SHA512`]() |
+| Generate random bytes | [`Fortuna`]() for forward-secret generation, [`randomBytes`]() for one-off use |
+| Compare secrets safely | [`constantTimeEqual`]() uses a WASM SIMD path to prevent timing attacks |
+| Work with bytes | [`hexToBytes`](), [`bytesToHex`](), [`wipe`](), [`xor`](), [`concat`]() ... |
+
+*For raw primitives, low-level cipher access, and ASM internals see the [full API reference](./docs/README.md).*
+
+---
+
+## Going deeper
+
+*Not required reading, but worth it.*
+
+| | |
+|---|---|
+| [architecture](./docs/architecture.md) | Repository structure, module relationships, build pipeline, and buffer layouts |
+| [test-suite](./docs/test-suite.md) | How the test suite works, vector corpus, and gate discipline |
+| [wasm](./docs/wasm.md) | WebAssembly primer in the context of this library |
+| [cdn](./docs/cdn.md) | Use leviathan-crypto directly from a CDN with no bundler |
+| [argon2id](./docs/argon2id.md) | Passphrase-based encryption using Argon2id alongside leviathan primitives |
+
+For the full documentation index including API reference, ASM internals, audits, and benchmarks see [docs/README.md](./docs/README.md) and the [project wiki](https://github.com/xero/leviathan-crypto/wiki).
 
 ---
 
@@ -370,4 +274,3 @@ leviathan-crypto is released under the [MIT license](./LICENSE).
 ▀██████▀             ▀████▄▄▄████▀
                         ▀█████▀
 ```
-

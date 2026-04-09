@@ -1,4 +1,4 @@
-# ChaCha20, Poly1305, and AEAD TypeScript API
+# ChaCha20 TypeScript API
 
 > [!NOTE]
 > See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
@@ -9,34 +9,33 @@
 on all platforms (including those without hardware AES), resistant to timing attacks
 by design, and widely deployed in TLS, SSH, and WireGuard. ChaCha20 encrypts data
 by generating a pseudorandom keystream from a 256-bit key and a nonce, then XORing
-it with the plaintext. It does **not** provide authentication on its own — a
-modified message will decrypt to garbage with no warning.
+it with the plaintext. It does **not** provide authentication on its own. A modified message will decrypt to garbage with no warning.
 
 **Poly1305** is a one-time message authentication code (MAC). Given a unique 256-bit
 key and a message, it produces a 16-byte tag that proves the message has not been
 tampered with. The critical requirement is that each Poly1305 key is used **exactly
-once** — reusing a key completely breaks its security. You almost never need to use
+once**. Reusing a key completely breaks its security. You almost never need to use
 Poly1305 directly; the AEAD constructions below handle key derivation for you.
 
 **ChaCha20-Poly1305** (RFC 8439) combines both primitives into an AEAD
 (Authenticated Encryption with Associated Data). It encrypts your data and
 produces an authentication tag in a single operation. On decryption, it verifies
-the tag before returning any plaintext — if someone tampered with the ciphertext,
+the tag before returning any plaintext. If someone tampered with the ciphertext,
 you get an error instead of corrupted data. The nonce is 96 bits (12 bytes).
 
 **XChaCha20-Poly1305** extends the nonce to 192 bits (24 bytes) using the HChaCha20
-subkey derivation step. This makes random nonce generation completely safe — with a
+subkey derivation step. This makes random nonce generation completely safe. With a
 24-byte nonce, the probability of a collision is negligible even after billions of
 messages. **For most users, `Seal` with `XChaCha20Cipher` is the recommended choice.** It
-produces a self-contained authenticated blob — no nonce management, no
-instantiation, no `dispose()`. For protocol interop requiring explicit nonce
+produces a self-contained authenticated blob with no nonce management, no
+instantiation, and no `dispose()`. For protocol interop requiring explicit nonce
 control, use `XChaCha20Poly1305` directly.
 
 ## Security Notes
 
 > [!IMPORTANT]
-> Read this section before writing any code. These are not theoretical concerns —
-> they are the mistakes that cause real-world breaches.
+> Read this section before writing any code. These are not theoretical concerns.
+> They are the mistakes that cause real-world breaches.
 
 - **Use `Seal` with `XChaCha20Cipher` unless you need explicit nonce control.**
   It is the safest default: authenticated encryption in a single static call.
@@ -49,7 +48,7 @@ control, use `XChaCha20Poly1305` directly.
   With `ChaCha20Poly1305` (12-byte nonce), random generation has a meaningful
   collision risk after roughly 2^32 messages under one key. With
   `XChaCha20Poly1305` (24-byte nonce), random generation is safe for any practical
-  message count — just call `randomBytes(24)` for each message.
+  message count. Just call `randomBytes(24)` for each message.
 
 - **Poly1305 keys are single-use.** Each Poly1305 key must be used to authenticate
   exactly one message. The AEAD classes (`ChaCha20Poly1305` and
@@ -58,13 +57,12 @@ control, use `XChaCha20Poly1305` directly.
   `Poly1305` class directly, it is your responsibility to never reuse a key.
 
 - **AEAD protects both confidentiality and authenticity.** If authentication fails
-  during decryption, the plaintext is never returned — you get an error. This is
-  intentional. Do not try to work around it. If decryption fails, the ciphertext
-  was corrupted or tampered with.
+  during decryption, the plaintext is never returned. You get an error. This is
+  intentional. Do not try to work around it. If decryption fails, the ciphertext was corrupted or tampered with.
 
 - **Associated data (AAD) is authenticated but not encrypted.** Use AAD for data
   that must travel in the clear (headers, routing metadata, user IDs) but must be
-  verified as unmodified. If someone changes the AAD, decryption will fail — even
+  verified as unmodified. If someone changes the AAD, decryption will fail even
   if the ciphertext itself is untouched.
 
 - **Always call `dispose()` when you are done.** This wipes key material and
@@ -118,7 +116,7 @@ Error: leviathan-crypto: call init({ chacha20: ... }) before using this class
 
 ### `ChaCha20`
 
-Raw ChaCha20 stream cipher. **No authentication** — use `XChaCha20Poly1305` instead
+Raw ChaCha20 stream cipher. **No authentication.** Use `XChaCha20Poly1305` instead
 unless you are building a custom protocol and understand the risks.
 
 #### Constructor
@@ -159,8 +157,7 @@ a new `Uint8Array` containing the ciphertext (same length as input).
 
 #### `beginDecrypt(key: Uint8Array, nonce: Uint8Array): void`
 
-Prepares the cipher for decryption. Identical to `beginEncrypt` — ChaCha20 is
-symmetric (encryption and decryption are the same XOR operation).
+Prepares the cipher for decryption. Identical to `beginEncrypt`. ChaCha20 is symmetric. Encryption and decryption are the same XOR operation.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -194,7 +191,7 @@ when you are done with the instance.
 ### `Poly1305`
 
 Standalone Poly1305 one-time MAC. **Each key must be used exactly once.** You
-almost certainly want `ChaCha20Poly1305` or `XChaCha20Poly1305` instead — they
+almost certainly want `ChaCha20Poly1305` or `XChaCha20Poly1305` instead. They
 handle Poly1305 key derivation automatically.
 
 #### Constructor
@@ -213,10 +210,10 @@ Computes a 16-byte Poly1305 authentication tag over the given message.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `key` | `Uint8Array` | 32 bytes — must be unique per message |
+| `key` | `Uint8Array` | 32 bytes. Must be unique per message. |
 | `msg` | `Uint8Array` | The message to authenticate (any length) |
 
-**Returns** `Uint8Array` — a 16-byte authentication tag.
+**Returns** `Uint8Array`: a 16-byte authentication tag.
 
 **Throws** `RangeError` if `key` is not 32 bytes.
 
@@ -262,9 +259,9 @@ appended.
 | `key` | `Uint8Array` | | 32 bytes (256-bit key) |
 | `nonce` | `Uint8Array` | | 12 bytes (96-bit nonce) |
 | `plaintext` | `Uint8Array` | | Data to encrypt (up to the module's chunk size limit) |
-| `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data — authenticated but not encrypted |
+| `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data. Authenticated but not encrypted. |
 
-**Returns** `Uint8Array` — ciphertext + 16-byte tag (length = plaintext.length + 16).
+**Returns** `Uint8Array`: ciphertext + 16-byte tag (length = plaintext.length + 16).
 
 **Throws:**
 - `RangeError` if `key` is not 32 bytes
@@ -281,8 +278,7 @@ parameter must include the appended 16-byte tag (i.e., the exact output of
 `encrypt()`). If authentication fails, an error is thrown and no plaintext is
 returned.
 
-Tag comparison uses a constant-time XOR-accumulate pattern — no timing side
-channel leaks whether the tag was "close" to correct.
+Tag comparison uses a constant-time XOR-accumulate pattern. No timing side channel leaks whether the tag was "close" to correct.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -291,7 +287,7 @@ channel leaks whether the tag was "close" to correct.
 | `ciphertext` | `Uint8Array` | | Encrypted data with appended tag (output of `encrypt()`) |
 | `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data (must match what was passed to `encrypt()`) |
 
-**Returns** `Uint8Array` — the decrypted plaintext.
+**Returns** `Uint8Array`: the decrypted plaintext.
 
 **Throws:**
 - `RangeError` if `key` is not 32 bytes
@@ -310,7 +306,7 @@ Wipes all key material and intermediate state from WASM memory.
 ### `XChaCha20Poly1305`
 
 XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha). RFC-faithful stateless
-primitive — key and nonce are passed per-call. Use when protocol interop
+primitive. Key and nonce are passed per-call. Use when protocol interop
 requires explicit nonce control. For most use cases, prefer `Seal` with
 `XChaCha20Cipher` (automatic nonce management, no instantiation).
 
@@ -341,9 +337,9 @@ Encrypts plaintext and returns the ciphertext with the 16-byte tag appended.
 | `key` | `Uint8Array` | | 32 bytes (256-bit key) |
 | `nonce` | `Uint8Array` | | 24 bytes (192-bit nonce) |
 | `plaintext` | `Uint8Array` | | Data to encrypt |
-| `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data — authenticated but not encrypted |
+| `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data. Authenticated but not encrypted. |
 
-**Returns** `Uint8Array` — ciphertext + 16-byte tag (length = plaintext.length + 16).
+**Returns** `Uint8Array`: ciphertext + 16-byte tag (length = plaintext.length + 16).
 
 **Throws:**
 - `RangeError` if `key` is not 32 bytes
@@ -364,7 +360,7 @@ parameter must include the appended 16-byte tag (i.e., the exact output of
 | `ciphertext` | `Uint8Array` | | Encrypted data with appended tag (output of `encrypt()`) |
 | `aad` | `Uint8Array` | `new Uint8Array(0)` | Associated data (must match what was passed to `encrypt()`) |
 
-**Returns** `Uint8Array` — the decrypted plaintext.
+**Returns** `Uint8Array`: the decrypted plaintext.
 
 **Throws:**
 - `RangeError` if `key` is not 32 bytes
@@ -401,7 +397,7 @@ Requires `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })`.
 
 #### `XChaCha20Cipher.keygen(): Uint8Array`
 
-Returns `randomBytes(32)`. Convenience method — not on the `CipherSuite` interface.
+Returns `randomBytes(32)`. Convenience method. Not on the `CipherSuite` interface.
 
 #### Usage with `Seal`
 
@@ -424,7 +420,7 @@ import { SealStream, OpenStream } from 'leviathan-crypto/stream'
 import { XChaCha20Cipher } from 'leviathan-crypto/chacha20'
 
 const sealer   = new SealStream(XChaCha20Cipher, key)
-const preamble = sealer.preamble        // 20 bytes — send before first chunk
+const preamble = sealer.preamble        // 20 bytes, send before first chunk
 const ct0      = sealer.push(chunk0)
 const ctLast   = sealer.finalize(lastChunk)
 
@@ -433,13 +429,13 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
-See [stream.md](./stream.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
+See [sealing.md](./sealing.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
 
 ---
 
 ## Usage Examples
 
-### Example 1: Seal with XChaCha20Cipher — Encrypt and Decrypt (Recommended)
+### Example 1: Seal with XChaCha20Cipher (recommended)
 
 One-shot AEAD. No instantiation, no `dispose()`. The blob format is
 `preamble(20) || ciphertext || tag(16)`.
@@ -463,10 +459,10 @@ const blob2 = Seal.encrypt(XChaCha20Cipher, key, utf8ToBytes('Hello, world!'), {
 const pt2   = Seal.decrypt(XChaCha20Cipher, key, blob2, { aad })
 ```
 
-> **Need explicit nonce control?** Use `XChaCha20Poly1305` directly — same
+> **Need explicit nonce control?** Use `XChaCha20Poly1305` directly. Same
 > API shape, 24-byte nonce passed per call. See Example 2.
 
-### Example 2: ChaCha20Poly1305 — Encrypt and Decrypt
+### Example 2: ChaCha20Poly1305
 
 Same idea as above, but with a 12-byte nonce. Use this if you are implementing
 a protocol that specifies RFC 8439 ChaCha20-Poly1305 explicitly.
@@ -490,12 +486,12 @@ const key = randomBytes(32)
 const aead = new ChaCha20Poly1305()
 
 // Encrypt
-const nonce = randomBytes(12)     // 12 bytes — be cautious with random generation under high volume
+const nonce = randomBytes(12)     // 12 bytes, use XChaCha20Poly1305 for high-volume random generation
 const plaintext = utf8ToBytes('Sensitive data')
 const sealed = aead.encrypt(key, nonce, plaintext)
-// sealed = ciphertext || tag(16) — store/transmit nonce and sealed together
+// sealed = ciphertext || tag(16), store/transmit nonce and sealed together
 
-// Decrypt (new instance — encrypt is single-use)
+// Decrypt (new instance, encrypt is single-use)
 const aead2 = new ChaCha20Poly1305()
 const decrypted = aead2.decrypt(key, nonce, sealed)
 console.log(bytesToUtf8(decrypted))  // "Sensitive data"
@@ -507,7 +503,7 @@ aead2.dispose()
 ### Example 3: Detecting Tampered Ciphertext
 
 AEAD decryption fails loudly if anyone has modified the ciphertext or
-the associated data. This is a feature — it prevents you from processing
+the associated data. This is a feature. It prevents you from processing
 corrupted or maliciously altered data.
 
 ```typescript
@@ -531,7 +527,7 @@ try {
 } catch (err) {
 	console.error(err.message)
 	// "ChaCha20Poly1305: authentication failed"
-	// The plaintext is never returned — decryption stops immediately on failure.
+	// The plaintext is never returned. Decryption stops immediately on failure.
 }
 ```
 
@@ -556,7 +552,7 @@ const message = utf8ToBytes('Your account balance is $1,000,000')
 
 const sealed = Seal.encrypt(XChaCha20Cipher, key, message, { aad: userId })
 
-// Decrypt — pass the same AAD
+// Decrypt, pass the same AAD
 const decrypted = Seal.decrypt(XChaCha20Cipher, key, sealed, { aad: userId })
 console.log(bytesToUtf8(decrypted))
 // "Your account balance is $1,000,000"
@@ -574,7 +570,7 @@ try {
 
 ### Example 5: Encrypting and Decrypting Binary Data
 
-The API works with raw bytes — not just text. Here is an example encrypting
+The API works with raw bytes, not just text. Here is an example encrypting
 arbitrary binary content.
 
 ```typescript
@@ -615,7 +611,7 @@ cipher.beginEncrypt(key, nonce)
 const ct1 = cipher.encryptChunk(new Uint8Array([1, 2, 3, 4]))
 const ct2 = cipher.encryptChunk(new Uint8Array([5, 6, 7, 8]))
 
-// Decrypt — uses the same key and nonce
+// Decrypt, uses the same key and nonce
 cipher.beginDecrypt(key, nonce)
 const pt1 = cipher.decryptChunk(ct1)
 const pt2 = cipher.decryptChunk(ct2)
@@ -639,17 +635,18 @@ cipher.dispose()
 | `XChaCha20Poly1305` nonce is not 24 bytes | `RangeError` | `XChaCha20 nonce must be 24 bytes (got N)` |
 | `ChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short — must include 16-byte tag (got N)` |
 | `XChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short — must include 16-byte tag (got N)` |
-| `ChaCha20Poly1305.encrypt()` called a second time | `Error` | Single-use encrypt guard — create a new instance for each encryption |
+| `ChaCha20Poly1305.encrypt()` called a second time | `Error` | Single-use encrypt guard. Create a new instance for each encryption. |
 | Chunk or plaintext exceeds WASM buffer size | `RangeError` | `plaintext exceeds N bytes — split into smaller chunks` / `chunk exceeds maximum size of N bytes — split into smaller chunks` |
 | Authentication tag does not match on decrypt | `Error` | `ChaCha20Poly1305: authentication failed` |
-| Empty plaintext | — | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
+| Empty plaintext | | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
 
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
 > - [asm_chacha](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-> - [stream](./stream.md) — `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument
+> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument
 > - [serpent](./serpent.md) — `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming
-> - [sha2](./sha2.md) — SHA-2 hashes and HMAC — needed for Encrypt-then-MAC if using Serpent or raw ChaCha20
+> - [sha2](./sha2.md) — SHA-2 hashes and HMAC. Needed for Encrypt-then-MAC if using raw ChaCha20
 > - [types](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes
-> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit

@@ -193,4 +193,4 @@ See [init.md](./init.md) for the full API.
 > - [chacha_simd_bench](./chacha_simd_bench.md) ChaCha20 SIMD benchmark results: 4-wide inter-block parallelism, scalar vs SIMD across V8, SpiderMonkey, and JSC. Includes documented negative result for intra-block approach
 > - [init](./init.md) — `init()` API and WasmSource types
 > - [loader](./loader.md) — how WASM binaries are loaded and instantiated
-> - [stream](./stream.md) — SealStreamPool uses compiled modules across workers
+> - [sealing](./sealing.md) — SealStreamPool uses compiled modules across workers

@@ -90,6 +90,23 @@ await sha3Init(sha3Wasm)
 const sha3 = new SHA3_256()
 ```
 
+### keccakInit() (alias)
+
+`'keccak'` is an alias for `'sha3'`. Same WASM binary, same instance slot.
+`keccakInit()` and `sha3Init()` are interchangeable.
+
+```typescript
+import { keccakInit, SHAKE256, SHA3_256 } from 'leviathan-crypto/keccak'
+import { keccakWasm } from 'leviathan-crypto/keccak/embedded'
+
+await keccakInit(keccakWasm)
+// isInitialized('sha3') === true — same slot
+```
+
+Use the `keccak` subpath when the consuming context (such as ML-KEM) makes the
+Keccak primitive name semantically clearer. See [init.md](./init.md#keccak-alias-for-ml-kem)
+for full details.
+
 ---
 
 ## API Reference

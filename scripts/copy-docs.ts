@@ -48,7 +48,7 @@ const INCLUDE = [
 	'serpent.md',
 	'sha2.md',
 	'sha3.md',
-	'stream.md',
+	'sealing.md',
 	'types.md',
 	'utils.md',
 	'wasm.md',

@@ -36,9 +36,7 @@ Key properties of this implementation:
 ### Constant-time S-boxes
 
 The S-boxes (`sb0`-`sb7`, `si0`-`si7`) use exclusively `&`, `|`, `^`, `~`
-on i32 registers. No memory is indexed by secret data. This is constant-time by
-construction -- the execution path and memory access pattern are identical
-regardless of input values. WASM i32 operations provide stronger timing
+on i32 registers. No memory is indexed by secret data. This is constant-time by construction. The execution path and memory access pattern are identical regardless of input values. WASM i32 operations provide stronger timing
 guarantees than JavaScript bitwise operators, which may be JIT-compiled with
 varying instruction selection.
 
@@ -46,8 +44,7 @@ varying instruction selection.
 
 ### Linear transform and key schedule
 
-The linear transform (`lk`/`kl`) uses only rotations (`rotl`), XOR, and shift --
-all data-independent. The key schedule (`loadKey`) similarly uses only arithmetic
+The linear transform (`lk`/`kl`) uses only rotations (`rotl`), XOR, and shift. All operations are data-independent. The key schedule (`loadKey`) similarly uses only arithmetic
 and bitwise ops on the prekey buffer. No secret-dependent branches anywhere in the
 cipher core.
 
@@ -125,7 +122,7 @@ Each returns the fixed byte offset for that buffer. Values shown as comments.
 ```typescript
 function getSimdWorkOffset(): i32  // 131744
 ```
-Returns the byte offset of `SIMD_WORK_BUFFER` — five v128 working registers used by the SIMD S-box circuits. Only present when the binary is built with `--enable simd`.
+Returns the byte offset of `SIMD_WORK_BUFFER`. Five v128 working registers used by the SIMD S-box circuits. Only present when the binary is built with `--enable simd`.
 
 ```typescript
 function getChunkSize(): i32       // 65536
@@ -217,7 +214,7 @@ byte 0). Counter state persists across calls for streaming.
 ```typescript
 function decryptChunk(chunkLen: i32): i32
 ```
-Identical to `encryptChunk` -- CTR mode is symmetric. Reads from `CHUNK_PT_BUFFER`,
+Identical to `encryptChunk`. CTR mode is symmetric. Reads from `CHUNK_PT_BUFFER`,
 writes to `CHUNK_CT_BUFFER`. Same parameters and return values.
 
 ---
@@ -270,7 +267,7 @@ the four keystream blocks' words in `SIMD_WORK_BUFFER`. Called by
 function decryptBlock_simd_4x(): void
 ```
 Decrypts four independent 128-bit blocks in parallel. Same interface as
-`encryptBlock_simd_4x` — reads and writes `SIMD_WORK_BUFFER`.
+`encryptBlock_simd_4x`. Reads and writes `SIMD_WORK_BUFFER`.
 
 ```typescript
 function encryptChunk_simd(chunkLen: i32): i32
@@ -283,7 +280,7 @@ Same parameters and return values as `encryptChunk`.
 ```typescript
 function decryptChunk_simd(chunkLen: i32): i32
 ```
-Alias for `encryptChunk_simd` — CTR mode is symmetric.
+Alias for `encryptChunk_simd`. CTR mode is symmetric.
 
 ```typescript
 function cbcDecryptChunk_simd(len: i32): i32
@@ -295,10 +292,7 @@ scalar path for the trailing 1–3 blocks. Same parameters and return values
 as `cbcDecryptChunk`.
 
 > [!NOTE]
-> CBC *encryption* has no SIMD variant — each ciphertext block depends on
-> the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be
-> parallelised. Decryption is fully parallelisable because all ciphertext
-> blocks are available up front.
+> CBC *encryption* has no SIMD variant. Each ciphertext block depends on the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be parallelised. Decryption is fully parallelisable because all ciphertext blocks are available up front.
 
 ---
 
@@ -345,13 +339,12 @@ All buffers are static, starting at offset 0. Total footprint: 131732 bytes
 | 131716 | 16 | `CBC_IV_BUFFER` | CBC chaining value (IV, then last CT block) |
 | 131732 | 12 | *(alignment padding)* | Pad to 16-byte boundary for v128 SIMD alignment |
 | 131744 | 80 | `SIMD_WORK_BUFFER` | 5 × v128 working registers for SIMD S-box computation |
-| 131824 | -- | `END` | Total < 196608 (3 pages) |
+| 131824 | | `END` | Total < 196608 (3 pages) |
 
 The `SUBKEY_BUFFER` holds 132 i32 words during key expansion, then the final 33 × 4
 round subkeys. The `WORK_BUFFER` holds 5 working registers (r0-r4) for the scalar
 S-box path. `SIMD_WORK_BUFFER` holds 5 v128 registers (r0-r4, 16 bytes each) for
-the SIMD S-box path — each lane corresponds to one of the four blocks processed in
-parallel.
+the SIMD S-box path. Each lane corresponds to one of the four blocks processed in parallel.
 
 ---
 
@@ -359,8 +352,7 @@ parallel.
 
 ### buffers.ts
 
-Defines the static memory layout as `i32` constants and getter functions. No logic
--- pure layout declaration. All other modules import offsets from here.
+Defines the static memory layout as `i32` constants and getter functions. No logic. Pure layout declaration. All other modules import offsets from here.
 
 ---
 
@@ -369,29 +361,19 @@ Defines the static memory layout as `i32` constants and getter functions. No log
 The core cipher implementation, ported independently from the Serpent AES submission
 spec. Contains:
 
-- **Working register helpers** (`rget`/`rset`): inline functions that load/store
-  i32 values at `WORK_OFFSET + (i << 2)`. These are the cipher's virtual registers.
-- **S-boxes** (`sb0`-`sb7`): 8 forward S-box Boolean circuits. Each takes 5 slot
-  indices into the working registers. Operations are exclusively `&`, `|`, `^`, `~`
-  on `rget`/`rset` values.
-- **Inverse S-boxes** (`si0`-`si7`): 8 inverse S-box circuits for decryption.
-- **EC/DC/KC constants**: encoded 5-slot permutations for each round. Each constant
+**Working register helpers** (`rget`/`rset`): inline functions that load/store i32 values at `WORK_OFFSET + (i << 2)`. These are the cipher's virtual registers.
+**S-boxes** (`sb0`-`sb7`): 8 forward S-box Boolean circuits. Each takes 5 slot indices into the working registers. Operations are exclusively `&`, `|`, `^`, `~` on `rget`/`rset` values.
+**Inverse S-boxes** (`si0`-`si7`): 8 inverse S-box circuits for decryption.
+**EC/DC/KC constants**: encoded 5-slot permutations for each round. Each constant
   encodes a permutation via `(m%5, m%7, m%11, m%13, m%17)` -- all five values are
   guaranteed to be in {0,1,2,3,4} and distinct. `ec` drives encryption rounds, `dc`
   drives decryption rounds, `kc` drives key schedule S-box application.
-- **keyXor**: XORs 4 working registers with a round subkey.
-- **lk** (Linear transform + Key XOR): the forward LT
-  (rotl-13, rotl-3, XOR mixing, rotl-1, rotl-7, XOR mixing, rotl-5, rotl-22)
-  followed by subkey XOR. Used in encryption rounds 0-30.
-- **kl** (Key XOR + Inverse Linear transform): subkey XOR followed by the inverse
-  LT. Used in decryption rounds.
-- **Key schedule** (`loadKey`): reverse-copies key bytes, repacks as LE words,
-  expands 132 prekey words via the affine recurrence
-  (`w_i = rotl(w_{i-8} ^ w_{i-5} ^ w_{i-3} ^ w_{i-1} ^ 0x9E3779B9 ^ i, 11)`),
-  then derives 33 round subkeys through S-box application using the `kc` constants.
-- **encryptBlock / decryptBlock**: loop-driven implementations (not exported -- used
-  as reference).
-- **wipeBuffers**: zeroes all sensitive memory.
+**keyXor**: XORs 4 working registers with a round subkey.
+**lk** (Linear transform + Key XOR): the forward LT (rotl-13, rotl-3, XOR mixing, rotl-1, rotl-7, XOR mixing, rotl-5, rotl-22) followed by subkey XOR. Used in encryption rounds 0-30.
+**kl** (Key XOR + Inverse Linear transform): subkey XOR followed by the inverse LT. Used in decryption rounds.
+**Key schedule** (`loadKey`): reverse-copies key bytes, repacks as LE words, expands 132 prekey words via the affine recurrence (`w_i = rotl(w_{i-8} ^ w_{i-5} ^ w_{i-3} ^ w_{i-1} ^ 0x9E3779B9 ^ i, 11)`), then derives 33 round subkeys through S-box application using the `kc` constants.
+**encryptBlock / decryptBlock**: loop-driven implementations (not exported, used as reference).
+**wipeBuffers**: zeroes all sensitive memory.
 
 ---
 
@@ -444,11 +426,10 @@ Auto-generated (via `scripts/generate_simd.ts`). Contains fully-unrolled 4-wide
 SIMD implementations of all 8 forward and 8 inverse S-boxes as v128 Boolean
 circuits, plus the `encryptBlock_simd_4x` and `decryptBlock_simd_4x` entry
 points. Each S-box gate (`sb0_v`–`sb7_v`, `si0_v`–`si7_v`) mirrors its scalar
-counterpart exactly but operates on 4 × i32 lanes simultaneously — no lane
-shuffles, no cross-lane dependencies.
+counterpart exactly but operates on 4 × i32 lanes simultaneously. No lane shuffles, no cross-lane dependencies.
 
 Exported as `encryptBlock_simd_4x` / `decryptBlock_simd_4x` by `index.ts`.
-Do not edit by hand — regenerate with `bun scripts/generate_simd.ts`.
+Do not edit by hand. Regenerate with `bun scripts/generate_simd.ts`.
 
 ---
 

@@ -9,8 +9,7 @@
 
 Password hashing is the last line of defense when a database is breached. If an
 attacker obtains hashed passwords, the hash function determines how expensive it
-is to recover each plaintext. Traditional hash functions — even iterated ones
-like PBKDF2 — are fast on GPUs and custom hardware. An attacker with a few
+is to recover each plaintext. Traditional hash functions, even iterated ones like PBKDF2, are fast on GPUs and custom hardware. An attacker with a few
 thousand dollars of GPU hardware can test billions of PBKDF2-SHA256 candidates
 per second. bcrypt improves on this with a 4 KiB memory requirement that limits
 GPU parallelism, but 4 KiB is trivial by modern standards.
@@ -177,7 +176,7 @@ const rootKey = argon2id({
 });
 
 const hkdf = new HKDF_SHA256();
-const key  = hkdf.derive(rootKey, argonSalt, new TextEncoder().encode('serpent-seal-v2'), 32);
+const key  = hkdf.derive(rootKey, argonSalt, new TextEncoder().encode('myapp-serpent-key'), 32);
 hkdf.dispose();
 
 const blob = Seal.encrypt(SerpentCipher, key, plaintext);
@@ -197,7 +196,7 @@ const rootKey2 = argon2id({
 });
 
 const hkdf2 = new HKDF_SHA256();
-const key2  = hkdf2.derive(rootKey2, envelope.argonSalt, new TextEncoder().encode('serpent-seal-v2'), 32);
+const key2  = hkdf2.derive(rootKey2, envelope.argonSalt, new TextEncoder().encode('myapp-serpent-key'), 32);
 hkdf2.dispose();
 
 const decrypted = Seal.decrypt(SerpentCipher, key2, envelope.blob);
@@ -233,7 +232,7 @@ const rootKey = argon2id({
 // tagLength: 32 already matches XChaCha20Poly1305's expected key size
 // HKDF is optional here but included for domain separation.
 const hkdf = new HKDF_SHA256();
-const key  = hkdf.derive(rootKey, argonSalt, new TextEncoder().encode('xchacha-v1'), 32);
+const key  = hkdf.derive(rootKey, argonSalt, new TextEncoder().encode('myapp-xchacha20-key'), 32);
 hkdf.dispose();
 
 const nonce = crypto.getRandomValues(new Uint8Array(24));
@@ -255,7 +254,7 @@ const rootKey2 = argon2id({
 });
 
 const hkdf2 = new HKDF_SHA256();
-const key2  = hkdf2.derive(rootKey2, envelope.argonSalt, new TextEncoder().encode('xchacha-v1'), 32);
+const key2  = hkdf2.derive(rootKey2, envelope.argonSalt, new TextEncoder().encode('myapp-xchacha20-key'), 32);
 hkdf2.dispose();
 
 const xc2       = new XChaCha20Poly1305();
@@ -266,7 +265,7 @@ xc2.dispose();
 > [!CAUTION]
 > Never reuse an Argon2id salt across different passphrases or key derivation
 > contexts. Generate a fresh random salt for each new encryption envelope. The
-> salt is not secret — store it in plaintext alongside the ciphertext.
+> salt is not secret. Store it in plaintext alongside the ciphertext.
 
 ---
 
@@ -286,7 +285,7 @@ xc2.dispose();
 > - [index](./README.md) — Project Documentation index
 > - [sha2](./sha2.md) — HKDF-SHA256 for key expansion from Argon2id root keys
 > - [serpent](./serpent.md) — `SerpentCipher`: Serpent-256 cipher suite (use with `Seal` and Argon2id-derived keys)
-> - [stream](./stream.md) — `Seal`: one-shot AEAD over any `CipherSuite`
+> - [sealing](./sealing.md) — `Seal`: one-shot AEAD over any `CipherSuite`
 > - [chacha20](./chacha20.md) — XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys)
 > - [utils](./utils.md) — `randomBytes` for generating salts, `constantTimeEqual` for hash verification
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

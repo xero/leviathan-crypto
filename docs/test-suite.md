@@ -168,7 +168,7 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 > - [chacha20](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
 > - [sha2](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
 > - [sha3](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
-> - [stream](./stream.md) — SealStream, OpenStream, SealStreamPool (tested primitives)
+> - [sealing](./sealing.md) — SealStream, OpenStream, SealStreamPool (tested primitives)
 > - [loader](./loader.md) — WASM binary loading strategies (tested in unit + e2e)
 > - [fortuna](./fortuna.md) — Fortuna CSPRNG (tested primitive)
 > - [utils](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)

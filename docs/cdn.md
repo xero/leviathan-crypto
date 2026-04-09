@@ -1,4 +1,4 @@
-# Leviathan Crypto Library: CDN Usage
+# CDN Usage
 
 >[!NOTE]
 > leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com). All `WasmSource` types work directly from the CDN with no install or bundler required.
@@ -146,6 +146,6 @@ If you want the same import style as the npm docs, add one before your module sc
 
 > ## Cross-References
 >
-> - [index](./README.md) -- Project Documentation index
-> - [architecture](./architecture.md) -- architecture overview, module relationships, buffer layouts, and build pipeline
-> - [examples](./examples.md) -- Code examples for every primitive
+> - [index](./README.md) — Project Documentation index
+> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [examples](./examples.md) — Code examples for every primitive
