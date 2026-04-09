@@ -1,28 +1,11 @@
 # HKDF-SHA256 Cryptographic Audit
 
-> [!NOTE]
-> **Conducted:** Week of 2026-03-25
-> **Target:** `leviathan-crypto` TypeScript implementation (pure composition over HMAC)
-> **Spec:** RFC 5869 (HMAC-based Key Derivation Function, May 2010)
-> **Test vectors:** RFC 5869, Appendix A (Test Cases 1–3)
-
-## Table of Contents
-
-- [1. Algorithm Correctness](#1-algorithm-correctness)
-  - [1.1 Extract Phase](#11-extract-phase)
-  - [1.2 Expand Phase](#12-expand-phase)
-  - [1.3 One-Step vs Two-Step](#13-one-step-vs-two-step)
-  - [1.4 Usage in leviathan-crypto (stream layer)](#14-usage-in-leviathan-crypto-stream-layer)
-  - [1.5 Buffer Layout and Memory Safety](#15-buffer-layout-and-memory-safety)
-  - [1.6 TypeScript Wrapper Layer](#16-typescript-wrapper-layer)
-  - [1.7 RFC 5869 Test Vectors](#17-rfc-5869-test-vectors)
-- [2. Security Analysis](#2-security-analysis)
-  - [2.1 Extract-then-Expand Security Model](#21-extract-then-expand-security-model)
-  - [2.2 Info Field as Domain Separation](#22-info-field-as-domain-separation)
-  - [2.3 Key Separation Guarantee](#23-key-separation-guarantee)
-  - [2.4 Security Bound](#24-security-bound)
-
----
+| Field | Value |
+|-------|-------|
+| Conducted | Week of 2026-03-25 |
+| Target | `leviathan-crypto` TypeScript implementation (pure composition over HMAC) |
+| Spec | RFC 5869 (HMAC-based Key Derivation Function, May 2010) |
+| Test vectors | RFC 5869, Appendix A (Test Cases 1–3) |
 
 > [!NOTE]
 > HKDF is implemented as pure TypeScript composition over the already-audited
@@ -30,6 +13,21 @@
 > computation occurs in the HKDF code. Only concatenation, loop control, and
 > HMAC calls. All three RFC 5869 Appendix A test vectors were independently
 > verified against Python `hmac`/`hashlib`.
+
+> ### Table of Contents
+> - [1. Algorithm Correctness](#1-algorithm-correctness)
+>   - [1.1 Extract Phase](#11-extract-phase)
+>   - [1.2 Expand Phase](#12-expand-phase)
+>   - [1.3 One-Step vs Two-Step](#13-one-step-vs-two-step)
+>   - [1.4 Usage in leviathan-crypto (stream layer)](#14-usage-in-leviathan-crypto-stream-layer)
+>   - [1.5 Buffer Layout and Memory Safety](#15-buffer-layout-and-memory-safety)
+>   - [1.6 TypeScript Wrapper Layer](#16-typescript-wrapper-layer)
+>   - [1.7 RFC 5869 Test Vectors](#17-rfc-5869-test-vectors)
+> - [2. Security Analysis](#2-security-analysis)
+>   - [2.1 Extract-then-Expand Security Model](#21-extract-then-expand-security-model)
+>   - [2.2 Info Field as Domain Separation](#22-info-field-as-domain-separation)
+>   - [2.3 Key Separation Guarantee](#23-key-separation-guarantee)
+>   - [2.4 Security Bound](#24-security-bound)
 
 ---
 
@@ -59,7 +57,7 @@ extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array {
 
 **Default salt:** When salt is `null` or empty (`length === 0`), a 32-byte zero array is used. RFC 5869 §2.2: "if not provided, [salt] is set to a string of HashLen zeros." The implementation correctly treats both `null` and zero-length arrays as "not provided." The HKDF_SHA512 variant uses `new Uint8Array(64)` (64 zero bytes). Both correct.
 
-**IKM longer than HMAC block size:** When IKM is longer than 64 bytes (the HMAC-SHA256 block size), HMAC handles this internally by pre-hashing the key. But here IKM is the HMAC *message*, not the key. HMAC messages have no length restriction; they are processed by the streaming `feedHash()` function. This is correct.
+**IKM longer than HMAC block size:** When IKM is longer than 64 bytes (the HMAC-SHA256 block size), HMAC handles this internally by pre-hashing the key. Here IKM is the HMAC _message_, not the key. HMAC messages have no length restriction; they are processed by the streaming `feedHash()` function. Correct.
 
 **Salt longer than HMAC block size:** When salt exceeds 64 bytes, it is passed as the HMAC key. The HMAC_SHA256 class pre-hashes keys > 64 bytes ([sha2_audit.md §1.10](./sha2_audit.md#110-hmac-sha256--hmac-sha512--hmac-sha384)), which is correct per RFC 2104 §3.
 
@@ -143,7 +141,7 @@ The `extract()` method is available separately for callers who need to reuse a P
 
 ### 1.4 Usage in leviathan-crypto (stream layer)
 
-HKDF-SHA256 is used in two streaming AEAD cipher suites:
+HKDF-SHA256 serves two streaming AEAD cipher suites:
 
 #### SerpentCipher (`src/ts/serpent/cipher-suite.ts`)
 
@@ -162,7 +160,7 @@ return { bytes: derived };
 - Info = `"serpent-sealstream-v2"` (21-byte UTF-8 string)
 - L = 96 bytes (split into enc_key[0:32] + mac_key[32:64] + iv_key[64:96])
 
-The info field is a plain domain-separation string. Position binding is achieved through the 12-byte counter nonce in the AEAD construction (HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`), not through the HKDF info. The CBC IV for each chunk is derived deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.
+The info field is a plain domain-separation string. The AEAD construction achieves position binding through the 12-byte counter nonce (HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`), not through the HKDF info. The CBC IV for each chunk derives deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.
 
 > [!NOTE]
 > Using the stream nonce as the HKDF salt produces `PRK = HMAC-SHA256(nonce, masterKey)`. The nonce is the HMAC key and the master key is the HMAC message. This is an intentional inversion from the typical password-based pattern. RFC 5869 §3.1 describes salt as "a non-secret random value" used to strengthen extraction, and the nonce satisfies this exactly: it is public, random, and unique per stream. The master key (the secret) is correctly placed as the IKM. The construct is secure and correct per the spec.
@@ -190,21 +188,21 @@ The intermediate `streamKey` is wiped immediately after HChaCha20 derivation. Th
 
 #### SealStreamPool (`src/ts/stream/seal-stream-pool.ts`)
 
-Uses the same `cipher.deriveKeys()` call as `SealStream` (same domain, same parameters). Keys are derived on the main thread and only the derived key bytes are sent to workers. The master key never leaves the main thread. Correct.
+Uses the same `cipher.deriveKeys()` call as `SealStream` (same domain, same parameters). The main thread derives all keys; only the derived key bytes go to workers. The master key never leaves the main thread. Correct.
 
 ---
 
 ### 1.5 Buffer Layout and Memory Safety
 
-HKDF is implemented in pure TypeScript. No WASM buffers are involved. All intermediate values live in JavaScript garbage-collected memory.
+HKDF runs as pure TypeScript. No WASM buffers are involved. All intermediate values live in JavaScript garbage-collected memory.
 
 **T(i-1) availability and zeroing:** The `expand()` loop captures a reference to T(i-1) in `oldPrev` before overwriting `prev` with T(i). After `okm.set(prev, ...)` copies T(i) into the output buffer, both `buf` (the HMAC input concatenation) and `oldPrev` (T(i-1)) are zeroed via `.fill(0)`. After the loop, the final `prev` (T(N)) is zeroed after its copy into `okm`. No T(i) block or concatenation buffer persists on the heap beyond its use. Correct.
 
-**PRK lifetime:** In `derive()`, the PRK returned by `extract()` is zeroed via `.fill(0)` immediately after `expand()` returns and before the OKM is returned to the caller. The `expand()` method does not zero the PRK itself, because callers may invoke `expand()` multiple times with the same PRK (valid per RFC 5869 §3). Zeroing is the one-shot `derive()` method's responsibility.
+**PRK lifetime:** `derive()` zeroes the PRK returned by `extract()` via `.fill(0)` immediately after `expand()` returns and before the OKM is returned to the caller. The `expand()` method does not zero the PRK itself, because callers may invoke `expand()` multiple times with the same PRK (valid per RFC 5869 §3). Zeroing is the one-shot `derive()` method's responsibility.
 
 **Info buffer integrity:** The `info` parameter to `expand()` is read-only. It is copied into `buf` via `buf.set(info, ...)` on each iteration but never modified. Correct.
 
-**Output copy:** `okm.slice(0, length)` creates a new independent array. The returned OKM does not alias any internal state and is intentionally not zeroed. It belongs to the caller. In `deriveChunkKeys()`, the split uses `derived.subarray(0, 32)` and `derived.subarray(32, 64)`. These *do* alias the same underlying buffer, but since the derived buffer is a fresh `slice()` from `expand()`, this is safe: the encKey and macKey views are independent of any HKDF internal state.
+**Output copy:** `okm.slice(0, length)` creates a new independent array. The returned OKM does not alias any internal state and is intentionally not zeroed. It belongs to the caller. In `deriveChunkKeys()`, the split uses `derived.subarray(0, 32)` and `derived.subarray(32, 64)`. These _do_ alias the same underlying buffer, but since the derived buffer is a fresh `slice()` from `expand()`, this is safe: the encKey and macKey views are independent of any HKDF internal state.
 
 > [!NOTE]
 > After this fix, all intermediate key material allocated during
@@ -285,10 +283,10 @@ Test Case 3 specifically validates the null-salt path (32 zero bytes default) an
 
 HKDF's security proof (Krawczyk, "Cryptographic Extraction and Key Derivation: The HKDF Scheme", 2010) decomposes into two independent guarantees:
 
-1. **Extract** produces a pseudorandom PRK from potentially non-uniform IKM, provided the salt has sufficient min-entropy (or is absent, relying on the HMAC-Hash structure alone).
-2. **Expand** uses PRK as a PRF key to produce computationally independent output blocks, provided PRK is uniform (which Extract guarantees).
+- **Extract** produces a pseudorandom PRK from potentially non-uniform IKM, provided the salt has sufficient min-entropy (or is absent, relying on the HMAC-Hash structure alone).
+- **Expand** uses PRK as a PRF key to produce computationally independent output blocks, provided PRK is uniform (which Extract guarantees).
 
-**Is the IKM in the stream layer uniform enough to skip Extract?** No. Stream keys may come from user passwords (via scrypt/Argon2id) or from raw keyfiles that are not uniformly distributed. Even when keys are random, the Extract step is cheap (one HMAC call) and provides defense-in-depth against non-uniform key material. The implementation always calls Extract (via `derive()`), which is the correct approach.
+The IKM in the stream layer is not uniform enough to skip Extract. Stream keys may come from user passwords (via scrypt/Argon2id) or from raw keyfiles that are not uniformly distributed. Even when keys are random, the Extract step is cheap (one HMAC call) and provides defense-in-depth against non-uniform key material. The implementation always calls Extract (via `derive()`), which is the correct approach.
 
 ---
 
@@ -312,9 +310,9 @@ Position binding is not in the HKDF info (as in v1) but in the AEAD construction
 | Info string | `"xchacha20-sealstream-v2"` | Distinguishes XChaCha20Cipher from SerpentCipher and other uses |
 | Salt (nonce) | 16 random bytes | Binds to this specific stream |
 
-The two cipher suites use **different info strings**: `"serpent-sealstream-v2"` vs `"xchacha20-sealstream-v2"`. Even if the same master key and nonce were used in both constructions (which should not happen in practice), the derived keys would differ. Correct.
+The two cipher suites use **different info strings**: `"serpent-sealstream-v2"` vs `"xchacha20-sealstream-v2"`. Even with the same master key and nonce across both constructions, the derived keys differ. Correct.
 
-**String-only info encoding:** The info field is a plain UTF-8 string with no structured binary fields. This is simpler than the v1 approach but equally secure. Chunk position binding is handled by the counter nonce in the AEAD layer rather than the HKDF info.
+**String-only info encoding:** The info field is a plain UTF-8 string with no structured binary fields. This is simpler than the v1 approach but equally secure. The counter nonce in the AEAD layer handles chunk position binding rather than the HKDF info.
 
 ---
 
@@ -357,7 +355,7 @@ HKDF-SHA256's security reduces to the PRF security of HMAC-SHA256:
 
 For leviathan's use cases (96-byte output for SerpentCipher = enc_key + mac_key + iv_key, or 32-byte output for XChaCha20Cipher), the security margin is large: at most 3 of 255 possible HMAC blocks are used, well within the PRF security bound. The derived keys inherit the full 256-bit security of HMAC-SHA256.
 
-Each stream uses a unique random nonce as the HKDF salt, so each stream produces a unique PRK. This guarantees that every stream has fresh, independent key material. Per-chunk isolation is achieved through the counter nonce in the AEAD construction, not through per-chunk HKDF calls.
+Each stream uses a unique random nonce as the HKDF salt, so each stream produces a unique PRK. This guarantees that every stream has fresh, independent key material. The counter nonce in the AEAD construction provides per-chunk isolation, not per-chunk HKDF calls.
 
 ---
 

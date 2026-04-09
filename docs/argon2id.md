@@ -5,6 +5,17 @@
 > [`argon2id`](https://www.npmjs.com/package/argon2id) npm package directly and
 > how to pair it with leviathan primitives for passphrase-based encryption.
 
+> ### Table of Contents
+> - [Why Argon2id](#why-argon2id)
+> - [Installation](#installation)
+> - [Basic usage](#basic-usage)
+> - [Parameter presets](#parameter-presets)
+> - [Password hashing and verification](#password-hashing-and-verification)
+> - [Passphrase-based encryption with leviathan-crypto](#passphrase-based-encryption-with-leviathan-crypto)
+> - [Memory note](#memory-note)
+
+---
+
 ## Why Argon2id
 
 Password hashing is the last line of defense when a database is breached. If an
@@ -16,7 +27,7 @@ GPU parallelism, but 4 KiB is trivial by modern standards.
 
 Argon2 was the winner of the Password Hashing Competition (PHC, 2013–2015),
 selected from 24 submissions after two years of public analysis. It was designed
-specifically to be **memory-hard**, computing the hash requires not just CPU
+specifically to be **memory-hard**: computing the hash requires not just CPU
 time but a large block of RAM that cannot be traded away. An attacker who tries
 to use less memory must perform exponentially more computation, making GPU and
 ASIC attacks economically impractical.
@@ -271,7 +282,7 @@ xc2.dispose();
 
 ## Memory note
 
->[!IMPORTANT]
+> [!IMPORTANT]
 > Each call to `loadArgon2idWasm()` instantiates a separate WASM instance. The
 > package's own documentation recommends reloading the module between hashes when
 > the `memorySize` varies significantly, since WASM linear memory is not
@@ -285,7 +296,7 @@ xc2.dispose();
 > - [index](./README.md) — Project Documentation index
 > - [sha2](./sha2.md) — HKDF-SHA256 for key expansion from Argon2id root keys
 > - [serpent](./serpent.md) — `SerpentCipher`: Serpent-256 cipher suite (use with `Seal` and Argon2id-derived keys)
-> - [sealing](./sealing.md) — `Seal`: one-shot AEAD over any `CipherSuite`
+> - [authenticated encryption](./aead.md) — `Seal`: one-shot AEAD over any `CipherSuite`
 > - [chacha20](./chacha20.md) — XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys)
 > - [utils](./utils.md) — `randomBytes` for generating salts, `constantTimeEqual` for hash verification
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline

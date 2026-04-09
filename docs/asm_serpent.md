@@ -1,15 +1,23 @@
 # Serpent-256 WASM Module Reference
 
 > [!NOTE]
-> Serpent-256 WASM module (AssemblyScript -> `serpent.wasm`)
->
-> See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+> This is the AssemblyScript source reference for `serpent.wasm`. See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Buffer Layout](#buffer-layout)
+> - [Internal Architecture](#internal-architecture)
+> - [Error Conditions](#error-conditions)
+
+---
 
 ## Overview
 
 This module implements the Serpent-256 block cipher as a standalone WebAssembly
 binary compiled from AssemblyScript. Serpent is the Anderson/Biham/Knudsen AES
-submission (1998) -- a 32-round SP-network with 128-bit blocks and 128/192/256-bit
+submission (1998): a 32-round SP-network with 128-bit blocks and 128/192/256-bit
 keys. It placed second in the AES competition, chosen by designers who explicitly
 prioritized security margin over throughput.
 
@@ -54,7 +62,7 @@ cipher core.
 
 `incrementCounter()` has a minor timing leak: the carry-propagation loop exits
 early when no carry occurs (`if (b < 256) break`). This is acceptable because the
-counter value is not secret -- it is derived from the (public) nonce and block
+counter value is not secret; it is derived from the (public) nonce and block
 position. An observer who learns the counter value gains no information about the
 key or plaintext.
 
@@ -188,7 +196,7 @@ writes 16 bytes to `BLOCK_PT_BUFFER` (offset 32). Same byte-ordering conventions
 function resetCounter(): void
 ```
 Copies `NONCE_BUFFER` (16 bytes at offset 64) to `COUNTER_BUFFER` (offset 80). The
-nonce *is* the initial counter value -- no zeroing occurs. Call this before the
+nonce _is_ the initial counter value; no zeroing occurs. Call this before the
 first `encryptChunk`/`decryptChunk` for a new message.
 
 ```typescript
@@ -203,7 +211,7 @@ function encryptChunk(chunkLen: i32): i32
 ```
 CTR-encrypts `chunkLen` bytes from `CHUNK_PT_BUFFER` (offset 624) to
 `CHUNK_CT_BUFFER` (offset 66160). Handles partial final blocks (1-15 bytes)
-natively -- no padding required.
+natively; no padding required.
 
 - **chunkLen**: 1 to 65536
 - **Returns**: `chunkLen` on success, `-1` if `chunkLen <= 0` or `chunkLen > 65536`
@@ -292,7 +300,7 @@ scalar path for the trailing 1–3 blocks. Same parameters and return values
 as `cbcDecryptChunk`.
 
 > [!NOTE]
-> CBC *encryption* has no SIMD variant. Each ciphertext block depends on the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be parallelised. Decryption is fully parallelisable because all ciphertext blocks are available up front.
+> CBC _encryption_ has no SIMD variant. Each ciphertext block depends on the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be parallelised. Decryption is fully parallelisable because all ciphertext blocks are available up front.
 
 ---
 
@@ -361,19 +369,25 @@ Defines the static memory layout as `i32` constants and getter functions. No log
 The core cipher implementation, ported independently from the Serpent AES submission
 spec. Contains:
 
-**Working register helpers** (`rget`/`rset`): inline functions that load/store i32 values at `WORK_OFFSET + (i << 2)`. These are the cipher's virtual registers.
-**S-boxes** (`sb0`-`sb7`): 8 forward S-box Boolean circuits. Each takes 5 slot indices into the working registers. Operations are exclusively `&`, `|`, `^`, `~` on `rget`/`rset` values.
-**Inverse S-boxes** (`si0`-`si7`): 8 inverse S-box circuits for decryption.
-**EC/DC/KC constants**: encoded 5-slot permutations for each round. Each constant
-  encodes a permutation via `(m%5, m%7, m%11, m%13, m%17)` -- all five values are
-  guaranteed to be in {0,1,2,3,4} and distinct. `ec` drives encryption rounds, `dc`
-  drives decryption rounds, `kc` drives key schedule S-box application.
-**keyXor**: XORs 4 working registers with a round subkey.
-**lk** (Linear transform + Key XOR): the forward LT (rotl-13, rotl-3, XOR mixing, rotl-1, rotl-7, XOR mixing, rotl-5, rotl-22) followed by subkey XOR. Used in encryption rounds 0-30.
-**kl** (Key XOR + Inverse Linear transform): subkey XOR followed by the inverse LT. Used in decryption rounds.
-**Key schedule** (`loadKey`): reverse-copies key bytes, repacks as LE words, expands 132 prekey words via the affine recurrence (`w_i = rotl(w_{i-8} ^ w_{i-5} ^ w_{i-3} ^ w_{i-1} ^ 0x9E3779B9 ^ i, 11)`), then derives 33 round subkeys through S-box application using the `kc` constants.
-**encryptBlock / decryptBlock**: loop-driven implementations (not exported, used as reference).
-**wipeBuffers**: zeroes all sensitive memory.
+**Working register helpers (`rget`/`rset`).** Inline functions that load/store i32 values at `WORK_OFFSET + (i << 2)`. These are the cipher's virtual registers.
+
+**S-boxes (`sb0`-`sb7`).** 8 forward S-box Boolean circuits. Each takes 5 slot indices into the working registers. Operations are exclusively `&`, `|`, `^`, `~` on `rget`/`rset` values.
+
+**Inverse S-boxes (`si0`-`si7`).** 8 inverse S-box circuits for decryption.
+
+**EC/DC/KC constants.** Encoded 5-slot permutations for each round. Each constant encodes a permutation via `(m%5, m%7, m%11, m%13, m%17)`; all five values are guaranteed to be in {0,1,2,3,4} and distinct. `ec` drives encryption rounds, `dc` drives decryption rounds, `kc` drives key schedule S-box application.
+
+**keyXor.** XORs 4 working registers with a round subkey.
+
+**lk (Linear transform + Key XOR).** The forward LT (rotl-13, rotl-3, XOR mixing, rotl-1, rotl-7, XOR mixing, rotl-5, rotl-22) followed by subkey XOR. Used in encryption rounds 0-30.
+
+**kl (Key XOR + Inverse Linear transform).** Subkey XOR followed by the inverse LT. Used in decryption rounds.
+
+**Key schedule (`loadKey`).** Reverse-copies key bytes, repacks as LE words, expands 132 prekey words via the affine recurrence (`w_i = rotl(w_{i-8} ^ w_{i-5} ^ w_{i-3} ^ w_{i-1} ^ 0x9E3779B9 ^ i, 11)`), then derives 33 round subkeys through S-box application using the `kc` constants.
+
+**encryptBlock / decryptBlock.** Loop-driven implementations (not exported, used as reference).
+
+**wipeBuffers.** Zeroes all sensitive memory.
 
 ---
 
@@ -401,7 +415,7 @@ and `decryptBlock_unrolled` from the unrolled module.
 - Decryption: copies ciphertext to block buffer, decrypts, XORs with chaining
   value, updates IV from original ciphertext.
 - IV state persists in `CBC_IV_BUFFER` across calls for streaming.
-- PKCS7 padding is not handled here -- the TypeScript wrapper applies it.
+- PKCS7 padding is not handled here; the TypeScript wrapper applies it.
 
 ---
 
@@ -410,7 +424,7 @@ and `decryptBlock_unrolled` from the unrolled module.
 CTR mode encryption/decryption over 64KB chunks. Uses `encryptBlock_unrolled` to
 generate keystream blocks.
 
-- `resetCounter()`: copies nonce to counter (nonce *is* the initial counter value).
+- `resetCounter()`: copies nonce to counter (nonce _is_ the initial counter value).
 - `setCounter(lo, hi)`: absolute 128-bit counter positioning for worker pools.
 - `incrementCounter()`: 128-bit LE increment with byte-by-byte carry propagation.
 - `processBlock()`: encrypts the counter to produce a keystream block, XORs with

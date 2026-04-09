@@ -3,7 +3,7 @@
   "version": "1.4.0",
   "author": "xero (https://x-e.ro)",
   "license": "MIT",
-  "description": "Zero-dependency WebAssembly cryptography library for TypeScript: Serpent-256, XChaCha20-Poly1305, SHA-2/3, HMAC, HKDF, and Fortuna CSPRNG, with a strictly typed API built on vector-verified primitives.",
+  "description": "Zero-dependency WASM cryptography for TypeScript. Paranoid ciphers, post-quantum key encapsulation, and Fortuna CSPRNG behind a strictly typed API. All computation runs outside the JS JIT on vector-verified primitives.",
   "type": "module",
   "sideEffects": false,
   "exports": {

@@ -5,6 +5,15 @@
 > modules that perform cryptographic work, caches them in memory, and makes them
 > available to all wrapper classes.
 
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
+
+---
+
 ## Overview
 
 leviathan-crypto runs all cryptographic computation inside WebAssembly modules.
@@ -54,9 +63,9 @@ The WASM module families. Each one backs a group of related classes.
 | Module | Classes it enables |
 |---|---|
 | `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr` |
-| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream`, `Fortuna` — see [sealing.md](./sealing.md) |
+| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream`, `Fortuna` — see [aead.md](./aead.md) |
 | `'chacha20'` | `ChaCha20`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
-| `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [sealing.md](./sealing.md) |
+| `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
 | `'sha3'` / `'keccak'` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `'kyber'` | `MlKem512`, `MlKem768`, `MlKem1024` (also requires `'sha3'`) — see [kyber.md](./kyber.md) |
@@ -254,7 +263,7 @@ await init({ serpent: new URL('https://unpkg.com/leviathan-crypto/dist/serpent.w
 
 ### Pre-compiled module (edge runtimes)
 
-If you have already compiled the binary such as from a KV cache, pass the
+If you have already compiled the binary, for example from a KV cache, pass the
 `WebAssembly.Module` directly:
 
 ```typescript

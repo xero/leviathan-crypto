@@ -1,7 +1,21 @@
 # All Exports
 
-Complete reference for every public export in leviathan-crypto, grouped by module.
-For deeper documentation on each class follow the module links.
+> [!NOTE]
+> Complete reference for every public export in leviathan-crypto, grouped by module. Follow the module links for deeper documentation on each class.
+
+> ### Table of Contents
+> - [Initialization](#initialization)
+> - [Serpent-256](#serpent-256)
+> - [Stream](#stream)
+> - [Errors](#errors)
+> - [XChaCha20 / Poly1305](#xchacha20--poly1305)
+> - [SHA-2](#sha-2)
+> - [SHA-3](#sha-3)
+> - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
+> - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
+> - [Fortuna CSPRNG](#fortuna-csprng)
+> - [Types](#types)
+> - [Utilities](#utilities)
 
 ---
 
@@ -50,7 +64,7 @@ Subpath: `leviathan-crypto/serpent`. See [serpent.md](./serpent.md).
 ## Stream
 
 Cipher-agnostic streaming encryption using the STREAM construction.
-Subpath: `leviathan-crypto/stream`. See [sealing.md](./sealing.md).
+Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -170,7 +184,8 @@ Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
 | `MLKEM768` | const | Parameter set for ML-KEM-768. |
 | `MLKEM1024` | const | Parameter set for ML-KEM-1024. |
 
-> `ntt_scalar`, `invntt_scalar` are scalar NTT references exported for SIMD gate tests. Not part of the public API.
+> [!NOTE]
+> `ntt_scalar` and `invntt_scalar` are scalar NTT references exported for SIMD gate tests. They are not part of the public API.
 
 ---
 

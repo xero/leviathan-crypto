@@ -36,7 +36,7 @@ const ROOT = resolve(__dirname, '..');
 const SRC  = resolve(ROOT, 'docs');
 const OUT  = resolve(ROOT, 'dist/docs');
 
-// consumer API docs only — no branding, internals, or project docs
+// consumer API docs only
 const INCLUDE = [
 	'architecture.md',
 	'argon2id.md',
@@ -48,7 +48,7 @@ const INCLUDE = [
 	'serpent.md',
 	'sha2.md',
 	'sha3.md',
-	'stream.md',
+	'aead.md',
 	'types.md',
 	'utils.md',
 ];

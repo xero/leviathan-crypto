@@ -1,11 +1,40 @@
 # Serpent-256 Algorithm Reference
 
 > [!NOTE]
-> - **Date:** 2026-02-27
-> - **Scope:** Serpent-256 Algorithm Specification & Known Attacks
-> - **Sources:** Anderson/Biham/Knudsen original papers, Ross Anderson's AES submission reference implementation (floppy1/floppy4)
+> Algorithm specification, bitslice implementation details, and known attack analysis for Serpent-256. Based on the Anderson/Biham/Knudsen AES submission papers and Ross Anderson's reference implementation.
 
-## 1. Algorithm Overview
+> ### Table of Contents
+> - [Algorithm Overview](#algorithm-overview)
+>   - [Origins and Design Goals](#origins-and-design-goals)
+>   - [AES Competition Placement](#aes-competition-placement)
+>   - [Bitslice Design](#bitslice-design)
+>   - [Serpent vs AES](#serpent-vs-aes)
+> - [Algorithm Specification](#algorithm-specification)
+>   - [Parameters](#parameters)
+>   - [Key Schedule](#key-schedule)
+>   - [S-Boxes](#s-boxes)
+>   - [Linear Transform](#linear-transform)
+>   - [Round Function](#round-function)
+>   - [Encryption](#encryption)
+>   - [Decryption](#decryption)
+> - [Bitslice Implementation](#bitslice-implementation)
+>   - [The Bitslice Technique](#the-bitslice-technique)
+>   - [How It Works for Serpent](#how-it-works-for-serpent)
+>   - [No Cache-Timing Channels](#no-cache-timing-channels)
+>   - [Performance](#performance)
+>   - [Bitslice vs Table-Lookup](#bitslice-vs-table-lookup)
+> - [Known Attacks](#known-attacks)
+>   - [Differential Cryptanalysis](#differential-cryptanalysis)
+>   - [Linear Cryptanalysis](#linear-cryptanalysis)
+>   - [Multidimensional Linear Cryptanalysis](#multidimensional-linear-cryptanalysis)
+>   - [Biclique Cryptanalysis](#biclique-cryptanalysis)
+>   - [Related-Key Attacks](#related-key-attacks)
+>   - [Power Analysis and DPA](#power-analysis-and-dpa)
+>   - [Overall Security Assessment](#overall-security-assessment)
+
+---
+
+## Algorithm Overview
 
 ### Origins and Design Goals
 
@@ -15,20 +44,19 @@ NIST Advanced Encryption Standard (AES) competition in 1998 as a candidate to re
 DES.
 
 The designers' explicit priority was **maximum security margin** over performance.
-Where Rijndael (the eventual AES winner) was designed to be fast on a wide range of
-hardware, Serpent was designed to be conservative — providing a much larger security
-cushion by using 32 rounds rather than Rijndael's 10/12/14. The designers stated that
-they believed Serpent was the more secure submission, and that Rijndael was selected
-primarily because of its superior performance characteristics.
+While Rijndael (the eventual AES winner) was designed to be fast on a wide range of
+hardware, Serpent prioritized security through a conservative design, using 32 rounds
+rather than Rijndael's 10/12/14. The designers believed Serpent was the more secure
+submission and that NIST selected Rijndael primarily for its superior performance.
 
 ### AES Competition Placement
 
-Serpent was selected as one of the five AES finalists (alongside Rijndael, Twofish,
-RC6, and MARS). In the final vote by NIST, it placed **second** — very close to
-Rijndael. Many cryptographers and security practitioners who prioritize security margin
-over performance prefer Serpent to AES for that reason.
+Serpent was selected as one of the five AES finalists, alongside Rijndael, Twofish,
+RC6, and MARS. In the final NIST vote it placed **second**, very close to Rijndael.
+Many cryptographers and security practitioners who prioritize security margin over
+performance prefer Serpent to AES for that reason.
 
-### Why Bitslice?
+### Bitslice Design
 
 Serpent was designed around the **bitslice** implementation technique, introduced by
 Eli Biham for DES. In a bitslice implementation, multiple blocks are encrypted in
@@ -38,25 +66,25 @@ wide words, rather than as table lookups.
 
 This choice was deliberate and has two key consequences:
 
-1. **Software performance**: A bitslice implementation processes 32 blocks simultaneously
+1. **Software performance:** A bitslice implementation processes 32 blocks simultaneously
    using integer registers, achieving throughput that exceeds a naive implementation
    despite the more complex S-box computation.
 
-2. **Timing side-channel resistance**: Because the S-boxes use only data-independent
-   Boolean operations — no memory accesses indexed by secret data — there are no
+2. **Timing side-channel resistance:** The S-boxes use only data-independent Boolean
+   operations with no memory accesses indexed by secret data, so there are no
    cache-timing side channels in the S-box layer. The original paper explicitly claims
-   timing attacks are "not applicable" to Serpent, though this claim depends entirely
-   on using the bitslice implementation. A table-lookup implementation would be
+   timing attacks are "not applicable" to Serpent, though this depends entirely on
+   using the bitslice implementation. A table-lookup implementation would be
    vulnerable.
 
-### Serpent vs AES: Security-Performance Trade-off
+### Serpent vs AES
 
 | Property | Serpent-256 | AES-256 |
 |----------|-------------|---------|
 | Rounds | 32 | 14 |
 | Best known cryptanalytic attack | 12 rounds (theoretical) | 9 rounds (theoretical) |
 | Security margin (rounds) | 20 | 5 |
-| Relative software speed | ~3–4× slower | Faster |
+| Relative software speed | ~3-4x slower | Faster |
 | S-box timing channel risk | None (bitslice) | Yes (if not using AES-NI) |
 
 Serpent's 20-round security margin versus AES's 5-round margin is the central argument
@@ -64,9 +92,9 @@ for choosing it in high-security applications where performance is less critical
 
 ---
 
-## 2. Algorithm Specification
+## Algorithm Specification
 
-### 2.1 Parameters
+### Parameters
 
 | Parameter | Value |
 |-----------|-------|
@@ -74,17 +102,17 @@ for choosing it in high-security applications where performance is less critical
 | Key sizes | 128, 192, or 256 bits |
 | Number of rounds | 32 |
 | Subkeys | 33 (K₀ through K₃₂), each 128 bits |
-| S-boxes | 8 distinct 4-bit→4-bit permutations |
+| S-boxes | 8 distinct 4-bit to 4-bit permutations |
 
-### 2.2 Key Schedule
+### Key Schedule
 
 #### Key Padding
 
 All key sizes are padded to 256 bits before processing. The padding rule appends a
 single `1` bit immediately after the last key bit, then zeros to fill to 256 bits:
 
-- 128-bit key: bit 128 set to 1, bits 129–255 set to 0
-- 192-bit key: bit 192 set to 1, bits 193–255 set to 0
+- 128-bit key: bit 128 set to 1, bits 129-255 set to 0
+- 192-bit key: bit 192 set to 1, bits 193-255 set to 0
 - 256-bit key: no padding required
 
 The padded key is treated as eight 32-bit words: w₋₈, w₋₇, ..., w₋₁.
@@ -135,11 +163,11 @@ For n = 0, 1, ..., 32. The S-box applied at group n is S_{(3−n) mod 8}:
 Each group of four k-words is concatenated to form a 128-bit subkey:
 K_n = k_{4n} ‖ k_{4n+1} ‖ k_{4n+2} ‖ k_{4n+3}.
 
-### 2.3 S-Boxes
+### S-Boxes
 
-Serpent uses 8 distinct 4-bit→4-bit substitution boxes (S₀ through S₇). Each S-box
-maps a 4-bit input to a 4-bit output. A given S-box is used in every 8th round
-(round i uses S_{i mod 8}).
+Serpent uses 8 distinct 4-bit to 4-bit substitution boxes (S₀ through S₇). Each S-box
+maps a 4-bit input to a 4-bit output. A given S-box is used in every 8th round;
+round i uses S_{i mod 8}.
 
 The S-boxes were designed using DES S-box matrix rows as a starting point, shuffled
 until the following cryptographic criteria were satisfied:
@@ -179,12 +207,12 @@ S₆⁻¹: {15,10, 1,13, 5, 3, 6, 0, 4, 9,14, 7, 2,12, 8,11 }
 S₇⁻¹: { 3, 0, 6,13, 9,14,15, 8, 5,12,11, 7,10, 1, 4, 2 }
 ```
 
-### 2.4 Linear Transform
+### Linear Transform
 
-The linear transform (LT) is applied after each S-box layer in rounds 0–30. It
+The linear transform (LT) is applied after each S-box layer in rounds 0-30. It
 takes four 32-bit words (X₀, X₁, X₂, X₃) and produces four new words. The
-operation uses only 32-bit rotations and XORs — no table lookups, no data-dependent
-branches.
+operation uses only 32-bit rotations and XORs, with no table lookups and no
+data-dependent branches.
 
 **Forward linear transform (encryption):**
 
@@ -221,11 +249,11 @@ rotation by (32 − r):
 10.  X₀ = X₀ <<< 19         (undoes step 1:  32 − 13 = 19)
 ```
 
-### 2.5 Round Function
+### Round Function
 
 Each of the 32 rounds (indexed 0 through 31) applies three operations in sequence:
 
-**Rounds 0–30:**
+**Rounds 0-30:**
 1. **Key mixing:** XOR the current 128-bit state with subkey Kᵢ
 2. **S-box layer:** Apply S_{i mod 8} to all 32 parallel 4-bit groups
 3. **Linear transform:** Apply the forward LT to the four 32-bit state words
@@ -233,13 +261,13 @@ Each of the 32 rounds (indexed 0 through 31) applies three operations in sequenc
 **Round 31 (final round):**
 1. **Key mixing:** XOR the state with K₃₁
 2. **S-box layer:** Apply S_{31 mod 8} = S₇ to all groups
-3. *(No linear transform)* **Final key mixing:** XOR the state with K₃₂
+3. _(No linear transform)_ **Final key mixing:** XOR the state with K₃₂
 
 The omission of the linear transform in the final round and its replacement with
 a second key addition is the standard SP-network construction that ensures decryption
 is a mirror image of encryption.
 
-### 2.6 Encryption
+### Encryption
 
 Complete encryption sequence:
 
@@ -254,11 +282,11 @@ Output: 128-bit ciphertext C
 4. C = S₇(B₃₁ ⊕ K₃₁) ⊕ K₃₂
 ```
 
-In the bitslice description, steps 2–4 operate on the four 32-bit words representing
-the block. There are no IP or FP permutations in the bitslice form — they are absorbed
+In the bitslice description, steps 2-4 operate on the four 32-bit words representing
+the block. There are no IP or FP permutations in the bitslice form; they are absorbed
 into the key schedule.
 
-### 2.7 Decryption
+### Decryption
 
 Decryption applies every operation in reverse order with inverse functions:
 
@@ -274,31 +302,29 @@ Output: 128-bit plaintext P
 5. P = B₀
 ```
 
-The key schedule is identical for encryption and decryption — subkeys are derived
+The key schedule is identical for encryption and decryption. Subkeys are derived
 once and used in reverse order during decryption.
 
 ---
 
-## 3. Bitslice Implementation
+## Bitslice Implementation
 
-### 3.1 The Bitslice Technique
+### The Bitslice Technique
 
-In a conventional block cipher implementation, each block is processed sequentially —
-one 128-bit value through the S-boxes, one step at a time. The S-boxes are implemented
+A conventional block cipher implementation processes each block sequentially, passing
+one 128-bit value through the S-boxes one step at a time. The S-boxes are implemented
 as lookup tables indexed by small groups of bits.
 
-In a **bitslice** implementation, `n` blocks are processed in parallel by
-transposing the data representation: rather than storing one 128-bit block as
-a unit, each of the 128 bit positions across all `n` blocks is stored in a single
-`n`-bit register. For a 32-bit architecture, `n = 32`, so 32 blocks are processed
-simultaneously.
+A **bitslice** implementation processes `n` blocks in parallel by transposing the
+data representation. Rather than storing one 128-bit block as a unit, each of the
+128 bit positions across all `n` blocks is stored in a single `n`-bit register. For
+a 32-bit architecture, `n = 32`, so 32 blocks are processed simultaneously.
 
 Under this representation, the S-box is no longer a table lookup. Instead, it is
-implemented as a Boolean circuit — a sequence of AND, OR, XOR, and NOT operations
-on the wide registers — that computes all four output bits simultaneously for all
-32 blocks.
+implemented as a Boolean circuit of AND, OR, XOR, and NOT operations on the wide
+registers, computing all four output bits simultaneously for all 32 blocks.
 
-### 3.2 How It Works for Serpent
+### How It Works for Serpent
 
 A 128-bit Serpent block consists of four 32-bit words: (X₀, X₁, X₂, X₃). In the
 bitslice representation processing 32 blocks simultaneously, these four words
@@ -307,49 +333,48 @@ become four 32-bit registers where each bit position corresponds to one of the
 
 The S-box receives four one-bit inputs (one from each of X₀, X₁, X₂, X₃ at the
 same bit position) and produces four one-bit outputs. The Boolean circuit for each
-S-box is derived algebraically from the 4-bit→4-bit lookup table — it computes
+S-box is derived algebraically from the 4-bit to 4-bit lookup table; it computes
 the same mapping as the table but using only bitwise operations.
 
 For example, S₀ maps a 4-bit input to a 4-bit output using the substitution
 `{3,8,15,1,10,6,5,11,14,13,4,2,7,0,9,12}`. The Boolean circuit that computes
-this mapping for all 32 blocks in parallel is a sequence of roughly 15–20 gate
+this mapping for all 32 blocks in parallel is a sequence of roughly 15-20 gate
 operations (AND, OR, XOR, NOT) on the four input registers.
 
-### 3.3 Security Significance: No Cache-Timing Channels
+### No Cache-Timing Channels
 
 A table-lookup S-box implementation has a fundamental vulnerability: the memory
 address accessed depends on the secret data (plaintext XOR key). On a processor
 with a data cache, access time varies based on whether the cache line containing
-the table entry is warm or cold — and an attacker who can measure timing or shares
-a cache with the victim can learn information about the key.
+the table entry is warm or cold. An attacker who can measure timing or shares a
+cache with the victim can learn information about the key.
 
-The Serpent authors note: *"We do not access different locations in memory for
-different plaintexts or keys"* — this is the defining property of the bitslice
-S-box. All 32 gate operations are executed unconditionally and access no memory
-other than the four register operands. There is nothing for a cache-timing adversary
-to observe.
+The Serpent authors note that the bitslice S-box "does not access different locations
+in memory for different plaintexts or keys." All 32 gate operations execute
+unconditionally and access no memory other than the four register operands. There is
+nothing for a cache-timing adversary to observe.
 
 This property holds at the S-box level. The linear transform (rotations and XORs)
-is also data-independent by nature. The Serpent core — S-boxes plus LT — produces
-no data-dependent memory accesses whatsoever.
+is also data-independent by nature. The Serpent core produces no data-dependent
+memory accesses whatsoever.
 
-### 3.4 Performance
+### Performance
 
 The bitslice technique processes 32 blocks in the time it takes to encrypt one
-block conventionally. The throughput advantage is therefore up to 32×, modulo the
+block conventionally. The throughput advantage is therefore up to 32x, modulo the
 overhead of transposing data in and out of bitslice format.
 
-In practice, for bulk encryption (e.g. CTR or CBC mode over large data), the
-amortized throughput approaches this theoretical maximum. For single-block
-operations the overhead of the format conversion dominates and throughput is lower.
+For bulk encryption (e.g. CTR or CBC mode over large data), the amortized throughput
+approaches this theoretical maximum. For single-block operations, the overhead of
+the format conversion dominates and throughput is lower.
 
-The original paper (from the smartcard context) quotes a bitslice implementation
-at ~11,000 clock cycles per block at 3.5 MHz (~40.7 Kbit/s), versus ~34,000 cycles
-for a compact table-lookup implementation (~12.8 Kbit/s) — counter intuitively,
-bitslice is ~3× faster in bulk throughput despite its more complex S-box logic,
-because the table-lookup version is not vectorized.
+The original paper quotes a bitslice implementation at ~11,000 clock cycles per
+block at 3.5 MHz (~40.7 Kbit/s), versus ~34,000 cycles for a compact table-lookup
+implementation (~12.8 Kbit/s). Counterintuitively, bitslice is ~3x faster in bulk
+throughput despite its more complex S-box logic, because the table-lookup version
+is not vectorized.
 
-### 3.5 Bitslice vs Table-Lookup: A Comparison
+### Bitslice vs Table-Lookup
 
 | Property | Bitslice | Table-Lookup |
 |----------|----------|--------------|
@@ -362,9 +387,9 @@ because the table-lookup version is not vectorized.
 
 ---
 
-## 4. Known Attacks
+## Known Attacks
 
-### 4.1 Differential Cryptanalysis
+### Differential Cryptanalysis
 
 **Source:** Original AES submission paper (Anderson/Biham/Knudsen, 1998)
 **Rounds reached:** 24 (theoretical characteristic)
@@ -380,7 +405,7 @@ exponentially.
 **Practical threat to 32-round Serpent:** None. The attack does not reach full 32
 rounds and requires infeasible data quantities even for 24 rounds.
 
-### 4.2 Linear Cryptanalysis
+### Linear Cryptanalysis
 
 **Source:** Original AES submission paper (Anderson/Biham/Knudsen, 1998)
 **Rounds reached:** 28 (theoretical linear hull)
@@ -388,16 +413,16 @@ rounds and requires infeasible data quantities even for 24 rounds.
 
 The best linear hull found by the designers for 28 rounds has a bias of approximately
 1/2 ± 2⁻¹²⁰. An attack exploiting this bias would require approximately 2²⁴⁰
-known plaintexts — far more than can be encrypted with a single key in any realistic
+known plaintexts, far more than can be encrypted with a single key in any realistic
 scenario.
 
 **Practical threat to 32-round Serpent:** None. The attack does not reach full 32
 rounds and the data requirement is astronomically large.
 
-### 4.3 Multidimensional Linear Cryptanalysis (Best Known)
+### Multidimensional Linear Cryptanalysis
 
 **Source:** "Improving the Algorithm 2 in Multidimensional Linear Cryptanalysis"
-(Nguyen, Wu, Wang — ACISP 2011)
+(Nguyen, Wu, Wang, ACISP 2011)
 **Rounds reached:** 12
 **Type:** Multidimensional linear cryptanalysis using FFT/Walsh-Hadamard Transform
 
@@ -416,17 +441,17 @@ to Serpent, it represents the best published linear-family attack as of 2011.
 KP = Known Plaintexts; CP = Chosen Plaintexts.
 
 The 12-round results, while faster than brute force for reduced-round Serpent,
-require time complexity of 2²²⁸–2²³⁷ — effectively infeasible. More importantly,
-these attacks reach only 12 of the 32 rounds. Full Serpent has 20 more rounds of
-security margin beyond the reach of these attacks.
+require time complexity of 2²²⁸-2²³⁷, which is effectively infeasible. More
+importantly, these attacks reach only 12 of the 32 rounds. Full Serpent has 20 more
+rounds of security margin beyond the reach of these attacks.
 
 **Practical threat to 32-round Serpent:** None. These are mathematical results
 on reduced-round variants only.
 
-### 4.4 Biclique Cryptanalysis (Only Known Attack on Full Serpent-256)
+### Biclique Cryptanalysis
 
 **Source:** "The First Biclique Cryptanalysis of Serpent-256"
-(de Carvalho & Kowada — unpublished/competition entry)
+(de Carvalho & Kowada, unpublished competition entry)
 **Rounds reached:** 32 (full)
 **Type:** Biclique cryptanalysis (meet-in-the-middle variant)
 
@@ -443,24 +468,23 @@ Results for full 32-round Serpent-256:
 | Dim-8 biclique | 2²⁵⁵·⁴⁵ | 2⁶⁰ | 2¹⁸·⁸⁶ bytes |
 
 Both attacks are marginally faster than exhaustive key search (2²⁵⁶), by
-approximately 0.55–0.79 bits. However:
+approximately 0.55-0.79 bits. However:
 
-- 2⁶⁰–2⁸⁸ chosen ciphertexts is physically impossible to obtain under a single key
-- The time complexities of 2²⁵⁵ are not meaningfully less secure than 2²⁵⁶
+- 2⁶⁰-2⁸⁸ chosen ciphertexts is physically impossible to obtain under a single key
+- Time complexities of 2²⁵⁵ are not meaningfully less secure than 2²⁵⁶
 - These attacks provide no practical cryptanalytic leverage
 
 > [!WARNING]
-> **Note on paper accuracy:** The biclique paper contains a formula error in the
-> key schedule description: it states `k_i = SBox_{(3-(i mod 33)) mod 32}(w_i)`, which
-> is incorrect. The correct formula is `S_{(3−n) mod 8}` for the n-th group of four
-> prekey words (verified against the original AES submission paper and the reference
-> C implementation). The paper's error does not affect the attack results — it is
-> a documentation issue only.
+> The biclique paper contains a formula error in the key schedule description: it
+> states `k_i = SBox_{(3-(i mod 33)) mod 32}(w_i)`, which is incorrect. The correct
+> formula is `S_{(3−n) mod 8}` for the n-th group of four prekey words (verified
+> against the original AES submission paper and the reference C implementation). The
+> error does not affect the attack results; it is a documentation issue only.
 
-**Practical threat to 32-round Serpent-256:** None. The attack is 0.55–0.79 bits
+**Practical threat to 32-round Serpent-256:** None. The attack is 0.55-0.79 bits
 better than brute force and requires infeasible data and computation.
 
-### 4.5 Related-Key Attacks
+### Related-Key Attacks
 
 **Applicability:** Not applicable to Serpent
 
@@ -470,7 +494,7 @@ highly non-linear and key-dependent in a way that defeats standard related-key
 differential attacks. The original designers explicitly analyzed and dismissed this
 attack class.
 
-### 4.6 Power Analysis / DPA
+### Power Analysis and DPA
 
 **Applicability:** Implementation-dependent
 
@@ -485,7 +509,7 @@ Serpent:
 - These properties provide DPA resistance, but genuine DPA mitigation requires
   hardware countermeasures (masking, shuffling) that are outside Serpent's scope
 
-### 4.7 Overall Security Assessment
+### Overall Security Assessment
 
 Serpent-256 with 32 rounds has the following security posture as of 2026:
 
@@ -499,11 +523,13 @@ Serpent-256 with 32 rounds has the following security posture as of 2026:
 | Side-channel (bitslice) | No cache-timing in S-boxes | None at algorithm level |
 
 **Security margin:** The best mathematical attack reaches 12 of 32 rounds, leaving
-a margin of **20 rounds** — wider than AES-256's 5-round margin. No practical
-attack on full Serpent-256 is known. A correct 32-round implementation can be
-considered cryptographically secure for all foreseeable use cases.
+a margin of **20 rounds**, wider than AES-256's 5-round margin. No practical attack
+on full Serpent-256 is known. A correct 32-round implementation is cryptographically
+secure for all foreseeable use cases.
 
-> ## Cross-References
+---
+
+> ### Cross-References
 >
 > - [index](./README.md) — Project Documentation index
 > - [serpent_audit](./serpent_audit.md) — security audit results: algorithm correctness verification and side-channel analysis

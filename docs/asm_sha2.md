@@ -5,6 +5,16 @@
 >
 > See [SHA-2 implementation audit](./sha2_audit.md), [HMAC audit](./hmac_audit.md), and [HKDF audit](./hkdf_audit.md) for algorithm correctness verifications.
 
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Buffer Layout](#buffer-layout)
+> - [Internal Architecture](#internal-architecture)
+> - [Error Conditions](#error-conditions)
+
+---
+
 ## Overview
 
 The `sha2` WASM module implements the SHA-2 hash family and its HMAC
@@ -26,8 +36,8 @@ SHA-384 is SHA-512 with different initial hash values and a truncated
 output. It shares all SHA-512 buffers and compression logic. No separate implementation exists.
 
 Every primitive supports a streaming API: `init` / `update` / `final`.
-The caller writes input bytes to the module's input staging buffer,
-calls `update` with the byte count, and repeats until all data has been
+You write input bytes to the module's input staging buffer,
+call `update` with the byte count, and repeat until all data has been
 fed. Calling `final` applies Merkle-Damgard padding and writes the
 digest to the output buffer.
 
@@ -43,7 +53,7 @@ SHA-512, provides 192-bit collision resistance.
 **Length extension.** SHA-256 and SHA-512 use the Merkle-Damgard
 construction and are vulnerable to length extension attacks: given
 `H(m)` and `len(m)`, an attacker can compute `H(m || padding || m')`
-without knowing `m`. HMAC is not vulnerable to length extension. The outer hash step prevents it. If you need to authenticate data, use HMAC,
+without knowing `m`. HMAC is not vulnerable to length extension; the outer hash step prevents it. If you need to authenticate data, use HMAC,
 not a bare hash.
 
 **HMAC key secrecy.** HMAC provides message authentication only if the
@@ -70,9 +80,9 @@ timing side channels.
 ## API Reference
 
 All exported functions are listed below, grouped by primitive. Every
-function operates on fixed offsets in WASM linear memory. The caller
-communicates with the module by writing bytes to input buffers and
-reading results from output buffers.
+function operates on fixed offsets in WASM linear memory. You communicate
+with the module by writing bytes to input buffers and reading results from
+output buffers.
 
 ### SHA-256
 
@@ -89,11 +99,11 @@ sha256Update(len: i32): void
 ```
 
 Hash `len` bytes from `SHA256_INPUT_OFFSET` into the running SHA-256
-state. `len` must be <= 64 (the size of the input staging buffer). The
-caller must write the input bytes to `SHA256_INPUT_OFFSET` before
-calling. For messages longer than 64 bytes, loop: write a chunk, call
-`sha256Update`, repeat. Internally, bytes accumulate in the 64-byte
-block buffer; when a full block is ready, the compression function runs.
+state. `len` must be <= 64 (the size of the input staging buffer). You
+must write the input bytes to `SHA256_INPUT_OFFSET` before calling. For
+messages longer than 64 bytes, loop: write a chunk, call `sha256Update`,
+repeat. Internally, bytes accumulate in the 64-byte block buffer; when a
+full block is ready, the compression function runs.
 
 ```
 sha256Final(): void
@@ -111,8 +121,8 @@ sha256Hash(len: i32): void
 
 Convenience function: `sha256Init()` + `sha256Update(len)` +
 `sha256Final()` in a single call. Only usable for messages that fit in
-the 64-byte input staging buffer (`len` <= 64). Caller writes input to
-`SHA256_INPUT_OFFSET`, calls `sha256Hash(len)`, reads the digest from
+the 64-byte input staging buffer (`len` <= 64). Write input to
+`SHA256_INPUT_OFFSET`, call `sha256Hash(len)`, then read the digest from
 `SHA256_OUT_OFFSET`.
 
 ---
@@ -141,8 +151,8 @@ sha512Update(len: i32): void
 ```
 
 Hash `len` bytes from `SHA512_INPUT_OFFSET` into the running state.
-`len` must be <= 128. Used by both SHA-512 and SHA-384 (they share the
-same update function and block buffer).
+`len` must be <= 128. Both SHA-512 and SHA-384 use this function; they share the
+same update function and block buffer.
 
 ```
 sha512Final(): void
@@ -159,7 +169,7 @@ sha384Final(): void
 
 Calls `sha512Final()` internally. The 48-byte SHA-384 digest is the
 first 48 bytes of `SHA512_OUT_OFFSET` (the first 6 of 8 64-bit hash
-words). The caller must read only bytes [0..47].
+words). Read only bytes [0..47].
 
 ---
 
@@ -327,7 +337,7 @@ ipad/opad, inner hashes, and digest outputs. Must be called on dispose.
 ## Buffer Layout
 
 All offsets start at byte 0. The SHA-2 module uses a single contiguous
-region of 1976 bytes in WASM linear memory. SHA-384 does not have its own buffers. It shares all SHA-512 buffers.
+region of 1976 bytes in WASM linear memory. SHA-384 does not have its own buffers; it shares all SHA-512 buffers.
 
 ### SHA-256 Region (offsets 0 to 619)
 
@@ -365,7 +375,7 @@ region of 1976 bytes in WASM linear memory. SHA-384 does not have its own buffer
 
 SHA-384 reuses the SHA-512 buffers entirely. The only differences are
 the initial hash values loaded by `sha384Init()` and the fact that
-callers read only the first 48 bytes of `SHA512_OUT_OFFSET` after
+you read only the first 48 bytes of `SHA512_OUT_OFFSET` after
 `sha384Final()`.
 
 ---
@@ -434,7 +444,7 @@ Implements SHA-512 with SHA-384 as a variant:
   (S5.3.4) are separate constant sets. `loadIVs()` is an internal
   helper that stores any set of 8 i64 values into `SHA512_H_OFFSET`.
 - **SHA-384 differences**: `sha384Init()` loads SHA-384 IVs.
-  `sha384Final()` calls `sha512Final()`. The caller reads only the first 48 bytes of the 64-byte output. There is no separate SHA-384
+  `sha384Final()` calls `sha512Final()`. You read only the first 48 bytes of the 64-byte output. There is no separate SHA-384
   compression or update function.
 - **Padding** (FIPS 180-4 S5.1.2): 0x80 byte, zero-padding, 128-bit
   big-endian bit length at the end of the final block. The threshold is
@@ -459,8 +469,7 @@ HMAC(K, m) = SHA256((K' XOR opad) || SHA256((K' XOR ipad) || m))
 - `hmac256Final()`: finalizes the inner hash, saves the 32-byte
   digest to `HMAC256_INNER_OFFSET`, then starts a fresh SHA-256 for the outer hash. Feeds the 64-byte opad block, then the 32-byte inner digest, then finalizes. Result lands at `SHA256_OUT_OFFSET`.
 
-Keys longer than 64 bytes are not handled in WASM. The TypeScript
-wrapper pre-hashes long keys with SHA-256 and passes the 32-byte result.
+The TypeScript wrapper handles keys longer than 64 bytes by pre-hashing them with SHA-256 and passing the 32-byte result.
 
 ---
 
@@ -490,7 +499,7 @@ with `memory.fill(0, 0, 1976)`.
 
 ## Error Conditions
 
-The WASM module itself does not throw exceptions or return error codes.
+The WASM module does not throw exceptions or return error codes.
 All constraints are enforced by convention between the AssemblyScript
 implementation and the TypeScript wrapper:
 

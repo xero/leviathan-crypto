@@ -4,12 +4,22 @@
 > A CSPRNG that continuously collects entropy from the environment and generates
 > cryptographically secure random bytes, backed by WASM Serpent-256 and SHA-256.
 
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
+> - [How It Works (Simplified)](#how-it-works-simplified)
+
+---
+
 ## Overview
 
 A cryptographically secure pseudorandom number generator (CSPRNG) produces random
 bytes that are indistinguishable from true randomness to any observer, even one
 with significant computational resources. This matters because many security
-operations: generating encryption keys, initialization vectors, nonces, tokens. These require randomness that an attacker cannot predict. If an attacker can predict
+operations require unpredictable randomness: generating encryption keys, initialization vectors, nonces, and tokens. If an attacker can predict
 the output of your random number generator, they can predict your keys, and your
 encryption provides no protection.
 
@@ -21,9 +31,7 @@ Fortuna combines pool contents and uses them to reseed an internal generator
 built on Serpent-256 (block cipher) and SHA-256 (hash function). Both primitives
 run entirely in WebAssembly.
 
-Why use Fortuna instead of `crypto.getRandomValues()`? The OS random source is
-good, and Fortuna seeds itself from it on creation. But Fortuna adds two
-properties on top. First, **forward secrecy**: after every call to `get()`, the
+Fortuna adds two properties on top of `crypto.getRandomValues()`. First, **forward secrecy**: after every call to `get()`, the
 internal generation key is replaced, so compromising the current state does not
 reveal any past outputs. Second, **defense-in-depth entropy pooling**: Fortuna
 collects entropy from many independent sources and distributes it across 32 pools

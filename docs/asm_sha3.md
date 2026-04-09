@@ -1,9 +1,20 @@
 # SHA-3 WASM Reference
 
 > [!NOTE]
-> SHA-3/SHAKE WASM module (AssemblyScript -> `sha3.wasm`)
+> This module implements the full SHA-3/SHAKE family (FIPS 202) as an AssemblyScript WASM module (`sha3.wasm`).
 >
 > See [SHA-3 implementation audit](./sha3_audit.md) for algorithm correctness verifications.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Buffer Layout](#buffer-layout)
+> - [Internal Architecture](#internal-architecture)
+> - [Variant Parameters](#variant-parameters)
+> - [Error Conditions](#error-conditions)
+
+---
 
 ## Overview
 
@@ -49,11 +60,11 @@ lookups, and no secret-dependent memory access patterns. The permutation is
 constant-time by construction.
 
 **SHAKE output cap.** This implementation squeezes at most one block of output per
-`shakeFinal()` call. That means SHAKE128 output is capped at 168 bytes and SHAKE256
-at 136 bytes. For the common use case (deriving a fixed-size key), this is
-sufficient. If you need more output than one squeeze block, you will need to extend the squeeze loop. This is a known limitation of the v1.0 module.
+`shakeFinal()` call. SHAKE128 output is capped at 168 bytes and SHAKE256
+at 136 bytes. For the common use case of deriving a fixed-size key, this is
+sufficient. If you need more output than one squeeze block, extend the squeeze loop. This is a known limitation of the v1.0 module.
 
-**wipeBuffers().** Zeroes all 545 bytes of module state: the 200-byte Keccak lane
+**`wipeBuffers()`.** Zeroes all 545 bytes of module state: the 200-byte Keccak lane
 matrix, the input staging buffer, the output buffer, and the rate/absorbed/dsByte
 metadata. The TypeScript wrapper must call this on `dispose()` to prevent key
 material or intermediate hash state from persisting in WASM linear memory.
@@ -87,12 +98,12 @@ into the metadata slots. Call exactly one init function before absorbing data.
 keccakAbsorb(len: i32): void
 ```
 
-Absorbs `len` bytes from `INPUT_OFFSET` into the sponge state. The caller writes
+Absorbs `len` bytes from `INPUT_OFFSET` into the sponge state. Write
 input data to `INPUT_OFFSET` before calling this function. Data is XORed into the
 state byte-by-byte (FIPS 202 SS4, Algorithm 8). When the absorbed byte count
 reaches the rate, Keccak-f[1600] is applied and absorption continues from lane 0.
 
-Can be called multiple times (streaming): the `ABSORBED` counter tracks the
+You can call this multiple times for streaming input; the `ABSORBED` counter tracks the
 current position within the rate block across calls.
 
 **Constraint:** `len` must not exceed 168 (the size of the input staging buffer).
@@ -128,10 +139,10 @@ If `absorbed == rate - 1`, both XORs hit the same byte.
 shakeFinal(outLen: i32): void
 ```
 
-Same as the fixed-output finals, but the caller specifies the output length.
+Same as the fixed-output finals, but you specify the output length.
 
 **Constraint:** `outLen` must not exceed the rate of the initialized SHAKE variant
-(168 for SHAKE128, 136 for SHAKE256). This implementation performs a single squeeze. It does not loop additional permutations for longer output.
+(168 for SHAKE128, 136 for SHAKE256). This implementation performs a single squeeze and does not loop additional permutations for longer output.
 
 ---
 
@@ -143,12 +154,12 @@ keccakFinal(outLen: i32): void
 
 The underlying finalize used by all final functions. Applies padding using
 whatever domain separation byte was set during init, permutes, and squeezes
-`outLen` bytes. Exported for advanced use cases where the caller manages variant
+`outLen` bytes. Exported for advanced use cases where you manage variant
 parameters directly.
 
 ---
 
-### Buffer Offset Getters
+### Buffer offset getters
 
 ```typescript
 getModuleId():       i32   // returns 3 (sha3 module identifier)
@@ -173,7 +184,7 @@ wipeBuffers(): void
 ```
 
 Zeroes all state: the 200-byte lane matrix, 168-byte input buffer, 168-byte output
-buffer, and the rate/absorbed/dsByte metadata. Must be called when the hash context
+buffer, and the rate/absorbed/dsByte metadata. Call this when the hash context
 is no longer needed.
 
 ---
@@ -224,13 +235,15 @@ steps (FIPS 202 SS3.2):
 The implementation loads all 25 lanes into local variables at the top of `keccakF`
 and stores them back at the end. The rho and pi steps are combined into a single
 operation using precomputed rotation offsets. The iota step uses an if-else chain
-(not a table load) to apply round constants, avoiding any data-dependent memory
+rather than a table load to apply round constants, avoiding any data-dependent memory
 access.
 
 **Sponge functions:**
 
 **`keccakInit(rate, dsByte)`**: zeroes state, sets variant parameters.
+
 **`keccakAbsorb(len)`**: XORs input into state, permuting when a full rate block is absorbed. Tracks position via `ABSORBED` counter.
+
 **`keccakFinal(outLen)`**: applies pad10*1 (domain byte at `absorbed`, `0x80` at `rate-1`), permutes, squeezes `outLen` bytes to the output buffer.
 
 ---
@@ -272,7 +285,7 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
 - **Output length:** `keccakFinal(outLen)` copies `outLen` bytes from state to
   `OUT_OFFSET`. If `outLen` exceeds the rate, the squeeze reads past the rate-portion of the state into the capacity. Those bytes are not meaningful output and the result will be incorrect. For SHA-3 variants, the typed final
   functions (`sha3_256Final`, etc.) enforce correct output lengths. For SHAKE,
-  the caller must ensure `outLen <= rate`.
+  ensure `outLen <= rate`.
 
 - **Init before absorb:** Calling `keccakAbsorb` without a prior init will operate
   on stale or zeroed state with rate=0, causing a tight infinite loop (the absorb

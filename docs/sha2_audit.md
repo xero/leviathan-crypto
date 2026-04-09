@@ -1,29 +1,26 @@
 # SHA-2 Cryptographic Audit
 
 > [!NOTE]
-> **Conducted:** Week of 2026-03-25
-> **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-> **Spec:** FIPS 180-4 (Secure Hash Standard, August 2015)
-> **Variants covered:** SHA-224, SHA-256, SHA-384, SHA-512
+> Cryptographic audit of the `leviathan-crypto` WebAssembly SHA-2 implementation (AssemblyScript) against FIPS 180-4, covering SHA-224, SHA-256, SHA-384, and SHA-512. Conducted week of 2026-03-25.
 
-## Table of Contents
-
-- [1. Algorithm Correctness](#1-algorithm-correctness)
-  - [1.1 Rotation and Shift Operations](#11-rotation-and-shift-operations)
-  - [1.2 Logical Functions (Ch, Maj, Sigma, sigma)](#12-logical-functions-ch-maj-sigma-sigma)
-  - [1.3 Constants](#13-constants)
-  - [1.4 Padding](#14-padding)
-  - [1.5 Message Schedule](#15-message-schedule)
-  - [1.6 Compression Function](#16-compression-function)
-  - [1.7 Truncated Variants (SHA-224, SHA-384)](#17-truncated-variants-sha-224-sha-384)
-  - [1.8 Buffer Layout and Memory Safety](#18-buffer-layout-and-memory-safety)
-  - [1.9 TypeScript Wrapper Layer](#19-typescript-wrapper-layer)
-  - [1.10 HMAC-SHA256 / HMAC-SHA512 / HMAC-SHA384](#110-hmac-sha256--hmac-sha512--hmac-sha384)
-  - [1.11 HKDF-SHA256 / HKDF-SHA512](#111-hkdf-sha256--hkdf-sha512)
-- [2. Security Analysis](#2-security-analysis)
-  - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
-  - [2.2 Known Attacks on SHA-256 / SHA-512](#22-known-attacks-on-sha-256--sha-512)
-  - [2.3 Usage Context in leviathan-crypto](#23-usage-context-in-leviathan-crypto)
+> ### Table of Contents
+> - [1. Algorithm Correctness](#1-algorithm-correctness)
+>   - [1.1 Rotation and Shift Operations](#11-rotation-and-shift-operations)
+>   - [1.2 Logical Functions (Ch, Maj, Sigma, sigma)](#12-logical-functions-ch-maj-sigma-sigma)
+>   - [1.3 Constants](#13-constants)
+>   - [1.4 Padding](#14-padding)
+>   - [1.5 Message Schedule](#15-message-schedule)
+>   - [1.6 Compression Function](#16-compression-function)
+>   - [1.7 Truncated Variants (SHA-224, SHA-384)](#17-truncated-variants-sha-224-sha-384)
+>   - [1.8 Buffer Layout and Memory Safety](#18-buffer-layout-and-memory-safety)
+>   - [1.9 TypeScript Wrapper Layer](#19-typescript-wrapper-layer)
+>   - [1.10 HMAC-SHA256 / HMAC-SHA512 / HMAC-SHA384](#110-hmac-sha256--hmac-sha512--hmac-sha384)
+>   - [1.11 HKDF-SHA256 / HKDF-SHA512](#111-hkdf-sha256--hkdf-sha512)
+>   - [1.12 NIST Test Vectors](#112-nist-test-vectors)
+> - [2. Security Analysis](#2-security-analysis)
+>   - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
+>   - [2.2 Known Attacks on SHA-256 / SHA-512](#22-known-attacks-on-sha-256--sha-512)
+>   - [2.3 Usage Context in leviathan-crypto](#23-usage-context-in-leviathan-crypto)
 
 ---
 
@@ -40,7 +37,7 @@
 
 ### 1.1 Rotation and Shift Operations
 
-**SHA-256** (`sha256.ts:149–152`): All rotation and shift operations use AssemblyScript built-in `rotr<i32>()`, which compiles to the WASM `i32.rotr` instruction, a single hardware instruction on all modern architectures. No manual shift-or patterns are used.
+**SHA-256** (`sha256.ts:149–152`): All rotation and shift operations use AssemblyScript built-in `rotr<i32>()`, which compiles to the WASM `i32.rotr` instruction, a single hardware instruction on all modern architectures. The implementation uses no manual shift-or patterns.
 
 - `rotr<i32>(x, n)`: right rotation, equivalent to `(x >>> n) | (x << (32 - n))`
 - `x >>> n`: logical (unsigned) right shift (WASM `i32.shr_u`)
@@ -186,7 +183,7 @@ h4 = 0xffc00b31    h5 = 0x68581511
 h6 = 0x64f98fa7    h7 = 0xbefa4fa4
 ```
 
-These are the **second (low) 32 bits** of the SHA-384 IVs, verified independently. SHA-224 is not implemented in leviathan-crypto, so this is noted for completeness only.
+These are the **second (low) 32 bits** of the SHA-384 IVs, verified independently. SHA-224 is not implemented in leviathan-crypto; this section is included for completeness only.
 
 ---
 
@@ -305,7 +302,7 @@ This is correct: SHA-384 uses the same compression as SHA-512, with different IV
 
 The `sha384Init()` function (`sha512.ts:312–315`) loads SHA-384-specific IVs via `loadIVs()`. These IVs are **distinct** from SHA-512's IVs, independently verified in §1.3.
 
-**SHA-224**: Not implemented. The codebase provides SHA-256, SHA-384, and SHA-512 only. This is noted as a design choice, not a deficiency. SHA-224 is rarely needed in modern applications.
+**SHA-224**: Not implemented. The codebase provides SHA-256, SHA-384, and SHA-512 only. This is a design choice, not a deficiency; SHA-224 is rarely needed in modern applications.
 
 ---
 
@@ -482,9 +479,9 @@ SHA-2 uses only add, rotate, XOR, AND, OR, and NOT operations. **No table lookup
 
 SHA-256 and SHA-512 are vulnerable to length extension: given `H(m)` and `len(m)`, an attacker can compute `H(m || padding || m')` without knowing `m`. This is a structural property of the Merkle-Damgard construction, not an implementation bug.
 
-**Assessment for leviathan-crypto:** Raw SHA-256/SHA-512 is **never** used for MAC purposes anywhere in the codebase (see §2.3). All authentication tags are computed via HMAC, which is immune to length extension by construction (`HMAC(K, m) = H((K' XOR opad) || H((K' XOR ipad) || m))`. The outer hash prevents extension of the inner hash.
+**Assessment for leviathan-crypto:** The codebase **never** uses raw SHA-256/SHA-512 for MAC purposes (see §2.3). All authentication tags are computed via HMAC, which is immune to length extension by construction (`HMAC(K, m) = H((K' XOR opad) || H((K' XOR ipad) || m))`. The outer hash prevents extension of the inner hash.
 
-The one usage of raw SHA-256 outside HMAC is in Fortuna (`src/ts/fortuna.ts`), where it is used for internal state chaining (`SHA256(genKey || seed)` and `SHA256(poolHash || id || data)`). These are not MAC constructions. The hash inputs and outputs are internal state that is never exposed to an attacker. The Fortuna design (Ferguson & Schneier) deliberately uses raw SHA-256 for this purpose.
+The one usage of raw SHA-256 outside HMAC is in Fortuna (`src/ts/fortuna.ts`), which uses it for internal state chaining (`SHA256(genKey || seed)` and `SHA256(poolHash || id || data)`). These are not MAC constructions. The hash inputs and outputs are internal state; the library never exposes them to an attacker. The Fortuna design (Ferguson & Schneier) deliberately uses raw SHA-256 for this purpose.
 
 **Verdict: No length extension vulnerability exists in any externally-observable construction.**
 
@@ -520,11 +517,11 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 
 **Key findings:**
 
-1. **No raw SHA-2 used for MAC.** Every authentication tag in the library is computed via HMAC-SHA256 or HMAC-SHA512. Length extension is not a concern.
+1. **No raw SHA-2 used for MAC.** The library computes every authentication tag via HMAC-SHA256 or HMAC-SHA512. Length extension is not a concern.
 
 2. **No key reuse across constructions.** SerpentSeal splits its 64-byte key into a 32-byte encryption key and a 32-byte MAC key. SerpentCipher uses HKDF to derive separate keys (enc_key, mac_key, iv_key). No context shares a key for both hashing and another purpose.
 
-3. **Fortuna's raw SHA-256 usage is by design.** The CSPRNG uses `SHA256(genKey || seed)` for rekeying and `SHA256(poolHash || id || data)` for pool chaining. These follow the published Fortuna specification (Ferguson & Schneier, "Practical Cryptography"). The hash outputs are internal state. Never exposed to callers. An attacker cannot mount a length extension attack because they never see the intermediate hash values.
+3. **Fortuna's raw SHA-256 usage is by design.** The CSPRNG uses `SHA256(genKey || seed)` for rekeying and `SHA256(poolHash || id || data)` for pool chaining. These follow the published Fortuna specification (Ferguson & Schneier, "Practical Cryptography"). The hash outputs are internal state, never exposed to callers. An attacker cannot mount a length extension attack because they never see the intermediate hash values.
 
 4. **HKDF usage is correct.** Both HKDF-SHA256 and HKDF-SHA512 follow RFC 5869 with proper extract-then-expand. The extract step uses HMAC (not raw hash), so salt+IKM processing is immune to length extension.
 

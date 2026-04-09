@@ -1,33 +1,31 @@
 # HMAC-SHA256 Cryptographic Audit
 
 > [!NOTE]
-> **Conducted:** Week of 2026-03-25
-> **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-> **Spec:** RFC 2104 (HMAC, February 1997)
->           FIPS 198-1 (The Keyed-Hash MAC, July 2008)
-> **Test vectors:** RFC 4231
+> Audit of the `leviathan-crypto` WebAssembly HMAC-SHA256 implementation against RFC 2104 and FIPS 198-1, verified against all RFC 4231 test vectors.
 
-## Table of Contents
+> ### Table of Contents
+> - [1. Algorithm Correctness](#1-algorithm-correctness)
+>   - [1.1 Key Processing](#11-key-processing)
+>   - [1.2 ipad and opad Constants](#12-ipad-and-opad-constants)
+>   - [1.3 Inner and Outer Hash](#13-inner-and-outer-hash)
+>   - [1.4 Test Vector Verification](#14-test-vector-verification)
+>   - [1.5 Buffer Layout and Memory Safety](#15-buffer-layout-and-memory-safety)
+>   - [1.6 TypeScript Wrapper Layer](#16-typescript-wrapper-layer)
+> - [2. Security Analysis](#2-security-analysis)
+>   - [2.1 Length Extension Immunity](#21-length-extension-immunity)
+>   - [2.2 Security Bound](#22-security-bound)
+>   - [2.3 Key Size Recommendations](#23-key-size-recommendations)
+>   - [2.4 Usage Context in leviathan-crypto](#24-usage-context-in-leviathan-crypto)
 
-- [1. Algorithm Correctness](#1-algorithm-correctness)
-  - [1.1 Key Processing](#11-key-processing)
-  - [1.2 ipad and opad Constants](#12-ipad-and-opad-constants)
-  - [1.3 Inner and Outer Hash](#13-inner-and-outer-hash)
-  - [1.4 Test Vector Verification](#14-test-vector-verification)
-  - [1.5 Buffer Layout and Memory Safety](#15-buffer-layout-and-memory-safety)
-  - [1.6 TypeScript Wrapper Layer](#16-typescript-wrapper-layer)
-- [2. Security Analysis](#2-security-analysis)
-  - [2.1 Length Extension Immunity](#21-length-extension-immunity)
-  - [2.2 Security Bound](#22-security-bound)
-  - [2.3 Key Size Recommendations](#23-key-size-recommendations)
-  - [2.4 Usage Context in leviathan-crypto](#24-usage-context-in-leviathan-crypto)
+**Conducted:** Week of 2026-03-25
+**Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
+**Spec:** RFC 2104 (HMAC, February 1997); FIPS 198-1 (The Keyed-Hash MAC, July 2008)
+**Test vectors:** RFC 4231
 
 ---
 
 > [!NOTE]
-> **Prerequisite:** The SHA-256 implementation has been audited separately
-> in [sha2_audit.md](./sha2_audit.md). This audit treats SHA-256 as a verified
-> black box and focuses exclusively on the HMAC construction layered on top.
+> The SHA-256 implementation has been audited separately in [sha2_audit.md](./sha2_audit.md). This audit treats SHA-256 as a verified black box and focuses exclusively on the HMAC construction layered on top.
 
 ---
 
@@ -141,7 +139,7 @@ All test vectors are sourced from RFC 4231 §4. The implementation passes all ve
 | **TC6 (§4.7): key longer than block** | `0xaa` × 131 | "Test Using Larger Than Block-Size Key - Hash Key First" | `60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54` | **PASS** |
 | TC7 (§4.8): key longer than block + long data | `0xaa` × 131 | "This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm." | `9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2` | PASS |
 
-TC6 is the most commonly broken edge case. It requires the key to be pre-hashed with SHA-256 before the HMAC construction. TC7 exercises the same long-key path *and* a multi-block message simultaneously, making it the most comprehensive single vector. The TypeScript wrapper's `k.length > 64` guard (`index.ts:172`) correctly triggers SHA-256 pre-hashing, producing a 32-byte derived key that is then zero-padded to 64 bytes by `hmac256Init`.
+TC6 is the most commonly broken edge case. It requires the key to be pre-hashed with SHA-256 before the HMAC construction. TC7 exercises the same long-key path _and_ a multi-block message simultaneously, making it the most comprehensive single vector. The TypeScript wrapper's `k.length > 64` guard (`index.ts:172`) correctly triggers SHA-256 pre-hashing, producing a 32-byte derived key that is then zero-padded to 64 bytes by `hmac256Init`.
 
 The test suite (`test/unit/sha2/hmac.test.ts`) runs all seven HMAC-SHA256 vectors plus a cross-check vector generated from the leviathan TypeScript reference implementation. Gate test 5 is HMAC-SHA256 TC1 (`hmac.test.ts:45–53`).
 

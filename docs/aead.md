@@ -1,6 +1,15 @@
 # Authenticated Encryption
 
+> [!NOTE]
 > Cipher-agnostic authenticated encryption for any scale. One-shot with `Seal`, chunked with `SealStream` and `OpenStream`, or parallel with `SealStreamPool`. All four share a wire format and accept any `CipherSuite`.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Model](#security-model)
+> - [Wire Format](#wire-format)
+> - [API Reference](#api-reference)
+
+---
 
 ## Overview
 
@@ -35,7 +44,7 @@ The STREAM construction is based on [Hoang, Reyhanitabar, Rogaway, and Vizár (C
 > [!IMPORTANT]
 > `SealStream` is single-use. After `finalize()` is called the derived keys are wiped and no further chunks can be sealed. Create a new `SealStream` for each message. `SealStreamPool.seal()` enforces this with a guard that throws on subsequent calls.
 
-### WASM side-channel posture
+### WASM Side-Channel Posture
 
 All cryptographic computation runs in WASM outside the JavaScript JIT. Serpent's bitsliced S-box implementation and ChaCha20's quarter-round construction are both branchless and table-free, which eliminates data-dependent timing variation at the algorithm level. WASM lacks hardware-level constant-time guarantees, so this provides stronger posture than pure JavaScript but weaker than native constant-time code. If timing side channels are your primary threat model, a native cryptographic library with verified constant-time guarantees is more appropriate.
 
@@ -222,14 +231,14 @@ pool.destroy()
 | `framed` | `boolean` | `false` | Framed mode. |
 | `jobTimeout` | `number` | `30000` | Per-job timeout in ms. |
 
-**Failure model.** Any error is fatal. Authentication failure, worker crash, or timeout all terminate every worker, wipe all keys, and mark the pool permanently dead. Pending promises reject. There is no retry and no worker replacement. Create a new pool for the next operation.
+**Failure model.** Any error is fatal. Authentication failure, worker crash, and timeout all terminate every worker, wipe all keys, and mark the pool permanently dead. Pending promises reject. There is no retry and no worker replacement. Create a new pool for the next operation.
 
 | Method / Property | Description |
 |---|---|
 | `seal(plaintext)` | Encrypt. Returns `Promise<Uint8Array>`. Single-use. Throws on subsequent calls. |
 | `open(ciphertext)` | Decrypt. Returns `Promise<Uint8Array>`. Rejects empty ciphertext. |
 | `destroy()` | Wipes keys and terminates workers. Safe to call multiple times. |
-| `header` | The 20-byte stream header. Note: `SealStreamPool` exposes `.header` while `SealStream` exposes `.preamble` which also supports KEM preambles. |
+| `header` | The 20-byte stream header. `SealStreamPool` exposes `.header` while `SealStream` exposes `.preamble`, which also supports KEM preambles. |
 | `dead` | `true` after any fatal error or `destroy()`. |
 | `size` | Number of workers. |
 
@@ -300,6 +309,7 @@ Never attempt to recover plaintext after an `AuthenticationError`. The stream la
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [ciphersuite](./ciphersuite.md) — `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface
 > - [kyber](./kyber.md) — ML-KEM key encapsulation, parameter sets, and key management

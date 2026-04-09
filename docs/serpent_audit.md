@@ -9,38 +9,37 @@
 >
 > **Spec:** Serpent AES submission, Anderson/Biham/Knudsen 1998
 
-## Table of Contents
-
-- [1. Algorithm Correctness](#1-algorithm-correctness)
-  - [1.1 S-Boxes](#11-s-boxes)
-  - [1.2 Linear Transform](#12-linear-transform)
-  - [1.3 Key Schedule](#13-key-schedule)
-  - [1.4 Round Structure](#14-round-structure)
-  - [1.5 Byte Ordering](#15-byte-ordering)
-  - [1.6 Unrolled Variant](#16-unrolled-variant)
-  - [1.7 Block Modes (CTR, CBC)](#17-block-modes-ctr-cbc)
-  - [1.8 Buffer Layout and Memory Safety](#18-buffer-layout-and-memory-safety)
-  - [1.9 TypeScript Wrapper Layer](#19-typescript-wrapper-layer)
-  - [1.10 EC/DC/KC Magic Constants](#110-ecdckc-magic-constants)
-- [2. Security Analysis](#2-security-analysis)
-  - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
-  - [2.2 Cryptanalytic Attack Papers](#22-cryptanalytic-attack-papers)
-    - [Paper 1 — Amplified Boomerang Attacks (FSE 2000)](#paper-1--amplified-boomerang-attacks-fse-2000)
-    - [Paper 2 — Chosen-Plaintext Linear Attacks (IET 2013)](#paper-2--chosen-plaintext-linear-attacks-iet-2013)
-    - [Paper 3 — Differential-Linear Attack on 12-Round Serpent (FSE 2008)](#paper-3--differential-linear-attack-on-12-round-serpent-fse-2008)
-    - [Paper 4 — Linear Cryptanalysis of Reduced Round Serpent (FSE 2001)](#paper-4--linear-cryptanalysis-of-reduced-round-serpent-fse-2001)
-    - [Paper 5 — The Rectangle Attack (EUROCRYPT 2001)](#paper-5--the-rectangle-attack-eurocrypt-2001)
-    - [Consolidated Verdict Table](#consolidated-verdict-table)
-    - [Final Assessment](#final-assessment)
-  - [2.3 Biclique Cryptanalysis (Full 32-Round)](#23-biclique-cryptanalysis-full-32-round)
-  - [2.4 SerpentCipher: Verify-then-Decrypt and the Cryptographic Doom Principle](#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
-    - [Background](#background)
-    - [Tool Validation and Formula Corrections](#tool-validation-and-formula-corrections)
-    - [Optimization Search Results](#optimization-search-results)
-    - [Key Index Pair Search — Structural Constraints](#key-index-pair-search--structural-constraints)
-    - [Best Known Result](#best-known-result)
-    - [Structural Conclusions](#structural-conclusions)
-    - [Assessment](#assessment)
+> ### Table of Contents
+> - [1. Algorithm Correctness](#1-algorithm-correctness)
+>   - [1.1 S-Boxes](#11-s-boxes)
+>   - [1.2 Linear Transform](#12-linear-transform)
+>   - [1.3 Key Schedule](#13-key-schedule)
+>   - [1.4 Round Structure](#14-round-structure)
+>   - [1.5 Byte Ordering](#15-byte-ordering)
+>   - [1.6 Unrolled Variant](#16-unrolled-variant)
+>   - [1.7 Block Modes (CTR, CBC)](#17-block-modes-ctr-cbc)
+>   - [1.8 Buffer Layout and Memory Safety](#18-buffer-layout-and-memory-safety)
+>   - [1.9 TypeScript Wrapper Layer](#19-typescript-wrapper-layer)
+>   - [1.10 EC/DC/KC Magic Constants](#110-ecdckc-magic-constants)
+> - [2. Security Analysis](#2-security-analysis)
+>   - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
+>   - [2.2 Cryptanalytic Attack Papers](#22-cryptanalytic-attack-papers)
+>     - [Paper 1 — Amplified Boomerang Attacks (FSE 2000)](#paper-1--amplified-boomerang-attacks-fse-2000)
+>     - [Paper 2 — Chosen-Plaintext Linear Attacks (IET 2013)](#paper-2--chosen-plaintext-linear-attacks-iet-2013)
+>     - [Paper 3 — Differential-Linear Attack on 12-Round Serpent (FSE 2008)](#paper-3--differential-linear-attack-on-12-round-serpent-fse-2008)
+>     - [Paper 4 — Linear Cryptanalysis of Reduced Round Serpent (FSE 2001)](#paper-4--linear-cryptanalysis-of-reduced-round-serpent-fse-2001)
+>     - [Paper 5 — The Rectangle Attack (EUROCRYPT 2001)](#paper-5--the-rectangle-attack-eurocrypt-2001)
+>     - [Consolidated Verdict Table](#consolidated-verdict-table)
+>     - [Final Assessment](#final-assessment)
+>   - [2.3 Biclique Cryptanalysis (Full 32-Round)](#23-biclique-cryptanalysis-full-32-round)
+>   - [2.4 SerpentCipher: Verify-then-Decrypt and the Cryptographic Doom Principle](#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
+>     - [Background](#background)
+>     - [Tool Validation and Formula Corrections](#tool-validation-and-formula-corrections)
+>     - [Optimization Search Results](#optimization-search-results)
+>     - [Key Index Pair Search — Structural Constraints](#key-index-pair-search--structural-constraints)
+>     - [Best Known Result](#best-known-result)
+>     - [Structural Conclusions](#structural-conclusions)
+>     - [Assessment](#assessment)
 
 ---
 
@@ -57,7 +56,7 @@
 
 ### 1.1 S-Boxes
 
-leviathan-crypto implements all 8 forward S-boxes (`sb0`–`sb7`) and 8 inverse S-boxes (`si0`–`si7`) as Boolean logic circuits in AssemblyScript (`src/asm/serpent/serpent.ts:86–233`). Each function operates on 5 working register slots via `rget`/`rset` helpers that read/write fixed offsets in WASM linear memory. The operations are exclusively `&`, `|`, `^`, and `~` — no table lookups, no data-dependent branches.
+leviathan-crypto implements all 8 forward S-boxes (`sb0`–`sb7`) and 8 inverse S-boxes (`si0`–`si7`) as Boolean logic circuits in AssemblyScript (`src/asm/serpent/serpent.ts:86–233`). Each function operates on 5 working register slots via `rget`/`rset` helpers that read/write fixed offsets in WASM linear memory. The operations are exclusively `&`, `|`, `^`, and `~`. No table lookups, no data-dependent branches.
 
 The Boolean expansions are equivalent to the 4-bit to 4-bit lookup tables in the reference C implementation (`serpent-reference.c`, `SBox[8][16]` and `SBoxInverse[8][16]`). The reference S-box tables are:
 
@@ -107,17 +106,17 @@ The `kl` function (`serpent.ts:297–319`) implements the inverse linear transfo
 | ROTL(22) | ROTL(10) | 22 + 10 = 32 |
 
 > [!NOTE]
-> In the WASM implementation, `rotl<i32>` is an AssemblyScript built-in that compiles to the WASM `i32.rotl` instruction — a single CPU instruction on all modern architectures. The TypeScript version required a manual `rotW` function with masking (`& this.wMax`) to preserve 32-bit arithmetic in JavaScript; the WASM version does not need this because `i32` is natively 32-bit.
+> In the WASM implementation, `rotl<i32>` is an AssemblyScript built-in that compiles to the WASM `i32.rotl` instruction, a single CPU instruction on all modern architectures. The TypeScript version required a manual `rotW` function with masking (`& this.wMax`) to preserve 32-bit arithmetic in JavaScript; the WASM version does not need this because `i32` is natively 32-bit.
 
 ### 1.3 Key Schedule
 
 `loadKey` (`serpent.ts:350–408`) implements the full Serpent key schedule:
 
 **Key loading and padding** (lines 351–372):
-1. Validates key length (16, 24, or 32 bytes) — returns -1 on invalid length.
+1. Validates key length (16, 24, or 32 bytes); returns -1 on invalid length.
 2. Zeros the 132-word subkey buffer.
-3. Sets the padding bit: `store<i32>(SUBKEY_OFFSET + keyLen * 4, 1)` — this places a `1` at word position `keyLen`, matching the reference C `shortToLongKey()` which sets `key[bitsInShortKey/BITS_PER_WORD] |= 1`.
-4. Reverse-copies key bytes: `key[k] = input[keyLen - k - 1]` — this is the AES submission byte ordering convention (see [1.5 Byte Ordering](#15-byte-ordering)).
+3. Sets the padding bit: `store<i32>(SUBKEY_OFFSET + keyLen * 4, 1)`, placing a `1` at word position `keyLen`. This matches the reference C `shortToLongKey()` which sets `key[bitsInShortKey/BITS_PER_WORD] |= 1`.
+4. Reverse-copies key bytes: `key[k] = input[keyLen - k - 1]`, following the AES submission byte ordering convention (see [1.5 Byte Ordering](#15-byte-ordering)).
 5. Repacks 8 groups of 4 byte-valued words into 8 little-endian uint32 words.
 
 **Prekey expansion** (lines 383–392):
@@ -125,7 +124,7 @@ The `kl` function (`serpent.ts:297–319`) implements the inverse linear transfo
 w[i] = (w[i-8] ^ w[i-5] ^ w[i-3] ^ w[i-1] ^ 0x9E3779B9 ^ i) <<< 11
 ```
 
-The implementation uses a sliding-window approach with 5 working registers `r[0..4]` and a `keyIt` helper that reads from `SUBKEY_OFFSET + a*4` and XORs with `rget(b)`, `rget(c)`, `rget(d)`, `0x9e3779b9`, and `i`, then applies `rotl<i32>(..., 11)`. The iteration pattern — two keyIt calls per loop iteration before the break check, then three more — produces the same 132-word sequence as the reference C `makeSubkeysBitslice()` function.
+The implementation uses a sliding-window approach with 5 working registers `r[0..4]` and a `keyIt` helper that reads from `SUBKEY_OFFSET + a*4` and XORs with `rget(b)`, `rget(c)`, `rget(d)`, `0x9e3779b9`, and `i`, then applies `rotl<i32>(..., 11)`. The iteration pattern (two keyIt calls per loop iteration before the break check, then three more) produces the same 132-word sequence as the reference C `makeSubkeysBitslice()` function.
 
 Reference C (`serpent-reference.c`, `makeSubkeysBitslice`):
 ```c
@@ -141,7 +140,7 @@ Round keys are derived by applying bitslice S-boxes to groups of 4 prekey words.
 
 The implementation iterates from `ri=128` down to `ri=0` (K₃₂ down to K₀), using `kc(n)` to encode the register slot permutations and `rj` starting at 3 to select the S-box (`rj % 8`).
 
-Reference C applies S-boxes via nibble extraction and scatter: for each of the 32 nibble positions across 4 words, extract the nibble, apply `S[whichS]`, and scatter back. The WASM bitslice approach applies the same S-box to all 32 bits simultaneously via Boolean circuits — mathematically equivalent, confirmed by test vectors.
+Reference C applies S-boxes via nibble extraction and scatter: for each of the 32 nibble positions across 4 words, extract the nibble, apply `S[whichS]`, and scatter back. The WASM bitslice approach applies the same S-box to all 32 bits simultaneously via Boolean circuits. Mathematical equivalence is confirmed by test vectors.
 
 ---
 
@@ -174,7 +173,7 @@ Inverse round structure for `n = 0..31`:
 
 The inverse S-box selection `SI[7 - n%8]` correctly reverses the forward order: SI7, SI6, SI5, SI4, SI3, SI2, SI1, SI0, SI7, SI6, ...
 
-The final K(0) XOR in decryption uses slots `(2, 3, 1, 4)` — not the default `(0, 1, 2, 3)` — because the last inverse S-box (SI0) leaves its output in a non-standard register arrangement. The plaintext is stored from registers `r[4, 1, 3, 2]`. This is the correct slot permutation for the decrypt path, as determined by the DC constant encoding.
+The final K(0) XOR in decryption uses slots `(2, 3, 1, 4)` rather than the default `(0, 1, 2, 3)`, because the last inverse S-box (SI0) leaves its output in a non-standard register arrangement. The plaintext is stored from registers `r[4, 1, 3, 2]`. This is the correct slot permutation for the decrypt path, as determined by the DC constant encoding.
 
 ---
 
@@ -214,7 +213,7 @@ Key bytes are reversed before packing as LE uint32 words. This matches the refer
 `serpent_unrolled.ts` is auto-generated (`bun bench/generate_unrolled.ts`) and contains fully unrolled versions of `encryptBlock` and `decryptBlock`. All 32 rounds are expanded with hardcoded slot indices (the EC/DC constant values pre-resolved at generation time).
 
 The unrolled variant:
-- Imports `sb0`–`sb7`, `si0`–`si7`, `lk`, `kl`, `keyXor` from `serpent.ts` — same functions, not copies.
+- Imports `sb0`–`sb7`, `si0`–`si7`, `lk`, `kl`, `keyXor` from `serpent.ts` (same functions, not copies).
 - Uses identical byte-reversal load/store logic.
 - Round 31 correctly skips the linear transform in both encrypt and decrypt.
 - The S-box and slot assignments in each expanded round match the values that the loop-based version would produce via EC/DC lookup.
@@ -229,14 +228,14 @@ This is the version called by CTR and CBC modes (`index.ts` re-exports `encryptB
 
 - Counter format: 128-bit little-endian, byte 0 is LSB.
 - `resetCounter()`: copies NONCE buffer to COUNTER buffer (nonce = initial counter value).
-- `incrementCounter()`: LE byte-by-byte increment with carry propagation. Early-exit on no carry — this is a minor timing leak (see [2.1](#21-side-channel-analysis)).
+- `incrementCounter()`: LE byte-by-byte increment with carry propagation. Early-exit on no carry is a minor timing leak (see [2.1](#21-side-channel-analysis)).
 - `processBlock()`: copies counter to BLOCK_PT, encrypts, XORs keystream with plaintext. Supports partial final blocks (1–16 bytes).
 - `setCounter(lo, hi)`: absolute 128-bit counter positioning for worker pool parallelism.
 
 **CBC mode** (`cbc.ts`):
 
 - `cbcEncryptChunk()`: C[i] = Encrypt(P[i] XOR C[i-1]), C[-1] = IV. Requires `len` to be a positive multiple of 16.
-- `cbcDecryptChunk()`: P[i] = Decrypt(C[i]) XOR C[i-1]. Reads from CHUNK_CT (original ciphertext is preserved — decryptBlock writes to BLOCK_PT, not CHUNK_CT).
+- `cbcDecryptChunk()`: P[i] = Decrypt(C[i]) XOR C[i-1]. Reads from CHUNK_CT; original ciphertext is preserved because decryptBlock writes to BLOCK_PT, not CHUNK_CT.
 - Chaining block (CBC_IV_OFFSET) is updated in-place after each chunk.
 - PKCS7 padding is handled in the TypeScript wrapper, not in WASM.
 
@@ -279,7 +278,7 @@ The TypeScript classes (`src/ts/serpent/index.ts`) provide the public API:
 
 **`SerpentCbc`**: CBC mode with PKCS7. `encrypt()` applies `pkcs7Pad()` in TypeScript, processes in 64KB chunks via WASM. `decrypt()` validates ciphertext is a non-zero multiple of 16, processes chunks, then applies `pkcs7Strip()`. JSDoc carries authentication warning.
 
-**PKCS7 validation** (`pkcs7Strip`, lines 145–157): Uses constant-time XOR-accumulate validation — all padding bytes are checked against the expected pad value, and the result is accumulated into a `bad` flag without early return. This prevents timing oracles in CBC padding validation.
+**PKCS7 validation** (`pkcs7Strip`, lines 145–157): Uses constant-time XOR-accumulate validation. All padding bytes are checked against the expected pad value, and the result is accumulated into a `bad` flag without early return. This prevents timing oracles in CBC padding validation.
 
 The TypeScript layer performs no cryptographic computation. It writes inputs to WASM memory, calls WASM exports, and reads outputs. This is the correct architecture per `ARCHITECTURE.md`.
 
@@ -299,7 +298,7 @@ KC[0] = 7788,  KC[1] = 63716, KC[2] = 84032, ...
 
 **These constants cannot be verified by static inspection.** If any constant is wrong, the register shuffle will corrupt data silently without obvious structure. The intermediate-value tests (`ecb_iv.txt`) are specifically designed to catch such errors round by round, and the full test suite confirms correctness empirically.
 
-The unrolled variant (`serpent_unrolled.ts`) pre-resolves all EC/DC values at generation time, expanding the slot indices directly into each round's function call arguments. This eliminates the switch dispatch at runtime and is a pure optimization — the mathematical result is identical.
+The unrolled variant (`serpent_unrolled.ts`) pre-resolves all EC/DC values at generation time, expanding the slot indices directly into each round's function call arguments. This eliminates the switch dispatch at runtime and is a pure optimization; the mathematical result is identical.
 
 ---
 
@@ -321,7 +320,7 @@ The unrolled variant (`serpent_unrolled.ts`) pre-resolves all EC/DC values at ge
 **WASM vs JavaScript timing guarantees:** The prior TypeScript audit noted that JavaScript's bitwise operators (`|`, `&`, `^`, `~`) map to CPU integer instructions on modern V8/SpiderMonkey but the JS spec does not guarantee constant-time execution. The WASM implementation substantially improves this situation:
 
 - WASM integer operations (`i32.and`, `i32.or`, `i32.xor`, `i32.rotl`) have well-defined, fixed-width semantics.
-- WASM modules are compiled ahead-of-time by the engine's optimizing compiler (V8 Liftoff → TurboFan, SpiderMonkey Cranelift). The JIT's speculative optimizations — type guards, inline caches, deoptimization — do not apply to WASM.
+- WASM modules are compiled ahead-of-time by the engine's optimizing compiler (V8 Liftoff → TurboFan, SpiderMonkey Cranelift). The JIT's speculative optimizations (type guards, inline caches, deoptimization) do not apply to WASM.
 - WASM's `i32` type is always 32-bit; there is no polymorphic integer representation that the engine might specialize differently based on observed values.
 - The structured control flow of WASM (no computed gotos, no dynamic dispatch within the S-box circuits) leaves no optimization surface for speculative execution to exploit.
 
@@ -333,7 +332,7 @@ While WASM does not carry a formal constant-time guarantee in its specification 
 
 ### 2.2 Cryptanalytic Attack Papers
 
-Every attack examined across 5 academic papers targets reduced-round Serpent. The minimum security margin across all papers is 20 rounds (32 − 12), and the best attack provides only ~6.6 bits of advantage over brute force on 12 rounds. The leviathan-crypto WASM implementation makes it structurally impossible to invoke fewer than 32 rounds — the round count is hardcoded in both the loop-based (`serpent.ts:430–435`) and unrolled (`serpent_unrolled.ts`) implementations, with no parameter, configuration, or conditional logic to reduce it.
+Every attack examined across 5 academic papers targets reduced-round Serpent. The minimum security margin across all papers is 20 rounds (32 − 12), and the best attack provides only ~6.6 bits of advantage over brute force on 12 rounds. The leviathan-crypto WASM implementation makes it structurally impossible to invoke fewer than 32 rounds. The round count is hardcoded in both the loop-based (`serpent.ts:430–435`) and unrolled (`serpent_unrolled.ts`) implementations, with no parameter, configuration, or conditional logic to reduce it.
 
 ---
 
@@ -347,9 +346,9 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 | Amplified boomerang distinguisher | 7 | Chosen-plaintext | 2^113 | < brute force | Distinguisher |
 | Amplified boomerang key recovery | 8 | Chosen-plaintext | 2^113 | 2^179 | Key recovery (68 subkey bits) |
 
-**Core technique:** The cipher is split into two halves: E₀ (rounds 1–4) and E₁ (rounds 5–7). A 4-round differential with probability 2^{−31} and a 3-round differential with probability 2^{−16} are combined via the amplified boomerang framework. Differences spread rapidly through Serpent's linear transform — the authors state: "differences spread out, so that it is possible to find reasonably good characteristics for three or four rounds at a time, but not for larger numbers of rounds."
+**Core technique:** The cipher is split into two halves: E₀ (rounds 1–4) and E₁ (rounds 5–7). A 4-round differential with probability 2^{−31} and a 3-round differential with probability 2^{−16} are combined via the amplified boomerang framework. Differences spread rapidly through Serpent's linear transform. The authors state: "differences spread out, so that it is possible to find reasonably good characteristics for three or four rounds at a time, but not for larger numbers of rounds."
 
-**Analysis:** The best result reaches 8 rounds with a **24-round security margin**. The attack exploits algebraic properties of the S-boxes and linear transform that are inherent to the Serpent design — not implementation-specific. The WASM implementation faithfully reproduces these components. The authors explicitly confirm: "this attack does not threaten the full 32-round Serpent."
+**Analysis:** The best result reaches 8 rounds with a **24-round security margin**. The attack exploits algebraic properties of the S-boxes and linear transform that are inherent to the Serpent design, not implementation-specific. The WASM implementation faithfully reproduces these components. The authors explicitly confirm: "this attack does not threaten the full 32-round Serpent."
 
 **Verdict: NOT APPLICABLE — 24-round security margin.**
 
@@ -370,7 +369,7 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 
 **Core technique:** By fixing specific S-box inputs in the first round of a linear approximation, inactive S-boxes have correlation exactly ±1 instead of 2^{−1}, boosting the overall approximation correlation. This reduces data complexity by up to 2^22 for single-approximation attacks and dramatically reduces time complexity for multidimensional attacks.
 
-**Analysis:** The best result reaches 11 rounds. The 9-round approximation has correlation 2^{−54}; extending to 32 rounds would push the bias below 2^{−64}, where data requirements exceed the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The S-boxes (`serpent.ts:86–157`) are the standard Serpent S-boxes — the linear approximation properties exploited are inherent to the truth tables.
+**Analysis:** The best result reaches 11 rounds. The 9-round approximation has correlation 2^{−54}; extending to 32 rounds would push the bias below 2^{−64}, where data requirements exceed the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The S-boxes (`serpent.ts:86–157`) are the standard Serpent S-boxes; the linear approximation properties exploited are inherent to the truth tables.
 
 **Verdict: NOT APPLICABLE — 21-round security margin.**
 
@@ -393,11 +392,11 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 
 **Core technique:** A 9-round differential-linear approximation combining a 3-round truncated differential (probability 2^{−6}) with a 6-round linear approximation (bias 2^{−27}). The 12-round attack extends by prepending one round with 2^112 subkey guesses.
 
-**The 12-round result is the best classical attack across all papers examined.** At 2^249.4 time complexity vs. 2^256 brute force, it provides only ~6.6 bits of advantage — a purely certificational result. The progression from 11 to 12 rounds required an increase of 2^113.7 in time complexity.
+**The 12-round result is the best classical attack across all papers examined.** At 2^249.4 time complexity vs. 2^256 brute force, it provides only ~6.6 bits of advantage, a purely certificational result. The progression from 11 to 12 rounds required an increase of 2^113.7 in time complexity.
 
 **Related-key attack (Section 5):** Exploits a rotation property requiring removal of the `0x9e3779b9 ^ i` constants from the key schedule. leviathan-crypto's key schedule (`serpent.ts:324–325`) includes these constants via the `keyIt` helper: `rotl<i32>(... ^ 0x9e3779b9 ^ i, 11)`. This attack is entirely inapplicable.
 
-**Analysis:** The 12-round attack covers only 12 of 32 rounds, leaving a **20-round security margin**. The time complexity is within ~6.6 bits of brute force at 12 rounds — extending to 13 rounds would push complexity well beyond 2^256.
+**Analysis:** The 12-round attack covers only 12 of 32 rounds, leaving a **20-round security margin**. The time complexity is within ~6.6 bits of brute force at 12 rounds; extending to 13 rounds would push complexity well beyond 2^256.
 
 **Verdict: NOT APPLICABLE — 20-round security margin.**
 
@@ -414,7 +413,7 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 | 10-round key recovery | 10 | Known-plaintext | 2^118 | 2^89 | Key recovery |
 | 11-round key recovery (192/256) | 11 | Known-plaintext | 2^118 | 2^187 | Key recovery |
 
-**Core technique:** Systematic search for linear approximations identified a 9-round approximation with bias 2^{−52} (39 active S-boxes) — 4–8x stronger than the bounds claimed by the Serpent designers. The authors note: "there is a huge distance between a 9-round approximation and attacking 32 rounds, or even 16 rounds of Serpent."
+**Core technique:** Systematic search for linear approximations identified a 9-round approximation with bias 2^{−52} (39 active S-boxes), 4–8x stronger than the bounds claimed by the Serpent designers. The authors note: "there is a huge distance between a 9-round approximation and attacking 32 rounds, or even 16 rounds of Serpent."
 
 **Analysis:** The bias progression shows roughly 5–13 bits of degradation per additional round. A 32-round approximation would have bias far below 2^{−128}, requiring more data than the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The 11-round attack's memory requirement of 2^{193} bits is astronomically beyond any physical storage.
 
@@ -458,13 +457,13 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 
 #### Final Assessment
 
-Every attack in this corpus shares one fundamental limitation: they work only on reduced-round Serpent. The best result — the 12-round differential-linear attack (Dunkelman, Indesteege, Keller, 2008) — achieves a time complexity of 2^249.4, which is barely distinguishable from the 2^256 brute-force bound. Each additional round costs exponentially more: the jump from 11 to 12 rounds alone required a 2^113.7x increase in time complexity. Extending to 13 rounds would push the attack beyond brute force.
+Every attack in this corpus shares one fundamental limitation: they work only on reduced-round Serpent. The best result, the 12-round differential-linear attack (Dunkelman, Indesteege, Keller, 2008), achieves a time complexity of 2^249.4, which is barely distinguishable from the 2^256 brute-force bound. Each additional round costs exponentially more: the jump from 11 to 12 rounds alone required a 2^113.7x increase in time complexity. Extending to 13 rounds would push the attack beyond brute force.
 
 The remaining 20 rounds represent an exponential barrier that no known cryptanalytic technique can bridge. The Serpent designers chose 32 rounds specifically to provide this defense-in-depth, roughly doubling the rounds needed for security at the time of design.
 
 **leviathan-crypto's round count is not configurable.** The loop-based implementation (`serpent.ts:430–435`) runs from `n=0` to `n>=31` with no configurable parameter. The unrolled implementation (`serpent_unrolled.ts`) has all 32 rounds expanded at code-generation time. The key schedule generates all 33 subkeys (K₀–K₃₂) unconditionally. Both CTR and CBC modes delegate to the same full 32-round block cipher. There is no API to request reduced-round encryption.
 
-**Residual concern — unauthenticated modes:** Neither CBC nor CTR mode provides integrity or authentication. Chosen-ciphertext attacks (padding oracles, bit-flipping) are a more realistic threat than any reduced-round algebraic attack. The TypeScript wrapper includes JSDoc warnings on both `SerpentCtr` and `SerpentCbc` directing users to pair with HMAC-SHA256 (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead. The PKCS7 padding validation uses constant-time XOR-accumulate comparison, mitigating padding oracle attacks at the validation level.
+**Residual concern: unauthenticated modes.** Neither CBC nor CTR mode provides integrity or authentication. Chosen-ciphertext attacks (padding oracles, bit-flipping) are a more realistic threat than any reduced-round algebraic attack. The TypeScript wrapper includes JSDoc warnings on both `SerpentCtr` and `SerpentCbc` directing users to pair with HMAC-SHA256 (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead. The PKCS7 padding validation uses constant-time XOR-accumulate comparison, mitigating padding oracle attacks at the validation level.
 
 ---
 
@@ -474,9 +473,9 @@ The following section incorporates independent research conducted against the le
 
 #### Background
 
-Biclique cryptanalysis is the only known technique that applies to the full 32-round Serpent-256. Unlike the reduced-round attacks in Section 2.2, biclique attacks cover the entire cipher by exploiting key-related structures. The best published biclique attack on Serpent-256 (Menezes et al. 2020) achieved 2^{255.21} time complexity with 2^{88} data complexity — only ~0.8 bits better than brute-force key search.
+Biclique cryptanalysis is the only known technique that applies to the full 32-round Serpent-256. Unlike the reduced-round attacks in Section 2.2, biclique attacks cover the entire cipher by exploiting key-related structures. The best published biclique attack on Serpent-256 (Menezes et al. 2020) achieved 2^{255.21} time complexity with 2^{88} data complexity, only ~0.8 bits better than brute-force key search.
 
-A separate biclique construction using generator sets (de Carvalho & Kowada) achieved 2^{255.39} time with 2^{4} data complexity — a different tradeoff with substantially lower data requirements.
+A separate biclique construction using generator sets (de Carvalho & Kowada) achieved 2^{255.39} time with 2^{4} data complexity, a different tradeoff with substantially lower data requirements.
 
 #### Tool Validation and Formula Corrections
 
@@ -536,7 +535,7 @@ The search was broadened to test whether delta key indices other than K31 could 
 
 K29's dramatically lower rate reflects greater key schedule distance: differences introduced at K29 propagate through 2 extra recurrence steps, creating more S-box conflicts between delta and nabla differentials.
 
-**Data complexity — the single most important finding:**
+**Data complexity: the single most important finding.**
 
 | Delta Key Index | Min Data | Max Data | % with data = 2^{4} |
 |----------------|----------|----------|---------------------|
@@ -544,9 +543,9 @@ K29's dramatically lower rate reflects greater key schedule distance: difference
 | K30 | 2^{16} | 2^{40} | 0% |
 | K31 | 2^{4} | 2^{4} | 100% |
 
-Data complexity decreases monotonically as the delta key index moves closer to ciphertext: each step closer removes one key schedule propagation step. K31/K32 are the subkeys applied directly in the biclique states — no propagation is needed, and data complexity is at the theoretical minimum. No delta key index other than K31 achieves data complexity within practical reach.
+Data complexity decreases monotonically as the delta key index moves closer to ciphertext: each step closer removes one key schedule propagation step. K31/K32 are the subkeys applied directly in the biclique states; no propagation is needed, and data complexity is at the theoretical minimum. No delta key index other than K31 achieves data complexity within practical reach.
 
-**Nabla pair landscape:** K17/K18 is universally optimal across all three delta indices. The time complexity curve follows a symmetric U-shape centered on K17. The paper's choice of K18 was near-optimal — K17 outperforms it by 8 recomputation S-boxes (a new finding not in the published papers).
+**Nabla pair landscape:** K17/K18 is universally optimal across all three delta indices. The time complexity curve follows a symmetric U-shape centered on K17. The paper's choice of K18 was near-optimal; K17 outperforms it by 8 recomputation S-boxes (a new finding not in the published papers).
 
 #### Best Known Result
 
@@ -571,25 +570,25 @@ Complete improvement chain:
 
 #### Structural Conclusions
 
-1. **K31 is uniquely necessary — not just optimal.** The data complexity progression from K29 (min 2^{56}) through K30 (min 2^{16}) to K31 (fixed 2^{4}) demonstrates a monotonic structural constraint tied to the biclique construction. Each key schedule step between the delta key index and the biclique states introduces active S-boxes that demand exponentially more chosen plaintexts. The paper's choice of K31 was not arbitrary — it is the only viable option.
+1. **K31 is uniquely necessary, not just optimal.** The data complexity progression from K29 (min 2^{56}) through K30 (min 2^{16}) to K31 (fixed 2^{4}) demonstrates a monotonic structural constraint tied to the biclique construction. Each key schedule step between the delta key index and the biclique states introduces active S-boxes that demand exponentially more chosen plaintexts. The paper's choice of K31 was not arbitrary; it is the only viable option.
 
 2. **K17 outperforms K18 as the nabla pair.** This is a new finding not present in the published papers. K17 produces 8 fewer recomputation S-boxes than K18 at the optimal biclique configuration. The universal optimality of K17/K18 across all three delta indices, with the separation |delta−17| increasing by exactly 1 per index step (12, 13, 14), points to a fixed structural feature of the Serpent key schedule where the recurrence `w[i] = (w[i-8] ^ w[i-5] ^ w[i-3] ^ w[i-1] ^ phi ^ i) <<< 11` produces optimal cancellation properties when the nabla difference enters at K17.
 
-3. **The time-data tradeoff moving away from ciphertext is never favorable.** K29 achieves 2^{255.13} time complexity (better than K31's 2^{255.19} by 0.06 bits) but requires 2^{56} data — a gap that renders the time improvement meaningless. Each step away from ciphertext trades a marginal time improvement for an exponential data complexity increase.
+3. **The time-data tradeoff moving away from ciphertext is never favorable.** K29 achieves 2^{255.13} time complexity (better than K31's 2^{255.19} by 0.06 bits) but requires 2^{56} data, a gap that renders the time improvement meaningless. Each step away from ciphertext trades a marginal time improvement for an exponential data complexity increase.
 
 #### Assessment
 
-The best biclique attack on full 32-round Serpent-256 achieves 2^{255.19} time complexity with 2^{4} data complexity. This provides less than 1 bit of advantage over exhaustive key search (2^{256}). The attack is purely certificational — it demonstrates a theoretical distinction from an ideal 256-bit cipher but has zero practical impact on security.
+The best biclique attack on full 32-round Serpent-256 achieves 2^{255.19} time complexity with 2^{4} data complexity. This provides less than 1 bit of advantage over exhaustive key search (2^{256}). The attack is purely certificational. It demonstrates a theoretical distinction from an ideal 256-bit cipher but has zero practical impact on security.
 
-To contextualize the scale: 2^{255.19} operations at 10^{18} operations per second (beyond any current or foreseeable hardware) would require approximately 10^{58} years — roughly 10^{48} times the age of the universe. The biclique attack reduces this by a factor of less than 2, which does not change the conclusion that brute-force key search against Serpent-256 is computationally infeasible.
+To contextualize the scale: 2^{255.19} operations at 10^{18} operations per second (beyond any current or foreseeable hardware) would require approximately 10^{58} years, roughly 10^{48} times the age of the universe. The biclique attack reduces this by a factor of less than 2, which does not change the conclusion that brute-force key search against Serpent-256 is computationally infeasible.
 
-The leviathan-crypto implementation is not affected by this attack in any way that a code change could address. The biclique structure exploits inherent algebraic properties of the Serpent S-boxes and key schedule — properties that are identical in any correct implementation.
+The leviathan-crypto implementation is not affected by this attack in any way that a code change could address. The biclique structure exploits inherent algebraic properties of the Serpent S-boxes and key schedule. These properties are identical in any correct implementation.
 
 ---
 
 ### 2.4 SerpentCipher: Verify-then-Decrypt and the Cryptographic Doom Principle
 
-The Cryptographic Doom Principle (Duong, 2011): *if you have to perform any cryptographic operation before verifying the MAC on a message you've received, it will somehow inevitably lead to doom.* The canonical counter-examples are the SSL/TLS padding oracle (Vaudenay 2002) and the SSH plaintext recovery attack — both consequences of MAC-then-encrypt designs where decryption must run before the MAC can be checked, giving an attacker a decryption oracle through observable error behavior.
+The Cryptographic Doom Principle (Duong, 2011): *if you have to perform any cryptographic operation before verifying the MAC on a message you've received, it will somehow inevitably lead to doom.* The canonical counter-examples are the SSL/TLS padding oracle (Vaudenay 2002) and the SSH plaintext recovery attack, both consequences of MAC-then-encrypt designs where decryption must run before the MAC can be checked, giving an attacker a decryption oracle through observable error behavior.
 
 Section 2.2 identified unauthenticated modes as the primary residual concern for raw `SerpentCtr` and `SerpentCbc`. `SerpentCipher` (`src/ts/serpent/cipher-suite.ts`) addresses this by composing `SerpentCbc` with `HMAC_SHA256` in strict Encrypt-then-MAC order, per chunk, used via `SealStream` and `OpenStream` (`src/ts/stream/seal-stream.ts`, `src/ts/stream/open-stream.ts`).
 
@@ -617,7 +616,7 @@ if (!constantTimeEqual(expectedTag, receivedTag))
 const plaintext = cbc.decrypt(encKey, iv, ct);
 ```
 
-`cbc.decrypt` is never called before `constantTimeEqual` returns `true`. There is no code path — no early return, no fallthrough, no branch — that produces plaintext from a chunk that has not passed its MAC. This is the doom principle enforced structurally, not by convention.
+`cbc.decrypt` is never called before `constantTimeEqual` returns `true`. There is no code path (no early return, no fallthrough, no branch) that produces plaintext from a chunk that has not passed its MAC. This is the doom principle enforced structurally, not by convention.
 
 The `constantTimeEqual` comparison itself (utils.ts: XOR-accumulate over all 32 bytes, no early exit) prevents a timing oracle on the tag. An attacker cannot distinguish a one-byte tag mismatch from a 32-byte mismatch by measuring response latency.
 
@@ -631,13 +630,13 @@ HKDF-SHA-256(masterKey, nonce, "serpent-sealstream-v2", 96) → enc_key[0:32] �
 
 Position binding is achieved through the 12-byte counter nonce (11-byte big-endian counter + 1-byte final flag). The HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`, binding authentication to chunk position and associated data. The CBC IV for each chunk is derived deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.
 
-A chunk transplanted from a different stream (different HKDF salt → different keys), a different position (different counterNonce → different IV and different HMAC input), or misrepresented as terminal or non-terminal (different final flag in counterNonce) will fail MAC verification before any decryption runs. The SSH plaintext recovery attack works by feeding an arbitrary ciphertext block to a recipient who decrypts the first four bytes and interprets them as a length — an operation taken before MAC verification. `SerpentCipher` has no equivalent: there is no length field inside the encrypted payload, chunk boundaries are determined externally by the caller, and every byte of every chunk is MAC-verified before any of it is decrypted.
+A chunk transplanted from a different stream (different HKDF salt → different keys), a different position (different counterNonce → different IV and different HMAC input), or misrepresented as terminal or non-terminal (different final flag in counterNonce) will fail MAC verification before any decryption runs. The SSH plaintext recovery attack works by feeding an arbitrary ciphertext block to a recipient who decrypts the first four bytes and interprets them as a length, an operation taken before MAC verification. `SerpentCipher` has no equivalent: there is no length field inside the encrypted payload, chunk boundaries are determined externally by the caller, and every byte of every chunk is MAC-verified before any of it is decrypted.
 
 #### Comparison with the SSL padding oracle
 
 The SSL/TLS vulnerability arises because the MAC covers the plaintext (MAC-then-encrypt), so the MAC cannot be checked until after decryption and padding removal. An attacker who can elicit different error responses for padding errors versus MAC errors gains a byte-at-a-time decryption oracle.
 
-`SerpentCipher` uses CBC with PKCS7 padding, which means padding does exist — unlike the v1 CTR-based construction. However, the verify-then-decrypt ordering ensures that PKCS7 padding is evaluated only after HMAC authentication succeeds. This prevents Vaudenay-style padding oracle attacks:
+`SerpentCipher` uses CBC with PKCS7 padding, so padding does exist (unlike the v1 CTR-based construction). The verify-then-decrypt ordering ensures that PKCS7 padding is evaluated only after HMAC authentication succeeds. This prevents Vaudenay-style padding oracle attacks:
 
 - **HMAC mismatch** → `AuthenticationError` thrown (before any decryption)
 - **Valid HMAC, invalid padding** → unreachable (padding is always valid after authentic CBC decryption with the correct key; an attacker cannot produce a valid HMAC for a ciphertext that would cause a padding error)

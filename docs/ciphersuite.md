@@ -1,6 +1,6 @@
 # CipherSuite
 
->[!NOTE]
+> [!NOTE]
 > The extension point for the streaming AEAD layer. `Seal`, `SealStream`,
 > `OpenStream`, and `SealStreamPool` are all cipher-agnostic. You provide
 > the cipher by passing a `CipherSuite` object at construction.
@@ -139,7 +139,8 @@ it unconditionally after finalize.
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
+> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
 > - [serpent](./serpent.md) — Serpent-256 TypeScript API and raw primitives
 > - [chacha20](./chacha20.md) — ChaCha20 TypeScript API and raw primitives
 > - [kyber](./kyber.md) — ML-KEM key encapsulation and `KyberSuite`

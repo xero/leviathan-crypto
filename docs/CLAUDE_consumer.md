@@ -1,7 +1,19 @@
 # leviathan-crypto — AI Assistant Guide
 
-This file ships with the package to help AI assistants use this library correctly.
-Full API documentation is in the `docs/` directory alongside this file.
+> [!NOTE]
+> This file ships with the package to help AI assistants use this library correctly. Full API documentation is in the `docs/` directory alongside this file.
+
+> ### Table of Contents
+> - [What This Library Is](#what-this-library-is)
+> - [Critical: `init()` is required](#critical-init-is-required)
+> - [Critical: call `dispose()` after use](#critical-call-dispose-after-use)
+> - [Critical: `decrypt()` throws on authentication failure](#critical-decrypt-throws-on-authentication-failure--never-returns-null)
+> - [Critical: subpath init function names](#critical-subpath-init-function-names)
+> - [Which module does each class require?](#which-module-does-each-class-require)
+> - [Recommended patterns](#recommended-patterns)
+> - [`SerpentCbc` arg order](#serpentcbc-arg-order)
+> - [Utilities (no `init()` required)](#utilities-no-init-required)
+> - [Full documentation](#full-documentation)
 
 ---
 
@@ -9,7 +21,7 @@ Full API documentation is in the `docs/` directory alongside this file.
 
 `leviathan-crypto` is a zero-dependency WebAssembly cryptography library for
 TypeScript and JavaScript. All cryptographic computation runs in WASM, outside
-the JavaScript JIT. The TypeScript layer provides the public API — input
+the JavaScript JIT. The TypeScript layer provides the public API: input
 validation, type safety, and ergonomics. It never implements cryptographic
 algorithms itself.
 
@@ -30,7 +42,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 ```
 
 `init()` accepts a `Partial<Record<Module, WasmSource>>`. Each value is a
-`WasmSource` — a gzip+base64 string, `URL`, `ArrayBuffer`, `Uint8Array`,
+`WasmSource`: a gzip+base64 string, `URL`, `ArrayBuffer`, `Uint8Array`,
 pre-compiled `WebAssembly.Module`, `Response`, or `Promise<Response>`.
 
 The `/embedded` subpath exports are the simplest WasmSource: they are the
@@ -41,7 +53,7 @@ gzip+base64 blobs for each module, bundled with the package.
 ## Critical: call `dispose()` after use
 
 Every class holds WASM memory containing key material. Call `dispose()` when
-done — it zeroes that memory. Not calling `dispose()` leaks key material.
+done; it zeroes that memory. Not calling `dispose()` leaks key material.
 
 ```typescript
 const cipher = new XChaCha20Poly1305()
@@ -57,7 +69,7 @@ try {
 ## Critical: `decrypt()` throws on authentication failure — never returns null
 
 All AEAD `decrypt()` methods throw if authentication fails. Do not check for a
-null return — catch the exception.
+null return; catch the exception.
 
 ```typescript
 try {
@@ -71,7 +83,7 @@ try {
 
 ## Critical: subpath init function names
 
-Each subpath export has its own module-specific init function — not `init()`.
+Each subpath export has its own module-specific init function, not `init()`.
 These are only needed for tree-shakeable imports. The root barrel `init()` is
 the normal path.
 
@@ -179,7 +191,7 @@ aead.dispose()
 ```
 
 Note: `encrypt()` returns ciphertext with the 16-byte Poly1305 tag appended.
-`decrypt()` expects the same concatenated format — not separate ciphertext and tag.
+`decrypt()` expects the same concatenated format, not separate ciphertext and tag.
 
 ### Hashing
 
@@ -282,7 +294,7 @@ wipe(key)                               // zero a Uint8Array in place
 ```
 
 `hasSIMD()` returns `true` if the runtime supports WebAssembly SIMD.
-Serpent, ChaCha20, and Kyber modules all require SIMD — `init()` throws
+Serpent, ChaCha20, and Kyber modules all require SIMD; `init()` throws
 a clear error on runtimes without support. SIMD has been a baseline
 feature of all major browsers and runtimes since 2021. SHA-2 and SHA-3
 modules run on any WASM-capable runtime.
@@ -299,7 +311,7 @@ The complete API reference ships in `docs/` alongside this file:
 | `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher` |
 | `docs/sha2.md` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` |
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
-| `docs/sealing.md` | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite` |
+| `docs/aead.md` | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite` |
 | `docs/kyber.md` | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite` — ML-KEM (FIPS 203) API reference |
 | `docs/fortuna.md` | `Fortuna` CSPRNG |
 | `docs/init.md` | `init()` API, loading modes, subpath imports |

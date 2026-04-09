@@ -1,10 +1,17 @@
-# Leviathan Crypto Library Branding Guide
+# Branding Guide
+
+> [!NOTE]
+> logo, color palette, and artwork for leviathan-crypto.
+
+---
 
 ## SVG Logo
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="leviathan-crypto logo" width="400">
 
 Source: [logo.svg](./logo.svg)
+
+---
 
 ## Color Palette
 
@@ -20,13 +27,15 @@ Source: [logo.svg](./logo.svg)
 | ![931a3e color swatch](https://placehold.co/100x35/931a3e/931a3e) | #931a3e | (147, 26, 62)   | Ruby     |
 | ![252216 color swatch](https://placehold.co/100x35/252216/252216) | #252216 | (37, 34, 22)    | Charcoal |
 
-## Ascii Art
+---
+
+## ASCII Art
 
 > [!IMPORTANT]
-> Always keep the 80th column blank for that old skool scene cred.
+> Always keep the 80th column blank.
 
 
-### File headers
+### File Headers
 
 ```
 //                  ▄▄▄▄▄▄▄▄▄▄
@@ -66,7 +75,7 @@ Source: [logo.svg](./logo.svg)
 
 ```
 
-### stand-alone logo
+### Stand-Alone Logo
 
 ```
                 ▄▄▄▄▄▄▄▄▄▄
@@ -91,7 +100,7 @@ Source: [logo.svg](./logo.svg)
                         ▀█████▀
 ```
 
->[!NOTE]
+> [!NOTE]
 > Logos and colorscheme design by [xero](https://x-e.ro)
 > Licensed [MIT](http://www.opensource.org/licenses/MIT) as part of the project.
 

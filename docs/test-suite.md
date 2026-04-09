@@ -1,5 +1,16 @@
 # Test Suite & Vector Corpus
 
+> [!NOTE]
+> Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 1213 tests.
+
+> ### Table of Contents
+> - [Test Counts](#test-counts)
+> - [Unit Tests (Vitest)](#unit-tests-vitest)
+> - [E2E Tests (Playwright)](#e2e-tests-playwright)
+> - [Vector Corpus](#vector-corpus)
+
+---
+
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/test-suite.svg" alt="Test Suite Data Flow Diagram" width="800">
 
 ## Test Counts
@@ -149,11 +160,11 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 > All vector files are read-only. Integrity is verified via
 > [`SHA256SUMS`](https://github.com/xero/leviathan-crypto/blob/main/test/vectors/SHA256SUMS)
 > with expected values sourced directly from authoritative references. They are
-> the **_immutable truth,_** and must never be modified to make tests pass.
+> the **_immutable truth_** and must never be modified to make tests pass.
 
 > [!NOTE]
 > `seal_v2.ts`, `sealstream_v2.ts`, and `shake_xof.ts` are
-> self-generated — there is no external authority for these wire formats or
+> self-generated; there is no external authority for these wire formats or
 > multi-squeeze output slices. Each was produced with fixed inputs and
 > independently verified against the underlying primitives. These vectors are
 > regression trip-wires for format stability, not proof of correctness against
@@ -163,12 +174,13 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [serpent](./serpent.md) — Serpent-256 TypeScript API (tested primitives)
 > - [chacha20](./chacha20.md) — ChaCha20/Poly1305 TypeScript API (tested primitives)
 > - [sha2](./sha2.md) — SHA-2/HMAC/HKDF TypeScript API (tested primitives)
 > - [sha3](./sha3.md) — SHA-3/SHAKE TypeScript API (tested primitives)
-> - [sealing](./sealing.md) — SealStream, OpenStream, SealStreamPool (tested primitives)
+> - [authenticated encryption](./aead.md) — SealStream, OpenStream, SealStreamPool (tested primitives)
 > - [loader](./loader.md) — WASM binary loading strategies (tested in unit + e2e)
 > - [fortuna](./fortuna.md) — Fortuna CSPRNG (tested primitive)
 > - [utils](./utils.md) — encoding utilities and `constantTimeEqual` (tested primitives)

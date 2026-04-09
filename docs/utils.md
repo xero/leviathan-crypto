@@ -1,12 +1,17 @@
 # Utilities
 
-## Overview
+> [!NOTE]
+> Pure TypeScript utilities that ship alongside the WASM-backed primitives. No `init()` call required; all functions work immediately on import.
 
-Pure TypeScript utilities that ship alongside the WASM-backed primitives. No `init()` required. These functions work immediately on import without loading any WASM module.
-
-The module covers encoding (hex, UTF-8, and base64 conversions between strings and `Uint8Array`), security (constant-time comparison and secure memory wiping), byte manipulation (XOR and concatenation), and random byte generation.
+> ### Table of Contents
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
 
 ---
+
+The module covers encoding (hex, UTF-8, and base64 conversions between strings and `Uint8Array`), security (constant-time comparison and secure memory wiping), byte manipulation (XOR and concatenation), and random byte generation.
 
 ## Security Notes
 
@@ -80,7 +85,7 @@ Decodes a base64 or base64url string to a `Uint8Array`. Handles padded, unpadded
 bytesToBase64(bytes: Uint8Array, url?: boolean): string
 ```
 
-Encodes a `Uint8Array` to a base64 string. Pass `url = true` for base64url (RFC 4648 §5 — uses `-` and `_` instead of `+` and `/`, no padding characters). Defaults to standard base64.
+Encodes a `Uint8Array` to a base64 string. Pass `url = true` for base64url (RFC 4648 §5), which uses `-` and `_` instead of `+` and `/` with no padding characters. Defaults to standard base64.
 
 ---
 

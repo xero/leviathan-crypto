@@ -1,7 +1,22 @@
 # ChaCha20 TypeScript API
 
 > [!NOTE]
-> See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
+> API reference for `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, and `XChaCha20Cipher`. Covers initialization, all class methods, usage examples, and error conditions.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [Module Init](#module-init)
+> - [API Reference](#api-reference)
+>   - [`ChaCha20`](#chacha20)
+>   - [`Poly1305`](#poly1305)
+>   - [`ChaCha20Poly1305`](#chacha20poly1305)
+>   - [`XChaCha20Poly1305`](#xchacha20poly1305)
+> - [XChaCha20Cipher](#xchacha20cipher)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
+
+---
 
 ## Overview
 
@@ -30,6 +45,8 @@ messages. **For most users, `Seal` with `XChaCha20Cipher` is the recommended cho
 produces a self-contained authenticated blob with no nonce management, no
 instantiation, and no `dispose()`. For protocol interop requiring explicit nonce
 control, use `XChaCha20Poly1305` directly.
+
+---
 
 ## Security Notes
 
@@ -74,6 +91,8 @@ control, use `XChaCha20Poly1305` directly.
   the corresponding bits in the plaintext will flip silently. Unless you are
   building your own authenticated construction (and you probably should not be),
   use one of the AEAD classes instead.
+
+---
 
 ## Module Init
 
@@ -157,7 +176,7 @@ a new `Uint8Array` containing the ciphertext (same length as input).
 
 #### `beginDecrypt(key: Uint8Array, nonce: Uint8Array): void`
 
-Prepares the cipher for decryption. Identical to `beginEncrypt`. ChaCha20 is symmetric. Encryption and decryption are the same XOR operation.
+Prepares the cipher for decryption. Identical to `beginEncrypt`. ChaCha20 is symmetric; encryption and decryption are the same XOR operation.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -278,7 +297,7 @@ parameter must include the appended 16-byte tag (i.e., the exact output of
 `encrypt()`). If authentication fails, an error is thrown and no plaintext is
 returned.
 
-Tag comparison uses a constant-time XOR-accumulate pattern. No timing side channel leaks whether the tag was "close" to correct.
+Tag comparison uses a constant-time XOR-accumulate pattern; no timing side channel leaks whether the tag was "close" to correct.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -429,7 +448,7 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
-See [sealing.md](./sealing.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
+See [aead.md](./aead.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
 
 ---
 
@@ -459,7 +478,7 @@ const blob2 = Seal.encrypt(XChaCha20Cipher, key, utf8ToBytes('Hello, world!'), {
 const pt2   = Seal.decrypt(XChaCha20Cipher, key, blob2, { aad })
 ```
 
-> **Need explicit nonce control?** Use `XChaCha20Poly1305` directly. Same
+> For explicit nonce control, use `XChaCha20Poly1305` directly. Same
 > API shape, 24-byte nonce passed per call. See Example 2.
 
 ### Example 2: ChaCha20Poly1305
@@ -624,6 +643,8 @@ const pt2 = cipher.decryptChunk(ct2)
 cipher.dispose()
 ```
 
+---
+
 ## Error Conditions
 
 | Condition | Error Type | Message |
@@ -643,8 +664,9 @@ cipher.dispose()
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [asm_chacha](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument
+> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument
 > - [serpent](./serpent.md) — `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming
 > - [sha2](./sha2.md) — SHA-2 hashes and HMAC. Needed for Encrypt-then-MAC if using raw ChaCha20
 > - [types](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes

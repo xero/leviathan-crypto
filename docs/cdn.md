@@ -1,7 +1,15 @@
 # CDN Usage
 
->[!NOTE]
+> [!NOTE]
 > leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com). All `WasmSource` types work directly from the CDN with no install or bundler required.
+
+> ### Table of Contents
+> - [Embedded mode (Zero config)](#embedded-mode-zero-config)
+> - [URL-based loading](#url-based-loading)
+> - [Manual loading (fetch + ArrayBuffer)](#manual-loading-fetch--arraybuffer)
+> - [Import maps](#import-maps)
+
+---
 
 ## Embedded mode (Zero config)
 
@@ -99,13 +107,13 @@ before instantiation.
 </script>
 ```
 
->[!TIP]
+> [!TIP]
 > The `integrity` option is standard SRI ([Subresource Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity)).
 > The browser verifies the hash before resolving the response, and throws a network error if it doesn't match.
 
 ---
 
-## Optional: cleaner imports with an import map
+## Import maps
 
 Browsers don't read `package.json` exports, so bare specifiers like
 `import { init } from 'leviathan-crypto'` don't work without an import map.
@@ -148,4 +156,5 @@ If you want the same import style as the npm docs, add one before your module sc
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [examples](./examples.md) — Code examples for every primitive

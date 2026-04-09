@@ -1,6 +1,9 @@
 # Cryptographic Audits
 
-Independent correctness and security reviews of every primitive in leviathan-crypto. Each audit verifies the implementation against its authoritative specification using published known-answer test vectors.
+> [!NOTE]
+> Independent correctness and security reviews of every primitive in leviathan-crypto. Each audit verifies the implementation against its authoritative specification using published known-answer test vectors.
+
+---
 
 | Primitive | Conducted | Description |
 |---|---|---|

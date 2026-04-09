@@ -1,11 +1,17 @@
 # WebAssembly Primer
 
 > [!NOTE]
-> - A short introduction to WebAssembly concepts as they apply to the leviathan-crypto library.
-> - If you already understand WASM, skip to [Project-Specific Concepts](#project-specific-concepts).
-> - WebAssembly specification and documentation: [webassembly.org](https://webassembly.org/)
+> A short introduction to WebAssembly concepts as they apply to the leviathan-crypto library. If you already understand WASM, skip to [Project-Specific Concepts](#project-specific-concepts).
 
-## What is WebAssembly?
+> ### Table of Contents
+> - [How It Runs](#how-it-runs)
+> - [The Case for WASM](#the-case-for-wasm)
+> - [Core Concepts](#core-concepts)
+> - [Project-Specific Concepts](#project-specific-concepts)
+
+---
+
+## WebAssembly Overview
 
 WebAssembly (WASM) is a binary instruction format that runs in browsers and
 server-side runtimes alongside JavaScript. Rather than a programming language
@@ -40,7 +46,7 @@ or de-optimize WASM code paths based on runtime profiling.
 
 ---
 
-## Why We Use It
+## The Case for WASM
 
 Leviathan performs all cryptographic computations in WASM because JavaScript
 engines offer no formal constant-time guarantees for arbitrary code. The JIT
@@ -76,7 +82,7 @@ Serpent classes (`Serpent`, `SerpentCtr`, `SerpentCbc`) share this instance.
 ### Memory
 
 A `WebAssembly.Memory` is a contiguous block of bytes, essentially a
- `Uint8Array` that WASM functions can read and write, also known as **linear
+`Uint8Array` that WASM functions can read and write, also known as **linear
 memory**. Each of our WASM modules gets its own memory (3 pages = 192 KB).
 
 The TypeScript layer communicates with WASM by writing inputs to specific offsets
@@ -142,10 +148,10 @@ you call `init({ chacha20: chacha20Wasm })` with the embedded blob, the library
 decodes this string back into bytes and compiles it into a
 `WebAssembly.Module`.
 
-Why embed the binary as a string? This approach enables the library to function with zero
-configuration. There's no need to serve .wasm files from a CDN, configure MIME
+Embedding the binary as a string enables the library to function with zero
+configuration. You do not need to serve .wasm files from a CDN, configure MIME
 types, or establish a build plugin to manage binary imports. Simply npm install and
-import. Gzip compression significantly reduces the embedded footprint — typically
+import. Gzip compression significantly reduces the embedded footprint, typically
 to around 20–25% of the uncompressed WASM binary size. The tradeoff is a
 decompression step at init time using `DecompressionStream`. For production deployments where bundle size is
 critical, the library also accepts `URL`, `ArrayBuffer`, `Response`, and pre-compiled

@@ -11,14 +11,14 @@
 
 ## Supported Versions
 
-| Version | Supported | Notes       |
-| ------- | --------- | ----------- |
-| v2.0.x  | ✓         |             |
-| v1.4.x  | ✗         | Last stable |
-| v1.3.x  | ✗         |            |
-| v1.2.x  | ✗         |            |
-| v1.1.x  | ✗         |            |
-| v1.0.x  | ✗         |            |
+| Version | Supported |
+| ------- | --------- |
+| v2.0.x  | ✓         |
+| v1.4.x  | ✗         |
+| v1.3.x  | ✗         |
+| v1.2.x  | ✗         |
+| v1.1.x  | ✗         |
+| v1.0.x  | ✗         |
 
 > [!CAUTION]
 > **All v1.x releases are deprecated.** Upgrading to v2 is strongly

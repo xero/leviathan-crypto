@@ -1,5 +1,17 @@
 # Leviathan Crypto Library Documentation Index
 
+> [!NOTE]
+> This index lists every documentation file in the `docs/` directory. Use it as your starting point for the API reference, architecture notes, benchmarks, and correctness audits.
+
+> ### Table of Contents
+> - [Getting Started](#getting-started)
+> - [API Reference](#api-reference)
+> - [Project Documentation](#project-documentation)
+> - [Performance](#performance)
+> - [Algorithm Correctness](#algorithm-correctness)
+
+---
+
 ## Getting Started
 
 | Document | Description |
@@ -18,7 +30,7 @@
 
 | Module | Description |
 |--------|-------------|
-| [sealing.md](./sealing.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+| [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
 
 ### Post-Quantum KEM
 
@@ -75,9 +87,12 @@
 |----------|-------------|
 | [architecture.md](./architecture.md) | Repository structure, build pipeline, module relationships, buffer layouts, and correctness contract |
 | [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, and gate discipline |
+| [Security Policy](./security_policy.md) | Security posture and vulnerability disclosure details |
+| [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [wasm.md](./wasm.md) | WebAssembly primer in the context of this library |
 | [argon2id.md](./argon2id.md) | Passphrase-based encryption using Argon2id alongside leviathan primitives |
 | [serpent_reference.md](./serpent_reference.md) | Serpent algorithm: S-boxes, linear transform, round structure, known attacks |
+| [chacha_reference.md](./chacha_reference.md) | ChaCha20 algorithm: ARX, block function, Poly1305 MAC, HChaCha20 subkeys, XChaCha20-Poly1305 AEAD, known attacks |
 | [branding.md](./branding.md) | Project artwork and branding materials |
 
 ---
@@ -94,7 +109,7 @@ See the [benchmark index](./benchmarks.md) for full results across V8, SpiderMon
 
 ---
 
-## Algorithm Correctness and Verifications
+## Algorithm Correctness
 
 See the [audit index](./audits.md) for a summary of all reviews.
 

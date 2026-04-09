@@ -1,27 +1,36 @@
 # SHA3 TypeScript API Reference
 
 > [!NOTE]
-> SHA-3 hash functions and SHAKE XOFs (TypeScript API)
->
-> See [SHA-3 implementation audit](./sha3_audit.md) for algorithm correctness verifications.
+> Covers the SHA-3 hash functions (SHA3-224 through SHA3-512) and the SHAKE extendable-output functions (SHAKE128, SHAKE256). See [SHA-3 implementation audit](./sha3_audit.md) for algorithm correctness verifications.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [Module Init](#module-init)
+> - [API Reference](#api-reference)
+> - [Incremental XOF API](#incremental-xof-api-absorb--squeeze--reset)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
+
+---
 
 ## Overview
 
 The SHA-3 family provides six hash functions standardized in **FIPS 202**: four
 fixed-output hash functions (SHA3-224, SHA3-256, SHA3-384, SHA3-512) and two
 extendable-output functions, or XOFs (SHAKE128, SHAKE256). All six are built on
-the **Keccak sponge construction** -- a fundamentally different design from the
+the **Keccak sponge construction**, a fundamentally different design from the
 Merkle-Damgard structure used by SHA-2.
 
 SHA-3 is **not** a replacement for SHA-2. Both are considered secure, and both are
 standardized by NIST. SHA-3 exists to provide **defense-in-depth**: if a flaw is
 ever discovered in SHA-2, SHA-3 is completely unaffected because it uses a different
-mathematical foundation. Think of it as insurance -- you may never need it, but if
-you do, you will be very glad it is there.
+mathematical foundation. You may never need that insurance, but if you do, you will be
+very glad it is there.
 
 The SHAKE XOFs are particularly flexible. Unlike SHA3-256, which always produces
-exactly 32 bytes, SHAKE128 and SHAKE256 can produce variable-length output -- you
-tell them how many bytes you want. This is useful for key derivation, generating
+exactly 32 bytes, SHAKE128 and SHAKE256 can produce variable-length output. You
+tell them how many bytes you want, making them useful for key derivation, generating
 nonces, or any situation where you need more (or fewer) bytes than a standard hash
 provides.
 
@@ -41,7 +50,7 @@ secret. SHA-3's sponge construction makes this impossible.
 - **Length extension immunity.** Unlike SHA-2, the SHA-3 sponge construction does
   not leak enough internal state for length extension attacks. Computing
   `SHA3(secret + message)` does not let an attacker forge `SHA3(secret + message + extra)`.
-  That said, **HMAC is still the correct way to build a MAC** -- do not use raw
+  That said, **HMAC is still the correct way to build a MAC** — do not use raw
   `SHA3(key + message)` as a MAC construction, even though it is not vulnerable to
   length extension. HMAC provides a formally proven security reduction.
 
@@ -50,7 +59,7 @@ secret. SHA-3's sponge construction makes this impossible.
   sponge directly with `absorb()` / `squeeze()`. The only constraint is
   `outputLength >= 1`.
 
-- **Not for password hashing.** SHA-3 is a fast hash — that is the opposite of
+- **Not for password hashing.** SHA-3 is a fast hash, which is the opposite of
   what you want for password storage. Passwords must be hashed with a slow,
   memory-hardened algorithm like **Argon2id**. See [argon2id.md](./argon2id.md) for
   usage patterns including passphrase-based encryption with leviathan primitives.
@@ -90,7 +99,7 @@ await sha3Init(sha3Wasm)
 const sha3 = new SHA3_256()
 ```
 
-### keccakInit() (alias)
+### keccakInit() Alias
 
 `'keccak'` is an alias for `'sha3'`. Same WASM binary, same instance slot.
 `keccakInit()` and `sha3Init()` are interchangeable.
@@ -151,7 +160,7 @@ class SHA3_224 {
 ### SHA3_256
 
 Fixed-output hash function. Produces a **32-byte** (256-bit) digest. This is the
-most commonly used SHA-3 variant -- 256-bit security is suitable for most
+most commonly used SHA-3 variant; 256-bit security is suitable for most
 applications.
 
 ```typescript
@@ -293,7 +302,7 @@ xof.dispose()
 
 ### Example 1: Hash a string with SHA3-256
 
-The most common use case -- hash some data and get a hex digest.
+The most common use case: hash some data and get a hex digest.
 
 ```typescript
 import { init, SHA3_256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
@@ -342,7 +351,7 @@ sha3.dispose()
 
 ### Example 3: Hash multiple messages
 
-Each call to `hash()` is independent -- the internal state is reset automatically.
+Each call to `hash()` is independent; the internal state resets automatically.
 You can reuse the same class instance for multiple hashes.
 
 ```typescript
@@ -423,11 +432,10 @@ shake.dispose()
 
 ---
 
-### Example 6: SHA-256 vs SHA3-256 -- different algorithms, different output
+### Example 6: SHA-256 vs SHA3-256
 
 SHA-256 (from the SHA-2 family) and SHA3-256 are completely different algorithms.
-They produce different output for the same input. Neither is "better" -- both
-are secure. SHA3-256 adds defense-in-depth.
+They produce different output for the same input. Both are secure; SHA3-256 adds defense-in-depth.
 
 ```typescript
 import { init, SHA256, SHA3_256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'

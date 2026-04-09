@@ -1,6 +1,9 @@
 # Benchmarks
 
-SIMD performance results across V8, SpiderMonkey, and JavaScriptCore.
+> [!NOTE]
+> SIMD performance results across V8, SpiderMonkey, and JavaScriptCore.
+
+---
 
 | Benchmark | Description |
 |---|---|

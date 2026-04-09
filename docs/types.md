@@ -1,20 +1,22 @@
 # TypeScript Interfaces
 
-## Overview
+> [!NOTE]
+> Defines the abstract interfaces all leviathan-crypto cryptographic classes implement. These are type-only exports; they contain no runtime code and generate no JavaScript output.
 
-This module defines the abstract interfaces that all leviathan-crypto cryptographic classes implement. These are **type-only exports**. They contain no runtime code and generate no JavaScript output.
-
-Use these interfaces when you need to write generic code that works with any hash function, any cipher, or any AEAD scheme without depending on a specific implementation. They are available immediately on import with no `init()` call required.
-
----
-
-## Security Notes
-
-This module contains type definitions only. There are no security-sensitive operations.
+> ### Table of Contents
+> - [API Reference](#api-reference)
+> - [Usage Examples](#usage-examples)
+> - [WasmSource](#wasmsource)
+> - [CipherSuite](#ciphersuite)
+> - [DerivedKeys](#derivedkeys)
+> - [SealStreamOpts](#sealstreamopts)
+> - [PoolOpts](#poolopts)
 
 ---
 
 ## API Reference
+
+Use these interfaces when you need generic code that works with any hash function, any cipher, or any AEAD scheme without depending on a specific implementation. They are available immediately on import with no `init()` call required.
 
 ### Hash
 
@@ -45,7 +47,7 @@ interface KeyedHash {
 
 Interface for keyed hash functions / MACs (e.g., HMAC-SHA256, HMAC-SHA512).
 
-Note: `KeyedHash` does **not** extend `Hash`. Its `hash` method takes a `key` parameter in addition to the message.
+`KeyedHash` does **not** extend `Hash`. Its `hash` method takes a `key` parameter in addition to the message.
 
 | Method | Description |
 |---|---|

@@ -6,6 +6,16 @@
 >
 > See [SHA-2 implementation audit](./sha2_audit.md), [HMAC audit](./hmac_audit.md), and [HKDF audit](./hkdf_audit.md) for algorithm correctness verifications.
 
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [Module Init](#module-init)
+> - [API Reference](#api-reference)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
+
+---
+
 ## Overview
 
 SHA-2 is a family of cryptographic hash functions standardized in
@@ -18,19 +28,23 @@ data has not been tampered with.
 leviathan-crypto provides three SHA-2 variants:
 
 **SHA-256.** 32-byte (256-bit) digest. The most widely used variant. Use this unless you have a specific reason to choose another.
+
 **SHA-512.** 64-byte (512-bit) digest. Higher security margin. Faster than SHA-256 on 64-bit platforms.
+
 **SHA-384.** 48-byte (384-bit) digest. A truncated variant of SHA-512. Useful when you need a digest longer than 256 bits but shorter than 512 bits, or when a protocol specifies it (e.g. TLS cipher suites).
 
 **HMAC** (Hash-based Message Authentication Code, [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104))
 combines a secret key with a hash function to produce a **tag** that proves both
 the integrity and the authenticity of a message. Anyone can compute a plain SHA-256
-hash of a message. But only someone who holds the secret key can compute the correct HMAC tag. This means the recipient can verify that the message was sent by
-someone who knows the key, and that it was not modified in transit.
+hash of a message. But only someone who holds the secret key can compute the correct HMAC tag. The recipient can then verify that the message was sent by
+someone who knows the key and that it was not modified in transit.
 
 leviathan-crypto provides three HMAC variants corresponding to each hash:
 
 **HMAC_SHA256.** 32-byte tag.
+
 **HMAC_SHA512.** 64-byte tag.
+
 **HMAC_SHA384.** 48-byte tag.
 
 All computation runs in WebAssembly. The TypeScript classes handle input
@@ -343,7 +357,7 @@ hkdf.dispose()
 
 ### Example 1: Hash a message with SHA-256
 
-The most common operation: hash a string and get a hex-encoded digest.
+Hash a string and get a hex-encoded digest.
 
 ```typescript
 import { init, SHA256, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
@@ -421,8 +435,8 @@ sha512.dispose()
 ### Example 4: Generate and verify an HMAC
 
 Use HMAC when you need to prove that a message was created by someone who holds
-a secret key. A typical pattern: one side generates a tag, the other side
-recomputes the tag with the same key and checks that they match.
+a secret key. One side generates a tag, the other side recomputes the tag with
+the same key and checks that they match.
 
 ```typescript
 import {
@@ -461,8 +475,8 @@ hmac.dispose()
 
 ### Example 5: HMAC verification — the right way
 
-This is important enough to call out separately. The difference between these
-two approaches is the difference between a secure system and a broken one.
+The difference between these two approaches is the difference between a secure
+system and a broken one.
 
 ```typescript
 import { init, HMAC_SHA256, constantTimeEqual, bytesToHex } from 'leviathan-crypto'

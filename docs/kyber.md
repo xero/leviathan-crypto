@@ -1,7 +1,18 @@
 # ML-KEM (Kyber): Post-Quantum Key Encapsulation
 
+> [!NOTE]
 > Post-quantum key encapsulation via ML-KEM (FIPS 203), plus `KyberSuite`
 > for hybrid KEM + symmetric AEAD with `Seal`, `SealStream`, and `OpenStream`.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Parameter Sets](#parameter-sets)
+> - [Init](#init)
+> - [MlKem API](#mlkem-api)
+> - [KyberSuite](#kybersuite)
+> - [Format enum](#format-enum)
+> - [Full example](#full-example)
+> - [Error reference](#error-reference)
 
 ---
 
@@ -53,7 +64,7 @@ arithmetic. The sha3 module provides the Keccak sponge operations used for
 key generation and encapsulation. If using `KyberSuite` with `XChaCha20Cipher`,
 also load `chacha20` and `sha2`. With `SerpentCipher`, load `serpent` and `sha2`.
 
-`'keccak'` is an alias for `'sha3'` — same WASM binary, same instance slot.
+`'keccak'` is an alias for `'sha3'`; same WASM binary, same instance slot.
 You can substitute `keccakWasm` and `init({ keccak: keccakWasm })` anywhere
 `sha3` is used. See [init.md](./init.md#keccak-alias-for-ml-kem) for details.
 
@@ -305,7 +316,7 @@ kem.dispose()
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
+> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
 > - [ciphersuite](./ciphersuite.md) — `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`
 > - [kyber_audit](./kyber_audit.md) — ML-KEM implementation audit
 > - [init](./init.md) — module initialization and WASM loading

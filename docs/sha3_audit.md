@@ -1,29 +1,28 @@
 # SHA-3 / Keccak Cryptographic Audit
 
 > [!NOTE]
-> **Conducted:** Week of 2026-03-25
-> **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-> **Spec:** FIPS 202 (SHA-3 Standard, August 2015)
-> **Variants covered:** SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256
+> Cryptographic audit of the SHA-3 / Keccak WASM implementation in `leviathan-crypto` against FIPS 202. Covers algorithm correctness for all six variants and a full security analysis.
 
-## Table of Contents
+**Conducted:** Week of 2026-03-25 | **Target:** `leviathan-crypto` AssemblyScript WASM | **Spec:** FIPS 202 (August 2015) | **Variants:** SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256
 
-- [1. Algorithm Correctness](#1-algorithm-correctness)
-  - [1.1 State Layout and Lane Indexing](#11-state-layout-and-lane-indexing)
-  - [1.2 Theta](#12-theta)
-  - [1.3 Rho](#13-rho)
-  - [1.4 Rho+Pi (combined)](#14-rhopi-combined)
-  - [1.5 Chi](#15-chi)
-  - [1.6 Iota](#16-iota)
-  - [1.7 Round Count](#17-round-count)
-  - [1.8 Padding and Domain Separation](#18-padding-and-domain-separation)
-  - [1.9 Rate and Capacity per Variant](#19-rate-and-capacity-per-variant)
-  - [1.10 Buffer Layout and Memory Safety](#110-buffer-layout-and-memory-safety)
-  - [1.11 TypeScript Wrapper Layer](#111-typescript-wrapper-layer)
-- [2. Security Analysis](#2-security-analysis)
-  - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
-  - [2.2 Known Attacks on SHA-3 / Keccak](#22-known-attacks-on-sha-3--keccak)
-  - [2.3 Usage Context in leviathan-crypto](#23-usage-context-in-leviathan-crypto)
+> ### Table of Contents
+> - [1. Algorithm Correctness](#1-algorithm-correctness)
+>   - [1.1 State Layout and Lane Indexing](#11-state-layout-and-lane-indexing)
+>   - [1.2 Theta](#12-theta)
+>   - [1.3 Rho](#13-rho)
+>   - [1.4 Rho+Pi (combined)](#14-rhopi-combined)
+>   - [1.5 Chi](#15-chi)
+>   - [1.6 Iota](#16-iota)
+>   - [1.7 Round Count](#17-round-count)
+>   - [1.8 Padding and Domain Separation](#18-padding-and-domain-separation)
+>   - [1.9 Rate and Capacity per Variant](#19-rate-and-capacity-per-variant)
+>   - [1.10 Buffer Layout and Memory Safety](#110-buffer-layout-and-memory-safety)
+>   - [1.11 TypeScript Wrapper Layer](#111-typescript-wrapper-layer)
+>   - [1.12 NIST Test Vectors](#112-nist-test-vectors)
+> - [2. Security Analysis](#2-security-analysis)
+>   - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
+>   - [2.2 Known Attacks on SHA-3 / Keccak](#22-known-attacks-on-sha-3--keccak)
+>   - [2.3 Usage Context in leviathan-crypto](#23-usage-context-in-leviathan-crypto)
 
 ---
 
@@ -483,7 +482,7 @@ SHA-3 (sponge construction) is **inherently immune to length extension attacks**
 
 This is a structural advantage of SHA-3 over SHA-2. In leviathan-crypto, SHA-2 requires HMAC to prevent length extension; SHA-3 does not (though HMAC-SHA3 could still be used for keyed authentication).
 
-**Implementation verification:** After `keccakFinal()` squeezes the output, the full internal state remains in WASM memory at `STATE_OFFSET` until `wipeBuffers()` is called. However, the state is not accessible from JavaScript except through the `memory` buffer. `dispose()` zeros it. The TypeScript API does not expose the raw state at any point. Length extension immunity is preserved.
+**Implementation verification:** After `keccakFinal()` squeezes the output, the full internal state remains in WASM memory at `STATE_OFFSET` until `wipeBuffers()` is called. JavaScript can only access the state through the `memory` buffer. `dispose()` zeros it. The TypeScript API does not expose the raw state at any point. Length extension immunity is preserved.
 
 #### Algebraic Attacks on Chi
 
@@ -499,7 +498,7 @@ For SHA-3, second-preimage resistance equals preimage resistance: 2^256 for SHA3
 
 ### 2.3 Usage Context in leviathan-crypto
 
-A comprehensive search of the codebase confirmed that SHA-3 is used **only as a standalone hash/XOF**:
+A comprehensive codebase search confirmed that SHA-3 is used **only as a standalone hash/XOF**:
 
 | Component | Usage | Notes |
 |-----------|-------|-------|
@@ -510,7 +509,7 @@ A comprehensive search of the codebase confirmed that SHA-3 is used **only as a 
 - HMAC-SHA256, HMAC-SHA384, HMAC-SHA512 (based on SHA-2)
 - HKDF-SHA256, HKDF-SHA512 (based on HMAC-SHA2)
 
-This is a reasonable design: SHA-3's length extension immunity makes HMAC unnecessary for SHA-3-based MACs (KMAC would be the native keyed mode), but since leviathan already has a complete HMAC-SHA2 stack and SHA-3 is used only for hashing, there is no gap.
+This is a reasonable design: SHA-3's length extension immunity makes HMAC unnecessary for SHA-3-based MACs (KMAC would be the native keyed mode). Since leviathan already has a complete HMAC-SHA2 stack and SHA-3 is used only for hashing, the design has no gaps.
 
 **No type confusion between SHA-2 and SHA-3.** The classes are distinctly named (`SHA256` vs `SHA3_256`) and require different `init()` modules (`'sha2'` vs `'sha3'`). They share no buffers, no WASM memory, and no internal state. An application cannot accidentally substitute one for the other. The module gate will throw.
 

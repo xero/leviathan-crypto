@@ -1,6 +1,8 @@
 # Stream Composition Audit
 
 > [!NOTE]
+> Security audit of the `leviathan-crypto` streaming AEAD layer (TypeScript, Tier 2), conducted the week of 2026-04-03. This audit covers composition of audited primitives, not the primitives themselves.
+
 > **Conducted:** Week of 2026-04-03
 > **Target:** `leviathan-crypto` streaming AEAD layer (TypeScript, Tier 2)
 > **Scope:** Composition of audited primitives — not the primitives themselves
@@ -12,41 +14,40 @@
 > - [hkdf_audit.md §1.4](./hkdf_audit.md#14-usage-in-leviathan-crypto-stream-layer) — HKDF key derivation usage
 > - [hmac_audit.md §2.3](./hmac_audit.md#23-key-separation-analysis) — HMAC usage in streaming context
 
-## Table of Contents
-
-- [2.1 STREAM Construction Correctness](#21-stream-construction-correctness)
-  - [Nonce Construction](#nonce-construction)
-  - [Header Format](#header-format)
-  - [State Machine](#state-machine)
-  - [Chunk Size Enforcement](#chunk-size-enforcement)
-  - [Relationship to the Paper](#relationship-to-the-paper)
-- [2.2 Key Derivation Analysis](#22-key-derivation-analysis)
-  - [HKDF Domain Separation](#hkdf-domain-separation)
-  - [XChaCha20 Key Path](#xchacha20-key-path)
-  - [Serpent Key Path](#serpent-key-path)
-  - [Stream Isolation](#stream-isolation)
-  - [Key Validation](#key-validation)
-  - [sha2 Init Gate](#sha2-init-gate)
-- [2.3 Per-Chunk AEAD Correctness](#23-per-chunk-aead-correctness)
-  - [XChaCha20Cipher](#xchacha20cipher)
-  - [SerpentCipher](#serpentcipher)
-- [2.4 Pool Worker Security](#24-pool-worker-security)
-  - [Key Isolation](#key-isolation)
-  - [Fatal Failure Model](#fatal-failure-model)
-  - [Key Wipe on Destroy](#key-wipe-on-destroy)
-  - [Seal-Twice Guard](#seal-twice-guard)
-- [2.5 Wire Format Compatibility](#25-wire-format-compatibility)
-  - [Cross-Cipher Rejection](#cross-cipher-rejection)
-  - [Framed Mode](#framed-mode)
-  - [Seek](#seek)
-- [2.6 Composition Risks](#26-composition-risks)
-  - [Nonce Reuse Across Streams](#nonce-reuse-across-streams)
-  - [HKDF Output Binding](#hkdf-output-binding)
-  - [Counter Overflow](#counter-overflow)
-  - [Timing Side Channels in TypeScript](#timing-side-channels-in-typescript)
-  - [Error Oracle](#error-oracle)
-  - [The HKDF Divergence from the Paper (Critical)](#the-hkdf-divergence-from-the-paper-critical)
-- [Test Coverage Summary](#test-coverage-summary)
+> ### Table of Contents
+> - [2.1 STREAM Construction Correctness](#21-stream-construction-correctness)
+>   - [Nonce Construction](#nonce-construction)
+>   - [Header Format](#header-format)
+>   - [State Machine](#state-machine)
+>   - [Chunk Size Enforcement](#chunk-size-enforcement)
+>   - [Relationship to the Paper](#relationship-to-the-paper)
+> - [2.2 Key Derivation Analysis](#22-key-derivation-analysis)
+>   - [HKDF Domain Separation](#hkdf-domain-separation)
+>   - [XChaCha20 Key Path](#xchacha20-key-path)
+>   - [Serpent Key Path](#serpent-key-path)
+>   - [Stream Isolation](#stream-isolation)
+>   - [Key Validation](#key-validation)
+>   - [sha2 Init Gate](#sha2-init-gate)
+> - [2.3 Per-Chunk AEAD Correctness](#23-per-chunk-aead-correctness)
+>   - [XChaCha20Cipher](#xchacha20cipher)
+>   - [SerpentCipher](#serpentcipher)
+> - [2.4 Pool Worker Security](#24-pool-worker-security)
+>   - [Key Isolation](#key-isolation)
+>   - [Fatal Failure Model](#fatal-failure-model)
+>   - [Key Wipe on Destroy](#key-wipe-on-destroy)
+>   - [Seal-Twice Guard](#seal-twice-guard)
+> - [2.5 Wire Format Compatibility](#25-wire-format-compatibility)
+>   - [Cross-Cipher Rejection](#cross-cipher-rejection)
+>   - [Framed Mode](#framed-mode)
+>   - [Seek](#seek)
+> - [2.6 Composition Risks](#26-composition-risks)
+>   - [Nonce Reuse Across Streams](#nonce-reuse-across-streams)
+>   - [HKDF Output Binding](#hkdf-output-binding)
+>   - [Counter Overflow](#counter-overflow)
+>   - [Timing Side Channels in TypeScript](#timing-side-channels-in-typescript)
+>   - [Error Oracle](#error-oracle)
+>   - [The HKDF Divergence from the Paper (Critical)](#the-hkdf-divergence-from-the-paper-critical)
+> - [Test Coverage Summary](#test-coverage-summary)
 
 ---
 
@@ -57,7 +58,7 @@
 The 12-byte counter nonce is constructed by `makeCounterNonce()` (`src/ts/stream/header.ts:62–74`):
 
 - Bytes 0–10: 11-byte big-endian counter, written right-to-left via `c & 0xff` / `Math.floor(c / 256)`
-- Byte 11: final flag — `TAG_DATA = 0x00` for data chunks, `TAG_FINAL = 0x01` for the final chunk (`src/ts/stream/constants.ts:27–28`)
+- Byte 11: final flag, `TAG_DATA = 0x00` for data chunks, `TAG_FINAL = 0x01` for the final chunk (`src/ts/stream/constants.ts:27–28`)
 
 The counter starts at **0** and increments monotonically with each `push()` call (`src/ts/stream/seal-stream.ts:75–77`). `finalize()` uses the current counter value with `TAG_FINAL` (`seal-stream.ts:87`).
 
@@ -75,11 +76,11 @@ The 20-byte header is written by `writeHeader()` (`src/ts/stream/header.ts:28–
 | 1–16 | 16 | Random nonce from `randomBytes(16)` |
 | 17–19 | 3 | Chunk size as u24 big-endian |
 
-The format enum values are `0x01` (XChaCha20) and `0x02` (Serpent), defined in the respective `CipherSuite` objects (`src/ts/chacha20/cipher-suite.ts:41`, `src/ts/serpent/cipher-suite.ts:37`). The framed flag occupies bit 7 (`FLAG_FRAMED = 0x80`, `constants.ts:26`). Bits 0–5 are available for the format ID: bits 0–3 are the cipher nibble, bits 4–5 are the KEM selector (0x00 = no KEM, 0x10 = ML-KEM-512, 0x20 = ML-KEM-768, 0x30 = ML-KEM-1024), and bit 6 is reserved. `writeHeader` enforces `formatEnum ≤ 0x3f` — no explicit mask is needed since bit 6 is never set by any current suite.
+The format enum values are `0x01` (XChaCha20) and `0x02` (Serpent), defined in the respective `CipherSuite` objects (`src/ts/chacha20/cipher-suite.ts:41`, `src/ts/serpent/cipher-suite.ts:37`). The framed flag occupies bit 7 (`FLAG_FRAMED = 0x80`, `constants.ts:26`). Bits 0–5 are available for the format ID: bits 0–3 are the cipher nibble, bits 4–5 are the KEM selector (0x00 = no KEM, 0x10 = ML-KEM-512, 0x20 = ML-KEM-768, 0x30 = ML-KEM-1024), and bit 6 is reserved. `writeHeader` enforces `formatEnum ≤ 0x3f`; no explicit mask is needed since bit 6 is never set by any current suite.
 
-The nonce is generated by `randomBytes(16)` (`seal-stream.ts:64`), which calls `crypto.getRandomValues()` — the library does not polyfill this and fails loudly if the API is unavailable.
+The nonce is generated by `randomBytes(16)` (`seal-stream.ts:64`), which calls `crypto.getRandomValues()`. The library does not polyfill this and fails loudly if the API is unavailable.
 
-`readHeader()` (`header.ts:44–59`) parses the header symmetrically and returns a copy of the nonce via `.slice(1, 17)`, not a view — preventing external mutation of the parsed nonce.
+`readHeader()` (`header.ts:44–59`) parses the header symmetrically and returns a copy of the nonce via `.slice(1, 17)`, not a view, preventing external mutation of the parsed nonce.
 
 **Verdict:** Correct. The header encodes cipher identity, framing mode, random nonce, and chunk size in a compact, unambiguous 20-byte format.
 
@@ -87,7 +88,7 @@ The 20-byte physical header is the first component of the `preamble` exposed by
 `SealStream`. For symmetric suites, `preamble` equals the 20-byte header. For
 KEM suites, the format enum's KEM selector (bits 4–5 of byte 0) signals the
 decoder to read `kemCtSize` additional bytes of KEM ciphertext immediately after
-the header — these together form the full preamble. Symmetric suites have KEM
+the header; these together form the full preamble. Symmetric suites have KEM
 bits = 0x00, so `preamble` equals `header`.
 
 ### State Machine
@@ -107,7 +108,7 @@ Both `SealStream` and `OpenStream` maintain a `state: 'ready' | 'finalized'` fie
 - `seal()` (line 198): throws if `_sealed` is true, preventing nonce reuse across batch operations
 - `_sealed` is set to `true` after successful seal (line 228)
 
-After finalization, derived keys are wiped via `cipher.wipeKeys(keys)`, which calls `wipe(keys.bytes)` — an in-place `.fill(0)` on the underlying `Uint8Array` (`utils.ts:148–150`). This is a best-effort wipe in JavaScript (the garbage collector may have already copied the buffer), but it zeroes the canonical reference.
+After finalization, derived keys are wiped via `cipher.wipeKeys(keys)`, which calls `wipe(keys.bytes)`: an in-place `.fill(0)` on the underlying `Uint8Array` (`utils.ts:148–150`). This is a best-effort wipe in JavaScript (the garbage collector may have already copied the buffer), but it zeroes the canonical reference.
 
 **Verdict:** Correct. The state machine prevents post-finalization operations and ensures key material is wiped.
 
@@ -122,7 +123,7 @@ Where `CHUNK_MIN = 1024` and `CHUNK_MAX = 16_777_215` (u24 max).
 
 **push()** (`seal-stream.ts:72–73`) and **finalize()** (`seal-stream.ts:84–85`): both reject chunks where `chunk.length > this.chunkSize`. The check uses `>`, not `>=`, so chunks exactly equal to `chunkSize` are accepted.
 
-Empty chunks (length 0) are accepted by both `push()` and `finalize()`. This is intentional — the `toTransformStream()` finalizer calls `finalize(new Uint8Array(0))` to close the stream when no data remains.
+Empty chunks (length 0) are accepted by both `push()` and `finalize()`. This is intentional: the `toTransformStream()` finalizer calls `finalize(new Uint8Array(0))` to close the stream when no data remains.
 
 **SealStreamPool.create()** (`seal-stream-pool.ts:125–126`): validates chunkSize in `[CHUNK_MIN, CHUNK_MAX]` with the same bounds.
 
@@ -149,9 +150,9 @@ The paper's STREAM construction (Figure 10, Section 7) defines:
 | i starts at 1 | Counter starts at 0 | `seal-stream.ts:46` |
 | E_K(nonce, A, M) | `cipher.sealChunk(keys, counterNonce, chunk, aad)` | `seal-stream.ts:76` |
 
-**Divergence #1 — Counter origin:** The paper starts at i=1; the implementation starts at i=0. This is functionally equivalent — the counter is monotonic and unique within a stream regardless of starting point. No security impact.
+**Divergence #1: Counter origin.** The paper starts at i=1; the implementation starts at i=0. This is functionally equivalent: the counter is monotonic and unique within a stream regardless of starting point. No security impact.
 
-**Divergence #2 — HKDF subkey derivation (critical):** The paper uses a single key K for all chunks and embeds the stream nonce N into every per-chunk nonce ⟨N, i, d⟩. The implementation derives per-stream subkeys from (masterKey, nonce) via HKDF-SHA-256, then uses bare counter nonces (i, d) without N. The security argument for this substitution is analyzed in [§2.6](#the-hkdf-divergence-from-the-paper-critical).
+**Divergence #2: HKDF subkey derivation (critical).** The paper uses a single key K for all chunks and embeds the stream nonce N into every per-chunk nonce ⟨N, i, d⟩. The implementation derives per-stream subkeys from (masterKey, nonce) via HKDF-SHA-256, then uses bare counter nonces (i, d) without N. The security argument for this substitution is analyzed in [§2.6](#the-hkdf-divergence-from-the-paper-critical).
 
 ### Seal
 
@@ -162,7 +163,7 @@ then calls `finalize()` immediately. The resulting blob is:
 preamble || finalChunk(counter=0, TAG_FINAL)
 ```
 
-`OpenStream` can decrypt a `Seal` blob — they share the same wire format. This
+`OpenStream` can decrypt a `Seal` blob: they share the same wire format. This
 is the **"one language" invariant**: one-shot is the degenerate single-chunk
 case of streaming. A `Seal` blob is accepted anywhere an `OpenStream` blob is
 accepted, and vice versa for single-chunk streams.
@@ -180,7 +181,7 @@ The two cipher suites use distinct HKDF info strings:
 | XChaCha20 | `xchacha20-sealstream-v2` | `src/ts/chacha20/cipher-suite.ts:34` |
 | Serpent | `serpent-sealstream-v2` | `src/ts/serpent/cipher-suite.ts:34` |
 
-A codebase search confirms **no v1 info strings exist** — there are no occurrences of `serpent-stream-v1`, `serpent-sealstream-v1`, `xchacha20-stream-v1`, or `xchacha20-sealstream-v1` anywhere in the repository. The only two HKDF `.derive()` call sites are the two cipher suite `deriveKeys()` methods.
+A codebase search confirms **no v1 info strings exist**: there are no occurrences of `serpent-stream-v1`, `serpent-sealstream-v1`, `xchacha20-stream-v1`, or `xchacha20-sealstream-v1` anywhere in the repository. The only two HKDF `.derive()` call sites are the two cipher suite `deriveKeys()` methods.
 
 The info strings differ from each other and from any other string in the codebase, providing unambiguous domain separation. Even if the same master key and nonce were used with both cipher suites (which should not happen in practice), the derived keys would differ due to different HKDF info fields. This is confirmed in [hkdf_audit.md §1.4](./hkdf_audit.md#14-usage-in-leviathan-crypto-stream-layer).
 
@@ -218,20 +219,20 @@ masterKey(32B) → HKDF-SHA-256(salt=nonce, info='serpent-sealstream-v2', len=96
     derived[64:96] = iv_key   (per-chunk CBC IV derivation)
 ```
 
-The three keys are extracted via `subarray()` views into the same 96-byte buffer (`cipher-suite.ts:58–60`). They are non-overlapping (bytes 0–31, 32–63, 64–95) and functionally independent — they serve distinct cryptographic roles.
+The three keys are extracted via `subarray()` views into the same 96-byte buffer (`cipher-suite.ts:58–60`). They are non-overlapping (bytes 0–31, 32–63, 64–95) and functionally independent, serving distinct cryptographic roles.
 
 Per-chunk CBC IV derivation (`cipher-suite.ts:66`):
 ```
 IV = HMAC-SHA-256(iv_key, counterNonce)[0:16]
 ```
 
-The IV is deterministic from (iv_key, counterNonce), so it need not be transmitted. Both sides derive the same IV from the same counter nonce and the same iv_key (derived from the same HKDF output). The `[0:16]` truncation is safe — HMAC-SHA-256 output is a 32-byte PRF value, and the first 16 bytes are a standard-length CBC IV.
+The IV is deterministic from (iv_key, counterNonce), so it need not be transmitted. Both sides derive the same IV from the same counter nonce and the same iv_key (derived from the same HKDF output). The `[0:16]` truncation is safe: HMAC-SHA-256 output is a 32-byte PRF value, and the first 16 bytes are a standard-length CBC IV.
 
 **Verdict:** Correct. Three distinct keys with no overlap. IV derived deterministically.
 
 ### Stream Isolation
 
-Two streams with the same master key but different random nonces must derive independent subkeys. This follows directly from HKDF properties:
+Two streams with the same master key but different random nonces derive independent subkeys. This follows directly from HKDF properties:
 
 - HKDF uses the nonce as salt: `PRK = HMAC-SHA-256(nonce, masterKey)` ([hkdf_audit.md §1.4](./hkdf_audit.md#14-usage-in-leviathan-crypto-stream-layer))
 - Different nonces (salts) produce different PRK values
@@ -269,22 +270,22 @@ All three stream classes check `isInitialized('sha2')` before construction:
 | `OpenStream` | `open-stream.ts:53–57` | "stream layer requires sha2 for key derivation" |
 | `SealStreamPool` | `seal-stream-pool.ts:118–122` | "stream layer requires sha2 for key derivation" |
 
-This check is independent of the cipher — even `XChaCha20Cipher` requires sha2 because HKDF-SHA-256 is a stream-layer dependency. Tests confirm this: `sealstream.test.ts:461–468` creates a SealStream with only chacha20 initialized and verifies the sha2 error.
+This check is independent of the cipher: even `XChaCha20Cipher` requires sha2 because HKDF-SHA-256 is a stream-layer dependency. Tests confirm this: `sealstream.test.ts:461–468` creates a SealStream with only chacha20 initialized and verifies the sha2 error.
 
 **Verdict:** Correct. The sha2 init gate is present in all stream entry points.
 
 ### KyberSuite key derivation
 
-On encrypt: `kem.encapsulate(ek)` produces `sharedSecret` and `kemCt`. HKDF-SHA256
-is called with `info = encode(hkdfInfo) || kemCt` — binding the KEM ciphertext
-into the key derivation provides defense in depth: the symmetric key is
-authenticated against the KEM ciphertext. On decrypt: `kem.decapsulate(dk, kemCt)`
+On encrypt, `kem.encapsulate(ek)` produces `sharedSecret` and `kemCt`. HKDF-SHA256
+is called with `info = encode(hkdfInfo) || kemCt`, binding the KEM ciphertext
+into the key derivation for defense in depth: the symmetric key is
+authenticated against the KEM ciphertext. On decrypt, `kem.decapsulate(dk, kemCt)`
 recovers `sharedSecret`; the same HKDF invocation with the same `kemCt` is
 applied. The inner cipher's `deriveKeys` runs on the HKDF output, so all
 per-stream key material is derived identically to a symmetric stream.
 
 ML-KEM implicit rejection (FIPS 203 §9.3) means `decapsulate` always returns a
-deterministic output — it never signals decapsulation failure through an
+deterministic output and never signals decapsulation failure through an
 exception. Authentication failure surfaces via the inner cipher's chunk
 authentication instead.
 
@@ -339,7 +340,7 @@ AAD is passed through to the AEAD: `aad ?? new Uint8Array(0)` (`cipher-suite.ts:
 1. Split: `ct = chunk[0:-32]`, `receivedTag = chunk[-32:]` (lines 98–99)
 2. **IV derivation:** same as sealChunk (line 104)
 3. **Compute expected tag:** same HMAC construction (lines 107–110)
-4. **CRITICAL — Verify BEFORE decrypt** (line 115):
+4. **CRITICAL: Verify BEFORE decrypt** (line 115):
    ```typescript
    if (!constantTimeEqual(expectedTag, receivedTag))
        throw new AuthenticationError('serpent');
@@ -357,7 +358,7 @@ return diff === 0;
 
 The minimum ciphertext size is checked by `OpenStream.pull()` before `openChunk` is ever called: `data.length < cipher.tagSize` → `RangeError` (`open-stream.ts:78–81`). For SerpentCipher, `tagSize = 32`, so chunks shorter than 32 bytes are rejected before reaching the cipher.
 
-**Verdict:** Correct. Encrypt-then-MAC with verify-then-decrypt. Constant-time HMAC comparison. No padding oracle — PKCS7 is evaluated only after authentication succeeds (see [serpent_audit.md §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)).
+**Verdict:** Correct. Encrypt-then-MAC with verify-then-decrypt. Constant-time HMAC comparison. No padding oracle: PKCS7 is evaluated only after authentication succeeds (see [serpent_audit.md §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)).
 
 ---
 
@@ -372,7 +373,7 @@ At pool creation, keys are derived on the main thread:
 const keys = cipher.deriveKeys(key, nonce);
 ```
 
-Workers receive `derivedKeyBytes: keys.bytes.slice()` (line 178) — a **copy** of the derived key bytes. The master key (`key`) is never sent to workers. Workers receive pre-compiled `WebAssembly.Module` objects (line 178: `modules`) and instantiate their own isolated WASM instances with their own `WebAssembly.Memory`:
+Workers receive `derivedKeyBytes: keys.bytes.slice()` (line 178): a **copy** of the derived key bytes. The master key (`key`) is never sent to workers. Workers receive pre-compiled `WebAssembly.Module` objects (line 178: `modules`) and instantiate their own isolated WASM instances with their own `WebAssembly.Memory`:
 
 - **Serpent worker** (`src/ts/serpent/pool-worker.ts:134–137`): creates `new WebAssembly.Memory({ initial: 3, maximum: 3 })` for both sha2 and serpent
 - **ChaCha20 worker** (`src/ts/chacha20/pool-worker.ts:20`): creates `new WebAssembly.Memory({ initial: 3, maximum: 3 })`
@@ -394,11 +395,11 @@ The `_killAll(error)` method (`seal-stream-pool.ts:352–370`) implements a fata
 7. Wipes main-thread keys: `wipe(this._keys.bytes); this._keys = null` (lines 367–369)
 
 `_killAll` is invoked from:
-- `_onMessage` on any non-result message (line 344) — auth failure
+- `_onMessage` on any non-result message (line 344): auth failure
 - `_onError` on worker crash (line 349)
-- `_dispatch` timeout handler (line 314) — job timeout
-- `seal()` and `open()` catch blocks (lines 231, 297) — any error
-- `destroy()` (line 301) — explicit cleanup
+- `_dispatch` timeout handler (line 314): job timeout
+- `seal()` and `open()` catch blocks (lines 231, 297): any error
+- `destroy()` (line 301): explicit cleanup
 
 There is no retry logic and no worker replacement. After `_killAll`, the pool is permanently dead.
 
@@ -427,9 +428,9 @@ if (this._sealed) throw new Error(
 );
 ```
 
-The `_sealed` flag is set to `true` after a successful seal (line 228). This prevents counter/nonce reuse across batch operations — each pool instance can only encrypt one message.
+The `_sealed` flag is set to `true` after a successful seal (line 228). This prevents counter/nonce reuse across batch operations: each pool instance can only encrypt one message.
 
-Note: `open()` does not check `_sealed`, which is correct — decryption can be performed multiple times with the same derived keys without security implications.
+Note: `open()` does not check `_sealed`, which is correct. Decryption can be performed multiple times with the same derived keys without security implications.
 
 **Verdict:** Correct. Single-use encryption guard prevents nonce reuse.
 
@@ -448,7 +449,7 @@ if (h.formatEnum !== cipher.formatEnum)
     );
 ```
 
-This check occurs **before** key derivation, so no cryptographic operations run on mismatched input. The error is a plain `Error`, not an `AuthenticationError` — this is deliberate, as format mismatch is a structural error, not a cryptographic one.
+This check occurs **before** key derivation, so no cryptographic operations run on mismatched input. The error is a plain `Error`, not an `AuthenticationError`: this is deliberate, as format mismatch is a structural error, not a cryptographic one.
 
 Tests verify both directions: XChaCha20 header → SerpentCipher throws, and Serpent header → XChaCha20Cipher throws (`sealstream.test.ts:391–423`). A dedicated test confirms the error is `Error` and not `AuthenticationError` (line 410–423).
 
@@ -510,16 +511,16 @@ Tests verify: specific chunk seek, seek-to-0 then sequential read, seek beyond s
 The 16-byte random nonce provides 2^128 bits of collision resistance. Birthday-bound analysis:
 
 - **50% collision probability:** ~2^64 streams under the same master key
-- **At 2^40 streams (~10^12):** collision probability ≈ 2^{-48} — negligible for all practical workloads
-- **At 2^48 streams:** collision probability ≈ 2^{-32} — still negligible
+- **At 2^40 streams (~10^12):** collision probability ≈ 2^{-48}, negligible for all practical workloads
+- **At 2^48 streams:** collision probability ≈ 2^{-32}, still negligible
 
 For context, 2^64 streams at 1 million streams per second would take ~584,942 years.
 
-This matches the birthday bound for 128-bit nonces and is documented in `docs/sealing.md` under "Stream isolation."
+This matches the birthday bound for 128-bit nonces and is documented in `docs/aead.md` under "Stream isolation."
 
-A nonce collision between two streams with the same master key would produce identical derived keys, effectively creating two streams encrypted with the same key and counter nonces — a catastrophic nonce reuse. However, 2^64 is the standard security target for 128-bit nonce spaces and is accepted in practice (e.g., XSalsa20 with 192-bit nonces targets 2^96).
+A nonce collision between two streams with the same master key would produce identical derived keys, effectively creating two streams encrypted with the same key and counter nonces: a catastrophic nonce reuse. However, 2^64 is the standard security target for 128-bit nonce spaces and is accepted in practice (e.g., XSalsa20 with 192-bit nonces targets 2^96).
 
-**Verdict:** Acceptable. The 2^64 birthday bound is standard for 128-bit nonces and far exceeds practical usage limits. No additional documentation needed — the security model in `docs/sealing.md` already describes stream isolation.
+**Verdict:** Acceptable. The 2^64 birthday bound is standard for 128-bit nonces and far exceeds practical usage limits. No additional documentation needed; the security model in `docs/aead.md` already describes stream isolation.
 
 ### HKDF Output Binding
 
@@ -543,9 +544,9 @@ The 11-byte counter field supports 2^88 counter values. However, JavaScript's `N
 
 At 64 KB chunks and 2^53 chunks: 2^53 × 2^16 = 2^69 bytes ≈ 590 exabytes. At the minimum chunk size of 1024 bytes: 2^53 × 2^10 = 2^63 bytes ≈ 9.2 exabytes. Both are far beyond any practical scenario.
 
-The `makeCounterNonce()` function (`header.ts:67–70`) writes the counter using `c & 0xff` / `Math.floor(c / 256)` — arithmetic encoding rather than bitwise shifts or `DataView`. This is correct for all counters up to `Number.MAX_SAFE_INTEGER` (2^53 - 1) but is slower than a `DataView`-based approach. If `counter` exceeds `Number.MAX_SAFE_INTEGER`, the arithmetic produces incorrect (but non-zero) values due to floating-point precision loss. There is no explicit overflow check.
+The `makeCounterNonce()` function (`header.ts:67–70`) writes the counter using `c & 0xff` / `Math.floor(c / 256)`: arithmetic encoding rather than bitwise shifts or `DataView`. This is correct for all counters up to `Number.MAX_SAFE_INTEGER` (2^53 - 1) but is slower than a `DataView`-based approach. If `counter` exceeds `Number.MAX_SAFE_INTEGER`, the arithmetic produces incorrect (but non-zero) values due to floating-point precision loss. There is no explicit overflow check.
 
-However, reaching 2^53 chunks is physically impossible in any real system. A counter increment rate of 10 million chunks per second would take ~28.5 years to reach 2^53. The implementation does not silently wrap to zero — JavaScript's `Math.floor(c / 256)` would produce incorrect (but non-zero) values at the precision boundary, causing authentication failure rather than nonce reuse.
+However, reaching 2^53 chunks is physically impossible in any real system. A counter increment rate of 10 million chunks per second would take ~28.5 years to reach 2^53. The implementation does not silently wrap to zero: JavaScript's `Math.floor(c / 256)` would produce incorrect (but non-zero) values at the precision boundary, causing authentication failure rather than nonce reuse.
 
 **Verdict:** Acceptable. Counter overflow is not a practical concern. The absence of an explicit overflow check is a minor robustness gap but has no security impact.
 
@@ -570,15 +571,15 @@ if (!constantTimeEqual(expectedTag, receivedTag)) throw ...
 // decryption only after this point
 ```
 
-This branch is intentional and necessary — it prevents the Cryptographic Doom Principle. The branch does not leak timing information about the tag comparison because:
+This branch is intentional and necessary: it prevents the Cryptographic Doom Principle. The branch does not leak timing information about the tag comparison because:
 1. `constantTimeEqual` takes constant time regardless of which bytes differ
 2. The branch occurs after the comparison is complete, not during it
 3. The only information leaked is "authentication succeeded" vs "authentication failed," which is inherent to any AEAD scheme
 
 **Error path timing:** Different failure modes do not need identical timing because the error type is not secret:
-- `RangeError` (chunk too short) — checked before any crypto
-- `AuthenticationError` — only after `constantTimeEqual`
-- `Error` (format mismatch) — checked at construction, before any crypto
+- `RangeError` (chunk too short): checked before any crypto
+- `AuthenticationError`: only after `constantTimeEqual`
+- `Error` (format mismatch): checked at construction, before any crypto
 
 **Verdict:** Acceptable. `constantTimeEqual` provides the strongest available constant-time guarantee in JavaScript. The verify-then-decrypt branch is necessary and does not leak secret information.
 
@@ -601,9 +602,9 @@ Format and size errors are checked before any cryptographic operation. Only `Aut
 - "The tag doesn't verify" (cryptographic)
 
 This error differentiation is safe because:
-1. Structural errors reveal nothing about the plaintext — they are detectable from the ciphertext alone
+1. Structural errors reveal nothing about the plaintext: they are detectable from the ciphertext alone
 2. Only one cryptographic error exists (`AuthenticationError`), so there is no oracle within the cryptographic domain
-3. In particular, there is no distinction between "wrong padding" and "wrong tag" — the SerpentCipher's verify-then-decrypt ordering ensures padding is never evaluated on unauthenticated data ([serpent_audit.md §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle))
+3. In particular, there is no distinction between "wrong padding" and "wrong tag": the SerpentCipher's verify-then-decrypt ordering ensures padding is never evaluated on unauthenticated data ([serpent_audit.md §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle))
 
 **Verdict:** Safe. The error hierarchy does not create an oracle. Structural errors precede cryptographic operations, and only one cryptographic error type exists.
 
@@ -637,10 +638,10 @@ The implementation replaces nonce-level isolation with key-level isolation:
    Adv^{nOAE}(A) ≤ Adv^{PRF}_{HKDF-SHA-256} + Adv^{nAE}_Π(B)
    ```
 
-   This adds one term — the PRF advantage of HKDF-SHA-256 — to the paper's tight bound. The additional term is:
+   This adds one term (the PRF advantage of HKDF-SHA-256) to the paper's tight bound. The additional term is:
    - **Adv^{PRF}_{HKDF-SHA-256}:** negligible under the assumption that HMAC-SHA-256 is a PRF (standard assumption, underlying SHA-256 modeled as a random oracle)
 
-   The total bound is no longer strictly tight (it has an extra additive term), but the extra term is negligible under standard cryptographic assumptions. In concrete security terms, the per-query PRF advantage of HMAC-SHA-256 is at most 2^{-128}. For q streams under the same master key, the total PRF advantage is roughly q/2^{128} (plus birthday terms on the HMAC internal state) — negligible at any practical q.
+   The total bound is no longer strictly tight (it has an extra additive term), but the extra term is negligible under standard cryptographic assumptions. In concrete security terms, the per-query PRF advantage of HMAC-SHA-256 is at most 2^{-128}. For q streams under the same master key, the total PRF advantage is roughly q/2^{128} (plus birthday terms on the HMAC internal state), which is negligible at any practical q.
 
 4. **Why the substitution is safe:** The paper's construction requires that each per-chunk encryption uses a unique nonce. The implementation achieves this differently:
    - Paper: unique nonce per chunk via ⟨N, i, d⟩, same key K for all streams
@@ -691,7 +692,7 @@ The following properties are not tested but are considered low-risk:
 
 ### KAT Vector Provenance
 
-The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `scripts/gen-sealstream-vectors.ts`. There is no external authority for the STREAM wire format — these vectors serve as regression trip-wires to detect accidental wire format changes, not as correctness proofs. Correctness is established by the underlying primitive audits and the round-trip tests.
+The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `scripts/gen-sealstream-vectors.ts`. There is no external authority for the STREAM wire format: these vectors serve as regression trip-wires to detect accidental wire format changes, not as correctness proofs. Correctness is established by the underlying primitive audits and the round-trip tests.
 
 ---
 
@@ -699,7 +700,7 @@ The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `sc
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, three-tier design
-> - [sealing](./sealing.md) — wire format spec, security model, API reference
+> - [authenticated encryption](./aead.md) — wire format spec, security model, API reference
 > - [serpent_audit](./serpent_audit.md) — Serpent-256 audit, §2.4 Verify-then-Decrypt
 > - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 audit, §1.7 AEAD construction
 > - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 audit, §1.4 stream layer usage

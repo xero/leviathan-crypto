@@ -15,8 +15,8 @@ jobs:
           bun-version: 'latest'
       - name: install dependencies
         run: bun i
-      - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+      - name: full build
+        run: bun run build
       - name: typecheck
         run: bun tsc --noEmit
       - name: lint

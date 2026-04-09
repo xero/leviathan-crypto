@@ -275,7 +275,7 @@ A task is complete when **all** of the following are true:
    - `docs/CLAUDE_consumer.md`
    - `docs/architecture.md` if the module structure changed
    - `docs/test-suite.md` if test counts changed
-   - `docs/sealing.md` if the streaming API or wire format changed
+   - `docs/aead.md` if the streaming API or wire format changed
 
 **Release tasks additionally require:**
 

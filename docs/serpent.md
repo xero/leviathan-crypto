@@ -3,11 +3,21 @@
 > [!NOTE]
 > See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
 
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [Module Init](#module-init)
+> - [API Reference](#api-reference)
+> - [Usage Examples](#usage-examples)
+> - [Error Conditions](#error-conditions)
+
+---
+
 ## Overview
 
 `SerpentCipher` is the primary API for authenticated Serpent-256 encryption. Pass it
-to `Seal` for one-shot AEAD, or to `SealStream`/`OpenStream` for streaming. No
-manual IV generation, no separate MAC step, no room for misuse. Internally it
+to `Seal` for one-shot AEAD, or to `SealStream`/`OpenStream` for streaming. There is
+no manual IV generation, no separate MAC step, and no room for misuse. Internally it
 uses Encrypt-then-MAC (Serpent-CBC + HMAC-SHA-256) with HKDF key derivation.
 
 For advanced use cases, three lower-level classes are available: `Serpent` (raw
@@ -30,7 +40,9 @@ larger security margin at comparable speed in WASM.
 
 This is the most dangerous mistake you can make with this module. An attacker who
 can modify ciphertext encrypted with `SerpentCbc` or `SerpentCtr` will produce
-corrupted plaintext on decryption. Decryption will succeed without any indication of tampering. There is no integrity check. The caller receives garbage and has no way to distinguish it from the original message.
+corrupted plaintext on decryption. Decryption succeeds without any indication of
+tampering. There is no integrity check. Your caller receives garbage and has no way
+to distinguish it from the original message.
 
 `Seal` with `SerpentCipher` eliminates this problem. It computes an HMAC tag over
 the ciphertext and verifies it before decryption. If anything has been modified,
@@ -42,8 +54,8 @@ See [chacha20.md](./chacha20.md).
 ### Never reuse a nonce or IV with the same key
 
 In CTR mode, reusing a nonce with the same key is catastrophic. It produces the
-  same keystream, which means an attacker can XOR two ciphertexts together and
-  recover both plaintexts. Always generate a fresh random nonce for each message.
+same keystream, which means an attacker can XOR two ciphertexts together and
+recover both plaintexts. Always generate a fresh random nonce for each message.
 In CBC mode, the IV must be random and unpredictable for each encryption. A predictable IV enables chosen-plaintext attacks.
 
 Use `randomBytes(16)` to generate nonces and IVs. `Seal` with `SerpentCipher` handles IV generation internally.
@@ -52,7 +64,7 @@ Use `randomBytes(16)` to generate nonces and IVs. `Seal` with `SerpentCipher` ha
 
 Unless you have a specific reason to use a shorter key, pass a 32-byte key to
 every Serpent operation. Shorter keys provide less security margin and there is no
-meaningful performance benefit to using them. `SerpentCipher` requires a 32-byte key (HKDF derives enc/mac/iv keys internally).
+meaningful performance benefit to using them. `SerpentCipher` requires a 32-byte key; HKDF derives enc/mac/iv keys internally.
 
 ### Call dispose() when done
 
@@ -147,15 +159,14 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
-See [sealing.md](./sealing.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
+See [aead.md](./aead.md) for the full `Seal`, `SealStream`, and `OpenStream` API.
 
 ---
 
 ### Serpent
 
 Raw Serpent block encryption and decryption. Operates on exactly 16-byte blocks.
-This class is a low-level building block, most users should use `Seal` with
-`SerpentCipher` instead.
+This class is a low-level building block; use `Seal` with `SerpentCipher` for most purposes.
 
 ```typescript
 class Serpent {
@@ -372,9 +383,9 @@ console.log(new TextDecoder().decode(decrypted))
 
 ### Example 2: CTR mode (advanced)
 
-Advanced use. For authenticated encryption, use `Seal` with `SerpentCipher`.
-
-Use `SerpentCtr` to encrypt data of any length. CTR mode produces ciphertext that is the same length as the plaintext with no padding overhead.
+For authenticated encryption, use `Seal` with `SerpentCipher`. Use `SerpentCtr` to
+encrypt data of any length. CTR mode produces ciphertext the same length as the
+plaintext with no padding overhead.
 
 ```typescript
 import { init, SerpentCtr, randomBytes } from 'leviathan-crypto';
@@ -410,9 +421,8 @@ ctr.dispose();
 
 ### Example 3: CBC mode (advanced)
 
-Advanced use. For authenticated encryption, use `Seal` with `SerpentCipher`.
-
-Use `SerpentCbc` for message-level encryption with automatic PKCS7 padding.
+For authenticated encryption, use `Seal` with `SerpentCipher`. Use `SerpentCbc` for
+message-level encryption with automatic PKCS7 padding.
 
 ```typescript
 import { init, SerpentCbc, randomBytes } from 'leviathan-crypto';
@@ -442,8 +452,8 @@ cbc.dispose();
 
 ### Example 4: Raw block operations (low-level)
 
-Use the `Serpent` class for single 16-byte block operations. This is the lowest
-level API, most users should use `Seal` with `SerpentCipher` instead.
+Use the `Serpent` class for single 16-byte block operations. This is the lowest-level
+API; use `Seal` with `SerpentCipher` for most purposes.
 
 ```typescript
 import { init, Serpent } from 'leviathan-crypto';
@@ -497,13 +507,13 @@ cipher.dispose();
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [asm_serpent](./asm_serpent.md) — WASM implementation details and buffer layout
 > - [serpent_reference](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
 > - [serpent_audit](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)
-> - [sealing](./sealing.md) — `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument
+> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument
 > - [chacha20](./chacha20.md) — `XChaCha20Cipher`: alternative `CipherSuite` for `Seal` and streaming
 > - [sha2](./sha2.md) — HMAC-SHA256 and HKDF used internally by `SerpentCipher`
 > - [types](./types.md) — `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes
 > - [utils](./utils.md) — `constantTimeEqual`, `wipe`, `randomBytes` used by Serpent wrappers
-

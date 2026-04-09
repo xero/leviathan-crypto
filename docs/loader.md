@@ -5,16 +5,28 @@
 > instantiation of WebAssembly binaries. You normally do not interact
 > with this module directly.
 
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Security Notes](#security-notes)
+> - [API Reference](#api-reference)
+> - [Internal Details](#internal-details)
+
+---
+
 ## Overview
 
-When you call `init()`, it delegates the work of obtaining and compiling the
+When you call [`init()`](./init.md), it delegates the work of obtaining and compiling the
 WASM binary to the loader. The loading strategy is inferred from the
 `WasmSource` type, so no mode string is required:
 
-**Embedded string.** gzip-compressed, base64-encoded WASM bundled in the package. Decoded and decompressed at `init()` time using `DecompressionStream`. No network requests. This is the default and simplest option.
+**Embedded string.** gzip-compressed, base64-encoded WASM bundled in the package. Decoded and decompressed at [`init()`](./init.md) time using `DecompressionStream`. No network requests. This is the default and simplest option.
+
 **URL.** Fetches the `.wasm` file and uses the browser's streaming compilation API. The browser can start compiling while still downloading.
+
 **ArrayBuffer / Uint8Array.** Raw WASM bytes, compiled directly.
+
 **WebAssembly.Module.** Already compiled. Instantiated immediately. Useful for edge runtimes and KV-cached modules.
+
 **Response / Promise\<Response\>.** Streaming compilation from an in-flight or deferred fetch.
 
 All strategies produce the same result: a `WebAssembly.Instance` that the
@@ -25,8 +37,11 @@ wrapper classes use to perform cryptographic operations.
 ## Security Notes
 
 **Embedded mode requires no network access.** The WASM binary is part of the installed package. This eliminates the risk of a compromised CDN or man-in-the-middle attack altering the binary at load time.
+
 **URL-based loading requires correct MIME type.** The `.wasm` files must be served with `Content-Type: application/wasm`. This is a browser requirement for `WebAssembly.instantiateStreaming`. If the header is missing or wrong, the browser will reject the response.
+
 **Raw binary / Module sources place integrity responsibility on you.** The loader instantiates whatever binary you provide. If you supply your own bytes or pre-compiled Module, you are responsible for verifying authenticity.
+
 **Each module gets its own memory.** Every instantiation creates a fresh `WebAssembly.Memory` with 3 pages (192 KB). Modules cannot share or access each other's memory. Key material in one module's memory space is isolated from all other modules.
 
 ---
@@ -133,7 +148,7 @@ all four modules, with Serpent alone shrinking from ~167 KB to ~20 KB.
 ### Memory allocation
 
 Every WASM instance receives a `WebAssembly.Memory` with exactly 3 pages
-(192 KB total). The memory size is fixed. Modules do not grow their memory at runtime. This is a deliberate design choice: fixed memory prevents
+(192 KB total). The memory size is fixed; modules do not grow their memory at runtime. This is a deliberate design choice: fixed memory prevents
 unexpected allocations and makes the memory layout predictable and auditable.
 
 ---

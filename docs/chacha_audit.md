@@ -1,27 +1,23 @@
 # XChaCha20-Poly1305 Cryptographic Audit
 
 > [!NOTE]
-> **Conducted:** Week of 2026-03-25
-> **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-> **Spec:** RFC 8439 (ChaCha20 and Poly1305 for IETF Protocols, June 2018)
->           XChaCha20 extension (draft-irtf-cfrg-xchacha-03)
+> Full correctness and security audit of the `leviathan-crypto` XChaCha20-Poly1305 WebAssembly implementation (AssemblyScript) against RFC 8439 and draft-irtf-cfrg-xchacha-03, conducted the week of 2026-03-25.
 
-## Table of Contents
-
-- [1. Algorithm Correctness](#1-algorithm-correctness)
-  - [1.1 Quarter Round](#11-quarter-round)
-  - [1.2 Block Function](#12-block-function)
-  - [1.3 Counter and Nonce Handling](#13-counter-and-nonce-handling)
-  - [1.4 Poly1305](#14-poly1305)
-  - [1.5 Poly1305 Key Generation](#15-poly1305-key-generation)
-  - [1.6 HChaCha20 / XChaCha20 Nonce Extension](#16-hchacha20--xchacha20-nonce-extension)
-  - [1.7 AEAD Construction](#17-aead-construction)
-  - [1.8 Buffer Layout and Memory Safety](#18-buffer-layout-and-memory-safety)
-  - [1.9 TypeScript Wrapper Layer](#19-typescript-wrapper-layer)
-- [2. Security Analysis](#2-security-analysis)
-  - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
-  - [2.2 Known Attacks on ChaCha20](#22-known-attacks-on-chacha20)
-  - [2.3 Stream Composition](#23-stream-composition)
+> ### Table of Contents
+> - [1. Algorithm Correctness](#1-algorithm-correctness)
+>   - [1.1 Quarter Round](#11-quarter-round)
+>   - [1.2 Block Function](#12-block-function)
+>   - [1.3 Counter and Nonce Handling](#13-counter-and-nonce-handling)
+>   - [1.4 Poly1305](#14-poly1305)
+>   - [1.5 Poly1305 Key Generation](#15-poly1305-key-generation)
+>   - [1.6 HChaCha20 / XChaCha20 Nonce Extension](#16-hchacha20--xchacha20-nonce-extension)
+>   - [1.7 AEAD Construction](#17-aead-construction)
+>   - [1.8 Buffer Layout and Memory Safety](#18-buffer-layout-and-memory-safety)
+>   - [1.9 TypeScript Wrapper Layer](#19-typescript-wrapper-layer)
+> - [2. Security Analysis](#2-security-analysis)
+>   - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
+>   - [2.2 Known Attacks on ChaCha20](#22-known-attacks-on-chacha20)
+>   - [2.3 Stream Composition](#23-stream-composition)
 
 ---
 
@@ -145,7 +141,7 @@ store<u8>(POLY_BUF_OFFSET + bufLen, 1)                  // append 0x01 at bufLen
 absorbBlock(POLY_BUF_OFFSET, 0)                         // hibit=0 for partial
 ```
 
-The 0x01 byte is placed at byte position `bufLen` (the first byte after the last data byte), not always at byte 16. This matches the RFC requirement: "pad the one-indexed 01 byte right after the input." The `hibit=0` parameter ensures bit 128 is not set for partial blocks.
+The implementation places the 0x01 byte at byte position `bufLen` (the first byte after the last data byte), not always at byte 16. This matches the RFC requirement: "pad the one-indexed 01 byte right after the input." The `hibit=0` parameter ensures bit 128 is not set for partial blocks.
 
 #### Final Reduction and Tag
 
@@ -205,7 +201,8 @@ The function directly writes 0 to state word 12 (the counter), bypassing the `ch
 | 4–11 | 256-bit key | `load<u32>(KEY_OFFSET + i*4)` loop |
 | 12–15 | First 16 bytes of 24-byte nonce | `load<u32>(XCHACHA_NONCE_OFFSET + i*4)` loop |
 
-Note: unlike the standard ChaCha20 block function, words 12–15 contain the nonce prefix rather than counter + nonce.
+> [!NOTE]
+> Unlike the standard ChaCha20 block function, words 12–15 contain the nonce prefix rather than counter + nonce.
 
 **Critical differences from `block()`:**
 
@@ -215,7 +212,7 @@ Note: unlike the standard ChaCha20 block function, words 12–15 contain the non
 | Add-back of initial state | Yes (lines 108–112) | **No.** Rounds modify state in place. |
 | Output | Full 64 bytes (serialized state) | Words [0–3] ++ [12–15] only (32 bytes) |
 
-The implementation (`chacha20.ts:205`) runs `doubleRound(s)` directly on the state buffer. The state is modified in place. After 10 double rounds, the output is extracted from words 0–3 and 12–15 (`chacha20.ts:209–212`), yielding 32 bytes written to `XCHACHA_SUBKEY_OFFSET`.
+The implementation (`chacha20.ts:205`) runs `doubleRound(s)` directly on the state buffer, modifying the state in place. After 10 double rounds, it extracts the output from words 0–3 and 12–15 (`chacha20.ts:209–212`), yielding 32 bytes written to `XCHACHA_SUBKEY_OFFSET`.
 
 The XChaCha20 construction in the TypeScript layer (`ops.ts:145–159`):
 
@@ -326,8 +323,8 @@ Total: 131,564 bytes < 196,608 (3 × 64KB pages). No dynamic allocation (`memory
 **`wipeBuffers()`** (`wipe.ts:39–65`) zeroes all 18 buffer regions. Every buffer containing key material (KEY, CHACHA_STATE words 4–11, POLY_KEY, POLY_R, POLY_RS, POLY_S, XCHACHA_SUBKEY), intermediate state (CHACHA_BLOCK, POLY_H, POLY_BUF), and data buffers (CHUNK_PT, CHUNK_CT) is explicitly wiped. No sensitive material persists after `dispose()`.
 
 **`.subarray()` vs `.slice()` usage:**
-- **Output from WASM:** `.slice()` is used consistently to copy data out of WASM memory (`ops.ts:77`, `ops.ts:90`, `ops.ts:139`, `ops.ts:151`). This creates an independent copy, safe against the WASM memory buffer being detached or reused.
-- **Input views:** `.subarray()` is used for input data views (`ops.ts:19`, `ops.ts:148`, `ops.ts:157`, `ops.ts:189–190`). These views are immediately copied into WASM memory via `mem.set()`, so the view lifetime is bounded. No view crosses a `postMessage` boundary within the core library.
+- **Output from WASM:** The code uses `.slice()` consistently to copy data out of WASM memory (`ops.ts:77`, `ops.ts:90`, `ops.ts:139`, `ops.ts:151`). This creates an independent copy, safe against the WASM memory buffer being detached or reused.
+- **Input views:** Input data views use `.subarray()` (`ops.ts:19`, `ops.ts:148`, `ops.ts:157`, `ops.ts:189–190`). The code immediately copies these views into WASM memory via `mem.set()`, so the view lifetime is bounded. No view crosses a `postMessage` boundary within the core library.
 
 > [!NOTE]
 > This note references the v1 `XChaCha20Poly1305Pool` (`chacha20/pool.ts`).
@@ -453,8 +450,7 @@ Even for the maximum single-chunk size of 65,536 bytes, the forgery probability 
 
 ### 2.3 Stream Composition
 
-The ChaCha20-Poly1305 AEAD is used as a per-chunk cipher in the
-`SealStream` / `OpenStream` streaming layer via `XChaCha20Cipher`
+The `SealStream` / `OpenStream` streaming layer uses ChaCha20-Poly1305 AEAD as a per-chunk cipher via `XChaCha20Cipher`
 (`src/ts/chacha20/cipher-suite.ts`). The streaming composition (key derivation, nonce construction, wire format, pool workers, and the relationship to the Rogaway STREAM construction) has been audited separately in [stream_audit.md](./stream_audit.md).
 
 ---

@@ -4,11 +4,13 @@
 > This document covers the library's full API surface with working examples.
 > Follow the section header links for complete API documentation on each class.
 
+---
+
 ## High Level API
 
 _Safe defaults, authentication built in, no footguns._
 
-### [Seal](./sealing.md#seal): one-shot authenticated encryption
+### [Seal](./aead.md#seal): one-shot authenticated encryption
 
 One-shot AEAD over any `CipherSuite`. No instantiation, no `dispose()`. Pass the
 cipher object, the key, and the plaintext.
@@ -44,7 +46,7 @@ const pt   = Seal.decrypt(SerpentCipher, key, blob)
 
 ---
 
-### [KyberSuite](./sealing.md#kybersuite): post-quantum hybrid encryption
+### [KyberSuite](./aead.md#kybersuite): post-quantum hybrid encryption
 
 Wraps `MlKemBase` and a `CipherSuite` into a hybrid KEM+AEAD suite. The KEM
 encapsulates a fresh shared secret on each encrypt. The inner cipher performs
@@ -71,9 +73,9 @@ const pt = Seal.decrypt(suite, dk, blob)
 
 ---
 
-### [SealStream / OpenStream](./sealing.md#sealstream): streaming encryption
+### [SealStream / OpenStream](./aead.md#sealstream): streaming encryption
 
-For data arriving in chunks — network streams, file processors, live feeds —
+For data arriving in chunks, such as network streams, file processors, or live feeds,
 use `SealStream` and `OpenStream`. The cipher plugs in identically to `Seal`.
 
 ```typescript
@@ -98,7 +100,7 @@ const pt1     = opener.pull(ct1)
 const ptFinal = opener.finalize(ctFinal)
 ```
 
-Prefer Serpent-256? Swap the cipher object and everything else stays the same:
+To use Serpent-256, swap the cipher object; everything else stays the same:
 
 ```typescript
 import { init, SealStream, OpenStream, SerpentCipher, randomBytes } from 'leviathan-crypto'
@@ -123,7 +125,7 @@ const ptLast = opener.finalize(ctLast)
 
 ---
 
-### [SealStreamPool](./sealing.md#sealstreampool): parallel batch encryption
+### [SealStreamPool](./aead.md#sealstreampool): parallel batch encryption
 
 `SealStreamPool` distributes chunks across Web Workers. Same wire format as
 `SealStream`. Drop-in for large files or batch workloads.
@@ -312,7 +314,7 @@ wipe(key)  // key is now all zeroes
 > *The classes below give you direct access to unauthenticated cipher modes and
 > low-level MAC and KDF primitives. They exist for protocol implementors and
 > advanced use cases. If you are building general-purpose encryption, stop here
-> and use [`Seal`](./sealing.md#seal) with `SerpentCipher` or `XChaCha20Cipher` instead.*
+> and use [`Seal`](./aead.md#seal) with `SerpentCipher` or `XChaCha20Cipher` instead.*
 
 ### [SerpentCbc](./serpent.md): raw CBC mode
 
@@ -426,7 +428,7 @@ cipher.dispose()
 ### [Poly1305](./chacha20.md): standalone one-time MAC
 
 *The key must never be reused across messages. Reuse allows an attacker to
-recover `r` and forge arbitrary tags. The [AEAD classes](./sealing.md) handle key derivation
+recover `r` and forge arbitrary tags. The [AEAD classes](./aead.md) handle key derivation
 automatically. Use them unless you have a specific reason not to.*
 
 ```typescript
@@ -559,4 +561,5 @@ shake.dispose()
 >
 > - [index](./README.md) — Project Documentation index
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [cdn](./cdn.md) — CDN usage: no bundler required
