@@ -45,6 +45,7 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 	kemCtSize: 0,
 	tagSize: 16,
 	padded: false,
+	wasmChunkSize: 65536,  // src/asm/chacha20/buffers.ts CHUNK_SIZE
 	wasmModules: ['chacha20'],
 
 	keygen(): Uint8Array {

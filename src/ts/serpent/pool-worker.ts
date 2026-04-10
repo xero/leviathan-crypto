@@ -29,6 +29,7 @@ interface SerpentW {
 	getChunkPtOffset(): number;
 	getChunkCtOffset(): number;
 	getCbcIvOffset(): number;
+	getChunkSize(): number;
 	loadKey(n: number): number;
 	cbcEncryptChunk(n: number): number;
 	cbcDecryptChunk(n: number): number;
@@ -114,7 +115,11 @@ function cbcEncrypt(encKey: Uint8Array, iv: Uint8Array, plaintext: Uint8Array): 
 	mem.set(iv, s.getCbcIvOffset());
 	const padded = pkcs7Pad(plaintext);
 	mem.set(padded, s.getChunkPtOffset());
-	s.cbcEncryptChunk(padded.length);
+	const ret = s.cbcEncryptChunk(padded.length);
+	if (ret < 0) throw new RangeError(
+		`cbcEncryptChunk rejected len=${padded.length}` +
+		` (WASM CHUNK_SIZE=${s.getChunkSize()})`,
+	);
 	return new Uint8Array(s.memory.buffer).slice(s.getChunkCtOffset(), s.getChunkCtOffset() + padded.length);
 }
 
@@ -125,7 +130,11 @@ function cbcDecrypt(encKey: Uint8Array, iv: Uint8Array, ct: Uint8Array): Uint8Ar
 	s.loadKey(encKey.length);
 	mem.set(iv, s.getCbcIvOffset());
 	mem.set(ct, s.getChunkCtOffset());
-	s.cbcDecryptChunk(ct.length);
+	const ret = s.cbcDecryptChunk(ct.length);
+	if (ret < 0) throw new RangeError(
+		`cbcDecryptChunk rejected len=${ct.length}` +
+		` (WASM CHUNK_SIZE=${s.getChunkSize()})`,
+	);
 	const raw = new Uint8Array(s.memory.buffer).slice(s.getChunkPtOffset(), s.getChunkPtOffset() + ct.length);
 	return pkcs7Strip(raw);
 }

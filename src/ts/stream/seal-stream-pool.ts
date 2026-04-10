@@ -158,6 +158,18 @@ export class SealStreamPool {
 			modules[required[0]] = await compileWasm(opts.wasm as WasmSource);
 		}
 
+		// For padded ciphers, validate that a full plaintext chunk fits in the WASM
+		// after PKCS7 padding. PKCS7 always adds between 1 and blockSize bytes.
+		if (cipher.padded) {
+			const paddedFull = chunkSize + 16 - (chunkSize % 16);
+			if (paddedFull > cipher.wasmChunkSize)
+				throw new RangeError(
+					`leviathan-crypto: chunkSize ${chunkSize} is too large for ${cipher.formatName} ` +
+					`(padded full chunk = ${paddedFull}, WASM CHUNK_SIZE = ${cipher.wasmChunkSize}). ` +
+					`Use chunkSize \u2264 ${cipher.wasmChunkSize - 1}.`,
+				);
+		}
+
 		if (key.length !== cipher.keySize)
 			throw new RangeError(`key must be ${cipher.keySize} bytes (got ${key.length})`);
 

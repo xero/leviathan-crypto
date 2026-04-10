@@ -117,7 +117,11 @@ export class SerpentCbc {
 		for (let off = 0; off < padded.length; off += maxChunk) {
 			const chunk = padded.subarray(off, Math.min(off + maxChunk, padded.length));
 			this.mem.set(chunk, ptOff);
-			this.x.cbcEncryptChunk(chunk.length);
+			const ret = this.x.cbcEncryptChunk(chunk.length);
+			if (ret < 0) throw new RangeError(
+				`cbcEncryptChunk rejected len=${chunk.length}` +
+				` (WASM CHUNK_SIZE=${this.x.getChunkSize()})`,
+			);
 			output.set(new Uint8Array(this.x.memory.buffer).subarray(ctOff, ctOff + chunk.length), off);
 		}
 		return output;
@@ -139,7 +143,11 @@ export class SerpentCbc {
 		for (let off = 0; off < ciphertext.length; off += maxChunk) {
 			const chunk = ciphertext.subarray(off, Math.min(off + maxChunk, ciphertext.length));
 			this.mem.set(chunk, ctOff);
-			this.x.cbcDecryptChunk_simd(chunk.length);
+			const ret = this.x.cbcDecryptChunk_simd(chunk.length);
+			if (ret < 0) throw new RangeError(
+				`cbcDecryptChunk_simd rejected len=${chunk.length}` +
+				` (WASM CHUNK_SIZE=${this.x.getChunkSize()})`,
+			);
 			output.set(new Uint8Array(this.x.memory.buffer).subarray(ptOff, ptOff + chunk.length), off);
 		}
 		return pkcs7Strip(output);

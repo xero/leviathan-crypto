@@ -39,6 +39,7 @@ export interface CipherSuite {
 	readonly kemCtSize: number;           // 0 for symmetric; KEM ciphertext bytes otherwise
 	readonly tagSize: number;
 	readonly padded: boolean;
+	readonly wasmChunkSize: number;  // WASM CHUNK_SIZE constant; for padded ciphers, pool validates paddedFull <= this
 
 	deriveKeys(key: Uint8Array, nonce: Uint8Array, kemCt?: Uint8Array): DerivedKeys;
 

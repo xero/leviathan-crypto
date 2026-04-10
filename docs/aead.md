@@ -231,6 +231,9 @@ pool.destroy()
 | `framed` | `boolean` | `false` | Framed mode. |
 | `jobTimeout` | `number` | `30000` | Per-job timeout in ms. |
 
+> [!NOTE]
+> For padded ciphers (`SerpentCipher`), `create()` validates at startup that a full plaintext chunk fits in the WASM buffer after PKCS7 padding. If `chunkSize` is too large it throws a `RangeError` with the actual values before any workers are launched. The default `chunkSize: 65536` is valid for both built-in cipher suites.
+
 **Failure model.** Any error is fatal. Authentication failure, worker crash, and timeout all terminate every worker, wipe all keys, and mark the pool permanently dead. Pending promises reject. There is no retry and no worker replacement. Create a new pool for the next operation.
 
 | Method / Property | Description |

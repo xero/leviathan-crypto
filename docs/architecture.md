@@ -752,11 +752,11 @@ Source: `src/asm/serpent/buffers.ts`
 | 64 | 16 | `NONCE_BUFFER` — CTR mode nonce |
 | 80 | 16 | `COUNTER_BUFFER` — 128-bit little-endian counter |
 | 96 | 528 | `SUBKEY_BUFFER` — key schedule output (33 rounds × 4 × 4 bytes) |
-| 624 | 65536 | `CHUNK_PT_BUFFER` — streaming plaintext (CTR/CBC) |
-| 66160 | 65536 | `CHUNK_CT_BUFFER` — streaming ciphertext (CTR/CBC) |
-| 131696 | 20 | `WORK_BUFFER` — 5 × i32 scratch registers (key schedule + S-box/LT rounds) |
-| 131716 | 16 | `CBC_IV_BUFFER` — CBC initialization vector / chaining value |
-| 131732 | — | END |
+| 624 | 65552 | `CHUNK_PT_BUFFER` — streaming plaintext (CTR/CBC); +16 from 65536 to fit PKCS7 max overhead |
+| 66176 | 65552 | `CHUNK_CT_BUFFER` — streaming ciphertext (CTR/CBC) |
+| 131728 | 20 | `WORK_BUFFER` — 5 × i32 scratch registers (key schedule + S-box/LT rounds) |
+| 131748 | 16 | `CBC_IV_BUFFER` — CBC initialization vector / chaining value |
+| 131856 | — | END |
 
 `wipeBuffers()` zeroes all 10 buffers (key, block pt/ct, nonce, counter, subkeys, work, chunk pt/ct, CBC IV).
 
@@ -902,8 +902,9 @@ They are the immutable truth, and must never be modified to make tests pass.
 - **Single-threaded WASM per instance**: one WASM instance per binary per thread.
   `SealStreamPool` provides Worker-based parallelism for both cipher families;
   other primitives remain single-threaded.
-- **Max input per WASM call**: chunk-based APIs (CTR, CBC) accept at most 64KB
-  per call. Wrappers handle splitting automatically for larger inputs.
+- **Max input per WASM call**: CTR accepts at most 65536 bytes per call; CBC
+  accepts at most 65552 bytes (65536 + 16 bytes PKCS7 maximum overhead).
+  Wrappers handle splitting automatically for larger inputs.
 - **WASM side-channel posture**: WebAssembly implementations offer the best
   available side-channel resistance (branchless, table-free), but lack
   hardware-level constant-time guarantees. For applications where timing

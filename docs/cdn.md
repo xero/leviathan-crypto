@@ -19,9 +19,9 @@ themselves.
 
 ```html
 <script type="module">
-  import { init, Seal, SerpentCipher } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js'
-  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/embedded.js'
-  import { sha2Wasm }    from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/embedded.js'
+  import { init, Seal, SerpentCipher } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/serpent/embedded.js'
+  import { sha2Wasm }    from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/sha2/embedded.js'
 
   await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
@@ -37,8 +37,8 @@ Subpath imports also work with full URLs:
 
 ```html
 <script type="module">
-  import { serpentInit, SerpentCipher } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/index.js'
-  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/embedded.js'
+  import { serpentInit, SerpentCipher } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/serpent/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/serpent/embedded.js'
 
   await serpentInit(serpentWasm)
   // ...
@@ -54,10 +54,10 @@ Pass a `URL` pointing at the `.wasm` file on the CDN. The browser uses
 
 ```html
 <script type="module">
-  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js'
+  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/index.js'
 
   await init({
-    sha2: new URL('https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2.wasm')
+    sha2: new URL('https://unpkg.com/leviathan-crypto@2.0.1/dist/sha2.wasm')
   })
 
   const sha    = new SHA256()
@@ -88,10 +88,10 @@ before instantiation.
 
 ```html
 <script type="module">
-  import { init, Seal, XChaCha20Cipher } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js'
-  import { sha2Wasm } from 'https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/embedded.js'
+  import { init, Seal, XChaCha20Cipher } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/index.js'
+  import { sha2Wasm } from 'https://unpkg.com/leviathan-crypto@2.0.1/dist/sha2/embedded.js'
 
-  const res = await fetch('https://unpkg.com/leviathan-crypto@2.0.0/dist/chacha20.wasm', {
+  const res = await fetch('https://unpkg.com/leviathan-crypto@2.0.1/dist/chacha20.wasm', {
     // integrity hash is version-specific, update when upgrading
     integrity: 'sha384-...'
   })
@@ -123,16 +123,16 @@ If you want the same import style as the npm docs, add one before your module sc
 <script type="importmap">
 {
   "imports": {
-    "leviathan-crypto":                    "https://unpkg.com/leviathan-crypto@2.0.0/dist/index.js",
-    "leviathan-crypto/serpent":            "https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/index.js",
-    "leviathan-crypto/serpent/embedded":   "https://unpkg.com/leviathan-crypto@2.0.0/dist/serpent/embedded.js",
-    "leviathan-crypto/chacha20":           "https://unpkg.com/leviathan-crypto@2.0.0/dist/chacha20/index.js",
-    "leviathan-crypto/chacha20/embedded":  "https://unpkg.com/leviathan-crypto@2.0.0/dist/chacha20/embedded.js",
-    "leviathan-crypto/sha2":               "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/index.js",
-    "leviathan-crypto/sha2/embedded":      "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha2/embedded.js",
-    "leviathan-crypto/sha3":               "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha3/index.js",
-    "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto@2.0.0/dist/sha3/embedded.js",
-    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto@2.0.0/dist/stream/index.js"
+    "leviathan-crypto":                    "https://unpkg.com/leviathan-crypto@2.0.1/dist/index.js",
+    "leviathan-crypto/serpent":            "https://unpkg.com/leviathan-crypto@2.0.1/dist/serpent/index.js",
+    "leviathan-crypto/serpent/embedded":   "https://unpkg.com/leviathan-crypto@2.0.1/dist/serpent/embedded.js",
+    "leviathan-crypto/chacha20":           "https://unpkg.com/leviathan-crypto@2.0.1/dist/chacha20/index.js",
+    "leviathan-crypto/chacha20/embedded":  "https://unpkg.com/leviathan-crypto@2.0.1/dist/chacha20/embedded.js",
+    "leviathan-crypto/sha2":               "https://unpkg.com/leviathan-crypto@2.0.1/dist/sha2/index.js",
+    "leviathan-crypto/sha2/embedded":      "https://unpkg.com/leviathan-crypto@2.0.1/dist/sha2/embedded.js",
+    "leviathan-crypto/sha3":               "https://unpkg.com/leviathan-crypto@2.0.1/dist/sha3/index.js",
+    "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto@2.0.1/dist/sha3/embedded.js",
+    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto@2.0.1/dist/stream/index.js"
   }
 }
 </script>
