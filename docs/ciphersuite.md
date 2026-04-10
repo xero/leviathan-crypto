@@ -21,6 +21,7 @@ either of them with an ML-KEM layer for hybrid post-quantum encryption.
 | `keySize`         | 32 bytes                       | 32 bytes                  |
 | `tagSize`         | 32 bytes                       | 16 bytes                  |
 | `padded`          | `true` (PKCS7)                 | `false`                   |
+| `wasmChunkSize`   | `65552`                        | `65536`                   |
 | `wasmModules`     | `['serpent', 'sha2']`          | `['chacha20', 'sha2']`    |
 | Auth construction | Encrypt-then-MAC               | AEAD                      |
 
@@ -106,14 +107,15 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 
 ### Fields
 
-| Field         | Type                | Description                                                              |
-| ------------- | ------------------- | ------------------------------------------------------------------------ |
-| `formatEnum`  | `number`            | Wire format ID. Bits 0-5 of header byte 0. Max `0x3f`. Bit 6 reserved.   |
-| `hkdfInfo`    | `string`            | HKDF info string for domain separation between cipher suites.            |
-| `keySize`     | `number`            | Required master key length in bytes.                                     |
-| `tagSize`     | `number`            | Authentication tag size in bytes per chunk.                              |
-| `padded`      | `boolean`           | Whether ciphertext includes block padding. Affects pool chunk splitting. |
-| `wasmModules` | `readonly string[]` | WASM modules this suite requires.                                        |
+| Field           | Type                | Description                                                              |
+| --------------- | ------------------- | ------------------------------------------------------------------------ |
+| `formatEnum`    | `number`            | Wire format ID. Bits 0-5 of header byte 0. Max `0x3f`. Bit 6 reserved.   |
+| `hkdfInfo`      | `string`            | HKDF info string for domain separation between cipher suites.            |
+| `keySize`       | `number`            | Required master key length in bytes.                                     |
+| `tagSize`       | `number`            | Authentication tag size in bytes per chunk.                              |
+| `padded`        | `boolean`           | Whether ciphertext includes block padding. Affects pool chunk splitting. |
+| `wasmChunkSize` | `number`            | WASM buffer capacity for one padded chunk. Pool validates `paddedFull ≤ wasmChunkSize` at creation for padded ciphers. Must match the `CHUNK_SIZE` constant in the cipher's WASM module. |
+| `wasmModules`   | `readonly string[]` | WASM modules this suite requires.                                        |
 
 ### Methods
 

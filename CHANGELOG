@@ -1,5 +1,44 @@
 # Changelog
 
+## v2.0.1 (2026-04-10)
+
+### Security
+
+- **Silent data corruption in SerpentCipher pool.** `SealStreamPool` with
+  `SerpentCipher` and `chunkSize: 65536` silently produced corrupt plaintext
+  on decrypt for inputs >= 65536 bytes. The Serpent WASM CBC chunk buffer was
+  sized at 65536 bytes, but PKCS7 on a full 65536-byte chunk always appends a
+  full 16-byte padding block, producing a 65552-byte write. The 16-byte
+  overflow clobbered adjacent WASM memory. Auth passed, output was wrong,
+  and no error was raised. Fixed by expanding the WASM chunk buffers and all
+  downstream offsets to accommodate the PKCS7 maximum.
+
+### Changed
+
+- **`CipherSuite` interface adds `wasmChunkSize`.** Replaces a throwaway WASM
+  probe instantiation in `SealStreamPool.create()` with a static field.
+  `SerpentCipher`: 65552. `XChaCha20Cipher`: 65536. `KyberSuite` forwards
+  from its inner cipher.
+
+- **`SealStreamPool.create()` validates padded chunk size statically.** For
+  padded ciphers, pool creation now checks `paddedFull <= cipher.wasmChunkSize`
+  at startup and throws a `RangeError` with the actual values if the check
+  fails. The old probe-based approach is removed.
+
+- **`cbcEncryptChunk` and `cbcDecryptChunk` return codes checked.** Both pool
+  worker and `SerpentCbc` now inspect the WASM return value and throw a
+  `RangeError` on rejection instead of silently reading from a potentially
+  corrupt buffer region.
+
+### Test Suite
+
+- 582 unit tests (Vitest), 189 e2e tests (Playwright × 3 browsers), 771 total.
+- New test files: `serpent_large_pool.spec.ts` (3 × 3 browsers).
+  Covers `chunkSize: 65536` at 256 KB (4 full chunks), 5 MB (hash comparison),
+  and the specific regression: full chunks must not decrypt to zeros.
+
+---
+
 ## v2.0.0 (2026-04-10)
 
 ### Breaking Changes

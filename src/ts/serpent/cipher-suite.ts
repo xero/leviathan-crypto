@@ -42,6 +42,7 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 	kemCtSize: 0,
 	tagSize: 32,
 	padded: true,
+	wasmChunkSize: 65552,  // src/asm/serpent/buffers.ts CHUNK_SIZE (65536 + 16 PKCS7 max overhead)
 	wasmModules: ['serpent', 'sha2'],
 
 	keygen(): Uint8Array {

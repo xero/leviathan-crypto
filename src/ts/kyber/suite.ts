@@ -71,6 +71,7 @@ export function KyberSuite(
 		kemCtSize: p.ctBytes,
 		tagSize: inner.tagSize,
 		padded: inner.padded,
+		wasmChunkSize: inner.wasmChunkSize,
 		wasmModules: [...inner.wasmModules, 'kyber', 'sha3'],
 
 		deriveKeys(key: Uint8Array, nonce: Uint8Array, kemCt?: Uint8Array): DerivedKeys {

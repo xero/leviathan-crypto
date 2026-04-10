@@ -196,6 +196,89 @@ describe('SerpentCbc — IV sensitivity', () => {
 	});
 });
 
+// ── WASM chunk boundary ───────────────────────────────────────────────────
+
+describe('SerpentCbc — WASM chunk boundary', () => {
+	const key = new Uint8Array(32).fill(0x55);
+	const iv  = new Uint8Array(16).fill(0xAA);
+
+	function setupWasm() {
+		const wasm = getWasm();
+		const m = new Uint8Array(wasm.memory.buffer);
+		m.set(key, wasm.getKeyOffset());
+		wasm.loadKey(key.length);
+		m.set(iv, wasm.getCbcIvOffset());
+		return wasm;
+	}
+
+	it('cbcEncryptChunk succeeds at CHUNK_SIZE', () => {
+		const wasm = setupWasm();
+		const cs = wasm.getChunkSize(); // 65552 after fix
+		const m = new Uint8Array(wasm.memory.buffer);
+		for (let i = 0; i < cs; i++) m[wasm.getChunkPtOffset() + i] = i & 0xFF;
+		const ret = wasm.cbcEncryptChunk(cs);
+		expect(ret).toBe(cs);
+		// Real ciphertext — not all zeros, not plaintext
+		const ct0 = m.slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
+		expect(ct0.some(b => b !== 0)).toBe(true);
+		expect(ct0.every((b, i) => b === (i & 0xFF))).toBe(false);
+	}, 30_000);
+
+	it('cbcEncryptChunk rejects CHUNK_SIZE + 1', () => {
+		const wasm = setupWasm();
+		const cs = wasm.getChunkSize();
+		const m = new Uint8Array(wasm.memory.buffer);
+		// Fill the full CHUNK_PT_BUFFER; last 16 bytes are 0x10 (simulated PKCS7 padding)
+		for (let i = 0; i < cs - 16; i++) m[wasm.getChunkPtOffset() + i] = i & 0xFF;
+		for (let i = cs - 16; i < cs; i++) m[wasm.getChunkPtOffset() + i] = 0x10;
+		const ctBefore = m.slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
+		const ret = wasm.cbcEncryptChunk(cs + 1);
+		expect(ret).toBe(-1);
+		// Guard must return early — CHUNK_CT must be unchanged
+		const ctAfter = new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
+		expect(Array.from(ctAfter)).toEqual(Array.from(ctBefore));
+	});
+
+	it('cbcDecryptChunk roundtrip at CHUNK_SIZE', () => {
+		const wasm = setupWasm();
+		const cs = wasm.getChunkSize();
+		const m = new Uint8Array(wasm.memory.buffer);
+		const original = new Uint8Array(cs);
+		for (let i = 0; i < cs; i++) original[i] = (i * 3) & 0xFF;
+		m.set(original, wasm.getChunkPtOffset());
+		const encRet = wasm.cbcEncryptChunk(cs);
+		expect(encRet).toBe(cs);
+		const ct = new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + cs);
+		// Reset IV and decrypt
+		new Uint8Array(wasm.memory.buffer).set(iv, wasm.getCbcIvOffset());
+		new Uint8Array(wasm.memory.buffer).set(ct, wasm.getChunkCtOffset());
+		const decRet = wasm.cbcDecryptChunk(cs);
+		expect(decRet).toBe(cs);
+		const recovered = new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkPtOffset(), wasm.getChunkPtOffset() + cs);
+		expect(Array.from(recovered)).toEqual(Array.from(original));
+	}, 30_000);
+
+	it('overflow guard: cbcEncryptChunk(CHUNK_SIZE) outputs real ciphertext, not [0x10]*16', () => {
+		// Regression guard for the pre-fix corruption mode:
+		// old CHUNK_SIZE=65536, old CHUNK_CT_OFFSET=66160. A 65552-byte write to
+		// CHUNK_PT_OFFSET(624) overflowed 16 bytes (66160..66175) into CHUNK_CT[0:16]
+		// with 0x10*16. cbcEncryptChunk(65552) returned -1 (rejected), leaving the
+		// overflow bytes in place as the "ciphertext". After fix: CHUNK_SIZE=65552,
+		// CHUNK_CT_OFFSET=66176 — no overlap; the call succeeds with real ciphertext.
+		const wasm = setupWasm();
+		const cs = wasm.getChunkSize();
+		const m = new Uint8Array(wasm.memory.buffer);
+		// Simulate a PKCS7-padded 65536-byte plaintext: last 16 bytes are 0x10
+		for (let i = 0; i < cs - 16; i++) m[wasm.getChunkPtOffset() + i] = i & 0xFF;
+		for (let i = cs - 16; i < cs; i++) m[wasm.getChunkPtOffset() + i] = 0x10;
+		const ret = wasm.cbcEncryptChunk(cs);
+		expect(ret).toBe(cs);
+		const ct0 = new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
+		// Must be real ciphertext, not the PKCS7 overflow bytes
+		expect(ct0.every(b => b === 0x10)).toBe(false);
+	}, 30_000);
+});
+
 // ── RangeError for invalid key/IV sizes ──────────────────────────────────
 
 describe('SerpentCbc — parameter validation', () => {

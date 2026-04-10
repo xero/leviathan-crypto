@@ -169,6 +169,94 @@ for (const cfg of configs) {
 				expect(dec).toEqual(pt);
 				pool.destroy();
 			});
+
+			// ── chunkSize=65536 boundary (Serpent-specific regression) ────
+
+			if (cfg.name === 'Serpent') {
+				it('chunkSize: 65536, single full chunk', async () => {
+					// Minimal reproducer for the pre-fix silent corruption bug:
+					// a 65536-byte plaintext padded to 65552 overflowed CHUNK_PT_BUFFER.
+					const pool = await SealStreamPool.create(cfg.cipher, key, {
+						wasm: cfg.wasm, workers: 1, chunkSize: 65536,
+					});
+					const pt = randomBytes(65536);
+					const ct = await pool.seal(pt);
+					const dec = await pool.open(ct);
+					expect(dec).toEqual(pt);
+					pool.destroy();
+				}, 30_000);
+
+				it('chunkSize: 65536, two full chunks', async () => {
+					const pool = await SealStreamPool.create(cfg.cipher, key, {
+						wasm: cfg.wasm, workers: 1, chunkSize: 65536,
+					});
+					// counter pattern avoids crypto.getRandomValues 65536-byte limit
+					const pt = new Uint8Array(131072);
+					for (let i = 0; i < pt.length; i++) pt[i] = i & 0xFF;
+					const ct = await pool.seal(pt);
+					const dec = await pool.open(ct);
+					expect(dec).toEqual(pt);
+					pool.destroy();
+				}, 60_000);
+
+				it('chunkSize: 65536, full chunks plus partial (5MB)', async () => {
+					// 80 × 65536 + 23587 = 5266467 bytes — covers all full-chunk
+					// and partial-chunk paths at production chunk size.
+					const pool = await SealStreamPool.create(cfg.cipher, key, {
+						wasm: cfg.wasm, workers: 2, chunkSize: 65536,
+					});
+					const n = 80 * 65536 + 23587;
+					const pt = new Uint8Array(n);
+					for (let i = 0; i < n; i++) pt[i] = (i * 3) & 0xFF;
+					const ct = await pool.seal(pt);
+					const dec = await pool.open(ct);
+					expect(dec).toEqual(pt);
+					pool.destroy();
+				}, 120_000);
+
+				it('chunkSize: 65536, exact multiple (3 × 65536)', async () => {
+					const pool = await SealStreamPool.create(cfg.cipher, key, {
+						wasm: cfg.wasm, workers: 1, chunkSize: 65536,
+					});
+					const pt = new Uint8Array(3 * 65536);
+					for (let i = 0; i < pt.length; i++) pt[i] = i & 0xFF;
+					const ct = await pool.seal(pt);
+					const dec = await pool.open(ct);
+					expect(dec).toEqual(pt);
+					pool.destroy();
+				}, 60_000);
+
+				it('create() rejects chunkSize that would overflow WASM CHUNK_SIZE after padding', async () => {
+					// chunkSize=65552: paddedFull = 65552 + 16 = 65568 > WASM CHUNK_SIZE (65552)
+					await expect(
+						SealStreamPool.create(cfg.cipher, key, {
+							wasm: cfg.wasm, workers: 1, chunkSize: 65552,
+						}),
+					).rejects.toThrow(/too large for serpent/i);
+				});
+
+				it('create() accepts chunkSize: 65536 (paddedFull = 65552 = WASM CHUNK_SIZE)', async () => {
+					const pool = await SealStreamPool.create(cfg.cipher, key, {
+						wasm: cfg.wasm, workers: 1, chunkSize: 65536,
+					});
+					pool.destroy();
+				});
+			}
+
+			if (cfg.name === 'XChaCha20') {
+				it('chunkSize: 65536, 131072 bytes (control — ChaCha20 is not padded)', async () => {
+					const pool = await SealStreamPool.create(cfg.cipher, key, {
+						wasm: cfg.wasm, workers: 1, chunkSize: 65536,
+					});
+					// counter pattern avoids crypto.getRandomValues 65536-byte limit
+					const pt = new Uint8Array(131072);
+					for (let i = 0; i < pt.length; i++) pt[i] = i & 0xFF;
+					const ct = await pool.seal(pt);
+					const dec = await pool.open(ct);
+					expect(dec).toEqual(pt);
+					pool.destroy();
+				}, 30_000);
+			}
 		});
 
 		// ── Auth failure ────────────────────────────────────────────────

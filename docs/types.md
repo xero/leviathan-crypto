@@ -210,6 +210,7 @@ Cipher-specific logic injected into `SealStream` and `OpenStream`.
 | `kemCtSize` | `number` | KEM ciphertext byte length appended to the header in the preamble. `0` for symmetric suites |
 | `tagSize` | `number` | Authentication tag size in bytes |
 | `padded` | `boolean` | Whether ciphertext includes padding (PKCS7 for CBC) |
+| `wasmChunkSize` | `number` | WASM buffer capacity for one padded chunk. `SealStreamPool.create()` validates `paddedFull ≤ wasmChunkSize` at startup for padded ciphers and throws `RangeError` if the check fails. `SerpentCipher`: 65552. `XChaCha20Cipher`: 65536. `KyberSuite` forwards from its inner cipher. |
 | `wasmModules` | `readonly string[]` | Cipher-specific WASM modules used by pool workers and per-chunk operations (not transitive dependencies such as HKDF-SHA-256 used by `deriveKeys()`) |
 
 | Method | Signature | Description |

@@ -24,7 +24,7 @@
 // Serpent module — static buffer layout.
 // Independent linear memory starting at offset 0.
 //
-// Total: 131824 bytes < 3 × 64KB = 196608 (64784 bytes spare).
+// Total: 131856 bytes < 3 × 64KB = 196608 (64752 bytes spare).
 //
 // Offset   Size     Name
 // 0        32       KEY_BUFFER (pad to 32 for all key sizes)
@@ -33,15 +33,15 @@
 // 64       16       NONCE_BUFFER (CTR mode)
 // 80       16       COUNTER_BUFFER (128-bit LE)
 // 96       528      SUBKEY_BUFFER (33 rounds × 4 words × 4 bytes)
-// 624      65536    CHUNK_PT_BUFFER
-// 66160    65536    CHUNK_CT_BUFFER
-// 131696   20       WORK_BUFFER (5 × i32 working registers)
-// 131716   16       CBC_IV_BUFFER
-// 131732   12       (padding for 16-byte SIMD alignment)
-// 131744   80       SIMD_WORK_BUFFER (5 × v128 working registers)
-// 131824            END (< 196608 = 3 × 64KB ✓)
+// 624      65552    CHUNK_PT_BUFFER   (+16 from 65536; accommodates PKCS7 max overhead)
+// 66176    65552    CHUNK_CT_BUFFER   (+16, start shifts +16)
+// 131728   20       WORK_BUFFER       (start shifts +32)
+// 131748   16       CBC_IV_BUFFER     (start shifts +32)
+// 131764   12       (alignment pad)
+// 131776   80       SIMD_WORK_BUFFER  (start shifts +32)
+// 131856            END               (< 196608 = 3 pages ✓)
 
-export const CHUNK_SIZE:       i32 = 65536;
+export const CHUNK_SIZE:       i32 = 65552;   // 65536 + 16 (PKCS7 max overhead)
 
 export const KEY_OFFSET:       i32 = 0;
 export const BLOCK_PT_OFFSET:  i32 = 32;
@@ -50,12 +50,12 @@ export const NONCE_OFFSET:     i32 = 64;
 export const COUNTER_OFFSET:   i32 = 80;
 export const SUBKEY_OFFSET:    i32 = 96;
 export const CHUNK_PT_OFFSET:  i32 = 624;
-export const CHUNK_CT_OFFSET:  i32 = 66160;
-export const WORK_OFFSET:      i32 = 131696;
-export const CBC_IV_OFFSET:    i32 = 131716;
-// 12 bytes padding for 16-byte alignment
-export const SIMD_WORK_OFFSET: i32 = 131744;  // 5 × v128 = 80 bytes
-// END = 131824 < 196608 ✓
+export const CHUNK_CT_OFFSET:  i32 = 66176;   // 624 + 65552
+export const WORK_OFFSET:      i32 = 131728;  // 66176 + 65552
+export const CBC_IV_OFFSET:    i32 = 131748;  // 131728 + 20
+// 12 bytes padding for 16-byte alignment (131748+16=131764, 131764+12=131776)
+export const SIMD_WORK_OFFSET: i32 = 131776;  // 5 × v128 = 80 bytes
+// END = 131856 < 196608 ✓
 
 export function getModuleId():      i32 {
 	return 0;

@@ -32,6 +32,11 @@
 > - Pool workers copy result buffers.
 > - Scalar JS `constantTimeEqual` was "best-effort only".
 
+> [!WARNING]
+> **v2.0.0 known issue** (addressed in v2.0.1):
+> - `SealStreamPool` with `SerpentCipher` and `chunkSize: 65536` silently
+>   produces corrupt plaintext on decrypt for inputs >= 65536 bytes. No
+>   authentication error is raised. Upgrade to v2.0.1 immediately.
 
 ## Security Posture
 

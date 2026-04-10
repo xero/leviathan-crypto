@@ -121,21 +121,21 @@ function getNonceOffset(): i32     // 64
 function getCounterOffset(): i32   // 80
 function getSubkeyOffset(): i32    // 96
 function getChunkPtOffset(): i32   // 624
-function getChunkCtOffset(): i32   // 66160
-function getWorkOffset(): i32      // 131696
-function getCbcIvOffset(): i32     // 131716
+function getChunkCtOffset(): i32   // 66176
+function getWorkOffset(): i32      // 131728
+function getCbcIvOffset(): i32     // 131748
 ```
 Each returns the fixed byte offset for that buffer. Values shown as comments.
 
 ```typescript
-function getSimdWorkOffset(): i32  // 131744
+function getSimdWorkOffset(): i32  // 131776
 ```
 Returns the byte offset of `SIMD_WORK_BUFFER`. Five v128 working registers used by the SIMD S-box circuits. Only present when the binary is built with `--enable simd`.
 
 ```typescript
-function getChunkSize(): i32       // 65536
+function getChunkSize(): i32       // 65552
 ```
-Returns the maximum chunk size in bytes (64KB).
+Returns the maximum chunk size in bytes (65552 — 65536 + 16 bytes PKCS7 maximum overhead).
 
 ```typescript
 function getMemoryPages(): i32
@@ -210,7 +210,7 @@ counter range without calling `resetCounter()`.
 function encryptChunk(chunkLen: i32): i32
 ```
 CTR-encrypts `chunkLen` bytes from `CHUNK_PT_BUFFER` (offset 624) to
-`CHUNK_CT_BUFFER` (offset 66160). Handles partial final blocks (1-15 bytes)
+`CHUNK_CT_BUFFER` (offset 66176). Handles partial final blocks (1-15 bytes)
 natively; no padding required.
 
 - **chunkLen**: 1 to 65536
@@ -234,11 +234,11 @@ function cbcEncryptChunk(len: i32): i32
 ```
 CBC-encrypts `len` bytes from `CHUNK_PT_BUFFER` to `CHUNK_CT_BUFFER`.
 
-- **len**: must be a positive multiple of 16, at most 65536
+- **len**: must be a positive multiple of 16, at most 65552
 - **Returns**: `len` on success, `-1` if `len` is invalid
 
 Chaining: `C[i] = Encrypt(P[i] XOR C[i-1])`, where `C[-1]` is the IV stored at
-`CBC_IV_BUFFER` (offset 131716). The IV buffer is updated to the last ciphertext
+`CBC_IV_BUFFER` (offset 131748). The IV buffer is updated to the last ciphertext
 block on return, enabling streaming across multiple chunk calls.
 
 PKCS7 padding is the caller's responsibility (applied in the TypeScript wrapper).
@@ -248,7 +248,7 @@ function cbcDecryptChunk(len: i32): i32
 ```
 CBC-decrypts `len` bytes from `CHUNK_CT_BUFFER` to `CHUNK_PT_BUFFER`.
 
-- **len**: must be a positive multiple of 16, at most 65536
+- **len**: must be a positive multiple of 16, at most 65552
 - **Returns**: `len` on success, `-1` if `len` is invalid
 
 Chaining: `P[i] = Decrypt(C[i]) XOR C[i-1]`. The IV buffer is updated to the last
@@ -317,11 +317,11 @@ Zeroes all sensitive memory regions:
 | NONCE_BUFFER | 64 | 16 |
 | COUNTER_BUFFER | 80 | 16 |
 | SUBKEY_BUFFER | 96 | 528 |
-| CHUNK_PT_BUFFER | 624 | 65536 |
-| CHUNK_CT_BUFFER | 66160 | 65536 |
-| WORK_BUFFER | 131696 | 20 |
-| CBC_IV_BUFFER | 131716 | 16 |
-| SIMD_WORK_BUFFER | 131744 | 80 |
+| CHUNK_PT_BUFFER | 624 | 65552 |
+| CHUNK_CT_BUFFER | 66176 | 65552 |
+| WORK_BUFFER | 131728 | 20 |
+| CBC_IV_BUFFER | 131748 | 16 |
+| SIMD_WORK_BUFFER | 131776 | 80 |
 
 Must be called when done with the cipher (the TypeScript wrapper calls this in
 `dispose()`).
@@ -330,8 +330,8 @@ Must be called when done with the cipher (the TypeScript wrapper calls this in
 
 ## Buffer Layout
 
-All buffers are static, starting at offset 0. Total footprint: 131732 bytes
-(< 192KB = 3 x 64KB pages, with 64876 bytes spare).
+All buffers are static, starting at offset 0. Total footprint: 131856 bytes
+(< 192KB = 3 x 64KB pages, with 64752 bytes spare).
 
 | Offset | Size (bytes) | Name | Purpose |
 |--------|-------------|------|---------|
@@ -341,13 +341,13 @@ All buffers are static, starting at offset 0. Total footprint: 131732 bytes
 | 64 | 16 | `NONCE_BUFFER` | CTR nonce (initial counter value) |
 | 80 | 16 | `COUNTER_BUFFER` | 128-bit LE counter (CTR mode state) |
 | 96 | 528 | `SUBKEY_BUFFER` | Expanded subkeys: 33 rounds x 4 words x 4 bytes |
-| 624 | 65536 | `CHUNK_PT_BUFFER` | Bulk plaintext input (CTR/CBC) |
-| 66160 | 65536 | `CHUNK_CT_BUFFER` | Bulk ciphertext output (CTR/CBC) |
-| 131696 | 20 | `WORK_BUFFER` | 5 × i32 working registers for scalar S-box computation |
-| 131716 | 16 | `CBC_IV_BUFFER` | CBC chaining value (IV, then last CT block) |
-| 131732 | 12 | *(alignment padding)* | Pad to 16-byte boundary for v128 SIMD alignment |
-| 131744 | 80 | `SIMD_WORK_BUFFER` | 5 × v128 working registers for SIMD S-box computation |
-| 131824 | | `END` | Total < 196608 (3 pages) |
+| 624 | 65552 | `CHUNK_PT_BUFFER` | Bulk plaintext input (CTR/CBC); +16 from 65536 to fit PKCS7 max overhead |
+| 66176 | 65552 | `CHUNK_CT_BUFFER` | Bulk ciphertext output (CTR/CBC) |
+| 131728 | 20 | `WORK_BUFFER` | 5 × i32 working registers for scalar S-box computation |
+| 131748 | 16 | `CBC_IV_BUFFER` | CBC chaining value (IV, then last CT block) |
+| 131764 | 12 | *(alignment padding)* | Pad to 16-byte boundary for v128 SIMD alignment |
+| 131776 | 80 | `SIMD_WORK_BUFFER` | 5 × v128 working registers for SIMD S-box computation |
+| 131856 | | `END` | Total < 196608 (3 pages) |
 
 The `SUBKEY_BUFFER` holds 132 i32 words during key expansion, then the final 33 × 4
 round subkeys. The `WORK_BUFFER` holds 5 working registers (r0-r4) for the scalar
@@ -496,8 +496,8 @@ serpent_unrolled.ts     serpent_simd.ts
 | `loadKey(keyLen)` | `keyLen` is not 16, 24, or 32 | `-1` |
 | `encryptChunk(chunkLen)` | `chunkLen <= 0` or `chunkLen > 65536` | `-1` |
 | `decryptChunk(chunkLen)` | `chunkLen <= 0` or `chunkLen > 65536` | `-1` |
-| `cbcEncryptChunk(len)` | `len <= 0`, `len > 65536`, or `len % 16 !== 0` | `-1` |
-| `cbcDecryptChunk(len)` | `len <= 0`, `len > 65536`, or `len % 16 !== 0` | `-1` |
+| `cbcEncryptChunk(len)` | `len <= 0`, `len > 65552`, or `len % 16 !== 0` | `-1` |
+| `cbcDecryptChunk(len)` | `len <= 0`, `len > 65552`, or `len % 16 !== 0` | `-1` |
 
 > [!NOTE]
 > `encryptBlock`/`decryptBlock` have no error returns. They assume `loadKey`

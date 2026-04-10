@@ -1,0 +1,66 @@
+name: npm-remove
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to remove (e.g. v2.0.0)'
+        required: true
+        type: string
+      action:
+        description: 'Action'
+        required: true
+        type: choice
+        options:
+          - deprecate
+          - unpublish
+      message:
+        description: 'Deprecation message (deprecate only)'
+        required: false
+        default: 'Security: this version contains a critical bug. Upgrade to the latest release.'
+        type: string
+permissions:
+  contents: read
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      PKG: leviathan-crypto
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: token_check
+        run: |
+          npm config set //registry.npmjs.org/:_authToken "$NODE_AUTH_TOKEN"
+          npm whoami
+
+      - name: version_check
+        run: |
+          VERSION="${{ inputs.version }}"
+          BARE="${VERSION#v}"
+          echo "BARE=${BARE}" >> "$GITHUB_ENV"
+          npm view "${PKG}@${BARE}" version
+
+      - name: unpublish_check
+        if: inputs.action == 'unpublish'
+        run: |
+          PUBLISHED=$(npm view "${PKG}@${BARE}" time --json | jq -r ".\"${BARE}\"")
+          PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+          NOW_TS=$(date +%s)
+          AGE_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+          echo "Version ${BARE} published ${AGE_HOURS}h ago"
+          if [ "$AGE_HOURS" -ge 72 ]; then
+            echo "Outside 72-hour unpublish window (${AGE_HOURS}h >= 72h)"
+            exit 1
+          fi
+
+      - name: npm_run
+        env:
+          MSG: ${{ inputs.message }}
+        run: |
+          if [ "${{ inputs.action }}" = "unpublish" ]; then
+            npm unpublish "${PKG}@${BARE}"
+          else
+            npm deprecate "${PKG}@${BARE}" "$MSG"
+          fi
