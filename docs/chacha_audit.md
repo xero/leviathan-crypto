@@ -403,7 +403,7 @@ Full 20-round ChaCha20 has a **13-round security margin** against the best known
 
 ChaCha20 provides no related-key security guarantees by design. The construction relies on the key being uniformly random and independent across sessions.
 
-In leviathan-crypto, the AEAD API accepts an externally-supplied key. The `XChaCha20Poly1305` class does not derive subkeys from a master key (that responsibility falls to the application layer, e.g., scrypt or HKDF in the lvthn-cli [demo](https://github.com/xero/leviathan-demos/lvthn-cli)). The HChaCha20 subkey derivation uses a different nonce for each message, so even with a fixed master key, the per-message subkeys are independent.
+In leviathan-crypto, the AEAD API accepts an externally-supplied key. The `XChaCha20Poly1305` class does not derive subkeys from a master key (that responsibility falls to the application layer, e.g., scrypt or HKDF in the [cli demo](https://github.com/xero/leviathan-demos/cli)). The HChaCha20 subkey derivation uses a different nonce for each message, so even with a fixed master key, the per-message subkeys are independent.
 
 **Assessment:** The API does not create related-key exposure. Key management is the caller's responsibility, and the library's documentation (`CLAUDE.md`, `docs/chacha20.md`) correctly specifies 32-byte random keys.
 
