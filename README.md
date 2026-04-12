@@ -1,12 +1,10 @@
-[![GitHub Release](https://img.shields.io/github/v/release/xero/leviathan-crypto?sort=semver&display_name=tag&style=flat&logo=github&logoColor=989da4&label=latest%20release&labelColor=161925&color=1c7293)](https://github.com/xero/leviathan-crypto/releases/latest) [![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/leviathan-crypto?format=both&style=flat&logo=googlecontaineroptimizedos&logoColor=989da4&label=package%20size&labelColor=161925&color=1c7293&cacheSeconds=36000)](https://www.npmjs.com/package/leviathan-crypto) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/xero/leviathan-crypto/test-suite.yml?branch=main&style=flat&logo=github&logoColor=989da4&label=test%20suite&labelColor=161925&color=1a936f)](https://github.com/xero/leviathan-crypto/actions/workflows/test-suite.yml) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/xero/leviathan-crypto/wiki.yml?branch=main&style=flat&logo=gitbook&logoColor=989da4&label=wiki%20publish&labelColor=161925&color=1a936f)](https://github.com/xero/leviathan-crypto/wiki)
+[![GitHub Release](https://img.shields.io/github/v/release/xero/leviathan-crypto?sort=semver&display_name=tag&style=flat&logo=github&logoColor=989da4&label=latest%20release&labelColor=161925&color=1c7293)](https://github.com/xero/leviathan-crypto/releases/latest) [![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/leviathan-crypto?format=both&style=flat&logo=googlecontaineroptimizedos&logoColor=989da4&label=package%20size&labelColor=161925&color=1c7293)](https://www.npmjs.com/package/leviathan-crypto) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/xero/leviathan-crypto/test-suite.yml?branch=main&style=flat&logo=github&logoColor=989da4&label=test%20suite&labelColor=161925&color=1a936f)](https://github.com/xero/leviathan-crypto/actions/workflows/test-suite.yml) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/xero/leviathan-crypto/wiki.yml?branch=main&style=flat&logo=gitbook&logoColor=989da4&label=wiki%20publish&labelColor=161925&color=1a936f)](https://github.com/xero/leviathan-crypto/wiki)
 
 ![simd webassembly](https://img.shields.io/badge/SIMD%20-%20WASM?style=flat&logo=wasmer&logoColor=1a936f&label=WASM&labelColor=33383e&color=161925) ![side-effect free](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-side-effect-free.svg) ![tree-shakeable](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-tree-shakable.svg) ![zero dependencies](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-zero-dependancies.svg) [![MIT Licensed](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-mit-license.svg)](https://github.com/xero/leviathan-crypto/blob/main/LICENSE)
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="400" >
 
 # Leviathan-Crypto
-
----
 
 > WebAssembly cryptography library built on the paranoia of Serpent-256 and the elegance of XChaCha20-Poly1305.
 
@@ -26,7 +24,7 @@
 
 **Side-effect free.** Nothing runs on import. [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) is explicit and asynchronous.
 
-**Audited primitives.** Every implementation is verified against its specification. See the [audit index](https://github.com/xero/leviathan-crypto/wiki/audits.md).
+**Audited primitives.** Every implementation is verified against its specification. See the [audit index](https://github.com/xero/leviathan-crypto/wiki/audits).
 
 ---
 
@@ -40,7 +38,7 @@ npm install leviathan-crypto
 ```
 
 > [!NOTE]
-> [Serpent](https://github.com/xero/leviathan-crypto/wiki/serpent.md), [ChaCha20](https://github.com/xero/leviathan-crypto/wiki/chacha20.md), [ML-KEM](https://github.com/xero/leviathan-crypto/wiki/kyber.md), and [constantTimeEqual](https://github.com/xero/leviathan-crypto/wiki/utils.md#constanttimeequal) require WebAssembly SIMD support. This has been a baseline feature of all major browsers and runtimes [since 2021](https://caniuse.com/wasm-simd). SHA-2 and SHA-3 run on any WASM-capable runtime.
+> [Serpent](https://github.com/xero/leviathan-crypto/wiki/serpent), [ChaCha20](https://github.com/xero/leviathan-crypto/wiki/chacha20), [ML-KEM](https://github.com/xero/leviathan-crypto/wiki/kyber.md), and [constantTimeEqual](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) require WebAssembly SIMD support. This has been a baseline feature of all major browsers and runtimes [since 2021](https://caniuse.com/wasm-simd). SHA-2 and SHA-3 run on any WASM-capable runtime.
 
 ### Loading
 
@@ -106,7 +104,7 @@ See [loader.md](https://github.com/xero/leviathan-crypto/wiki/loader) for the fu
 
 ## Quick Start
 
-*One-shot authenticated encryption.* [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead.md#seal) handles nonces, key derivation, and authentication. Zero config beyond [`init()`](https://github.com/xero/leviathan-crypto/wiki/init.md#init).
+**_One-shot authenticated encryption._** [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal) handles nonces, key derivation, and authentication. Zero config beyond [`init()`](https://github.com/xero/leviathan-crypto/wiki/init#init).
 
 ```typescript
 import { init, Seal, XChaCha20Cipher } from 'leviathan-crypto'
@@ -120,7 +118,7 @@ const blob = Seal.encrypt(XChaCha20Cipher, key, plaintext)
 const pt   = Seal.decrypt(XChaCha20Cipher, key, blob)  // throws AuthenticationError on tamper
 ```
 
-_Prefer Serpent-256?_ Swap the cipher object and everything else stays the same.
+**_Prefer Serpent-256?_** Swap the cipher object and everything else stays the same.
 
 ```typescript
 import { SerpentCipher } from 'leviathan-crypto'
@@ -132,7 +130,7 @@ const key  = SerpentCipher.keygen()
 const blob = Seal.encrypt(SerpentCipher, key, plaintext)
 ```
 
-_Data too large to buffer in memory?_ [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead.md#sealstream) and [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead.md#openstream) encrypt and decrypt in chunks without loading the full message.
+**_Data too large to buffer in memory?_** [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream) and [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead#openstream) encrypt and decrypt in chunks without loading the full message.
 
 ```typescript
 import { SealStream, OpenStream } from 'leviathan-crypto/stream'
@@ -150,7 +148,7 @@ const pt1    = opener.pull(ct1)
 const ptLast = opener.finalize(ctLast)
 ```
 
-_Need parallel throughput?_ [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead.md#sealstreampool) distributes chunks across Web Workers with the same wire format.
+**_Need parallel throughput?_** [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) distributes chunks across Web Workers with the same wire format.
 
 ```typescript
 import { SealStreamPool } from 'leviathan-crypto/stream'
@@ -161,7 +159,7 @@ const decrypted = await pool.open(encrypted)
 pool.destroy()
 ```
 
-_Want post-quantum security?_ [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber.md#kybersuite) wraps ML-KEM and a cipher suite into a hybrid construction. It plugs directly into [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead.md#sealstream). The sender encrypts with the public encapsulation key and only the recipient's private decapsulation key can open it.
+**_Want post-quantum security?_** [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps ML-KEM and a cipher suite into a hybrid construction. It plugs directly into [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream). The sender encrypts with the public encapsulation key and only the recipient's private decapsulation key can open it.
 
 ```typescript
 import { KyberSuite, MlKem768 } from 'leviathan-crypto/kyber'
@@ -185,7 +183,7 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
-_More examples including hashing, key derivation, Fortuna, and raw primitives?_ See the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
+**_Looking for more examples including hashing, key derivation, Fortuna, and raw primitives?_** See the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
 
 ---
 
@@ -215,16 +213,16 @@ cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 
 | **_I want to..._** | |
 |---|---|
-| Encrypt data | [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead.md#seal) with [`SerpentCipher`](https://github.com/xero/leviathan-crypto/wiki/serpent.md#serpentcipher) or [`XChaCha20Cipher`](https://github.com/xero/leviathan-crypto/wiki/chacha20.md#xchacha20cipher) |
-| Encrypt a stream or large file | [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead.md#sealstream) to encrypt, [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead.md#openstream) to decrypt |
-| Encrypt in parallel | [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead.md#sealstreampool) distributes chunks across Web Workers |
-| Add post-quantum security | [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber.md#kybersuite) wraps [`MlKem512`](https://github.com/xero/leviathan-crypto/wiki/kyber.md#parameter-sets), [`MlKem768`](https://github.com/xero/leviathan-crypto/wiki/kyber.md#parameter-sets), or [`MlKem1024`](https://github.com/xero/leviathan-crypto/wiki/kyber.md#parameter-sets) with any cipher suite |
-| Hash data | [`SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#sha256), [`SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#sha384), [`SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#sha512), [`SHA3_256`](https://github.com/xero/leviathan-crypto/wiki/sha3.md#sha3_256), [`SHA3_512`](https://github.com/xero/leviathan-crypto/wiki/sha3.md#sha3_512), [`SHAKE256`](https://github.com/xero/leviathan-crypto/wiki/sha3.md#shake256) ... |
-| Authenticate a message | [`HMAC_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#hmac_sha256), [`HMAC_SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#hmac_sha384), or [`HMAC_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#hmac_sha512) |
-| Derive keys | [`HKDF_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#hkdf_sha256) or [`HKDF_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2.md#hkdf_sha512) |
-| Generate random bytes | [`Fortuna`](https://github.com/xero/leviathan-crypto/wiki/fortuna.md#api-reference) for forward-secret generation, [`randomBytes`](https://github.com/xero/leviathan-crypto/wiki/utils.md#randombytes) for one-off use |
-| Compare secrets safely | [`constantTimeEqual`](https://github.com/xero/leviathan-crypto/wiki/utils.md#constanttimeequal) uses a WASM SIMD path to prevent timing attacks |
-| Work with bytes | [`hexToBytes`](https://github.com/xero/leviathan-crypto/wiki/utils.md#hextobytes), [`bytesToHex`](https://github.com/xero/leviathan-crypto/wiki/utils.md#bytestohex), [`wipe`](https://github.com/xero/leviathan-crypto/wiki/utils.md#wipe), [`xor`](https://github.com/xero/leviathan-crypto/wiki/utils.md#xor), [`concat`](https://github.com/xero/leviathan-crypto/wiki/utils.md#concat) ... |
+| Encrypt data | [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal) with [`SerpentCipher`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentcipher) or [`XChaCha20Cipher`](https://github.com/xero/leviathan-crypto/wiki/chacha20#xchacha20cipher) |
+| Encrypt a stream or large file | [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream) to encrypt, [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead#openstream) to decrypt |
+| Encrypt in parallel | [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) distributes chunks across Web Workers |
+| Add post-quantum security | [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps [`MlKem512`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), [`MlKem768`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), or [`MlKem1024`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets) with any cipher suite |
+| Hash data | [`SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha256), [`SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha384), [`SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha512), [`SHA3_256`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_256), [`SHA3_512`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_512), [`SHAKE256`](https://github.com/xero/leviathan-crypto/wiki/sha3#shake256) ... |
+| Authenticate a message | [`HMAC_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha256), [`HMAC_SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha384), or [`HMAC_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha512) |
+| Derive keys | [`HKDF_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha256) or [`HKDF_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha512) |
+| Generate random bytes | [`Fortuna`](https://github.com/xero/leviathan-crypto/wiki/fortuna#api-reference) for forward-secret generation, [`randomBytes`](https://github.com/xero/leviathan-crypto/wiki/utils#randombytes) for one-off use |
+| Compare secrets safely | [`constantTimeEqual`](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) uses a WASM SIMD path to prevent timing attacks |
+| Work with bytes | [`hexToBytes`](https://github.com/xero/leviathan-crypto/wiki/utils#hextobytes), [`bytesToHex`](https://github.com/xero/leviathan-crypto/wiki/utils#bytestohex), [`wipe`](https://github.com/xero/leviathan-crypto/wiki/utils#wipe), [`xor`](https://github.com/xero/leviathan-crypto/wiki/utils#xor), [`concat`](https://github.com/xero/leviathan-crypto/wiki/utils#concat) ... |
 
 *For raw primitives, low-level cipher access, and ASM internals see the [full API reference](https://github.com/xero/leviathan-crypto/wiki/index).*
 
@@ -234,13 +232,13 @@ cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 
 |   |   |
 |---|---|
-| [Architecture](https://github.com/xero/leviathan-crypto/wiki/architecture.md) | Repository structure, module relationships, build pipeline, and buffer layouts |
-| [Test Suite](https://github.com/xero/leviathan-crypto/wiki/test-suite.md) | How the test suite works, vector corpus, and gate discipline |
-| [Security Policy](./SECURITY.md) | Security posture and vulnerability disclosure details |
-| [Lexicon](https://github.com/xero/leviathan-crypto/wiki/lexicon.md) | Glossary of cryptographic terms |
-| [WASM Primer](https://github.com/xero/leviathan-crypto/wiki/wasm.md) | WebAssembly primer in the context of this library |
-| [CDN](https://github.com/xero/leviathan-crypto/wiki/cdn.md) | Use leviathan-crypto directly from a CDN with no bundler |
-| [argon2id](https://github.com/xero/leviathan-crypto/wiki/argon2id.md) | Passphrase-based encryption using Argon2id alongside leviathan primitives |
+| [Architecture](https://github.com/xero/leviathan-crypto/wiki/architecture) | Repository structure, module relationships, build pipeline, and buffer layouts |
+| [Test Suite](https://github.com/xero/leviathan-crypto/wiki/test-suite) | How the test suite works, vector corpus, and gate discipline |
+| [Security Policy](./SECURITY) | Security posture and vulnerability disclosure details |
+| [Lexicon](https://github.com/xero/leviathan-crypto/wiki/lexicon) | Glossary of cryptographic terms |
+| [WASM Primer](https://github.com/xero/leviathan-crypto/wiki/wasm) | WebAssembly primer in the context of this library |
+| [CDN](https://github.com/xero/leviathan-crypto/wiki/cdn) | Use leviathan-crypto directly from a CDN with no bundler |
+| [argon2id](https://github.com/xero/leviathan-crypto/wiki/argon2id) | Passphrase-based encryption using Argon2id alongside leviathan primitives |
 
 ---
 
