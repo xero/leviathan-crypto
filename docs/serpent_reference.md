@@ -1,7 +1,8 @@
-# Serpent-256 Algorithm Reference
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Algorithm specification, bitslice implementation details, and known attack analysis for Serpent-256. Based on the Anderson/Biham/Knudsen AES submission papers and Ross Anderson's reference implementation.
+### Serpent-256 Algorithm Reference
+
+Algorithm specification, bitslice implementation details, and known attack analysis for Serpent-256. Based on the Anderson/Biham/Knudsen AES submission papers and Ross Anderson's reference implementation.
 
 > ### Table of Contents
 > - [Algorithm Overview](#algorithm-overview)
@@ -529,9 +530,12 @@ secure for all foreseeable use cases.
 
 ---
 
-> ### Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [serpent_audit](./serpent_audit.md) — security audit results: algorithm correctness verification and side-channel analysis
-> - [serpent](./serpent.md) — TypeScript API for Serpent-256 (SerpentCipher, Seal, raw modes)
-> - [asm_serpent](./asm_serpent.md) — WASM implementation: bitslice S-boxes, key schedule, CTR/CBC in AssemblyScript
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [serpent_audit](./serpent_audit.md) | security audit results: algorithm correctness verification and side-channel analysis |
+| [serpent](./serpent.md) | TypeScript API for Serpent-256 (SerpentCipher, Seal, raw modes) |
+| [asm_serpent](./asm_serpent.md) | WASM implementation: bitslice S-boxes, key schedule, CTR/CBC in AssemblyScript |
+

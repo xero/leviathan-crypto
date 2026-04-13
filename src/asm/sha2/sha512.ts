@@ -211,7 +211,7 @@ function store64be(base: i32, byteOffset: i32, v: i64): void {
 	store<u8>(off + 7,  v        as u8)
 }
 
-// ── Compression function ─────────────────────────────────────────────────────
+// ── Compression function ────────────────────────────────────────────────────
 //
 // Process one 1024-bit (128-byte) block at SHA512_BLOCK_OFFSET.
 // Reads 16 big-endian u64 words, expands schedule W[0..79] into SHA512_W_OFFSET,
@@ -259,7 +259,7 @@ function sha512Compress(): void {
 	store64be(SHA512_H_OFFSET, 56, load64be(SHA512_H_OFFSET, 56) + h)
 }
 
-// ── Initial hash values ──────────────────────────────────────────────────────
+// ── Initial hash values ─────────────────────────────────────────────────────
 
 // SHA-512 (FIPS 180-4 §5.3.5)
 const SHA512_H0: i64 = 0x6a09e667f3bcc908
@@ -281,7 +281,7 @@ const SHA384_H5: i64 = 0x8eb44a8768581511
 const SHA384_H6: i64 = 0xdb0c2e0d64f98fa7
 const SHA384_H7: i64 = 0x47b5481dbefa4fa4
 
-// ── Internal: load IVs and reset streaming state ─────────────────────────────
+// ── Internal: load IVs and reset streaming state ────────────────────────────
 
 function loadIVs(
 	h0: i64, h1: i64, h2: i64, h3: i64,
@@ -299,7 +299,7 @@ function loadIVs(
 	store<i64>(SHA512_TOTAL_OFFSET,   0)
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// ── Public API ──────────────────────────────────────────────────────────────
 
 // Initialize SHA-512 state. Must be called before sha512Update / sha512Final.
 export function sha512Init(): void {

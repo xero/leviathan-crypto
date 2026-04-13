@@ -1,9 +1,10 @@
-# CipherSuite
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> The extension point for the streaming AEAD layer. `Seal`, `SealStream`,
-> `OpenStream`, and `SealStreamPool` are all cipher-agnostic. You provide
-> the cipher by passing a `CipherSuite` object at construction.
+### CipherSuite
+
+The extension point for the streaming AEAD layer. `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` are all cipher-agnostic. You provide the cipher by passing a `CipherSuite` object at construction.
+
+---
 
 Three implementations are included: `SerpentCipher`, `XChaCha20Cipher`, and
 `KyberSuite`. The first two are symmetric cipher suites. `KyberSuite` wraps
@@ -107,25 +108,28 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 
 ### Fields
 
-| Field           | Type                | Description                                                              |
-| --------------- | ------------------- | ------------------------------------------------------------------------ |
-| `formatEnum`    | `number`            | Wire format ID. Bits 0-5 of header byte 0. Max `0x3f`. Bit 6 reserved.   |
-| `hkdfInfo`      | `string`            | HKDF info string for domain separation between cipher suites.            |
-| `keySize`       | `number`            | Required master key length in bytes.                                     |
-| `tagSize`       | `number`            | Authentication tag size in bytes per chunk.                              |
-| `padded`        | `boolean`           | Whether ciphertext includes block padding. Affects pool chunk splitting. |
-| `wasmChunkSize` | `number`            | WASM buffer capacity for one padded chunk. Pool validates `paddedFull ≤ wasmChunkSize` at creation for padded ciphers. Must match the `CHUNK_SIZE` constant in the cipher's WASM module. |
-| `wasmModules`   | `readonly string[]` | WASM modules this suite requires.                                        |
+| Field           | Type                  | Description                                                              |
+| --------------- | --------------------- | ------------------------------------------------------------------------ |
+| `formatEnum`    | `number`              | Wire format ID. Bits 0-3 cipher nibble (0x1=xchacha20, 0x2=serpent); bits 4-5 KEM selector (0x00=none, 0x10=ML-KEM-512, 0x20=ML-KEM-768, 0x30=ML-KEM-1024); bit 6 reserved; max `0x3f`. |
+| `formatName`    | `string`              | Human-readable label, e.g. `'xchacha20'`, `'serpent'`. Used in hybrid suite names (`'mlkem768+xchacha20'`). |
+| `hkdfInfo`      | `string`              | HKDF info string for domain separation between cipher suites.            |
+| `keySize`       | `number`              | Required master key length in bytes. For KEM suites this is the encapsulation key (ek) size. |
+| `decKeySize?`   | `number \| undefined` | Decryption key size in bytes. Absent for symmetric suites (defaults to `keySize`). For KEM suites this is the decapsulation key (dk) size. |
+| `kemCtSize`     | `number`              | KEM ciphertext size in bytes. `0` for symmetric suites; set to the KEM ciphertext length for hybrid suites. |
+| `tagSize`       | `number`              | Authentication tag size in bytes per chunk.                              |
+| `padded`        | `boolean`             | Whether ciphertext includes block padding. Affects pool chunk splitting. |
+| `wasmChunkSize` | `number`              | WASM buffer capacity for one padded chunk. Pool validates `paddedFull ≤ wasmChunkSize` at creation for padded ciphers. Must match the `CHUNK_SIZE` constant in the cipher's WASM module. |
+| `wasmModules`   | `readonly string[]`   | WASM modules this suite requires.                                        |
 
 ### Methods
 
 | Method                                       | Description                                                 |
 | -------------------------------------------- | ----------------------------------------------------------- |
-| `deriveKeys(masterKey, nonce)`               | HKDF key derivation. Returns opaque `DerivedKeys`.          |
+| `deriveKeys(masterKey, nonce, kemCt?)`       | HKDF key derivation. `kemCt` is the KEM ciphertext — present only for hybrid suites, absent for symmetric. Returns opaque `DerivedKeys`. |
 | `sealChunk(keys, counterNonce, chunk, aad?)` | Encrypt one chunk. Returns ciphertext with tag appended.    |
 | `openChunk(keys, counterNonce, chunk, aad?)` | Decrypt one chunk. Throws `AuthenticationError` on failure. |
 | `wipeKeys(keys)`                             | Zero all derived key material. Called after `finalize()`.   |
-| `createPoolWorker()`                         | Create a Web Worker for pool use.                           |
+| `createPoolWorker()`                         | Create a Web Worker for pool use. Default implementations spawn a classic worker from a blob URL over an IIFE source bundled at lib build time. Override via spread (`{ ...XChaCha20Cipher, createPoolWorker: () => new Worker(myUrl) }`) for strict-CSP environments that disallow `blob:` in `worker-src`. |
 
 ### Implementing a custom CipherSuite
 
@@ -137,13 +141,16 @@ it unconditionally after finalize.
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
-> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
-> - [serpent](./serpent.md) — Serpent-256 TypeScript API and raw primitives
-> - [chacha20](./chacha20.md) — ChaCha20 TypeScript API and raw primitives
-> - [kyber](./kyber.md) — ML-KEM key encapsulation and `KyberSuite`
-> - [types](./types.md) — TypeScript interfaces
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [lexicon](./lexicon.md) | Glossary of cryptographic terms |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` |
+| [serpent](./serpent.md) | Serpent-256 TypeScript API and raw primitives |
+| [chacha20](./chacha20.md) | ChaCha20 TypeScript API and raw primitives |
+| [kyber](./kyber.md) | ML-KEM key encapsulation and `KyberSuite` |
+| [types](./types.md) | TypeScript interfaces |
+

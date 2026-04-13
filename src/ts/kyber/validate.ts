@@ -31,10 +31,14 @@ import { constantTimeEqual } from '../utils.js';
 /**
  * Encapsulation key check — FIPS 203 §7.2 (EncapsulationKeyCheck).
  *
- * 1. Length check: ek.length == params.ekBytes
- * 2. ByteDecode₁₂ → ByteEncode₁₂ round-trip check on the polyvec portion.
- *    Any coefficient ≥ q stored modulo 2^12 survives frombytes, but tobytes
- *    re-encodes it differently — so the round-trip fails iff any coeff was ≥ q.
+ * 1. Length gate: ek.length must equal params.ekBytes.
+ * 2. Decode the polyvec portion via ByteDecode₁₂ (polyvec_frombytes). The
+ *    decoded coefficients are raw 12-bit values in [0, 4095] — frombytes
+ *    does not reduce mod q.
+ * 3. Modulus scan: every coefficient must satisfy c < Q = 3329.
+ *
+ * Returns true iff both gates pass. The seed ρ (final 32 bytes of ek) is
+ * not checked; any 32-byte value is a valid ρ per FIPS 203.
  */
 export function checkEncapsulationKey(
 	kx: KyberExports,
@@ -45,18 +49,12 @@ export function checkEncapsulationKey(
 
 	const { k } = params;
 	const kyberMem = new Uint8Array(kx.memory.buffer);
-	const pkOff  = kx.getPkOffset();
-	const skOff  = kx.getSkOffset();
+	const pkOff   = kx.getPkOffset();
 	const pvecOff = kx.getPolyvecSlot0();
 
-	// Write the polyvec portion of ek into PK buffer, decode, re-encode
 	kyberMem.set(ek.subarray(0, k * 384), pkOff);
 	kx.polyvec_frombytes(pvecOff, pkOff, k);
-	kx.polyvec_tobytes(skOff, pvecOff, k);
-
-	// orig is at pkOff (written above); reEnc is at skOff (polyvec_tobytes output)
-	const mismatch = kx.ct_verify(pkOff, skOff, k * 384);
-	return mismatch === 0;
+	return kx.polyvec_modulus_check(pvecOff, k) === 0;
 }
 
 /**
@@ -78,8 +76,11 @@ export function checkDecapsulationKey(
 	const ek = dk.slice(skCpaBytes, skCpaBytes + ekBytes);
 	const h  = dk.slice(skCpaBytes + ekBytes, skCpaBytes + ekBytes + 32);
 
-	const hComputed = sha3_256Hash(sx, ek);
-	if (!constantTimeEqual(hComputed, h)) return false;
-
-	return checkEncapsulationKey(kx, params, ek);
+	try {
+		const hComputed = sha3_256Hash(sx, ek);
+		if (!constantTimeEqual(hComputed, h)) return false;
+		return checkEncapsulationKey(kx, params, ek);
+	} finally {
+		sx.wipeBuffers();
+	}
 }

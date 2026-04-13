@@ -55,7 +55,8 @@ describe('Intermediate values — serpent_ecb_iv.txt key schedule (Gate 2)', () 
 		expect(cases.length).toBe(3);
 	});
 
-	// GATE
+	// GATE: Serpent key schedule: AES submission intermediate values
+	// Vector: serpent_ecb_iv.txt
 	it('SK[0..32] match reference for all key sizes', () => {
 		const wasm = getWasm();
 		for (const { key, sk } of cases) {

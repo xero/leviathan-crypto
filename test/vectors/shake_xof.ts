@@ -20,7 +20,7 @@ export interface MultiSqueezeVector {
 	expectedChunks: string[];  // expected hex output per chunk (parallel to squeezes)
 }
 
-// ── SHAKE128 (rate = 168 bytes) ──────────────────────────────────────────────
+// ── SHAKE128 (rate = 168 bytes) ─────────────────────────────────────────────
 
 export const shake128MultiSqueezeVectors: MultiSqueezeVector[] = [
 	{
@@ -114,7 +114,7 @@ export const shake128MultiSqueezeVectors: MultiSqueezeVector[] = [
 	},
 ];
 
-// ── SHAKE256 (rate = 136 bytes) ──────────────────────────────────────────────
+// ── SHAKE256 (rate = 136 bytes) ─────────────────────────────────────────────
 
 export const shake256MultiSqueezeVectors: MultiSqueezeVector[] = [
 	{

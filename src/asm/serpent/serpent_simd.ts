@@ -33,11 +33,35 @@
 import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 // v128 working register helpers — 5 × v128 at SIMD_WORK_OFFSET, 16-byte stride
+
+/**
+ * Load v128 register i from SIMD_WORK_OFFSET. Each register holds 4 × i32 lanes.
+ * @internal
+ * @param i  register index in {0,1,2,3,4}
+ * @returns  v128 value at SIMD_WORK_OFFSET + i*16
+ */
 @inline function rget_v(i: i32): v128 { return v128.load(SIMD_WORK_OFFSET + (i << 4)) }
+
+/**
+ * Store v128 value v into SIMD working register i.
+ * @internal
+ * @param i  register index in {0,1,2,3,4}
+ * @param v  v128 value to store
+ */
 @inline function rset_v(i: i32, v: v128): void { v128.store(SIMD_WORK_OFFSET + (i << 4), v) }
 
 // ── Forward S-boxes (v128) ──────────────────────────────────────────────────
 
+/**
+ * Serpent S-box 0 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb0_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x3)); rset_v(x3, v128.or(rget_v(x3), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x4)));
 	rset_v(x4, v128.xor(rget_v(x4), rget_v(x2))); rset_v(x4, v128.not(rget_v(x4))); rset_v(x3, v128.xor(rget_v(x3), rget_v(x1)));
@@ -47,6 +71,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x4))); rset_v(x1, v128.xor(rget_v(x1), rget_v(x2)));
 }
 
+/**
+ * Serpent S-box 1 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb1_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x1)); rset_v(x1, v128.xor(rget_v(x1), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x3)));
 	rset_v(x3, v128.not(rget_v(x3))); rset_v(x4, v128.and(rget_v(x4), rget_v(x1))); rset_v(x0, v128.or(rget_v(x0), rget_v(x1)));
@@ -56,6 +90,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x0, v128.not(rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x1)));
 }
 
+/**
+ * Serpent S-box 2 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb2_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x3, v128.not(rget_v(x3))); rset_v(x1, v128.xor(rget_v(x1), rget_v(x0))); rset_v(x4, rget_v(x0));
 	rset_v(x0, v128.and(rget_v(x0), rget_v(x2))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x3))); rset_v(x3, v128.or(rget_v(x3), rget_v(x4)));
@@ -65,6 +109,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x1, v128.or(rget_v(x1), rget_v(x2)));
 }
 
+/**
+ * Serpent S-box 3 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb3_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x1)); rset_v(x1, v128.xor(rget_v(x1), rget_v(x3))); rset_v(x3, v128.or(rget_v(x3), rget_v(x0)));
 	rset_v(x4, v128.and(rget_v(x4), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x1)));
@@ -75,6 +129,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x3, v128.xor(rget_v(x3), rget_v(x2)));
 }
 
+/**
+ * Serpent S-box 4 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb4_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x3)); rset_v(x3, v128.and(rget_v(x3), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x4)));
 	rset_v(x3, v128.xor(rget_v(x3), rget_v(x2))); rset_v(x2, v128.or(rget_v(x2), rget_v(x4))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x1)));
@@ -84,6 +148,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x1, v128.not(rget_v(x1))); rset_v(x3, v128.xor(rget_v(x3), rget_v(x0)));
 }
 
+/**
+ * Serpent S-box 5 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb5_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x1)); rset_v(x1, v128.or(rget_v(x1), rget_v(x0))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x1)));
 	rset_v(x3, v128.not(rget_v(x3))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x2)));
@@ -93,6 +167,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x2, v128.and(rget_v(x2), rget_v(x0))); rset_v(x3, v128.xor(rget_v(x3), rget_v(x2)));
 }
 
+/**
+ * Serpent S-box 6 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb6_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x1)); rset_v(x3, v128.xor(rget_v(x3), rget_v(x0))); rset_v(x1, v128.xor(rget_v(x1), rget_v(x2)));
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x0))); rset_v(x0, v128.and(rget_v(x0), rget_v(x3))); rset_v(x1, v128.or(rget_v(x1), rget_v(x3)));
@@ -102,6 +186,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x3, v128.xor(rget_v(x3), rget_v(x0))); rset_v(x1, v128.xor(rget_v(x1), rget_v(x2)));
 }
 
+/**
+ * Serpent S-box 7 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function sb7_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x1, v128.not(rget_v(x1))); rset_v(x4, rget_v(x1)); rset_v(x0, v128.not(rget_v(x0))); rset_v(x1, v128.and(rget_v(x1), rget_v(x2)));
 	rset_v(x1, v128.xor(rget_v(x1), rget_v(x3))); rset_v(x3, v128.or(rget_v(x3), rget_v(x4))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x2)));
@@ -113,6 +207,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 // ── Inverse S-boxes (v128) ──────────────────────────────────────────────────
 
+/**
+ * Serpent inverse S-box 0 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si0_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x3)); rset_v(x1, v128.xor(rget_v(x1), rget_v(x0))); rset_v(x3, v128.or(rget_v(x3), rget_v(x1)));
 	rset_v(x4, v128.xor(rget_v(x4), rget_v(x1))); rset_v(x0, v128.not(rget_v(x0))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x3)));
@@ -122,6 +226,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x3)));
 }
 
+/**
+ * Serpent inverse S-box 1 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si1_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x1, v128.xor(rget_v(x1), rget_v(x3))); rset_v(x4, rget_v(x0)); rset_v(x0, v128.xor(rget_v(x0), rget_v(x2)));
 	rset_v(x2, v128.not(rget_v(x2))); rset_v(x4, v128.or(rget_v(x4), rget_v(x1))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x3)));
@@ -131,6 +245,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x1, v128.xor(rget_v(x1), rget_v(x0))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x1)));
 }
 
+/**
+ * Serpent inverse S-box 2 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si2_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x1))); rset_v(x4, rget_v(x3)); rset_v(x3, v128.not(rget_v(x3)));
 	rset_v(x3, v128.or(rget_v(x3), rget_v(x2))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x4))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x0)));
@@ -140,6 +264,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x3, v128.xor(rget_v(x3), rget_v(x4))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x0)));
 }
 
+/**
+ * Serpent inverse S-box 3 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si3_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x1))); rset_v(x4, rget_v(x1)); rset_v(x1, v128.and(rget_v(x1), rget_v(x2)));
 	rset_v(x1, v128.xor(rget_v(x1), rget_v(x0))); rset_v(x0, v128.or(rget_v(x0), rget_v(x4))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x3)));
@@ -149,6 +283,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x4, v128.xor(rget_v(x4), rget_v(x3))); rset_v(x3, v128.xor(rget_v(x3), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x1)));
 }
 
+/**
+ * Serpent inverse S-box 4 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si4_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x3))); rset_v(x4, rget_v(x0)); rset_v(x0, v128.and(rget_v(x0), rget_v(x1)));
 	rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x2, v128.or(rget_v(x2), rget_v(x3))); rset_v(x4, v128.not(rget_v(x4)));
@@ -158,6 +302,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x1, v128.and(rget_v(x1), rget_v(x0))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x1))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x3)));
 }
 
+/**
+ * Serpent inverse S-box 5 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si5_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x1)); rset_v(x1, v128.or(rget_v(x1), rget_v(x2))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x4)));
 	rset_v(x1, v128.xor(rget_v(x1), rget_v(x3))); rset_v(x3, v128.and(rget_v(x3), rget_v(x4))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x3)));
@@ -168,6 +322,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x4))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x3)));
 }
 
+/**
+ * Serpent inverse S-box 6 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si6_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x4, rget_v(x0)); rset_v(x0, v128.and(rget_v(x0), rget_v(x3)));
 	rset_v(x2, v128.xor(rget_v(x2), rget_v(x3))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x2))); rset_v(x3, v128.xor(rget_v(x3), rget_v(x1)));
@@ -177,6 +341,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x0, v128.xor(rget_v(x0), rget_v(x1))); rset_v(x2, v128.xor(rget_v(x2), rget_v(x0)));
 }
 
+/**
+ * Serpent inverse S-box 7 applied to 4 parallel blocks via v128 registers.
+ * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * @internal
+ * @param x0  v128 register index for input word 0
+ * @param x1  v128 register index for input word 1
+ * @param x2  v128 register index for input word 2
+ * @param x3  v128 register index for input word 3
+ * @param x4  v128 scratch/output register index
+ */
 @inline function si7_v(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset_v(x4, rget_v(x3)); rset_v(x3, v128.and(rget_v(x3), rget_v(x0))); rset_v(x0, v128.xor(rget_v(x0), rget_v(x2)));
 	rset_v(x2, v128.or(rget_v(x2), rget_v(x4))); rset_v(x4, v128.xor(rget_v(x4), rget_v(x1))); rset_v(x0, v128.not(rget_v(x0)));
@@ -189,6 +363,16 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 // ── Key XOR (v128) — splat scalar subkey to all 4 lanes ────────────────────
 
+/**
+ * XOR v128 working registers a, b, c, d with subkey i (splatted to all 4 lanes).
+ * Serpent AES submission §2.2 — K function, vectorised.
+ * @internal
+ * @param a  v128 register index for word 0
+ * @param b  v128 register index for word 1
+ * @param c  v128 register index for word 2
+ * @param d  v128 register index for word 3
+ * @param i  subkey index (0..32)
+ */
 @inline function keyXor_v(a: i32, b: i32, c: i32, d: i32, i: i32): void {
 	rset_v(a, v128.xor(rget_v(a), i32x4.splat(load<i32>(SUBKEY_OFFSET + (4 * i + 0) * 4))))
 	rset_v(b, v128.xor(rget_v(b), i32x4.splat(load<i32>(SUBKEY_OFFSET + (4 * i + 1) * 4))))
@@ -197,8 +381,18 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 }
 
 // ── Linear transform + key XOR (v128, encrypt) ─────────────────────────────
-// Rotation amounts: 13, 3, 1, 7, 5, 22 — from Serpent spec via serpent.ts lk()
 
+/**
+ * Apply the Serpent linear transform then XOR subkey i — vectorised over 4 lanes.
+ * Serpent AES submission §2.2 — LT + K function. Rotation amounts: 13, 3, 1, 7, 5, 22.
+ * @internal
+ * @param a  v128 register index for rotl-13 / rotl-5 word
+ * @param b  v128 register index for rotl-1 word
+ * @param c  v128 register index for rotl-3 / rotl-22 word
+ * @param d  v128 register index for rotl-7 word
+ * @param e  v128 scratch register index
+ * @param i  subkey index (1..31)
+ */
 @inline function lk_v(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32): void {
 	rset_v(a, v128.or(i32x4.shl(rget_v(a), 13), i32x4.shr_u(rget_v(a), 19)))
 	rset_v(c, v128.or(i32x4.shl(rget_v(c), 3), i32x4.shr_u(rget_v(c), 29)))
@@ -224,8 +418,18 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 }
 
 // ── Inverse linear transform + key XOR (v128, decrypt) ──────────────────────
-// Rotation amounts: 27, 10, 31, 25, 19, 29 — from Serpent spec via serpent.ts kl()
 
+/**
+ * XOR subkey i then apply the Serpent inverse linear transform — vectorised over 4 lanes.
+ * Serpent AES submission §2.3 — K function + inverse LT. Rotation amounts: 27, 10, 31, 25, 19, 29.
+ * @internal
+ * @param a  v128 register index for rotl-27 / rotl-19 word
+ * @param b  v128 register index for rotl-31 word
+ * @param c  v128 register index for rotl-10 / rotl-29 word
+ * @param d  v128 register index for rotl-25 word
+ * @param e  v128 scratch register index
+ * @param i  subkey index (1..31)
+ */
 @inline function kl_v(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32): void {
 	rset_v(a, v128.xor(rget_v(a), i32x4.splat(load<i32>(SUBKEY_OFFSET + (4 * i + 0) * 4))))
 	rset_v(b, v128.xor(rget_v(b), i32x4.splat(load<i32>(SUBKEY_OFFSET + (4 * i + 1) * 4))))
@@ -251,9 +455,15 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 }
 
 // ── Encrypt 4 blocks (v128) ─────────────────────────────────────────────────
-// Caller loads 4 interleaved plaintext blocks into v128 registers [0..3].
-// lane[k] of register r[w] = word w of block k  (k = 0..3).
-// Result is left in v128 registers [0..3] for caller to deinterleave.
+
+/**
+ * Encrypt 4 Serpent-256 blocks simultaneously using v128 SIMD registers.
+ * Caller must interleave 4 plaintext blocks into SIMD_WORK_OFFSET before calling:
+ * lane[k] of v128 register r[w] = word w of block k (k = 0..3).
+ * Result is left in v128 registers [0..3] at SIMD_WORK_OFFSET for caller to deinterleave.
+ * Serpent AES submission §2.2 — vectorised 32-round forward cipher.
+ * `loadKey()` must be called before this function.
+ */
 export function encryptBlock_simd_4x(): void {
 	keyXor_v(0, 1, 2, 3, 0) // K(0)
 
@@ -388,8 +598,15 @@ export function encryptBlock_simd_4x(): void {
 }
 
 // ── Decrypt 4 blocks (v128) ─────────────────────────────────────────────────
-// Same interleaved layout as encrypt. Result in v128 registers.
-// Note: output registers are [4,1,3,2] not [0,1,2,3] — matches scalar decrypt.
+
+/**
+ * Decrypt 4 Serpent-256 blocks simultaneously using v128 SIMD registers.
+ * Same interleaved input layout as `encryptBlock_simd_4x`.
+ * Output lands in registers [4,1,3,2] (not [0,1,2,3]) — matches the scalar decrypt
+ * slot ordering from `decryptBlock_unrolled`.
+ * Serpent AES submission §2.3 — vectorised 32-round inverse cipher.
+ * `loadKey()` must be called before this function.
+ */
 export function decryptBlock_simd_4x(): void {
 	keyXor_v(0, 1, 2, 3, 32) // K(32)
 

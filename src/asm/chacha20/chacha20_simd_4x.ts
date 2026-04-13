@@ -42,7 +42,7 @@ import {
 	CHACHA_SIMD_WORK_OFFSET,
 } from './buffers'
 
-// ── Scalar helpers (private, not exported) ────────────────────────────────────
+// ── Scalar helpers (private, not exported) ──────────────────────────────────
 // Duplicated from chacha20.ts to avoid exporting internal symbols.
 
 @inline
@@ -91,7 +91,7 @@ function computeBlock_scalar(): void {
 	}
 }
 
-// ── 4-wide SIMD block function ────────────────────────────────────────────────
+// ── 4-wide SIMD block function ──────────────────────────────────────────────
 //
 // Produces 256 bytes of keystream (4 × 64) stored in deinterleaved order at
 // CHACHA_SIMD_WORK_OFFSET:
@@ -253,7 +253,7 @@ function block4x(ctr: u32): void {
 	store<u32>(w + 248, i32x4.extract_lane(r14, 3)); store<u32>(w + 252, i32x4.extract_lane(r15, 3))
 }
 
-// ── Exported chunk functions ──────────────────────────────────────────────────
+// ── Exported chunk functions ────────────────────────────────────────────────
 
 // 4-wide inter-block SIMD encrypt: processes 256-byte groups via block4x,
 // falls back to scalar for the 0–3 remaining blocks (0–192 bytes).

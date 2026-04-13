@@ -31,7 +31,7 @@ import { montgomery_reduce, barrett_reduce, fqmul } from './reduce';
 import { ntt, invntt, basemul, getZeta } from './ntt';
 import { cbd2, cbd3 } from './cbd';
 
-// ── Serialization ─────────────────────────────────────────────────────────────
+// ── Serialization ───────────────────────────────────────────────────────────
 
 /**
  * Serialize polynomial to 384 bytes (12-bit packing).
@@ -64,7 +64,7 @@ export function poly_frombytes(polyOffset: i32, aOffset: i32): void {
 	}
 }
 
-// ── Compression ───────────────────────────────────────────────────────────────
+// ── Compression ─────────────────────────────────────────────────────────────
 
 /**
  * Compress and serialize polynomial.
@@ -170,7 +170,7 @@ export function poly_decompress(polyOffset: i32, aOffset: i32, dv: i32): void {
 	}
 }
 
-// ── Message encoding ──────────────────────────────────────────────────────────
+// ── Message encoding ────────────────────────────────────────────────────────
 
 /**
  * Convert 32-byte message to polynomial (1-bit Decompress).
@@ -210,7 +210,7 @@ export function poly_tomsg(msgOffset: i32, polyOffset: i32): void {
 	}
 }
 
-// ── Arithmetic ────────────────────────────────────────────────────────────────
+// ── Arithmetic ──────────────────────────────────────────────────────────────
 
 /**
  * Pointwise addition. No modular reduction.
@@ -256,7 +256,7 @@ export function poly_tomont(polyOffset: i32): void {
 	}
 }
 
-// ── NTT wrappers ──────────────────────────────────────────────────────────────
+// ── NTT wrappers ────────────────────────────────────────────────────────────
 
 /**
  * Forward NTT followed by Barrett reduction. FIPS 203 Algorithm 9.
@@ -307,7 +307,7 @@ function _basemul_neg(rOffset: i32, aOffset: i32, bOffset: i32, zetaIdx: i32): v
 	store<i16>(rOffset + 2, <i16>(<i32>fqmul(a0, b1) + <i32>fqmul(a1, b0)));
 }
 
-// ── Noise sampling ────────────────────────────────────────────────────────────
+// ── Noise sampling ──────────────────────────────────────────────────────────
 
 /**
  * Apply CBD to PRF output to sample a noisy polynomial. FIPS 203 SamplePolyCBD_η.

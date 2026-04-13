@@ -57,45 +57,61 @@ export const CBC_IV_OFFSET:    i32 = 131748;  // 131728 + 20
 export const SIMD_WORK_OFFSET: i32 = 131776;  // 5 × v128 = 80 bytes
 // END = 131856 < 196608 ✓
 
+// ── Buffer offset getters ───────────────────────────────────────────────────
+
+/** Returns the module identifier (always 0 for serpent). */
 export function getModuleId():      i32 {
 	return 0;
 }
+/** Returns the byte offset of KEY_BUFFER in WASM linear memory. */
 export function getKeyOffset():     i32 {
 	return KEY_OFFSET;
 }
+/** Returns the byte offset of BLOCK_PT_BUFFER in WASM linear memory. */
 export function getBlockPtOffset(): i32 {
 	return BLOCK_PT_OFFSET;
 }
+/** Returns the byte offset of BLOCK_CT_BUFFER in WASM linear memory. */
 export function getBlockCtOffset(): i32 {
 	return BLOCK_CT_OFFSET;
 }
+/** Returns the byte offset of NONCE_BUFFER (CTR mode) in WASM linear memory. */
 export function getNonceOffset():   i32 {
 	return NONCE_OFFSET;
 }
+/** Returns the byte offset of COUNTER_BUFFER (128-bit LE) in WASM linear memory. */
 export function getCounterOffset(): i32 {
 	return COUNTER_OFFSET;
 }
+/** Returns the byte offset of SUBKEY_BUFFER (33 × 4 round subkeys) in WASM linear memory. */
 export function getSubkeyOffset():  i32 {
 	return SUBKEY_OFFSET;
 }
+/** Returns the byte offset of CHUNK_PT_BUFFER in WASM linear memory. */
 export function getChunkPtOffset(): i32 {
 	return CHUNK_PT_OFFSET;
 }
+/** Returns the byte offset of CHUNK_CT_BUFFER in WASM linear memory. */
 export function getChunkCtOffset(): i32 {
 	return CHUNK_CT_OFFSET;
 }
+/** Returns the byte offset of WORK_BUFFER (5 × i32 working registers) in WASM linear memory. */
 export function getWorkOffset():    i32 {
 	return WORK_OFFSET;
 }
+/** Returns the byte offset of CBC_IV_BUFFER in WASM linear memory. */
 export function getCbcIvOffset():   i32 {
 	return CBC_IV_OFFSET;
 }
+/** Returns the byte offset of SIMD_WORK_BUFFER (5 × v128 registers) in WASM linear memory. */
 export function getSimdWorkOffset(): i32 {
 	return SIMD_WORK_OFFSET;
 }
+/** Returns the chunk buffer size in bytes (65536 + 16 for PKCS7 max overhead). */
 export function getChunkSize():     i32 {
 	return CHUNK_SIZE;
 }
+/** Returns the number of WASM memory pages currently allocated (each page is 64 KB). */
 export function getMemoryPages():   i32 {
 	return memory.size();
 }

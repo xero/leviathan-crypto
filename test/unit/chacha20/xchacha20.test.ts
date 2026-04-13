@@ -49,10 +49,10 @@ function getWasm() {
 	return getInstance('chacha20').exports as unknown as ChaChaExports;
 }
 
-// ── Gate: HChaCha20 subkey derivation ─────────────────────────────────────────
 describe('HChaCha20 — draft-irtf-cfrg-xchacha §A.3.1', () => {
 
-	// GATE — HChaCha20 subkey
+	// GATE: HChaCha20/XChaCha20: draft-irtf-cfrg-xchacha §A.3.1
+	// Vector: chacha20.ts[hchacha20Vectors[0]]
 	it('HChaCha20 subkey derivation matches draft vector', () => {
 		const v = hchacha20Vectors[0];
 		const x = getWasm();
@@ -72,7 +72,7 @@ describe('HChaCha20 — draft-irtf-cfrg-xchacha §A.3.1', () => {
 	});
 });
 
-// ── XChaCha20-Poly1305 AEAD ───────────────────────────────────────────────────
+// ── XChaCha20-Poly1305 AEAD ─────────────────────────────────────────────────
 
 // IETF draft §A.3.2 test vector
 const TV          = xchacha20Poly1305Vectors[0];
@@ -205,11 +205,14 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 	});
 
 	it('RangeError for non-32-byte key', () => {
-		const xchacha = new XChaCha20Poly1305();
+		// Strict single-use: each encrypt() attempt locks the instance, so
+		// each length probe needs a fresh AEAD.
 		const nonce = crypto.getRandomValues(new Uint8Array(24));
-		expect(() => xchacha.encrypt(new Uint8Array(16), nonce, new Uint8Array(1))).toThrow(RangeError);
-		expect(() => xchacha.encrypt(new Uint8Array(31), nonce, new Uint8Array(1))).toThrow(RangeError);
-		xchacha.dispose();
+		for (const keyLen of [16, 31]) {
+			const xchacha = new XChaCha20Poly1305();
+			expect(() => xchacha.encrypt(new Uint8Array(keyLen), nonce, new Uint8Array(1))).toThrow(RangeError);
+			xchacha.dispose();
+		}
 	});
 
 	// wipeBuffers
@@ -235,7 +238,7 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 	});
 });
 
-// ── Single-use encrypt guard ──────────────────────────────────────────────────
+// ── Single-use encrypt guard ────────────────────────────────────────────────
 
 describe('XChaCha20Poly1305 — single-use encrypt guard', () => {
 	it('encrypt() once succeeds', () => {
@@ -292,7 +295,7 @@ describe('XChaCha20Poly1305 — single-use encrypt guard', () => {
 	});
 });
 
-// ── Wipe-before-throw ─────────────────────────────────────────────────────────
+// ── Wipe-before-throw ───────────────────────────────────────────────────────
 
 describe('XChaCha20Poly1305 — wipe-before-throw', () => {
 	it('WASM chunk output buffer is zeroed after auth failure', () => {

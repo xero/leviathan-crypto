@@ -28,7 +28,7 @@
 
 import { fqmul, barrett_reduce } from './reduce';
 
-// ── Zetas table ────────────────────────────────────────────────────────────────
+// ── Zetas table ─────────────────────────────────────────────────────────────
 // 128 twiddle factors. Each entry zetas[i] = MONT * 17^{BitRev7(i)} mod q,
 // centered to [-(q-1)/2, (q-1)/2].
 // Source: pq-crystals/kyber main ref/ntt.c — must be verified by Gate 3 test.
@@ -72,7 +72,7 @@ export function getZeta(i: i32): i16 {
 	return unchecked(zetas[i]);
 }
 
-// ── NTT ────────────────────────────────────────────────────────────────────────
+// ── NTT ─────────────────────────────────────────────────────────────────────
 
 /**
  * In-place forward NTT. FIPS 203 Algorithm 9 — NTT.

@@ -1,5 +1,5 @@
 FROM oven/bun:debian AS bun
-FROM mcr.microsoft.com/playwright:latest
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
 
 LABEL org.opencontainers.image.title="leviathan-crypto/ci"
 LABEL org.opencontainers.image.description="cicd e2e testing toolchain for the leviathan-crypto library"
@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.documentation="https://github.com/xero/leviathan-
 LABEL org.opencontainers.image.url="https://github.com/xero/leviathan-crypto/actions"
 LABEL org.opencontainers.image.source="https://github.com/xero/leviathan-crypto"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.created="2026-04-26"
+LABEL org.opencontainers.image.created="2026-04-30"
 
 # Pull the bun outta the oven
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun

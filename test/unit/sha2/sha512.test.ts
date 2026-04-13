@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * SHA-512 and SHA-384 Known-Answer Tests — FIPS 180-4
+ *
+ * Source: FIPS 180-4 §C.1 (SHA Standard)
+ * Files:  vectors/sha2.ts (sha512Vectors, sha384Vectors, sha512CrossCheck, sha384CrossCheck)
+ */
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHA512, SHA384 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
@@ -39,8 +45,8 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── Gate 4: SHA-512 "abc" ──────────────────────────────────────────────────
-// GATE
+// GATE: SHA-512 "abc": FIPS 180-4 §C.1
+// Vector: sha2.ts[sha512Vectors[1]]
 describe('Gate 4 — SHA-512 "abc"', () => {
 	test('SHA-512("abc") matches FIPS 180-4 §C.1', () => {
 		const h = new SHA512();

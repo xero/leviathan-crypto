@@ -171,7 +171,7 @@ describe('KyberSuite error cases', () => {
 	});
 });
 
-// ── MlKem keygen key sizes are what params say ───────────────────────────────
+// ── MlKem keygen key sizes are what params say ──────────────────────────────
 
 describe('KyberSuite param set key sizes', () => {
 	it('MlKem512 key sizes', () => {

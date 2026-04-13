@@ -44,21 +44,21 @@ import {
 	XCHACHA_NONCE_OFFSET, XCHACHA_SUBKEY_OFFSET,
 } from './buffers'
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants ───────────────────────────────────────────────────────────────
 // "expand 32-byte k" in ASCII, split into four LE 32-bit words (RFC §2.2)
 const C0: u32 = 0x61707865  // "expa"
 const C1: u32 = 0x3320646e  // "nd 3"
 const C2: u32 = 0x79622d32  // "2-by"
 const C3: u32 = 0x6b206574  // "te k"
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 @inline
 function rotl32(x: u32, n: u32): u32 {
 	return (x << n) | (x >>> (32 - n))
 }
 
-// ── Quarter round ─────────────────────────────────────────────────────────────
+// ── Quarter round ───────────────────────────────────────────────────────────
 // RFC 8439 §2.1
 @inline
 function qr(base: i32, a: i32, b: i32, c: i32, d: i32): void {
@@ -78,7 +78,7 @@ function qr(base: i32, a: i32, b: i32, c: i32, d: i32): void {
 	store<u32>(base + d * 4, dv)
 }
 
-// ── Double round ──────────────────────────────────────────────────────────────
+// ── Double round ────────────────────────────────────────────────────────────
 // One double round = column round + diagonal round (RFC §2.1)
 // 20 rounds total = 10 double rounds
 @inline
@@ -95,7 +95,7 @@ function doubleRound(base: i32): void {
 	qr(base, 3, 4,  9, 14)
 }
 
-// ── Block function ────────────────────────────────────────────────────────────
+// ── Block function ──────────────────────────────────────────────────────────
 // Produce one 64-byte keystream block from the current state.
 // RFC §2.2: copy → 10 double rounds → add initial state
 function block(): void {
@@ -112,7 +112,7 @@ function block(): void {
 	}
 }
 
-// ── Key and nonce setup ───────────────────────────────────────────────────────
+// ── Key and nonce setup ─────────────────────────────────────────────────────
 
 export function chachaLoadKey(): void {
 	const s = CHACHA_STATE_OFFSET
@@ -146,7 +146,7 @@ export function chachaResetCounter(): void {
 	chachaSetCounter(1)
 }
 
-// ── Encryption / decryption ───────────────────────────────────────────────────
+// ── Encryption / decryption ─────────────────────────────────────────────────
 
 export function chachaEncryptChunk(len: i32): i32 {
 	if (len <= 0 || len > CHUNK_SIZE) return -1
@@ -176,7 +176,7 @@ export function chachaDecryptChunk(len: i32): i32 {
 	return chachaEncryptChunk(len)
 }
 
-// ── Poly1305 key generation ──────────────────────────────────────────────────
+// ── Poly1305 key generation ─────────────────────────────────────────────────
 // RFC 8439 §2.6
 export function chachaGenPolyKey(): void {
 	store<u32>(CHACHA_STATE_OFFSET + 48, 0)
@@ -184,7 +184,7 @@ export function chachaGenPolyKey(): void {
 	memory.copy(POLY_KEY_OFFSET, CHACHA_BLOCK_OFFSET, 32)
 }
 
-// ── HChaCha20 subkey derivation ──────────────────────────────────────────────
+// ── HChaCha20 subkey derivation ─────────────────────────────────────────────
 // IETF draft-irtf-cfrg-xchacha §2.1
 // NO initial-state add-back step (key difference from block()).
 export function hchacha20(): void {

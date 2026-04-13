@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * HMAC-SHA-256 and HMAC-SHA-512 Known-Answer Tests (cross-browser) — RFC 4231
+ *
+ * Source: RFC 4231 — HMAC-SHA Identifiers and Test Vectors
+ * Files:  vectors/sha2.ts (hmacSha256Vectors, hmacSha512Vectors)
+ */
 import { test, expect } from '@playwright/test';
 import { hmacSha256Vectors, hmacSha512Vectors } from '../vectors/sha2.js';
 

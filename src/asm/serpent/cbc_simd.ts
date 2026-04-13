@@ -43,21 +43,59 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 // ── Byte-reversal word load ─────────────────────────────────────────────────
 // Serpent internal format: r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0]
 
+/**
+ * Read Serpent working-register word 0 from a 16-byte block at `base`.
+ * Applies Serpent byte-reversal: bytes[15..12] assembled as big-endian i32.
+ * @internal
+ * @param base  byte offset of the 16-byte block in WASM linear memory
+ * @returns     word 0 in Serpent internal format
+ */
 @inline function w0(base: i32): i32 {
 	return i32(load<u8>(base + 15)) | (i32(load<u8>(base + 14)) << 8) | (i32(load<u8>(base + 13)) << 16) | (i32(load<u8>(base + 12)) << 24)
 }
+
+/**
+ * Read Serpent working-register word 1 from a 16-byte block at `base`.
+ * Applies Serpent byte-reversal: bytes[11..8] assembled as big-endian i32.
+ * @internal
+ * @param base  byte offset of the 16-byte block in WASM linear memory
+ * @returns     word 1 in Serpent internal format
+ */
 @inline function w1(base: i32): i32 {
 	return i32(load<u8>(base + 11)) | (i32(load<u8>(base + 10)) << 8) | (i32(load<u8>(base +  9)) << 16) | (i32(load<u8>(base +  8)) << 24)
 }
+
+/**
+ * Read Serpent working-register word 2 from a 16-byte block at `base`.
+ * Applies Serpent byte-reversal: bytes[7..4] assembled as big-endian i32.
+ * @internal
+ * @param base  byte offset of the 16-byte block in WASM linear memory
+ * @returns     word 2 in Serpent internal format
+ */
 @inline function w2(base: i32): i32 {
 	return i32(load<u8>(base +  7)) | (i32(load<u8>(base +  6)) << 8) | (i32(load<u8>(base +  5)) << 16) | (i32(load<u8>(base +  4)) << 24)
 }
+
+/**
+ * Read Serpent working-register word 3 from a 16-byte block at `base`.
+ * Applies Serpent byte-reversal: bytes[3..0] assembled as big-endian i32.
+ * @internal
+ * @param base  byte offset of the 16-byte block in WASM linear memory
+ * @returns     word 3 in Serpent internal format
+ */
 @inline function w3(base: i32): i32 {
 	return i32(load<u8>(base +  3)) | (i32(load<u8>(base +  2)) << 8) | (i32(load<u8>(base +  1)) << 16) | (i32(load<u8>(base +  0)) << 24)
 }
 
 // ── Load 4 ciphertext blocks into SIMD working registers ────────────────────
 
+/**
+ * Interleave 4 consecutive ciphertext blocks into v128 SIMD working registers.
+ * Each v128 register w holds: lane[k] = word w of block k (k = 0..3).
+ * Reads 64 bytes starting at ctBase.
+ * @internal
+ * @param ctBase  byte offset of the first of 4 ciphertext blocks in WASM linear memory
+ */
 @inline function loadCiphertext4x(ctBase: i32): void {
 	const b0 = ctBase
 	const b1 = ctBase + 16
@@ -71,8 +109,18 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 }
 
 // ── Deinterleave one decrypted block and XOR with chaining value ────────────
-// Decrypt output registers: r[4]→bytes[0..3], r[1]→[4..7], r[3]→[8..11], r[2]→[12..15]
 
+/**
+ * Write one decrypted CBC block to plaintext memory, XORing with the chaining block.
+ * Decryption output slot layout: r[4]→bytes[0..3], r[1]→[4..7], r[3]→[8..11], r[2]→[12..15].
+ * @internal
+ * @param ptBase    byte offset of the plaintext destination in WASM linear memory
+ * @param chainBase byte offset of the 16-byte chaining block (IV or previous ciphertext)
+ * @param rw4       decrypted word from register slot 4 (bytes 0..3)
+ * @param rw1       decrypted word from register slot 1 (bytes 4..7)
+ * @param rw3       decrypted word from register slot 3 (bytes 8..11)
+ * @param rw2       decrypted word from register slot 2 (bytes 12..15)
+ */
 @inline function writeDecryptedBlock(ptBase: i32, chainBase: i32, rw4: i32, rw1: i32, rw3: i32, rw2: i32): void {
 	store<u8>(ptBase +  0, u8(rw4 >>> 24) ^ load<u8>(chainBase +  0))
 	store<u8>(ptBase +  1, u8(rw4 >>> 16) ^ load<u8>(chainBase +  1))
@@ -93,10 +141,15 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 }
 
 // ── Deinterleave 4 decrypted blocks with CBC chaining XOR ───────────────────
-// Unrolled: i32x4.extract_lane requires compile-time constant lane index.
-// Chaining: lane[0] XORs with CBC_IV, lanes 1-3 XOR with CT[n], CT[n+1], CT[n+2].
-// After all 4 blocks written, update CBC_IV to CT[n+3].
 
+/**
+ * Deinterleave 4 decrypted blocks from SIMD registers and apply CBC chaining XOR.
+ * Chaining: block 0 XORs with CBC_IV_BUFFER; blocks 1-3 XOR with CT[n], CT[n+1], CT[n+2].
+ * Updates CBC_IV_BUFFER to CT[n+3] after writing all 4 plaintext blocks.
+ * Unrolled because i32x4.extract_lane requires compile-time constant lane indices.
+ * @internal
+ * @param processed  byte offset into the current chunk (marks start of this 4-block group)
+ */
 @inline function deinterleaveDecrypt4x(processed: i32): void {
 	const r4 = v128.load(SIMD_WORK_OFFSET + 4 * 16)
 	const r1 = v128.load(SIMD_WORK_OFFSET + 1 * 16)
@@ -132,6 +185,14 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 
 // ── Inline scalar tail ──────────────────────────────────────────────────────
 
+/**
+ * Decrypt one 16-byte CBC block using the scalar path.
+ * Used for the 0..3 block tail after the SIMD inner loop.
+ * Copies CT to BLOCK_CT_BUFFER, decrypts, XORs with CBC_IV_BUFFER, updates chaining block.
+ * @internal
+ * @param ctOff  byte offset of the ciphertext block in WASM linear memory
+ * @param ptOff  byte offset of the plaintext destination in WASM linear memory
+ */
 @inline function decryptBlockScalar(ctOff: i32, ptOff: i32): void {
 	// Copy CT to BLOCK_CT_BUFFER, decrypt, XOR with chaining, update chain
 	for (let j: i32 = 0; j < 16; j++)
@@ -145,6 +206,14 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 
 // ── Exported CBC SIMD decrypt ───────────────────────────────────────────────
 
+/**
+ * Decrypt chunkLen bytes from CHUNK_CT_BUFFER to CHUNK_PT_BUFFER using SIMD-accelerated
+ * Serpent CBC mode. Processes 4 blocks (64 bytes) per SIMD iteration; scalar tail handles
+ * any remainder. CBC encrypt stays scalar (sequential dependency — not parallelizable).
+ * PKCS7 unpadding must be performed by the caller after this function returns.
+ * @param chunkLen  number of bytes to decrypt; must be a positive multiple of 16
+ * @returns         chunkLen on success, -1 if chunkLen is invalid
+ */
 export function cbcDecryptChunk_simd(chunkLen: i32): i32 {
 	if (chunkLen <= 0 || chunkLen > CHUNK_SIZE || chunkLen % 16 !== 0) return -1
 

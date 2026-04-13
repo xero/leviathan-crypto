@@ -44,7 +44,8 @@ describe('S-box table entry tests — serpent_ecb_tbl.txt (Gate 1)', () => {
 		expect(vectors.length).toBe(1536);
 	});
 
-	// GATE
+	// GATE: Serpent ECB S-box: AES submission (Anderson/Biham/Knudsen)
+	// Vector: serpent_ecb_tbl.txt
 	it('all 1536 S-box entry vectors pass', () => {
 		for (const { key, pt, ct } of vectors) {
 			loadKey(key);

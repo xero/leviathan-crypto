@@ -454,19 +454,48 @@ export class SealStreamPool {
 		for (const { reject } of this._pending.values()) reject(error);
 		this._pending.clear();
 		this._queue.length = 0;
-		for (const w of this._workers) {
-			try {
-				w.postMessage({ type: 'wipe' });
-			} catch { /* worker may be terminated */ }
-			w.terminate();
-		}
-		this._workers.length = 0;
+
+		const workers = this._workers;
+		this._workers = [];
 		this._idle.length = 0;
+
+		// Fire-and-forget: wipe each worker's key material, then terminate.
+		// On timeout, terminate anyway — the main-thread key handles are
+		// wiped below so the owning surface no longer has access.
+		for (const w of workers) this._wipeThenTerminate(w);
+
 		if (this._keys) {
 			wipe(this._keys.bytes); this._keys = null;
 		}
 		if (this._masterKey) {
 			wipe(this._masterKey); this._masterKey = null;
 		}
+	}
+
+	private _wipeThenTerminate(w: Worker): void {
+		const WIPE_ACK_TIMEOUT_MS = 100;
+		let done = false;
+		// prefer-const false positive: `finish` (defined below) closes over
+		// `t` and is invoked synchronously from the catch path before the
+		// `t = setTimeout(...)` assignment runs.
+		// eslint-disable-next-line prefer-const
+		let t: ReturnType<typeof setTimeout> | undefined;
+		const finish = (): void => {
+			if (done) return;
+			done = true;
+			if (t !== undefined) clearTimeout(t);
+			w.removeEventListener('message', onMsg);
+			w.terminate();
+		};
+		const onMsg = (e: MessageEvent): void => {
+			if (e.data && e.data.type === 'wiped') finish();
+		};
+		w.addEventListener('message', onMsg);
+		try {
+			w.postMessage({ type: 'wipe' });
+		} catch {
+			finish(); return;
+		}
+		t = setTimeout(finish, WIPE_ACK_TIMEOUT_MS);
 	}
 }

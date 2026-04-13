@@ -1,0 +1,28 @@
+name: unit-ratchet
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+      - name: install dependencies
+        run: bun i
+      - name: build wasm + embedded modules
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
+      - name: run ratchet unit tests
+        run: >
+          bun vitest run --reporter=verbose --no-coverage
+          test/unit/ratchet/ratchet_kdf.test.ts
+          test/unit/ratchet/kem_ratchet.test.ts
+          test/unit/ratchet/kem-ratchet-info-binding.test.ts
+          test/unit/ratchet/skipped_key_store.test.ts
+          test/unit/ratchet/ratchet_keypair.test.ts
+          test/unit/ratchet/resolve-handle-dos-mitigation.test.ts

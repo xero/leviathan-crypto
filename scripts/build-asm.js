@@ -21,7 +21,7 @@
 //                           ▀█████▀▀
 //
 // Build all four AssemblyScript modules.
-// Produces build/{serpent,chacha,sha2,sha3}.wasm + .js
+// Produces a .wasm + .js per entry for the modules table below.
 //
 // Using `-o` with `--bindings esm` produces both the .wasm binary
 // and a clean ESM JS wrapper (ASCII, no embedded binary).
@@ -40,7 +40,7 @@ const modules = [
   { name: 'chacha20', entry: 'src/asm/chacha20/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
   { name: 'sha2',    entry: 'src/asm/sha2/index.ts', memory: '--initialMemory 3 --maximumMemory 3' },
   { name: 'sha3',    entry: 'src/asm/sha3/index.ts', memory: '--initialMemory 3 --maximumMemory 3' },
-  { name: 'ct', entry: 'src/asm/ct/index.ts', memory: '--importMemory --initialMemory 1 --maximumMemory 1', extra: '--enable simd', noSourceMap: true },
+  { name: 'ct', entry: 'src/asm/ct/index.ts', memory: '--initialMemory 1 --maximumMemory 1', extra: '--enable simd', noSourceMap: true },
   { name: 'kyber', entry: 'src/asm/kyber/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
 ]
 

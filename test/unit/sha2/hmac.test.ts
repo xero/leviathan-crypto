@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * HMAC-SHA256, HMAC-SHA512, HMAC-SHA384 Known-Answer Tests — RFC 4231
+ *
+ * Source: RFC 4231 — HMAC-SHA Identifiers and Test Vectors
+ * Files:  vectors/sha2.ts (hmacSha256Vectors, hmacSha512Vectors, hmacSha384Vectors, hmacCrossCheck)
+ */
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384 } from '../../../src/ts/index.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
@@ -41,8 +47,8 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── Gate 5: HMAC-SHA256 TC1 (RFC 4231 §4.2) ───────────────────────────────
-// GATE
+// GATE: HMAC-SHA256 TC1: RFC 4231 §4.2
+// Vector: sha2.ts[hmacSha256Vectors[0]]
 describe('Gate 5 — HMAC-SHA256 TC1', () => {
 	test('HMAC-SHA256 TC1 matches RFC 4231 §4.2', () => {
 		const vec = hmacSha256Vectors[0];
@@ -53,8 +59,8 @@ describe('Gate 5 — HMAC-SHA256 TC1', () => {
 	});
 });
 
-// ── Gate 6: HMAC-SHA512 TC6 (RFC 4231 §4.7, 131-byte key) ─────────────────
-// GATE
+// GATE: HMAC-SHA512 TC6: RFC 4231 §4.7
+// Vector: sha2.ts[hmacSha512Vectors[2]]
 describe('Gate 6 — HMAC-SHA512 TC6', () => {
 	test('HMAC-SHA512 TC6 matches RFC 4231 §4.7 (key > block size)', () => {
 		const vec = hmacSha512Vectors[2]; // TC6

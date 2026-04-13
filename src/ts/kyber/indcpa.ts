@@ -28,7 +28,7 @@ import type { KyberExports, Sha3Exports } from './types.js';
 import type { KyberParams } from './params.js';
 import { wipe } from '../utils.js';
 
-// ── SHA3 helpers ──────────────────────────────────────────────────────────────
+// ── SHA3 helpers ────────────────────────────────────────────────────────────
 // All operate directly on raw Sha3Exports, no init() system involved.
 
 /** Absorb msg into the sha3 sponge in 168-byte chunks (max rate). */
@@ -86,7 +86,7 @@ export function shake256Hash(sx: Sha3Exports, msg: Uint8Array, n: number): Uint8
 	return out;
 }
 
-// ── Matrix generation ─────────────────────────────────────────────────────────
+// ── Matrix generation ───────────────────────────────────────────────────────
 
 /**
  * Generate row `rowI` of matrix Â (or Â^T) into polyvec slot `pvecSlot`.
@@ -142,7 +142,7 @@ function genMatrixRow(
 	}
 }
 
-// ── Noise generation ──────────────────────────────────────────────────────────
+// ── Noise generation ────────────────────────────────────────────────────────
 
 /**
  * CBD noise polyvec: SHAKE256(σ || nonce) for each entry.
@@ -232,7 +232,7 @@ function noisePoly(
 	}
 }
 
-// ── IND-CPA functions ─────────────────────────────────────────────────────────
+// ── IND-CPA functions ───────────────────────────────────────────────────────
 
 /**
  * K-PKE.KeyGen (FIPS 203 Algorithm 12) — deterministic.

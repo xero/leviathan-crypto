@@ -35,11 +35,16 @@ export function compare(aOff: i32, bOff: i32, len: i32): i32 {
 		i += 16;
 	}
 	// scalar tail for non-16-aligned remainder
-	let diff: i32 = 0;
+	let diff: i64 = 0;
 	while (i < len) {
-		diff |= load<u8>(aOff + i) ^ load<u8>(bOff + i);
+		diff |= <i64>(load<u8>(aOff + i) ^ load<u8>(bOff + i));
 		i++;
 	}
-	if (v128.any_true(acc)) return 0;
-	return diff === 0 ? 1 : 0;
+	// Reduce v128 accumulator to scalar by OR-ing its two 64-bit lanes into diff.
+	// Any nonzero byte in the SIMD accumulator survives into a nonzero diff.
+	diff |= i64x2.extract_lane(acc, 0) | i64x2.extract_lane(acc, 1);
+	// Branch-free "diff == 0 → 1, else 0":
+	//   (diff | -diff) has its sign bit set iff diff != 0; arithmetic shift
+	//   propagates it to all 64 bits. Invert and mask to low bit.
+	return <i32>(~((diff | -diff) >> 63)) & 1;
 }

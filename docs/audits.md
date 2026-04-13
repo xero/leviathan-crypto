@@ -1,7 +1,8 @@
-# Cryptographic Audits
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Independent correctness and security reviews of every primitive in leviathan-crypto. Each audit verifies the implementation against its authoritative specification using published known-answer test vectors.
+### Cryptographic Audits
+
+Independent correctness and security reviews of every primitive in leviathan-crypto. Each audit verifies the implementation against its authoritative specification using published known-answer test vectors.
 
 ---
 
@@ -15,9 +16,14 @@
 | [hkdf_audit](./hkdf_audit.md) | 2026-03-25 | Extract-and-expand, info field domain separation, stream key derivation |
 | [kyber_audit](./kyber_audit.md) | 2026-04-06 | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
 | [stream_audit](./stream_audit.md) | 2026-04-03 | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
+| [ratchet_audit](./ratchet_audit.md) | 2026-04-13 | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |
 
 ---
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

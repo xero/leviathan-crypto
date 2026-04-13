@@ -3,21 +3,28 @@ on:
   workflow_call:
 permissions:
   contents: read
+  packages: read
+  actions: read
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    container:
+      image: ghcr.io/xero/leviathan-crypto/ci:latest
+      options: --user root
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: setup bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 'latest'
       - name: install dependencies
         run: bun i
-      - name: install playwright browsers
-        run: bunx playwright install --with-deps chromium firefox webkit
-      - name: build
-        run: bun run build
-      - name: run e2e browser tests
-        run: bunx playwright test --reporter=list
+      - name: download build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: build-${{ github.sha }}
+      - name: run e2e browser tests (${{ matrix.browser }})
+        env:
+          HOME: /root
+        run: bunx playwright test --project=${{ matrix.browser }} --reporter=list

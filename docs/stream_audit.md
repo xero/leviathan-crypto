@@ -1,18 +1,8 @@
-# Stream Composition Audit
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Security audit of the `leviathan-crypto` streaming AEAD layer (TypeScript, Tier 2), conducted the week of 2026-04-03. This audit covers composition of audited primitives, not the primitives themselves.
+### Stream Composition Audit
 
-> **Conducted:** Week of 2026-04-03
-> **Target:** `leviathan-crypto` streaming AEAD layer (TypeScript, Tier 2)
-> **Scope:** Composition of audited primitives — not the primitives themselves
-> **Reference paper:** Hoang, Reyhanitabar, Rogaway, Vizár. "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance." CRYPTO 2015 / ePrint 2015/189 (June 2018 revision)
->
-> **Prior audits cited:**
-> - [serpent_audit.md §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle) — Encrypt-then-MAC, Vaudenay padding oracle
-> - [chacha_audit.md §1.7](./chacha_audit.md#17-aead-construction) — ChaCha20-Poly1305 AEAD construction
-> - [hkdf_audit.md §1.4](./hkdf_audit.md#14-usage-in-leviathan-crypto-stream-layer) — HKDF key derivation usage
-> - [hmac_audit.md §2.3](./hmac_audit.md#23-key-separation-analysis) — HMAC usage in streaming context
+Security audit of the `leviathan-crypto` streaming AEAD layer (TypeScript, Tier 2). This audit covers composition of audited primitives, not the primitives themselves.
 
 > ### Table of Contents
 > - [2.1 STREAM Construction Correctness](#21-stream-construction-correctness)
@@ -49,18 +39,23 @@
 >   - [The HKDF Divergence from the Paper (Critical)](#the-hkdf-divergence-from-the-paper-critical)
 > - [Test Coverage Summary](#test-coverage-summary)
 
+| Meta | Description |
+| --- | --- |
+| Conducted: | Week of 2026-04-03 |
+| Target: | `leviathan-crypto` streaming AEAD layer (TypeScript, Tier 2) |
+| Scope: | Composition of audited primitives — not the primitives themselves |
+| Reference paper: | Hoang, Reyhanitabar, Rogaway, Vizár — "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance" (CRYPTO 2015 / ePrint 2015/189, June 2018 revision) |
+| Prior audits cited: | [serpent §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle) (Encrypt-then-MAC, Vaudenay padding oracle); [chacha §1.7](./chacha_audit.md#17-aead-construction) (ChaCha20-Poly1305 AEAD); [hkdf §1.4](./hkdf_audit.md#14-usage-in-leviathan-crypto-stream-layer) (HKDF stream-layer usage); [hmac §2.3](./hmac_audit.md#23-key-separation-analysis) (HMAC streaming usage) |
+
 ---
 
 ## 2.1 STREAM Construction Correctness
 
 ### Nonce Construction
 
-The 12-byte counter nonce is constructed by `makeCounterNonce()` (`src/ts/stream/header.ts:62–74`):
+Each chunk gets a unique 12-byte nonce built by `makeCounterNonce()` (`src/ts/stream/header.ts:62–74`). The nonce is two parts: an 11-byte big-endian counter (bytes 0–10), and a 1-byte final flag (byte 11).
 
-- Bytes 0–10: 11-byte big-endian counter, written right-to-left via `c & 0xff` / `Math.floor(c / 256)`
-- Byte 11: final flag, `TAG_DATA = 0x00` for data chunks, `TAG_FINAL = 0x01` for the final chunk (`src/ts/stream/constants.ts:27–28`)
-
-The counter starts at **0** and increments monotonically with each `push()` call (`src/ts/stream/seal-stream.ts:75–77`). `finalize()` uses the current counter value with `TAG_FINAL` (`seal-stream.ts:87`).
+The counter starts at 0 and increments with each `push()` call (`src/ts/stream/seal-stream.ts:75–77`). Data chunks use `TAG_DATA = 0x00` as the final byte, and the final chunk uses `TAG_FINAL = 0x01`.
 
 **Distinctness guarantee:** A data chunk at counter N has nonce `[...N, 0x00]` and a final chunk at counter N has nonce `[...N, 0x01]`. These are distinct because byte 11 differs. Within a stream, the counter increments after each `push()`, so no two data chunks share a counter value. The final chunk's counter is never reused because `finalize()` transitions the state machine to `'finalized'` and wipes keys.
 
@@ -349,12 +344,20 @@ AAD is passed through to the AEAD: `aad ?? new Uint8Array(0)` (`cipher-suite.ts:
 5. **Decrypt only after auth succeeds:** `SerpentCbc.decrypt(encKey, iv, ct)` (line 127)
 6. **Wipe:** tagInput, expectedTag, iv zeroed (lines 122–129)
 
-The `constantTimeEqual` function (`utils.ts:140–145`) uses XOR-accumulate over all bytes with no early return:
+The `constantTimeEqual` function (`utils.ts`) uses XOR-accumulate over all bytes with no early return. At audit time it shipped as a JS implementation:
 ```typescript
 let diff = 0;
 for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
 return diff === 0;
 ```
+
+> [!NOTE]
+> Post-audit, this comparison was moved into a dedicated WASM SIMD
+> module (v128 XOR-accumulate with branch-free reduction). The JS path
+> was removed; the function now throws a branded error on runtimes
+> without WebAssembly SIMD. The constant-time property the audit relied
+> on is preserved and strengthened; see [asm_ct.md](./asm_ct.md) for
+> the current implementation.
 
 The minimum ciphertext size is checked by `OpenStream.pull()` before `openChunk` is ever called: `data.length < cipher.tagSize` → `RangeError` (`open-stream.ts:78–81`). For SerpentCipher, `tagSize = 32`, so chunks shorter than 32 bytes are rejected before reaching the cipher.
 
@@ -375,24 +378,25 @@ const keys = cipher.deriveKeys(key, nonce);
 
 Workers receive `derivedKeyBytes: keys.bytes.slice()` (line 178): a **copy** of the derived key bytes. The master key (`key`) is never sent to workers. Workers receive pre-compiled `WebAssembly.Module` objects (line 178: `modules`) and instantiate their own isolated WASM instances with their own `WebAssembly.Memory`:
 
-- **Serpent worker** (`src/ts/serpent/pool-worker.ts:134–137`): creates `new WebAssembly.Memory({ initial: 3, maximum: 3 })` for both sha2 and serpent
+- **Serpent worker** (`src/ts/serpent/pool-worker.ts:40` for sha2 memory and `:47` for serpent memory): creates `new WebAssembly.Memory({ initial: 3, maximum: 3 })` for both sha2 and serpent
 - **ChaCha20 worker** (`src/ts/chacha20/pool-worker.ts:20`): creates `new WebAssembly.Memory({ initial: 3, maximum: 3 })`
 
-Workers validate key length on init: Serpent expects 96 bytes (`pool-worker.ts:149`), ChaCha20 expects 32 bytes (`pool-worker.ts:25`).
+Workers validate key length on init: Serpent expects 96 bytes (`pool-worker.ts:55-56`), ChaCha20 expects 32 bytes (`pool-worker.ts:25-26`).
 
 **Verdict:** Correct. Workers receive derived keys (not master key) and isolated WASM instances.
 
 ### Fatal Failure Model
 
-The `_killAll(error)` method (`seal-stream-pool.ts:352–370`) implements a fatal failure model:
+The `_killAll(error)` method implements a fatal failure model. State transitions run synchronously; worker teardown is bounded-async via `_wipeThenTerminate`:
 
-1. Idempotent via `_dead` flag (line 353)
-2. Clears all pending job timers (line 355)
-3. Rejects all pending promises with the error (line 356)
-4. Sends `{ type: 'wipe' }` to each worker (best-effort, caught on failure) (line 360)
-5. Terminates all workers via `w.terminate()` (line 363)
-6. Clears worker and idle arrays (lines 365–366)
-7. Wipes main-thread keys: `wipe(this._keys.bytes); this._keys = null` (lines 367–369)
+1. Idempotent via `_dead` flag
+2. Clears all pending job timers
+3. Rejects all pending promises with the error
+4. Clears the queue and worker/idle arrays
+5. For each worker, `_wipeThenTerminate` adds a one-shot listener for `{ type: 'wiped' }`, posts `{ type: 'wipe' }`, and schedules a 100 ms fallback `terminate()` — whichever fires first wins, and the listener is removed before termination
+6. Synchronously wipes main-thread keys: `wipe(this._keys.bytes); this._keys = null`, then `wipe(this._masterKey); this._masterKey = null`
+
+The wipe ACK window is best-effort: if the worker honours the message before the 100 ms fallback, it zeroes its `subkey`/`keys` buffer and calls `wipeBuffers()` on its WASM instances before replying `{ type: 'wiped' }`; if it doesn't (mid-job, runtime pause, deadlock), the fallback `terminate()` still runs. The main-thread `_keys.bytes` and `_masterKey` wipes are unconditional and synchronous regardless of the ACK outcome, so the owning surface no longer has access to key material by the time `destroy()` returns.
 
 `_killAll` is invoked from:
 - `_onMessage` on any non-result message (line 344): auth failure
@@ -407,16 +411,16 @@ There is no retry logic and no worker replacement. After `_killAll`, the pool is
 
 ### Key Wipe on Destroy
 
-**Main thread:** `_killAll()` wipes `this._keys.bytes` via `wipe()` (`.fill(0)`) and sets `_keys = null` (`seal-stream-pool.ts:367–369`). The `bytesRef` test in `pool.test.ts:197–214` confirms the underlying buffer is zeroed in-place.
+**Main thread:** `_killAll()` wipes `this._keys.bytes` via `wipe()` (`.fill(0)`) and sets `_keys = null`; the `_masterKey` is zeroed and nulled in the same call. Both wipes are synchronous. The `bytesRef` test in `pool.test.ts:197–214` confirms the underlying buffer is zeroed in-place.
 
-**Workers:** `_killAll()` sends `{ type: 'wipe' }` before terminating each worker (`seal-stream-pool.ts:360–363`):
+**Workers:** `_killAll()` dispatches each worker through `_wipeThenTerminate`, which posts `{ type: 'wipe' }` and waits up to 100 ms for a `{ type: 'wiped' }` ACK before calling `terminate()`. The ACK fires as soon as the wipe handler runs:
 
-- **Serpent worker** (`pool-worker.ts:158–165`): `keys.fill(0)`, `sha2.wipeBuffers()`, `serpent.wipeBuffers()`, then sets all to `undefined`
-- **ChaCha20 worker** (`pool-worker.ts:34–38`): `subkey.fill(0)`, sets `subkey = undefined`, `x = undefined`
+- **Serpent worker**: `keys.fill(0)`, `sha2.wipeBuffers()`, `serpent.wipeBuffers()`, then sets all to `undefined`, then `self.postMessage({ type: 'wiped' })`
+- **ChaCha20 worker**: `subkey.fill(0)`, sets `subkey = undefined`, `x = undefined`, then `self.postMessage({ type: 'wiped' })`
 
-Both workers also call `wipeBuffers()` in the `finally` block of every job (`pool-worker.ts:217–219` and `pool-worker.ts:70–71`), clearing WASM memory after each operation.
+Both workers also call `wipeBuffers()` in the `finally` block of every job, clearing WASM memory after each operation. The ACK handshake closes the racy gap that existed when `terminate()` could drop a queued `wipe` message before the handler ran.
 
-**Verdict:** Correct. Key material is wiped on both main thread and workers. Worker WASM buffers are wiped after every job.
+**Verdict:** Correct. Main-thread key material is wiped synchronously. Worker wipes are best-effort under a 100 ms budget — the handshake closes the previously racy `postMessage → terminate` sequence, and on timeout the worker is terminated anyway (no main-thread handle survives). Worker WASM buffers are also wiped after every job.
 
 ### Seal-Twice Guard
 
@@ -554,13 +558,22 @@ However, reaching 2^53 chunks is physically impossible in any real system. A cou
 
 The stream layer (Tier 2) runs in TypeScript. Cryptographic primitives run in WASM (Tier 1).
 
-**Tag comparison:** Both cipher suites use `constantTimeEqual()` (`utils.ts:140–145`):
+**Tag comparison:** Both cipher suites use `constantTimeEqual()`. At audit time the function shipped as a JS implementation:
 ```typescript
 let diff = 0;
 for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
 return diff === 0;
 ```
 XOR-accumulate with no early return. The loop always executes all iterations. This provides constant-time comparison at the JavaScript level. True hardware-level constant-time guarantees are not possible in JavaScript, but this pattern is the strongest available.
+
+> [!NOTE]
+> Post-audit, this comparison was moved into a dedicated WASM SIMD
+> module (v128 XOR-accumulate with branch-free reduction). The JS path
+> was removed; the function now throws a branded error on runtimes
+> without WebAssembly SIMD. The constant-time property is preserved
+> and strengthened: WASM v128 ops bypass the V8/SpiderMonkey scalar
+> JIT passes that the audit's "strongest available in JavaScript"
+> caveat referenced. See [asm_ct.md](./asm_ct.md).
 
 **Verify-then-decrypt branching:**
 
@@ -596,15 +609,15 @@ The error hierarchy in order of evaluation:
 | `Error` (state machine) | Before crypto | No |
 | `AuthenticationError` | After tag comparison | Yes (tag) |
 
-Format and size errors are checked before any cryptographic operation. Only `AuthenticationError` involves secret data (the MAC tag). An attacker who can observe error types can distinguish:
-- "The format byte doesn't match" (structural)
-- "The chunk is too short" (structural)
-- "The tag doesn't verify" (cryptographic)
+Format and size errors are checked before any cryptographic operation. Only `AuthenticationError` involves secret data (the MAC tag). An attacker who can observe error types can distinguish at least six categories surfaced by `OpenStream.pull` against adversarial input:
+- State-machine error (`cannot pull in state '<state>'`) — structural
+- Framed chunk too short (< 4 bytes for the length prefix) — structural
+- Framed chunk length mismatch (prefix disagrees with payload) — structural
+- Chunk too short to contain the tag (with numeric leak of the observed length) — structural
+- Chunk exceeds max wire size (with numeric leak of the observed length) — structural
+- `AuthenticationError` (after tag comparison) — cryptographic
 
-This error differentiation is safe because:
-1. Structural errors reveal nothing about the plaintext: they are detectable from the ciphertext alone
-2. Only one cryptographic error exists (`AuthenticationError`), so there is no oracle within the cryptographic domain
-3. In particular, there is no distinction between "wrong padding" and "wrong tag": the SerpentCipher's verify-then-decrypt ordering ensures padding is never evaluated on unauthenticated data ([serpent_audit.md §2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle))
+Each of these buckets depends only on input sizes the attacker chose, not on secret key bits, plaintext bytes, or MAC comparison internals. The verify-then-decrypt ordering in SerpentCipher and XChaCha20Cipher ensures only the final `AuthenticationError` bucket depends on secret material, and that bucket has no further internal structure to distinguish. The error hierarchy therefore does not create a cryptographic oracle.
 
 **Verdict:** Safe. The error hierarchy does not create an oracle. Structural errors precede cryptographic operations, and only one cryptographic error type exists.
 
@@ -696,14 +709,18 @@ The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `sc
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, three-tier design
-> - [authenticated encryption](./aead.md) — wire format spec, security model, API reference
-> - [serpent_audit](./serpent_audit.md) — Serpent-256 audit, §2.4 Verify-then-Decrypt
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 audit, §1.7 AEAD construction
-> - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 audit, §1.4 stream layer usage
-> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit, §2.3 key separation
-> - [serpent](./serpent.md) — SerpentCipher properties
-> - [chacha20](./chacha20.md) — XChaCha20Cipher properties
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, three-tier design |
+| [authenticated encryption](./aead.md) | wire format spec, security model, API reference |
+| [serpent_audit](./serpent_audit.md) | Serpent-256 audit, §2.4 Verify-then-Decrypt |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 audit, §1.7 AEAD construction |
+| [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 audit, §1.4 stream layer usage |
+| [hmac_audit](./hmac_audit.md) | HMAC-SHA256 audit, §2.3 key separation |
+| [serpent](./serpent.md) | SerpentCipher properties |
+| [chacha20](./chacha20.md) | XChaCha20Cipher properties |
+

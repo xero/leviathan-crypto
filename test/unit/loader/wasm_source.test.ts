@@ -34,7 +34,7 @@ import { loadWasm } from '../../../src/ts/loader.js';
 import type { WasmSource } from '../../../src/ts/wasm-source.js';
 import { getInstance, _resetForTesting } from '../../../src/ts/init.js';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function toHex(bytes: Uint8Array): string {
 	return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -62,7 +62,7 @@ async function runCryptoCheck(source: WasmSource): Promise<void> {
 	expect(Array.from(afterWipe).every(b => b === 0)).toBe(true);
 }
 
-// ── Fixtures ─────────────────────────────────────────────────────────────────
+// ── Fixtures ────────────────────────────────────────────────────────────────
 
 // Raw WASM bytes — loaded once, reused across tests
 let wasmArrayBuf: ArrayBuffer;
@@ -99,7 +99,7 @@ beforeEach(() => {
 	_resetForTesting();
 });
 
-// ── Valid source types ────────────────────────────────────────────────────────
+// ── Valid source types ──────────────────────────────────────────────────────
 
 describe('WasmSource — valid types', () => {
 	test('string (gzip+base64 embedded blob)', async () => {
@@ -140,7 +140,7 @@ describe('WasmSource — valid types', () => {
 	});
 });
 
-// ── Invalid inputs ────────────────────────────────────────────────────────────
+// ── Invalid inputs ──────────────────────────────────────────────────────────
 
 describe('WasmSource — invalid inputs', () => {
 	test('null throws TypeError', async () => {
@@ -174,7 +174,7 @@ describe('WasmSource — invalid inputs', () => {
 	});
 });
 
-// ── Double-init (idempotency) ─────────────────────────────────────────────────
+// ── Double-init (idempotency) ───────────────────────────────────────────────
 
 describe('WasmSource — double init', () => {
 	test('second init with same source is a no-op', async () => {

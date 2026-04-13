@@ -37,7 +37,7 @@ import {
 
 const MASK26: u64 = 0x3ffffff
 
-// ── Internal: absorb one 16-byte block ────────────────────────────────────────
+// ── Internal: absorb one 16-byte block ──────────────────────────────────────
 // h = (h + n) * r  mod  p
 @inline
 function absorbBlock(src: i32, hibit: u64): void {
@@ -86,7 +86,7 @@ function absorbBlock(src: i32, hibit: u64): void {
 	store<u64>(POLY_H_OFFSET + 32, h4)
 }
 
-// ── polyInit ──────────────────────────────────────────────────────────────────
+// ── polyInit ────────────────────────────────────────────────────────────────
 export function polyInit(): void {
 	const k = POLY_KEY_OFFSET
 
@@ -130,7 +130,7 @@ export function polyInit(): void {
 	store<u32>(POLY_BUF_LEN_OFFSET, 0)
 }
 
-// ── polyUpdate ────────────────────────────────────────────────────────────────
+// ── polyUpdate ──────────────────────────────────────────────────────────────
 export function polyUpdate(len: i32): void {
 	if (len <= 0) return
 
@@ -163,7 +163,7 @@ export function polyUpdate(len: i32): void {
 	}
 }
 
-// ── polyFinal ─────────────────────────────────────────────────────────────────
+// ── polyFinal ───────────────────────────────────────────────────────────────
 export function polyFinal(): void {
 	const bufLen = i32(load<u32>(POLY_BUF_LEN_OFFSET))
 

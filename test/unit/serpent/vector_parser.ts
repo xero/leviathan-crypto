@@ -36,7 +36,7 @@ export function readVector(name: string): string {
 	return readFileSync(resolve(VECTORS_DIR, name), 'utf8');
 }
 
-// ── Byte utilities ────────────────────────────────────────────────────────────
+// ── Byte utilities ──────────────────────────────────────────────────────────
 
 export function hex2bytes(hex: string): Uint8Array {
 	const h = hex.replace(/\s/g, '').toLowerCase();
@@ -51,7 +51,7 @@ export function bytes2hex(arr: Uint8Array): string {
 	return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// ── KAT vector types ──────────────────────────────────────────────────────────
+// ── KAT vector types ────────────────────────────────────────────────────────
 
 export interface KatVector {
   keysize: number
@@ -60,7 +60,7 @@ export interface KatVector {
   ct: string     // hex
 }
 
-// ── Parser: serpent_ecb_vt.txt — Variable Text KAT ───────────────────────────────
+// ── Parser: serpent_ecb_vt.txt — Variable Text KAT ──────────────────────────
 /**
  * parseVt — parse floppy4/serpent_ecb_vt.txt (and serpent_ecb_tbl.txt, same format)
  *
@@ -102,7 +102,7 @@ export function parseVt(text: string): KatVector[] {
 	return vectors;
 }
 
-// ── Parser: serpent_ecb_vk.txt — Variable Key KAT ────────────────────────────────
+// ── Parser: serpent_ecb_vk.txt — Variable Key KAT ───────────────────────────
 /**
  * parseVk — parse floppy4/serpent_ecb_vk.txt
  *
@@ -149,7 +149,7 @@ export const parseTblFile = (name: string) => parseVt(readVector(name));
 export const parseVtFile  = (name: string) => parseVt(readVector(name));
 export const parseVkFile  = (name: string) => parseVk(readVector(name));
 
-// ── Parser: serpent_ecb_iv.txt — Intermediate Values ─────────────────────────────────
+// ── Parser: serpent_ecb_iv.txt — Intermediate Values ────────────────────────
 /**
  * parseIv — parse floppy4/serpent_ecb_iv.txt
  *
@@ -225,7 +225,7 @@ export function parseIv(text: string): IvTestCase[] {
 
 export const parseIvFile = (name: string) => parseIv(readVector(name));
 
-// ── Parser: Monte Carlo ECB ───────────────────────────────────────────────────
+// ── Parser: Monte Carlo ECB ─────────────────────────────────────────────────
 /**
  * parseMcEcbEncrypt / parseMcEcbDecrypt — parse floppy4/serpent_ecb_e_m.txt, serpent_ecb_d_m.txt
  *
@@ -284,7 +284,7 @@ export const parseMcEcbDecrypt = (text: string) => parseMcEcbInner(text, true);
 export const parseMcEcbEncryptFile = (name: string) => parseMcEcbEncrypt(readVector(name));
 export const parseMcEcbDecryptFile = (name: string) => parseMcEcbDecrypt(readVector(name));
 
-// ── Parser: Monte Carlo CBC ───────────────────────────────────────────────────
+// ── Parser: Monte Carlo CBC ─────────────────────────────────────────────────
 /**
  * parseMcCbcEncrypt / parseMcCbcDecrypt — parse floppy4/serpent_cbc_e_m.txt, serpent_cbc_d_m.txt
  *
@@ -348,7 +348,7 @@ export const parseMcCbcDecrypt = (text: string) => parseMcCbcInner(text, true);
 export const parseMcCbcEncryptFile = (name: string) => parseMcCbcEncrypt(readVector(name));
 export const parseMcCbcDecryptFile = (name: string) => parseMcCbcDecrypt(readVector(name));
 
-// ── NESSIE parser ─────────────────────────────────────────────────────────────
+// ── NESSIE parser ───────────────────────────────────────────────────────────
 /**
  * parseNessieVectors — parse NESSIE Serpent test vector files
  *
@@ -437,7 +437,7 @@ export function parseNessieVectors(text: string): NessieVector[] {
 
 export const parseNessieFile = (name: string) => parseNessieVectors(readVector(name));
 
-// ── NESSIE preprocessing ──────────────────────────────────────────────────────
+// ── NESSIE preprocessing ────────────────────────────────────────────────────
 // The correct leviathan-specific preprocessing is: REVERSE ALL BYTES.
 // Same transform works for key, plaintext, and ciphertext (it is its own inverse).
 // Source: sources/leviathan/test/helpers/nessie.ts

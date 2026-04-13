@@ -22,7 +22,7 @@
 /**
  * SIMD CBC decrypt gate test.
  *
- * GATE — must pass before any CBC cross-check or benchmark work.
+ * GATE: must pass before any CBC cross-check or benchmark work.
  * Do NOT adjust test data if this fails. Fix the implementation.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -107,7 +107,7 @@ beforeAll(async () => {
 });
 
 describe('SIMD CBC decrypt gate', () => {
-	// GATE
+	// GATE: Serpent SIMD CBC decrypt: byte-identical to scalar
 	it('4 blocks (64 bytes) — exercises SIMD inner loop only', () => {
 		roundTrip(64);
 	});

@@ -1,7 +1,8 @@
-# HMAC-SHA256 Cryptographic Audit
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Audit of the `leviathan-crypto` WebAssembly HMAC-SHA256 implementation against RFC 2104 and FIPS 198-1, verified against all RFC 4231 test vectors.
+### HMAC-SHA256 Cryptographic Audit
+
+Audit of the `leviathan-crypto` WebAssembly HMAC-SHA256 implementation against RFC 2104 and FIPS 198-1, verified against all RFC 4231 test vectors.
 
 > ### Table of Contents
 > - [1. Algorithm Correctness](#1-algorithm-correctness)
@@ -17,10 +18,12 @@
 >   - [2.3 Key Size Recommendations](#23-key-size-recommendations)
 >   - [2.4 Usage Context in leviathan-crypto](#24-usage-context-in-leviathan-crypto)
 
-**Conducted:** Week of 2026-03-25
-**Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-**Spec:** RFC 2104 (HMAC, February 1997); FIPS 198-1 (The Keyed-Hash MAC, July 2008)
-**Test vectors:** RFC 4231
+| Meta | Description |
+| --- | --- |
+| Conducted: | Week of 2026-03-25 |
+| Target: | `leviathan-crypto` WebAssembly implementation (AssemblyScript) |
+| Spec: | RFC 2104 (HMAC, February 1997); FIPS 198-1 (The Keyed-Hash MAC, July 2008) |
+| Test vectors: | RFC 4231 |
 
 ---
 
@@ -33,7 +36,7 @@
 
 ### 1.1 Key Processing
 
-The HMAC key processing is split across two layers:
+RFC 2104 specifies how to process keys of various lengths. Our implementation splits this across two layers:
 
 **TypeScript layer** (`src/ts/sha2/index.ts:169–186`, `HMAC_SHA256.hash`):
 
@@ -298,12 +301,16 @@ The three keys provide:
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2_audit](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
-> - [hkdf_audit](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
-> - [serpent_audit](./serpent_audit.md) — HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 uses a different MAC (Poly1305)
-> - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha2_audit](./sha2_audit.md) | SHA-256 implementation audit (HMAC builds on SHA-256) |
+| [hkdf_audit](./hkdf_audit.md) | HKDF builds on HMAC-SHA256 |
+| [serpent_audit](./serpent_audit.md) | HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle) |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 uses a different MAC (Poly1305) |
+| [sha3_audit](./sha3_audit.md) | SHA-3 companion audit |
+

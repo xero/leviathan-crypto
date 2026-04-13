@@ -41,14 +41,34 @@ import {
 	SIMD_WORK_OFFSET,
 } from './buffers'
 
-// ── Working register helpers ───────────────────────────────────────────────────
+// ── Working register helpers ────────────────────────────────────────────────
+
+/** Returns word i from the 5-slot working register area in WASM linear memory.
+ * @internal
+ * @param i  slot index in {0,1,2,3,4}
+ * @returns  i32 value at WORK_OFFSET + i*4
+ */
 @inline function rget(i: i32): i32 { return load<i32>(WORK_OFFSET + (i << 2)) }
+
+/**
+ * Writes word v to slot i of the working register area.
+ * @internal
+ * @param i  slot index in {0,1,2,3,4}
+ * @param v  value to store
+ */
 @inline function rset(i: i32, v: i32): void { store<i32>(WORK_OFFSET + (i << 2), v) }
 
-// ── EC/DC/KC constant lookup functions ────────────────────────────────────────
+// ── EC/DC/KC constant lookup functions ──────────────────────────────────────
 // Each constant encodes a 5-slot permutation: (m%5, m%7, m%11, m%13, m%17).
 // All five values are always in {0,1,2,3,4} and are always distinct.
 
+/**
+ * Encryption-round slot-permutation constant for round n.
+ * Serpent AES submission §2.4 — encodes S-box input/output slot indices.
+ * @internal
+ * @param n  round index in {0..31}
+ * @returns  packed constant; decode as (m%5, m%7, m%11, m%13, m%17)
+ */
 function ec(n: i32): i32 {
 	switch (n) {
 		case  0: return 44255; case  1: return 61867; case  2: return 45034;
@@ -66,6 +86,13 @@ function ec(n: i32): i32 {
 	}
 }
 
+/**
+ * Decryption-round slot-permutation constant for round n.
+ * Serpent AES submission §2.4 — encodes inverse S-box input/output slot indices.
+ * @internal
+ * @param n  round index in {0..31}
+ * @returns  packed constant; decode as (m%5, m%7, m%11, m%13, m%17)
+ */
 function dc(n: i32): i32 {
 	switch (n) {
 		case  0: return 44255; case  1: return 60896; case  2: return 28835;
@@ -83,6 +110,13 @@ function dc(n: i32): i32 {
 	}
 }
 
+/**
+ * Key-schedule slot-permutation constant for round n.
+ * Serpent AES submission §2.5 — encodes S-box slot indices for key derivation.
+ * @internal
+ * @param n  key-schedule step index in {0..33}
+ * @returns  packed constant; decode as (m%5, m%7, m%11, m%13, m%17)
+ */
 function kc(n: i32): i32 {
 	switch (n) {
 		case  0: return 7788;  case  1: return 63716; case  2: return 84032;
@@ -101,10 +135,19 @@ function kc(n: i32): i32 {
 	}
 }
 
-// ── S-boxes (encryption) ──────────────────────────────────────────────────────
+// ── S-boxes (encryption) ────────────────────────────────────────────────────
 // Boolean circuit implementations — constant-time, no table lookups.
 // Each takes 5 slot indices (x0-x4) that index into the working registers.
 
+/**
+ * Serpent S-box 0 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb0(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x3)); rset(x3, rget(x3) | rget(x0)); rset(x0, rget(x0) ^ rget(x4));
 	rset(x4, rget(x4) ^ rget(x2)); rset(x4, ~rget(x4)); rset(x3, rget(x3) ^ rget(x1));
@@ -114,6 +157,15 @@ function kc(n: i32): i32 {
 	rset(x2, rget(x2) ^ rget(x4)); rset(x1, rget(x1) ^ rget(x2));
 }
 
+/**
+ * Serpent S-box 1 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb1(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x1)); rset(x1, rget(x1) ^ rget(x0)); rset(x0, rget(x0) ^ rget(x3));
 	rset(x3, ~rget(x3)); rset(x4, rget(x4) & rget(x1)); rset(x0, rget(x0) | rget(x1));
@@ -123,6 +175,15 @@ function kc(n: i32): i32 {
 	rset(x0, ~rget(x0)); rset(x0, rget(x0) ^ rget(x2)); rset(x4, rget(x4) ^ rget(x1));
 }
 
+/**
+ * Serpent S-box 2 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb2(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x3, ~rget(x3)); rset(x1, rget(x1) ^ rget(x0)); rset(x4, rget(x0));
 	rset(x0, rget(x0) & rget(x2)); rset(x0, rget(x0) ^ rget(x3)); rset(x3, rget(x3) | rget(x4));
@@ -132,6 +193,15 @@ function kc(n: i32): i32 {
 	rset(x0, rget(x0) ^ rget(x2)); rset(x1, rget(x1) | rget(x2));
 }
 
+/**
+ * Serpent S-box 3 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb3(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x1)); rset(x1, rget(x1) ^ rget(x3)); rset(x3, rget(x3) | rget(x0));
 	rset(x4, rget(x4) & rget(x0)); rset(x0, rget(x0) ^ rget(x2)); rset(x2, rget(x2) ^ rget(x1));
@@ -142,6 +212,15 @@ function kc(n: i32): i32 {
 	rset(x3, rget(x3) ^ rget(x2));
 }
 
+/**
+ * Serpent S-box 4 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb4(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x3)); rset(x3, rget(x3) & rget(x0)); rset(x0, rget(x0) ^ rget(x4));
 	rset(x3, rget(x3) ^ rget(x2)); rset(x2, rget(x2) | rget(x4)); rset(x0, rget(x0) ^ rget(x1));
@@ -151,6 +230,15 @@ function kc(n: i32): i32 {
 	rset(x1, ~rget(x1)); rset(x3, rget(x3) ^ rget(x0));
 }
 
+/**
+ * Serpent S-box 5 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb5(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x1)); rset(x1, rget(x1) | rget(x0)); rset(x2, rget(x2) ^ rget(x1));
 	rset(x3, ~rget(x3)); rset(x4, rget(x4) ^ rget(x0)); rset(x0, rget(x0) ^ rget(x2));
@@ -160,6 +248,15 @@ function kc(n: i32): i32 {
 	rset(x2, rget(x2) & rget(x0)); rset(x3, rget(x3) ^ rget(x2));
 }
 
+/**
+ * Serpent S-box 6 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb6(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x1)); rset(x3, rget(x3) ^ rget(x0)); rset(x1, rget(x1) ^ rget(x2));
 	rset(x2, rget(x2) ^ rget(x0)); rset(x0, rget(x0) & rget(x3)); rset(x1, rget(x1) | rget(x3));
@@ -169,6 +266,15 @@ function kc(n: i32): i32 {
 	rset(x3, rget(x3) ^ rget(x0)); rset(x1, rget(x1) ^ rget(x2));
 }
 
+/**
+ * Serpent S-box 7 (encryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function sb7(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x1, ~rget(x1)); rset(x4, rget(x1)); rset(x0, ~rget(x0)); rset(x1, rget(x1) & rget(x2));
 	rset(x1, rget(x1) ^ rget(x3)); rset(x3, rget(x3) | rget(x4)); rset(x4, rget(x4) ^ rget(x2));
@@ -178,8 +284,17 @@ function kc(n: i32): i32 {
 	rset(x3, rget(x3) ^ rget(x1)); rset(x4, rget(x4) | rget(x0)); rset(x4, rget(x4) ^ rget(x1));
 }
 
-// ── Inverse S-boxes (decryption) ──────────────────────────────────────────────
+// ── Inverse S-boxes (decryption) ────────────────────────────────────────────
 
+/**
+ * Serpent inverse S-box 0 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si0(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x3)); rset(x1, rget(x1) ^ rget(x0)); rset(x3, rget(x3) | rget(x1));
 	rset(x4, rget(x4) ^ rget(x1)); rset(x0, ~rget(x0)); rset(x2, rget(x2) ^ rget(x3));
@@ -189,6 +304,15 @@ function kc(n: i32): i32 {
 	rset(x0, rget(x0) ^ rget(x2)); rset(x4, rget(x4) ^ rget(x3));
 }
 
+/**
+ * Serpent inverse S-box 1 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si1(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x1, rget(x1) ^ rget(x3)); rset(x4, rget(x0)); rset(x0, rget(x0) ^ rget(x2));
 	rset(x2, ~rget(x2)); rset(x4, rget(x4) | rget(x1)); rset(x4, rget(x4) ^ rget(x3));
@@ -198,6 +322,15 @@ function kc(n: i32): i32 {
 	rset(x1, rget(x1) ^ rget(x0)); rset(x4, rget(x4) ^ rget(x1));
 }
 
+/**
+ * Serpent inverse S-box 2 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si2(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x2, rget(x2) ^ rget(x1)); rset(x4, rget(x3)); rset(x3, ~rget(x3));
 	rset(x3, rget(x3) | rget(x2)); rset(x2, rget(x2) ^ rget(x4)); rset(x4, rget(x4) ^ rget(x0));
@@ -207,6 +340,15 @@ function kc(n: i32): i32 {
 	rset(x3, rget(x3) ^ rget(x4)); rset(x4, rget(x4) ^ rget(x0));
 }
 
+/**
+ * Serpent inverse S-box 3 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si3(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x2, rget(x2) ^ rget(x1)); rset(x4, rget(x1)); rset(x1, rget(x1) & rget(x2));
 	rset(x1, rget(x1) ^ rget(x0)); rset(x0, rget(x0) | rget(x4)); rset(x4, rget(x4) ^ rget(x3));
@@ -216,6 +358,15 @@ function kc(n: i32): i32 {
 	rset(x4, rget(x4) ^ rget(x3)); rset(x3, rget(x3) ^ rget(x0)); rset(x0, rget(x0) ^ rget(x1));
 }
 
+/**
+ * Serpent inverse S-box 4 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si4(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x2, rget(x2) ^ rget(x3)); rset(x4, rget(x0)); rset(x0, rget(x0) & rget(x1));
 	rset(x0, rget(x0) ^ rget(x2)); rset(x2, rget(x2) | rget(x3)); rset(x4, ~rget(x4));
@@ -225,6 +376,15 @@ function kc(n: i32): i32 {
 	rset(x1, rget(x1) & rget(x0)); rset(x4, rget(x4) ^ rget(x1)); rset(x0, rget(x0) ^ rget(x3));
 }
 
+/**
+ * Serpent inverse S-box 5 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si5(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x1)); rset(x1, rget(x1) | rget(x2)); rset(x2, rget(x2) ^ rget(x4));
 	rset(x1, rget(x1) ^ rget(x3)); rset(x3, rget(x3) & rget(x4)); rset(x2, rget(x2) ^ rget(x3));
@@ -235,6 +395,15 @@ function kc(n: i32): i32 {
 	rset(x2, rget(x2) ^ rget(x4)); rset(x4, rget(x4) ^ rget(x3));
 }
 
+/**
+ * Serpent inverse S-box 6 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si6(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x0, rget(x0) ^ rget(x2)); rset(x4, rget(x0)); rset(x0, rget(x0) & rget(x3));
 	rset(x2, rget(x2) ^ rget(x3)); rset(x0, rget(x0) ^ rget(x2)); rset(x3, rget(x3) ^ rget(x1));
@@ -244,6 +413,15 @@ function kc(n: i32): i32 {
 	rset(x0, rget(x0) ^ rget(x1)); rset(x2, rget(x2) ^ rget(x0));
 }
 
+/**
+ * Serpent inverse S-box 7 (decryption). Boolean circuit, constant-time.
+ * Serpent AES submission §2.1, Appendix A.
+ * @param x0  input slot index (working register)
+ * @param x1  input slot index
+ * @param x2  input slot index
+ * @param x3  input slot index
+ * @param x4  scratch/output slot index
+ */
 @inline export function si7(x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	rset(x4, rget(x3)); rset(x3, rget(x3) & rget(x0)); rset(x0, rget(x0) ^ rget(x2));
 	rset(x2, rget(x2) | rget(x4)); rset(x4, rget(x4) ^ rget(x1)); rset(x0, ~rget(x0));
@@ -254,7 +432,18 @@ function kc(n: i32): i32 {
 	rset(x4, rget(x4) ^ rget(x2));
 }
 
-// ── S-box dispatch ────────────────────────────────────────────────────────────
+// ── S-box dispatch ──────────────────────────────────────────────────────────
+
+/**
+ * Dispatch forward S-box by index. Routes to sb0..sb7 based on idx % 8.
+ * @internal
+ * @param idx  S-box index (0..7)
+ * @param x0   input slot index
+ * @param x1   input slot index
+ * @param x2   input slot index
+ * @param x3   input slot index
+ * @param x4   scratch/output slot index
+ */
 @inline function applyS(idx: i32, x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	switch (idx) {
 		case 0: sb0(x0, x1, x2, x3, x4); break;
@@ -268,6 +457,16 @@ function kc(n: i32): i32 {
 	}
 }
 
+/**
+ * Dispatch inverse S-box by index. Routes to si0..si7 based on idx % 8.
+ * @internal
+ * @param idx  inverse S-box index (0..7)
+ * @param x0   input slot index
+ * @param x1   input slot index
+ * @param x2   input slot index
+ * @param x3   input slot index
+ * @param x4   scratch/output slot index
+ */
 @inline function applySI(idx: i32, x0: i32, x1: i32, x2: i32, x3: i32, x4: i32): void {
 	switch (idx) {
 		case 0: si0(x0, x1, x2, x3, x4); break;
@@ -281,8 +480,17 @@ function kc(n: i32): i32 {
 	}
 }
 
-// ── Key XOR (K function) ──────────────────────────────────────────────────────
-// r[a,b,c,d] ^= key[4i+0..3]
+// ── Key XOR (K function) ────────────────────────────────────────────────────
+
+/**
+ * XOR working registers a, b, c, d with subkey i.
+ * Serpent AES submission §2.2 — K function.
+ * @param a  slot index for word 0
+ * @param b  slot index for word 1
+ * @param c  slot index for word 2
+ * @param d  slot index for word 3
+ * @param i  subkey index (0..32); reads SUBKEY_OFFSET + 4i*4 .. (4i+3)*4
+ */
 @inline export function keyXor(a: i32, b: i32, c: i32, d: i32, i: i32): void {
 	rset(a, rget(a) ^ load<i32>(SUBKEY_OFFSET + (4 * i + 0) * 4))
 	rset(b, rget(b) ^ load<i32>(SUBKEY_OFFSET + (4 * i + 1) * 4))
@@ -290,7 +498,18 @@ function kc(n: i32): i32 {
 	rset(d, rget(d) ^ load<i32>(SUBKEY_OFFSET + (4 * i + 3) * 4))
 }
 
-// ── Linear transform + key XOR (LK function for encryption) ──────────────────
+// ── Linear transform + key XOR (LK function for encryption) ─────────────────
+
+/**
+ * Apply the Serpent linear transform then XOR subkey i into working registers.
+ * Serpent AES submission §2.2 — LT followed by K function.
+ * @param a  slot for rotl-13 / rotl-5 word
+ * @param b  slot for rotl-1 word
+ * @param c  slot for rotl-3 / rotl-22 word
+ * @param d  slot for rotl-7 word
+ * @param e  scratch slot
+ * @param i  subkey index (1..31)
+ */
 @inline export function lk(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32): void {
 	rset(a, rotl<i32>(rget(a), 13))
 	rset(c, rotl<i32>(rget(c), 3))
@@ -315,7 +534,18 @@ function kc(n: i32): i32 {
 	rset(c, rget(c) ^ load<i32>(SUBKEY_OFFSET + (4 * i + 2) * 4))
 }
 
-// ── Inverse key XOR + inverse linear transform (KL for decryption) ────────────
+// ── Inverse key XOR + inverse linear transform (KL for decryption) ──────────
+
+/**
+ * XOR subkey i into working registers then apply the Serpent inverse linear transform.
+ * Serpent AES submission §2.3 — K function followed by inverse LT.
+ * @param a  slot for rotl-27 / rotl-19 word
+ * @param b  slot for rotl-31 word
+ * @param c  slot for rotl-10 / rotl-29 word
+ * @param d  slot for rotl-25 word
+ * @param e  scratch slot
+ * @param i  subkey index (1..31)
+ */
 @inline export function kl(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32): void {
 	rset(a, rget(a) ^ load<i32>(SUBKEY_OFFSET + (4 * i + 0) * 4))
 	rset(b, rget(b) ^ load<i32>(SUBKEY_OFFSET + (4 * i + 1) * 4))
@@ -340,8 +570,19 @@ function kc(n: i32): i32 {
 	rset(c, rotl<i32>(rget(c), 29))
 }
 
-// ── Key schedule helpers ──────────────────────────────────────────────────────
+// ── Key schedule helpers ────────────────────────────────────────────────────
 
+/**
+ * One step of the Serpent prekey expansion (the affine recurrence).
+ * Serpent AES submission §2.5: w_i = rotl(w_{i-8} ^ r_b ^ r_c ^ r_d ^ φ ^ i, 11).
+ * Writes the result into SUBKEY_OFFSET[i] and updates working register b.
+ * @internal
+ * @param a  subkey array index to read (i - 8 equivalent)
+ * @param b  working register slot holding the previous result (updated)
+ * @param c  working register slot for second input
+ * @param d  working register slot for third input
+ * @param i  absolute prekey index to write into SUBKEY_BUFFER
+ */
 @inline function keyIt(a: i32, b: i32, c: i32, d: i32, i: i32): void {
 	const v = rotl<i32>(
 		load<i32>(SUBKEY_OFFSET + a * 4) ^ rget(b) ^ rget(c) ^ rget(d) ^ 0x9e3779b9 ^ i,
@@ -351,6 +592,15 @@ function kc(n: i32): i32 {
 	rset(b, v)
 }
 
+/**
+ * Load four consecutive subkey words from SUBKEY_BUFFER into working registers a..d.
+ * @internal
+ * @param a  destination slot for SUBKEY[i]
+ * @param b  destination slot for SUBKEY[i+1]
+ * @param c  destination slot for SUBKEY[i+2]
+ * @param d  destination slot for SUBKEY[i+3]
+ * @param i  starting subkey word index
+ */
 @inline function keyLoad(a: i32, b: i32, c: i32, d: i32, i: i32): void {
 	rset(a, load<i32>(SUBKEY_OFFSET + (i + 0) * 4))
 	rset(b, load<i32>(SUBKEY_OFFSET + (i + 1) * 4))
@@ -358,6 +608,15 @@ function kc(n: i32): i32 {
 	rset(d, load<i32>(SUBKEY_OFFSET + (i + 3) * 4))
 }
 
+/**
+ * Store working registers a..d as four consecutive subkey words in SUBKEY_BUFFER.
+ * @internal
+ * @param a  source slot for SUBKEY[i]
+ * @param b  source slot for SUBKEY[i+1]
+ * @param c  source slot for SUBKEY[i+2]
+ * @param d  source slot for SUBKEY[i+3]
+ * @param i  starting subkey word index to write
+ */
 @inline function keyStore(a: i32, b: i32, c: i32, d: i32, i: i32): void {
 	store<i32>(SUBKEY_OFFSET + (i + 0) * 4, rget(a))
 	store<i32>(SUBKEY_OFFSET + (i + 1) * 4, rget(b))
@@ -365,10 +624,15 @@ function kc(n: i32): i32 {
 	store<i32>(SUBKEY_OFFSET + (i + 3) * 4, rget(d))
 }
 
-// ── Key schedule ──────────────────────────────────────────────────────────────
-// Reads keyLen bytes from KEY_BUFFER, expands to 33 × 4 subkeys in SUBKEY_BUFFER.
-// Returns 0 on success, -1 if keyLen is invalid.
+// ── Key schedule ────────────────────────────────────────────────────────────
 
+/**
+ * Expand the key in KEY_BUFFER into 33 × 4 round subkeys in SUBKEY_BUFFER.
+ * Serpent AES submission §2.5 — key schedule.
+ * Reads keyLen bytes from KEY_BUFFER; valid lengths are 16, 24, and 32.
+ * @param keyLen  key size in bytes (16, 24, or 32)
+ * @returns       0 on success, -1 if keyLen is not 16, 24, or 32
+ */
 export function loadKey(keyLen: i32): i32 {
 	if (keyLen !== 16 && keyLen !== 24 && keyLen !== 32) return -1
 
@@ -429,10 +693,13 @@ export function loadKey(keyLen: i32): i32 {
 	return 0
 }
 
-// ── Block encryption ──────────────────────────────────────────────────────────
-// Reads 16 bytes from BLOCK_PT_BUFFER, writes 16 bytes to BLOCK_CT_BUFFER.
-// loadKey() must be called first.
+// ── Block encryption ────────────────────────────────────────────────────────
 
+/**
+ * Encrypt one 128-bit block. Reads BLOCK_PT_BUFFER, writes BLOCK_CT_BUFFER.
+ * Serpent AES submission §2.2 — 32-round iterated block cipher.
+ * `loadKey()` must be called before this function.
+ */
 export function encryptBlock(): void {
 	// Load plaintext: reverse bytes then read as 4 little-endian 32-bit words
 	// blk = reversed pt, then r[k] = getW(blk, k*4) = LE load from blk[k*4..k*4+3]
@@ -471,10 +738,13 @@ export function encryptBlock(): void {
 	store<u8>(c + 12, u8(v >>> 24)); store<u8>(c + 13, u8(v >>> 16)); store<u8>(c + 14, u8(v >>> 8)); store<u8>(c + 15, u8(v))
 }
 
-// ── Block decryption ──────────────────────────────────────────────────────────
-// Reads 16 bytes from BLOCK_CT_BUFFER, writes 16 bytes to BLOCK_PT_BUFFER.
-// loadKey() must be called first.
+// ── Block decryption ────────────────────────────────────────────────────────
 
+/**
+ * Decrypt one 128-bit block. Reads BLOCK_CT_BUFFER, writes BLOCK_PT_BUFFER.
+ * Serpent AES submission §2.3 — 32-round inverse cipher.
+ * `loadKey()` must be called before this function.
+ */
 export function decryptBlock(): void {
 	// Load ciphertext (same byte-reversal as encrypt)
 	const c = BLOCK_CT_OFFSET
@@ -511,9 +781,13 @@ export function decryptBlock(): void {
 	store<u8>(p + 12, u8(v >>> 24)); store<u8>(p + 13, u8(v >>> 16)); store<u8>(p + 14, u8(v >>> 8)); store<u8>(p + 15, u8(v))
 }
 
-// ── wipeBuffers ───────────────────────────────────────────────────────────────
-// Zero all sensitive Serpent module data. Call after use.
+// ── wipeBuffers ─────────────────────────────────────────────────────────────
 
+/**
+ * Zero all sensitive data in the Serpent WASM module: key, subkeys, plaintext,
+ * ciphertext, nonce, counter, CBC IV, and working registers.
+ * Call after use to prevent key material from lingering in linear memory.
+ */
 export function wipeBuffers(): void {
 	memory.fill(KEY_OFFSET,      0, 32)
 	memory.fill(BLOCK_PT_OFFSET, 0, 16)

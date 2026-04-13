@@ -44,7 +44,7 @@ const KEM_LABEL: Record<number, string> = {
 };
 
 // Structural interface for the KEM object — avoids circular imports with index.ts
-interface MlKemLike {
+export interface MlKemLike {
 	readonly params: KyberParams;
 	encapsulate(ek: Uint8Array): KyberEncapsulation;
 	decapsulate(dk: Uint8Array, c: Uint8Array): Uint8Array;

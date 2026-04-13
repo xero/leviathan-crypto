@@ -24,10 +24,13 @@
  */
 import '@vitest/web-worker';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init, _resetForTesting, randomBytes } from '../../../src/ts/index.js';
+import { init, randomBytes } from '../../../src/ts/index.js';
+import { _resetForTesting } from '../../../src/ts/init.js';
 import { SealStreamPool, OpenStream, SealStream } from '../../../src/ts/stream/index.js';
-import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
-import { SerpentCipher } from '../../../src/ts/serpent/cipher-suite.js';
+import {
+	TestXChaCha20Cipher as XChaCha20Cipher,
+	TestSerpentCipher   as SerpentCipher,
+} from './_test-ciphers.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
@@ -448,7 +451,7 @@ describe('WASM loading', () => {
 	});
 });
 
-// ── Header validation (C-1) ──────────────────────────────────────────────────
+// ── Header validation (C-1) ─────────────────────────────────────────────────
 
 describe('SealStreamPool.open() — header validation', () => {
 	const xcKey = randomBytes(32);
@@ -509,7 +512,7 @@ describe('SealStreamPool.open() — header validation', () => {
 	});
 });
 
-// ── KEM rejection ────────────────────────────────────────────────────────────
+// ── KEM rejection ───────────────────────────────────────────────────────────
 
 describe('SealStreamPool.create() — KEM rejection', () => {
 	it('rejects KEM-enabled cipher suite with clear error', async () => {

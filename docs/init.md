@@ -1,9 +1,8 @@
-# Module Initialization and WASM Loading
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!IMPORTANT]
-> Call `init()` before using any cryptographic class. It loads the WebAssembly
-> modules that perform cryptographic work, caches them in memory, and makes them
-> available to all wrapper classes.
+### Module Initialization and WASM Loading
+
+Call `init()` before using any cryptographic class. It loads the WebAssembly modules that perform cryptographic work, caches them in memory, and makes them available to all wrapper classes.
 
 > ### Table of Contents
 > - [Overview](#overview)
@@ -63,7 +62,8 @@ The WASM module families. Each one backs a group of related classes.
 | Module | Classes it enables |
 |---|---|
 | `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr` |
-| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream`, `Fortuna` — see [aead.md](./aead.md) |
+| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
+| `Fortuna` combinations | `Fortuna` accepts a `Generator` + `HashFn` pair. Valid module combinations: `'serpent' + 'sha2'`, `'serpent' + 'sha3'`, `'chacha20' + 'sha2'`, `'chacha20' + 'sha3'`. See [fortuna.md](./fortuna.md). |
 | `'chacha20'` | `ChaCha20`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
 | `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
@@ -73,7 +73,7 @@ The WASM module families. Each one backs a group of related classes.
 
 ```typescript
 type WasmSource = string | URL | ArrayBuffer | Uint8Array
-               | WebAssembly.Module | Response | Promise<Response>
+               | WebAssembly.Module | Response | PromiseLike<WasmSource>
 ```
 
 A value that resolves to a WASM binary. The loading strategy is inferred from
@@ -86,7 +86,13 @@ the type:
 | `ArrayBuffer` | Compiled directly via `WebAssembly.instantiate`. |
 | `Uint8Array` | Compiled directly via `WebAssembly.instantiate`. |
 | `WebAssembly.Module` | Already compiled. Instantiated immediately. |
-| `Response` / `Promise<Response>` | Streaming compilation via `WebAssembly.instantiateStreaming`. |
+| `Response` | Streaming compilation via `WebAssembly.instantiateStreaming`. |
+| `PromiseLike<WasmSource>` | Awaited and re-dispatched by the resolved runtime type. |
+
+Any `PromiseLike<WasmSource>` is accepted — `Promise<ArrayBuffer>`,
+`Promise<Uint8Array>`, `Promise<string>`, a `fetch()` response promise, and
+nested thenables up to depth 3 all resolve transparently. See
+[loader.md](./loader.md) for details.
 
 ---
 
@@ -190,17 +196,6 @@ Used by pool infrastructure to send compiled modules to workers. See
 
 ---
 
-#### _resetForTesting()
-
-```typescript
-function _resetForTesting(): void
-```
-
-Clears all cached WASM instances. Testing utility only. Do not use in
-production code.
-
----
-
 ## Usage Examples
 
 ### Embedded init (most common)
@@ -294,9 +289,13 @@ if (!isInitialized('sha2')) {
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [loader](./loader.md) — WASM binary loading strategies (internal details)
-> - [wasm](./wasm.md) — WebAssembly primer: modules, instances, memory, and the init gate
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [loader](./loader.md) | WASM binary loading strategies (internal details) |
+| [wasm](./wasm.md) | WebAssembly primer: modules, instances, memory, and the init gate |
+

@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * SHA-3 and SHAKE Known-Answer Tests (cross-browser) — FIPS 202
+ *
+ * Source: FIPS 202 (SHA-3 Standard), Appendix A
+ * Files:  vectors/sha3.ts (sha3_256Vectors, sha3_512Vectors, shake128Vectors)
+ */
 import { test, expect } from '@playwright/test';
 import {
 	sha3_256Vectors, sha3_512Vectors, shake128Vectors,

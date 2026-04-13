@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * Known-Answer Tests (KAT) — Serpent AES submission (cross-browser)
+ *
+ * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
+ * Files:  vectors/serpent_ecb_vt.txt (variable-text), vectors/serpent_ecb_vk.txt (variable-key)
+ */
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';

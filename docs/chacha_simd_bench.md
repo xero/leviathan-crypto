@@ -1,30 +1,8 @@
-<!--
-                 ▄▄▄▄▄▄▄▄▄▄
-          ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
-       ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
-     ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
-    ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
-    ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
-    ███████▌    ▀██▀         ███
-     ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
-      ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
-        ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
-           ▀████▄   ▄██▄
-             ▐████   ▐███                  Author: xero (https://x-e.ro)
-      ▄▄██████████    ▐███         ▄▄      License: MIT
-   ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
- ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
-  ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
- ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
- █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
-  ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
-                          ▀█████▀▀
--->
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-# ChaCha20 SIMD 4-Wide Benchmark Results
+### ChaCha20 SIMD 4-Wide Benchmark Results
 
-> [!NOTE]
-> Measured throughput results for the 4-wide inter-block SIMD implementation (`chachaEncryptChunk_simd`) across Chromium, Firefox, WebKit, and Bun. See [chacha_audit.md](./chacha_audit.md) for algorithm correctness verifications.
+Measured throughput results for the 4-wide inter-block SIMD implementation (`chachaEncryptChunk_simd`) across Chromium, Firefox, WebKit, and Bun. See [chacha_audit.md](./chacha_audit.md) for algorithm correctness verifications.
 
 > ### Table of Contents
 > - [Environment](#environment)
@@ -158,9 +136,12 @@ require no shuffles). And the v128 local loads are genuinely beneficial since th
 
 ---
 
-> **Cross-references:**
-> - [index](./README.md) — Project Documentation index
-> - [asm_chacha](./asm_chacha.md) — WASM API reference including SIMD exports
-> - [chacha20](./chacha20.md) — TypeScript wrapper classes
-> - [serpent_simd_bench](./serpent_simd_bench.md) — Serpent-256 SIMD benchmark (same inter-block model)
-> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [asm_chacha](./asm_chacha.md) | WASM API reference including SIMD exports |
+| [chacha20](./chacha20.md) | TypeScript wrapper classes |
+| [serpent_simd_bench](./serpent_simd_bench.md) | Serpent-256 SIMD benchmark (same inter-block model) |
+| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |

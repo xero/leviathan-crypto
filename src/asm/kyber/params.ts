@@ -24,7 +24,7 @@
 // ML-KEM (Kyber) module — mathematical constants.
 // FIPS 203 §4 — Module-Lattice-Based Key-Encapsulation Mechanism Standard.
 
-// ── Ring parameters ──────────────────────────────────────────────────────────
+// ── Ring parameters ─────────────────────────────────────────────────────────
 
 /** Prime modulus q = 3329 (FIPS 203 §4) */
 export const Q: i32 = 3329;
@@ -35,11 +35,11 @@ export const N: i32 = 256;
 /** Polynomial byte length: 256 × 12-bit coefficients packed = 384 bytes */
 export const POLY_BYTES: i32 = 384;
 
-// ── Montgomery reduction constants ───────────────────────────────────────────
+// ── Montgomery reduction constants ──────────────────────────────────────────
 
 /**
  * QINV = q^{-1} mod 2^16.
- * Verify: q * QINV ≡ -1 mod 2^16, i.e. (3329 * (-3327)) & 0xFFFF == 0xFFFF.
+ * Verify: q * QINV ≡ 1 mod 2^16, i.e. (3329 * (-3327)) & 0xFFFF == 0x0001.
  */
 export const QINV: i32 = -3327;
 
@@ -49,7 +49,7 @@ export const QINV: i32 = -3327;
  */
 export const MONT: i32 = -1044;
 
-// ── Barrett reduction constants ───────────────────────────────────────────────
+// ── Barrett reduction constants ─────────────────────────────────────────────
 
 /**
  * Barrett multiplier v = ⌊(2^26 + q/2) / q⌋ = 20159.
@@ -60,7 +60,7 @@ export const BARRETT_V: i32 = 20159;
 /** Barrett shift amount = 26. */
 export const BARRETT_SHIFT: i32 = 26;
 
-// ── Compression/decompression magic constants ─────────────────────────────────
+// ── Compression/decompression magic constants ───────────────────────────────
 // Division-free multiply-shift sequences replacing (x * 2^d + q/2) / q.
 // Source: pq-crystals/kyber main branch ref/poly.c, ref/polyvec.c.
 
@@ -92,7 +92,7 @@ export const COMPRESS11_ADD: i64 = 1664;
 /** Compress to 11 bits: right-shift amount */
 export const COMPRESS11_SHIFT: i32 = 31;
 
-// ── Decompress rounding constants ─────────────────────────────────────────────
+// ── Decompress rounding constants ───────────────────────────────────────────
 
 /** ⌈q/2⌉ = 1665, used in frommsg and as rounding in decompress_1 */
 export const HALF_Q: i32 = 1665;

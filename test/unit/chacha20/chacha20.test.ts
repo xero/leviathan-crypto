@@ -43,7 +43,8 @@ beforeAll(async () => {
 
 describe('ChaCha20 — RFC 8439 vectors', () => {
 
-	// GATE — RFC 8439 §2.2.1 block function test vector
+	// GATE: ChaCha20 block function: RFC 8439 §2.2.1
+	// Vector: chacha20.ts[chacha20BlockVectors[0]]
 	it('block function — RFC 8439 §2.2.1 (counter=1)', () => {
 		const v = chacha20BlockVectors[0];
 		const chacha = new ChaCha20();

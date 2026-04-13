@@ -1,7 +1,8 @@
-# XChaCha20-Poly1305 Cryptographic Audit
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Full correctness and security audit of the `leviathan-crypto` XChaCha20-Poly1305 WebAssembly implementation (AssemblyScript) against RFC 8439 and draft-irtf-cfrg-xchacha-03, conducted the week of 2026-03-25.
+### XChaCha20-Poly1305 Cryptographic Audit
+
+Full correctness and security audit of the `leviathan-crypto` XChaCha20-Poly1305 WebAssembly implementation (AssemblyScript) against RFC 8439 and draft-irtf-cfrg-xchacha-03.
 
 > ### Table of Contents
 > - [1. Algorithm Correctness](#1-algorithm-correctness)
@@ -19,13 +20,20 @@
 >   - [2.2 Known Attacks on ChaCha20](#22-known-attacks-on-chacha20)
 >   - [2.3 Stream Composition](#23-stream-composition)
 
+| Meta | Description |
+| --- | --- |
+| Conducted: | Week of 2026-03-25 |
+| Target: | `leviathan-crypto` WebAssembly implementation (AssemblyScript) |
+| Spec: | RFC 8439 (ChaCha20 and Poly1305 for IETF Protocols, June 2018); draft-irtf-cfrg-xchacha-03 (XChaCha20 nonce-extension construction) |
+| Test vectors: | RFC 8439 §A (ChaCha20, Poly1305, ChaCha20-Poly1305); draft-irtf-cfrg-xchacha-03 §A.3 (HChaCha20, XChaCha20-Poly1305) |
+
 ---
 
 ## 1. Algorithm Correctness
 
 ### 1.1 Quarter Round
 
-The quarter round (`src/asm/chacha20/chacha20.ts:64–79`) implements four ARX operations on four 32-bit words loaded from WASM linear memory at computed offsets:
+RFC 8439 §2.1 specifies the quarter round: four ARX operations (add, rotate, XOR) on four 32-bit words. Our implementation (`src/asm/chacha20/chacha20.ts:64–79`) loads those words from WASM linear memory and applies the same operations:
 
 | Step | RFC 8439 §2.1 | leviathan-crypto (`qr`) |
 |------|---------------|------------------------|
@@ -34,12 +42,10 @@ The quarter round (`src/asm/chacha20/chacha20.ts:64–79`) implements four ARX o
 | 3 | `a += b; d ^= a; d <<<= 8`  | `av += bv; dv ^= av; dv = rotl32(dv, 8)` |
 | 4 | `c += d; b ^= c; b <<<= 7`  | `cv += dv; bv ^= cv; bv = rotl32(bv, 7)` |
 
-Rotation amounts match the RFC exactly: **16, 12, 8, 7**, in that order.
-
-The `rotl32` helper (`chacha20.ts:57–59`) is `(x << n) | (x >>> (32 - n))`. AssemblyScript compiles this pattern to the WASM `i32.rotl` instruction, a single fixed-latency CPU instruction on all modern architectures.
+Rotation amounts match exactly: 16, 12, 8, 7. The `rotl32` helper (`chacha20.ts:57–59`) does `(x << n) | (x >>> (32 - n))`, a pattern AssemblyScript compiles directly to WASM's `i32.rotl`—a single fixed-latency instruction on all modern architectures. No emulation, no variable-cost sequences.
 
 > [!NOTE]
-> The `@inline` annotation on `qr` and `rotl32` ensures the compiler inlines these functions, eliminating call overhead. The entire quarter round becomes a straight-line sequence of `i32.add`, `i32.xor`, and `i32.rotl` instructions in the emitted WASM. No function calls, no branches.
+> The `@inline` annotation ensures `qr` and `rotl32` inline, eliminating call overhead. The quarter round becomes a straight-line sequence of `i32.add`, `i32.xor`, and `i32.rotl` instructions in the emitted WASM. No branches, no function calls.
 
 The double round function (`chacha20.ts:85–96`) applies the quarter round with the correct column and diagonal index patterns from RFC §2.2:
 
@@ -56,15 +62,15 @@ All eight index quadruples match the RFC specification.
 
 ### 1.2 Block Function
 
-The block function (`chacha20.ts:101–113`) implements RFC 8439 §2.3:
+RFC 8439 §2.3 specifies the block function in three steps. Our implementation (`chacha20.ts:101–113`) follows it exactly:
 
-1. **Copy:** `memory.copy(CHACHA_BLOCK_OFFSET, CHACHA_STATE_OFFSET, 64)`. Copies the 64-byte state to a working buffer.
-2. **Rounds:** 10 iterations of `doubleRound(CHACHA_BLOCK_OFFSET)`. 20 rounds total.
-3. **Add-back:** Word-by-word `u32` addition of the initial state back into the working buffer (`chacha20.ts:108–112`).
+1. **Copy:** `memory.copy(CHACHA_BLOCK_OFFSET, CHACHA_STATE_OFFSET, 64)`. Copy the 64-byte state to a working buffer.
+2. **Rounds:** 10 iterations of `doubleRound(CHACHA_BLOCK_OFFSET)`. That's 20 rounds total.
+3. **Add-back:** Add each of the 16 initial state words back into the working buffer (`chacha20.ts:108–112`).
 
-The add-back step is critical. Without it, the block function would not be invertible, and ChaCha20 would not be a PRF. The implementation correctly adds each of the 16 words independently.
+The add-back step is mandatory. Without it, the block function loses PRF properties and ChaCha20 becomes invertible. Each of the 16 words gets added back independently.
 
-**State initialization** (`chachaLoadKey`, `chacha20.ts:117–138`):
+**State initialization** happens in `chachaLoadKey` (`chacha20.ts:117–138`). RFC 8439 §2.3 specifies which words go where:
 
 | Word | RFC 8439 §2.3 | Implementation |
 |------|---------------|----------------|
@@ -73,10 +79,10 @@ The add-back step is critical. Without it, the block function would not be inver
 | 12 | Counter (u32) | `load<u32>(CHACHA_CTR_OFFSET)` |
 | 13–15 | 96-bit nonce (3 × u32, LE) | `load<u32>(CHACHA_NONCE_OFFSET + i*4)` loop |
 
-The four constants spell "expand 32-byte k" in ASCII. The hex values `0x61707865`, `0x3320646e`, `0x79622d32`, `0x6b206574` match the RFC exactly (`chacha20.ts:49–52`).
+Those four constants spell "expand 32-byte k" in ASCII. The hex values `0x61707865`, `0x3320646e`, `0x79622d32`, `0x6b206574` match the RFC exactly (`chacha20.ts:49–52`).
 
 > [!NOTE]
-> WASM linear memory is little-endian by specification. `load<u32>` and `store<u32>` in AssemblyScript perform native LE access. No byte-swapping is needed. This matches ChaCha20's LE-throughout convention.
+> WASM linear memory is little-endian by specification. AssemblyScript's `load<u32>` and `store<u32>` perform native LE access with no byte-swapping. This matches ChaCha20's LE-throughout design.
 
 **Test vector verification:** RFC 8439 §2.2.1 keystream output at counter=1 matches (`test/vectors/chacha20.ts:30–43`). RFC 8439 §2.4.2 sunscreen encryption vector (114 bytes) passes (`test/unit/chacha20/chacha20.test.ts:62–76`).
 
@@ -84,15 +90,17 @@ The four constants spell "expand 32-byte k" in ASCII. The hex values `0x61707865
 
 ### 1.3 Counter and Nonce Handling
 
+RFC 8439 specifies how counter and nonce are laid out and managed. Here's our implementation:
+
 | Property | RFC 8439 | Implementation |
 |----------|----------|----------------|
-| Counter width | 32-bit | `u32`. Written via `store<u32>(CHACHA_STATE_OFFSET + 48, ...)` |
-| Counter start (encryption) | 1 | `chachaResetCounter()` sets 1 (`chacha20.ts:146–147`) |
+| Counter width | 32-bit | `u32` at `CHACHA_STATE_OFFSET + 48` |
+| Counter start (encryption) | 1 | `chachaResetCounter()` sets to 1 (`chacha20.ts:146–147`) |
 | Counter start (Poly1305 keygen) | 0 | `chachaGenPolyKey()` writes 0 directly (`chacha20.ts:182`) |
-| Nonce width (ChaCha20) | 96-bit | 12-byte buffer at `CHACHA_NONCE_OFFSET` |
-| Nonce width (XChaCha20) | 192-bit | 24-byte buffer at `XCHACHA_NONCE_OFFSET` |
+| Nonce width (ChaCha20) | 96-bit | 12 bytes at `CHACHA_NONCE_OFFSET` |
+| Nonce width (XChaCha20) | 192-bit | 24 bytes at `XCHACHA_NONCE_OFFSET` |
 
-Counter increment occurs in `chachaEncryptChunk` (`chacha20.ts:166–168`): after each 64-byte keystream block, the counter is incremented by 1 and written to both the state buffer (word 12) and the counter buffer (`CHACHA_CTR_OFFSET`). The increment is a simple `u32` addition, which will silently wrap at 2^32 (after 256 GB of keystream per nonce). The RFC defines this overflow as undefined behavior; the implementation's u32 wrap is consistent with the 32-bit counter specification.
+Counter increment happens in `chachaEncryptChunk` (`chacha20.ts:166–168`). After each 64-byte keystream block, we increment the counter by 1 and write it to both the state buffer (word 12) and the counter buffer (`CHACHA_CTR_OFFSET`). The increment is a simple `u32` addition that wraps silently at 2^32 after 256 GB of keystream per nonce. The RFC leaves overflow undefined; our u32 wrap is consistent with the 32-bit counter design.
 
 For XChaCha20, the 24-byte nonce is split:
 - Bytes 0–15 → HChaCha20 subkey derivation
@@ -104,11 +112,11 @@ The inner nonce construction (`ops.ts:155–159`) correctly places the 8 bytes a
 
 ### 1.4 Poly1305
 
-The Poly1305 implementation (`src/asm/chacha20/poly1305.ts`) uses a radix-2^26 representation with 5 × `u64` limbs, stored in WASM linear memory at `POLY_H_OFFSET` (accumulator), `POLY_R_OFFSET` (clamped key), and `POLY_RS_OFFSET` (precomputed 5×r values).
+Poly1305 (`src/asm/chacha20/poly1305.ts`) uses a radix-2^26 representation with five `u64` limbs. These live in WASM linear memory at three offsets: `POLY_H_OFFSET` for the accumulator, `POLY_R_OFFSET` for the clamped key, and `POLY_RS_OFFSET` for precomputed 5×r values.
 
 #### r Clamping (RFC 8439 §2.5)
 
-`polyInit` (`poly1305.ts:90–131`) applies the clamping mask `0x0ffffffc0ffffffc0ffffffc0fffffff`:
+RFC 8439 §2.5 specifies r clamping to prevent certain algebraic attacks. `polyInit` (`poly1305.ts:90–131`) applies the clamping mask `0x0ffffffc0ffffffc0ffffffc0fffffff`:
 
 | Byte | RFC mask | Implementation (`polyInit` lines 94–100) |
 |------|----------|-------------------------------------------|
@@ -236,19 +244,21 @@ const inner = innerNonce(nonce);
 
 ### 1.7 AEAD Construction
 
-The AEAD construction (`src/ts/chacha20/ops.ts`) implements RFC 8439 §2.8 in two functions: `aeadEncrypt` (lines 41–93) and `aeadDecrypt` (lines 96–140).
+The AEAD construction lives in `src/ts/chacha20/ops.ts` and implements RFC 8439 §2.8 via two functions: `aeadEncrypt` (lines 41–93) and `aeadDecrypt` (lines 96–140).
 
 **Encrypt path (`aeadEncrypt`):**
 
+RFC 8439 §2.8 specifies the encryption sequence. Here's how we implement it:
+
 | Step | RFC 8439 §2.8 | Implementation (ops.ts) |
 |------|---------------|-------------------------|
-| 1a. Load key + generate OTK | `poly1305_key_gen(key, nonce)` counter=0 | `chachaLoadKey()` loads key and nonce into state. `chachaGenPolyKey()` sets counter=0 internally and runs the block function, copying the first 32 bytes to `POLY_KEY_OFFSET`. |
-| 1b. Init MAC | Initialize Poly1305 with otk | `polyInit()` |
-| 3. MAC AAD | Feed AAD + pad16(AAD) | `polyFeed(x, aad)` + zero padding |
-| 4. Encrypt | `chacha20_encrypt(key, 1, nonce, pt)` | `chachaSetCounter(1); chachaLoadKey(); chachaEncryptChunk(len)` |
-| 5. MAC ciphertext | Feed CT + pad16(CT) | `polyFeed(x, ciphertext)` + zero padding |
-| 6. MAC lengths | `len(AAD)_u64le \|\| len(CT)_u64le` | `polyFeed(x, lenBlock(aad.length, plaintext.length))` |
-| 7. Finalize | `tag = polyFinal()` | `polyFinal()` → read 16 bytes from `POLY_TAG_OFFSET` |
+| 1a. Load key + generate OTK | `poly1305_key_gen(key, nonce)` at counter=0 | `chachaLoadKey()` loads key and nonce; `chachaGenPolyKey()` sets counter=0 and runs the block function, copying the first 32 bytes to `POLY_KEY_OFFSET` |
+| 1b. Init MAC | Initialize Poly1305 with OTK | `polyInit()` |
+| 3. MAC AAD | Feed AAD and pad to 16-byte blocks | `polyFeed(x, aad)` plus zero padding |
+| 4. Encrypt | ChaCha20 at counter=1 | `chachaSetCounter(1); chachaLoadKey(); chachaEncryptChunk(len)` |
+| 5. MAC ciphertext | Feed ciphertext and pad | `polyFeed(x, ciphertext)` plus zero padding |
+| 6. MAC lengths | Two u64le values: len(AAD) and len(CT) | `polyFeed(x, lenBlock(aad.length, plaintext.length))` |
+| 7. Finalize | Produce tag | `polyFinal()` and read 16 bytes from `POLY_TAG_OFFSET` |
 
 The `lenBlock` helper (`ops.ts:25–36`) encodes lengths as u64le. It writes the low 32 bits explicitly (4 bytes per length) and relies on `new Uint8Array(16)` zero-initialization for the high 32 bits. This is correct for all inputs within the 65,536-byte chunk limit. The high 4 bytes would be zero regardless.
 
@@ -260,25 +270,34 @@ The double-modulo pattern produces 0 when the length is already a multiple of 16
 
 **Decrypt path (`aeadDecrypt`):**
 
-The decrypt path follows verify-then-decrypt order:
-1. Compute expected tag over (AAD + padding + ciphertext + padding + lengths)
-2. Constant-time tag comparison via `constantTimeEqual` (`utils.ts:135–140`)
-3. **Only after authentication succeeds**: decrypt the ciphertext
+The decrypt path enforces verify-then-decrypt order. No plaintext leaves this function until authentication succeeds.
+
+1. Compute the expected tag over (AAD + padding + ciphertext + padding + lengths)
+2. Compare the received tag against the expected tag using `constantTimeEqual` (`utils.ts:135–140`)
+3. Only if the tags match, decrypt the ciphertext
 
 ```typescript
 if (!constantTimeEqual(expectedTag, tag))
     throw new Error('ChaCha20Poly1305: authentication failed');
 ```
 
-Plaintext is never produced or returned on authentication failure. This prevents the cryptographic doom principle. The AEAD never processes unauthenticated ciphertext.
+On tag mismatch, we throw immediately without producing or returning any plaintext. This prevents the cryptographic doom principle—the AEAD never processes unauthenticated ciphertext.
 
-**Tag comparison** (`constantTimeEqual`, `utils.ts:135–140`):
+**Tag comparison** (`constantTimeEqual`, `utils.ts`). At audit time the function shipped as a JS implementation:
 ```typescript
 let diff = 0;
 for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
 return diff === 0;
 ```
 XOR-accumulate pattern with no early return. The loop always executes all 16 iterations.
+
+> [!NOTE]
+> Post-audit, this comparison was moved into a dedicated WASM SIMD
+> module (v128 XOR-accumulate with branch-free reduction). The JS path
+> was removed; the function now throws a branded error on runtimes
+> without WebAssembly SIMD. The constant-time property of the audited
+> verification is preserved and strengthened. See
+> [asm_ct.md](./asm_ct.md).
 
 **XChaCha20-Poly1305 layer** (`ops.ts:164–194`):
 
@@ -322,6 +341,16 @@ Total: 131,564 bytes < 196,608 (3 × 64KB pages). No dynamic allocation (`memory
 
 **`wipeBuffers()`** (`wipe.ts:39–65`) zeroes all 18 buffer regions. Every buffer containing key material (KEY, CHACHA_STATE words 4–11, POLY_KEY, POLY_R, POLY_RS, POLY_S, XCHACHA_SUBKEY), intermediate state (CHACHA_BLOCK, POLY_H, POLY_BUF), and data buffers (CHUNK_PT, CHUNK_CT) is explicitly wiped. No sensitive material persists after `dispose()`.
 
+**Post-auth-fail hygiene.** `aeadDecrypt` (`src/ts/chacha20/ops.ts`) verifies the tag before producing any plaintext. On `constantTimeEqual` mismatch, the TypeScript layer explicitly zeroes three regions in WASM linear memory before throwing `AuthenticationError`, without waiting for `wipeBuffers()` at `dispose()`:
+
+| Region | Offset | Size | Why |
+|--------|--------|------|-----|
+| `CHUNK_CT_BUFFER` | 65,712 | 65,536 | Defense-in-depth — decrypt runs only on tag match, so no plaintext lands here on failure, but the buffer is still wiped to cover any residual content from a prior op on the same instance |
+| `CHACHA_BLOCK_BUFFER` | 48 | 64 | Holds the keystream block generated by `chachaGenPolyKey` for this (key, nonce) pair |
+| `POLY_KEY_BUFFER` | 131,248 | 32 | `chachaGenPolyKey` copies `CHACHA_BLOCK[0..32]` here as the Poly1305 one-time subkey — outside the `CHACHA_BLOCK` range, so wiping the block source does not cover this copy |
+
+Under strict single-use, the instance is locked after the throw (`ChaCha20Poly1305` / `XChaCha20Poly1305` flip to the single-use terminal state), so the next chacha op on this instance is not possible. The explicit wipes close the window between the throw and `dispose()` (or the next op on a different instance that would overwrite these regions organically). `POLY_TAG_BUFFER` is intentionally left alone — the tag is a public MAC output, not key material.
+
 **`.subarray()` vs `.slice()` usage:**
 - **Output from WASM:** The code uses `.slice()` consistently to copy data out of WASM memory (`ops.ts:77`, `ops.ts:90`, `ops.ts:139`, `ops.ts:151`). This creates an independent copy, safe against the WASM memory buffer being detached or reused.
 - **Input views:** Input data views use `.subarray()` (`ops.ts:19`, `ops.ts:148`, `ops.ts:157`, `ops.ts:189–190`). The code immediately copies these views into WASM memory via `mem.set()`, so the view lifetime is bounded. No view crosses a `postMessage` boundary within the core library.
@@ -329,7 +358,8 @@ Total: 131,564 bytes < 196,608 (3 × 64KB pages). No dynamic allocation (`memory
 > [!NOTE]
 > This note references the v1 `XChaCha20Poly1305Pool` (`chacha20/pool.ts`).
 > The v2 equivalent is `SealStreamPool` (`stream/seal-stream-pool.ts`) with
-> cipher-specific workers (`chacha20/pool-worker.ts`, `serpent/pool-worker.ts`).
+> cipher-specific workers (`chacha20/pool-worker.ts`, `serpent/pool-worker.ts`),
+> spawned from blob URLs over IIFE source bundled at lib build time.
 >
 > The `XChaCha20Poly1305Pool` worker pool (`pool.ts`) uses `Transferable` buffer transfer when dispatching to workers. Input buffers are neutered after dispatch. The worker receives ownership of the `ArrayBuffer`, deserializes its own copy into WASM memory, and returns a new `ArrayBuffer` with the result. This avoids the [`.subarray()` + `postMessage` hazard that caused the 2.8TB memcpy](./serpent_audit.md#18-buffer-layout-and-memory-safety) in the Serpent worker pool.
 
@@ -337,11 +367,11 @@ Total: 131,564 bytes < 196,608 (3 × 64KB pages). No dynamic allocation (`memory
 
 ### 1.9 TypeScript Wrapper Layer
 
-The TypeScript classes (`src/ts/chacha20/index.ts`) provide the public API.
+TypeScript classes in `src/ts/chacha20/index.ts` form the public API. They never perform cryptographic computation; they orchestrate the WASM layer.
 
-**`init()` gate:** All classes call `getExports()` (line 41–43) which calls `getInstance('chacha20')`. If the module has not been loaded via `init('chacha20')` or `chacha20Init()`, this throws immediately. No class silently auto-initializes.
+**`init()` gate:** All classes call `getExports()` (lines 41–43), which calls `getInstance('chacha20')`. If the module hasn't been loaded via `init('chacha20')` or `chacha20Init()`, the call throws immediately. No class auto-initializes on first use.
 
-**Input validation:**
+**Input validation:** Each class validates parameters before calling WASM:
 
 | Class | Parameter | Validation |
 |-------|-----------|------------|
@@ -355,13 +385,11 @@ The TypeScript classes (`src/ts/chacha20/index.ts`) provide the public API.
 | `XChaCha20Poly1305` | ciphertext (decrypt) | `ciphertext.length < 16` → `RangeError` |
 | `Poly1305` | key | `key.length !== 32` → `RangeError` |
 
-**Error handling on authentication failure:**
-- `ChaCha20Poly1305.decrypt()` and `XChaCha20Poly1305.decrypt()` throw `Error('ChaCha20Poly1305: authentication failed')`. Never return null.
-- Plaintext is never produced on failure (verify-then-decrypt order in `aeadDecrypt`).
+**Error handling:** On authentication failure, both `ChaCha20Poly1305.decrypt()` and `XChaCha20Poly1305.decrypt()` throw `Error('ChaCha20Poly1305: authentication failed')`. They never return null or produce partial plaintext. This enforces verify-then-decrypt order.
 
-**`dispose()`:** All classes call `this.x.wipeBuffers()` in `dispose()`, zeroing all WASM memory.
+**`dispose()`:** All classes call `this.x.wipeBuffers()` in `dispose()`, which zeros all WASM memory. Key material and intermediate state don't persist after the instance is disposed.
 
-The TypeScript layer performs no cryptographic computation. It writes inputs to WASM memory, calls WASM exports, and reads outputs. This matches the architecture contract in `AGENTS.md`.
+The TypeScript layer writes inputs to WASM memory, calls WASM exports, and reads outputs, never implementing algorithm logic.
 
 ---
 
@@ -369,21 +397,23 @@ The TypeScript layer performs no cryptographic computation. It writes inputs to 
 
 ### 2.1 Side-Channel Analysis
 
+We designed every component for constant-time operation:
+
 | Component | Implementation | Constant-Time? |
 |-----------|---------------|----------------|
 | ChaCha20 quarter round | `i32.add`, `i32.xor`, `i32.rotl` | Yes |
-| Block function (10 double-rounds) | Fixed iteration count, no branches on state | Yes |
+| Block function (10 double-rounds) | Fixed 20 iterations, no conditional branches on state | Yes |
 | Counter increment | `u32` addition, no early exit | Yes |
-| Poly1305 absorbBlock | Schoolbook multiply + carry chain | Yes |
-| Poly1305 final reduction | Mask-select conditional subtraction | Yes |
-| Poly1305 tag comparison | XOR-accumulate (`constantTimeEqual`) | Yes |
-| HChaCha20 | Same round structure as block(), no add-back | Yes |
+| Poly1305 absorbBlock | Schoolbook multiply with fixed carry chain | Yes |
+| Poly1305 final reduction | Mask-select (no branch) for conditional subtraction | Yes |
+| Poly1305 tag comparison | XOR-accumulate loop with no early return | Yes |
+| HChaCha20 | 20 fixed rounds, no add-back step | Yes |
 
-**ChaCha20 is an ARX cipher.** All operations are add, rotate, and XOR on 32-bit words. There are no lookup tables, no data-dependent memory accesses, and no data-dependent branches anywhere in the implementation. This is architecturally immune to cache-timing side channels.
+**ChaCha20's ARX design.** It uses only add, rotate, and XOR on 32-bit words. No lookups, no data-dependent memory access, no conditionals. This architecture is inherently immune to cache-timing side channels.
 
-**WASM timing guarantees:** The WASM `i32.rotl` instruction is a fixed-latency operation on all modern CPU architectures. Unlike JavaScript where bitwise operators operate through the JIT's polymorphic integer representation, WASM `i32` is always a 32-bit integer. There is no speculative type specialization that could create timing variation. The WASM module is compiled ahead-of-time by the engine's optimizing compiler (V8 Liftoff → TurboFan, SpiderMonkey Cranelift), and the JIT's speculative optimizations do not apply.
+**WASM timing guarantees.** The WASM `i32.rotl` instruction runs in fixed time on all modern architectures. Unlike JavaScript bitwise operators (which go through the JIT's polymorphic type system), WASM `i32` is always a 32-bit integer. No type specialization, no timing variation. The WASM module compiles ahead-of-time via the engine's optimizing compiler (V8's Liftoff → TurboFan, SpiderMonkey's Cranelift), so JIT speculations don't apply.
 
-**Poly1305 field arithmetic:** The radix-2^26 multiplication in `absorbBlock` (`poly1305.ts:68–72`) and carry propagation (lines 75–81) are straight-line code with no data-dependent branches. The modular reduction wraps carries via multiplication by 5, which is a fixed-cost operation regardless of the accumulator value. The final conditional subtraction in `polyFinal` (lines 189–200) uses bitwise mask selection rather than a branch.
+**Poly1305 arithmetic.** The radix-2^26 multiplication in `absorbBlock` (`poly1305.ts:68–72`) and carry propagation (lines 75–81) are straight-line code with no data-dependent branches. Modular reduction multiplies carries by 5, a fixed-cost operation regardless of the accumulator value. The final conditional subtraction in `polyFinal` (lines 189–200) uses bitwise mask selection instead of a branch, avoiding any timing dependence on whether h >= p.
 
 **Counter increment:** Unlike the Serpent CTR mode counter (which has an early-exit carry propagation), the ChaCha20 counter is a simple `u32` addition (`chacha20.ts:166`). A single 32-bit add has no timing variation. This is a side-channel advantage over the Serpent implementation.
 
@@ -455,14 +485,18 @@ The `SealStream` / `OpenStream` streaming layer uses ChaCha20-Poly1305 AEAD as a
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [serpent_audit](./serpent_audit.md) — Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties)
-> - [sha2_audit](./sha2_audit.md) — SHA-256 / HMAC-SHA256 audit
-> - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit
-> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentCipher, not ChaCha)
-> - [hkdf_audit](./hkdf_audit.md) — HKDF audit (used in stream layer key derivation)
-> - [chacha20](./chacha20.md) — TypeScript API documentation
-> - [asm_chacha](./asm_chacha.md) — WASM implementation details
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [serpent_audit](./serpent_audit.md) | Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties) |
+| [sha2_audit](./sha2_audit.md) | SHA-256 / HMAC-SHA256 audit |
+| [sha3_audit](./sha3_audit.md) | SHA-3 companion audit |
+| [hmac_audit](./hmac_audit.md) | HMAC-SHA256 audit (used in SerpentCipher, not ChaCha) |
+| [hkdf_audit](./hkdf_audit.md) | HKDF audit (used in stream layer key derivation) |
+| [chacha20](./chacha20.md) | TypeScript API documentation |
+| [asm_chacha](./asm_chacha.md) | WASM implementation details |
+

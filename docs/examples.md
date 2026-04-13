@@ -1,19 +1,18 @@
-# Examples
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> This document covers the library's full API surface with working examples.
-> Follow the section header links for complete API documentation on each class.
+### Examples
+
+This document covers the library's full API surface with working examples. Follow the section header links for complete API documentation on each class.
 
 ---
 
 ## High Level API
 
-_Safe defaults, authentication built in, no footguns._
+It provides safe defaults with authentication built in.
 
 ### [Seal](./aead.md#seal): one-shot authenticated encryption
 
-One-shot AEAD over any `CipherSuite`. No instantiation, no `dispose()`. Pass the
-cipher object, the key, and the plaintext.
+Use `Seal` for one-shot AEAD with any `CipherSuite`. Pass the cipher, the key, and the plaintext; no instantiation or `dispose()` call is needed.
 
 ```typescript
 import { init, Seal, XChaCha20Cipher } from 'leviathan-crypto'
@@ -30,7 +29,7 @@ console.log(new TextDecoder().decode(pt))
 // => "Authenticated secret message."
 ```
 
-Works identically with `SerpentCipher`:
+It works identically with `SerpentCipher`:
 
 ```typescript
 import { init, Seal, SerpentCipher } from 'leviathan-crypto'
@@ -48,9 +47,7 @@ const pt   = Seal.decrypt(SerpentCipher, key, blob)
 
 ### [KyberSuite](./aead.md#kybersuite): post-quantum hybrid encryption
 
-Wraps `MlKemBase` and a `CipherSuite` into a hybrid KEM+AEAD suite. The KEM
-encapsulates a fresh shared secret on each encrypt. The inner cipher performs
-the AEAD. The KEM ciphertext is prepended to the blob automatically.
+`KyberSuite` wraps an ML-KEM instance and a `CipherSuite` into a hybrid KEM+AEAD suite. Each call to `encrypt` creates a fresh shared secret via the KEM, then the inner cipher performs AEAD. The KEM ciphertext is prepended to the blob automatically.
 
 ```typescript
 import { init, Seal, KyberSuite, MlKem768, XChaCha20Cipher } from 'leviathan-crypto'
@@ -127,8 +124,7 @@ const ptLast = opener.finalize(ctLast)
 
 ### [SealStreamPool](./aead.md#sealstreampool): parallel batch encryption
 
-`SealStreamPool` distributes chunks across Web Workers. Same wire format as
-`SealStream`. Drop-in for large files or batch workloads.
+`SealStreamPool` distributes chunks across Web Workers. It produces the same wire format as `SealStream` and works as a drop-in for large files or batch workloads.
 
 ```typescript
 import { init, SealStreamPool, XChaCha20Cipher, randomBytes } from 'leviathan-crypto'
@@ -177,10 +173,7 @@ const recipientSecret = kem.decapsulate(decapsulationKey, ciphertext)
 kem.dispose()
 ```
 
-Hybrid X25519 + ML-KEM pattern: combine a classical X25519 shared secret with
-an ML-KEM shared secret for defense in depth. Both must be broken simultaneously
-for an attacker to succeed. (X25519 is not in this library. Use WebCrypto or a
-dedicated library.)
+To combine classical and post-quantum security, pair an X25519 shared secret with an ML-KEM shared secret. Both must be broken simultaneously for an attacker to succeed. X25519 is not in this library; use WebCrypto or a dedicated library for it.
 
 ```typescript
 import { init, MlKem768, HKDF_SHA256 } from 'leviathan-crypto'
@@ -206,7 +199,7 @@ kem.dispose()
 hkdf.dispose()
 ```
 
-Key validation before use (e.g. after deserializing from storage):
+To validate keys before use, for example after deserializing from storage:
 
 ```typescript
 const kem = new MlKem768()
@@ -224,16 +217,143 @@ kem.dispose()
 
 ---
 
-### [SHA-256 hash + HMAC verify](./sha2.md)
+### [Post-quantum forward-secret messaging](./ratchet.md)
 
-Hash a message, then use HMAC to authenticate it. Always use
-[`constantTimeEqual`](./utils.md#constanttimeequal) for tag comparison.
+These five primitives cover building a Signal-like session on top of ML-KEM. Each example shows the API shape of one export. For the full Alice-and-Bob
+round trip with message encryption, epoch transitions, and transport
+layout, see the [usage example](./ratchet.md#usage-example) and
+[bilateral chain exchange](./ratchet.md#bilateral-chain-exchange)
+sections of the ratchet guide.
+
+**`ratchetInit(sharedSecret, context?)`** — derive the initial root key
+and both chain keys from a shared secret established out of band.
 
 ```typescript
-import { init, SHA256, HMAC_SHA256, constantTimeEqual, randomBytes, bytesToHex, utf8ToBytes } from 'leviathan-crypto'
+import { init, ratchetInit } from 'leviathan-crypto'
 import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
 await init({ sha2: sha2Wasm })
+
+// sharedSecret: 32 bytes from a prior KEM or key-agreement protocol
+const { rootKey, sendChainKey, recvChainKey } = ratchetInit(sharedSecret)
+```
+
+**`KDFChain`** — stateful per-message KDF. Each `step()` advances the
+chain and returns a single-use 32-byte message key. `stepWithCounter()`
+returns the key and the post-step counter atomically.
+
+```typescript
+import { KDFChain } from 'leviathan-crypto'
+
+const chain = new KDFChain(sendChainKey)
+
+const msgKey1 = chain.step()                     // counter 1
+const { key: msgKey2, counter } = chain.stepWithCounter()  // counter 2
+
+// Use each msgKey exactly once to encrypt, then discard it.
+chain.dispose()
+```
+
+**`kemRatchetEncap` / `kemRatchetDecap`** — advance the root key with a
+fresh ML-KEM encapsulation. Both sides arrive at the same pair of chain
+keys; Alice's send chain is Bob's receive chain and vice versa.
+
+```typescript
+import {
+  init,
+  MlKem768,
+  kemRatchetEncap,
+  kemRatchetDecap,
+  constantTimeEqual,
+} from 'leviathan-crypto'
+
+await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })
+
+const kem = new MlKem768()
+
+// Bob publishes his ek; Alice receives it. Both sides share a 32-byte rootKey.
+const { encapsulationKey: bobEk, decapsulationKey: bobDk } = kem.keygen()
+const rootKey = /* 32 bytes, from a prior ratchetInit or previous KEM step */
+
+// Alice: encap side
+const alice = kemRatchetEncap(kem, rootKey, bobEk)
+// alice.kemCt goes on the wire; alice.sendChainKey / recvChainKey stay local
+
+// Bob: decap side (receives kemCt from Alice)
+const bob = kemRatchetDecap(kem, rootKey, bobDk, alice.kemCt, bobEk)
+
+console.log(constantTimeEqual(alice.sendChainKey, bob.recvChainKey))  // => true
+console.log(constantTimeEqual(alice.recvChainKey, bob.sendChainKey))  // => true
+
+// Both sides now feed these chain keys into KDFChain for per-message keys.
+kem.dispose()
+```
+
+**`SkippedKeyStore`** — caches message keys for out-of-order delivery.
+`resolve()` returns a `ResolveHandle`; settle with `commit()` on
+successful decrypt (wipes the key) or `rollback()` on auth failure
+(preserves the key for a legitimate retry at the same counter).
+
+```typescript
+import { SkippedKeyStore } from 'leviathan-crypto'
+
+const store = new SkippedKeyStore({ maxCacheSize: 100, maxSkipPerResolve: 50 })
+
+const handle = store.resolve(chain, incomingCounter)
+try {
+  const plaintext = Seal.decrypt(cipher, handle.key, ciphertext)
+  handle.commit()        // success — key is wiped
+  return plaintext
+} catch (e) {
+  handle.rollback()      // auth failed — key returns to the store
+  throw e
+}
+```
+
+**`RatchetKeypair`** — single-use ek/dk wrapper for the decap side. The
+dk is wiped automatically after the one permitted `decap` call.
+
+```typescript
+import { RatchetKeypair, MlKem768 } from 'leviathan-crypto'
+
+const kem     = new MlKem768()
+const keypair = new RatchetKeypair(kem)
+
+// Share keypair.ek with the encap side, then receive kemCt back
+const { sendChainKey, recvChainKey } = keypair.decap(kem, rootKey, kemCt)
+
+keypair.dispose()   // idempotent; safe to call after decap()
+kem.dispose()
+```
+
+For the full round-trip story covering message counters, epoch
+transitions, and how these primitives compose into a complete session,
+see the [ratchet guide](./ratchet.md).
+
+---
+
+### Hashing + HMAC verify
+
+Hash a message, then use HMAC to authenticate it. Always use
+[`constantTimeEqual`](./utils.md#constanttimeequal) for tag comparison.
+See [sha2.md](./sha2.md) and [sha3.md](./sha3.md) for the full per-class
+reference.
+
+```typescript
+import {
+  init,
+  SHA256,
+  HMAC_SHA256,
+  constantTimeEqual,
+  randomBytes,
+  bytesToHex,
+  utf8ToBytes,
+} from 'leviathan-crypto'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({
+  sha2: sha2Wasm,
+})
 
 // Hash
 const sha    = new SHA256()
@@ -259,31 +379,115 @@ if (constantTimeEqual(tag, recomputed)) {
 hmac.dispose()
 ```
 
+**Other hash algorithms follow the same shape.** Swap the class name, the
+init module, and expect a different digest size. The `hash(msg)` and
+`dispose()` signatures are identical across every class.
+
+| Class | Init | Digest size |
+|---|---|---|
+| `SHA256` | `sha2` | 32 bytes |
+| `SHA384` | `sha2` | 48 bytes |
+| `SHA512` | `sha2` | 64 bytes |
+| `SHA3_224` | `sha3` | 28 bytes |
+| `SHA3_256` | `sha3` | 32 bytes |
+| `SHA3_384` | `sha3` | 48 bytes |
+| `SHA3_512` | `sha3` | 64 bytes |
+
+Example: to compute a SHA3-512 digest instead of SHA-256, change the
+imports, the class name, and add `sha3` to the init call. The digest
+comes back 64 bytes long; everything else stays the same.
+
+```diff
+ import {
+   init,
+-  SHA256,
++  SHA3_512,
+   HMAC_SHA256,
+   constantTimeEqual,
+   randomBytes,
+   bytesToHex,
+   utf8ToBytes,
+ } from 'leviathan-crypto'
+-import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
++import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
+
+ await init({
+   sha2: sha2Wasm,
++  sha3: sha3Wasm,
+ })
+
+-const sha    = new SHA256()
++const sha    = new SHA3_512()
+ const digest = sha.hash(utf8ToBytes('Hello, world!'))
+ console.log(bytesToHex(digest))
+-// => "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"
++// => "8e47f1185ffd014d238fabd02a1a32defe698cbf38c037a90e3c0a0a32370fb52cbd641250508502295fcabcbf676c09470b27443868c8e5f70e26dc337288af"
+```
+
+HMAC variants follow the same pattern. `HMAC_SHA256`, `HMAC_SHA384`, and
+`HMAC_SHA512` all expose `hash(key, message)` and `dispose()` with matching
+tag sizes.
+
 ---
 
 ### [Fortuna CSPRNG](./fortuna.md)
 
-Cryptographically secure random bytes with forward secrecy and 32 entropy pools.
+`Fortuna` provides cryptographically secure random bytes with forward secrecy and 32 entropy pools. Pick a `Generator` (cipher PRF) and a `HashFn` (accumulator and reseed key derivation) at create time.
+
+#### Minimum bundle: ChaCha20 + SHA-256
 
 ```typescript
 import { init, Fortuna } from 'leviathan-crypto'
+import { ChaCha20Generator } from 'leviathan-crypto/chacha20'
+import { SHA256Hash } from 'leviathan-crypto/sha2'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ chacha20: chacha20Wasm, sha2: sha2Wasm })
+
+const rng   = await Fortuna.create({ generator: ChaCha20Generator, hash: SHA256Hash })
+const key   = rng.get(32)
+const nonce = rng.get(24)
+rng.stop()
+```
+
+#### Original Fortuna pair: Serpent + SHA-256
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { SerpentGenerator } from 'leviathan-crypto/serpent'
+import { SHA256Hash } from 'leviathan-crypto/sha2'
 import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
-import { sha2Wasm }    from 'leviathan-crypto/sha2/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 
 await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
-const rng   = await Fortuna.create()
-const key   = rng.get(32)  // 256-bit encryption key
-const nonce = rng.get(24)  // 192-bit XChaCha20 nonce
+const rng = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash })
+const key = rng.get(32)
+rng.stop()
+```
 
-rng.stop()  // wipes key material
+#### Modern combination: ChaCha20 + SHA3-256
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { ChaCha20Generator } from 'leviathan-crypto/chacha20'
+import { SHA3_256Hash } from 'leviathan-crypto/sha3'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
+
+await init({ chacha20: chacha20Wasm, sha3: sha3Wasm })
+
+const rng   = await Fortuna.create({ generator: ChaCha20Generator, hash: SHA3_256Hash })
+const token = rng.get(16)
+rng.stop()
 ```
 
 ---
 
 ### [Utilities](./utils.md)
 
-No `init()` required.
+None of these utilities require `init()`.
 
 ```typescript
 import { hexToBytes, bytesToHex, utf8ToBytes, randomBytes, constantTimeEqual, wipe } from 'leviathan-crypto'
@@ -557,9 +761,13 @@ shake.dispose()
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
-> - [cdn](./cdn.md) — CDN usage: no bundler required
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [lexicon](./lexicon.md) | Glossary of cryptographic terms |
+| [cdn](./cdn.md) | CDN usage: no bundler required |
+

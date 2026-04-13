@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * NESSIE test vectors — Serpent (cross-browser)
+ *
+ * Source: NESSIE project evaluation, 2000-2003
+ * Files:  serpent_nessie-128.txt, serpent_nessie-192.txt, serpent_nessie-256.txt (served from localhost)
+ */
 import { test, expect } from '@playwright/test';
 
 const JS_URL = 'http://localhost:1337/build/serpent.js';

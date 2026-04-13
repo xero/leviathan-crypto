@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * Poly1305 Known-Answer Tests (cross-browser) — RFC 8439
+ *
+ * Source: RFC 8439 — ChaCha20 and Poly1305 for IETF Protocols, §2.5.2 and Appendix A.3
+ * Files:  vectors/chacha20.ts (poly1305Vectors)
+ */
 import { test, expect } from '@playwright/test';
 import { poly1305Vectors } from '../vectors/chacha20';
 

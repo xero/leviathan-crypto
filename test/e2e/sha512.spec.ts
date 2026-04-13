@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * SHA-512 and SHA-384 Known-Answer Tests (cross-browser) — FIPS 180-4
+ *
+ * Source: FIPS 180-4 (SHA Standard), Appendix C (SHA-512), Appendix D (SHA-384)
+ * Files:  vectors/sha2.ts (sha512Vectors, sha384Vectors)
+ */
 import { test, expect } from '@playwright/test';
 import { sha512Vectors, sha384Vectors } from '../vectors/sha2.js';
 

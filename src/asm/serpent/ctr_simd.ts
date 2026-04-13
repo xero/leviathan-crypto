@@ -39,7 +39,11 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 
 // ── Counter helpers ─────────────────────────────────────────────────────────
 
-// Increment 128-bit LE counter by 1
+/**
+ * Increment the 128-bit little-endian counter in COUNTER_BUFFER by one.
+ * Byte 0 is the least significant byte; carry propagates toward byte 15.
+ * @internal
+ */
 @inline function incrementCounter(): void {
 	for (let i = 0; i < 16; i++) {
 		const b: i32 = i32(load<u8>(COUNTER_OFFSET + i)) + 1
@@ -50,9 +54,13 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 
 // ── Interleave / Deinterleave ───────────────────────────────────────────────
 
-// Load 4 consecutive counter values into SIMD working registers.
-// Serpent internal word order: r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0]
-// Each v128 register w holds: [word_w_blk0, word_w_blk1, word_w_blk2, word_w_blk3]
+/**
+ * Load 4 consecutive counter values into SIMD working registers at SIMD_WORK_OFFSET.
+ * Applies Serpent byte-reversal: r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0].
+ * Each v128 register w holds lane[k] = word w of block k (k = 0..3).
+ * Advances the counter by 4 as a side effect.
+ * @internal
+ */
 @inline function loadCounters4x(): void {
 	// Save base counter
 	const c0 = COUNTER_OFFSET
@@ -102,10 +110,19 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	v128.store(SIMD_WORK_OFFSET + 3 * 16, i32x4.replace_lane(i32x4.replace_lane(i32x4.replace_lane(i32x4.splat(b0w3), 1, b1w3), 2, b2w3), 3, b3w3))
 }
 
-// Deinterleave v128 encrypted registers and XOR 64 bytes of keystream with plaintext.
-// Output register layout (encrypt): r[0..3] = ciphertext words.
-// Byte order reversal: ct[0..3]=r[3], ct[4..7]=r[2], ct[8..11]=r[1], ct[12..15]=r[0]
-// Unrolled: i32x4.extract_lane requires a compile-time constant lane index.
+/**
+ * XOR one 16-byte keystream block (supplied as 4 × i32 words) with plaintext.
+ * Applies Serpent output byte-reversal: ct[0..3] = w3 big-endian, ct[4..7] = w2, etc.
+ * i32x4.extract_lane requires compile-time constant indices, so this helper is
+ * called with literal lane values extracted by the caller.
+ * @internal
+ * @param ptBase  byte offset of the plaintext source in WASM linear memory
+ * @param ctBase  byte offset of the ciphertext destination in WASM linear memory
+ * @param w0      keystream word 0 (Serpent register r[0])
+ * @param w1      keystream word 1 (Serpent register r[1])
+ * @param w2      keystream word 2 (Serpent register r[2])
+ * @param w3      keystream word 3 (Serpent register r[3])
+ */
 @inline function xorKeystreamBlock(ptBase: i32, ctBase: i32, w0: i32, w1: i32, w2: i32, w3: i32): void {
 	store<u8>(ctBase +  0, u8(w3 >>> 24) ^ load<u8>(ptBase +  0))
 	store<u8>(ctBase +  1, u8(w3 >>> 16) ^ load<u8>(ptBase +  1))
@@ -125,6 +142,14 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	store<u8>(ctBase + 15, u8(w0       ) ^ load<u8>(ptBase + 15))
 }
 
+/**
+ * Deinterleave and XOR 4 encrypted blocks (64 bytes) of keystream with plaintext.
+ * Reads v128 registers from SIMD_WORK_OFFSET and extracts each lane to call
+ * `xorKeystreamBlock` for each of the 4 blocks.
+ * @internal
+ * @param ptOff  byte offset of the plaintext source (start of 4-block group)
+ * @param ctOff  byte offset of the ciphertext destination (start of 4-block group)
+ */
 @inline function xorKeystream4x(ptOff: i32, ctOff: i32): void {
 	const r0 = v128.load(SIMD_WORK_OFFSET + 0 * 16)
 	const r1 = v128.load(SIMD_WORK_OFFSET + 1 * 16)
@@ -150,9 +175,16 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 }
 
 // ── Inline scalar tail ──────────────────────────────────────────────────────
-// Process remaining 0..3 blocks one at a time using the scalar path.
-// Inlined here — do not call encryptChunk from ctr.ts to avoid circular deps.
 
+/**
+ * Encrypt one counter block (scalar path) and XOR with plaintext.
+ * Used for the 0..3 block tail after the SIMD inner loop.
+ * Inlined here rather than calling `encryptChunk` from ctr.ts to avoid circular imports.
+ * @internal
+ * @param ptOffset  byte offset of the plaintext source in WASM linear memory
+ * @param ctOffset  byte offset of the ciphertext destination in WASM linear memory
+ * @param len       number of bytes to process (1..16)
+ */
 @inline function processBlockScalar(ptOffset: i32, ctOffset: i32, len: i32): void {
 	memory.copy(BLOCK_PT_OFFSET, COUNTER_OFFSET, 16)
 	encryptBlock()
@@ -166,6 +198,14 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 
 // ── Exported CTR encrypt/decrypt ────────────────────────────────────────────
 
+/**
+ * Encrypt chunkLen bytes using SIMD-accelerated Serpent CTR mode.
+ * Processes 4 blocks (64 bytes) per SIMD iteration; scalar tail handles remainder.
+ * CTR mode is symmetric — encryption and decryption are identical operations.
+ * Counter must be initialised before calling.
+ * @param chunkLen  number of bytes to encrypt (1..CHUNK_SIZE)
+ * @returns         chunkLen on success, -1 if chunkLen is out of range
+ */
 export function encryptChunk_simd(chunkLen: i32): i32 {
 	if (chunkLen <= 0 || chunkLen > CHUNK_SIZE) return -1
 
@@ -194,6 +234,12 @@ export function encryptChunk_simd(chunkLen: i32): i32 {
 	return chunkLen
 }
 
+/**
+ * Decrypt chunkLen bytes using SIMD-accelerated Serpent CTR mode.
+ * Identical to `encryptChunk_simd` — CTR mode is symmetric.
+ * @param chunkLen  number of bytes to decrypt (1..CHUNK_SIZE)
+ * @returns         chunkLen on success, -1 if chunkLen is out of range
+ */
 export function decryptChunk_simd(chunkLen: i32): i32 {
 	return encryptChunk_simd(chunkLen)
 }

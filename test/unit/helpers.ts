@@ -50,6 +50,7 @@ interface SerpentExports {
 	wipeBuffers:      () => void
 }
 
+/** Retrieves serpent WASM exports from the init() module cache; requires `await init({ serpent: ... })` in beforeAll. */
 export function getWasm(): SerpentExports {
 	return getInstance('serpent').exports as unknown as SerpentExports;
 }
@@ -69,6 +70,7 @@ export const toHex = (bytes: Uint8Array): string =>
 export const fromHex = (hex: string): Uint8Array =>
 	Uint8Array.from(hex.match(/.{2}/g)!.map(b => parseInt(b, 16)));
 
+/** Writes key bytes to WASM memory at getKeyOffset() and calls loadKey() to expand the subkeys. */
 export const loadKey = (keyHex: string): void => {
 	const w = getWasm();
 	const key = fromHex(keyHex);
@@ -77,6 +79,7 @@ export const loadKey = (keyHex: string): void => {
 	if (result !== 0) throw new Error(`loadKey failed for length ${key.length}`);
 };
 
+/** Writes ptHex to the plaintext buffer, calls encryptBlock(), and returns the ciphertext buffer as hex. */
 export const encryptBlock = (ptHex: string): string => {
 	const w = getWasm();
 	writeBytes(fromHex(ptHex), w.getBlockPtOffset());
@@ -84,6 +87,7 @@ export const encryptBlock = (ptHex: string): string => {
 	return toHex(readBytes(w.getBlockCtOffset(), 16));
 };
 
+/** Writes ctHex to the ciphertext buffer, calls decryptBlock(), and returns the plaintext buffer as hex. */
 export const decryptBlock = (ctHex: string): string => {
 	const w = getWasm();
 	writeBytes(fromHex(ctHex), w.getBlockCtOffset());
@@ -91,4 +95,5 @@ export const decryptBlock = (ctHex: string): string => {
 	return toHex(readBytes(w.getBlockPtOffset(), 16));
 };
 
+/** Zeros all WASM memory buffers via the exported wipeBuffers() function. */
 export const wipeBuffers = (): void => getWasm().wipeBuffers();

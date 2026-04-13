@@ -43,7 +43,7 @@ beforeAll(async () => {
 	await loadKyber();
 });
 
-// ── Gate 1 — Compiles and instantiates ───────────────────────────────────────
+// GATE: ML-KEM polynomial instantiation: module loads, memory is 3 pages
 
 describe('Gate 1 — instantiation and buffer layout', () => {
 	test('module loads and memory is 3 pages', () => {
@@ -136,7 +136,7 @@ describe('Gate 1 — instantiation and buffer layout', () => {
 	});
 });
 
-// ── Gate 2 — Arithmetic ───────────────────────────────────────────────────────
+// GATE: ML-KEM polynomial arithmetic: Montgomery/Barrett reduce, fqmul, zetas
 
 describe('Gate 2 — modular arithmetic', () => {
 	test('QINV satisfies q * QINV ≡ 1 mod 2^16', () => {
@@ -247,7 +247,7 @@ describe('Gate 2 — modular arithmetic', () => {
 	});
 });
 
-// ── Gate 3 — NTT ─────────────────────────────────────────────────────────────
+// GATE: ML-KEM NTT: FIPS 203 forward/inverse NTT roundtrip
 
 describe('Gate 3 — NTT zetas and transforms', () => {
 	// BitRev7: reverse the low 7 bits of i
@@ -376,7 +376,7 @@ describe('Gate 3 — NTT zetas and transforms', () => {
 	});
 });
 
-// ── Gate 4 — Serialization and compression ────────────────────────────────────
+// GATE: ML-KEM serialization and compression: FIPS 203 encode/decode/compress
 
 describe('Gate 4 — serialization and compression', () => {
 	const POLY_BYTES = 384;
@@ -603,7 +603,7 @@ describe('Gate 4 — serialization and compression', () => {
 	});
 });
 
-// ── Gate 5 — Sampling ─────────────────────────────────────────────────────────
+// GATE: ML-KEM sampling: rejection sampling and CBD bounds
 
 describe('Gate 5 — CBD and rejection sampling', () => {
 	test('cbd2 (poly_getnoise eta=2): all coefficients in [-2, 2]', () => {
@@ -621,6 +621,88 @@ describe('Gate 5 — CBD and rejection sampling', () => {
 				expect(poly[i]).toBeGreaterThanOrEqual(-2);
 				expect(poly[i]).toBeLessThanOrEqual(2);
 			}
+		}
+	});
+
+	// FIPS 203 §4.2.2 spec: cbd2 reads exactly 128 bytes and writes exactly 256
+	// coefficients (N/8 = 32 outer iterations × 8 coeffs/iter). The three tests
+	// below pin those guarantees so a future off-by-2× regression (i<64) cannot
+	// survive a test run — the existing range-only test cannot detect it because
+	// a-b ∈ [-2,2] holds structurally regardless of how many iterations run.
+
+	test('cbd2 (eta=2): output is independent of input bytes 128..255', () => {
+		const w = getWasm();
+		const rand = prng(0xCBD2_FACE);
+		const polyOff = w.getPolySlot0();
+		const bufOff = w.getXofPrfOffset();
+
+		const head = randBytes(128, rand);
+
+		w.wipeBuffers();
+		writeBytes(head, bufOff);
+		writeBytes(new Uint8Array(128).fill(0x00), bufOff + 128);
+		w.poly_getnoise(polyOff, bufOff, 2);
+		const polyA = readPoly(polyOff);
+
+		w.wipeBuffers();
+		writeBytes(head, bufOff);
+		writeBytes(new Uint8Array(128).fill(0xFF), bufOff + 128);
+		w.poly_getnoise(polyOff, bufOff, 2);
+		const polyB = readPoly(polyOff);
+
+		for (let i = 0; i < N; i++) expect(polyA[i]).toBe(polyB[i]);
+	});
+
+	test('cbd2 (eta=2): does not write past the 512-byte destination polynomial', () => {
+		const w = getWasm();
+		const rand = prng(0xCBD2_BEEF);
+		const polyOff = w.getPolySlot0();
+		const bufOff = w.getXofPrfOffset();
+		const adjacentOff = w.getPolySlot1();
+
+		w.wipeBuffers();
+		const sentinel = new Uint8Array(512).fill(0xA5);
+		writeBytes(sentinel, adjacentOff);
+
+		const buf = randBytes(128, rand);
+		writeBytes(buf, bufOff);
+		w.poly_getnoise(polyOff, bufOff, 2);
+
+		const after = readBytes(adjacentOff, 512);
+		for (let i = 0; i < 512; i++) expect(after[i]).toBe(0xA5);
+	});
+
+	test('cbd2 (eta=2): KAT — matches FIPS 203 Algorithm 7 reference for fixed input', () => {
+		// Inline FIPS 203 §4.2.2 / pq-crystals/kyber ref/cbd.c reference.
+		// Mirrors the AS implementation but with the spec-correct N/8 = 32 bound.
+		const refCbd2 = (b: Uint8Array): number[] => {
+			const out: number[] = new Array(256);
+			for (let i = 0; i < 32; i++) {
+				const t = (b[4 * i] | (b[4 * i + 1] << 8) | (b[4 * i + 2] << 16) | (b[4 * i + 3] << 24)) >>> 0;
+				let d = t & 0x55555555;
+				d = (d + ((t >>> 1) & 0x55555555)) >>> 0;
+				for (let j = 0; j < 8; j++) {
+					const a = (d >>> (4 * j    )) & 3;
+					const b2 = (d >>> (4 * j + 2)) & 3;
+					out[8 * i + j] = a - b2;
+				}
+			}
+			return out;
+		};
+
+		const w = getWasm();
+		const rand = prng(0xCBD2_CAFE);
+		const polyOff = w.getPolySlot0();
+		const bufOff = w.getXofPrfOffset();
+
+		for (let trial = 0; trial < 100; trial++) {
+			w.wipeBuffers();
+			const buf = randBytes(128, rand);
+			writeBytes(buf, bufOff);
+			w.poly_getnoise(polyOff, bufOff, 2);
+			const got = readPoly(polyOff);
+			const want = refCbd2(buf);
+			for (let i = 0; i < N; i++) expect(got[i]).toBe(want[i]);
 		}
 	});
 
@@ -703,7 +785,7 @@ describe('Gate 5 — CBD and rejection sampling', () => {
 	});
 });
 
-// ── Gate 6 — Constant-time operations ────────────────────────────────────────
+// GATE: ML-KEM constant-time operations: CT verify and cmov
 
 describe('Gate 6 — constant-time compare and cmov', () => {
 	test('ct_verify returns 0 for identical arrays', () => {

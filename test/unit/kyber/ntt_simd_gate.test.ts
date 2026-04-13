@@ -41,7 +41,7 @@ beforeAll(async () => {
 	await loadKyber();
 });
 
-// ── Gate 1 — SIMD NTT byte-identical to scalar NTT ───────────────────────────
+// GATE: ML-KEM SIMD NTT: byte-identical to scalar for 100 random polys
 
 describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
 
@@ -157,7 +157,7 @@ describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
 	});
 });
 
-// ── Gate 2 — SIMD polynomial arithmetic matches reference semantics ───────────
+// GATE: ML-KEM SIMD polynomial arithmetic: matches reference semantics
 
 describe('Gate 2 — SIMD poly arithmetic matches reference', () => {
 

@@ -1,9 +1,8 @@
-# Argon2id: Memory-Hardened Password Hashing and Key Derivation
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> leviathan-crypto does not wrap Argon2id. This document covers how to use the
-> [`argon2id`](https://www.npmjs.com/package/argon2id) npm package directly and
-> how to pair it with leviathan primitives for passphrase-based encryption.
+### Argon2id: Memory-Hardened Password Hashing and Key Derivation
+
+leviathan-crypto does not wrap Argon2id. This document covers how to use the [`argon2id`](https://www.npmjs.com/package/argon2id) npm package directly and how to pair it with leviathan primitives for passphrase-based encryption.
 
 > ### Table of Contents
 > - [Why Argon2id](#why-argon2id)
@@ -291,12 +290,16 @@ xc2.dispose();
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [sha2](./sha2.md) — HKDF-SHA256 for key expansion from Argon2id root keys
-> - [serpent](./serpent.md) — `SerpentCipher`: Serpent-256 cipher suite (use with `Seal` and Argon2id-derived keys)
-> - [authenticated encryption](./aead.md) — `Seal`: one-shot AEAD over any `CipherSuite`
-> - [chacha20](./chacha20.md) — XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys)
-> - [utils](./utils.md) — `randomBytes` for generating salts, `constantTimeEqual` for hash verification
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [sha2](./sha2.md) | HKDF-SHA256 for key expansion from Argon2id root keys |
+| [serpent](./serpent.md) | `SerpentCipher`: Serpent-256 cipher suite (use with `Seal` and Argon2id-derived keys) |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
+| [chacha20](./chacha20.md) | XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys) |
+| [utils](./utils.md) | `randomBytes` for generating salts, `constantTimeEqual` for hash verification |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

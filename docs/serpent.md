@@ -1,13 +1,15 @@
-# Serpent-256 TypeScript API
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+### Serpent-256 TypeScript API
+
+See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
 
 > ### Table of Contents
 > - [Overview](#overview)
 > - [Security Notes](#security-notes)
 > - [Module Init](#module-init)
 > - [API Reference](#api-reference)
+> - [SerpentGenerator](#serpentgenerator)
 > - [Usage Examples](#usage-examples)
 > - [Error Conditions](#error-conditions)
 
@@ -44,12 +46,10 @@ corrupted plaintext on decryption. Decryption succeeds without any indication of
 tampering. There is no integrity check. Your caller receives garbage and has no way
 to distinguish it from the original message.
 
-`Seal` with `SerpentCipher` eliminates this problem. It computes an HMAC tag over
-the ciphertext and verifies it before decryption. If anything has been modified,
-`Seal.decrypt()` throws instead of returning corrupted data.
-
-`Seal` with `XChaCha20Cipher` is an alternative using a different cipher.
-See [chacha20.md](./chacha20.md).
+[`Seal`](./aead.md#seal) with [`SerpentCipher`](./ciphersuite.md#serpentcipher)
+eliminates this problem. It computes an HMAC tag over the ciphertext and
+verifies it before decryption. If anything has been modified, `Seal.decrypt()`
+throws instead of returning corrupted data.
 
 ### Never reuse a nonce or IV with the same key
 
@@ -58,13 +58,13 @@ same keystream, which means an attacker can XOR two ciphertexts together and
 recover both plaintexts. Always generate a fresh random nonce for each message.
 In CBC mode, the IV must be random and unpredictable for each encryption. A predictable IV enables chosen-plaintext attacks.
 
-Use `randomBytes(16)` to generate nonces and IVs. `Seal` with `SerpentCipher` handles IV generation internally.
+Use `randomBytes(16)` to generate nonces and IVs. [`Seal`](./aead.md#seal) with [`SerpentCipher`](./ciphersuite.md#serpentcipher) handles IV generation internally.
 
 ### Always use 256-bit keys
 
 Unless you have a specific reason to use a shorter key, pass a 32-byte key to
 every Serpent operation. Shorter keys provide less security margin and there is no
-meaningful performance benefit to using them. `SerpentCipher` requires a 32-byte key; HKDF derives enc/mac/iv keys internally.
+meaningful performance benefit to using them. [`SerpentCipher`](./ciphersuite.md#serpentcipher) requires a 32-byte key; HKDF derives enc/mac/iv keys internally.
 
 ### Call dispose() when done
 
@@ -127,7 +127,7 @@ Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })`.
 
 #### `SerpentCipher.keygen(): Uint8Array`
 
-Returns `randomBytes(32)`. Convenience method. Not on the `CipherSuite` interface.
+Returns `randomBytes(32)`. Convenience method. Not on the [`CipherSuite`](./ciphersuite.md) interface.
 
 #### Usage with `Seal`
 
@@ -166,7 +166,7 @@ See [aead.md](./aead.md) for the full `Seal`, `SealStream`, and `OpenStream` API
 ### Serpent
 
 Raw Serpent block encryption and decryption. Operates on exactly 16-byte blocks.
-This class is a low-level building block; use `Seal` with `SerpentCipher` for most purposes.
+This class is a low-level building block
 
 ```typescript
 class Serpent {
@@ -223,8 +223,16 @@ stream of chunks.
 
 > [!WARNING]
 > CTR mode is unauthenticated. An attacker can modify ciphertext
-> without detection. Use `Seal` with `SerpentCipher` for authenticated encryption, or pair
+> without detection. Use [`Seal`](./aead.md#seal) with [`SerpentCipher`](./ciphersuite.md#serpentcipher) for authenticated encryption, or pair
 > with HMAC-SHA256 (Encrypt-then-MAC).
+
+> [!CAUTION]
+> `SerpentCtr` is stateful and holds exclusive access to the `serpent` WASM
+> module for its entire lifetime. Constructing a second `SerpentCtr`/
+> `SerpentCbc`, `SerpentCipher` usage (`Seal.encrypt(SerpentCipher, ...)`,
+> `SealStream` with `SerpentCipher`), or any atomic serpent class
+> (`Serpent` block) while this instance is live throws. Call `dispose()`
+> when done. Pool workers are unaffected.
 
 ```typescript
 class SerpentCtr {
@@ -268,7 +276,7 @@ automatically.
 - **chunk**: any length up to the module's internal chunk buffer size. Throws `RangeError` if the chunk exceeds the maximum size.
 
 > [!NOTE]
-> Automatically dispatches to the 4-wide SIMD path (`encryptChunk_simd`) when the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise falls back to the scalar unrolled path. The dispatch is transparent with no API change required.
+> Always uses the 4-wide SIMD path (`encryptChunk_simd`). SIMD is required by the serpent module; `init()` throws on runtimes without WebAssembly SIMD support.
 
 ---
 
@@ -294,6 +302,11 @@ Functionally identical to `encryptChunk()`.
 
 Wipes all key material and intermediate state from WASM memory.
 
+After `dispose()`, all instance methods (`beginEncrypt`, `encryptChunk`,
+`beginDecrypt`, `decryptChunk`) throw `Error: SerpentCtr: instance has been
+disposed`. Disposal is permanent; construct a new instance if you need to
+continue.
+
 ---
 
 ### SerpentCbc
@@ -303,7 +316,14 @@ Encrypts and decrypts entire messages in a single call.
 
 > [!WARNING]
 > CBC mode is unauthenticated. Always authenticate the output with
-> HMAC-SHA256 (Encrypt-then-MAC) or use `Seal` with `SerpentCipher` instead.
+> HMAC-SHA256 (Encrypt-then-MAC) or use [`Seal`](./aead.md#seal) with [`SerpentCipher`](./ciphersuite.md#serpentcipher) instead.
+
+> [!CAUTION]
+> `SerpentCbc` is stateful and holds exclusive access to the `serpent` WASM
+> module for its entire lifetime. Constructing a second `SerpentCbc`/
+> `SerpentCtr`, `SerpentCipher` usage (which internally constructs a
+> `SerpentCbc`), or any atomic serpent class (`Serpent` block) while this
+> instance is live throws. Call `dispose()` when done.
 
 ```typescript
 class SerpentCbc {
@@ -346,18 +366,93 @@ Decrypts Serpent CBC ciphertext and strips PKCS7 padding.
 
 - **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
 - **iv**: exactly 16 bytes. Must match the IV used for encryption. Throws `RangeError` if the length is not 16.
-- **ciphertext**: must be a non-zero multiple of 16 bytes. Throws `RangeError` if the length is zero or not a multiple of 16. Also throws if PKCS7 padding is invalid, which typically indicates the wrong key, wrong IV, or corrupted ciphertext.
+- **ciphertext**: must be a non-zero multiple of 16 bytes. Throws `RangeError` with the generic message `'invalid ciphertext'` on any failure — zero length, non-multiple-of-16 length, or invalid PKCS7 padding. The single message and branch-free padding check close the Vaudenay 2002 padding-oracle surface; a caller cannot distinguish failure modes by message or by timing.
 
 Returns the decrypted plaintext as a new `Uint8Array`.
 
 > [!NOTE]
-> Automatically dispatches to the 4-wide SIMD path (`cbcDecryptChunk_simd`) when the runtime supports WebAssembly SIMD (`hasSIMD()` returns `true`), otherwise falls back to the scalar unrolled path. CBC encryption has no SIMD variant since each ciphertext block depends on the previous one.
+> Decryption always uses the 4-wide SIMD path (`cbcDecryptChunk_simd`). SIMD is required by the serpent module; `init()` throws on runtimes without it. CBC encryption has no SIMD variant because each ciphertext block depends on the previous one.
 
 ---
 
 #### `dispose(): void`
 
 Wipes all key material and intermediate state from WASM memory.
+
+After `dispose()`, `encrypt` and `decrypt` throw `Error: SerpentCbc: instance
+has been disposed`. Disposal is permanent; construct a new instance if you
+need to continue.
+
+---
+
+### Security — direct use of `SerpentCbc`
+
+`SerpentCbc` is unauthenticated. If you use it directly via
+`{ dangerUnauthenticated: true }`, you are responsible for:
+
+1. Authenticating the ciphertext (HMAC-SHA256 in Encrypt-then-MAC order)
+2. Verifying the HMAC **before** calling `decrypt()`
+3. Using a unique, random IV per (key, message)
+
+`SerpentCbc.decrypt()` throws a single generic `'invalid ciphertext'`
+error for all padding failures and runs its validation in constant time over the
+final 16 bytes. This mitigates padding-oracle attacks (Vaudenay 2002) on callers
+that surface errors to remote parties. The authenticated composition
+`SerpentCipher` always verifies HMAC before any PKCS7 processing and is the
+recommended path.
+
+---
+
+## SerpentGenerator
+
+Serpent-256 ECB counter-mode PRF for Fortuna's generator slot. Implements the
+`Generator` interface (Practical Cryptography, Ferguson & Schneier 2003 §9.4).
+This is a plain `const` object, not a class — no instantiation, no `dispose()`.
+
+Requires `init({ serpent: serpentWasm })`. See [fortuna.md](./fortuna.md) for
+full usage with `Fortuna.create()`.
+
+| Property | Value |
+|----------|-------|
+| `keySize` | `32` |
+| `blockSize` | `16` |
+| `counterSize` | `16` |
+| `wasmModules` | `['serpent']` |
+
+### `SerpentGenerator.generate(key, counter, n): Uint8Array`
+
+Produces `n` bytes of pseudorandom output from `(key, counter)`. Neither input
+is mutated. Wipes WASM key/key-schedule/scratch and the JS-heap counter copy
+before returning.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `Uint8Array` | 32 bytes (256-bit Serpent key) |
+| `counter` | `Uint8Array` | 16 bytes, treated as a little-endian integer |
+| `n` | `number` | Output byte count: 0 ≤ n ≤ 2³⁰ |
+
+**Returns** a new `Uint8Array` of length `n`.
+
+**Throws:**
+- `RangeError('SerpentGenerator: key must be 32 bytes (got N)')` if key length ≠ 32
+- `RangeError('SerpentGenerator: counter must be 16 bytes (got N)')` if counter length ≠ 16
+- `RangeError('SerpentGenerator: n must be a non-negative safe integer <= 2^30 (got N)')` if n is out of range
+- `Error` if another stateful instance currently owns the `serpent` WASM module
+
+### Usage with `Fortuna`
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { SerpentGenerator } from 'leviathan-crypto/serpent'
+import { SHA256Hash } from 'leviathan-crypto/sha2'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ serpent: serpentWasm, sha2: sha2Wasm })
+const rng = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash })
+const bytes = rng.get(32)
+rng.stop()
+```
 
 ---
 
@@ -383,9 +478,8 @@ console.log(new TextDecoder().decode(decrypted))
 
 ### Example 2: CTR mode (advanced)
 
-For authenticated encryption, use `Seal` with `SerpentCipher`. Use `SerpentCtr` to
-encrypt data of any length. CTR mode produces ciphertext the same length as the
-plaintext with no padding overhead.
+Use `SerpentCtr` to encrypt data of any length. CTR mode produces ciphertext
+the same length as the plaintext with no padding overhead.
 
 ```typescript
 import { init, SerpentCtr, randomBytes } from 'leviathan-crypto';
@@ -417,12 +511,11 @@ ctr.dispose();
 
 > [!IMPORTANT]
 > CTR mode is unauthenticated. An attacker can tamper with the
-> ciphertext without detection. Use `Seal` with `SerpentCipher` for authenticated encryption.
+> ciphertext without detection. Use  [`Seal`](./aead.md#seal) with [`SerpentCipher`](./ciphersuite.md#serpentcipher) for authenticated encryption.
 
 ### Example 3: CBC mode (advanced)
 
-For authenticated encryption, use `Seal` with `SerpentCipher`. Use `SerpentCbc` for
-message-level encryption with automatic PKCS7 padding.
+Use `SerpentCbc` for message-level encryption with automatic PKCS7 padding.
 
 ```typescript
 import { init, SerpentCbc, randomBytes } from 'leviathan-crypto';
@@ -448,12 +541,11 @@ cbc.dispose();
 ```
 
 > [!IMPORTANT]
-> CBC mode is unauthenticated. Use `Seal` with `SerpentCipher` for authenticated encryption.
+> CBC mode is unauthenticated. Use [`Seal`](./aead.md#seal) with [`SerpentCipher`](./ciphersuite.md#serpentcipher) for authenticated encryption.
 
 ### Example 4: Raw block operations (low-level)
 
 Use the `Serpent` class for single 16-byte block operations. This is the lowest-level
-API; use `Seal` with `SerpentCipher` for most purposes.
 
 ```typescript
 import { init, Serpent } from 'leviathan-crypto';
@@ -499,21 +591,27 @@ cipher.dispose();
 | Nonce is not 16 bytes (`SerpentCtr`) | `RangeError` | `nonce must be 16 bytes (got N)` |
 | Chunk exceeds buffer size (`SerpentCtr`) | `RangeError` | `chunk exceeds maximum size of N bytes — split into smaller chunks` |
 | IV is not 16 bytes (`SerpentCbc`) | `RangeError` | `CBC IV must be 16 bytes (got N)` |
-| Ciphertext length is zero or not a multiple of 16 (`SerpentCbc.decrypt`) | `RangeError` | `ciphertext length must be a non-zero multiple of 16` |
-| Invalid PKCS7 padding on decrypt (`SerpentCbc.decrypt`) | `RangeError` | `invalid PKCS7 padding` |
+| Ciphertext length zero, not a multiple of 16, or PKCS7 padding invalid (`SerpentCbc.decrypt`) | `RangeError` | `invalid ciphertext` (same message for every failure mode — no numeric leak) |
+| `SerpentGenerator.generate()` key ≠ 32 bytes | `RangeError` | `SerpentGenerator: key must be 32 bytes (got N)` |
+| `SerpentGenerator.generate()` counter ≠ 16 bytes | `RangeError` | `SerpentGenerator: counter must be 16 bytes (got N)` |
+| `SerpentGenerator.generate()` n out of range | `RangeError` | `SerpentGenerator: n must be a non-negative safe integer <= 2^30 (got N)` |
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [asm_serpent](./asm_serpent.md) — WASM implementation details and buffer layout
-> - [serpent_reference](./serpent_reference.md) — algorithm specification, S-boxes, linear transform, and known attacks
-> - [serpent_audit](./serpent_audit.md) — security audit findings (correctness, side-channel analysis)
-> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument
-> - [chacha20](./chacha20.md) — `XChaCha20Cipher`: alternative `CipherSuite` for `Seal` and streaming
-> - [sha2](./sha2.md) — HMAC-SHA256 and HKDF used internally by `SerpentCipher`
-> - [types](./types.md) — `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes
-> - [utils](./utils.md) — `constantTimeEqual`, `wipe`, `randomBytes` used by Serpent wrappers
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [lexicon](./lexicon.md) | Glossary of cryptographic terms |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [asm_serpent](./asm_serpent.md) | WASM implementation details and buffer layout |
+| [serpent_reference](./serpent_reference.md) | algorithm specification, S-boxes, linear transform, and known attacks |
+| [serpent_audit](./serpent_audit.md) | security audit findings (correctness, side-channel analysis) |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument |
+| [chacha20](./chacha20.md) | `XChaCha20Cipher`: alternative `CipherSuite` for `Seal` and streaming |
+| [sha2](./sha2.md) | HMAC-SHA256 and HKDF used internally by `SerpentCipher` |
+| [types](./types.md) | `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes |
+| [utils](./utils.md) | `constantTimeEqual`, `wipe`, `randomBytes` used by Serpent wrappers |
+

@@ -29,7 +29,7 @@
 
 import { barrett_reduce_8x, ntt_simd, invntt_simd } from './ntt_simd';
 
-// ── poly_add_simd ─────────────────────────────────────────────────────────────
+// ── poly_add_simd ───────────────────────────────────────────────────────────
 // Pointwise addition of two polynomials. 32 v128 iterations.
 // No modular reduction — same semantics as scalar poly_add.
 export function poly_add_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
@@ -40,7 +40,7 @@ export function poly_add_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
 	}
 }
 
-// ── poly_sub_simd ─────────────────────────────────────────────────────────────
+// ── poly_sub_simd ───────────────────────────────────────────────────────────
 // Pointwise subtraction of two polynomials. 32 v128 iterations.
 // No modular reduction — same semantics as scalar poly_sub.
 export function poly_sub_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
@@ -51,7 +51,7 @@ export function poly_sub_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
 	}
 }
 
-// ── poly_reduce_simd ──────────────────────────────────────────────────────────
+// ── poly_reduce_simd ────────────────────────────────────────────────────────
 // Barrett reduction on all 256 coefficients. Result in [-(q-1)/2, (q-1)/2].
 // 32 v128 iterations using barrett_reduce_8x from ntt_simd.ts.
 export function poly_reduce_simd(polyOffset: i32): void {
@@ -61,14 +61,14 @@ export function poly_reduce_simd(polyOffset: i32): void {
 	}
 }
 
-// ── poly_ntt_simd ─────────────────────────────────────────────────────────────
+// ── poly_ntt_simd ───────────────────────────────────────────────────────────
 // Forward NTT followed by Barrett reduction. FIPS 203 Algorithm 9.
 export function poly_ntt_simd(polyOffset: i32): void {
 	ntt_simd(polyOffset);
 	poly_reduce_simd(polyOffset);
 }
 
-// ── poly_invntt_simd ──────────────────────────────────────────────────────────
+// ── poly_invntt_simd ────────────────────────────────────────────────────────
 // Inverse NTT (includes Montgomery factor f=1441). FIPS 203 Algorithm 10.
 export function poly_invntt_simd(polyOffset: i32): void {
 	invntt_simd(polyOffset);

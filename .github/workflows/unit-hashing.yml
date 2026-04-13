@@ -16,7 +16,7 @@ jobs:
       - name: install dependencies
         run: bun i
       - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run hashing unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage

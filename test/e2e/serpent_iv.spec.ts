@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * Serpent IV/intermediate-value Known-Answer Tests (cross-browser)
+ *
+ * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
+ * Files:  vectors/serpent_ecb_iv.txt
+ */
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -32,21 +38,23 @@ function readVec(name: string) {
 	return readFileSync(resolve(VEC_DIR, name), 'utf8');
 }
 
-interface IvCtCase { key: string; ct: string }
+interface IvCase { key: string; pt: string; ct: string }
 
-function parseIvCt(text: string): IvCtCase[] {
-	const cases: IvCtCase[] = [];
-	let key = '', ct = '';
+function parseIvCt(text: string): IvCase[] {
+	const cases: IvCase[] = [];
+	let key = '', pt = '', ct = '';
 	for (const raw of text.split('\n')) {
 		const t = raw.trim();
 		if (t.startsWith('KEY=') && !t.startsWith('KEYSIZE=')) {
-			if (key && ct) cases.push({ key, ct });
-			key = t.slice(4).toLowerCase(); ct = '';
+			if (key && pt && ct) cases.push({ key, pt, ct });
+			key = t.slice(4).toLowerCase(); pt = ''; ct = '';
+		} else if (t.startsWith('PT=') && !pt) {
+			pt = t.slice(3).toLowerCase();
 		} else if (t.startsWith('CT=') && !ct) {
 			ct = t.slice(3).toLowerCase();
 		}
 	}
-	if (key && ct) cases.push({ key, ct });
+	if (key && pt && ct) cases.push({ key, pt, ct });
 	return cases;
 }
 
@@ -72,14 +80,13 @@ test('Intermediate values — final CT for all 3 key sizes', async ({ page }) =>
 	const errors: string[] = await page.evaluate(async (cases) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
-		for (const { key, ct } of cases) {
+		for (const { key, pt, ct } of cases) {
 			const k = fromHex(key);
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push(`loadKey failed len=${k.length}`); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(
-				fromHex('0123456789abcdeffedcba9876543210'), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(fromHex(pt), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
 			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
 			if (got !== ct) errs.push(`key=${key.slice(0, 8)}... exp=${ct} got=${got}`);

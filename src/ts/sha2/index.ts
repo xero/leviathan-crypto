@@ -24,7 +24,7 @@
 // Public API classes for the SHA-2 WASM module.
 // Uses the init() module cache — call sha2Init(source) before constructing.
 
-import { getInstance, initModule } from '../init.js';
+import { getInstance, initModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
 
 export async function sha2Init(source: WasmSource): Promise<void> {
@@ -101,6 +101,7 @@ export class SHA256 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
 		this.x.sha256Init();
 		feedHash(this.x, msg, this.x.getSha256InputOffset(), 64, this.x.sha256Update);
 		this.x.sha256Final();
@@ -109,6 +110,7 @@ export class SHA256 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha2');
 		this.x.wipeBuffers();
 	}
 }
@@ -122,6 +124,7 @@ export class SHA512 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
 		this.x.sha512Init();
 		feedHash(this.x, msg, this.x.getSha512InputOffset(), 128, this.x.sha512Update);
 		this.x.sha512Final();
@@ -130,6 +133,7 @@ export class SHA512 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha2');
 		this.x.wipeBuffers();
 	}
 }
@@ -143,6 +147,7 @@ export class SHA384 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
 		this.x.sha384Init();
 		feedHash(this.x, msg, this.x.getSha512InputOffset(), 128, this.x.sha512Update);
 		this.x.sha384Final();
@@ -151,6 +156,7 @@ export class SHA384 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha2');
 		this.x.wipeBuffers();
 	}
 }
@@ -164,6 +170,7 @@ export class HMAC_SHA256 {
 	}
 
 	hash(key: Uint8Array, msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
 		let k = key;
 		// RFC 2104 §3: keys longer than block size are pre-hashed
 		if (k.length > 64) {
@@ -183,6 +190,7 @@ export class HMAC_SHA256 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha2');
 		this.x.wipeBuffers();
 	}
 }
@@ -196,6 +204,7 @@ export class HMAC_SHA512 {
 	}
 
 	hash(key: Uint8Array, msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
 		let k = key;
 		// RFC 2104 §3: keys longer than block size (128) are pre-hashed
 		if (k.length > 128) {
@@ -215,6 +224,7 @@ export class HMAC_SHA512 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha2');
 		this.x.wipeBuffers();
 	}
 }
@@ -228,6 +238,7 @@ export class HMAC_SHA384 {
 	}
 
 	hash(key: Uint8Array, msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
 		let k = key;
 		// RFC 2104 §3: keys longer than block size (128) are pre-hashed with SHA-384
 		if (k.length > 128) {
@@ -247,6 +258,7 @@ export class HMAC_SHA384 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha2');
 		this.x.wipeBuffers();
 	}
 }
@@ -254,3 +266,7 @@ export class HMAC_SHA384 {
 // ── HKDF ────────────────────────────────────────────────────────────────────
 
 export { HKDF_SHA256, HKDF_SHA512 } from './hkdf.js';
+
+// ── SHA256Hash ──────────────────────────────────────────────────────────────
+
+export { SHA256Hash } from './hash.js';

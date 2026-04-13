@@ -1,30 +1,8 @@
-<!--
-                 ▄▄▄▄▄▄▄▄▄▄
-          ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
-       ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
-     ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
-    ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
-    ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
-    ███████▌    ▀██▀         ███
-     ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
-      ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
-        ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
-           ▀████▄   ▄██▄
-             ▐████   ▐███                  Author: xero (https://x-e.ro)
-      ▄▄██████████    ▐███         ▄▄      License: MIT
-   ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
- ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
-  ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
- ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
- █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
-  ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
-                          ▀█████▀▀
--->
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-# Serpent-256 SIMD Benchmark Results
+### Serpent-256 SIMD Benchmark Results
 
-> [!NOTE]
-> Measured throughput for 4-wide inter-block SIMD (`encryptChunk_simd`) across Chromium, Firefox, and WebKit on Apple Silicon. See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+Measured throughput for 4-wide inter-block SIMD (`encryptChunk_simd`) across Chromium, Firefox, and WebKit on Apple Silicon. See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
 
 > ### Table of Contents
 > - [Environment](#environment)
@@ -111,9 +89,12 @@ purpose of SIMD throughput.
 
 ---
 
-> **Cross-references:**
-> - [index](./README.md) — Project Documentation index
-> - [asm_serpent](./asm_serpent.md) — WASM API reference including SIMD exports
-> - [serpent](./serpent.md) — TypeScript wrapper classes
-> - [chacha_simd_bench](./chacha_simd_bench.md) — ChaCha20 SIMD benchmark (same inter-block model)
-> - [serpent_audit.md](./serpent_audit.md) — Serpent-256 implementation audit
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [asm_serpent](./asm_serpent.md) | WASM API reference including SIMD exports |
+| [serpent](./serpent.md) | TypeScript wrapper classes |
+| [chacha_simd_bench](./chacha_simd_bench.md) | ChaCha20 SIMD benchmark (same inter-block model) |
+| [serpent_audit.md](./serpent_audit.md) | Serpent-256 implementation audit |

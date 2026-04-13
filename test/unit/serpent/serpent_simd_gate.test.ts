@@ -23,7 +23,7 @@
  * SIMD gate test — encryptBlock_simd_4x must produce byte-identical output
  * to 4 sequential scalar encryptBlock calls.
  *
- * GATE — must pass before any SIMD CTR or benchmark work.
+ * GATE: must pass before any SIMD CTR or benchmark work.
  * Do NOT adjust test inputs or expected values if this fails.
  * Fix the implementation (generator or serpent_simd.ts).
  */
@@ -97,7 +97,7 @@ beforeAll(async () => {
 });
 
 describe('SIMD gate — encryptBlock_simd_4x vs scalar encryptBlock', () => {
-	// GATE
+	// GATE: Serpent SIMD 4-wide ECB: byte-identical to scalar
 	it('4 blocks: SIMD output matches scalar output byte-for-byte', () => {
 		const wasm = getWasm();
 		const mem = new Uint8Array(wasm.memory.buffer);

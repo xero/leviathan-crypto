@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * SHA3-224/256/384/512, SHAKE128, SHAKE256 Known-Answer Tests — FIPS 202
+ *
+ * Source: FIPS 202 (SHA-3 Standard)
+ * Files:  vectors/sha3.ts (sha3_*Vectors, shake*Vectors, cross-check vectors)
+ */
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
@@ -44,8 +50,8 @@ beforeAll(async () => {
 	await init({ sha3: sha3Wasm });
 });
 
-// ── Gate 7: SHA3-256 empty message ──────────────────────────────────────────
-// GATE
+// GATE: SHA3-256 empty message: FIPS 202 §A.1
+// Vector: sha3.ts[sha3_256Vectors[0]]
 describe('Gate 7 — SHA3-256 empty message', () => {
 	test('SHA3-256("") matches FIPS 202', () => {
 		const h = new SHA3_256();

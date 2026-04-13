@@ -23,7 +23,7 @@
 //
 // ML-KEM type definitions: WASM export interfaces and KEM API types.
 
-// ── Kyber WASM exports ────────────────────────────────────────────────────────
+// ── Kyber WASM exports ──────────────────────────────────────────────────────
 
 export interface KyberExports {
 	memory: WebAssembly.Memory
@@ -95,6 +95,7 @@ export interface KyberExports {
 	polyvec_reduce: (pvOffset: number, k: number) => void
 	polyvec_add: (rOffset: number, aOffset: number, bOffset: number, k: number) => void
 	polyvec_basemul_acc_montgomery: (rOffset: number, aOffset: number, bOffset: number, k: number) => void
+	polyvec_modulus_check: (pvOffset: number, k: number) => number
 	// Sampling
 	rej_uniform: (polyOffset: number, ctrStart: number, bufOffset: number, buflen: number) => number
 	// Constant-time
@@ -102,7 +103,7 @@ export interface KyberExports {
 	ct_cmov: (rOffset: number, xOffset: number, len: number, b: number) => void
 }
 
-// ── SHA3 WASM exports ─────────────────────────────────────────────────────────
+// ── SHA3 WASM exports ───────────────────────────────────────────────────────
 
 export interface Sha3Exports {
 	memory:            WebAssembly.Memory
@@ -126,7 +127,7 @@ export interface Sha3Exports {
 	wipeBuffers:       () => void
 }
 
-// ── KEM API types ─────────────────────────────────────────────────────────────
+// ── KEM API types ───────────────────────────────────────────────────────────
 
 export interface KyberKeyPair {
 	encapsulationKey: Uint8Array // ek

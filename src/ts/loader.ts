@@ -22,11 +22,6 @@
 import type { WasmSource } from './wasm-source.js';
 import { base64ToBytes as _b64 } from './utils.js';
 
-// Each WASM module gets its own fresh Memory — never shared between instances.
-function makeImports() {
-	return { env: { memory: new WebAssembly.Memory({ initial: 3, maximum: 3 }) } };
-}
-
 // TS 5.9 generified Uint8Array<TArrayBuffer> with default ArrayBufferLike, which
 // no longer satisfies BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer.
 // Convert Uint8Array to a proper ArrayBuffer before calling WebAssembly APIs.
@@ -49,8 +44,8 @@ export async function decodeWasm(b64: string): Promise<Uint8Array> {
 			'leviathan-crypto: DecompressionStream not available — '
 			+ 'use a URL, ArrayBuffer, or WebAssembly.Module source in this runtime',
 		);
+	// _b64 throws RangeError on invalid base64 — no nullish check required.
 	const compressed = _b64(b64);
-	if (!compressed) throw new Error('leviathan-crypto: corrupt embedded WASM — base64 decode failed');
 	const ds = new DecompressionStream('gzip');
 	const writer = ds.writable.getWriter();
 	const reader = ds.readable.getReader();
@@ -69,11 +64,23 @@ export async function decodeWasm(b64: string): Promise<Uint8Array> {
 	return out;
 }
 
+// Max thenable nesting depth. A caller can pass `Promise<Response>` or even
+// `Promise<Promise<Response>>` (e.g. deferred fetch wrapped in another async
+// layer), but arbitrary `Promise<Promise<Promise<...>>>` chains would indicate
+// a caller bug — cap at 3 levels and throw a clear error beyond that.
+const MAX_THENABLE_DEPTH = 3;
+
 /**
  * Compile a WASM source to a Module without instantiating.
  * Used by pool infrastructure to send compiled modules to workers.
+ *
+ * Thenable sources (Promise<Response>, Promise<ArrayBuffer>, etc.) are
+ * resolved and then re-dispatched by the runtime type of the resolved value.
+ * Depth is capped at `MAX_THENABLE_DEPTH` to prevent runaway recursion.
  */
-export async function compileWasm(source: WasmSource): Promise<WebAssembly.Module> {
+export async function compileWasm(source: WasmSource, _depth = 0): Promise<WebAssembly.Module> {
+	if (_depth > MAX_THENABLE_DEPTH)
+		throw new TypeError(`leviathan-crypto: thenable nesting too deep (max ${MAX_THENABLE_DEPTH})`);
 	if (typeof source === 'string') {
 		if (source.length === 0) throw new TypeError('leviathan-crypto: invalid WasmSource — empty string');
 		return WebAssembly.compile(toArrayBuffer(await decodeWasm(source)));
@@ -88,8 +95,10 @@ export async function compileWasm(source: WasmSource): Promise<WebAssembly.Modul
 		return source;
 	if (typeof Response !== 'undefined' && source instanceof Response)
 		return WebAssembly.compileStreaming(source);
-	if (source != null && typeof (source as unknown as Record<string, unknown>).then === 'function')
-		return WebAssembly.compileStreaming(source as Promise<Response>);
+	if (source != null && typeof (source as { then?: unknown }).then === 'function') {
+		const resolved = await (source as PromiseLike<unknown>);
+		return compileWasm(resolved as WasmSource, _depth + 1);
+	}
 	throw new TypeError(
 		`leviathan-crypto: invalid WasmSource — got ${source === null ? 'null' : typeof source}`,
 	);
@@ -99,26 +108,14 @@ export async function compileWasm(source: WasmSource): Promise<WebAssembly.Modul
  * Load a WASM module from any accepted source type.
  * The loading strategy is inferred from the argument type — no mode string.
  *
- * Throws `TypeError` for null, numeric, or unrecognised inputs.
+ * Throws `TypeError` for null, numeric, or unrecognised inputs, or if a
+ * thenable source nests deeper than `MAX_THENABLE_DEPTH`.
  */
 export async function loadWasm(source: WasmSource): Promise<WebAssembly.Instance> {
-	if (typeof source === 'string') {
-		if (source.length === 0) throw new TypeError('leviathan-crypto: invalid WasmSource — empty string');
-		return (await WebAssembly.instantiate(toArrayBuffer(await decodeWasm(source)), makeImports())).instance;
-	}
-	if (source instanceof URL)
-		return (await WebAssembly.instantiateStreaming(fetch(source.href), makeImports())).instance;
-	if (source instanceof ArrayBuffer)
-		return (await WebAssembly.instantiate(source, makeImports())).instance;
-	if (source instanceof Uint8Array)
-		return (await WebAssembly.instantiate(toArrayBuffer(source), makeImports())).instance;
-	if (source instanceof WebAssembly.Module)
-		return WebAssembly.instantiate(source, makeImports());
-	if (typeof Response !== 'undefined' && source instanceof Response)
-		return (await WebAssembly.instantiateStreaming(source, makeImports())).instance;
-	if (source != null && typeof (source as unknown as Record<string, unknown>).then === 'function')
-		return (await WebAssembly.instantiateStreaming(source as Promise<Response>, makeImports())).instance;
-	throw new TypeError(
-		`leviathan-crypto: invalid WasmSource — got ${source === null ? 'null' : typeof source}`,
-	);
+	// All leviathan-crypto WASM modules export their own memory and import
+	// nothing from the host. If a future module needs imports, they would be
+	// computed and passed here.
+	// compileWasm already handles thenable resolution + depth capping.
+	const mod = await compileWasm(source);
+	return WebAssembly.instantiate(mod);
 }

@@ -151,7 +151,7 @@ function kAt(t: i32): i32 {
 @inline function sSig0(x: i32): i32 { return rotr<i32>(x,  7) ^ rotr<i32>(x, 18) ^ (x >>> 3)        }
 @inline function sSig1(x: i32): i32 { return rotr<i32>(x, 17) ^ rotr<i32>(x, 19) ^ (x >>> 10)       }
 
-// ── Big-endian memory helpers ────────────────────────────────────────────────
+// ── Big-endian memory helpers ───────────────────────────────────────────────
 
 @inline
 function load32be(base: i32, byteOffset: i32): i32 {
@@ -171,7 +171,7 @@ function store32be(base: i32, byteOffset: i32, v: i32): void {
 	store<u8>(off + 3,  v         & 0xff)
 }
 
-// ── Compression function ─────────────────────────────────────────────────────
+// ── Compression function ────────────────────────────────────────────────────
 //
 // Process one 512-bit block at blockOffset.
 // Reads 16 big-endian u32 words, expands message schedule W[0..63] into
@@ -231,7 +231,7 @@ const H5: i32 = 0x9b05688c
 const H6: i32 = 0x1f83d9ab
 const H7: i32 = 0x5be0cd19
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// ── Public API ──────────────────────────────────────────────────────────────
 
 // Initialize SHA-256 state. Must be called before sha256Update / sha256Final.
 export function sha256Init(): void {

@@ -84,8 +84,8 @@ describe('ChaCha20 4-wide SIMD gate — scalar vs chachaEncryptChunk_simd', () =
 		return new Uint8Array(wasm.memory.buffer).slice(ctOff, ctOff + len);
 	}
 
-	// GATE — 256 bytes: exactly 4 SIMD blocks, no scalar tail
-	it('GATE — 256 bytes (4 full blocks): SIMD === scalar', () => {
+	// GATE: ChaCha20 SIMD 4-wide: byte-identical to scalar
+	it('GATE: 256 bytes (4 full blocks): SIMD === scalar', () => {
 		const wasm = getWasm();
 		const pt   = new Uint8Array(256);  // all-zero plaintext → output is keystream
 

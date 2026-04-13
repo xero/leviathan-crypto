@@ -1,13 +1,8 @@
-# Serpent-256 Cryptographic Audit
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> **Conducted:** Week of 2026-03-09
-> **Target:** `leviathan-crypto` WebAssembly implementation (AssemblyScript)
-> **Reference implementations:**
-> - Serpent AES submission C code ([`floppy1/serpent-reference.c`](https://github.com/xero/leviathan-crypto/blob/floppy1/serpent-reference.c), Frank Stajano)
-> - `leviathan` TypeScript implementation (prior audit baseline)
->
-> **Spec:** Serpent AES submission, Anderson/Biham/Knudsen 1998
+### Serpent-256 Cryptographic Audit
+
+Audit of the `leviathan-crypto` WebAssembly Serpent-256 implementation (AssemblyScript) against the Serpent AES submission reference, with full security analysis covering all published cryptanalytic results and the Encrypt-then-MAC composition used by `SerpentCipher`.
 
 > ### Table of Contents
 > - [1. Algorithm Correctness](#1-algorithm-correctness)
@@ -41,6 +36,14 @@
 >     - [Structural Conclusions](#structural-conclusions)
 >     - [Assessment](#assessment)
 
+| Meta | Description |
+| --- | --- |
+| Conducted: | Week of 2026-03-09 |
+| Target: | `leviathan-crypto` WebAssembly implementation (AssemblyScript) |
+| Reference implementation: | Serpent AES submission C code ([`floppy1/serpent-reference.c`](https://github.com/xero/leviathan-crypto/blob/floppy1/serpent-reference.c), Frank Stajano) |
+| Spec: | Serpent AES submission, Anderson/Biham/Knudsen 1998 |
+| Test vectors: | AES submission KAT (`serpent_ecb_vt/vk/tbl/iv.txt`), Monte Carlo (`serpent_*_e_m/d_m.txt`), NESSIE 128/192/256 |
+
 ---
 
 > [!NOTE]
@@ -56,9 +59,9 @@
 
 ### 1.1 S-Boxes
 
-leviathan-crypto implements all 8 forward S-boxes (`sb0`–`sb7`) and 8 inverse S-boxes (`si0`–`si7`) as Boolean logic circuits in AssemblyScript (`src/asm/serpent/serpent.ts:86–233`). Each function operates on 5 working register slots via `rget`/`rset` helpers that read/write fixed offsets in WASM linear memory. The operations are exclusively `&`, `|`, `^`, and `~`. No table lookups, no data-dependent branches.
+We implement all 8 forward S-boxes (`sb0`–`sb7`) and 8 inverse S-boxes (`si0`–`si7`) as Boolean logic circuits in AssemblyScript (`src/asm/serpent/serpent.ts:86–233`). Each function operates on 5 working register slots using `rget`/`rset` helpers that read/write fixed memory offsets in WASM. The operations are exclusively `&`, `|`, `^`, and `~`—no lookups, no data-dependent branches.
 
-The Boolean expansions are equivalent to the 4-bit to 4-bit lookup tables in the reference C implementation (`serpent-reference.c`, `SBox[8][16]` and `SBoxInverse[8][16]`). The reference S-box tables are:
+These Boolean expansions match the 4-bit lookup tables in the reference C implementation (`serpent-reference.c`, `SBox[8][16]` and `SBoxInverse[8][16]`). The reference tables are:
 
 ```
 S0: { 3, 8,15, 1,10, 6, 5,11,14,13, 4, 2, 7, 0, 9,12 }
@@ -77,7 +80,7 @@ Correctness is established by the full test-vector suite: KAT, S-box entry tests
 
 ### 1.2 Linear Transform
 
-The `lk` function (`serpent.ts:272–294`) implements the forward linear transform (LT) combined with the next round's key XOR. The 10-step bitslice LT matches the spec exactly:
+The `lk` function (`serpent.ts:272–294`) implements the forward linear transform (LT) combined with the next round's key XOR. The spec defines a 10-step bitslice transform. Here's how we implement each step:
 
 | Step | Spec | leviathan-crypto (`lk`) |
 |------|------|------------------------|
@@ -110,14 +113,10 @@ The `kl` function (`serpent.ts:297–319`) implements the inverse linear transfo
 
 ### 1.3 Key Schedule
 
-`loadKey` (`serpent.ts:350–408`) implements the full Serpent key schedule:
+`loadKey` (`serpent.ts:350–408`) implements the full Serpent key schedule. The process has three stages:
 
 **Key loading and padding** (lines 351–372):
-1. Validates key length (16, 24, or 32 bytes); returns -1 on invalid length.
-2. Zeros the 132-word subkey buffer.
-3. Sets the padding bit: `store<i32>(SUBKEY_OFFSET + keyLen * 4, 1)`, placing a `1` at word position `keyLen`. This matches the reference C `shortToLongKey()` which sets `key[bitsInShortKey/BITS_PER_WORD] |= 1`.
-4. Reverse-copies key bytes: `key[k] = input[keyLen - k - 1]`, following the AES submission byte ordering convention (see [1.5 Byte Ordering](#15-byte-ordering)).
-5. Repacks 8 groups of 4 byte-valued words into 8 little-endian uint32 words.
+The function validates the key (16, 24, or 32 bytes; returns -1 otherwise), then zeros the 132-word subkey buffer. It sets a padding bit by storing `1` at word position `keyLen`—matching the reference C `shortToLongKey()`. Next, it reverse-copies key bytes (`key[k] = input[keyLen - k - 1]`), following the AES submission byte ordering convention (see [1.5](#15-byte-ordering)). Finally, it repacks 8 groups of 4 byte-valued words into 8 little-endian uint32 words.
 
 **Prekey expansion** (lines 383–392):
 ```
@@ -278,7 +277,7 @@ The TypeScript classes (`src/ts/serpent/index.ts`) provide the public API:
 
 **`SerpentCbc`**: CBC mode with PKCS7. `encrypt()` applies `pkcs7Pad()` in TypeScript, processes in 64KB chunks via WASM. `decrypt()` validates ciphertext is a non-zero multiple of 16, processes chunks, then applies `pkcs7Strip()`. JSDoc carries authentication warning.
 
-**PKCS7 validation** (`pkcs7Strip`, lines 145–157): Uses constant-time XOR-accumulate validation. All padding bytes are checked against the expected pad value, and the result is accumulated into a `bad` flag without early return. This prevents timing oracles in CBC padding validation.
+**PKCS7 validation** (`pkcs7Strip` in `shared-ops.ts`): Uses constant-time XOR-accumulate validation over a fixed 16-byte tail window. The per-byte pad-region mask is derived arithmetically as `((16 - padLen - i - 1) >> 31) & 0xff` — a signed arithmetic shift collapses the sign of `16 - padLen - i - 1` to `0xff` when `i >= 16 - padLen` and `0x00` otherwise, with no ternary, no `Math.min`/`Math.max`, and no secret-derived clamp. Every pad byte is examined on every call; the result is accumulated into a `bad` flag and folded with the out-of-range checks (`padLen == 0`, `padLen > 16`) before a single terminal throw. This closes the Vaudenay-2002 padding-oracle surface at the validation level — no engine branch is emitted over the secret byte, and no length-dependent work is done between the tail read and the throw.
 
 The TypeScript layer performs no cryptographic computation. It writes inputs to WASM memory, calls WASM exports, and reads outputs. This is the correct architecture per `ARCHITECTURE.md`.
 
@@ -618,7 +617,7 @@ const plaintext = cbc.decrypt(encKey, iv, ct);
 
 `cbc.decrypt` is never called before `constantTimeEqual` returns `true`. There is no code path (no early return, no fallthrough, no branch) that produces plaintext from a chunk that has not passed its MAC. This is the doom principle enforced structurally, not by convention.
 
-The `constantTimeEqual` comparison itself (utils.ts: XOR-accumulate over all 32 bytes, no early exit) prevents a timing oracle on the tag. An attacker cannot distinguish a one-byte tag mismatch from a 32-byte mismatch by measuring response latency.
+The `constantTimeEqual` comparison itself (XOR-accumulate over all 32 bytes, no early exit) prevents a timing oracle on the tag. An attacker cannot distinguish a one-byte tag mismatch from a 32-byte mismatch by measuring response latency. At audit time the comparison ran as a JS loop in `utils.ts`; post-audit it was moved into a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction), with no JS fallback. The constant-time property is preserved and strengthened. See [asm_ct.md](./asm_ct.md).
 
 #### Key derivation and position binding
 
@@ -649,15 +648,19 @@ The error path produces a single observable outcome: `AuthenticationError`. Ther
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2_audit](./sha2_audit.md) — SHA-256 / SHA-512 / SHA-384 implementation audit
-> - [sha3_audit](./sha3_audit.md) — SHA-3 / Keccak implementation audit
-> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 audit (used in SerpentCipher)
-> - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 audit (used in SerpentCipher)
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
-> - [serpent](./serpent.md) — TypeScript API for Serpent-256
-> - [asm_serpent](./asm_serpent.md) — WASM implementation details
-> - [serpent_reference](./serpent_reference.md) — algorithm specification and known attacks
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha2_audit](./sha2_audit.md) | SHA-256 / SHA-512 / SHA-384 implementation audit |
+| [sha3_audit](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
+| [hmac_audit](./hmac_audit.md) | HMAC-SHA256 audit (used in SerpentCipher) |
+| [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 audit (used in SerpentCipher) |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |
+| [serpent](./serpent.md) | TypeScript API for Serpent-256 |
+| [asm_serpent](./asm_serpent.md) | WASM implementation details |
+| [serpent_reference](./serpent_reference.md) | algorithm specification and known attacks |
+

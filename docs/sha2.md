@@ -1,16 +1,15 @@
-# SHA-2 TypeScript API
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Cryptographic hashing and message authentication using SHA-256, SHA-384,
-> SHA-512, HMAC-SHA256, HMAC-SHA384, and HMAC-SHA512.
->
-> See [SHA-2 implementation audit](./sha2_audit.md), [HMAC audit](./hmac_audit.md), and [HKDF audit](./hkdf_audit.md) for algorithm correctness verifications.
+### SHA-2 TypeScript API
+
+Cryptographic hashing and message authentication using SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, and HMAC-SHA512.
 
 > ### Table of Contents
 > - [Overview](#overview)
 > - [Security Notes](#security-notes)
 > - [Module Init](#module-init)
 > - [API Reference](#api-reference)
+> - [SHA256Hash](#sha256hash)
 > - [Usage Examples](#usage-examples)
 > - [Error Conditions](#error-conditions)
 
@@ -113,12 +112,18 @@ time (this is called a **timing attack**).
 Use `constantTimeEqual()` from leviathan-crypto instead. It always compares
 every byte regardless of where the first difference is.
 
+Note: `constantTimeEqual` requires WebAssembly SIMD; on non-SIMD runtimes it
+throws at first call. See [utils.md](./utils.md#constanttimeequal).
+
 ### Call dispose() when you are done
 
 `dispose()` calls `wipeBuffers()` in the WASM module, which zeroes out all
 internal buffers including hash state and key material. This prevents sensitive
 data from lingering in memory. Always call `dispose()` when you are finished
 with a hash or HMAC instance.
+
+> [!NOTE]
+> See [SHA-2 implementation audit](./sha2_audit.md), [HMAC audit](./hmac_audit.md), and [HKDF audit](./hkdf_audit.md) for algorithm correctness verifications.
 
 ---
 
@@ -323,9 +328,15 @@ class HKDF_SHA512 {
 }
 ```
 
+**`constructor()`** Creates a new `HKDF_SHA512` instance. Throws if `init({ sha2: sha2Wasm })` has not been called.
+
 **`extract(salt, ikm)`** If `salt` is `null` or empty, defaults to 64 zero bytes.
 
 **`expand(prk, info, length)`** PRK must be exactly 64 bytes. `length` must be between 1 and 16320. Throws `RangeError` otherwise.
+
+**`derive(ikm, salt, info, length): Uint8Array`** One-shot: calls `extract(salt, ikm)` then `expand(prk, info, length)`. This is the correct path for most callers.
+
+**`dispose(): void`** Releases the internal HMAC instance.
 
 > [!NOTE]
 > HKDF is a pure TypeScript composition over the WASM-backed HMAC classes.
@@ -349,6 +360,49 @@ const key = hkdf.derive(ikm, salt, info, 32)
 console.log('Derived key:', bytesToHex(key))
 
 hkdf.dispose()
+```
+
+---
+
+## SHA256Hash
+
+Stateless SHA-256 `HashFn` for Fortuna's accumulator and reseed slots. Plain
+`const` object — no instantiation, no `dispose()`.
+
+Requires `init({ sha2: sha2Wasm })`. See [fortuna.md](./fortuna.md) for full
+usage with `Fortuna.create()`.
+
+| Property | Value |
+|----------|-------|
+| `outputSize` | `32` |
+| `wasmModules` | `['sha2']` |
+
+### `SHA256Hash.digest(msg): Uint8Array`
+
+Hashes `msg` and returns a 32-byte SHA-256 digest. Wipes WASM input/output/state
+scratch before returning.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `msg` | `Uint8Array` | Message to hash (any length) |
+
+**Returns** a new `Uint8Array` of 32 bytes.
+
+**Throws** `Error` if another stateful instance currently owns the `sha2` WASM module.
+
+### Usage with `Fortuna`
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { SHA256Hash } from 'leviathan-crypto/sha2'
+import { SerpentGenerator } from 'leviathan-crypto/serpent'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
+
+await init({ sha2: sha2Wasm, serpent: serpentWasm })
+const rng = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash })
+const bytes = rng.get(32)
+rng.stop()
 ```
 
 ---
@@ -598,16 +652,20 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [asm_sha2](./asm_sha2.md) — WASM implementation details (AssemblyScript buffer layout, compression functions)
-> - [sha3](./sha3.md) — alternative: SHA-3 family (immune to length extension attacks)
-> - [serpent](./serpent.md) — `SerpentCipher` uses HMAC-SHA256 and HKDF internally via `Seal` and `SealStream`
-> - [argon2id](./argon2id.md) — Argon2id password hashing; HKDF expands Argon2id root keys
-> - [fortuna](./fortuna.md) — Fortuna CSPRNG uses SHA-256 for entropy accumulation
-> - [utils](./utils.md) — `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes`
-> - [sha2_audit.md](./sha2_audit.md) — SHA-2 implementation audit
-> - [hmac_audit.md](./hmac_audit.md) — HMAC implementation audit
-> - [hkdf_audit.md](./hkdf_audit.md) — HKDF implementation audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [asm_sha2](./asm_sha2.md) | WASM implementation details (AssemblyScript buffer layout, compression functions) |
+| [sha3](./sha3.md) | alternative: SHA-3 family (immune to length extension attacks) |
+| [serpent](./serpent.md) | `SerpentCipher` uses HMAC-SHA256 and HKDF internally via `Seal` and `SealStream` |
+| [argon2id](./argon2id.md) | Argon2id password hashing; HKDF expands Argon2id root keys |
+| [fortuna](./fortuna.md) | Fortuna CSPRNG uses SHA-256 for entropy accumulation |
+| [utils](./utils.md) | `constantTimeEqual`, `bytesToHex`, `utf8ToBytes`, `randomBytes` |
+| [sha2_audit.md](./sha2_audit.md) | SHA-2 implementation audit |
+| [hmac_audit.md](./hmac_audit.md) | HMAC implementation audit |
+| [hkdf_audit.md](./hkdf_audit.md) | HKDF implementation audit |
+

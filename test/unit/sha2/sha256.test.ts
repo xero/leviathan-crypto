@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * SHA-256 Known-Answer Tests — FIPS 180-4
+ *
+ * Source: FIPS 180-4 (SHA Standard)
+ * Files:  vectors/sha2.ts (sha256Vectors, sha256CrossCheck)
+ */
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHA256 } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
@@ -39,8 +45,8 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── Gate 3: SHA-256 empty message ──────────────────────────────────────────
-// GATE
+// GATE: SHA-256 empty message: FIPS 180-4 (boundary case)
+// Vector: sha2.ts[sha256Vectors[0]]
 describe('Gate 3 — SHA-256 empty message', () => {
 	test('SHA-256("") matches FIPS 180-4', () => {
 		const h = new SHA256();

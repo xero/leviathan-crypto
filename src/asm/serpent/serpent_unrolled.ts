@@ -46,11 +46,30 @@ import {
 // With all slot indices hardcoded (compile-time constants), every
 // rget/rset call resolves to a fixed address in linear memory,
 // enabling TurboFan alias analysis and CPU register promotion.
+
+/**
+ * Returns word i from the 5-slot working register area.
+ * @internal
+ * @param i  slot index in {0,1,2,3,4}
+ * @returns  i32 value at WORK_OFFSET + i*4
+ */
 @inline function rget(i: i32): i32 { return load<i32>(WORK_OFFSET + (i << 2)) }
+
+/**
+ * Writes word v to slot i of the working register area.
+ * @internal
+ * @param i  slot index in {0,1,2,3,4}
+ * @param v  value to store
+ */
 @inline function rset(i: i32, v: i32): void { store<i32>(WORK_OFFSET + (i << 2), v) }
 
-// Fully unrolled block encryption.
-// Reads 16 bytes from BLOCK_PT_BUFFER, writes 16 bytes to BLOCK_CT_BUFFER.
+/**
+ * Fully unrolled Serpent-256 block encryption.
+ * All 32 rounds expanded with hardcoded slot constants.
+ * Reads 16 bytes from BLOCK_PT_BUFFER, writes 16 bytes to BLOCK_CT_BUFFER.
+ * Serpent AES submission §2.2.
+ * `loadKey()` must be called before this function.
+ */
 export function encryptBlock_unrolled(): void {
 	// Load plaintext: bytes reversed, loaded as 4 LE 32-bit words
 	// r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0]
@@ -203,8 +222,13 @@ export function encryptBlock_unrolled(): void {
 	store<u8>(c+12,u8(v>>>24)); store<u8>(c+13,u8(v>>>16)); store<u8>(c+14,u8(v>>>8)); store<u8>(c+15,u8(v))
 }
 
-// Fully unrolled block decryption.
-// Reads 16 bytes from BLOCK_CT_BUFFER, writes 16 bytes to BLOCK_PT_BUFFER.
+/**
+ * Fully unrolled Serpent-256 block decryption.
+ * All 32 inverse rounds expanded with hardcoded slot constants.
+ * Reads 16 bytes from BLOCK_CT_BUFFER, writes 16 bytes to BLOCK_PT_BUFFER.
+ * Serpent AES submission §2.3.
+ * `loadKey()` must be called before this function.
+ */
 export function decryptBlock_unrolled(): void {
 	// Load ciphertext: same byte-reversal as encrypt
 	const c = BLOCK_CT_OFFSET

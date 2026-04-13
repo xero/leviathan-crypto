@@ -1,7 +1,8 @@
-# Benchmarks
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> SIMD performance results across V8, SpiderMonkey, and JavaScriptCore.
+### Benchmarks
+
+SIMD performance results across V8, SpiderMonkey, and JavaScriptCore.
 
 ---
 
@@ -11,7 +12,11 @@
 | [chacha_simd_bench](./chacha_simd_bench.md) | ChaCha20 4-wide inter-block parallelism, scalar vs SIMD, including documented negative result for intra-block approach |
 
 ---
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

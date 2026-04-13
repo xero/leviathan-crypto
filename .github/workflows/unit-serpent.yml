@@ -16,7 +16,7 @@ jobs:
       - name: install dependencies
         run: bun i
       - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run serpent unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
@@ -25,6 +25,9 @@ jobs:
           test/unit/serpent/serpent_sbox.test.ts
           test/unit/serpent/serpent_ctr.test.ts
           test/unit/serpent/serpent_cbc.test.ts
+          test/unit/serpent/pkcs7-oracle.test.ts
+          test/unit/serpent/pool-shared-ops.test.ts
+          test/unit/serpent/exclusivity-preservation.test.ts
           test/unit/serpent/serpent_wipe.test.ts
           test/unit/serpent/serpent.test.ts
           test/unit/serpent/serpent_simd_gate.test.ts

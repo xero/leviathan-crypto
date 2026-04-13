@@ -1,8 +1,8 @@
-# ML-KEM (Kyber): Post-Quantum Key Encapsulation
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Post-quantum key encapsulation via ML-KEM (FIPS 203), plus `KyberSuite`
-> for hybrid KEM + symmetric AEAD with `Seal`, `SealStream`, and `OpenStream`.
+### ML-KEM (Kyber): Post-Quantum Key Encapsulation
+
+Post-quantum key encapsulation via ML-KEM (FIPS 203), plus `KyberSuite` for hybrid KEM + symmetric AEAD with `Seal`, `SealStream`, and `OpenStream`.
 
 > ### Table of Contents
 > - [Overview](#overview)
@@ -68,6 +68,20 @@ also load `chacha20` and `sha2`. With `SerpentCipher`, load `serpent` and `sha2`
 You can substitute `keccakWasm` and `init({ keccak: keccakWasm })` anywhere
 `sha3` is used. See [init.md](./init.md#keccak-alias-for-ml-kem) for details.
 
+For tree-shakeable imports, the `leviathan-crypto/kyber` subpath exports its
+own init function:
+
+```typescript
+import { kyberInit } from 'leviathan-crypto/kyber'
+import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+
+await kyberInit(kyberWasm)
+```
+
+`kyberInit(source)` initializes only the kyber WASM binary. Note that
+ML-KEM classes additionally require `sha3` (or `keccak`) — both modules
+must be initialized before constructing any `MlKem*` instance.
+
 ---
 
 ## MlKem API
@@ -113,9 +127,19 @@ const { ciphertext, sharedSecret } = kem.encapsulate(encapsulationKey)
 The shared secret is 32 bytes. It is never transmitted. The sender and
 recipient independently derive the same value.
 
+> [!IMPORTANT]
+> **FIPS 203 compliance.** `encapsulate(ek)` validates `ek` per FIPS 203 §7.2
+> before use and throws `RangeError` with message
+> `'leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check'`
+> if validation fails. The length gate also throws `RangeError` on wrong-length
+> input, but does not mention §7.2. Callers who want to probe an `ek` without
+> triggering an exception can still call the public
+> `checkEncapsulationKey(ek) → boolean` method.
+
 ### kem.encapsulateDerand(ek, m)
 
-Deterministic encapsulation. `m` is 32 bytes of randomness. KAT and testing only.
+Deterministic encapsulation. `m` is 32 bytes of randomness. KAT and testing
+only. Applies the same FIPS 203 §7.2 validation as `encapsulate(ek)`.
 
 ### kem.decapsulate(dk, ciphertext)
 
@@ -132,10 +156,38 @@ rather than throwing. This prevents timing attacks on decapsulation failure.
 The shared secret simply won't match, causing authentication failure at the
 AEAD layer.
 
+> [!IMPORTANT]
+> **FIPS 203 compliance and trust model.** `decapsulate(dk, c)` performs two
+> distinct checks. First, it validates `dk` per FIPS 203 §7.3 (embedded `H(ek)`
+> match and the embedded `ek`'s own §7.2 range check). On failure it throws
+> `RangeError` with message
+> `'leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check'`.
+> This is a local-integrity check on key material, not part of the FO transform;
+> it is not constant-time with the tampered-ciphertext path and it is not
+> intended to be. ML-KEM assumes `dk` is recipient-controlled local storage.
+>
+> Second, after `dk` validates, the core Decaps algorithm applies FIPS 203's
+> Fujisaki-Okamoto transform. A tampered or otherwise invalid ciphertext is
+> handled by implicit rejection: the function returns a pseudorandom 32-byte
+> shared secret derived from the secret random value `z` and the ciphertext.
+> The caller cannot distinguish "valid ciphertext" from "tampered ciphertext"
+> by observing the return value — only downstream AEAD authentication will
+> fail in the tampered case.
+>
+> A caller whose threat model includes adversarially-supplied `dk` (for
+> example, decapsulation keys loaded from untrusted storage) should probe
+> with the boolean `checkDecapsulationKey(dk)` before calling `decapsulate`,
+> so the §7.3 outcome is captured in the same branch as other
+> input-validation failures. The library does not ship a strict-mode
+> decapsulate that routes §7.3 failure through the FO path — the standard
+> does not specify one, and doing so would diverge from the reference
+> implementations.
+
 ### kem.checkEncapsulationKey(ek)
 
 Returns `true` if `ek` is a well-formed encapsulation key per FIPS 203 §7.2.
-Checks length and runs the ByteDecode₁₂ → ByteEncode₁₂ round-trip test.
+Checks length, then decodes the polyvec portion via `polyvec_frombytes` and
+scans every coefficient against `c < Q = 3329`.
 
 ```typescript
 if (!kem.checkEncapsulationKey(ek)) throw new Error('invalid ek')
@@ -147,7 +199,11 @@ Returns `true` if `dk` is a well-formed decapsulation key per FIPS 203 §7.3.
 
 ### kem.dispose()
 
-Wipes the WASM memory buffers. Call when done with the instance.
+Wipes the WASM memory buffers. Call when done with the instance. Every public
+kyber op (`keygen`, `encapsulate`, `decapsulate`, `checkDecapsulationKey`)
+already zeros sha3 scratch before returning, so sha3 linear memory carries no
+residue across an op boundary — `dispose()` handles the kyber module's own
+buffers.
 
 ### Key sizes by parameter set
 
@@ -157,6 +213,21 @@ Wipes the WASM memory buffers. Call when done with the instance.
 | dk | 1632 B | 2400 B | 3168 B |
 | ciphertext | 768 B | 1088 B | 1568 B |
 | sharedSecret | 32 B | 32 B | 32 B |
+
+### MlKemLike
+
+Structural interface implemented by `MlKem512`, `MlKem768`, and `MlKem1024`.
+Used by `KyberSuite` and `RatchetKeypair.decap()` — pass any `MlKem*` instance
+where a `MlKemLike` is expected.
+
+```typescript
+interface MlKemLike {
+    readonly params: KyberParams;
+    encapsulate(ek: Uint8Array): KyberEncapsulation;
+    decapsulate(dk: Uint8Array, c: Uint8Array): Uint8Array;
+    keygen(): KyberKeyPair;
+}
+```
 
 ---
 
@@ -303,21 +374,31 @@ kem.dispose()
 | Constructed before `init({ kyber: ... })` | `Error` | `leviathan-crypto: call init({ kyber: ... }) before using MlKem classes` |
 | Constructed before `init({ sha3: ... })` | `Error` | `leviathan-crypto: call init({ sha3: ... }) before using MlKem classes` |
 | `encapsulate` with wrong-length ek | `RangeError` | `encapsulation key must be N bytes (got M)` |
+| `encapsulate` with ek that fails §7.2 validation | `RangeError` | `leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check` |
 | `decapsulate` with wrong-length dk | `RangeError` | `decapsulation key must be N bytes (got M)` |
+| `decapsulate` with dk that fails §7.3 validation | `RangeError` | `leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check` |
 | `decapsulate` with wrong-length ciphertext | `RangeError` | `ciphertext must be N bytes (got M)` |
 | `keygenDerand` with wrong-length `d` | `RangeError` | `d seed must be 32 bytes (got N)` |
 | `keygenDerand` with wrong-length `z` | `RangeError` | `z seed must be 32 bytes (got N)` |
+| `encapsulateDerand` with wrong-length `m` | `RangeError` | `randomness m must be 32 bytes (got N)` |
+| Another stateful instance holds `kyber` or `sha3` | `Error` | `leviathan-crypto: another stateful instance is using the '…' WASM module — call dispose() on it before constructing a new one` |
 | `Seal.decrypt` with ek instead of dk | `RangeError` | `key must be N bytes (got M)` (dk ≠ ek size) |
 | `KyberSuite` with unsupported k value | `Error` | `unsupported ML-KEM k=N` |
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`
-> - [ciphersuite](./ciphersuite.md) — `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`
-> - [kyber_audit](./kyber_audit.md) — ML-KEM implementation audit
-> - [init](./init.md) — module initialization and WASM loading
-> - [exports](./exports.md) — full export list
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
+| [ciphersuite](./ciphersuite.md) | `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+| [kyber_audit](./kyber_audit.md) | ML-KEM implementation audit |
+| [ratchet](./ratchet.md) | `ratchetInit`, `KDFChain`, `kemRatchetEncap`, `kemRatchetDecap`: post-quantum ratchet KDF primitives |
+| [ratchet_audit](./ratchet_audit.md) | ratchet KDF implementation audit |
+| [init](./init.md) | module initialization and WASM loading |
+| [exports](./exports.md) | full export list |
+

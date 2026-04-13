@@ -1,7 +1,13 @@
-# XChaCha20-Poly1305 Algorithm Reference
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> Algorithm specification and known-attack survey for XChaCha20-Poly1305 AEAD, covering the ChaCha20 block function, Poly1305 MAC, HChaCha20 subkey derivation, ARX design properties, and cryptanalytic results. Sources: RFC 8439 (Nir & Langley, 2018), draft-irtf-cfrg-xchacha-03 (Arciszewski, 2020), Bernstein's original ChaCha and Poly1305 papers (2005, 2008).
+### XChaCha20-Poly1305 Algorithm Reference
+
+Algorithm specification and known-attack survey for XChaCha20-Poly1305 AEAD, covering the ChaCha20 block function, Poly1305 MAC, HChaCha20 subkey derivation, ARX design properties, and cryptanalytic results.
+
+#### **Sources:**
+- RFC 8439 (Nir & Langley, 2018),
+- draft-irtf-cfrg-xchacha-03 (Arciszewski, 2020),
+- Bernstein's original ChaCha and Poly1305 papers (2005, 2008).
 
 > ### Table of Contents
 > - [1. Algorithm Overview](#1-algorithm-overview)
@@ -447,9 +453,13 @@ XChaCha20-Poly1305 security posture as of 2026:
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [chacha_audit](./chacha_audit.md) — security audit results: algorithm correctness verification and side-channel analysis
-> - [chacha20](./chacha20.md) — TypeScript API for XChaCha20-Poly1305 (ChaCha, Seal, raw modes)
-> - [asm_chacha](./asm_chacha.md) — WASM implementation: quarter round, block function, Poly1305, AEAD in AssemblyScript
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [chacha_audit](./chacha_audit.md) | security audit results: algorithm correctness verification and side-channel analysis |
+| [chacha20](./chacha20.md) | TypeScript API for XChaCha20-Poly1305 (ChaCha, Seal, raw modes) |
+| [asm_chacha](./asm_chacha.md) | WASM implementation: quarter round, block function, Poly1305, AEAD in AssemblyScript |
+

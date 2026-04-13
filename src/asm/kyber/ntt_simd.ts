@@ -42,7 +42,7 @@ const _BV:   i32 = 20159;   // Barrett multiplier
 const _BRD:  i32 = 1 << 25; // rounding: 1 << (BARRETT_SHIFT - 1)
 const _F:    i16 = 1441;    // invNTT scaling factor: mont²/128 mod q
 
-// ── fqmul_8x ─────────────────────────────────────────────────────────────────
+// ── fqmul_8x ────────────────────────────────────────────────────────────────
 // 8× fqmul: a·b·R⁻¹ mod q for each of the 8 i16 lane pairs (R = 2¹⁶).
 //
 // Montgomery reduction: given prod = a*b (i32), compute (prod - t*Q) >> 16
@@ -76,7 +76,7 @@ function fqmul_8x(a: v128, b: v128): v128 {
 	return i16x8.narrow_i32x4_s(r_lo, r_hi);
 }
 
-// ── barrett_reduce_8x ────────────────────────────────────────────────────────
+// ── barrett_reduce_8x ───────────────────────────────────────────────────────
 // 8× Barrett reduction. Output in [-(q-1)/2, (q-1)/2].
 // Widen to i32x4 for the multiply-shift, narrow back to i16x8.
 @inline
@@ -98,7 +98,7 @@ export function barrett_reduce_8x(a: v128): v128 {
 	return i16x8.narrow_i32x4_s(r_lo, r_hi);
 }
 
-// ── ntt_simd ─────────────────────────────────────────────────────────────────
+// ── ntt_simd ────────────────────────────────────────────────────────────────
 // In-place forward NTT. FIPS 203 Algorithm 9 — NTT.
 // Input in standard order, output in bit-reversed order.
 //
@@ -153,7 +153,7 @@ export function ntt_simd(polyOffset: i32): void {
 	}
 }
 
-// ── invntt_simd ───────────────────────────────────────────────────────────────
+// ── invntt_simd ─────────────────────────────────────────────────────────────
 // In-place inverse NTT. FIPS 203 Algorithm 10 — NTT⁻¹.
 // Input in bit-reversed order, output in standard order.
 // Includes final multiplication by f = 1441 = mont²/128 (Montgomery factor).

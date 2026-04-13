@@ -30,7 +30,7 @@ beforeAll(async () => {
 	await init({ sha3: sha3Wasm });
 });
 
-// ── SHAKE128 multi-squeeze KAT ───────────────────────────────────────────────
+// ── SHAKE128 multi-squeeze KAT ──────────────────────────────────────────────
 
 describe('SHAKE128 multi-squeeze KAT', () => {
 	for (const vec of shake128MultiSqueezeVectors) {
@@ -44,7 +44,7 @@ describe('SHAKE128 multi-squeeze KAT', () => {
 	}
 });
 
-// ── SHAKE128 byte-by-byte squeeze ────────────────────────────────────────────
+// ── SHAKE128 byte-by-byte squeeze ───────────────────────────────────────────
 
 describe('SHAKE128 byte-by-byte squeeze', () => {
 	test('MS-4: squeeze(1) × 32 concatenates to same output as squeeze(32)', () => {
@@ -58,7 +58,7 @@ describe('SHAKE128 byte-by-byte squeeze', () => {
 	});
 });
 
-// ── SHAKE128 reset clears multi-squeeze state ────────────────────────────────
+// ── SHAKE128 reset clears multi-squeeze state ───────────────────────────────
 
 describe('SHAKE128 reset after multi-squeeze', () => {
 	test('MS-9: reset() after multi-squeeze produces same output as a fresh squeeze', () => {
@@ -81,7 +81,7 @@ describe('SHAKE128 reset after multi-squeeze', () => {
 	});
 });
 
-// ── SHAKE256 multi-squeeze KAT ───────────────────────────────────────────────
+// ── SHAKE256 multi-squeeze KAT ──────────────────────────────────────────────
 
 describe('SHAKE256 multi-squeeze KAT', () => {
 	for (const vec of shake256MultiSqueezeVectors) {
@@ -95,7 +95,7 @@ describe('SHAKE256 multi-squeeze KAT', () => {
 	}
 });
 
-// ── SHAKE256 byte-by-byte squeeze ────────────────────────────────────────────
+// ── SHAKE256 byte-by-byte squeeze ───────────────────────────────────────────
 
 describe('SHAKE256 byte-by-byte squeeze', () => {
 	test('MS-8: squeeze(1) × 32 concatenates to same output as squeeze(32)', () => {

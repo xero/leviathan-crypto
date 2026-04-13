@@ -44,13 +44,13 @@
 //
 // Mutable total: 29344 bytes starting at offset 4096.
 //
-// ── Byte buffer sequencing contract ────────────────────────────────────────────
+// ── Byte buffer sequencing contract ─────────────────────────────────────────
 // PK, SK, CT are contiguous at k=4. The KEM decaps path relies on
 // indcpaDecrypt completing (consuming SK via polyvec_frombytes) before
 // indcpaEncrypt reuses PK_OFFSET. Do not interleave decrypt/encrypt calls.
 // CT_PRIME sits after CT for the decaps re-encrypt → ct_verify comparison.
 
-// ── Poly slot constants ───────────────────────────────────────────────────────
+// ── Poly slot constants ─────────────────────────────────────────────────────
 
 export const POLY_SLOT_BASE: i32 = 4096;
 export const POLY_SLOT_SIZE: i32 = 512;  // 256 × i16
@@ -66,7 +66,7 @@ export const POLY_SLOT_7: i32 = 7680;
 export const POLY_SLOT_8: i32 = 8192;
 export const POLY_SLOT_9: i32 = 8704;
 
-// ── Polyvec slot constants ────────────────────────────────────────────────────
+// ── Polyvec slot constants ──────────────────────────────────────────────────
 
 export const POLYVEC_SLOT_BASE: i32 = 9216;
 export const POLYVEC_SLOT_SIZE: i32 = 2048;  // 4 × 512 (k=4 max)
@@ -80,7 +80,7 @@ export const POLYVEC_SLOT_5: i32 = 19456;
 export const POLYVEC_SLOT_6: i32 = 21504;
 export const POLYVEC_SLOT_7: i32 = 23552;
 
-// ── Byte buffer constants ─────────────────────────────────────────────────────
+// ── Byte buffer constants ───────────────────────────────────────────────────
 
 export const BYTE_BUF_BASE: i32   = 25600;
 
@@ -97,7 +97,7 @@ export const CT_OFFSET: i32       = 28768;
 /** Ciphertext comparison buffer for KEM decaps re-encrypt (max k=4: 1568B) */
 export const CT_PRIME_OFFSET: i32 = 30336;
 
-// ── XOF/PRF buffer ────────────────────────────────────────────────────────────
+// ── XOF/PRF buffer ──────────────────────────────────────────────────────────
 
 /** 1024-byte input buffer for XOF/PRF output (rejection/noise sampling) */
 export const XOF_PRF_OFFSET: i32  = 31904;
@@ -108,17 +108,17 @@ export const XOF_PRF_OFFSET: i32  = 31904;
  */
 export const POLY_ACC_OFFSET: i32 = 32928;
 
-// ── Mutable region bounds ─────────────────────────────────────────────────────
+// ── Mutable region bounds ───────────────────────────────────────────────────
 
 const MUTABLE_START: i32 = 4096;
 const MUTABLE_SIZE:  i32 = 29344;  // 33440 - 4096
 
-// ── Module identity ───────────────────────────────────────────────────────────
+// ── Module identity ─────────────────────────────────────────────────────────
 
 export function getModuleId():     i32 { return 5; }
 export function getMemoryPages():  i32 { return memory.size(); }
 
-// ── Offset getters — poly slots ───────────────────────────────────────────────
+// ── Offset getters — poly slots ─────────────────────────────────────────────
 
 export function getPolySlotBase():  i32 { return POLY_SLOT_BASE; }
 export function getPolySlotSize():  i32 { return POLY_SLOT_SIZE; }
@@ -133,7 +133,7 @@ export function getPolySlot7():     i32 { return POLY_SLOT_7; }
 export function getPolySlot8():     i32 { return POLY_SLOT_8; }
 export function getPolySlot9():     i32 { return POLY_SLOT_9; }
 
-// ── Offset getters — polyvec slots ────────────────────────────────────────────
+// ── Offset getters — polyvec slots ──────────────────────────────────────────
 
 export function getPolyvecSlotBase():  i32 { return POLYVEC_SLOT_BASE; }
 export function getPolyvecSlotSize():  i32 { return POLYVEC_SLOT_SIZE; }
@@ -146,7 +146,7 @@ export function getPolyvecSlot5():     i32 { return POLYVEC_SLOT_5; }
 export function getPolyvecSlot6():     i32 { return POLYVEC_SLOT_6; }
 export function getPolyvecSlot7():     i32 { return POLYVEC_SLOT_7; }
 
-// ── Offset getters — byte buffers ─────────────────────────────────────────────
+// ── Offset getters — byte buffers ───────────────────────────────────────────
 
 export function getSeedOffset():      i32 { return SEED_OFFSET;     }
 export function getMsgOffset():       i32 { return MSG_OFFSET;      }
@@ -156,7 +156,7 @@ export function getCtOffset():        i32 { return CT_OFFSET;       }
 export function getCtPrimeOffset():   i32 { return CT_PRIME_OFFSET; }
 export function getXofPrfOffset():    i32 { return XOF_PRF_OFFSET;  }
 
-// ── wipeBuffers ───────────────────────────────────────────────────────────────
+// ── wipeBuffers ─────────────────────────────────────────────────────────────
 
 /** Zero all mutable regions (poly slots, polyvec slots, byte buffers, XOF buffer). */
 export function wipeBuffers(): void {

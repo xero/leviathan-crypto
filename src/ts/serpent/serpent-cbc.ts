@@ -25,9 +25,10 @@
 // Extracted to break the cipher-suite.ts ↔ index.ts circular dependency.
 // Import from here directly; index.ts re-exports for the public API surface.
 
-import { getInstance } from '../init.js';
+import { getInstance, _acquireModule, _releaseModule } from '../init.js';
+import { pkcs7Pad, pkcs7Strip, PKCS7_INVALID } from './shared-ops.js';
 
-// Exports needed from the serpent WASM module (CBC subset)
+/** Typed subset of the serpent WASM module exports used by `SerpentCbc`. @internal */
 interface SerpentExports {
 	memory:              WebAssembly.Memory
 	getKeyOffset:        () => number
@@ -41,48 +42,34 @@ interface SerpentExports {
 	wipeBuffers:         () => void
 }
 
+/** Returns the raw serpent WASM export object. @internal */
 function getExports(): SerpentExports {
 	return getInstance('serpent').exports as unknown as SerpentExports;
 }
 
-// ── PKCS7 helpers ────────────────────────────────────────────────────────────
+// ── PKCS7 helpers ───────────────────────────────────────────────────────────
+//
+// The canonical `pkcs7Pad` / `pkcs7Strip` live in `./shared-ops.ts`; this
+// file re-uses them so the main-thread class and the pool worker share one
+// implementation. See `shared-ops.ts` for the branch-free, Vaudenay-2002-
+// closed padding check.
 
-function pkcs7Pad(data: Uint8Array): Uint8Array {
-	const padLen = 16 - (data.length % 16);  // 1..16
-	const out    = new Uint8Array(data.length + padLen);
-	out.set(data);
-	out.fill(padLen, data.length);
-	return out;
-}
-
-// pkcs7Strip is only called after HMAC authentication succeeds (verify-then-decrypt).
-// The early throw on invalid padLen is not a padding oracle in this context —
-// the HMAC check is the oracle gate and runs in constant time before this point.
-// If you move this call to a pre-auth site, revisit the timing properties.
-function pkcs7Strip(data: Uint8Array): Uint8Array {
-	if (data.length === 0) throw new RangeError('empty ciphertext');
-	const padLen = data[data.length - 1];
-	if (padLen === 0 || padLen > 16)
-		throw new RangeError(`invalid PKCS7 padding byte: ${padLen}`);
-	if (padLen > data.length)
-		throw new RangeError(`invalid PKCS7 padding: pad length ${padLen} exceeds data length ${data.length}`);
-	let bad = 0;
-	for (let i = data.length - padLen; i < data.length; i++)
-		bad |= data[i] ^ padLen;
-	if (bad !== 0) throw new RangeError('invalid PKCS7 padding');
-	return data.subarray(0, data.length - padLen);
-}
-
-// ── SerpentCbc ───────────────────────────────────────────────────────────────
+// ── SerpentCbc ──────────────────────────────────────────────────────────────
 
 /**
  * Serpent-256 in CBC mode with PKCS7 padding.
  *
  * **WARNING: CBC mode is unauthenticated.** Always authenticate the output
  * with HMAC-SHA256 (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead.
+ *
+ * Holds exclusive access to the `serpent` WASM module from construction
+ * until `dispose()`. Constructing a second SerpentCbc/SerpentCtr/
+ * SerpentCipher or any other serpent user while this instance is live
+ * throws. Call `dispose()` when done.
  */
 export class SerpentCbc {
 	private readonly x: SerpentExports;
+	private _tok: symbol | undefined;
 
 	constructor(opts?: { dangerUnauthenticated: true }) {
 		if (!opts?.dangerUnauthenticated) {
@@ -92,8 +79,10 @@ export class SerpentCbc {
 			);
 		}
 		this.x = getExports();
+		this._tok = _acquireModule('serpent');
 	}
 
+	/** View over WASM linear memory. Rebind on every access — memory can be detached after grow. @internal */
 	private get mem(): Uint8Array {
 		return new Uint8Array(this.x.memory.buffer);
 	}
@@ -107,6 +96,8 @@ export class SerpentCbc {
    * @returns         ciphertext (length = ceil((plaintext.length + 1) / 16) * 16)
    */
 	encrypt(key: Uint8Array, iv: Uint8Array, plaintext: Uint8Array): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SerpentCbc: instance has been disposed');
 		this._loadKey(key);
 		this._setIv(iv);
 		const padded = pkcs7Pad(plaintext);
@@ -129,11 +120,19 @@ export class SerpentCbc {
 
 	/**
    * Decrypt Serpent-256 CBC + PKCS7.
-   * Throws if ciphertext length is not a non-zero multiple of 16 or PKCS7 is invalid.
+   *
+   * All failure modes — empty input, non-multiple-of-16 length, and any
+   * PKCS7 validation failure — throw the same generic `RangeError` with
+   * message `'invalid ciphertext'`. Padding validation runs branch-free
+   * over the last 16 bytes regardless of where the mismatch is, closing
+   * the Vaudenay 2002 padding-oracle surface for callers using
+   * `{ dangerUnauthenticated: true }` without an outer HMAC.
    */
 	decrypt(key: Uint8Array, iv: Uint8Array, ciphertext: Uint8Array): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SerpentCbc: instance has been disposed');
 		if (ciphertext.length === 0 || ciphertext.length % 16 !== 0)
-			throw new RangeError('ciphertext length must be a non-zero multiple of 16');
+			throw new RangeError(PKCS7_INVALID);
 		this._loadKey(key);
 		this._setIv(iv);
 		const output = new Uint8Array(ciphertext.length);
@@ -153,10 +152,22 @@ export class SerpentCbc {
 		return pkcs7Strip(output);
 	}
 
+	/** Wipe WASM state and release exclusive module access. Idempotent. */
 	dispose(): void {
-		this.x.wipeBuffers();
+		if (this._tok === undefined) return;
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('serpent', this._tok);
+			this._tok = undefined;
+		}
 	}
 
+	/**
+	 * Validate and load `key` into the WASM key schedule.
+	 * @param key  16, 24, or 32 bytes
+	 * @internal
+	 */
 	private _loadKey(key: Uint8Array): void {
 		if (key.length !== 16 && key.length !== 24 && key.length !== 32)
 			throw new RangeError(`Serpent key must be 16, 24, or 32 bytes (got ${key.length})`);
@@ -164,6 +175,11 @@ export class SerpentCbc {
 		this.x.loadKey(key.length);
 	}
 
+	/**
+	 * Write `iv` into the WASM CBC IV buffer.
+	 * @param iv  16 bytes
+	 * @internal
+	 */
 	private _setIv(iv: Uint8Array): void {
 		if (iv.length !== 16)
 			throw new RangeError(`CBC IV must be 16 bytes (got ${iv.length})`);

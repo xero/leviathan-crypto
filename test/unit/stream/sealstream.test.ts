@@ -23,7 +23,8 @@
  * SealStream / OpenStream — STREAM construction tests for both cipher suites.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init, _resetForTesting, randomBytes, AuthenticationError } from '../../../src/ts/index.js';
+import { init, randomBytes, AuthenticationError } from '../../../src/ts/index.js';
+import { _resetForTesting } from '../../../src/ts/init.js';
 import { SealStream, OpenStream, CHUNK_MIN, CHUNK_MAX, HEADER_SIZE } from '../../../src/ts/stream/index.js';
 import { writeHeader } from '../../../src/ts/stream/header.js';
 import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
@@ -276,21 +277,21 @@ for (const [name, cipher, keyLen] of suites) {
 				const pt = randomBytes(100);
 				const { preamble } = sealAndCollect(cipher, key, [pt]);
 				const opener = new OpenStream(cipher, key, preamble);
-				expect(() => opener.seek(-1)).toThrow(/non-negative integer/);
+				expect(() => opener.seek(-1)).toThrow(/non-negative safe integer/);
 			});
 
 			it('seek with NaN → throws', () => {
 				const pt = randomBytes(100);
 				const { preamble } = sealAndCollect(cipher, key, [pt]);
 				const opener = new OpenStream(cipher, key, preamble);
-				expect(() => opener.seek(NaN)).toThrow(/non-negative integer/);
+				expect(() => opener.seek(NaN)).toThrow(/non-negative safe integer/);
 			});
 
 			it('seek with fraction → throws', () => {
 				const pt = randomBytes(100);
 				const { preamble } = sealAndCollect(cipher, key, [pt]);
 				const opener = new OpenStream(cipher, key, preamble);
-				expect(() => opener.seek(3.5)).toThrow(/non-negative integer/);
+				expect(() => opener.seek(3.5)).toThrow(/non-negative safe integer/);
 			});
 		});
 
@@ -611,9 +612,21 @@ describe('cross-cipher rejection', () => {
 // ── OpenStream preamble chunkSize validation ────────────────────────────────
 
 describe('OpenStream preamble chunkSize validation', () => {
+	// writeHeader rejects chunkSize < CHUNK_MIN now, so construct the header
+	// manually to exercise OpenStream's own defense against forged preambles.
+	function forgeHeader(formatEnum: number, framed: boolean, nonce: Uint8Array, chunkSize: number): Uint8Array {
+		const h = new Uint8Array(HEADER_SIZE);
+		h[0] = (framed ? 0x80 : 0) | formatEnum;
+		h.set(nonce, 1);
+		h[17] = (chunkSize >> 16) & 0xff;
+		h[18] = (chunkSize >>  8) & 0xff;
+		h[19] =  chunkSize        & 0xff;
+		return h;
+	}
+
 	it('chunkSize below CHUNK_MIN → throws RangeError', () => {
 		const key = randomBytes(32);
-		const badHeader = writeHeader(XChaCha20Cipher.formatEnum, false, randomBytes(16), 512);
+		const badHeader = forgeHeader(XChaCha20Cipher.formatEnum, false, randomBytes(16), 512);
 		expect(() => new OpenStream(XChaCha20Cipher, key, badHeader))
 			.toThrow(/header chunkSize/);
 	});
@@ -625,7 +638,7 @@ describe('OpenStream preamble chunkSize validation', () => {
 
 	it('chunkSize = 0 → throws RangeError', () => {
 		const key = randomBytes(32);
-		const badHeader = writeHeader(SerpentCipher.formatEnum, false, randomBytes(16), 0);
+		const badHeader = forgeHeader(SerpentCipher.formatEnum, false, randomBytes(16), 0);
 		expect(() => new OpenStream(SerpentCipher, key, badHeader))
 			.toThrow(/header chunkSize/);
 	});

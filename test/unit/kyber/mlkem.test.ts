@@ -19,12 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// test/unit/kyber/mlkem.test.ts
-//
-// ML-KEM ACVP validation suite — 10 gates: Gate 0 init system, Gates 1-9 ACVP vectors.
-// Gates 1-9 load build/kyber.wasm and build/sha3.wasm directly (no init() system).
-// Gate 0 validates the standard init() integration path.
-
+/**
+ * ML-KEM ACVP validation suite — FIPS 203
+ *
+ * Source: NIST ACVP ML-KEM-keyGen-FIPS203, ML-KEM-encapDecap-FIPS203
+ * Files:  vectors/kyber.ts (keygen, encap, decap_val, key_check vectors for 512/768/1024)
+ */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
@@ -34,7 +34,8 @@ import { indcpaKeypairDerand, sha3_256Hash } from '../../../src/ts/kyber/indcpa.
 import { kemKeypairDerand, kemEncapsulateDerand, kemDecapsulate } from '../../../src/ts/kyber/kem.js';
 import { checkEncapsulationKey, checkDecapsulationKey } from '../../../src/ts/kyber/validate.js';
 import { MLKEM512, MLKEM768, MLKEM1024 } from '../../../src/ts/kyber/params.js';
-import { init, MlKem768, isInitialized, _resetForTesting } from '../../../src/ts/index.js';
+import { init, MlKem512, MlKem768, MlKem1024, isInitialized } from '../../../src/ts/index.js';
+import { _resetForTesting } from '../../../src/ts/init.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,7 +59,7 @@ import {
 import type { KyberExports, Sha3Exports } from '../../../src/ts/kyber/types.js';
 import type { KyberParams } from '../../../src/ts/kyber/params.js';
 
-// ── Gate 0 — init system wiring ───────────────────────────────────────────────
+// GATE: ML-KEM init system: FIPS 203 ML-KEM-768
 
 describe('Gate 0 — init system wiring', () => {
 	beforeAll(async () => {
@@ -90,7 +91,7 @@ describe('Gate 0 — init system wiring', () => {
 	});
 });
 
-// ── Shared WASM instances (Gates 1-9) ────────────────────────────────────────
+// ── Shared WASM instances (Gates 1-9) ───────────────────────────────────────
 
 let kx: KyberExports;
 let sx: Sha3Exports;
@@ -100,7 +101,8 @@ beforeAll(async () => {
 	sx = await loadSha3();
 });
 
-// ── Gate 1 — IND-CPA keygen (ML-KEM-768 only, 25 vectors) ────────────────────
+// GATE: ML-KEM-768 IND-CPA keygen: NIST ACVP ML-KEM-keyGen-FIPS203
+// Vector: kyber_keygen.ts[ml_kem_768_keygen[0]]
 
 describe('Gate 1 — IND-CPA keygen ML-KEM-768', () => {
 	it.each(ml_kem_768_keygen)('tcId=$tcId', ({ tcId: _tcId, d, z, ek, dk }) => {
@@ -125,7 +127,8 @@ describe('Gate 1 — IND-CPA keygen ML-KEM-768', () => {
 	});
 });
 
-// ── Gate 2 — IND-CPA keygen all param sets (75 vectors) ──────────────────────
+// GATE: ML-KEM IND-CPA keygen all param sets: NIST ACVP ML-KEM-keyGen-FIPS203
+// Vector: kyber_keygen.ts[ml_kem_512_keygen[0]]
 
 describe('Gate 2 — IND-CPA keygen all param sets', () => {
 	function runKeygen(vectors: typeof ml_kem_512_keygen, params: KyberParams) {
@@ -160,7 +163,8 @@ describe('Gate 2 — IND-CPA keygen all param sets', () => {
 	});
 });
 
-// ── Gate 3 — Encapsulation all param sets (75 vectors) ───────────────────────
+// GATE: ML-KEM encapsulation all param sets: NIST ACVP ML-KEM-encapDecap-FIPS203
+// Vector: kyber_encapdecap.ts[ml_kem_512_encap[0]]
 
 describe('Gate 3 — Encapsulation all param sets', () => {
 	function runEncap(vectors: typeof ml_kem_512_encap, params: KyberParams) {
@@ -188,7 +192,8 @@ describe('Gate 3 — Encapsulation all param sets', () => {
 	});
 });
 
-// ── Gate 4 — Decapsulation valid (15 vectors) ─────────────────────────────────
+// GATE: ML-KEM valid decapsulation: NIST ACVP ML-KEM-encapDecap-FIPS203
+// Vector: kyber_encapdecap.ts[ml_kem_512_decap_val[0]]
 
 describe('Gate 4 — Decapsulation valid', () => {
 	function runDecapValid(vectors: typeof ml_kem_512_decap_val, params: KyberParams) {
@@ -215,8 +220,8 @@ describe('Gate 4 — Decapsulation valid', () => {
 	});
 });
 
-// ── Gate 5 — Decapsulation implicit rejection (15 vectors) ────────────────────
-// CRITICAL: modified ciphertext must produce J(z||c) NOT the actual shared secret.
+// GATE: ML-KEM implicit rejection: NIST ACVP ML-KEM-encapDecap-FIPS203
+// Vector: kyber_encapdecap.ts[ml_kem_512_decap_val[0]]
 
 describe('Gate 5 — Decapsulation implicit rejection', () => {
 	function runDecapReject(vectors: typeof ml_kem_512_decap_val, params: KyberParams) {
@@ -244,7 +249,8 @@ describe('Gate 5 — Decapsulation implicit rejection', () => {
 	});
 });
 
-// ── Gate 6 — Encapsulation key validation (30 vectors) ───────────────────────
+// GATE: ML-KEM encapsulation key validation: NIST ACVP ML-KEM-encapDecap-FIPS203
+// Vector: kyber_encapdecap.ts[ml_kem_512_encap_key_check[0]]
 
 describe('Gate 6 — Encapsulation key validation', () => {
 	function runEncapKeyCheck(vectors: typeof ml_kem_512_encap_key_check, params: KyberParams) {
@@ -266,7 +272,8 @@ describe('Gate 6 — Encapsulation key validation', () => {
 	});
 });
 
-// ── Gate 7 — Decapsulation key validation (30 vectors) ───────────────────────
+// GATE: ML-KEM decapsulation key validation: NIST ACVP ML-KEM-encapDecap-FIPS203
+// Vector: kyber_encapdecap.ts[ml_kem_512_decap_key_check[0]]
 
 describe('Gate 7 — Decapsulation key validation', () => {
 	function runDecapKeyCheck(vectors: typeof ml_kem_512_decap_key_check, params: KyberParams) {
@@ -288,8 +295,7 @@ describe('Gate 7 — Decapsulation key validation', () => {
 	});
 });
 
-// ── Gate 8 — Round-trip property test (10 iterations × 3 param sets) ─────────
-// Random keygen → encap → decap. Shared secrets must match.
+// GATE: ML-KEM round-trip property: deterministic keygen/encap/decap
 
 describe('Gate 8 — Round-trip property', () => {
 	function runRoundTrip(params: KyberParams, label: string) {
@@ -321,8 +327,7 @@ describe('Gate 8 — Round-trip property', () => {
 	runRoundTrip(MLKEM1024, 'ML-KEM-1024');
 });
 
-// ── Gate 9 — Implicit rejection property test ─────────────────────────────────
-// Flip one ciphertext byte → decap must return something != the real shared secret.
+// GATE: ML-KEM implicit rejection property: flip one ciphertext byte
 
 describe('Gate 9 — Implicit rejection property', () => {
 	function runRejection(params: KyberParams, label: string) {
@@ -357,4 +362,231 @@ describe('Gate 9 — Implicit rejection property', () => {
 	runRejection(MLKEM512,  'ML-KEM-512');
 	runRejection(MLKEM768,  'ML-KEM-768');
 	runRejection(MLKEM1024, 'ML-KEM-1024');
+});
+
+// ── FIPS 203 §7.2/§7.3 auto-validation in MlKemBase.encapsulate/decapsulate ─
+
+/**
+ * Return a copy of ek with coefficient 0 of the first polynomial set to `coeff`.
+ * Preserves coefficient 1 (and the rest of the ek). The 12-bit value `coeff`
+ * is packed as: byte0 = coeff & 0xFF; byte1 low nibble = (coeff >> 8) & 0x0F.
+ * byte1 high nibble is coefficient 1's low 4 bits — left untouched.
+ */
+function patchCoeff0(ek: Uint8Array, coeff: number): Uint8Array {
+	if (coeff < 0 || coeff > 0xFFF) throw new Error('coeff out of 12-bit range');
+	const out = ek.slice();
+	out[0] = coeff & 0xFF;
+	out[1] = (out[1] & 0xF0) | ((coeff >> 8) & 0x0F);
+	return out;
+}
+
+describe('FIPS 203 §7.2 — encapsulate auto-validates ek', () => {
+	beforeAll(async () => {
+		_resetForTesting();
+		const kyberBytes = readFileSync(join(__dirname, '../../../build/kyber.wasm'));
+		const sha3Bytes  = readFileSync(join(__dirname, '../../../build/sha3.wasm'));
+		await init({ kyber: kyberBytes, sha3: sha3Bytes });
+	});
+
+	it('patchCoeff0 round-trips through polyvec_frombytes (sanity)', () => {
+		// Decode the patched ek's polyvec and assert coefficient 0 equals the
+		// patched value. Catches accidental bit-twiddling in the patch helper.
+		const kem = new MlKem768();
+		const { encapsulationKey: ek } = kem.keygen();
+		const patched = patchCoeff0(ek, 3329);
+
+		const pvOff = kx.getPolyvecSlot0();
+		const pkOff = kx.getPkOffset();
+		const mem   = new Uint8Array(kx.memory.buffer);
+		mem.set(patched.subarray(0, MLKEM768.k * 384), pkOff);
+		kx.polyvec_frombytes(pvOff, pkOff, MLKEM768.k);
+		const coeff0 = new DataView(kx.memory.buffer).getInt16(pvOff, true);
+		expect(coeff0).toBe(3329);
+	});
+
+	it('valid ek → encapsulate succeeds through the new validation path', () => {
+		const kem = new MlKem768();
+		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
+		const { ciphertext, sharedSecret: K1 } = kem.encapsulate(ek);
+		const K2 = kem.decapsulate(dk, ciphertext);
+		expect(toHex(K1)).toBe(toHex(K2));
+	});
+
+	it('ML-KEM-512 coeff=Q rejected → encapsulate throws §7.2', () => {
+		const kem = new MlKem512();
+		const { encapsulationKey: ek } = kem.keygen();
+		const bad = patchCoeff0(ek, 3329);
+		expect(kem.checkEncapsulationKey(bad)).toBe(false);
+		expect(() => kem.encapsulate(bad)).toThrow(RangeError);
+		expect(() => kem.encapsulate(bad)).toThrow(/FIPS 203 §7\.2/);
+	});
+
+	it('ML-KEM-768 coeff=Q rejected → encapsulate throws §7.2', () => {
+		const kem = new MlKem768();
+		const { encapsulationKey: ek } = kem.keygen();
+		const bad = patchCoeff0(ek, 3329);
+		expect(kem.checkEncapsulationKey(bad)).toBe(false);
+		expect(() => kem.encapsulate(bad)).toThrow(RangeError);
+		expect(() => kem.encapsulate(bad)).toThrow(/FIPS 203 §7\.2/);
+	});
+
+	it('ML-KEM-1024 coeff=Q rejected → encapsulate throws §7.2', () => {
+		const kem = new MlKem1024();
+		const { encapsulationKey: ek } = kem.keygen();
+		const bad = patchCoeff0(ek, 3329);
+		expect(kem.checkEncapsulationKey(bad)).toBe(false);
+		expect(() => kem.encapsulate(bad)).toThrow(RangeError);
+		expect(() => kem.encapsulate(bad)).toThrow(/FIPS 203 §7\.2/);
+	});
+
+	it('boundary: coeff=Q-1 (3328) accepted — strict < check', () => {
+		const kem = new MlKem768();
+		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
+		const patched = patchCoeff0(ek, 3328);
+		// The patched ek has a different coefficient 0 than keygen produced, so the
+		// dk's embedded polyvec won't match for a full round-trip. But §7.2 only
+		// validates the ek, and encapsulate must succeed without throwing.
+		expect(kem.checkEncapsulationKey(patched)).toBe(true);
+		expect(() => kem.encapsulate(patched)).not.toThrow();
+		// unused variable silenced — dk is only needed for a round-trip which
+		// this boundary test intentionally does not exercise.
+		void dk;
+	});
+
+	it('boundary: coeff=4095 (max 12-bit) rejected — upper bound sanity', () => {
+		const kem = new MlKem768();
+		const { encapsulationKey: ek } = kem.keygen();
+		const bad = patchCoeff0(ek, 4095);
+		expect(kem.checkEncapsulationKey(bad)).toBe(false);
+		expect(() => kem.encapsulate(bad)).toThrow(/FIPS 203 §7\.2/);
+	});
+
+	it('invalid ek (short length) → encapsulate throws RangeError', () => {
+		const kem = new MlKem768();
+		const shortEk = new Uint8Array(100);
+		expect(() => kem.encapsulate(shortEk)).toThrow(RangeError);
+		expect(() => kem.encapsulate(shortEk)).toThrow(/encapsulation key must be/);
+	});
+
+	it('ACVP wrong-length vector (ML-KEM-768) → encapsulate throws RangeError via length gate', () => {
+		// ACVP §7.2 failure vectors carry the rejection reason "noisy linear system
+		// values too large" encoded at 2× ekBytes length. The length gate catches
+		// them; kept here as a regression on the length-validation path.
+		const bad = ml_kem_768_encap_key_check.find(v => !v.testPassed);
+		expect(bad).toBeDefined();
+		const ek = fromHex(bad!.ek);
+
+		const kem = new MlKem768();
+		expect(kem.checkEncapsulationKey(ek)).toBe(false);
+		expect(() => kem.encapsulate(ek)).toThrow(RangeError);
+	});
+
+	it('ACVP wrong-length vector (ML-KEM-512) → encapsulate throws', () => {
+		const bad = ml_kem_512_encap_key_check.find(v => !v.testPassed);
+		const ek = fromHex(bad!.ek);
+		const kem = new MlKem512();
+		expect(() => kem.encapsulate(ek)).toThrow(RangeError);
+	});
+
+	it('ACVP wrong-length vector (ML-KEM-1024) → encapsulate throws', () => {
+		const bad = ml_kem_1024_encap_key_check.find(v => !v.testPassed);
+		const ek = fromHex(bad!.ek);
+		const kem = new MlKem1024();
+		expect(() => kem.encapsulate(ek)).toThrow(RangeError);
+	});
+
+	it('checkEncapsulationKey(bad_ek) is side-effect-free (does not throw)', () => {
+		const kem = new MlKem768();
+		const { encapsulationKey: ek } = kem.keygen();
+		const bad = patchCoeff0(ek, 3329);
+
+		// probe API returns false without throwing
+		expect(() => kem.checkEncapsulationKey(bad)).not.toThrow();
+		expect(kem.checkEncapsulationKey(bad)).toBe(false);
+	});
+});
+
+describe('FIPS 203 §7.3 — decapsulate auto-validates dk', () => {
+	beforeAll(async () => {
+		_resetForTesting();
+		const kyberBytes = readFileSync(join(__dirname, '../../../build/kyber.wasm'));
+		const sha3Bytes  = readFileSync(join(__dirname, '../../../build/sha3.wasm'));
+		await init({ kyber: kyberBytes, sha3: sha3Bytes });
+	});
+
+	it('valid dk → decapsulate succeeds', () => {
+		const kem = new MlKem768();
+		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
+		const { ciphertext, sharedSecret: K1 } = kem.encapsulate(ek);
+		const K2 = kem.decapsulate(dk, ciphertext);
+		expect(toHex(K1)).toBe(toHex(K2));
+	});
+
+	it('invalid dk (ACVP §7.3 failure vector — modified H) → decapsulate throws with §7.3 message', () => {
+		// "modified H" = embedded H(ek) no longer matches — §7.3 reject. dk length is correct.
+		const bad = ml_kem_768_decap_key_check.find(
+			v => !v.testPassed && v.dk.length / 2 === MLKEM768.dkBytes,
+		);
+		expect(bad).toBeDefined();
+		const dk = fromHex(bad!.dk);
+
+		const kem = new MlKem768();
+		expect(kem.checkDecapsulationKey(dk)).toBe(false);
+
+		// Use a ctBytes-length array to satisfy the length check; §7.3 validation fires after.
+		const ct = new Uint8Array(MLKEM768.ctBytes);
+		expect(() => kem.decapsulate(dk, ct)).toThrow(/FIPS 203 §7\.3/);
+		expect(() => kem.decapsulate(dk, ct)).toThrow(RangeError);
+	});
+
+	it('invalid dk (short length) → decapsulate throws RangeError (length check fires first)', () => {
+		const kem = new MlKem768();
+		const shortDk = new Uint8Array(100);
+		const ct = new Uint8Array(MLKEM768.ctBytes);
+		expect(() => kem.decapsulate(shortDk, ct)).toThrow(RangeError);
+		expect(() => kem.decapsulate(shortDk, ct)).toThrow(/decapsulation key must be/);
+	});
+
+	it('ML-KEM-512 invalid dk → decapsulate throws §7.3', () => {
+		const bad = ml_kem_512_decap_key_check.find(
+			v => !v.testPassed && v.dk.length / 2 === MLKEM512.dkBytes,
+		);
+		const dk = fromHex(bad!.dk);
+		const ct = new Uint8Array(MLKEM512.ctBytes);
+		const kem = new MlKem512();
+		expect(() => kem.decapsulate(dk, ct)).toThrow(/FIPS 203 §7\.3/);
+	});
+
+	it('ML-KEM-1024 invalid dk → decapsulate throws §7.3', () => {
+		const bad = ml_kem_1024_decap_key_check.find(
+			v => !v.testPassed && v.dk.length / 2 === MLKEM1024.dkBytes,
+		);
+		const dk = fromHex(bad!.dk);
+		const ct = new Uint8Array(MLKEM1024.ctBytes);
+		const kem = new MlKem1024();
+		expect(() => kem.decapsulate(dk, ct)).toThrow(/FIPS 203 §7\.3/);
+	});
+
+	it('dk with modulus-bad embedded ek (H recomputed) → decapsulate throws §7.3', () => {
+		// Without a direct polyvec_modulus_check, this case would slip past §7.3:
+		// the H-binding check passes on a length-valid ek, and the recursive
+		// §7.2 check is inert against length-valid-but-modulus-bad inputs.
+		// The direct modulus scan closes that gap.
+		const kem = new MlKem768();
+		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
+		const { ciphertext } = kem.encapsulate(ek);
+		const { skCpaBytes, ekBytes } = MLKEM768;
+
+		const embeddedBad = patchCoeff0(
+			dk.slice(skCpaBytes, skCpaBytes + ekBytes),
+			3329,
+		);
+		const hNew = sha3_256Hash(sx, embeddedBad);
+
+		const dkBad = dk.slice();
+		dkBad.set(embeddedBad, skCpaBytes);
+		dkBad.set(hNew, skCpaBytes + ekBytes);
+
+		expect(() => kem.decapsulate(dkBad, ciphertext)).toThrow(/FIPS 203 §7\.3/);
+	});
 });

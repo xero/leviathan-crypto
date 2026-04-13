@@ -49,9 +49,9 @@
 //     HMAC512_IPAD_OFFSET:   1656 (128 bytes — K' XOR ipad)
 //     HMAC512_OPAD_OFFSET:   1784 (128 bytes — K' XOR opad)
 //     HMAC512_INNER_OFFSET:  1912 (64 bytes — inner hash saved by hmacFinal)
-//     END:                   1976
+//     BUFFER_END:            HMAC512_INNER_OFFSET + 64 = end of the last buffer
 
-// ── SHA-256 buffer offsets ───────────────────────────────────────────────────
+// ── SHA-256 buffer offsets ──────────────────────────────────────────────────
 
 export const SHA256_H_OFFSET:       i32 = 0
 export const SHA256_BLOCK_OFFSET:   i32 = 32
@@ -64,7 +64,7 @@ export const HMAC256_IPAD_OFFSET:   i32 = 460
 export const HMAC256_OPAD_OFFSET:   i32 = 524
 export const HMAC256_INNER_OFFSET:  i32 = 588
 
-// ── SHA-512 buffer offsets ───────────────────────────────────────────────────
+// ── SHA-512 buffer offsets ──────────────────────────────────────────────────
 
 export const SHA512_H_OFFSET:       i32 = 620
 export const SHA512_BLOCK_OFFSET:   i32 = 684
@@ -77,9 +77,14 @@ export const HMAC512_IPAD_OFFSET:   i32 = 1656
 export const HMAC512_OPAD_OFFSET:   i32 = 1784
 export const HMAC512_INNER_OFFSET:  i32 = 1912
 
-// END = 1976
+/**
+ * End of the SHA-2 module buffer region (exclusive upper bound).
+ * `HMAC512_INNER_OFFSET + 64` = end of the last 64-byte buffer.
+ * Used by `wipeBuffers()` in `index.ts`.
+ */
+export const BUFFER_END:            i32 = HMAC512_INNER_OFFSET + 64
 
-// ── Module identity ──────────────────────────────────────────────────────────
+// ── Module identity ─────────────────────────────────────────────────────────
 
 export function getModuleId(): i32 {
 	return 2
@@ -89,7 +94,7 @@ export function getMemoryPages(): i32 {
 	return memory.size()
 }
 
-// ── Offset getter functions ──────────────────────────────────────────────────
+// ── Offset getter functions ─────────────────────────────────────────────────
 
 export function getSha256HOffset():       i32 { return SHA256_H_OFFSET       }
 export function getSha256BlockOffset():   i32 { return SHA256_BLOCK_OFFSET   }

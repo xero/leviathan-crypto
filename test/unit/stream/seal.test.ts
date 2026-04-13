@@ -35,7 +35,7 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm });
 });
 
-// ── Symmetric round-trips ────────────────────────────────────────────────────
+// ── Symmetric round-trips ───────────────────────────────────────────────────
 
 describe('Seal symmetric round-trips', () => {
 	for (const [name, suite] of [
@@ -109,7 +109,7 @@ describe('Seal._fromNonce determinism', () => {
 	});
 });
 
-// ── OpenStream can decrypt a Seal blob ───────────────────────────────────────
+// ── OpenStream can decrypt a Seal blob ──────────────────────────────────────
 
 describe('Seal blob is OpenStream-compatible', () => {
 	for (const [name, suite] of [
@@ -128,7 +128,7 @@ describe('Seal blob is OpenStream-compatible', () => {
 	}
 });
 
-// ── Error cases ──────────────────────────────────────────────────────────────
+// ── Error cases ─────────────────────────────────────────────────────────────
 
 describe('Seal error handling', () => {
 	it('truncated blob throws RangeError', () => {
@@ -162,7 +162,7 @@ describe('Seal error handling', () => {
 	});
 });
 
-// ── Cipher suite keygen() ────────────────────────────────────────────────────
+// ── Cipher suite keygen() ───────────────────────────────────────────────────
 
 describe('Regression: cipher keygen()', () => {
 	it('XChaCha20Cipher.keygen() returns 32 bytes', () => {
@@ -184,7 +184,7 @@ describe('Regression: cipher keygen()', () => {
 	});
 });
 
-// ── New CipherSuite properties ───────────────────────────────────────────────
+// ── New CipherSuite properties ──────────────────────────────────────────────
 
 describe('CipherSuite new properties', () => {
 	it('XChaCha20Cipher.formatName', () => {

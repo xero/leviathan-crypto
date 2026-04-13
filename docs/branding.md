@@ -1,9 +1,7 @@
 # Branding Guide
 
 > [!NOTE]
-> logo, color palette, and artwork for leviathan-crypto.
-
----
+> Logos and colorscheme design by [xero](https://x-e.ro). Licensed [MIT](http://www.opensource.org/licenses/MIT) as part of the project.
 
 ## SVG Logo
 
@@ -32,7 +30,7 @@ Source: [logo.svg](./logo.svg)
 ## ASCII Art
 
 > [!IMPORTANT]
-> Always keep the 80th column blank.
+> Always keep the 80th column blank, for that old-skool text-art scene cred
 
 
 ### File Headers
@@ -100,11 +98,10 @@ Source: [logo.svg](./logo.svg)
                         ▀█████▀
 ```
 
-> [!NOTE]
-> Logos and colorscheme design by [xero](https://x-e.ro)
-> Licensed [MIT](http://www.opensource.org/licenses/MIT) as part of the project.
+## Cross-References
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

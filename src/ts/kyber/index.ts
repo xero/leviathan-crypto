@@ -24,7 +24,7 @@
 // ML-KEM public API — MlKem512, MlKem768, MlKem1024 classes.
 // Uses the init() module cache — call init({ kyber: ..., sha3: ... }) before constructing.
 
-import { getInstance, initModule, isInitialized } from '../init.js';
+import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
 import { randomBytes, wipe } from '../utils.js';
 import type { KyberExports, Sha3Exports, KyberKeyPair, KyberEncapsulation } from './types.js';
@@ -53,7 +53,7 @@ export type { KyberParams };
 export { isInitialized };
 export { KyberSuite } from './suite.js';
 
-// ── Layout assertion ──────────────────────────────────────────────────────────
+// ── Layout assertion ────────────────────────────────────────────────────────
 
 function assertLayout(kx: KyberExports, p: KyberParams): void {
 	const pk      = kx.getPkOffset();
@@ -71,7 +71,7 @@ function assertLayout(kx: KyberExports, p: KyberParams): void {
 		throw new Error('leviathan-crypto: kyber buffer overflow — ct_prime overflows into XOF region');
 }
 
-// ── Base class ────────────────────────────────────────────────────────────────
+// ── Base class ──────────────────────────────────────────────────────────────
 
 export class MlKemBase {
 	readonly params: KyberParams;
@@ -94,6 +94,8 @@ export class MlKemBase {
 	}
 
 	keygenDerand(d: Uint8Array, z: Uint8Array): KyberKeyPair {
+		_assertNotOwned('sha3');
+		_assertNotOwned('kyber');
 		if (d.length !== 32)
 			throw new RangeError(`d seed must be 32 bytes (got ${d.length})`);
 		if (z.length !== 32)
@@ -113,10 +115,14 @@ export class MlKemBase {
 	}
 
 	encapsulateDerand(ek: Uint8Array, m: Uint8Array): KyberEncapsulation {
+		_assertNotOwned('sha3');
+		_assertNotOwned('kyber');
 		if (ek.length !== this.params.ekBytes)
 			throw new RangeError(`encapsulation key must be ${this.params.ekBytes} bytes (got ${ek.length})`);
 		if (m.length !== 32)
 			throw new RangeError(`randomness m must be 32 bytes (got ${m.length})`);
+		if (!checkEncapsulationKey(this.kx, this.params, ek))
+			throw new RangeError('leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check');
 		return kemEncapsulateDerand(this.kx, this.sx, this.params, ek, m);
 	}
 
@@ -130,28 +136,42 @@ export class MlKemBase {
 	}
 
 	decapsulate(dk: Uint8Array, c: Uint8Array): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('kyber');
 		if (dk.length !== this.params.dkBytes)
 			throw new RangeError(`decapsulation key must be ${this.params.dkBytes} bytes (got ${dk.length})`);
 		if (c.length !== this.params.ctBytes)
 			throw new RangeError(`ciphertext must be ${this.params.ctBytes} bytes (got ${c.length})`);
+		if (!checkDecapsulationKey(this.kx, this.sx, this.params, dk))
+			throw new RangeError('leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check');
 		return kemDecapsulate(this.kx, this.sx, this.params, dk, c);
 	}
 
 	checkEncapsulationKey(ek: Uint8Array): boolean {
+		_assertNotOwned('sha3');
+		_assertNotOwned('kyber');
 		return checkEncapsulationKey(this.kx, this.params, ek);
 	}
 
 	checkDecapsulationKey(dk: Uint8Array): boolean {
+		_assertNotOwned('sha3');
+		_assertNotOwned('kyber');
 		return checkDecapsulationKey(this.kx, this.sx, this.params, dk);
 	}
 
 	dispose(): void {
 		this.kx.wipeBuffers();
-		this.sx.wipeBuffers();
+		// MlKemBase does not own the sha3 module — wiping this.sx.wipeBuffers()
+		// here would clobber any SHAKE128/SHAKE256 instance live at the time
+		// of dispose(). The wipe is not needed: every public kyber op
+		// (keygen, encapsulate, decapsulate, checkDecapsulationKey) calls
+		// sx.wipeBuffers() before returning, under the _assertNotOwned('sha3')
+		// guard it holds for the duration. sha3 scratch therefore carries no
+		// residue across a kyber op boundary — secret-derived or otherwise.
 	}
 }
 
-// ── Public classes ────────────────────────────────────────────────────────────
+// ── Public classes ──────────────────────────────────────────────────────────
 
 /** ML-KEM-512 — k=2, η₁=3, η₂=2, dᵤ=10, dᵥ=4. */
 export class MlKem512 extends MlKemBase {

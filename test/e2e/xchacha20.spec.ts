@@ -19,6 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+/**
+ * XChaCha20-Poly1305 AEAD Known-Answer Tests (cross-browser) — draft-irtf-cfrg-xchacha
+ *
+ * Source: draft-irtf-cfrg-xchacha (XChaCha20-Poly1305 IETF draft)
+ * Files:  vectors/chacha20.ts (xchacha20Poly1305Vectors)
+ */
 import { test, expect } from '@playwright/test';
 import { xchacha20Poly1305Vectors } from '../vectors/chacha20';
 

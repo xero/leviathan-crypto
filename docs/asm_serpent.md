@@ -1,7 +1,8 @@
-# Serpent-256 WASM Module Reference
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
 
-> [!NOTE]
-> This is the AssemblyScript source reference for `serpent.wasm`. See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+### Serpent-256 WASM Module Reference
+
+This low-level reference details the Serpent AssemblyScript source and WASM exports, intended for those auditing, contributing to, or building against the raw module. **Most consumers should instead use the [TypeScript wrapper](./serpent.md) or the higher-level [AEAD classes](./aead.md).**
 
 > ### Table of Contents
 > - [Overview](#overview)
@@ -41,22 +42,23 @@ Key properties of this implementation:
 
 ## Security Notes
 
+See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness verifications.
+
 ### Constant-time S-boxes
 
-The S-boxes (`sb0`-`sb7`, `si0`-`si7`) use exclusively `&`, `|`, `^`, `~`
-on i32 registers. No memory is indexed by secret data. This is constant-time by construction. The execution path and memory access pattern are identical regardless of input values. WASM i32 operations provide stronger timing
+The S-boxes (`sb0`-`sb7`, `si0`-`si7`) use exclusively `&`, `|`, `^`, `~` on
+i32 registers. No memory is indexed by secret data. This is constant-time by
+construction. The execution path and memory access pattern are identical
+regardless of input values. WASM i32 operations provide stronger timing
 guarantees than JavaScript bitwise operators, which may be JIT-compiled with
 varying instruction selection.
 
----
-
 ### Linear transform and key schedule
 
-The linear transform (`lk`/`kl`) uses only rotations (`rotl`), XOR, and shift. All operations are data-independent. The key schedule (`loadKey`) similarly uses only arithmetic
-and bitwise ops on the prekey buffer. No secret-dependent branches anywhere in the
-cipher core.
-
----
+The linear transform (`lk`/`kl`) uses only rotations (`rotl`), XOR, and shift.
+All operations are data-independent. The key schedule (`loadKey`) similarly
+uses only arithmetic and bitwise ops on the prekey buffer. No secret-dependent
+branches anywhere in the cipher core.
 
 ### CTR counter increment
 
@@ -66,18 +68,15 @@ counter value is not secret; it is derived from the (public) nonce and block
 position. An observer who learns the counter value gains no information about the
 key or plaintext.
 
----
-
 ### CBC mode is unauthenticated
 
 CBC provides confidentiality only. Without a MAC, it is vulnerable to padding
-oracle attacks, bit-flipping, and chosen-ciphertext manipulation. Always pair with
-HMAC (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead. PKCS7 padding
-validation in the TypeScript wrapper uses constant-time XOR-accumulate comparison
-to mitigate timing-based padding oracles, but the fundamental lack of
-authentication remains.
-
----
+oracle attacks, bit-flipping, and chosen-ciphertext manipulation. Always pair
+with HMAC (Encrypt-then-MAC) or use [`seal`](./aead.md#seal) /
+[`SealStream`](./aead.md#sealstream) instead. PKCS7 padding validation in the
+TypeScript wrapper uses constant-time XOR-accumulate comparison to mitigate
+timing-based padding oracles, but the fundamental lack of authentication
+remains.
 
 ### Memory wiping
 
@@ -127,15 +126,12 @@ function getCbcIvOffset(): i32     // 131748
 ```
 Each returns the fixed byte offset for that buffer. Values shown as comments.
 
-```typescript
-function getSimdWorkOffset(): i32  // 131776
-```
-Returns the byte offset of `SIMD_WORK_BUFFER`. Five v128 working registers used by the SIMD S-box circuits. Only present when the binary is built with `--enable simd`.
+```typescript function getSimdWorkOffset(): i32  // 131776 ``` Returns the byte
+offset of `SIMD_WORK_BUFFER`. Five v128 working registers used by the SIMD
+S-box circuits. Only present when the binary is built with `--enable simd`.
 
-```typescript
-function getChunkSize(): i32       // 65552
-```
-Returns the maximum chunk size in bytes (65552 — 65536 + 16 bytes PKCS7 maximum overhead).
+```typescript function getChunkSize(): i32       // 65552 ``` Returns the
+maximum chunk size in bytes (65552 — 65536 + 16 bytes PKCS7 maximum overhead).
 
 ```typescript
 function getMemoryPages(): i32
@@ -300,7 +296,10 @@ scalar path for the trailing 1–3 blocks. Same parameters and return values
 as `cbcDecryptChunk`.
 
 > [!NOTE]
-> CBC _encryption_ has no SIMD variant. Each ciphertext block depends on the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be parallelised. Decryption is fully parallelisable because all ciphertext blocks are available up front.
+> CBC _encryption_ has no SIMD variant. Each ciphertext block depends
+> on the previous one (C[i] = Encrypt(P[i] XOR C[i-1])), so blocks cannot be
+> parallelised. Decryption is fully parallelisable because all ciphertext
+> blocks are available up front.
 
 ---
 
@@ -360,7 +359,8 @@ the SIMD S-box path. Each lane corresponds to one of the four blocks processed i
 
 ### buffers.ts
 
-Defines the static memory layout as `i32` constants and getter functions. No logic. Pure layout declaration. All other modules import offsets from here.
+Defines the static memory layout as `i32` constants and getter functions. No
+logic. Pure layout declaration. All other modules import offsets from here.
 
 ---
 
@@ -369,23 +369,38 @@ Defines the static memory layout as `i32` constants and getter functions. No log
 The core cipher implementation, ported independently from the Serpent AES submission
 spec. Contains:
 
-**Working register helpers (`rget`/`rset`).** Inline functions that load/store i32 values at `WORK_OFFSET + (i << 2)`. These are the cipher's virtual registers.
+**Working register helpers (`rget`/`rset`).** Inline functions that load/store
+i32 values at `WORK_OFFSET + (i << 2)`. These are the cipher's virtual
+registers.
 
-**S-boxes (`sb0`-`sb7`).** 8 forward S-box Boolean circuits. Each takes 5 slot indices into the working registers. Operations are exclusively `&`, `|`, `^`, `~` on `rget`/`rset` values.
+**S-boxes (`sb0`-`sb7`).** 8 forward S-box Boolean circuits. Each takes 5 slot
+indices into the working registers. Operations are exclusively `&`, `|`, `^`,
+`~` on `rget`/`rset` values.
 
 **Inverse S-boxes (`si0`-`si7`).** 8 inverse S-box circuits for decryption.
 
-**EC/DC/KC constants.** Encoded 5-slot permutations for each round. Each constant encodes a permutation via `(m%5, m%7, m%11, m%13, m%17)`; all five values are guaranteed to be in {0,1,2,3,4} and distinct. `ec` drives encryption rounds, `dc` drives decryption rounds, `kc` drives key schedule S-box application.
+**EC/DC/KC constants.** Encoded 5-slot permutations for each round. Each
+constant encodes a permutation via `(m%5, m%7, m%11, m%13, m%17)`; all five
+values are guaranteed to be in {0,1,2,3,4} and distinct. `ec` drives encryption
+rounds, `dc` drives decryption rounds, `kc` drives key schedule S-box
+application.
 
 **keyXor.** XORs 4 working registers with a round subkey.
 
-**lk (Linear transform + Key XOR).** The forward LT (rotl-13, rotl-3, XOR mixing, rotl-1, rotl-7, XOR mixing, rotl-5, rotl-22) followed by subkey XOR. Used in encryption rounds 0-30.
+**lk (Linear transform + Key XOR).** The forward LT (rotl-13, rotl-3, XOR
+mixing, rotl-1, rotl-7, XOR mixing, rotl-5, rotl-22) followed by subkey XOR.
+Used in encryption rounds 0-30.
 
-**kl (Key XOR + Inverse Linear transform).** Subkey XOR followed by the inverse LT. Used in decryption rounds.
+**kl (Key XOR + Inverse Linear transform).** Subkey XOR followed by the inverse
+LT. Used in decryption rounds.
 
-**Key schedule (`loadKey`).** Reverse-copies key bytes, repacks as LE words, expands 132 prekey words via the affine recurrence (`w_i = rotl(w_{i-8} ^ w_{i-5} ^ w_{i-3} ^ w_{i-1} ^ 0x9E3779B9 ^ i, 11)`), then derives 33 round subkeys through S-box application using the `kc` constants.
+**Key schedule (`loadKey`).** Reverse-copies key bytes, repacks as LE words,
+expands 132 prekey words via the affine recurrence (`w_i = rotl(w_{i-8} ^
+w_{i-5} ^ w_{i-3} ^ w_{i-1} ^ 0x9E3779B9 ^ i, 11)`), then derives 33 round
+subkeys through S-box application using the `kc` constants.
 
-**encryptBlock / decryptBlock.** Loop-driven implementations (not exported, used as reference).
+**encryptBlock / decryptBlock.** Loop-driven implementations (not exported,
+used as reference).
 
 **wipeBuffers.** Zeroes all sensitive memory.
 
@@ -440,7 +455,8 @@ Auto-generated (via `scripts/generate_simd.ts`). Contains fully-unrolled 4-wide
 SIMD implementations of all 8 forward and 8 inverse S-boxes as v128 Boolean
 circuits, plus the `encryptBlock_simd_4x` and `decryptBlock_simd_4x` entry
 points. Each S-box gate (`sb0_v`–`sb7_v`, `si0_v`–`si7_v`) mirrors its scalar
-counterpart exactly but operates on 4 × i32 lanes simultaneously. No lane shuffles, no cross-lane dependencies.
+counterpart exactly but operates on 4 × i32 lanes simultaneously. No lane
+shuffles, no cross-lane dependencies.
 
 Exported as `encryptBlock_simd_4x` / `decryptBlock_simd_4x` by `index.ts`.
 Do not edit by hand. Regenerate with `bun scripts/generate_simd.ts`.
@@ -504,11 +520,14 @@ serpent_unrolled.ts     serpent_simd.ts
 > was called successfully and the block buffers contain valid data. The TypeScript
 > wrapper enforces these preconditions.
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [serpent_reference](./serpent_reference.md) — algorithm specification, S-box tables, linear transform, and known attacks
-> - [serpent](./serpent.md) — TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentCipher`)
-> - [serpent_audit](./serpent_audit.md) — security audit results (algorithm correctness, side-channel analysis)
-> - [asm_sha2](./asm_sha2.md) — SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG)
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [serpent_reference](./serpent_reference.md) | algorithm specification, S-box tables, linear transform, and known attacks |
+| [serpent](./serpent.md) | TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentCipher`) |
+| [serpent_audit](./serpent_audit.md) | security audit results (algorithm correctness, side-channel analysis) |
+| [asm_sha2](./asm_sha2.md) | SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG) |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

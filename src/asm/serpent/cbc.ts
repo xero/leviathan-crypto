@@ -50,10 +50,14 @@ import {
 import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled';
 import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled';
 
-// Encrypt len bytes from CHUNK_PT_OFFSET → CHUNK_CT_OFFSET.
-// len must be a positive multiple of 16 (PKCS7 padding is the caller's job).
-// Updates CBC_IV_OFFSET to the last ciphertext block on return.
-// Returns len on success, -1 on invalid len.
+/**
+ * Encrypt len bytes from CHUNK_PT_BUFFER to CHUNK_CT_BUFFER using Serpent CBC mode.
+ * C[i] = Encrypt(P[i] XOR C[i−1]), with C[−1] = IV from CBC_IV_BUFFER.
+ * Updates CBC_IV_BUFFER to the last ciphertext block on return.
+ * PKCS7 padding must be applied by the caller before invoking this function.
+ * @param len  number of bytes to encrypt; must be a positive multiple of 16
+ * @returns    len on success, -1 if len is invalid (not positive, > CHUNK_SIZE, or not a multiple of 16)
+ */
 export function cbcEncryptChunk(len: i32): i32 {
 	if (len <= 0 || len > CHUNK_SIZE || len % 16 !== 0) return -1;
 
@@ -77,10 +81,14 @@ export function cbcEncryptChunk(len: i32): i32 {
 	return len;
 }
 
-// Decrypt len bytes from CHUNK_CT_OFFSET → CHUNK_PT_OFFSET.
-// len must be a positive multiple of 16.
-// Updates CBC_IV_OFFSET to the last ciphertext block on return.
-// Returns len on success, -1 on invalid len.
+/**
+ * Decrypt len bytes from CHUNK_CT_BUFFER to CHUNK_PT_BUFFER using Serpent CBC mode.
+ * P[i] = Decrypt(C[i]) XOR C[i−1], with C[−1] = IV from CBC_IV_BUFFER.
+ * Updates CBC_IV_BUFFER to the last ciphertext block on return.
+ * PKCS7 unpadding must be performed by the caller after this function returns.
+ * @param len  number of bytes to decrypt; must be a positive multiple of 16
+ * @returns    len on success, -1 if len is invalid (not positive, > CHUNK_SIZE, or not a multiple of 16)
+ */
 export function cbcDecryptChunk(len: i32): i32 {
 	if (len <= 0 || len > CHUNK_SIZE || len % 16 !== 0) return -1;
 

@@ -41,7 +41,8 @@ beforeAll(async () => {
 // ── HKDF_SHA256 — RFC vectors ───────────────────────────────────────────────
 
 describe('HKDF_SHA256 — RFC vectors', () => {
-	// GATE — RFC 5869 Appendix A.1 (Gate 8)
+	// GATE: HKDF-SHA-256: RFC 5869 §A.1
+	// Vector: sha2.ts[hkdfSha256Vectors[0]]
 	test('A.1 derive() OKM matches', () => {
 		const v = hkdfSha256Vectors[0];
 		const h = new HKDF_SHA256();
