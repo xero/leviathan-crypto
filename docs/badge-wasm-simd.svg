@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="116" height="20" role="img" aria-label="WASM: SIMD">
+<title>WASM: SIMD</title>
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<clipPath id="r"><rect width="116" height="20" rx="3" fill="#fff"/></clipPath>
+<g clip-path="url(#r)">
+	<rect width="26" height="20" fill="#33383e"/>
+	<rect x="26" width="90" height="20" fill="#161925"/>
+	<rect width="116" height="20" fill="url(#s)"/>
+</g>
+<image x="6" y="3" width="14" height="14" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMWE5MzZmIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+V2FzbWVyPC90aXRsZT48cGF0aCBkPSJNMTguMTExIDMuNTM3Yy0uMDExLjgyMi0uNSAxLjIwOC0xLjExMS44Ni0uNjExLS4zNTMtMS4xMDYtMS4zMDctMS4xMTEtMi4xNDZMMTIgMHY0LjY1MWw1LjU2MSAzLjIyMi41NS4zMnY3Ljc2M0wyMiAxOC4yMDZWNS43OTRsLTMuODg5LTIuMjU2Wm0tNSAzLjAzNGMtLjAxMS44MjItLjUgMS4yMDgtMS4xMTEuODYtLjYxMS0uMzUyLTEuMTA2LTEuMzA3LTEuMTExLTIuMTQ1bC0zLjg5LTIuMjUyVjcuNDFsNS41NjIgMy4yMjIuNTUuMzJ2OC4wMzhMMTcgMjEuMjQxVjguODI4TDEzLjExIDYuNTdabS01IDIuNzU5Yy0uMDExLjgyMi0uNSAxLjIwOC0xLjExMS44Ni0uNjExLS4zNTMtMS4xMDYtMS4zMDctMS4xMTEtMi4xNDZMMiA1Ljc5NHYxMi40MTNMMTIgMjRWMTEuNTg2TDguMTExIDkuMzNaIi8+PC9zdmc+"/>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110">
+	<text aria-hidden="true" x="710" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="700">WASM: SIMD</text>
+	<text x="710" y="140" transform="scale(.1)" fill="#fff" textLength="700">WASM: SIMD</text>
+</g>
+</svg>

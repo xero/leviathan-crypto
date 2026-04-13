@@ -71,22 +71,45 @@ Seal blob can be opened by OpenStream and vice versa.
 
 ## Demos
 
-We maintain three demo applications for the library at [https://github.com/xero/leviathan-demos](https://github.com/xero/leviathan-demos)
+We maintain demo applications for the library at [https://github.com/xero/leviathan-demos](https://github.com/xero/leviathan-demos)
 
 **`web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/web) · [readme](https://github.com/xero/leviathan-demos/blob/main/web/README.md) ]
 
-A self-contained browser encryption tool in a single HTML file. Encrypt text or files with Serpent-256-CBC and Argon2id key derivation, then share the armored output. No server, no install, no network connection after initial load. The code is written to be read. The Encrypt-then-MAC construction, HMAC input, and Argon2id parameters are all intentional examples worth studying.
+A self-contained browser encryption tool in a single HTML file. Encrypt text or
+files with Serpent-256-CBC and Argon2id key derivation, then share the armored
+output. No server, no install, no network connection after initial load. The
+code is written to be read. The Encrypt-then-MAC construction, HMAC input, and
+Argon2id parameters are all intentional examples worth studying.
 
 **`chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/chat/README.md) ]
 
-End-to-end encrypted chat over X25519 key exchange and XChaCha20-Poly1305 message encryption. The relay server is a dumb WebSocket pipe that never sees plaintext. Messages carry sequence numbers so the protocol detects and rejects replayed messages. The demo deconstructs the protocol step by step with visual feedback for injection and replay attacks.
+End-to-end encrypted chat over X25519 key exchange and XChaCha20-Poly1305
+message encryption. The relay server is a dumb WebSocket pipe that never sees
+plaintext. Messages carry sequence numbers so the protocol detects and rejects
+replayed messages. The demo deconstructs the protocol step by step with visual
+feedback for injection and replay attacks.
 
 **`cli`** [ [npm](https://www.npmjs.com/package/lvthn) · [source](https://github.com/xero/leviathan-demos/tree/main/cli) · [readme](https://github.com/xero/leviathan-demos/blob/main/cli/README.md) ]
 
-Command-line file encryption tool supporting both Serpent-256 and XChaCha20-Poly1305 via `--cipher`. A single keyfile works with both ciphers. The header byte determines decryption automatically. Chunks distribute across a worker pool sized to `hardwareConcurrency`. Each worker owns an isolated WASM instance with no shared memory. The tool can export it's own interactive competitions for a variety of shells.
+Command-line file encryption tool supporting both Serpent-256 and
+XChaCha20-Poly1305 via `--cipher`. A single keyfile works with both ciphers.
+The header byte determines decryption automatically. Chunks distribute across a
+worker pool sized to `hardwareConcurrency`. Each worker owns an isolated WASM
+instance with no shared memory. The tool can export it's own interactive
+competitions for a variety of shells.
 
 ```sh
 bun add -g lvthn # or npm i -g lvthn
 lvthn keygen --armor -o my.key
 cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 ```
+
+**`kyber`** [ [demo](https://leviathan.3xi.club/kyber) · [source](https://github.com/xero/leviathan-demos/tree/main/kyber) · [readme](https://github.com/xero/leviathan-demos/blob/main/kyber/README.md) ]
+
+Post-quantum cryptography demo simulating a complete ML-KEM key encapsulation
+ceremony between two browser-side clients. A live wire at the top of the page
+logs every value that crosses the channel; importantly, the shared secret never
+appears in the wire. After the ceremony completes, both sides independently
+derive a symmetric key using HKDF-SHA256 and exchange messages encrypted with
+XChaCha20-Poly1305. Each wire frame is expandable, revealing the raw nonce,
+ciphertext, Poly1305 tag, and AAD.
