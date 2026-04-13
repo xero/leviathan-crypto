@@ -9,6 +9,7 @@
 > - [Module Init](#module-init)
 > - [API Reference](#api-reference)
 > - [Incremental XOF API](#incremental-xof-api-absorb--squeeze--reset)
+> - [SHA3_256Hash](#sha3_256hash)
 > - [Usage Examples](#usage-examples)
 > - [Error Conditions](#error-conditions)
 
@@ -207,6 +208,12 @@ class SHA3_512 {
 Extendable-output function (XOF). Produces **variable-length** output — any
 number of bytes you request. 128-bit security level.
 
+> [!CAUTION]
+> `SHAKE128` is stateful and holds exclusive access to the `sha3` WASM module
+> for its entire lifetime. Constructing a second SHAKE128/SHAKE256 or any
+> other sha3 class (`SHA3_256`, etc.) while this instance is live throws.
+> Call `dispose()` when done. Pool workers are unaffected.
+
 ```typescript
 class SHAKE128 {
 	constructor()
@@ -223,10 +230,14 @@ class SHAKE128 {
 | `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
 | `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
 | `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous — `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
-| `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. |
-| `dispose()` | Zero all WASM state and the TS-side block buffer. |
+| `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. Does not release the sha3 exclusivity token. |
+| `dispose()` | Zero all WASM state and the TS-side block buffer, release the sha3 exclusivity token. Idempotent. |
 
 **`outputLength`** / **`n`** must be `>= 1`. Values below 1 throw a `RangeError`.
+
+After `dispose()`, all instance methods (`reset`, `absorb`, `squeeze`, `hash`)
+throw `Error: SHAKE128: instance has been disposed`. Disposal is permanent;
+construct a new instance if you need to continue.
 
 ---
 
@@ -234,6 +245,12 @@ class SHAKE128 {
 
 Extendable-output function (XOF). Produces **variable-length** output — any
 number of bytes you request. 256-bit security level.
+
+> [!CAUTION]
+> `SHAKE256` is stateful and holds exclusive access to the `sha3` WASM module
+> for its entire lifetime. Constructing a second SHAKE128/SHAKE256 or any
+> other sha3 class while this instance is live throws. Call `dispose()` when
+> done.
 
 ```typescript
 class SHAKE256 {
@@ -251,10 +268,14 @@ class SHAKE256 {
 | `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
 | `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
 | `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous — `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
-| `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. |
-| `dispose()` | Zero all WASM state and the TS-side block buffer. |
+| `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. Does not release the sha3 exclusivity token. |
+| `dispose()` | Zero all WASM state and the TS-side block buffer, release the sha3 exclusivity token. Idempotent. |
 
 **`outputLength`** / **`n`** must be `>= 1`. Values below 1 throw a `RangeError`.
+
+After `dispose()`, all instance methods (`reset`, `absorb`, `squeeze`, `hash`)
+throw `Error: SHAKE256: instance has been disposed`. Disposal is permanent;
+construct a new instance if you need to continue.
 
 ---
 
@@ -294,6 +315,49 @@ const macKey  = xof.squeeze(32)   // 256-bit MAC key
 const nonce   = xof.squeeze(12)   // 96-bit nonce
 
 xof.dispose()
+```
+
+---
+
+## SHA3_256Hash
+
+Stateless SHA3-256 `HashFn` for Fortuna's accumulator and reseed slots. Plain
+`const` object — no instantiation, no `dispose()`.
+
+Requires `init({ sha3: sha3Wasm })` (or the `keccak` alias). See
+[fortuna.md](./fortuna.md) for full usage with `Fortuna.create()`.
+
+| Property | Value |
+|----------|-------|
+| `outputSize` | `32` |
+| `wasmModules` | `['sha3']` |
+
+### `SHA3_256Hash.digest(msg): Uint8Array`
+
+Hashes `msg` and returns a 32-byte SHA3-256 digest. Wipes WASM input/output/sponge
+state scratch before returning.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `msg` | `Uint8Array` | Message to hash (any length) |
+
+**Returns** a new `Uint8Array` of 32 bytes.
+
+**Throws** `Error` if another stateful instance currently owns the `sha3` WASM module.
+
+### Usage with `Fortuna`
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { SHA3_256Hash } from 'leviathan-crypto/sha3'
+import { ChaCha20Generator } from 'leviathan-crypto/chacha20'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+
+await init({ sha3: sha3Wasm, chacha20: chacha20Wasm })
+const rng = await Fortuna.create({ generator: ChaCha20Generator, hash: SHA3_256Hash })
+const bytes = rng.get(32)
+rng.stop()
 ```
 
 ---
@@ -536,11 +600,12 @@ absorbs zero bytes and then squeezes.
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [asm_sha3](./asm_sha3.md): WASM implementation details (buffer layout, Keccak internals, variant parameters)
-> - [sha2](./sha2.md): Alternative: SHA-2 family (SHA-256, SHA-384, SHA-512) and HMAC
-> - [utils](./utils.md): Encoding utilities: `bytesToHex`, `hexToBytes`, `utf8ToBytes`
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha3_audit.md](./sha3_audit.md) — SHA-3 / Keccak implementation audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha3_audit.md](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
+

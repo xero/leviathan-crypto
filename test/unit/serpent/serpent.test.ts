@@ -44,7 +44,9 @@ describe('SerpentCbc — dangerUnauthenticated gate', () => {
 	});
 
 	it('new SerpentCbc({ dangerUnauthenticated: true }) constructs successfully', () => {
-		expect(() => new SerpentCbc({ dangerUnauthenticated: true })).not.toThrow();
+		const c = new SerpentCbc({ dangerUnauthenticated: true });
+		expect(c).toBeDefined();
+		c.dispose();
 	});
 });
 
@@ -56,6 +58,8 @@ describe('SerpentCtr — dangerUnauthenticated gate', () => {
 	});
 
 	it('new SerpentCtr({ dangerUnauthenticated: true }) constructs successfully', () => {
-		expect(() => new SerpentCtr({ dangerUnauthenticated: true })).not.toThrow();
+		const c = new SerpentCtr({ dangerUnauthenticated: true });
+		expect(c).toBeDefined();
+		c.dispose();
 	});
 });

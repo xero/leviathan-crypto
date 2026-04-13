@@ -16,7 +16,7 @@ jobs:
       - name: install dependencies
         run: bun i
       - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run chacha20 unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
@@ -26,3 +26,5 @@ jobs:
           test/unit/chacha20/poly1305.test.ts
           test/unit/chacha20/chacha20poly1305.test.ts
           test/unit/chacha20/xchacha20.test.ts
+          test/unit/chacha20/single-use-guard.test.ts
+          test/unit/chacha20/aead-decrypt-wipe.test.ts

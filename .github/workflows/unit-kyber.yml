@@ -16,7 +16,7 @@ jobs:
       - name: install dependencies
         run: bun i
       - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run kyber unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
@@ -24,3 +24,7 @@ jobs:
           test/unit/kyber/poly_arithmetic.test.ts
           test/unit/kyber/mlkem.test.ts
           test/unit/kyber/kyber_suite.test.ts
+          test/unit/kyber/decap-scratch-wipe.test.ts
+          test/unit/kyber/encap-scratch-wipe.test.ts
+          test/unit/kyber/keygen-scratch-wipe.test.ts
+          test/unit/kyber/sha3-scratch-wipe.test.ts

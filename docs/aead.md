@@ -13,11 +13,11 @@
 
 ## Overview
 
-`Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` are the primary API for authenticated encryption in leviathan-crypto. They are cipher-agnostic: you pass a `CipherSuite` object at construction and the implementation handles key derivation, nonce management, and authentication for you.
+Authenticated encryption in leviathan-crypto centers on four classes: `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool`. All are cipher-agnostic. Pass a `CipherSuite` object at construction and they handle key derivation, nonce management, and authentication automatically.
 
-The four classes form a natural progression. `Seal` handles data that fits in memory. `SealStream` and `OpenStream` handle data that arrives in chunks or is too large to buffer. `SealStreamPool` parallelizes the chunked approach across Web Workers. All four produce and consume the same wire format, so a `Seal` blob can be opened by `OpenStream` and vice versa.
+These four form a natural progression by use case. Use `Seal` for data that fits in memory. Use `SealStream` and `OpenStream` for data arriving in chunks or too large to buffer. Use `SealStreamPool` for parallel chunked encryption across Web Workers. All four share the same wire format, so `OpenStream` can decrypt a `Seal` blob and vice versa.
 
-Two cipher suites are included. A third wraps either with ML-KEM for post-quantum hybrid encryption.
+leviathan-crypto includes two cipher suites. A third suite wraps either with ML-KEM for post-quantum hybrid encryption.
 
 | Suite | Cipher | Tag | Modules |
 |---|---|---|---|
@@ -33,16 +33,28 @@ See [ciphersuite.md](./ciphersuite.md) for full cipher suite documentation.
 
 The STREAM construction is based on [Hoang, Reyhanitabar, Rogaway, and Vizár (CRYPTO 2015)](https://eprint.iacr.org/2015/189.pdf). It provides online authenticated encryption with four guarantees.
 
-**Per-chunk authentication.** Each chunk is individually authenticated. A tampered chunk is rejected immediately without decrypting anything that follows.
+**Per-chunk authentication.** Each chunk carries its own authentication tag. The stream rejects a tampered chunk immediately and stops decrypting.
 
 **Counter binding.** Each chunk's nonce includes a monotonic counter. Reordering or duplicating chunks produces a counter mismatch and authentication fails.
 
-**Final-chunk detection.** The last chunk uses a distinct nonce flag (`TAG_FINAL` vs `TAG_DATA`). Truncating the stream by dropping the final chunk is detected because the opener expects a chunk marked final.
+**Final-chunk detection.** The last chunk uses a distinct nonce flag (`TAG_FINAL` vs `TAG_DATA`). The opener expects a chunk marked final and rejects any stream that ends without one.
 
 **Stream isolation.** Each stream generates a fresh 16-byte random nonce on construction. Two streams with the same key derive independent subkeys via HKDF and cannot interfere with each other.
 
 > [!IMPORTANT]
 > `SealStream` is single-use. After `finalize()` is called the derived keys are wiped and no further chunks can be sealed. Create a new `SealStream` for each message. `SealStreamPool.seal()` enforces this with a guard that throws on subsequent calls.
+>
+> **`SealStream` / `OpenStream` have a three-state machine: `ready` → `finalized` | `failed`.** An auth failure, WASM error, or cipher exception inside `push()`, `pull()`, or `finalize()` wipes the derived keys and transitions the stream to `failed`. Subsequent method calls (`push`, `pull`, `finalize`, and `OpenStream.seek`) throw with `'failed'` in the message, never `'finalized'`. `dispose()` on a `failed` stream is a no-op. Construct a new stream to continue.
+>
+> **Argument-validation errors are non-terminal on both `SealStream` and `OpenStream`.** A `RangeError` from `push()` or `finalize()` for a chunk larger than `chunkSize` throws without wiping keys or entering `'failed'`. Symmetrically, a `RangeError` from `pull()` or `finalize()` throws without wiping keys when a chunk is too short to contain a tag, exceeds the maximum wire size, or (in framed mode) has a length prefix that does not match the payload length. The stream stays in `'ready'` and the caller can retry with a corrected chunk.
+>
+> This is safe because every validation error depends only on attacker-observable input lengths and never on secret-derived state. Distinguishing a validation throw from an auth failure gives an attacker no information they did not already have. Auth failures from `cipher.openChunk` remain terminal, as they are the crypto-path case.
+>
+> **`OpenStream.seek(index)` validates `index` before mutating state.** Indices that are not non-negative safe integers — `NaN`, `Infinity`, fractional, negative, or `> Number.MAX_SAFE_INTEGER` — throw `RangeError` without changing `counter`, so the caller can retry with a corrected index. The check uses `Number.isSafeInteger(index) && index >= 0` so values above `2^53 - 1` (where IEEE 754 doubles have integer gaps) are rejected directly rather than relying on a separate magnitude comparison. Backward seeks (`index < counter`) throw `'forward-only'` for the same reason (plaintext replay prevention). See `seek()` in the OpenStream API table.
+>
+> **AEAD `encrypt()` is strict single-use.** `ChaCha20Poly1305.encrypt()` and `XChaCha20Poly1305.encrypt()` are terminal on any throw, including key and nonce length validation. A retry on the same instance always raises the single-use guard, never a fresh length error. This tightens the 2.0-beta semantics where length validation was recoverable. Always allocate a new AEAD per message.
+>
+> **`SealStreamPool.seal()` is terminal on any throw.** Auth failures, worker crashes, job timeouts, output-size overflows (`RangeError` from assembling ciphertext that exceeds the runtime's typed-array max), or any other rejection kill the pool. Pending jobs reject, workers terminate, `_masterKey` and `_keys` are wiped, and subsequent calls throw `"pool is dead"`. Construct a new pool to continue. Any throw is terminal, which keeps the failure contract uniform with the strict single-use posture of `ChaCha20Poly1305.encrypt()`.
 
 ### WASM Side-Channel Posture
 
@@ -119,7 +131,10 @@ const pt   = Seal.decrypt(XChaCha20Cipher, key, blob)  // throws AuthenticationE
 | `Seal.encrypt(suite, key, plaintext, opts?)` | `Uint8Array` | One-shot encrypt. Returns `preamble \|\| chunk`. |
 | `Seal.decrypt(suite, key, blob, opts?)` | `Uint8Array` | One-shot decrypt. Throws `AuthenticationError` on tamper. |
 
-**`opts.aad`** — optional `Uint8Array`. Additional Authenticated Data: authenticated but not encrypted. Pass the same value to both `encrypt` and `decrypt`.
+**`opts.aad`.** Optional `Uint8Array` carrying Additional Authenticated Data. Authenticated but not encrypted. Pass the same value to both `encrypt` and `decrypt`.
+
+> [!NOTE]
+> **`chunkSize` in the wire header is a maximum, not an actual size.** For `Seal.encrypt` (single-chunk), the header always declares `max(plaintext.length, CHUNK_MIN)`, so a zero-byte seal still declares `chunkSize = CHUNK_MIN = 1024`. This is self-consistent on decode (the single final chunk is processed regardless of its actual length up to the declared bound) and prevents leaking the exact plaintext length through header analysis when `plaintext.length < CHUNK_MIN`. `SealStream` writes the configured `opts.chunkSize` verbatim; the receiver treats it as an upper bound on any incoming chunk's plaintext size.
 
 ---
 
@@ -181,7 +196,7 @@ const ptLast = opener.finalize(ctLast)  // keys wiped
 
 **Constructor:** `new OpenStream(cipher, key, preamble)`
 
-Throws if the preamble format enum doesn't match the cipher, or if the preamble is too short.
+Throws if the preamble format enum doesn't match the cipher or if the preamble is too short.
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -193,8 +208,11 @@ Throws if the preamble format enum doesn't match the cipher, or if the preamble 
 |---|---|---|
 | `pull(chunk, { aad? })` | `Uint8Array` | Decrypt a data chunk. Throws `AuthenticationError` on tamper. |
 | `finalize(chunk, { aad? })` | `Uint8Array` | Decrypt the final chunk and wipe keys. |
-| `seek(index)` | `void` | Set the counter to `index`. Enables random access decryption. Must be a non-negative integer. |
+| `seek(index)` | `void` | Set the counter to `index`. The stream is forward-only; `index < counter` throws `RangeError` with `'forward-only'` in the message. `index` must satisfy `Number.isSafeInteger(index) && index >= 0` (i.e. a non-negative safe integer ≤ `Number.MAX_SAFE_INTEGER`). Argument-validation throws do not mutate `counter`; the stream stays usable and can retry with a corrected index. Throws on failed/finalized state (state guard fires before range check). |
 | `toTransformStream()` | `TransformStream` | Web Streams API wrapper. Buffers one chunk to detect the final chunk. |
+
+> [!IMPORTANT]
+> **`OpenStream.seek` is forward-only.** Backward seeks (`index < this.counter`) throw a `RangeError` with `'forward-only'` in the message. A backward seek would reuse an already-consumed per-chunk counter nonce against a new ciphertext, permitting plaintext replay against a stale opener. Construct a fresh `OpenStream` from the same preamble to restart from the beginning.
 
 ---
 
@@ -221,7 +239,7 @@ const decrypted  = await pool.open(ciphertext)
 pool.destroy()
 ```
 
-**`SealStreamPool.create(cipher, key, opts)`** — async factory.
+**`SealStreamPool.create(cipher, key, opts)`.** Async factory.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
@@ -234,7 +252,7 @@ pool.destroy()
 > [!NOTE]
 > For padded ciphers (`SerpentCipher`), `create()` validates at startup that a full plaintext chunk fits in the WASM buffer after PKCS7 padding. If `chunkSize` is too large it throws a `RangeError` with the actual values before any workers are launched. The default `chunkSize: 65536` is valid for both built-in cipher suites.
 
-**Failure model.** Any error is fatal. Authentication failure, worker crash, and timeout all terminate every worker, wipe all keys, and mark the pool permanently dead. Pending promises reject. There is no retry and no worker replacement. Create a new pool for the next operation.
+**Failure model.** Any error is fatal. Authentication failure, worker crash, and timeout all terminate every worker, wipe all keys, and mark the pool permanently dead. Pending promises reject. There is no retry and no worker replacement. Create a new pool for the next operation. `destroy()` is synchronous from the caller's perspective. The pool flips to `dead`, pending jobs reject, and main-thread keys are zeroed before the call returns. Worker teardown is bounded-async. The pool requests that each worker zero its in-memory key material and terminates workers after a short ACK window.
 
 | Method / Property | Description |
 |---|---|
@@ -244,6 +262,24 @@ pool.destroy()
 | `header` | The 20-byte stream header. `SealStreamPool` exposes `.header` while `SealStream` exposes `.preamble`, which also supports KEM preambles. |
 | `dead` | `true` after any fatal error or `destroy()`. |
 | `size` | Number of workers. |
+
+**Lifecycle.**
+
+- After `seal()` completes successfully, the pool holds the derived keys and
+  master key in memory until you call `destroy()`. Call `destroy()` explicitly
+  when you are finished; forgetting leaves key material resident until garbage
+  collection.
+- After `seal()`, the pool is marked sealed and further `seal()` calls throw.
+  But `open()` is still valid and can decrypt other ciphertexts using the same
+  master key. This is intentional because a pool is a stateful encrypt/decrypt
+  context tied to a master key, not a single-use seal operation. The word
+  "sealed" can still mislead. If your usage is encrypt-once-then-discard, the
+  idiom is `try { await pool.seal(pt) } finally { pool.destroy() }`.
+- On any job throw (worker crash, auth failure, timeout), the pool's
+  `_killAll` runs. All workers terminate, all keys are wiped, and the pool is
+  marked dead. Subsequent calls throw `'pool is dead'`.
+
+**Interop with `SealStream.push()`.** In unframed mode, `pool.open()` splits the body into chunks at fixed `chunkSize` boundaries. This works when the ciphertext came from `SealStreamPool.seal()` or from a `SealStream` that emitted every non-final chunk at exactly `chunkSize` plaintext bytes. A `SealStream` that called `push()` with sub-`chunkSize` chunks produces a valid blob that `OpenStream` can decrypt, but `pool.open()` cannot. The pool splits at the wrong boundary, stamps the wrong domain separator on the final chunk, and fails authentication. Use `framed: true` on both sides if producer and consumer may have different chunk shapes. Framed chunks carry a `u32be` length prefix that makes the split unambiguous.
 
 ---
 
@@ -291,7 +327,7 @@ AAD applies per chunk, not per stream. Each chunk can carry different AAD. If yo
 
 ### AuthenticationError
 
-`AuthenticationError` is thrown by `Seal.decrypt()`, `OpenStream.pull()`, `OpenStream.finalize()`, and `SealStreamPool.open()` when authentication fails. It extends `Error` and carries the cipher name in the message.
+`Seal.decrypt()`, `OpenStream.pull()`, `OpenStream.finalize()`, and `SealStreamPool.open()` throw `AuthenticationError` when authentication fails. It extends `Error` and carries the cipher name in the message.
 
 ```typescript
 import { AuthenticationError } from 'leviathan-crypto'
@@ -309,15 +345,18 @@ Never attempt to recover plaintext after an `AuthenticationError`. The stream la
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [ciphersuite](./ciphersuite.md) — `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface
-> - [kyber](./kyber.md) — ML-KEM key encapsulation, parameter sets, and key management
-> - [serpent](./serpent.md) — Serpent-256 raw primitives
-> - [chacha20](./chacha20.md) — ChaCha20 raw primitives
-> - [stream_audit](./stream_audit.md) — streaming AEAD composition audit
-> - [exports](./exports.md) — complete export reference
-> - [init](./init.md) — WASM loading and `WasmSource`
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [lexicon](./lexicon.md) | Glossary of cryptographic terms |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
+| [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
+| [serpent](./serpent.md) | Serpent-256 raw primitives |
+| [chacha20](./chacha20.md) | ChaCha20 raw primitives |
+| [stream_audit](./stream_audit.md) | streaming AEAD composition audit |
+| [exports](./exports.md) | complete export reference |
+| [init](./init.md) | WASM loading and `WasmSource` |

@@ -107,7 +107,7 @@ beforeAll(async () => {
 });
 
 describe('SIMD CBC decrypt gate', () => {
-	// GATE
+	// GATE — Serpent SIMD CBC decrypt: byte-identical to scalar
 	it('4 blocks (64 bytes) — exercises SIMD inner loop only', () => {
 		roundTrip(64);
 	});

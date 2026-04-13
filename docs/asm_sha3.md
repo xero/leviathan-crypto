@@ -1,9 +1,9 @@
 # SHA-3 WASM Reference
 
-> [!NOTE]
-> This module implements the full SHA-3/SHAKE family (FIPS 202) as an AssemblyScript WASM module (`sha3.wasm`).
->
-> See [SHA-3 implementation audit](./sha3_audit.md) for algorithm correctness verifications.
+> [!IMPORTANT]
+> This low-level reference details the SHA-3 AssemblyScript source and WASM
+> exports, intended for those auditing, contributing to, or building against
+> the raw module. Most consumers, however, should instead use the [TypeScript API](./sha3.md).
 
 > ### Table of Contents
 > - [Overview](#overview)
@@ -52,22 +52,25 @@ multi-rate padding (FIPS 202 SS6.1-6.2):
 - `0x1f` for SHAKE (extendable-output)
 
 This means `SHA3-256(M)` and `SHAKE256(M, 256)` produce different digests even
-though both use rate=136. The domain separation byte is XORed into the state during padding, making the two functions cryptographically independent.
+though both use rate=136. The domain separation byte is XORed into the state
+during padding, making the two functions cryptographically independent.
 
 **Constant-time permutation.** Keccak-f[1600] uses only bitwise XOR, AND, NOT, and
 fixed rotations on 64-bit lanes. There are no data-dependent branches, no table
 lookups, and no secret-dependent memory access patterns. The permutation is
 constant-time by construction.
 
-**SHAKE output cap.** This implementation squeezes at most one block of output per
-`shakeFinal()` call. SHAKE128 output is capped at 168 bytes and SHAKE256
-at 136 bytes. For the common use case of deriving a fixed-size key, this is
-sufficient. If you need more output than one squeeze block, extend the squeeze loop. This is a known limitation of the v1.0 module.
+**SHAKE output cap.** `shakeFinal()` performs a single squeeze block. SHAKE128
+output is capped at 168 bytes and SHAKE256 at 136 bytes per call. For longer
+output use `shakePad()` + `shakeSqueezeBlock()` in a loop — see the Multi-block
+squeeze section below.
 
 **`wipeBuffers()`.** Zeroes all 545 bytes of module state: the 200-byte Keccak lane
 matrix, the input staging buffer, the output buffer, and the rate/absorbed/dsByte
 metadata. The TypeScript wrapper must call this on `dispose()` to prevent key
 material or intermediate hash state from persisting in WASM linear memory.
+
+See [SHA-3 implementation audit](./sha3_audit.md) for algorithm correctness verifications.
 
 ---
 
@@ -141,8 +144,38 @@ shakeFinal(outLen: i32): void
 
 Same as the fixed-output finals, but you specify the output length.
 
-**Constraint:** `outLen` must not exceed the rate of the initialized SHAKE variant
-(168 for SHAKE128, 136 for SHAKE256). This implementation performs a single squeeze and does not loop additional permutations for longer output.
+**Constraint:** `outLen` must not exceed the rate of the initialized SHAKE
+variant (168 for SHAKE128, 136 for SHAKE256). This implementation performs a
+single squeeze and does not loop additional permutations for longer output.
+
+---
+
+### Multi-block squeeze
+
+```typescript
+shakePad(): void
+shakeSqueezeBlock(): void
+```
+
+Low-level primitives for squeezing more than one block of SHAKE output. Call
+`shakePad()` once after absorbing all input — it applies the domain separation
+byte, the pad10\*1 terminator, and runs Keccak-f. Then call `shakeSqueezeBlock()`
+once per block needed: each call copies `rate` bytes from the Keccak state into
+`OUT_OFFSET` and runs Keccak-f to advance the state for the next block.
+
+Usage pattern:
+
+```typescript
+// absorb input via keccakAbsorb() as normal, then:
+shakePad()
+while (moreOutputNeeded) {
+    shakeSqueezeBlock()          // rate bytes now at OUT_OFFSET
+    // read from OUT_OFFSET ...
+}
+```
+
+`shakePad()` must be called exactly once per hash. Calling `shakeSqueezeBlock()`
+without a preceding `shakePad()` produces undefined output.
 
 ---
 
@@ -204,8 +237,9 @@ dynamic allocation (`memory.grow()` is not used).
 | 377 | 168 | `KECCAK_OUT` | Output buffer (one full SHAKE128 squeeze block) |
 | **545** | | **END** | Total footprint: 545 bytes (well within 3 x 64KB = 192KB) |
 
-The input and output buffers are both sized to 168 bytes, the maximum rate across all variants (SHAKE128). For SHA3-512 (rate=72), only the first 72 bytes of the
-input buffer and the first 64 bytes of the output buffer are used.
+The input and output buffers are both sized to 168 bytes, the maximum rate
+across all variants (SHAKE128). For SHA3-512 (rate=72), only the first 72 bytes
+of the input buffer and the first 64 bytes of the output buffer are used.
 
 ---
 
@@ -226,11 +260,18 @@ Contains all cryptographic logic:
 **Keccak-f[1600] permutation** (`keccakF`): 24 rounds, each consisting of five
 steps (FIPS 202 SS3.2):
 
-1. **theta** (SS3.2.1): column parity mixing. Computes the XOR of each column, then XORs each lane with the parity of its neighboring columns.
-2. **rho** (SS3.2.2): lane rotation. Each of the 25 lanes is rotated left by a fixed offset from the rotation table (FIPS 202 Table 2).
-3. **pi** (SS3.2.3): lane permutation. Lanes are rearranged: `B[y][2x+3y] = A[x][y]`.
-4. **chi** (SS3.2.4): nonlinear mixing. `A[x] = B[x] XOR (NOT B[x+1] AND B[x+2])`. This is the only nonlinear step and provides the cryptographic strength.
-5. **iota** (SS3.2.5): round constant addition. A round-dependent constant is XORed into lane `A[0][0]`. The 24 constants are derived from an LFSR (FIPS 202 SS3.2.5).
+1. **theta** (SS3.2.1): column parity mixing. Computes the XOR of each column,
+   then XORs each lane with the parity of its neighboring columns.
+2. **rho** (SS3.2.2): lane rotation. Each of the 25 lanes is rotated left by a
+   fixed offset from the rotation table (FIPS 202 Table 2).
+3. **pi** (SS3.2.3): lane permutation. Lanes are rearranged: `B[y][2x+3y] =
+   A[x][y]`.
+4. **chi** (SS3.2.4): nonlinear mixing. `A[x] = B[x] XOR (NOT B[x+1] AND
+   B[x+2])`. This is the only nonlinear step and provides the cryptographic
+   strength.
+5. **iota** (SS3.2.5): round constant addition. A round-dependent constant is
+   XORed into lane `A[0][0]`. The 24 constants are derived from an LFSR (FIPS
+   202 SS3.2.5).
 
 The implementation loads all 25 lanes into local variables at the top of `keccakF`
 and stores them back at the end. The rho and pi steps are combined into a single
@@ -242,9 +283,11 @@ access.
 
 **`keccakInit(rate, dsByte)`**: zeroes state, sets variant parameters.
 
-**`keccakAbsorb(len)`**: XORs input into state, permuting when a full rate block is absorbed. Tracks position via `ABSORBED` counter.
+**`keccakAbsorb(len)`**: XORs input into state, permuting when a full rate
+block is absorbed. Tracks position via `ABSORBED` counter.
 
-**`keccakFinal(outLen)`**: applies pad10*1 (domain byte at `absorbed`, `0x80` at `rate-1`), permutes, squeezes `outLen` bytes to the output buffer.
+**`keccakFinal(outLen)`**: applies pad10*1 (domain byte at `absorbed`, `0x80`
+at `rate-1`), permutes, squeezes `outLen` bytes to the output buffer.
 
 ---
 
@@ -283,7 +326,9 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
   168-byte segments.
 
 - **Output length:** `keccakFinal(outLen)` copies `outLen` bytes from state to
-  `OUT_OFFSET`. If `outLen` exceeds the rate, the squeeze reads past the rate-portion of the state into the capacity. Those bytes are not meaningful output and the result will be incorrect. For SHA-3 variants, the typed final
+  `OUT_OFFSET`. If `outLen` exceeds the rate, the squeeze reads past the
+  rate-portion of the state into the capacity. Those bytes are not meaningful
+  output and the result will be incorrect. For SHA-3 variants, the typed final
   functions (`sha3_256Final`, etc.) enforce correct output lengths. For SHAKE,
   ensure `outLen <= rate`.
 
@@ -299,10 +344,13 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha3](./sha3.md) — TypeScript wrapper classes (SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256)
-> - [asm_sha2](./asm_sha2.md) — alternative hash family (SHA-2/HMAC WASM module)
-> - [sha3_audit.md](./sha3_audit.md) — SHA-3 / Keccak implementation audit
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha3](./sha3.md) | TypeScript wrapper classes (SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256) |
+| [asm_sha2](./asm_sha2.md) | alternative hash family (SHA-2/HMAC WASM module) |
+| [sha3_audit.md](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
+

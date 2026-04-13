@@ -81,6 +81,7 @@ export {
 	polyvec_ntt, polyvec_invntt,
 	polyvec_reduce, polyvec_add,
 	polyvec_basemul_acc_montgomery,
+	polyvec_modulus_check,
 } from './polyvec';
 
 // ── Sampling (sampling.ts) ────────────────────────────────────────────────────

@@ -41,8 +41,8 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── Gate 5: HMAC-SHA256 TC1 (RFC 4231 §4.2) ───────────────────────────────
-// GATE
+// GATE — HMAC-SHA256 TC1: RFC 4231 §4.2
+// Vector: sha2.ts[hmacSha256Vectors[0]]
 describe('Gate 5 — HMAC-SHA256 TC1', () => {
 	test('HMAC-SHA256 TC1 matches RFC 4231 §4.2', () => {
 		const vec = hmacSha256Vectors[0];
@@ -53,8 +53,8 @@ describe('Gate 5 — HMAC-SHA256 TC1', () => {
 	});
 });
 
-// ── Gate 6: HMAC-SHA512 TC6 (RFC 4231 §4.7, 131-byte key) ─────────────────
-// GATE
+// GATE — HMAC-SHA512 TC6: RFC 4231 §4.7
+// Vector: sha2.ts[hmacSha512Vectors[2]]
 describe('Gate 6 — HMAC-SHA512 TC6', () => {
 	test('HMAC-SHA512 TC6 matches RFC 4231 §4.7 (key > block size)', () => {
 		const vec = hmacSha512Vectors[2]; // TC6

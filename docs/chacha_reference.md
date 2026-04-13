@@ -447,9 +447,13 @@ XChaCha20-Poly1305 security posture as of 2026:
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [chacha_audit](./chacha_audit.md) — security audit results: algorithm correctness verification and side-channel analysis
-> - [chacha20](./chacha20.md) — TypeScript API for XChaCha20-Poly1305 (ChaCha, Seal, raw modes)
-> - [asm_chacha](./asm_chacha.md) — WASM implementation: quarter round, block function, Poly1305, AEAD in AssemblyScript
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [chacha_audit](./chacha_audit.md) | security audit results: algorithm correctness verification and side-channel analysis |
+| [chacha20](./chacha20.md) | TypeScript API for XChaCha20-Poly1305 (ChaCha, Seal, raw modes) |
+| [asm_chacha](./asm_chacha.md) | WASM implementation: quarter round, block function, Poly1305, AEAD in AssemblyScript |
+

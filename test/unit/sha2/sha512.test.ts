@@ -39,8 +39,8 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── Gate 4: SHA-512 "abc" ──────────────────────────────────────────────────
-// GATE
+// GATE — SHA-512 "abc": FIPS 180-4 §C.1
+// Vector: sha2.ts[sha512Vectors[1]]
 describe('Gate 4 — SHA-512 "abc"', () => {
 	test('SHA-512("abc") matches FIPS 180-4 §C.1', () => {
 		const h = new SHA512();

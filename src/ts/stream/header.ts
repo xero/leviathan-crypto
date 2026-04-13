@@ -23,7 +23,7 @@
 //
 // Wire format header encoding/decoding and counter nonce construction.
 
-import { FLAG_FRAMED, HEADER_SIZE, TAG_DATA, TAG_FINAL } from './constants.js';
+import { CHUNK_MAX, CHUNK_MIN, FLAG_FRAMED, HEADER_SIZE, TAG_DATA, TAG_FINAL } from './constants.js';
 
 // The 16-byte nonce is a HKDF salt — not a direct cipher nonce.
 // Both XChaCha20Cipher and SerpentCipher derive their actual key material
@@ -40,8 +40,8 @@ export function writeHeader(
 		throw new RangeError(`formatEnum must be an integer in [0, 0x3f] (got ${formatEnum})`);
 	if (nonce.length !== 16)
 		throw new RangeError(`nonce must be 16 bytes (got ${nonce.length})`);
-	if (!Number.isInteger(chunkSize) || chunkSize < 0 || chunkSize > 0xffffff)
-		throw new RangeError(`chunkSize must be an integer in [0, 0xFFFFFF] (got ${chunkSize})`);
+	if (!Number.isInteger(chunkSize) || chunkSize < CHUNK_MIN || chunkSize > CHUNK_MAX)
+		throw new RangeError(`chunkSize must be an integer in [${CHUNK_MIN}, ${CHUNK_MAX}] (got ${chunkSize})`);
 	const h = new Uint8Array(HEADER_SIZE);
 	h[0] = (framed ? FLAG_FRAMED : 0) | formatEnum;
 	h.set(nonce, 1);
@@ -75,8 +75,8 @@ export function readHeader(header: Uint8Array): {
 
 /** 12-byte counter nonce: 11-byte BE counter + 1-byte final flag. */
 export function makeCounterNonce(counter: number, finalFlag: number): Uint8Array {
-	if (!Number.isInteger(counter) || counter < 0 || counter > Number.MAX_SAFE_INTEGER)
-		throw new RangeError(`counter must be an integer in [0, ${Number.MAX_SAFE_INTEGER}]`);
+	if (!Number.isSafeInteger(counter) || counter < 0)
+		throw new RangeError(`counter must be a safe integer in [0, ${Number.MAX_SAFE_INTEGER}]`);
 	if (finalFlag !== TAG_DATA && finalFlag !== TAG_FINAL)
 		throw new RangeError(`finalFlag must be TAG_DATA (0x00) or TAG_FINAL (0x01) (got 0x${finalFlag.toString(16).padStart(2, '0')})`);
 	const n = new Uint8Array(12);

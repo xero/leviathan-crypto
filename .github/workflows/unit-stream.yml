@@ -16,7 +16,7 @@ jobs:
       - name: install dependencies
         run: bun i
       - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run stream unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
@@ -26,3 +26,8 @@ jobs:
           test/unit/stream/seal.test.ts
           test/unit/stream/seal_kat.test.ts
           test/unit/stream/pool.test.ts
+          test/unit/stream/pool-terminal-on-throw.test.ts
+          test/unit/stream/pool-byte-exact.test.ts
+          test/unit/stream/pool-wipe-handshake.test.ts
+          test/unit/stream/failed-state.test.ts
+          test/unit/stream/seek-forward-only.test.ts

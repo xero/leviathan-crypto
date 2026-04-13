@@ -33,7 +33,7 @@ test.describe('Seal — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pt  = lib.randomBytes(256);
@@ -50,7 +50,7 @@ test.describe('Seal — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pt  = lib.randomBytes(256);
@@ -67,7 +67,7 @@ test.describe('Seal — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 			const key  = lib.randomBytes(32);
 			const pt   = lib.randomBytes(256);
@@ -85,7 +85,7 @@ test.describe('Seal — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 			const key  = lib.randomBytes(32);
 			const pt   = lib.randomBytes(256);

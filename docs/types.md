@@ -6,6 +6,8 @@
 > ### Table of Contents
 > - [API Reference](#api-reference)
 > - [Usage Examples](#usage-examples)
+> - [Generator](#generator)
+> - [HashFn](#hashfn)
 > - [WasmSource](#wasmsource)
 > - [CipherSuite](#ciphersuite)
 > - [DerivedKeys](#derivedkeys)
@@ -188,6 +190,60 @@ function cleanup(ctx: EncryptionContext): void {
 
 ---
 
+## Generator
+
+```typescript
+interface Generator {
+  readonly keySize: number;       // bytes
+  readonly blockSize: number;     // bytes per cipher block
+  readonly counterSize: number;   // bytes
+  readonly wasmModules: readonly string[];
+  generate(key: Uint8Array, counter: Uint8Array, n: number): Uint8Array;
+}
+```
+
+Stateless cipher PRF. Used by `Fortuna` as the generator slot.
+Implementations are plain const objects; they assert that no stateful
+instance owns the underlying WASM module before each call but do not
+acquire it themselves.
+
+| Member | Description |
+|---|---|
+| `keySize` | Generator key size in bytes. Must equal the paired `HashFn.outputSize` when used with `Fortuna`. |
+| `blockSize` | Bytes per cipher block. Used by `Fortuna` to compute counter advancement. |
+| `counterSize` | Counter width in bytes. `Fortuna` allocates its `genCnt` of this size. |
+| `wasmModules` | List of WASM module names the generator depends on. Used for `init()` preflight in `Fortuna.create()`. |
+| `generate(key, counter, n)` | Produces `n` bytes of keystream from `(key, counter)`. Stateless; does not mutate either input. |
+
+Shipped implementations: `SerpentGenerator` (from `'leviathan-crypto/serpent'`), `ChaCha20Generator` (from `'leviathan-crypto/chacha20'`).
+
+---
+
+## HashFn
+
+```typescript
+interface HashFn {
+  readonly outputSize: number;    // bytes
+  readonly wasmModules: readonly string[];
+  digest(msg: Uint8Array): Uint8Array;
+}
+```
+
+Stateless hash function. Used by `Fortuna` for the accumulator chain and
+the reseed key derivation. Distinct from the existing `Hash` interface
+above, which describes class-shaped instances that own scratch state and
+require `dispose()`.
+
+| Member | Description |
+|---|---|
+| `outputSize` | Digest size in bytes. Must equal the paired `Generator.keySize` when used with `Fortuna`. |
+| `wasmModules` | List of WASM module names the hash depends on. |
+| `digest(msg)` | Produces a digest of the input. Stateless; safe to call concurrently with itself within a single JavaScript turn. |
+
+Shipped implementations: `SHA256Hash` (from `'leviathan-crypto/sha2'`), `SHA3_256Hash` (from `'leviathan-crypto/sha3'`).
+
+---
+
 ## WasmSource
 
 Union type for WASM module sources. Accepted by `init()`, `serpentInit()`, etc.
@@ -215,11 +271,11 @@ Cipher-specific logic injected into `SealStream` and `OpenStream`.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `deriveKeys` | `(masterKey, nonce) → DerivedKeys` | HKDF key derivation |
+| `deriveKeys` | `(masterKey, nonce, kemCt?) → DerivedKeys` | HKDF key derivation. `kemCt` is the KEM ciphertext; present only for hybrid suites. |
 | `sealChunk` | `(keys, counterNonce, chunk, aad?) → Uint8Array` | Encrypt one chunk |
 | `openChunk` | `(keys, counterNonce, chunk, aad?) → Uint8Array` | Decrypt one chunk |
 | `wipeKeys` | `(keys) → void` | Zero derived key material |
-| `createPoolWorker` | `() → Worker` | Create a Web Worker for pool use |
+| `createPoolWorker` | `() → Worker` | Create a Web Worker for pool use. Default spawns a classic worker from a blob URL over a build-time IIFE; override via spread for strict-CSP environments. See [ciphersuite.md](./ciphersuite.md). |
 
 Implementations: `XChaCha20Cipher`, `SerpentCipher` (plain `const` objects, not classes), and `KyberSuite` (factory function returning a `CipherSuite`). See [ciphersuite.md](./ciphersuite.md).
 
@@ -236,6 +292,7 @@ Opaque key material returned by `CipherSuite.deriveKeys()`.
 | Field | Type | Description |
 |-------|------|-------------|
 | `bytes` | `readonly Uint8Array` | Raw derived key bytes (opaque to the stream layer) |
+| `kemCiphertext?` | `readonly Uint8Array \| undefined` | KEM ciphertext produced during encapsulation. Present only for hybrid KEM suites; absent for symmetric suites. |
 
 ---
 
@@ -264,13 +321,95 @@ Options for `SealStreamPool.create()`.
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [utils](./utils.md) — encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash`
-> - [serpent](./serpent.md) — Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD`
-> - [chacha20](./chacha20.md) — `XChaCha20Cipher` is a `CipherSuite` for `SealStream`/`OpenStream`/`Seal`; `Seal` provides one-shot AEAD over any `CipherSuite`; `ChaCha20`/`ChaCha20Poly1305`/`XChaCha20Poly1305` are stateless primitives
-> - [sha2](./sha2.md) — SHA-2 classes implement `Hash`; HMAC classes implement `KeyedHash`
-> - [sha3](./sha3.md) — SHA-3 classes implement `Hash`; SHAKE classes extend with XOF API
-> - [test-suite](./test-suite.md) — test suite structure and vector corpus
+## Ratchet types
+
+Shared types for the ratchet KDF module. See [ratchet.md](./ratchet.md) for full API.
+
+### MlKemLike
+
+Structural interface satisfied by `MlKem512`, `MlKem768`, and `MlKem1024`. Used as the `kem` parameter type for `kemRatchetEncap`, `kemRatchetDecap`, and `RatchetKeypair`.
+
+```typescript
+interface MlKemLike {
+  readonly params: KyberParams
+  keygen(): { encapsulationKey: Uint8Array; decapsulationKey: Uint8Array }
+  encapsulate(ek: Uint8Array): { ciphertext: Uint8Array; sharedSecret: Uint8Array }
+  decapsulate(dk: Uint8Array, ct: Uint8Array): Uint8Array
+}
+```
+
+### RatchetInitResult
+
+```typescript
+interface RatchetInitResult {
+  readonly nextRootKey:  Uint8Array  // 32 bytes
+  readonly sendChainKey: Uint8Array  // 32 bytes
+  readonly recvChainKey: Uint8Array  // 32 bytes
+}
+```
+
+### KemEncapResult
+
+```typescript
+interface KemEncapResult {
+  readonly nextRootKey:  Uint8Array  // 32 bytes
+  readonly sendChainKey: Uint8Array  // 32 bytes
+  readonly recvChainKey: Uint8Array  // 32 bytes
+  readonly kemCt:        Uint8Array  // ML-KEM ciphertext — transmit in-band
+}
+```
+
+### KemDecapResult
+
+```typescript
+interface KemDecapResult {
+  readonly nextRootKey:  Uint8Array  // 32 bytes
+  readonly sendChainKey: Uint8Array  // 32 bytes
+  readonly recvChainKey: Uint8Array  // 32 bytes
+}
+```
+
+### RatchetMessageHeader
+
+```typescript
+interface RatchetMessageHeader {
+  readonly epoch:   number        // sender's epoch at seal time; starts 0, increments on ratchet step
+  readonly counter: number        // KDFChain.n at seal time (post-step value, first message = 1)
+  readonly pn?:     number        // previous chain length — present only on the first message of a new epoch
+  readonly kemCt?:  Uint8Array    // ML-KEM ciphertext — present only on the first message of a new epoch (encap side)
+}
+```
+
+Canonical header shape for a ratchet-protected message. `pn` and `kemCt` are absent on every message except the first one of a new epoch, where both must be present together.
+
+### ResolveHandle
+
+Return type of `SkippedKeyStore.resolve()`.
+
+```typescript
+interface ResolveHandle {
+  readonly key: Uint8Array  // 32-byte message key — throws after settlement
+  commit():   void          // wipe key and mark settled — call on successful decrypt
+  rollback(): void          // return key to store and mark settled — call on auth failure
+}
+```
+
+`commit()` and `rollback()` are mutually exclusive; calling either a second time (or calling the other after settling) throws `Error: 'SkippedKeyStore: handle already settled'`. Accessing `.key` after settlement also throws. This enforces the delete-on-use contract: a key is consumed exactly once, either by committing (decrypt succeeded, key wiped) or rolling back (decrypt failed, key returned to the store for a future legitimate delivery at the same counter).
+
+---
+
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [utils](./utils.md) | encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash` |
+| [serpent](./serpent.md) | Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD` |
+| [chacha20](./chacha20.md) | `XChaCha20Cipher` is a `CipherSuite` for `SealStream`/`OpenStream`/`Seal`; `Seal` provides one-shot AEAD over any `CipherSuite`; `ChaCha20`/`ChaCha20Poly1305`/`XChaCha20Poly1305` are stateless primitives |
+| [sha2](./sha2.md) | SHA-2 classes implement `Hash`; HMAC classes implement `KeyedHash` |
+| [sha3](./sha3.md) | SHA-3 classes implement `Hash`; SHAKE classes extend with XOF API |
+| [ratchet](./ratchet.md) | ratchet KDF primitives; `MlKemLike`, `RatchetInitResult`, `KemEncapResult`, `KemDecapResult`, `RatchetMessageHeader`, `ResolveHandle` |
+| [test-suite](./test-suite.md) | test suite structure and vector corpus |
+

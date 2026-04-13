@@ -29,7 +29,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { loadKey, fromHex, toHex, writeBytes, readBytes, getWasm } from '../helpers';
-import { CTR_VECTORS } from './ctr_vectors';
+import { CTR_VECTORS } from '../../vectors/serpent_ctr.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {

@@ -232,6 +232,30 @@ export function polyvec_reduce(pvOffset: i32, k: i32): void {
 }
 
 /**
+ * FIPS 203 §7.2 modulus check — scan the decoded polyvec and report whether
+ * every coefficient satisfies c < Q. Does not mutate pv.
+ *
+ * Input: pvOffset points at k polynomials written by polyvec_frombytes.
+ *        Coefficients are stored as i16, in [0, 4095] post-frombytes.
+ * Returns: 0 iff every coefficient is in [0, Q-1]; 1 otherwise.
+ *
+ * Constant-time over the input bytes (OR-accumulator, no early exit). ek is
+ * public so timing is not sensitive, but CT style matches the rest of the
+ * validator path and keeps the cost predictable.
+ */
+export function polyvec_modulus_check(pvOffset: i32, k: i32): i32 {
+	let bad: i32 = 0;
+	const n: i32 = k * 256;
+	for (let i: i32 = 0; i < n; i++) {
+		const c: i32 = <i32>load<i16>(pvOffset + i * 2);
+		// c >= Q ⇔ (Q - 1 - c) is negative ⇔ its sign bit is set.
+		// Arithmetic shift by 31 sprays that bit across the word.
+		bad |= (Q - 1 - c) >> 31;
+	}
+	return bad & 1;
+}
+
+/**
  * Pointwise addition. No modular reduction.
  */
 export function polyvec_add(rOffset: i32, aOffset: i32, bOffset: i32, k: i32): void {

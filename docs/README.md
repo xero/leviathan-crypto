@@ -38,6 +38,12 @@
 |--------|-------------|
 | [kyber.md](./kyber.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`: ML-KEM key encapsulation (FIPS 203) |
 
+### Post-Quantum Ratchet
+
+| Module | Description |
+|--------|-------------|
+| [ratchet.md](./ratchet.md) | `ratchetInit`, `KDFChain`, `kemRatchetEncap`, `kemRatchetDecap`: Sparse Post-Quantum Ratchet KDF primitives (DR spec §5 + §7.2) |
+
 ### Serpent-256
 
 | Module | Description |
@@ -124,3 +130,4 @@ See the [audit index](./audits.md) for a summary of all reviews.
 | [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, stream key derivation |
 | [kyber_audit.md](./kyber_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
 | [stream_audit.md](./stream_audit.md) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
+| [ratchet_audit.md](./ratchet_audit.md) | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |

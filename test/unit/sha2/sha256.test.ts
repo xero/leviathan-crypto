@@ -39,8 +39,8 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── Gate 3: SHA-256 empty message ──────────────────────────────────────────
-// GATE
+// GATE — SHA-256 empty message: FIPS 180-4 (boundary case)
+// Vector: sha2.ts[sha256Vectors[0]]
 describe('Gate 3 — SHA-256 empty message', () => {
 	test('SHA-256("") matches FIPS 180-4', () => {
 		const h = new SHA256();

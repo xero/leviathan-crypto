@@ -32,6 +32,7 @@ import { getInstance } from '../../../src/ts/init.js';
 import type { ChaChaExports } from '../../../src/ts/chacha20/types.js';
 import { chacha20Poly1305Vectors } from '../../vectors/chacha20.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
+import { aeadEncrypt } from '../../../src/ts/chacha20/ops.js';
 
 const toHex = (b: Uint8Array): string =>
 	Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
@@ -58,7 +59,8 @@ const RFC_TAG   = fromHex(TV.tag);
 
 describe('ChaCha20-Poly1305 AEAD — RFC 8439', () => {
 
-	// GATE — §2.8.2 sunscreen vector
+	// GATE — ChaCha20-Poly1305 AEAD: RFC 8439 §2.8.2
+	// Vector: chacha20.ts[chacha20Poly1305Vectors[0]]
 	it('encrypt — RFC 8439 §2.8.2 sunscreen vector', () => {
 		const aead   = new ChaCha20Poly1305();
 		const sealed = aead.encrypt(RFC_KEY, RFC_NONCE, RFC_PT, RFC_AAD);
@@ -239,21 +241,24 @@ describe('ChaCha20-Poly1305 AEAD — RFC 8439', () => {
 		aead2.dispose();
 	});
 
-	// Input validation
+	// Input validation — strict single-use: each encrypt() attempt locks the
+	// instance, so each length probe needs a fresh AEAD.
 	it('throws RangeError for non-32-byte key', () => {
-		const aead  = new ChaCha20Poly1305();
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
-		expect(() => aead.encrypt(new Uint8Array(16), nonce, new Uint8Array(1))).toThrow(RangeError);
-		expect(() => aead.encrypt(new Uint8Array(31), nonce, new Uint8Array(1))).toThrow(RangeError);
-		aead.dispose();
+		for (const keyLen of [16, 31]) {
+			const aead = new ChaCha20Poly1305();
+			expect(() => aead.encrypt(new Uint8Array(keyLen), nonce, new Uint8Array(1))).toThrow(RangeError);
+			aead.dispose();
+		}
 	});
 
 	it('throws RangeError for non-12-byte nonce', () => {
-		const aead = new ChaCha20Poly1305();
-		const key  = crypto.getRandomValues(new Uint8Array(32));
-		expect(() => aead.encrypt(key, new Uint8Array(8),  new Uint8Array(1))).toThrow(RangeError);
-		expect(() => aead.encrypt(key, new Uint8Array(24), new Uint8Array(1))).toThrow(RangeError);
-		aead.dispose();
+		const key = crypto.getRandomValues(new Uint8Array(32));
+		for (const nonceLen of [8, 24]) {
+			const aead = new ChaCha20Poly1305();
+			expect(() => aead.encrypt(key, new Uint8Array(nonceLen), new Uint8Array(1))).toThrow(RangeError);
+			aead.dispose();
+		}
 	});
 
 	it('throws RangeError if ciphertext too short to contain tag', () => {
@@ -383,6 +388,24 @@ describe('ChaCha20Poly1305 — single-use encrypt guard', () => {
 		expect(toHex(first)).toBe(toHex(pt));
 		expect(toHex(second)).toBe(toHex(pt));
 		aead.dispose();
+	});
+});
+
+// ── ops.ts behavioural check ────────────────────────────────────────────────
+
+describe('aeadEncrypt — behavioural regression after chachaLoadKey dedup', () => {
+	// Direct call to the raw `aeadEncrypt` function from ops.ts — bypasses the
+	// class wrapper's single-use guard and exercises the exact call sequence
+	// that drops the redundant second `chachaLoadKey()` after
+	// `chachaSetCounter(1)`. Byte-exact match against RFC 8439 §2.8.2 proves
+	// the dedup is equivalent — `chachaGenPolyKey` only mutates the counter
+	// word of CHACHA_STATE, so `chachaSetCounter(1)` alone restores state
+	// for encryption without re-loading the key.
+	it('produces RFC 8439 §2.8.2 ciphertext || tag after the redundant chachaLoadKey removal', () => {
+		const x = getWasm();
+		const { ciphertext, tag } = aeadEncrypt(x, RFC_KEY, RFC_NONCE, RFC_PT, RFC_AAD);
+		expect(toHex(ciphertext)).toBe(toHex(RFC_CT));
+		expect(toHex(tag)).toBe(toHex(RFC_TAG));
 	});
 });
 

@@ -47,8 +47,7 @@
 
 ### 1.1 Parameters and Constants
 
-**Field:** ML-KEM operates over `Z_q` where `Q = 3329`. This is a prime, so `Z_q`
-is a field, and every nonzero element has a multiplicative inverse. FIPS 203 §3.
+ML-KEM operates over the ring `Z_q` where `Q = 3329`. Since Q is prime, this is a true field—every nonzero element has a multiplicative inverse. FIPS 203 §3 specifies all the parameters. The core arithmetic relies on Montgomery reduction to avoid expensive division operations.
 
 **Montgomery parameters:**
 
@@ -70,7 +69,7 @@ bit-reversed NTT layer structure used in FIPS 203 Alg 9. Correct.
 
 ### 1.2 Montgomery Reduction
 
-FIPS 203 §2.4.1 defines Montgomery reduction for a 32-bit value `a` as:
+FIPS 203 §2.4.1 specifies Montgomery reduction to compute `a · R⁻¹ mod Q` (where R = 2¹⁶) without division:
 
 ```
 MontReduce(a):
@@ -79,12 +78,7 @@ MontReduce(a):
   return u              // in range [-(Q-1), Q-1]
 ```
 
-The implementation follows this formula exactly. The key invariant is that
-`t * Q` cancels the low 16 bits of `a`, leaving the upper 16 bits (after
-arithmetic right shift) as the Montgomery-reduced result. The output is a
-representative in the range `[-(Q−1), Q−1]`, not necessarily `[0, Q−1]`.
-Callers that need a canonical representative apply Barrett reduction or an
-explicit conditional subtraction. Correct per FIPS 203 §2.4.1.
+The formula works because `t * Q` cancels the low 16 bits of `a`. After the arithmetic right shift, the upper 16 bits form the Montgomery-reduced result. The output lands in `[-(Q−1), Q−1]`—a centered range, not the standard `[0, Q−1]`. When a canonical representative is needed, callers apply Barrett reduction or subtract Q conditionally. Our implementation follows the spec exactly.
 
 ---
 
@@ -191,20 +185,33 @@ exactly as defined in FIPS 203 §4.2. Correct.
 
 FIPS 203 Algorithm 7 (η=2) and Algorithm 8 (η=3) define the centered binomial
 distribution sampling. Each call produces a polynomial with coefficients in
-`{−η, …, η}`.
+`{−η, …, η}`. Both implementations are bounded-loop, fixed-stride: the outer
+iteration count, input byte budget, and output coefficient count are all
+compile-time constants tied to `N = 256`.
 
 **η=2 (used in ML-KEM-512 for `s`, in ML-KEM-768 and -1024 for `e`):**
-4 bytes → 8 coefficients. For each pair of 2-bit fields `(a, b)`:
-`f[i] = popcount(a) − popcount(b)` ∈ {−2, −1, 0, 1, 2}. Verified byte layout
-matches FIPS 203 Algorithm 7.
+`N/8 = 32` outer iterations process exactly `2 · N/4 = 128` input bytes
+(4 bytes/iter) into exactly `N = 256` output coefficients (8 coeffs/iter).
+Per iteration, 4 bytes form a u32 `t`, the bit-interleave mask `0x55555555`
+yields `d = (t & M) + ((t >> 1) & M)`, and 8 pairs of 2-bit fields
+`(a, b)` produce `f[i] = a − b ∈ {−2, −1, 0, 1, 2}`. Output range, input
+independence beyond byte 127, write footprint (no spillover past the
+512-byte destination polynomial), and exact coefficient agreement with an
+inline FIPS 203 Algorithm 7 reference over 100 random inputs are pinned by
+the three Gate 5 KATs in `test/unit/kyber/poly_arithmetic.test.ts`. Verified
+byte layout and iteration count match FIPS 203 Algorithm 7.
 
 **η=3 (used in ML-KEM-512 for `e`):**
-3 bytes → 4 coefficients. For each pair of 3-bit fields `(a, b)`:
-`f[i] = popcount(a) − popcount(b)` ∈ {−3, −2, −1, 0, 1, 2, 3}. Verified byte
-layout matches FIPS 203 Algorithm 8.
+`N/4 = 64` outer iterations process exactly `3 · N/4 = 192` input bytes
+(3 bytes/iter) into exactly `N = 256` output coefficients (4 coeffs/iter).
+Per iteration, 3 bytes form a u24 `t`, the period-3 mask `0x00249249`
+yields `d = (t & M) + ((t >> 1) & M) + ((t >> 2) & M)`, and 4 pairs of
+3-bit fields `(a, b)` produce `f[i] = a − b ∈ {−3, …, 3}`. Verified byte
+layout and iteration count match FIPS 203 Algorithm 8.
 
-Both sampling paths are branch-free: popcount over small bit-fields can be
-implemented as a sequence of additions with no data-dependent branches. Correct.
+Both sampling paths are branch-free: popcount over small bit-fields is
+implemented as a sequence of masked additions with no data-dependent branches.
+Correct.
 
 ---
 
@@ -389,20 +396,34 @@ per FIPS 203 Algorithm 17.
 FIPS 203 §7.2 and §7.3 define validity checks for encapsulation and
 decapsulation keys.
 
-**Encapsulation key check** (§7.2): The key size must match the expected size
-for the parameter set. Then the polyvec portion of `ek` is decoded via
-`ByteDecode₁₂` (`polyvec_frombytes`) and re-encoded via `ByteEncode₁₂`
-(`polyvec_tobytes`). If any coefficient was ≥ Q, `frombytes` stores it
-modulo 2¹², and `tobytes` re-encodes the reduced value. The round-trip
-bytes differ from the original and the check fails. This is the
-encode-decode-reencode check from FIPS 203 §7.2 line 3. If the check fails,
-the implementation returns `false` (a gate, not a throw). FIPS 203 §7.2
-requires that invalid encapsulation keys are rejected before use.
+**Encapsulation key check** (§7.2). Two gates. First, the key size must
+match `ekBytes` for the parameter set. Second, the polyvec portion of `ek`
+is decoded via `polyvec_frombytes`, and every decoded coefficient is
+scanned against `c < Q = 3329` in `polyvec_modulus_check`. `polyvec_frombytes`
+extracts raw 12-bit values without mod-q reduction, so the modulus scan is
+load-bearing: it is the gate that distinguishes a canonical ek from one
+whose coefficients fall in `[Q, 4095]`. The scan is an OR-accumulator in
+constant time over the input. The seed ρ (final 32 bytes of ek) is not
+checked; any 32-byte value is valid.
 
-**Decapsulation key check** (§7.3): The key size must match the expected size.
-The embedded `H(ek)` must match `H` applied to the embedded encapsulation key.
-This check prevents key corruption from producing incorrect shared secrets
-without detection. FIPS 203 §7.3. Correct.
+**Decapsulation key check** (§7.3). Three gates. First, the key size must
+match `dkBytes`. Second, the embedded `H` (32 bytes at offset
+`skCpaBytes + ekBytes`) must equal `SHA3-256` of the embedded ek, verified
+with `constantTimeEqual`. This prevents key corruption from producing
+incorrect shared secrets without detection. Third, the embedded ek itself
+is routed through `checkEncapsulationKey`, which applies the §7.2 length
+and modulus gates. A dk whose embedded ek has been modulus-tampered is
+rejected even when the embedded H has been correctly recomputed.
+
+**Auto-validation on use.** `MlKemBase.encapsulate(ek)` invokes
+`checkEncapsulationKey` internally and throws `RangeError` with the message
+`leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check`
+on failure. `MlKemBase.decapsulate(dk, c)` likewise invokes
+`checkDecapsulationKey` and throws
+`leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check`.
+The public `checkEncapsulationKey` / `checkDecapsulationKey` probes remain
+available for callers that want to inspect a key without triggering an
+exception.
 
 ---
 
@@ -410,42 +431,23 @@ without detection. FIPS 203 §7.3. Correct.
 
 ### 2.1 Side-Channel Analysis
 
-**Montgomery reduction:** Implemented as pure arithmetic. Multiply, mask,
-multiply, subtract, shift. No branches, no table lookups, no data-dependent
-operations. Best-available constant-time within the WASM execution model.
+Every arithmetic path that touches secret material is designed to run in constant time. This means avoiding secret-dependent branches and table lookups, both of which leak timing information on real hardware.
 
-**Barrett reduction:** Implemented as pure arithmetic. Multiply, shift,
-multiply, subtract. No branches. Best-available constant-time.
+**Montgomery reduction** is pure arithmetic: multiply, mask, multiply, subtract, shift. No branches, no lookups. The formula itself guarantees constant-time behavior within the WASM execution model.
 
-**NTT butterflies:** The inner loop performs fixed-pattern memory accesses and
-arithmetic operations. No data-dependent branches. Best-available constant-time.
+**Barrett reduction** also uses pure arithmetic (multiply, shift, multiply, subtract) with no branches.
 
-**CBD sampling:** Both η=2 and η=3 paths use popcount and subtraction over
-small fixed-width fields. No data-dependent branches. Best-available
-constant-time.
+**NTT butterflies** perform fixed-pattern memory accesses and arithmetic. The loop structure has no data-dependent branches.
 
-**Compression:** All 5 bit-width paths (4, 5, 10, 11, 1) use division-free
-magic constant arithmetic. No data-dependent branches.
+**CBD sampling** for both η=2 and η=3 uses popcount over small fixed-width bit-fields, implemented without data-dependent branching.
 
-**`poly_frommsg` / `poly_tomsg`:** The message encoding uses a mask pattern
-`(-(b & 1)) & 1665` that avoids a conditional branch on the secret message bit.
-`poly_tomsg` uses an analogous mask. Best-available constant-time.
+**Compression** across all five bit-widths (1, 4, 5, 10, 11) uses division-free magic constants with no branches.
 
-**`rej_uniform`:** Contains data-dependent branching on whether a candidate
-value is in `[0, Q)`. This is acceptable. The candidates are derived from
-a public seed `ρ`, not from secret key material. FIPS 203 §A.2 explicitly
-permits timing variability in `SampleNTT`.
+**Message encoding** via `poly_frommsg` and `poly_tomsg` avoids branching on secret bits by using a mask pattern: `(-(b & 1)) & 1665` for the secret message bit, and an analogous constant-time approach for decompression.
 
-**`ct_verify` / `ct_cmov`:** The decapsulation path uses dedicated constant-time
-comparison and conditional-move functions:
-- `ct_verify(a, b, len)`: XOR-accumulate all bytes, return 1 if all differ
-  only by zero (no early return, no branch on byte comparison result).
-- `ct_cmov(dst, src, mask)`: Applies mask XOR-select to overwrite `dst` with
-  `src` when `mask = 0xFFFFFFFF`, or leave `dst` unchanged when `mask = 0`.
-  No branch on `mask` value.
+**Rejection sampling** in `rej_uniform` does contain data-dependent branching, but this is safe: the candidates come from a public seed `ρ`, not from secret key material. FIPS 203 §A.2 explicitly permits timing variability in `SampleNTT`.
 
-The decapsulation comparison never exits the WASM binary as a boolean. The
-JS layer receives only the final shared secret bytes. Correct.
+**Decapsulation comparison** uses dedicated constant-time helpers `ct_verify` and `ct_cmov`. The `ct_verify` function XOR-accumulates all bytes with no early exit, and `ct_cmov` applies a mask-based XOR-select with no branch on the mask value. The comparison never escapes the WASM binary as a boolean; only the final shared secret bytes go to the JavaScript layer.
 
 ---
 
@@ -547,6 +549,106 @@ constant-time guarantee" posture for WASM:
   is physically separate from the sha3 module's memory, even though both
   are used during KEM operations. Secret key material in the kyber buffer
   cannot be read by the sha3 module, and vice versa.
+- **Per-op memory hygiene across all three KEM operations.** After any of
+  `kemKeypairDerand`, `kemEncapsulateDerand`, or `kemDecapsulate` returns,
+  every kyber linear-memory region that transiently held secret or
+  secret-derived bytes is explicitly zeroed before return. The regions
+  and sizes are:
+
+  | Operation | Wiped regions |
+  |-----------|---------------|
+  | `kemKeypairDerand` | `SK_OFFSET` (`skCpaBytes`), `POLYVEC_SLOT_1` (ŝ NTT, 2048 B), `POLYVEC_SLOT_2` (ê NTT, 2048 B), `XOF_PRF_OFFSET` (1024 B) |
+  | `kemEncapsulateDerand` | `MSG_OFFSET` (m, 32 B), `POLYVEC_SLOT_1` (r NTT, 2048 B), `POLYVEC_SLOT_2` (e₁, 2048 B), `POLYVEC_SLOT_3` (uncompressed u, 2048 B), `POLY_SLOT_1` (e₂, 512 B), `POLY_SLOT_2` (v uncompressed, 512 B), `POLY_SLOT_3` (m-poly, 512 B), `XOF_PRF_OFFSET` (1024 B) |
+  | `kemDecapsulate` | `SK_OFFSET` (`skCpaBytes`), `MSG_OFFSET` (m', 32 B), `POLY_SLOT_0` (K', 32 B), `POLY_SLOT_1` (K̄ + e₂ tail, 512 B), `POLY_SLOT_2` (v residual, 512 B), `POLY_SLOT_3` (m'-poly, 512 B), `POLYVEC_SLOT_1` (r, 2048 B), `POLYVEC_SLOT_2` (e₁, 2048 B), `POLYVEC_SLOT_3` (uncompressed u, 2048 B), `XOF_PRF_OFFSET` (1024 B) |
+
+  The public key-validation helpers `checkEncapsulationKey` and
+  `checkDecapsulationKey` operate on public material only — they write
+  `ek` (or a slice of `dk` that excludes `skCpa`) into `PK_OFFSET` and
+  decode into `POLYVEC_SLOT_0`, both public regions — and therefore
+  require no wipe.
+
+  For the decap path the per-region detail (which bytes held what during
+  `indcpaDecrypt` + re-encryption, which 32-byte head held K̄ before the
+  full-slot widen, etc.) is:
+
+  | Region | Size | Content wiped |
+  |--------|------|---------------|
+  | `SK_OFFSET` | 768 / 1152 / 1536 | skCpa (CPA secret key, per parameter set — **highest severity residual**) |
+  | `MSG_OFFSET` | 32 | m' recovered by `indcpaDecrypt` |
+  | `POLY_SLOT_0` | 32 | K' (final shared-secret candidate after `ct_cmov`) |
+  | `POLY_SLOT_1` | 512 | K̄ implicit-rejection key (first 32B) + e₂ noise polynomial (full 512B) |
+  | `POLY_SLOT_2` | 512 | m'-poly / v residual |
+  | `POLY_SLOT_3` | 512 | indcpa message polynomial |
+  | `POLYVEC_SLOT_1` | 2048 | r noise polyvec (NTT-transformed in place) |
+  | `POLYVEC_SLOT_2` | 2048 | e₁ noise polyvec for u |
+  | `POLYVEC_SLOT_3` | 2048 | uncompressed u polyvec from FO re-encryption (retains low-order bits `Compress_du` discards in the public ciphertext) |
+  | `XOF_PRF_OFFSET` | 1024 | last PRF output block used by `poly_getnoise` |
+
+  Across the three ops the wipe covers secret-key material (`SK_OFFSET`,
+  the full CPA secret key — written on keygen and on decap's
+  `indcpaDecrypt`), raw messages (`MSG_OFFSET` — written on encap as `m`
+  and on decap as `m'`), per-message secret noise (r, e₁, e₂, K̄, ŝ, ê),
+  derived ciphertext residuals (K', uncompressed u, v, m-poly), and the
+  PRF output buffer.
+
+  `skCpa` is materially higher severity than any other residual here: it
+  is long-lived key material whose disclosure compromises every ciphertext
+  under the corresponding `ek`, not just a single per-message noise trace.
+  On keygen the foot-gun is the common "keygen once, encap many" pattern
+  — without the wipe, `skCpa` would sit in kyber WASM until the next op
+  overwrote it (which never happens on pure-encap workloads) or
+  `MlKem.dispose()` ran. On the encap path `MSG_OFFSET` is the
+  highest-severity residual: reading `m` plus the public `ek` reproduces
+  `K = G(m ‖ H(ek))[0..32]`. r, e₁, and e₂ (on decap, deterministic
+  functions of r' which itself derives from m' via G + PRF) form one
+  per-message severity class — closing the whole window is the
+  principled stance rather than a strict necessity. The uncompressed
+  u in `POLYVEC_SLOT_3` is a separate leakage class: the public
+  ciphertext ships `Compress_du(u)` (lossy for `du ∈ {10, 11}`), so
+  post-wipe of the uncompressed form denies an attacker the low-order
+  coefficient bits the lossy compression discards.
+
+  The public-equivalent regions (`POLYVEC_SLOT_0` holds Â / Â^T rows
+  derived from public ρ, or û during decrypt; `POLYVEC_SLOT_3` on the
+  keygen path holds t̂ which is published as part of ek; `POLYVEC_SLOT_4`
+  holds t̂ decoded from the public ek on the decap path; `CT_OFFSET` and
+  `CT_PRIME_OFFSET` hold ciphertexts; `PK_OFFSET` holds ek) are
+  intentionally not wiped at the per-op boundary — they match values the
+  attacker can already observe or compute from public state.
+  Lifecycle-level wipe via `MlKem.dispose()` → `wipeBuffers()` still
+  covers the entire layout. **After any of the three public KEM
+  operations returns, no kyber secret or secret-derived data persists
+  in WASM linear memory between ops.**
+
+  **sha3 scratch.** The kyber module's WASM memory is the first half of
+  the story; every kyber public op also touches the sha3 module (`H`,
+  `G`, `J`, and the SHAKE128/SHAKE256 XOFs that drive matrix expansion
+  and noise sampling). sha3 scratch comprises three regions:
+  `STATE` (200 B at offset 0, the 5×5 Keccak lane matrix), `INPUT`
+  (168 B at offset 209, the absorb staging buffer sized for SHAKE128's
+  168-byte rate), and `OUT` (168 B at offset 377, one squeeze block).
+  Across the four public-facing kyber paths — `kemKeypairDerand`,
+  `kemEncapsulateDerand`, `kemDecapsulate`, and `checkDecapsulationKey`
+  — the *last* sha3 call is always keyed on public material (`H(ek)`
+  in keygen and `checkDecapsulationKey`, the final `genMatrixRow`
+  SHAKE128 keyed on public ρ inside `indcpaEncrypt` on the encap path
+  and the decap FO re-encryption path), so the historical no-residue
+  argument was behavioral: "no secret residue because the last sha3
+  op happens to be keyed on public material." A reordering, a
+  post-hash validation step, or a new kyber path that invokes a
+  secret-keyed PRF helper after matrix expansion could silently break
+  that invariant without any test catching it. Each of the four public
+  paths now calls `sx.wipeBuffers()` explicitly before returning,
+  under the `_assertNotOwned('sha3')` guard the enclosing `MlKemBase`
+  method holds for the op's duration. After any kyber op that
+  executed sha3 work, `STATE`, `INPUT`, and `OUT` are all zero —
+  mechanically, not behaviorally. **One documented exception:
+  `checkDecapsulationKey`'s length-gate early return (`dk.length !==
+  params.dkBytes`) happens before any sha3 work runs, so the wipe
+  does not fire on that path. Nothing needs wiping because nothing
+  was written.** Combining the two halves, the full post-op
+  invariant is: no kyber secret or secret-derived data persists in
+  kyber or sha3 linear memory between operations.
 
 ---
 
@@ -599,10 +701,14 @@ decryption failure or an incorrect `K'`.
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — Module structure, kyber buffer layout
-> - [exports](./exports.md) — `MlKem512`, `MlKem768`, `MlKem1024` export reference
-> - [sha3_audit](./sha3_audit.md) — Keccak audit (sha3 module, used by kyber)
-> - [test-suite](./test-suite.md) — ACVP vector coverage, test counts
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | Module structure, kyber buffer layout |
+| [exports](./exports.md) | `MlKem512`, `MlKem768`, `MlKem1024` export reference |
+| [sha3_audit](./sha3_audit.md) | Keccak audit (sha3 module, used by kyber) |
+| [test-suite](./test-suite.md) | ACVP vector coverage, test counts |
+

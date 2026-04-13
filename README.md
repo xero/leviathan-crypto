@@ -4,27 +4,29 @@
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="400" >
 
-# Leviathan-Crypto
+# Leviathan-Crypto: a strictly-typed webassembly cryptography library
 
-> WebAssembly cryptography library built on the paranoia of Serpent-256 and the elegance of XChaCha20-Poly1305.
+**JS is the problem, SIMD WASM is the solution.** JavaScript engines offer no formal constant-time guarantees. JIT compilers optimize based on runtime patterns, which leak secrets through cache access and instruction timing. By contrast, WebAssembly executes entirely outside the JIT, running compiled bytecode with user-controlled linear memory. This guarantees consistent instruction execution, free from speculative optimization or value-dependent branches.
 
-**Serpent-256** won the AES security vote but lost the competition. The deciding factor was performance on embedded hardware, a constraint that doesn't apply to modern software. 32 rounds. S-boxes in pure Boolean logic with no table lookups. It processes every bit in every block. You use it because you trust the cryptanalysis, not because a committee endorsed it.
+**WebAssembly is the correctness layer.** All algorithm logic resides in WASM. Six AssemblyScript modules (`serpent`, `chacha20`, `sha2`, `sha3`, `kyber`, and `ct`) compile independently to WASM, leveraging SIMD where beneficial. Each operates as its own instance with its own linear memory. Within each module, stateful primitives share the instance, and a runtime exclusivity model prevents mutual interference.
 
-**XChaCha20-Poly1305** has nothing to hide. An ARX construction with 20 rounds. Add, rotate, XOR with no S-boxes or cache-timing leakage. It needs no hardware acceleration to be fast. Poly1305 adds an unconditional forgery bound. The security proof is readable.
+**TypeScript is the ergonomics layer.** The strongly-typed public API covers [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal), [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream), [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool), [`Fortuna`](https://github.com/xero/leviathan-crypto/wiki/fortuna), [`HKDF`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha256), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore), and other components. Its design is misuse-resistant by default, incorporating features such as verify-then-decrypt authentication, key material wiping on dispose, validation before any cryptographic path, and one-shot AEADs that lock on first call. TypeScript never implements cryptographic algorithms; instead, it orchestrates the WASM layer and enforces best practices through API shape, rather than mere convention.
 
-**_Two ciphers from opposite design philosophies, only agreeing on security properties._**
+_**The paranoia of Serpent-256 and the elegance of XChaCha20-Poly1305.**_
 
-**WebAssembly is the correctness layer.** Every primitive runs in its own isolated binary with its own linear memory. Execution is deterministic with no JIT speculation. Key material in one module can't interact with another, even in principle. See the [security policy](./SECURITY.md).
+**[Serpent-256](https://github.com/xero/leviathan-crypto/wiki/serpent_reference)** employs thirty-two round S-boxes implemented using pure Boolean logic gates, avoiding table lookups. Designed without compromise, it processes every bit for each block.
 
-**TypeScript is the ergonomics layer.** The `Seal` and `SealStream` family are cipher-agnostic. Drop in `SerpentCipher` or `XChaCha20Cipher` and they handle nonces, key derivation, and authentication for you. Explicit [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) gates give you full control over how and when WASM loads. Strict typing catches misuse before it reaches production.
+**[XChaCha20-Poly1305](https://github.com/xero/leviathan-crypto/wiki/chacha_reference)** features twenty rounds of add-rotate-XOR, precisely choreographed to use no S-boxes and prevent cache-timing leakage. Poly1305 adds an unconditional forgery bound.
 
-**Zero dependencies.** No npm graph to audit. No supply chain attack surface.
+Cipher choice is pluggable. Both ciphers share the same [`CipherSuite`](https://github.com/xero/leviathan-crypto/wiki/ciphersuite) interface, allowing them to integrate interchangeably into [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal), [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream), and [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) interchangeably. This modularity extends to post-quantum coverage: [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/ciphersuite#kybersuite) integrates ML-KEM-512, ML-KEM-768, or ML-KEM-1024 with any cipher suite, and the [SPQR ratchet](https://github.com/xero/leviathan-crypto/wiki/ratchet) builds forward-secret sessions on top.
+
+**Zero dependencies.** No npm graph to audit means no supply chain attack surface.
 
 **Tree-shakeable.** Import only what you use. Subpath exports let bundlers exclude everything else.
 
 **Side-effect free.** Nothing runs on import. [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) is explicit and asynchronous.
 
-**Audited primitives.** Every implementation is verified against its specification. See the [audit index](https://github.com/xero/leviathan-crypto/wiki/audits).
+**Audited primitives.** Every implementation is [verified against its specification](https://github.com/xero/leviathan-crypto/wiki/audits).
 
 ---
 
@@ -97,6 +99,7 @@ await sha3Init(sha3Wasm)
 | `leviathan-crypto/sha3/embedded`     | `./dist/sha3/embedded.js`      |
 | `leviathan-crypto/kyber`             | `./dist/kyber/index.js`        |
 | `leviathan-crypto/kyber/embedded`    | `./dist/kyber/embedded.js`     |
+| `leviathan-crypto/ratchet`           | `./dist/ratchet/index.js`      |
 
 See [loader.md](https://github.com/xero/leviathan-crypto/wiki/loader) for the full WASM loading reference.
 
@@ -184,6 +187,21 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
+**_Building a secure messenger?_** The [ratchet module](https://github.com/xero/leviathan-crypto/wiki/ratchet) provides Double-Ratchet primitives with post-quantum KEM steps for consumers who need forward-secrecy and post-compromise security at the session layer. [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit) bootstraps the symmetric chains, [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain) derives per-message keys, [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap) perform the ML-KEM ratchet step, and [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) handles out-of-order delivery.
+
+```typescript
+import { ratchetInit, KDFChain } from 'leviathan-crypto/ratchet'
+
+await init({ sha2: sha2Wasm })   // KDF layer only; add kyber + sha3 for KEM steps
+
+const { nextRootKey, sendChainKey, recvChainKey } = ratchetInit(sharedSecret)
+const chain = new KDFChain(sendChainKey)
+const { key: messageKey, counter } = chain.stepWithCounter()
+// encrypt a message with messageKey; include counter in the wire header
+```
+
+These are the primitives, not a full session. You compose them into your transport, header format, and epoch orchestration. See the [ratchet guide](https://github.com/xero/leviathan-crypto/wiki/ratchet) for the full construction.
+
 **_Looking for more examples including hashing, key derivation, Fortuna, and raw primitives?_** See the [examples page](https://github.com/xero/leviathan-crypto/wiki/examples).
 
 ---
@@ -212,8 +230,8 @@ Command-line file encryption tool supporting both Serpent-256 and
 XChaCha20-Poly1305 via `--cipher`. A single keyfile works with both ciphers.
 The header byte determines decryption automatically. Chunks distribute across a
 worker pool sized to `hardwareConcurrency`. Each worker owns an isolated WASM
-instance with no shared memory. The tool can export it's own interactive
-competitions for a variety of shells.
+instance with no shared memory. The tool can export its own interactive
+completions for a variety of shells.
 
 ```sh
 bun add -g lvthn
@@ -231,6 +249,15 @@ derive a symmetric key using HKDF-SHA256 and exchange messages encrypted with
 XChaCha20-Poly1305. Each wire frame is expandable, revealing the raw nonce,
 ciphertext, Poly1305 tag, and AAD.
 
+**`COVCOM`** [ [demo](https://leviathan.3xi.club/covcom) · [source](https://github.com/xero/covcom/) · [readme](https://github.com/xero/covcom/blob/master/README.m) ]
+
+A covert communications application for end-to-end encrypted group
+conversations. Share an invite, talk, exit, and it's gone. Clients available for
+both the web and cli, along with a containerized dumb server for managing
+rooms. No secrets or cleartext beyond the handle you chose to join a room with
+are ever visible to the server. Featuring sparse post-quantum ratcheting,
+ML-KEM-768, KDFChains, Seal+KyberSuite, and a XChaCha20-Poly1305 core.
+
 ---
 
 ## Highlights
@@ -241,6 +268,7 @@ ciphertext, Poly1305 tag, and AAD.
 | Encrypt a stream or large file | [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream) to encrypt, [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead#openstream) to decrypt |
 | Encrypt in parallel | [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) distributes chunks across Web Workers |
 | Add post-quantum security | [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps [`MlKem512`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), [`MlKem768`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), or [`MlKem1024`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets) with any cipher suite |
+| Build a forward-secret session | [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit), [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain), [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) |
 | Hash data | [`SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha256), [`SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha384), [`SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha512), [`SHA3_256`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_256), [`SHA3_512`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_512), [`SHAKE256`](https://github.com/xero/leviathan-crypto/wiki/sha3#shake256) ... |
 | Authenticate a message | [`HMAC_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha256), [`HMAC_SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha384), or [`HMAC_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha512) |
 | Derive keys | [`HKDF_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha256) or [`HKDF_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha512) |

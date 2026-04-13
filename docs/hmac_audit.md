@@ -33,7 +33,7 @@
 
 ### 1.1 Key Processing
 
-The HMAC key processing is split across two layers:
+RFC 2104 specifies how to process keys of various lengths. Our implementation splits this across two layers:
 
 **TypeScript layer** (`src/ts/sha2/index.ts:169–186`, `HMAC_SHA256.hash`):
 
@@ -298,12 +298,16 @@ The three keys provide:
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2_audit](./sha2_audit.md) — SHA-256 implementation audit (HMAC builds on SHA-256)
-> - [hkdf_audit](./hkdf_audit.md) — HKDF builds on HMAC-SHA256
-> - [serpent_audit](./serpent_audit.md) — HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle)
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 uses a different MAC (Poly1305)
-> - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha2_audit](./sha2_audit.md) | SHA-256 implementation audit (HMAC builds on SHA-256) |
+| [hkdf_audit](./hkdf_audit.md) | HKDF builds on HMAC-SHA256 |
+| [serpent_audit](./serpent_audit.md) | HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle) |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 uses a different MAC (Poly1305) |
+| [sha3_audit](./sha3_audit.md) | SHA-3 companion audit |
+

@@ -103,8 +103,10 @@ Source: [logo.svg](./logo.svg)
 > [!NOTE]
 > Logos and colorscheme design by [xero](https://x-e.ro)
 > Licensed [MIT](http://www.opensource.org/licenses/MIT) as part of the project.
+## Cross-References
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

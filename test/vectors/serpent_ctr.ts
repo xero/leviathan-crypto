@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// test/vitest/ctr_vectors.ts
+// test/vectors/serpent_ctr.ts
 //
 // Authoritative CTR mode test vectors, ported from:
 // sources/leviathan/test/spec/09_ctr_vectors.test.ts

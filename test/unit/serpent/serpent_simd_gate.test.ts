@@ -97,7 +97,7 @@ beforeAll(async () => {
 });
 
 describe('SIMD gate — encryptBlock_simd_4x vs scalar encryptBlock', () => {
-	// GATE
+	// GATE — Serpent SIMD 4-wide ECB: byte-identical to scalar
 	it('4 blocks: SIMD output matches scalar output byte-for-byte', () => {
 		const wasm = getWasm();
 		const mem = new Uint8Array(wasm.memory.buffer);

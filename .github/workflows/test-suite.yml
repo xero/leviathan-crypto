@@ -9,15 +9,14 @@ on:
       - '.gitignore'
       - '.npmignore'
       - '.gitattributes'
-      - 'bun.lock'
-      - 'package-lock.json'
-      - 'package.json'
   pull_request:
     branches: ['**']
   workflow_dispatch:
 
 permissions:
   contents: read
+  packages: read
+  actions: write
 
 jobs:
   verify-vectors:
@@ -26,44 +25,70 @@ jobs:
   build:
     uses: ./.github/workflows/build.yml
 
+  lint:
+    uses: ./.github/workflows/lint.yml
+
   e2e:
     needs: [build]
     uses: ./.github/workflows/e2e.yml
 
   unit-core:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-core.yml
 
   unit-serpent:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-serpent.yml
 
   unit-chacha20:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-chacha20.yml
 
   unit-stream:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-stream.yml
 
   unit-kyber:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-kyber.yml
 
   unit-hashing:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-hashing.yml
 
   unit-montecarlo-cbc:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-montecarlo-cbc.yml
 
   unit-montecarlo-ecb:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-montecarlo-ecb.yml
 
   unit-nessie:
-    needs: [build, verify-vectors]
+    needs: [build]
     uses: ./.github/workflows/unit-nessie.yml
 
+  unit-ratchet:
+    needs: [build]
+    uses: ./.github/workflows/unit-ratchet.yml
 
+  suite-status:
+    name: test-suite-status
+    needs:
+      - verify-vectors
+      - build
+      - lint
+      - e2e
+      - unit-core
+      - unit-serpent
+      - unit-chacha20
+      - unit-stream
+      - unit-kyber
+      - unit-hashing
+      - unit-montecarlo-cbc
+      - unit-montecarlo-ecb
+      - unit-nessie
+      - unit-ratchet
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All required tests have passed."

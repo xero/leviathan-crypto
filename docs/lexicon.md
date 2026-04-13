@@ -10,6 +10,7 @@
 > - [Context-Specific Terms](#context-specific-terms)
 > - [Sealing Layer](#sealing-layer)
 > - [Post-Quantum](#post-quantum)
+> - [Session Layer](#session-layer)
 
 ---
 
@@ -27,7 +28,7 @@
 
 **Stream cipher.** A cipher that operates on a continuous sequence of bytes rather than fixed-size blocks. ChaCha20 is a stream cipher.
 
-**Ciphertext.** The encrypted output of a cipher. Unreadable without the correct key.
+**Ciphertext.** The encrypted output of a cipher, which is unreadable without the correct key.
 
 **Nonce.** A value that must never repeat for a given key. Reusing a nonce with the same key can expose plaintext or enable forgery. Nonces are typically generated randomly.
 
@@ -41,7 +42,7 @@
 
 **Salt.** Random data mixed into a key derivation function. It ensures two derivations from the same password produce different keys. A salt is not secret and can be stored alongside the derived output.
 
-**HMAC (Hash-based Message Authentication Code).** A MAC built from a hash function and a secret key. It proves both integrity and authenticity: only a party with the key could have produced it.
+**HMAC (Hash-based Message Authentication Code).** A MAC built from a hash function and a secret key. It proves both integrity and authenticity. Only a party holding the key could have produced it.
 
 **Tag (authentication tag).** A short value appended to ciphertext that proves the data has not been tampered with. The tag is computed from the key, ciphertext, and any additional data. Tag verification must run in constant time.
 
@@ -49,7 +50,7 @@
 
 **HKDF (HMAC-based Key Derivation Function).** A KDF that derives one or more strong keys from a single secret. leviathan-crypto uses HKDF to derive per-stream encryption and MAC keys from a master key and a random nonce.
 
-**Subkey derivation.** Generating a new key from an existing one for a specific purpose. It limits the impact of a compromise: knowing one subkey gives an attacker nothing about the others. leviathan-crypto derives fresh encryption and MAC subkeys per stream via HKDF.
+**Subkey derivation.** Generating a new key from an existing one for a specific purpose. It limits the impact of a compromise. Knowing one subkey gives an attacker nothing about the others. leviathan-crypto derives fresh encryption and MAC subkeys per stream via HKDF.
 
 **AEAD (Authenticated Encryption with Associated Data).** An encryption mode that provides both confidentiality and integrity. Ciphertext reveals nothing about the plaintext, and any tampering is detected. AEAD is the standard approach for symmetric encryption. XChaCha20-Poly1305 and Serpent-256-CBC+HMAC are both AEAD schemes.
 
@@ -71,7 +72,7 @@
 
 **Wire format.** The exact byte layout of data as it travels between systems. leviathan-crypto defines a precise wire format for sealed streams: a 20-byte header followed by authenticated chunks. Both sides must agree on this layout to communicate.
 
-**Sealing and opening.** Sealing is authenticated encryption: encrypt and authenticate in one step, producing a self-contained blob that reveals tampering on decryption. Opening is the reverse. leviathan-crypto provides `Seal.encrypt` and `Seal.decrypt` for one-shot use, and `SealStream` with `OpenStream` for chunked data.
+**Sealing and opening.** Sealing is authenticated encryption. It encrypts and authenticates in one step, producing a self-contained blob that reveals tampering on decryption. Opening is the reverse. leviathan-crypto provides `Seal.encrypt` and `Seal.decrypt` for one-shot use, and `SealStream` with `OpenStream` for chunked data.
 
 **Overhead.** The bytes an encryption scheme adds beyond the plaintext. This includes the nonce, authentication tag, header, and any padding. XChaCha20-Poly1305 adds 40 bytes per message (24-byte nonce, 16-byte tag). Streaming adds a 20-byte preamble plus per-chunk tags.
 
@@ -79,7 +80,7 @@
 
 **Chunk.** A fixed-size segment of a stream, encrypted and authenticated independently. A tampered chunk is rejected immediately without decrypting any following chunks. The default chunk size in leviathan-crypto is 65,536 bytes.
 
-**Session.** A single-use cryptographic context. A `SealStream` is single-use: once `finalize()` is called, the keys are zeroed. Each message requires a new stream. Reusing a stream would risk nonce collision.
+**Session.** A cryptographic context shared between two parties over time. In the sealing layer, a session is single-use: a `SealStream` encrypts exactly one message, and calling `finalize()` zeroes its keys. In a ratchet-based messenger, a session is long-lived and spans many messages, with keys advancing after each one. Both usages mean "a bounded context with its own key material," but their lifetimes differ.
 
 **Derive.** In cryptography, to derive a key means to produce it from another secret via a KDF. It does not mean class inheritance. Derived keys are cryptographically independent: knowing one does not help an attacker find others.
 
@@ -103,13 +104,13 @@
 
 **Final-chunk detection.** The last chunk in a stream uses a distinct nonce flag (`TAG_FINAL`) rather than `TAG_DATA`. If an attacker truncates the stream by dropping the final chunk, the opener detects that it never received a chunk marked final and rejects the message.
 
-**Framing / framed mode.** In framed mode (`{ framed: true }`), each encrypted chunk gets a 4-byte big-endian length prefix. This makes a stream of concatenated chunks self-delimiting: a reader can extract chunk boundaries from the data itself. Omit framing when the transport already provides message boundaries, such as WebSocket frames or IPC messages.
+**Framing / framed mode.** In framed mode (`{ framed: true }`), each encrypted chunk gets a 4-byte big-endian length prefix. This makes a stream of concatenated chunks self-delimiting. A reader can extract chunk boundaries from the data itself. Omit framing when the transport already provides message boundaries, such as WebSocket frames or IPC messages.
 
 **AAD (Additional Authenticated Data).** Data that is authenticated alongside ciphertext but not encrypted. It binds a chunk to external context such as sequence numbers or routing metadata, without including that data in the encrypted payload. Both sides must supply identical AAD or decryption fails.
 
 **Single-use stream.** A `SealStream` encrypts exactly one message. After `finalize()`, the derived keys are immediately zeroed and the stream cannot seal any further data. Create a new instance for each message.
 
-**Pool.** `SealStreamPool` distributes chunk encryption across multiple Web Workers, each with its own WASM instance and a copy of the derived keys. It is useful for large files where single-threaded throughput is a bottleneck. Any failure is fatal: the pool is destroyed on error and must be recreated for the next operation.
+**Pool.** `SealStreamPool` distributes chunk encryption across multiple Web Workers, each with its own WASM instance and a copy of the derived keys. It is useful for large files where single-threaded throughput is a bottleneck. Any failure is fatal. The pool is destroyed on error and must be recreated for the next operation.
 
 **AuthenticationError.** The exception thrown when an authentication tag does not match, meaning the ciphertext was modified, the key is wrong, or the AAD differs. Never use output from a decryption that throws this error. The stream layer zeroes output buffers before throwing.
 
@@ -135,14 +136,40 @@
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [authenticated encryption](./aead.md) — `Seal`: one-shot AEAD over any `CipherSuite`
-> - [ciphersuite](./ciphersuite.md) — `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface
-> - [kyber](./kyber.md) — ML-KEM key encapsulation, parameter sets, and key management
-> - [serpent](./serpent.md) — Serpent-256 raw primitives
-> - [chacha20](./chacha20.md) — ChaCha20 raw primitives
-> - [exports](./exports.md) — complete export reference
-> - [init](./init.md) — WASM loading and `WasmSource`
+## Session Layer
+
+**Forward secrecy.** The property that past ciphertext remains secure even if the long-term key is compromised later. A session with forward secrecy derives a fresh per-message key from an evolving state and immediately zeroes the old one. An attacker who steals today's device cannot decrypt yesterday's messages.
+
+**Post-compromise security.** Post-compromise security complements forward secrecy. After a compromise, the session eventually heals on its own as fresh key material mixes in. An attacker who captures a key at one moment cannot decrypt messages sent after the next ratchet step. Forward secrecy protects the past; post-compromise security protects the future.
+
+**Ratchet.** A mechanism that advances a secret in one direction so old values cannot be recovered from new ones. Each step derives the next state from the current one and discards the previous. Ratchets are how a session achieves forward secrecy. Once a message key has been used and the ratchet steps forward, the key cannot be recomputed.
+
+**Double Ratchet.** A session construction that layers two ratchets. A symmetric chain ratchet derives a new message key for every message. An asymmetric ratchet mixes fresh KEM output into the root key at session boundaries. The symmetric side gives you forward secrecy within a chain. The asymmetric side gives you post-compromise security across chains. leviathan-crypto's ratchet module implements the KDF primitives for a Signal-like Double Ratchet, using ML-KEM as the asymmetric component. You may see this construction called the Sparse Post-Quantum Ratchet or SPQR. The result is the full Double-Ratchet session-security story against an adversary with a quantum computer.
+
+**Root key.** The long-lived secret at the top of a ratchet hierarchy. Each asymmetric ratchet step derives a new root key from the previous root key and a fresh KEM output, then splits the result into send and receive chain keys. The root key is never used to encrypt a message directly; it only seeds the chains.
+
+**Chain / chain key.** The per-direction symmetric ratchet. A chain key advances via HKDF with each message: one step produces the next chain key (for the following message) and a message key (for the current message). A session has separate send and receive chains so the two parties advance independently.
+
+**Message key.** The single-use key derived from a chain key to encrypt exactly one message. After the message is encrypted or decrypted, the key is zeroed. Message keys are never transmitted; both parties derive them locally from their chain state.
+
+**Epoch.** A segment of a session bounded by root-key advances. Messages within one epoch share a chain; a new epoch starts when the asymmetric ratchet produces a new KEM output and derives a fresh root key. Epochs are the unit at which post-compromise healing happens.
+
+**Skipped message keys.** Message keys for messages that haven't arrived yet. When a message arrives out of order (message 5 before message 3), the receiver advances its chain through the missing counters, saves the intermediate keys in a bounded cache, and decrypts the out-of-order message. When the delayed messages arrive, their cached keys are used once and immediately zeroed. `SkippedKeyStore` manages this cache with configurable bounds on both memory and per-message work.
+
+---
+
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project documentation index |
+| [architecture](./architecture.md) | Architecture overview, module relationships, buffer layouts, and build pipeline |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
+| [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
+| [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
+| [ratchet](./ratchet.md) | Double Ratchet KDF primitives: `ratchetInit`, `KDFChain`, `kemRatchetEncap`/`kemRatchetDecap`, `SkippedKeyStore` |
+| [serpent](./serpent.md) | Serpent-256 raw primitives |
+| [chacha20](./chacha20.md) | ChaCha20 raw primitives |
+| [exports](./exports.md) | Complete export reference |
+| [init](./init.md) | WASM loading and `WasmSource` |

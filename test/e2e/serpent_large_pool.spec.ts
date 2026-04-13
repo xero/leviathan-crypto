@@ -36,7 +36,7 @@ test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pool = await lib.SealStreamPool.create(lib.SerpentCipher, key, {
@@ -63,7 +63,7 @@ test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 
 			// Deterministic pseudorandom plaintext — LCG seeded at 0xdeadbeef
@@ -104,7 +104,7 @@ test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 
 			// 3 × 65536 = 196608 bytes — counter-byte pattern (0x00..0xFF repeating)

@@ -50,7 +50,7 @@ export class SealStream {
 	private readonly chunkSize: number;
 	private readonly framed: boolean;
 	private counter = 0;
-	private state: 'ready' | 'finalized' = 'ready';
+	private state: 'ready' | 'finalized' | 'failed' = 'ready';
 
 	constructor(cipher: CipherSuite, key: Uint8Array, opts?: SealStreamOpts) {
 		this.cipher = cipher;
@@ -93,27 +93,40 @@ export class SealStream {
 
 	push(chunk: Uint8Array, opts?: { aad?: Uint8Array }): Uint8Array {
 		if (this.state !== 'ready')
-			throw new Error('SealStream: cannot push after finalize');
+			throw new Error(`SealStream: cannot push in state '${this.state}'`);
+		// Argument validation runs before the crypto-failure try/catch so a
+		// too-big chunk throws without wiping keys or transitioning to 'failed'.
+		// The caller can retry with a correctly-sized chunk.
 		if (chunk.length > this.chunkSize)
 			throw new RangeError(`chunk exceeds chunkSize (${chunk.length} > ${this.chunkSize})`);
-
-		const nonce = makeCounterNonce(this.counter, TAG_DATA);
-		const result = this.cipher.sealChunk(this.keys, nonce, chunk, opts?.aad);
-		this.counter++;
-		return this.framed ? concat(u32beFrame(result.length), result) : result;
+		try {
+			const nonce = makeCounterNonce(this.counter, TAG_DATA);
+			const result = this.cipher.sealChunk(this.keys, nonce, chunk, opts?.aad);
+			this.counter++;
+			return this.framed ? concat(u32beFrame(result.length), result) : result;
+		} catch (err) {
+			this.cipher.wipeKeys(this.keys);
+			this.state = 'failed';
+			throw err;
+		}
 	}
 
 	finalize(chunk: Uint8Array, opts?: { aad?: Uint8Array }): Uint8Array {
 		if (this.state !== 'ready')
-			throw new Error('SealStream: already finalized');
+			throw new Error(`SealStream: cannot finalize in state '${this.state}'`);
 		if (chunk.length > this.chunkSize)
 			throw new RangeError(`chunk exceeds chunkSize (${chunk.length} > ${this.chunkSize})`);
-
-		const nonce = makeCounterNonce(this.counter, TAG_FINAL);
-		const result = this.cipher.sealChunk(this.keys, nonce, chunk, opts?.aad);
-		this.cipher.wipeKeys(this.keys);
-		this.state = 'finalized';
-		return this.framed ? concat(u32beFrame(result.length), result) : result;
+		try {
+			const nonce = makeCounterNonce(this.counter, TAG_FINAL);
+			const result = this.cipher.sealChunk(this.keys, nonce, chunk, opts?.aad);
+			this.cipher.wipeKeys(this.keys);
+			this.state = 'finalized';
+			return this.framed ? concat(u32beFrame(result.length), result) : result;
+		} catch (err) {
+			this.cipher.wipeKeys(this.keys);
+			this.state = 'failed';
+			throw err;
+		}
 	}
 
 	dispose(): void {
@@ -121,6 +134,7 @@ export class SealStream {
 			this.cipher.wipeKeys(this.keys);
 			this.state = 'finalized';
 		}
+		// 'failed' already wiped keys; 'finalized' already wiped keys — no-op.
 	}
 
 	toTransformStream(): TransformStream<Uint8Array, Uint8Array> {

@@ -50,7 +50,8 @@ function getWasm() {
 
 describe('Poly1305 — RFC 8439 vectors', () => {
 
-	// GATE — §2.5.2
+	// GATE — Poly1305 MAC: RFC 8439 §2.5.2
+	// Vector: chacha20.ts[poly1305Vectors[0]]
 	it('§2.5.2 gate — 34-byte message', () => {
 		const v = poly1305Vectors[0]; // §2.5.2 gate vector
 		const poly = new Poly1305();

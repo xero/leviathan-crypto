@@ -41,9 +41,9 @@
 
 ### 1.1 State Layout and Lane Indexing
 
-The Keccak state is represented as 25 `i64` words at `STATE_OFFSET` (200 bytes), stored in WASM linear memory. Lane `A[x][y]` is at byte offset `(x + 5y) * 8`, matching FIPS 202 Appendix B.
+FIPS 202 represents the Keccak state as a 5×5 grid of 64-bit lanes. Our implementation stores all 25 lanes as `i64` words at `STATE_OFFSET` (200 bytes) in WASM linear memory, with lane `A[x][y]` at byte offset `(x + 5y) * 8`. This matches FIPS 202 Appendix B.
 
-The implementation (`keccak.ts:86–110`) loads all 25 lanes into local variables at the start of `keccakF()`, using the naming convention `aXY` where X is the x-coordinate and Y is the y-coordinate:
+`keccakF()` (`keccak.ts:86–110`) loads all 25 lanes into local variables at the start, using the naming convention `aXY` where X and Y are coordinates:
 
 ```
 a00 = load<i64>(s +   0)    // A[0][0] at offset 0*8 = 0
@@ -58,7 +58,7 @@ a44 = load<i64>(s + 192)    // A[4][4] at offset 24*8 = 192
 
 The store-back at lines 221–245 uses the same offsets. All 25 loads and 25 stores are consistent with the `x + 5y` indexing convention. Correct.
 
-**Endianness:** WASM linear memory is little-endian. The `load<i64>` and `store<i64>` instructions natively read/write in little-endian order, which matches the Keccak lane convention (FIPS 202 §B.1: "the first bit of the string corresponds to the least significant bit of the lane"). No byte-swapping is needed. Correct.
+**Endianness:** WASM linear memory is little-endian by specification. The `load<i64>` and `store<i64>` instructions natively read/write in LE order, which aligns with Keccak's lane convention (FIPS 202 §B.1: the first bit of a string maps to the LSB of the lane). No byte-swapping needed.
 
 ---
 
@@ -401,6 +401,14 @@ The SHAKE classes implement the XOF (extendable output function) API with absorb
 - `hash(msg, outputLength)`: One-shot convenience. Reset, absorb, squeeze. Correct.
 - `dispose()`: Zeros both `_block` (TypeScript-side buffer) and WASM buffers. Correct.
 
+> [!NOTE]
+> `SHAKE128` / `SHAKE256` acquire an exclusive token on the `sha3` module at
+> construction and release it on `dispose()`. Calling `absorb` / `squeeze` /
+> `reset` after `dispose()` throws. The original analysis above (`dispose()`
+> wipes the TS buffer and calls `wipeBuffers`) remains correct for the wipe
+> semantics; the exclusivity token and the post-dispose throw behaviour are
+> additional guarantees layered on top, not a contradiction.
+
 The SHAKE128 rate is 168 bytes, SHAKE256 rate is 136 bytes, matching the WASM-side configuration. The TypeScript `_block` buffers match these sizes.
 
 **Multi-squeeze correctness:** After `shakePad()`, each call to `shakeSqueezeBlock()` copies `rate` bytes from the state to `OUT_OFFSET`, then applies `keccakF()` to advance the state for the next block. The TypeScript layer buffers one block and serves sub-block requests from the buffer, calling `shakeSqueezeBlock()` only when the buffer is exhausted. This produces a contiguous, correct XOF stream. The boundary case where `squeeze(n)` requests exactly `rate` bytes exhausts the buffer at the last byte, setting `_blockPos === rate`, which triggers a `shakeSqueezeBlock()` call at the start of the next `squeeze()` invocation. Correct continuation behavior.
@@ -521,12 +529,16 @@ A cryptanalytic breakthrough against one family does not imply weakness in the o
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha2_audit](./sha2_audit.md) — SHA-2 companion audit (independent construction)
-> - [hmac_audit](./hmac_audit.md) — HMAC uses SHA-2 (not SHA-3)
-> - [hkdf_audit](./hkdf_audit.md) — HKDF uses SHA-2 (not SHA-3)
-> - [serpent_audit](./serpent_audit.md) — Serpent implementation audit
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha2_audit](./sha2_audit.md) | SHA-2 companion audit (independent construction) |
+| [hmac_audit](./hmac_audit.md) | HMAC uses SHA-2 (not SHA-3) |
+| [hkdf_audit](./hkdf_audit.md) | HKDF uses SHA-2 (not SHA-3) |
+| [serpent_audit](./serpent_audit.md) | Serpent implementation audit |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |
+

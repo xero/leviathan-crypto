@@ -15,9 +15,14 @@
 | [hkdf_audit](./hkdf_audit.md) | 2026-03-25 | Extract-and-expand, info field domain separation, stream key derivation |
 | [kyber_audit](./kyber_audit.md) | 2026-04-06 | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
 | [stream_audit](./stream_audit.md) | 2026-04-03 | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
+| [ratchet_audit](./ratchet_audit.md) | 2026-04-13 | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |
 
 ---
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

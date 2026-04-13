@@ -24,7 +24,7 @@
 // Public API classes for the Serpent-256 WASM module.
 // Uses the init() module cache — call serpentInit(source) before constructing.
 
-import { getInstance, initModule } from '../init.js';
+import { getInstance, initModule, _acquireModule, _releaseModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
 
 export async function serpentInit(source: WasmSource): Promise<void> {
@@ -70,6 +70,7 @@ export class Serpent {
 	}
 
 	loadKey(key: Uint8Array): void {
+		_assertNotOwned('serpent');
 		if (key.length !== 16 && key.length !== 24 && key.length !== 32)
 			throw new RangeError(`key must be 16, 24, or 32 bytes (got ${key.length})`);
 		const mem = new Uint8Array(this.x.memory.buffer);
@@ -78,6 +79,7 @@ export class Serpent {
 	}
 
 	encryptBlock(plaintext: Uint8Array): Uint8Array {
+		_assertNotOwned('serpent');
 		if (plaintext.length !== 16)
 			throw new RangeError(`block must be 16 bytes (got ${plaintext.length})`);
 		const mem   = new Uint8Array(this.x.memory.buffer);
@@ -89,6 +91,7 @@ export class Serpent {
 	}
 
 	decryptBlock(ciphertext: Uint8Array): Uint8Array {
+		_assertNotOwned('serpent');
 		if (ciphertext.length !== 16)
 			throw new RangeError(`block must be 16 bytes (got ${ciphertext.length})`);
 		const mem   = new Uint8Array(this.x.memory.buffer);
@@ -100,6 +103,7 @@ export class Serpent {
 	}
 
 	dispose(): void {
+		_assertNotOwned('serpent');
 		this.x.wipeBuffers();
 	}
 }
@@ -112,9 +116,15 @@ export class Serpent {
  * **WARNING: CTR mode is unauthenticated.** An attacker can flip ciphertext
  * bits without detection. Always pair with HMAC-SHA256 (Encrypt-then-MAC)
  * or use `XChaCha20Poly1305` instead.
+ *
+ * Holds exclusive access to the `serpent` WASM module from construction
+ * until `dispose()`. Constructing a second SerpentCtr/SerpentCbc/
+ * SerpentCipher or any other serpent user while this instance is live
+ * throws. Call `dispose()` when done.
  */
 export class SerpentCtr {
 	private readonly x: SerpentExports;
+	private _tok: symbol | undefined;
 
 	constructor(opts?: { dangerUnauthenticated: true }) {
 		if (!opts?.dangerUnauthenticated) {
@@ -124,9 +134,12 @@ export class SerpentCtr {
 			);
 		}
 		this.x = getExports();
+		this._tok = _acquireModule('serpent');
 	}
 
 	beginEncrypt(key: Uint8Array, nonce: Uint8Array): void {
+		if (this._tok === undefined)
+			throw new Error('SerpentCtr: instance has been disposed');
 		if (key.length !== 16 && key.length !== 24 && key.length !== 32)
 			throw new RangeError('key must be 16, 24, or 32 bytes');
 		if (nonce.length !== 16)
@@ -139,6 +152,8 @@ export class SerpentCtr {
 	}
 
 	encryptChunk(chunk: Uint8Array): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SerpentCtr: instance has been disposed');
 		const maxChunk = this.x.getChunkSize();
 		if (chunk.length > maxChunk)
 			throw new RangeError(
@@ -161,7 +176,13 @@ export class SerpentCtr {
 	}
 
 	dispose(): void {
-		this.x.wipeBuffers();
+		if (this._tok === undefined) return;
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('serpent', this._tok);
+			this._tok = undefined;
+		}
 	}
 }
 
@@ -174,6 +195,10 @@ export { AuthenticationError } from '../errors.js';
 // ── SerpentCipher re-export ───────────────────────────────────────────────────
 
 export { SerpentCipher } from './cipher-suite.js';
+
+// ── SerpentGenerator ─────────────────────────────────────────────────────────
+
+export { SerpentGenerator } from './generator.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

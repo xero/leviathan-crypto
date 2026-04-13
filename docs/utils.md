@@ -1,7 +1,8 @@
 # Utilities
 
 > [!NOTE]
-> Pure TypeScript utilities that ship alongside the WASM-backed primitives. No `init()` call required; all functions work immediately on import.
+> Pure TypeScript utilities that ship alongside the WASM-backed primitives. No
+> `init()` call required; all functions work immediately on import.
 
 > ### Table of Contents
 > - [Security Notes](#security-notes)
@@ -11,23 +12,135 @@
 
 ---
 
-The module covers encoding (hex, UTF-8, and base64 conversions between strings and `Uint8Array`), security (constant-time comparison and secure memory wiping), byte manipulation (XOR and concatenation), and random byte generation.
+The module covers encoding (hex, UTF-8, and base64 conversions between strings
+and `Uint8Array`), security (constant-time comparison and secure memory
+wiping), byte manipulation (XOR and concatenation), and random byte generation.
 
 ## Security Notes
 
-**`constantTimeEqual`** uses a WASM SIMD module when available to remove the JS JIT compiler from the timing picture, falling back to an XOR-accumulate loop on older runtimes. Use this function whenever you compare MACs, hashes, authentication tags, or any secret-derived values. Never use `===`, `Buffer.equals`, or a manual loop-with-break for security comparisons. Those leak timing information that attackers can exploit to recover secrets. Inputs are limited to [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side.
+**`constantTimeEqual`** runs inside a WASM SIMD module that removes the JS JIT
+compiler from the timing picture. Use this function whenever you compare MACs,
+hashes, authentication tags, or any secret-derived values. Never use `===`,
+`Buffer.equals`, or a manual loop-with-break for security comparisons. Those
+leak timing information that attackers can exploit to recover secrets. Inputs
+are limited to [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side.
 
-The length check in `constantTimeEqual` is not constant-time, because array length is non-secret in all standard protocols. If your use case treats length as secret, pad to equal length before comparing.
+The length check in `constantTimeEqual` is not constant-time, because array
+length is non-secret in all standard protocols. If your use case treats length
+as secret, pad to equal length before comparing.
 
-**`wipe`** zeroes a typed array in-place. Call it on keys, plaintext buffers, and any other sensitive data as soon as you are done with them. JavaScript's garbage collector does not guarantee timely or complete erasure of memory.
+**`wipe`** zeroes a typed array in-place. Call it on keys, plaintext buffers,
+and any other sensitive data as soon as you are done with them. JavaScript's
+garbage collector does not guarantee timely or complete erasure of memory.
 
-**`randomBytes`** delegates to `crypto.getRandomValues` (Web Crypto API), which is cryptographically secure in all modern browsers and Node.js 19+. It does not fall back to `Math.random` or any insecure source.
+**`randomBytes`** delegates to `crypto.getRandomValues` (Web Crypto API), which
+is cryptographically secure in all modern browsers and Node.js 19+. It does not
+fall back to `Math.random` or any insecure source.
 
-The encoding functions (`hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`) perform no security-sensitive operations.
+The encoding functions (`hexToBytes`, `bytesToHex`, `utf8ToBytes`,
+`bytesToUtf8`, `base64ToBytes`, `bytesToBase64`) perform no security-sensitive
+operations.
 
 ---
 
 ## API Reference
+
+### constantTimeEqual
+
+```typescript
+constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean
+```
+
+Returns `true` if `a` and `b` contain identical bytes. Returns `false`
+immediately if the arrays differ in length (length is non-secret in all
+standard protocols).
+
+The comparison runs inside a WASM SIMD module, removing the JS JIT compiler
+from the timing picture. Speculative optimisation and branch prediction inside
+the engine cannot short-circuit the loop. This function requires WebAssembly
+SIMD; on runtimes without SIMD support it throws `Error: leviathan-crypto:
+constantTimeEqual requires WebAssembly SIMD — this runtime does not support it`
+at first call. SIMD has been a baseline feature of all major browsers and
+Node.js 16.4+ since 2021, and the library's symmetric and post-quantum
+primitives require SIMD already; this function tightens that posture
+consistently.
+
+The WASM module ORs the two 64-bit lanes of the SIMD accumulator into a scalar,
+then folds it to 0/1 via `~((diff | -diff) >> 63) & 1`. The only remaining
+observable control flow is the outer length check, which operates on non-secret
+input.
+
+**Zero-copy design.** The WASM module has no internal staging buffers. The
+wrapper writes `a` into WASM linear memory at offset 0 and `b` immediately
+after at offset `a.length`, then passes those two offsets directly to the
+`compare` function. No data is duplicated inside the WASM binary; the
+comparison reads in-place from the caller-owned positions. This eliminates an
+entire class of residual-data risk: there is no intermediate copy that outlives
+the operation.
+
+**Guaranteed memory zeroing.** After every comparison, the wrapper clears both
+input regions via `mem.fill(0, 0, a.length * 2)` inside a `finally` block. The
+wipe runs whether the comparison succeeds, throws, or is interrupted. Sensitive
+material written into WASM linear memory does not persist past the end of the
+call.
+
+WASM SIMD JITs do not guarantee cycle-level constant time; the branch-free tail
+is best-effort hardening against branch-prediction side channels. For
+defence-in-depth against timing attacks on tag comparisons, pair this primitive
+with an authenticated construction (`SerpentCipher`, `XChaCha20Cipher`) that
+terminates on mismatch with a generic error message.
+
+Maximum input size is [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side.
+Throws `RangeError` if either array exceeds this limit.
+
+See [asm_ct.md](./asm_ct.md) for the full WASM module reference, including the
+SIMD algorithm, reduction technique, instantiation model, and memory layout.
+
+Use this function when working with lower-level unauthenticated primitives or
+building custom authenticated protocols on top of the hashing and KDF APIs.
+Common cases:
+
+- **Encrypt-then-MAC with `SerpentCbc` or `SerpentCtr`.** If you use the
+  `dangerUnauthenticated` primitive directly and compute your own HMAC-SHA256
+  tag, compare that tag with `constantTimeEqual`. See the [example
+  below](#encrypt-then-mac-with-serpentcbc).
+- **Argon2id key verification.** When re-deriving an Argon2id hash to verify a
+  passphrase, the final comparison must be constant-time. See
+  [argon2id.md](./argon2id.md#password-hashing-and-verification) for the full
+  example.
+- **Custom HMAC protocols.** Any protocol where you derive a MAC with
+  `HMAC_SHA256` or `HMAC_SHA512` and compare it against a received value. See
+  [examples.md](./examples.md#hmac-sha256-message-authentication) for a
+  complete example.
+
+---
+
+### CT_MAX_BYTES
+
+```typescript
+const CT_MAX_BYTES: 32768
+```
+
+Maximum input size accepted by [`constantTimeEqual`](#constanttimeequal) per
+side, in bytes. Reflects the physical layout of the WASM comparison module: one
+64 KiB page of linear memory split equally between the two input buffers (32
+KiB each).
+
+In practice the largest comparison performed anywhere in this library is a
+32-byte HMAC-SHA-256 tag. This limit only matters for custom protocols that
+compare unusually large values. Use this constant to guard your own inputs
+rather than hardcoding the magic number:
+
+```typescript
+import { constantTimeEqual, CT_MAX_BYTES } from 'leviathan-crypto'
+
+if (a.length > CT_MAX_BYTES || b.length > CT_MAX_BYTES) {
+  throw new RangeError(`comparison input exceeds CT_MAX_BYTES (${CT_MAX_BYTES})`)
+}
+const match = constantTimeEqual(a, b)
+```
+
+---
 
 ### hexToBytes
 
@@ -35,7 +148,9 @@ The encoding functions (`hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`
 hexToBytes(hex: string): Uint8Array
 ```
 
-Converts a hex string to a `Uint8Array`. Accepts lowercase or uppercase characters. An optional `0x` or `0X` prefix is stripped automatically. Throws `RangeError` on odd-length input.
+Converts a hex string to a `Uint8Array`. Accepts lowercase or uppercase
+characters. An optional `0x` or `0X` prefix is stripped automatically. Throws
+`RangeError` on odd-length or non-hex input.
 
 ---
 
@@ -72,10 +187,13 @@ Decodes UTF-8 bytes to a JavaScript string using the platform `TextDecoder`.
 ### base64ToBytes
 
 ```typescript
-base64ToBytes(b64: string): Uint8Array | undefined
+base64ToBytes(b64: string): Uint8Array
 ```
 
-Decodes a base64 or base64url string to a `Uint8Array`. Handles padded, unpadded, and legacy `%3d` padding. Unpadded base64url input is accepted (RFC 4648 §5). Returns `undefined` if the input is not valid base64 (illegal characters or `rem=1` length).
+Decodes a base64 or base64url string to a `Uint8Array`. Handles padded,
+unpadded, and legacy `%3d` padding. Unpadded base64url input is accepted (RFC
+4648 §5). Throws `RangeError` if the input is not valid base64 (illegal
+characters or `rem=1` length).
 
 ---
 
@@ -85,50 +203,9 @@ Decodes a base64 or base64url string to a `Uint8Array`. Handles padded, unpadded
 bytesToBase64(bytes: Uint8Array, url?: boolean): string
 ```
 
-Encodes a `Uint8Array` to a base64 string. Pass `url = true` for base64url (RFC 4648 §5), which uses `-` and `_` instead of `+` and `/` with no padding characters. Defaults to standard base64.
-
----
-
-### constantTimeEqual
-
-```typescript
-constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean
-```
-
-Returns `true` if `a` and `b` contain identical bytes. Returns `false` immediately if the arrays differ in length (length is non-secret in all standard protocols).
-
-When WebAssembly SIMD is available the comparison runs inside a WASM module, removing the JS JIT compiler from the timing picture. Speculative optimisation and branch prediction inside the engine cannot short-circuit the loop. On runtimes without SIMD support the function falls back to an XOR-accumulate loop in JavaScript, which is best-effort but not a hardware-level guarantee. The overall posture is best-available constant-time, not a cryptographic proof of timing safety.
-
-Maximum input size is [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side. Throws `RangeError` if either array exceeds this limit.
-
-Use this function when working with lower-level unauthenticated primitives or building custom authenticated protocols on top of the hashing and KDF APIs. Three common cases:
-
-**Encrypt-then-MAC with `SerpentCbc` or `SerpentCtr`.** If you use the `dangerUnauthenticated` primitive directly and compute your own HMAC-SHA256 tag, compare that tag with `constantTimeEqual`. See the [example below](#encrypt-then-mac-with-serpentcbc).
-
-**Argon2id key verification.** When re-deriving an Argon2id hash to verify a passphrase, the final comparison must be constant-time. See [argon2id.md](./argon2id.md#password-hashing-and-verification) for the full example.
-
-**Custom HMAC protocols.** Any protocol where you derive a MAC with `HMAC_SHA256` or `HMAC_SHA512` and compare it against a received value. See [examples.md](./examples.md#hmac-sha256-message-authentication) for a complete example.
-
----
-
-### CT_MAX_BYTES
-
-```typescript
-const CT_MAX_BYTES: 32768
-```
-
-Maximum input size accepted by [`constantTimeEqual`](#constanttimeequal) per side, in bytes. Reflects the physical layout of the WASM comparison module: one 64 KiB page of linear memory split equally between the two input buffers (32 KiB each).
-
-In practice the largest comparison performed anywhere in this library is a 32-byte HMAC-SHA-256 tag. This limit only matters for custom protocols that compare unusually large values. Use this constant to guard your own inputs rather than hardcoding the magic number:
-
-```typescript
-import { constantTimeEqual, CT_MAX_BYTES } from 'leviathan-crypto'
-
-if (a.length > CT_MAX_BYTES || b.length > CT_MAX_BYTES) {
-  throw new RangeError(`comparison input exceeds CT_MAX_BYTES (${CT_MAX_BYTES})`)
-}
-const match = constantTimeEqual(a, b)
-```
+Encodes a `Uint8Array` to a base64 string. Pass `url = true` for base64url (RFC
+4648 §5), which uses `-` and `_` instead of `+` and `/` with no padding
+characters. Defaults to standard base64.
 
 ---
 
@@ -138,7 +215,8 @@ const match = constantTimeEqual(a, b)
 wipe(data: Uint8Array | Uint16Array | Uint32Array): void
 ```
 
-Zeroes a typed array in-place by calling `fill(0)`. Use this to clear keys, plaintext, or any sensitive material when you are done with it.
+Zeroes a typed array in-place by calling `fill(0)`. Use this to clear keys,
+plaintext, or any sensitive material when you are done with it.
 
 ---
 
@@ -148,7 +226,8 @@ Zeroes a typed array in-place by calling `fill(0)`. Use this to clear keys, plai
 xor(a: Uint8Array, b: Uint8Array): Uint8Array
 ```
 
-Returns a new `Uint8Array` where each byte is `a[i] ^ b[i]`. Both arrays must have the same length. Throws `RangeError` if they differ.
+Returns a new `Uint8Array` where each byte is `a[i] ^ b[i]`. Both arrays must
+have the same length. Throws `RangeError` if they differ.
 
 ---
 
@@ -168,7 +247,8 @@ Concatenates one or more `Uint8Array`s into a new array.
 randomBytes(n: number): Uint8Array
 ```
 
-Returns `n` cryptographically secure random bytes via the Web Crypto API (`crypto.getRandomValues`).
+Returns `n` cryptographically secure random bytes via the Web Crypto API
+(`crypto.getRandomValues`).
 
 ---
 
@@ -182,13 +262,12 @@ Returns `true` if the current runtime supports WebAssembly SIMD (the `v128`
 type and associated operations). The result is computed once on first call by
 validating a minimal v128 WASM module, then cached for subsequent calls.
 
-`SerpentCtr.encryptChunk`, `SerpentCbc.decrypt`, and `ChaCha20.encryptChunk`
-call this internally to select the fast SIMD path at runtime. It is exported
-for informational purposes. You do not need to call it yourself. SIMD dispatch
-is fully automatic.
+A public utility for consumers who want to feature-detect before calling
+`init()`. The library requires SIMD for `serpent`, `chacha20`, and
+`constantTimeEqual`; calls into those modules throw a branded error on
+non-SIMD runtimes. `sha2` and `sha3` do not require SIMD.
 
-Supported in all modern browsers and Node.js 16+. Returns `false` in older
-environments, which fall back silently to the scalar path.
+Supported in all modern browsers and Node.js 16+.
 
 ---
 
@@ -229,14 +308,17 @@ console.log(b64url) // "bGV2aWF0aGFuLWNyeXB0bw"
 
 // Decoding (accepts both standard and url variants)
 const decoded = base64ToBytes(b64)
-if (decoded) console.log(bytesToUtf8(decoded)) // "leviathan-crypto"
+console.log(bytesToUtf8(decoded)) // "leviathan-crypto"
 ```
 
 ---
 
 ### Encrypt-then-MAC with SerpentCbc
 
-If you use `SerpentCbc` or `SerpentCtr` directly with `{ dangerUnauthenticated: true }`, you are responsible for authentication. The correct pattern is Encrypt-then-MAC: encrypt first, then compute HMAC-SHA256 over the ciphertext, and use `constantTimeEqual` to verify on decrypt.
+If you use `SerpentCbc` or `SerpentCtr` directly with `{ dangerUnauthenticated:
+true }`, you are responsible for authentication. The correct pattern is
+Encrypt-then-MAC: encrypt first, then compute HMAC-SHA256 over the ciphertext,
+and use `constantTimeEqual` to verify on decrypt.
 
 ```typescript
 import {
@@ -288,7 +370,10 @@ wipe(expectedTag)
 ```
 
 > [!NOTE]
-> `Seal` with `SerpentCipher` does all of this for you — key derivation, IV handling, Encrypt-then-MAC, and constant-time verification — with no manual steps. The pattern above is only relevant if you need direct access to the raw `SerpentCbc` primitive.
+> `Seal` with `SerpentCipher` does all of this for you; key derivation, IV
+> handling, Encrypt-then-MAC, and constant-time verification, with no manual
+> steps. The pattern above is only relevant if you need direct access to the
+> raw `SerpentCbc` primitive.
 
 ---
 
@@ -343,8 +428,8 @@ console.log(combined.length) // 32
 | Function | Condition | Behavior |
 |---|---|---|
 | `hexToBytes` | Odd-length string | Throws `RangeError` |
-| `hexToBytes` | Invalid hex characters | Bytes decode as `NaN` -> `0` |
-| `base64ToBytes` | Invalid length or characters | Returns `undefined` |
+| `hexToBytes` | Invalid hex characters | Throws `RangeError` |
+| `base64ToBytes` | Invalid length or characters | Throws `RangeError` |
 | `constantTimeEqual` | Arrays differ in length | Returns `false` immediately |
 | `constantTimeEqual` | Either array exceeds `CT_MAX_BYTES` | Throws `RangeError` |
 | `xor` | Arrays differ in length | Throws `RangeError` |
@@ -353,15 +438,20 @@ console.log(combined.length) // 32
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [serpent](./serpent.md) — Serpent modes consume keys from `randomBytes`; wrappers use `wipe` and `constantTimeEqual`
-> - [chacha20](./chacha20.md) — ChaCha20/Poly1305 classes use `randomBytes` for nonce generation
-> - [sha2](./sha2.md) — SHA-2 and HMAC classes; output often converted with `bytesToHex`
-> - [sha3](./sha3.md) — SHA-3 and SHAKE classes; output often converted with `bytesToHex`
-> - [argon2id](./argon2id.md) — passphrase-based encryption; uses `constantTimeEqual` for hash verification
-> - [examples](./examples.md) — full HMAC-SHA256 custom protocol example using `constantTimeEqual`
-> - [types](./types.md) — public interfaces whose implementations rely on these utilities
-> - [test-suite](./test-suite.md) — test suite structure and vector corpus
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [asm_ct](./asm_ct.md) | WASM module reference for `constantTimeEqual`: SIMD algorithm, zero-copy layout, instantiation model, and memory zeroing |
+| [serpent](./serpent.md) | Serpent modes consume keys from `randomBytes`; wrappers use `wipe` and `constantTimeEqual` |
+| [chacha20](./chacha20.md) | ChaCha20/Poly1305 classes use `randomBytes` for nonce generation |
+| [sha2](./sha2.md) | SHA-2 and HMAC classes; output often converted with `bytesToHex` |
+| [sha3](./sha3.md) | SHA-3 and SHAKE classes; output often converted with `bytesToHex` |
+| [argon2id](./argon2id.md) | passphrase-based encryption; uses `constantTimeEqual` for hash verification |
+| [examples](./examples.md) | full HMAC-SHA256 custom protocol example using `constantTimeEqual` |
+| [types](./types.md) | public interfaces whose implementations rely on these utilities |
+| [test-suite](./test-suite.md) | test suite structure and vector corpus |
+
