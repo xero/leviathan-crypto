@@ -51,15 +51,15 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.59.1",
-    "@types/node": "^25.5.2",
+    "@types/node": "^25.6.0",
     "@vitest/web-worker": "^3.2.4",
     "assemblyscript": "^0.27.37",
-    "eslint": "^10.2.0",
+    "eslint": "^10.2.1",
     "jiti": "^2.6.1",
     "pin-github-action": "^3.4.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.58.1",
+    "typescript-eslint": "^8.59.0",
     "vitest": "^3.2.4"
   },
   "repository": {

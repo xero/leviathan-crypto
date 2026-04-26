@@ -1,0 +1,52 @@
+name: ci-image
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/ci.Dockerfile"
+      - ".github/workflows/ci-image.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: log in to ghcr
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: set build time
+        id: version-bump
+        run: echo "buildtime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: build and push
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          file: .github/ci.Dockerfile
+          push: true
+          tags: ghcr.io/xero/leviathan-crypto/ci:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          annotations: |
+            org.opencontainers.image.title=leviathan-crypto/ci
+            org.opencontainers.image.description=cicd e2e testing toolchain for the leviathan-crypto library
+            org.opencontainers.image.authors=https://github.com/xero/leviathan-crypto/graphs/contributors
+            org.opencontainers.image.documentation=https://github.com/xero/leviathan-crypto/wiki
+            org.opencontainers.image.url=https://leviathan.3xi.club
+            org.opencontainers.image.source=https://github.com/xero/leviathan-crypto
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.created=${{ steps.version-bump.outputs.buildtime }}
