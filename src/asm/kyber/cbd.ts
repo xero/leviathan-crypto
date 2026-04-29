@@ -34,8 +34,8 @@
  */
 export function cbd2(polyOffset: i32, bufOffset: i32): void {
 	// pq-crystals/kyber ref/cbd.c cbd2()
-	// Process 4 bytes at a time → 8 coefficients
-	for (let i: i32 = 0; i < 64; i++) {
+	// Process 4 bytes at a time → 8 coefficients. N/8 = 32 iterations.
+	for (let i: i32 = 0; i < 32; i++) {
 		// Load 4 bytes as little-endian u32
 		const b0: u32 = <u32>load<u8>(bufOffset + 4*i);
 		const b1: u32 = <u32>load<u8>(bufOffset + 4*i + 1);

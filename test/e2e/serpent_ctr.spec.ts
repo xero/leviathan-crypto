@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 import { test, expect } from '@playwright/test';
-import { CTR_VECTORS } from '../unit/serpent/ctr_vectors';
+import { CTR_VECTORS } from '../vectors/serpent_ctr.js';
 
 const JS_URL = 'http://localhost:1337/build/serpent.js';
 

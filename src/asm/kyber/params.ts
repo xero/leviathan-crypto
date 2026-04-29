@@ -39,7 +39,7 @@ export const POLY_BYTES: i32 = 384;
 
 /**
  * QINV = q^{-1} mod 2^16.
- * Verify: q * QINV ≡ -1 mod 2^16, i.e. (3329 * (-3327)) & 0xFFFF == 0xFFFF.
+ * Verify: q * QINV ≡ 1 mod 2^16, i.e. (3329 * (-3327)) & 0xFFFF == 0x0001.
  */
 export const QINV: i32 = -3327;
 

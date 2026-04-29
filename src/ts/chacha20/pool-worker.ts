@@ -37,6 +37,7 @@ self.onmessage = async (e: MessageEvent) => {
 		subkey = undefined;
 		if (x) x.wipeBuffers();
 		x = undefined;
+		self.postMessage({ type: 'wiped' });
 		return;
 	}
 

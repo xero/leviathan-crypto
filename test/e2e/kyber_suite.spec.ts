@@ -35,7 +35,7 @@ test.describe('KyberSuite — e2e (MlKem768 + XChaCha20)', () => {
 			const { sha2Wasm }    = await import(`${base}/dist/sha2/embedded.js`);
 			const { sha3Wasm }    = await import(`${base}/dist/sha3/embedded.js`);
 			const { kyberWasm }   = await import(`${base}/dist/kyber/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm, kyber: kyberWasm });
 			const kem = new lib.MlKem768();
 			const suite = lib.KyberSuite(kem, lib.XChaCha20Cipher);
@@ -56,7 +56,7 @@ test.describe('KyberSuite — e2e (MlKem768 + XChaCha20)', () => {
 			const { sha2Wasm }    = await import(`${base}/dist/sha2/embedded.js`);
 			const { sha3Wasm }    = await import(`${base}/dist/sha3/embedded.js`);
 			const { kyberWasm }   = await import(`${base}/dist/kyber/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm, kyber: kyberWasm });
 			const kem = new lib.MlKem768();
 			const suite = lib.KyberSuite(kem, lib.XChaCha20Cipher);
@@ -87,7 +87,7 @@ test.describe('KyberSuite — e2e (MlKem768 + XChaCha20)', () => {
 			const { sha2Wasm }    = await import(`${base}/dist/sha2/embedded.js`);
 			const { sha3Wasm }    = await import(`${base}/dist/sha3/embedded.js`);
 			const { kyberWasm }   = await import(`${base}/dist/kyber/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm, kyber: kyberWasm });
 			const kem = new lib.MlKem768();
 			const suite = lib.KyberSuite(kem, lib.XChaCha20Cipher);

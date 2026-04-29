@@ -33,7 +33,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pool = await lib.SealStreamPool.create(lib.XChaCha20Cipher, key, {
@@ -54,7 +54,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pool = await lib.SealStreamPool.create(lib.SerpentCipher, key, {
@@ -77,7 +77,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pool = await lib.SealStreamPool.create(lib.XChaCha20Cipher, key, {
@@ -100,7 +100,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const pool = await lib.SealStreamPool.create(lib.XChaCha20Cipher, key, {
@@ -121,7 +121,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const poolA = await lib.SealStreamPool.create(lib.XChaCha20Cipher, key, {
@@ -146,7 +146,7 @@ test.describe('SealStreamPool — e2e', () => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
-			lib._resetForTesting();
+			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 			const key = lib.randomBytes(32);
 			const poolA = await lib.SealStreamPool.create(lib.SerpentCipher, key, {
@@ -164,5 +164,44 @@ test.describe('SealStreamPool — e2e', () => {
 				&& (dec as Uint8Array).every((b: number, i: number) => b === pt[i]);
 		}, BASE);
 		expect(result).toBe(true);
+	});
+
+	// Tampering the ciphertext triggers a real worker-side auth failure;
+	// the pool must transition to terminal 'dead' state so a subsequent
+	// seal() throws — exercises real Worker error propagation that the
+	// unit tests mock.
+	test('tampered ciphertext puts the pool in dead state', async ({ page }) => {
+		const result = await page.evaluate(async (base) => {
+			const lib = await import(`${base}/dist/index.js`);
+			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
+			const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);
+			(await import(`${base}/dist/init.js`))._resetForTesting();
+			await lib.init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
+			const key = lib.randomBytes(32);
+			const pool = await lib.SealStreamPool.create(lib.XChaCha20Cipher, key, {
+				wasm: chacha20Wasm, workers: 2, chunkSize: 1024,
+			});
+			const pt = lib.randomBytes(4096) as Uint8Array;
+			const ct = await pool.seal(pt) as Uint8Array;
+			// Flip a byte well inside the first chunk's encrypted body.
+			// Preamble = 20 bytes; index 50 lands in chunk-1 ciphertext.
+			ct[50] ^= 0xff;
+			let openErr = '';
+			try {
+				await pool.open(ct);
+			} catch (e) {
+				openErr = (e as Error).message;
+			}
+			let sealErr = '';
+			try {
+				await pool.seal(lib.randomBytes(16));
+			} catch (e) {
+				sealErr = (e as Error).message;
+			}
+			pool.destroy(); // no-op on dead pool — must not throw
+			return { openThrew: openErr.length > 0, sealMsg: sealErr };
+		}, BASE);
+		expect(result.openThrew).toBe(true);
+		expect(result.sealMsg).toMatch(/pool is dead/);
 	});
 });

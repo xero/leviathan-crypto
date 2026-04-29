@@ -26,11 +26,15 @@
 
 // ── Encoding ─────────────────────────────────────────────────────────────────
 
-/** Hex string to Uint8Array. Accepts lowercase/uppercase, optional 0x prefix. Throws RangeError on odd-length input. */
+/** Hex string to Uint8Array. Accepts lowercase/uppercase, optional 0x prefix. Throws RangeError on odd-length or non-hex input. */
 export const hexToBytes = (hex: string): Uint8Array => {
 	if (hex.startsWith('0x') || hex.startsWith('0X')) hex = hex.slice(2);
 	if (hex.length % 2)
 		throw new RangeError(`hexToBytes: odd-length string (${hex.length} chars) — input must be an even-length hex string`);
+	// parseInt('0g', 16) returns 0 (not NaN) because it stops at the first
+	// invalid char — silent wrong-answer. Reject non-hex chars up front.
+	if (hex.length > 0 && !/^[0-9a-fA-F]*$/.test(hex))
+		throw new RangeError('hexToBytes: input contains non-hex characters');
 	const bin = new Uint8Array(hex.length >>> 1);
 	for (let i = 0, len = hex.length >>> 1; i < len; i++)
 		bin[i] = parseInt(hex.slice(i << 1, (i << 1) + 2), 16);
@@ -56,16 +60,16 @@ export const bytesToUtf8 = (bytes: Uint8Array): string => {
 	return new TextDecoder().decode(bytes);
 };
 
-/** Base64 or base64url string to Uint8Array. Handles padded, unpadded, and legacy %3d padding. Returns undefined on invalid input. */
-export const base64ToBytes = (b64: string): Uint8Array | undefined => {
+/** Base64 or base64url string to Uint8Array. Handles padded, unpadded, and legacy %3d padding. Throws RangeError on invalid input. */
+export const base64ToBytes = (b64: string): Uint8Array => {
 	// Normalise base64url → base64
 	b64 = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/%3d/gi, '=');
 	// Re-pad if unpadded (RFC 4648 §5 base64url omits '=')
 	const rem = b64.length % 4;
-	if (rem === 1) return undefined; // always invalid — no valid b64 produces this
+	if (rem === 1) throw new RangeError('base64ToBytes: invalid base64 input'); // no valid b64 produces this
 	if (rem === 2) b64 += '==';
 	if (rem === 3) b64 += '=';
-	if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) return undefined;
+	if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) throw new RangeError('base64ToBytes: invalid base64 input');
 
 	let strlen = b64.length / 4 * 3;
 	if (b64.charAt(b64.length - 1) === '=') strlen--;
@@ -75,7 +79,7 @@ export const base64ToBytes = (b64: string): Uint8Array | undefined => {
 		try {
 			return new Uint8Array(atob(b64).split('').map(c => c.charCodeAt(0)));
 		} catch {
-			return undefined;
+			throw new RangeError('base64ToBytes: invalid base64 input');
 		}
 	}
 
@@ -137,6 +141,7 @@ import { CT_WASM } from './ct-wasm.js';
 let _ctCompare: ((a: number, b: number, len: number) => number) | null = null;
 let _ctMem: WebAssembly.Memory | null = null;
 let _ctInit = false;
+let _ctInitError: Error | null = null;
 
 // CT WASM module uses 1 page (64KB) of linear memory with both buffers
 // laid out side-by-side: a at offset 0, b at offset a.length.
@@ -144,50 +149,84 @@ let _ctInit = false;
 // In practice the largest comparison is a 32-byte HMAC-SHA-256 tag.
 export const CT_MAX_BYTES = 32768;
 
-/** Try to compile the SIMD WASM ct module. Returns false if unavailable. */
-function _initCt(): boolean {
-	if (_ctInit) return _ctCompare !== null;
+/**
+ * Compile and instantiate the SIMD WASM ct module. On failure, caches the
+ * branded error and re-throws on every subsequent call; no retries, no
+ * fallback. Throws on runtimes without WebAssembly SIMD and on any
+ * instantiation error.
+ */
+function _initCt(): void {
+	if (_ctInit) {
+		if (_ctInitError) throw _ctInitError;
+		return;
+	}
 	_ctInit = true;
+	if (!hasSIMD()) {
+		_ctInitError = new Error(
+			'leviathan-crypto: constantTimeEqual requires WebAssembly SIMD — '
+			+ 'this runtime does not support it',
+		);
+		throw _ctInitError;
+	}
 	try {
-		if (!hasSIMD()) return false;
-		_ctMem = new WebAssembly.Memory({ initial: 1, maximum: 1 });
 		const buf = CT_WASM.buffer.slice(CT_WASM.byteOffset, CT_WASM.byteOffset + CT_WASM.byteLength);
 		const mod = new WebAssembly.Module(buf as ArrayBuffer);
-		const inst = new WebAssembly.Instance(mod, { env: { memory: _ctMem } });
-		_ctCompare = (inst.exports as { compare(a: number, b: number, len: number): number }).compare;
-		return true;
-	} catch {
-		return false;
+		const inst = new WebAssembly.Instance(mod);
+		const exports = inst.exports as {
+			memory:  WebAssembly.Memory;
+			compare: (a: number, b: number, len: number) => number;
+		};
+		_ctMem     = exports.memory;
+		_ctCompare = exports.compare;
+	} catch (cause) {
+		_ctInitError = new Error(
+			`leviathan-crypto: ct WASM module failed to instantiate: ${(cause as Error).message}`,
+		);
+		throw _ctInitError;
 	}
 }
 
 /**
  * Constant-time byte-array equality.
- * Uses WASM SIMD when available (no JIT short-circuiting, no speculative
- * optimization). Falls back to a JS XOR-accumulate loop on runtimes
- * without SIMD support.
- * Length check is not constant-time (length is non-secret in all protocols).
- * Max input size: 32768 bytes per side (enforced regardless of code path).
+ * Runs entirely inside a WASM SIMD module (v128 XOR accumulate with
+ * branch-free reduction). Throws on runtimes without SIMD support —
+ * no JS fallback. Length check is not constant-time (length is
+ * non-secret in all protocols). Max input size: 32768 bytes per side.
  */
 export const constantTimeEqual = (a: Uint8Array, b: Uint8Array): boolean => {
 	if (a.length !== b.length) return false;
 	if (a.length > CT_MAX_BYTES)
 		throw new RangeError(`constantTimeEqual: max ${CT_MAX_BYTES} bytes (got ${a.length})`);
-	if (_initCt() && _ctMem && _ctCompare) {
-		const mem = new Uint8Array(_ctMem.buffer);
-		mem.set(a, 0);
-		mem.set(b, a.length);
-		try {
-			return _ctCompare(0, a.length, a.length) === 1;
-		} finally {
-			mem.fill(0, 0, a.length * 2);
-		}
+	_initCt();
+	// Copy module-level refs to locals. _initCt() either populates both
+	// _ctMem and _ctCompare or throws; the null check below is a defensive
+	// invariant guard that is unreachable on a correctly-initialized module.
+	const memObj  = _ctMem;
+	const compare = _ctCompare;
+	if (!memObj || !compare)
+		throw new Error('leviathan-crypto: ct init invariant violated');
+	const mem = new Uint8Array(memObj.buffer);
+	mem.set(a, 0);
+	mem.set(b, a.length);
+	try {
+		return compare(0, a.length, a.length) === 1;
+	} finally {
+		mem.fill(0, 0, a.length * 2);
 	}
-	// JS fallback — best-effort constant-time via XOR accumulate
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-	return diff === 0;
 };
+
+/**
+ * Reset the internal CT WASM cache, including any cached initialization
+ * error. Exists so the test suite can force re-instantiation across
+ * describe blocks.
+ * @internal
+ */
+export function _ctResetForTesting(): void {
+	_ctInit = false;
+	_ctCompare = null;
+	_ctMem = null;
+	_ctInitError = null;
+}
 
 /** Zero a typed array in place. */
 export const wipe = (data: Uint8Array | Uint16Array | Uint32Array): void => {
@@ -214,8 +253,14 @@ export const concat = (...arrays: Uint8Array[]): Uint8Array => {
 
 /** Cryptographically secure random bytes via Web Crypto API. */
 export const randomBytes = (n: number): Uint8Array => {
+	if (typeof globalThis.crypto === 'undefined'
+		|| typeof globalThis.crypto.getRandomValues !== 'function')
+		throw new Error(
+			'leviathan-crypto: crypto.getRandomValues is required — '
+			+ 'this runtime does not expose the Web Crypto API',
+		);
 	const buf = new Uint8Array(n);
-	crypto.getRandomValues(buf);
+	globalThis.crypto.getRandomValues(buf);
 	return buf;
 };
 

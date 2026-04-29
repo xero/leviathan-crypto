@@ -17,6 +17,7 @@ export default defineConfig([
       "vitest.config.ts",
       "eslint.config.ts",
       "playwright.config.ts",
+      "tasks/**",
     ],
   },
   eslint.configs.recommended,

@@ -22,12 +22,11 @@
 // src/ts/fortuna.ts
 //
 // Fortuna CSPRNG — Ferguson & Schneier, Practical Cryptography (2003), Chapter 9.
-// Backed by WASM Serpent-256 ECB (generator) and WASM SHA-256 (accumulator pools).
-// Requires init({ serpent: ..., sha2: ... }) before Fortuna.create().
+// Backed by a pluggable Generator (cipher PRF) and HashFn (accumulator hash).
+// Requires init() for the modules used by the chosen generator and hash pair.
 
-import { isInitialized } from './init.js';
-import { Serpent } from './serpent/index.js';
-import { SHA256 } from './sha2/index.js';
+import { isInitialized, getInstance } from './init.js';
+import type { Generator, HashFn } from './types.js';
 import { wipe, utf8ToBytes, concat } from './utils.js';
 
 const isBrowser = typeof window !== 'undefined';
@@ -36,7 +35,7 @@ const isNode = typeof process !== 'undefined' && typeof process.pid === 'number'
 /**
  * Fortuna CSPRNG — spec §9.3–§9.5
  *
- * Use `Fortuna.create()` to instantiate. Direct construction is not allowed.
+ * Use `Fortuna.create({ generator, hash })` to instantiate. Direct construction is not allowed.
  */
 export class Fortuna {
 	// ── Constants ──────────────────────────────────────────────────────────
@@ -47,9 +46,9 @@ export class Fortuna {
 	private static readonly CRYPTO_INTERVAL = 3000;     // ms — crypto.randomBytes interval
 
 	// ── State ─────────────────────────────────────────────────────────────
-	private serpent: Serpent;
-	private sha: SHA256;
-	private poolHash: Uint8Array[];       // 32 running SHA-256 chain hashes (32 bytes each)
+	private gen: Generator;
+	private hash: HashFn;
+	private poolHash: Uint8Array[];       // 32 running hash chain values
 	private poolEntropy: number[];
 	private genKey: Uint8Array;
 	private genCnt: Uint8Array;
@@ -68,14 +67,32 @@ export class Fortuna {
 
 	// ── Static factory ────────────────────────────────────────────────────
 
-	static async create(opts?: { msPerReseed?: number; entropy?: Uint8Array }): Promise<Fortuna> {
-		if (!isInitialized('serpent'))
-			throw new Error('leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using Fortuna');
-		if (!isInitialized('sha2'))
-			throw new Error('leviathan-crypto: call init({ serpent: ..., sha2: ... }) before using Fortuna');
+	static async create(opts: {
+		generator: Generator;
+		hash: HashFn;
+		msPerReseed?: number;
+		entropy?: Uint8Array;
+	}): Promise<Fortuna> {
+		if (!opts || !opts.generator || !opts.hash)
+			throw new TypeError(
+				'leviathan-crypto: Fortuna.create() requires { generator, hash }',
+			);
+		if (opts.hash.outputSize !== opts.generator.keySize)
+			throw new RangeError(
+				`leviathan-crypto: Fortuna requires hash.outputSize (${opts.hash.outputSize}) `
+				+ `to match generator.keySize (${opts.generator.keySize})`,
+			);
 
-		const f = new Fortuna(opts?.msPerReseed ?? Fortuna.MS_PER_RESEED);
-		f.initialize(opts?.entropy);
+		const required = new Set<string>([...opts.generator.wasmModules, ...opts.hash.wasmModules]);
+		for (const mod of required) {
+			if (!isInitialized(mod as never)) {
+				const args = [...required].map(m => `${m}: ...`).join(', ');
+				throw new Error(`leviathan-crypto: call init({ ${args} }) before using Fortuna`);
+			}
+		}
+
+		const f = new Fortuna(opts.generator, opts.hash, opts.msPerReseed ?? Fortuna.MS_PER_RESEED);
+		f.initialize(opts.entropy);
 		// Force the first reseed — pool[0] is saturated by initialize(),
 		// so this call triggers an immediate reseed and guarantees get() never
 		// returns undefined. The byte is discarded.
@@ -83,13 +100,13 @@ export class Fortuna {
 		return f;
 	}
 
-	private constructor(msPerReseed: number) {
-		this.serpent = new Serpent();
-		this.sha = new SHA256();
+	private constructor(gen: Generator, hash: HashFn, msPerReseed: number) {
+		this.gen  = gen;
+		this.hash = hash;
 		this.poolHash = [];
 		this.poolEntropy = [];
-		this.genKey = new Uint8Array(32);
-		this.genCnt = new Uint8Array(16);
+		this.genKey = new Uint8Array(gen.keySize);
+		this.genCnt = new Uint8Array(gen.counterSize);
 		this.reseedCnt = 0;
 		this.lastReseed = 0;
 		this.entropyLevel = 0;
@@ -100,7 +117,7 @@ export class Fortuna {
 		this.robin = { kbd: 0, mouse: 0, scroll: 0, touch: 0, motion: 0, time: 0, rnd: 0, dom: 0 };
 
 		for (let i = 0; i < Fortuna.NUM_POOLS; i++) {
-			this.poolHash.push(new Uint8Array(32)); // zero-initialized chain value
+			this.poolHash.push(new Uint8Array(hash.outputSize)); // zero-initialized chain value
 			this.poolEntropy.push(0);
 		}
 	}
@@ -121,17 +138,23 @@ export class Fortuna {
 			let seed: Uint8Array = new Uint8Array(0);
 			let strength = 0;
 			for (let i = 0; i < Fortuna.NUM_POOLS; i++) {
-				if ((this.reseedCnt & (1 << i)) !== 0) {
+				// Practical Cryptography (Ferguson & Schneier, 2003) §9.5.5:
+				// pool P_i is used in reseed r iff 2^i divides r.
+				if ((this.reseedCnt & ((1 << i) - 1)) === 0) {
 					// Pool digest = current chain hash
 					seed = concat(seed, this.poolHash[i]);
 					strength += this.poolEntropy[i];
-					// Reset pool
-					this.poolHash[i] = new Uint8Array(32);
+					// Reset pool — wipe old chain hash before dropping the reference.
+					const old = this.poolHash[i];
+					this.poolHash[i] = new Uint8Array(this.hash.outputSize);
+					wipe(old);
 					this.poolEntropy[i] = 0;
 				}
 			}
 			this.entropyLevel -= strength;
 			this.reseed(seed);
+			// seed is built from concatenated pool-hash copies; wipe the temp.
+			wipe(seed);
 		}
 
 		return this.pseudoRandomData(length);
@@ -153,11 +176,30 @@ export class Fortuna {
 	/** Permanently dispose this instance. Wipes key material, stops all collectors. */
 	stop(): void {
 		if (this.disposed) throw new Error('Fortuna instance has been disposed');
+		// Mark disposed FIRST. WASM wipeBuffers can throw if a stateful instance
+		// holds the module; we must not allow get()/addEntropy()/getEntropy() to
+		// run on a partially-disposed instance.
+		this.disposed = true;
 		this.stopCollectors();
 		wipe(this.genKey);
 		wipe(this.genCnt);
+		// Wipe all 32 pool-hash chain values so residual entropy-bearing
+		// bytes do not outlive the instance.
+		for (const p of this.poolHash) wipe(p);
 		this.reseedCnt = 0;
-		this.disposed = true;
+		// Best-effort wipe of WASM scratch buffers for every module the chosen
+		// generator and hash touched. Surface the first error so the caller
+		// knows the WASM scratch leak occurred.
+		const required = new Set<string>([...this.gen.wasmModules, ...this.hash.wasmModules]);
+		let err: unknown;
+		for (const mod of required) {
+			try {
+				(getInstance(mod as never).exports as { wipeBuffers(): void }).wipeBuffers();
+			} catch (e) {
+				err ??= e;
+			}
+		}
+		if (err) throw err;
 	}
 
 	// ── Test-only accessors ───────────────────────────────────────────────
@@ -177,52 +219,106 @@ export class Fortuna {
 		return this.reseedCnt;
 	}
 
-	// ── Generator (spec §9.4) ─────────────────────────────────────────────
-
-	/** Generate n blocks of 16 bytes each. — spec §9.4 */
-	private generateBlocks(n: number): Uint8Array {
-		const out = new Uint8Array(n * 16);
-		for (let i = 0; i < n; i++) {
-			// Encrypt genCnt with Serpent-256 ECB
-			this.serpent.loadKey(this.genKey);
-			out.set(this.serpent.encryptBlock(this.genCnt), i * 16);
-			this.incrementCounter();
-		}
-		return out;
+	/** @internal — exposed for testing pool-hash backing arrays */
+	_getPoolHash(): Uint8Array[] {
+		return this.poolHash;
 	}
+
+	/**
+	 * @internal — test-only deterministic factory. Seeds pool[0] with the provided
+	 * entropy and triggers one reseed directly, bypassing all OS entropy collection
+	 * and the hrtime jitter capture in get(). This makes KAT vectors reproducible
+	 * across runs. Not suitable for production use.
+	 */
+	static async _createDeterministicForTesting(opts: {
+		generator: Generator;
+		hash: HashFn;
+		entropy: Uint8Array;
+	}): Promise<Fortuna> {
+		if (!opts || !opts.generator || !opts.hash)
+			throw new TypeError('Fortuna._createDeterministicForTesting() requires { generator, hash, entropy }');
+		if (opts.hash.outputSize !== opts.generator.keySize)
+			throw new RangeError(
+				`leviathan-crypto: Fortuna requires hash.outputSize (${opts.hash.outputSize}) `
+				+ `to match generator.keySize (${opts.generator.keySize})`,
+			);
+		const required = new Set<string>([...opts.generator.wasmModules, ...opts.hash.wasmModules]);
+		for (const mod of required) {
+			if (!isInitialized(mod as never)) {
+				const args = [...required].map(m => `${m}: ...`).join(', ');
+				throw new Error(`leviathan-crypto: call init({ ${args} }) before using Fortuna`);
+			}
+		}
+		const f = new Fortuna(opts.generator, opts.hash, 0);
+		// Seed pool[0] with the provided entropy, no OS collection.
+		f.addRandomEvent(opts.entropy, 0, opts.entropy.length * 8);
+		// Manually trigger reseed #1 without calling get() — get() calls captureHrtime()
+		// in Node.js which adds non-deterministic data before the reseed fires.
+		f.reseedFromPool0();
+		return f;
+	}
+
+	// ── Generator (spec §9.4) ─────────────────────────────────────────────
 
 	/** Get length pseudo-random bytes. — spec §9.4 */
 	private pseudoRandomData(length: number): Uint8Array {
-		// Generate ceil(length/16) blocks — spec §9.4
-		const blocks = Math.ceil(length / 16);
-		const raw = this.generateBlocks(blocks);
-		const output = raw.slice(0, length);
+		const blocks = Math.ceil(length / this.gen.blockSize);
+		const out = this.gen.generate(this.genKey, this.genCnt, length);
+		// External counter advance — generator is stateless and does not mutate caller's counter
+		for (let i = 0; i < blocks; i++) this.incrementCounter();
 
-		// Key replacement — mandatory forward secrecy (spec §9.4)
-		this.genKey = this.generateBlocks(2);
-		return output;
+		// Key replacement — mandatory forward secrecy (spec §9.4).
+		// Wipe the prior key BEFORE dropping its reference so no key bytes are
+		// reachable after key replacement; anyone holding a Uint8Array view to
+		// the old key now observes zero.
+		const newKey = this.gen.generate(this.genKey, this.genCnt, this.gen.keySize);
+		for (let i = 0; i < Math.ceil(this.gen.keySize / this.gen.blockSize); i++) this.incrementCounter();
+		wipe(this.genKey);
+		this.genKey = newKey;
+		return out;
 	}
 
 	/** Reseed the generator — spec §9.4 */
 	private reseed(seed: Uint8Array): void {
-		// genKey = SHA256(genKey ‖ seed)
-		this.genKey = this.sha.hash(concat(this.genKey, seed));
+		// genKey = hash(genKey ‖ seed). Wipe both the hash input and the
+		// prior key before dropping references.
+		const combined = concat(this.genKey, seed);
+		const newKey = this.hash.digest(combined);
+		wipe(combined);
+		wipe(this.genKey);
+		this.genKey = newKey;
 
 		// Increment counter — makes it nonzero on first reseed, marking generator as seeded
 		this.incrementCounter();
 		this.lastReseed = Date.now();
 	}
 
-	/** Increment 16-byte little-endian counter. — spec §9.4 */
+	/** Drain pool 0 into a fresh seed and reseed. Used by the deterministic
+	 *  test factory; production reseeds in get() walk the §9.5.5 schedule
+	 *  across all pools, not just pool 0. Caller is responsible for any
+	 *  entropy-threshold check. */
+	private reseedFromPool0(): void {
+		this.reseedCnt = (this.reseedCnt + 1) >>> 0;
+		const seed = this.poolHash[0].slice();
+		const old = this.poolHash[0];
+		this.poolHash[0] = new Uint8Array(this.hash.outputSize);
+		wipe(old);
+		this.entropyLevel -= this.poolEntropy[0];
+		this.poolEntropy[0] = 0;
+		this.reseed(seed);
+		wipe(seed);
+	}
+
+	/** Increment little-endian counter. — spec §9.4 */
 	private incrementCounter(): void {
-		for (let i = 0; i < 16; i++) {
+		for (let i = 0; i < this.genCnt.length; i++) {
 			if (++this.genCnt[i] !== 0) break;
 		}
 	}
 
 	// ── Accumulator (spec §9.5) ───────────────────────────────────────────
 
-	/** Add an event to a pool via hash chaining: poolHash[i] = SHA256(poolHash[i] ‖ eventId ‖ data). */
+	/** Add an event to a pool via hash chaining: poolHash[i] = hash(poolHash[i] ‖ eventId ‖ data). */
 	private addRandomEvent(data: Uint8Array, poolIdx: number, entropyBits: number): void {
 		// Encode eventId as 4 bytes little-endian
 		const id = new Uint8Array(4);
@@ -232,8 +328,13 @@ export class Fortuna {
 		id[3] = (this.eventId >>> 24) & 0xff;
 		this.eventId = (this.eventId + 1) >>> 0; // u32 wrap
 
-		// Chain: poolHash[i] = SHA256(poolHash[i] ‖ id ‖ data)
-		this.poolHash[poolIdx] = this.sha.hash(concat(this.poolHash[poolIdx], id, data));
+		// Chain: poolHash[i] = hash(poolHash[i] ‖ id ‖ data).
+		// Wipe the chain input and the prior chain value before dropping refs.
+		const combined = concat(this.poolHash[poolIdx], id, data);
+		const newChain = this.hash.digest(combined);
+		wipe(combined);
+		wipe(this.poolHash[poolIdx]);
+		this.poolHash[poolIdx] = newChain;
 
 		this.poolEntropy[poolIdx] += entropyBits;
 		this.entropyLevel += entropyBits;
@@ -258,6 +359,16 @@ export class Fortuna {
 			this.addRandomEvent(entropy, this.robin.rnd, entropy.length * 8);
 			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 		}
+
+		// F-2 invariant: fail loudly if no OS entropy source delivered anything.
+		// The try/catch in collectorCryptoRandom is preserved to protect against
+		// platforms where crypto.getRandomValues itself throws (non-standard
+		// runtimes). This post-init check covers all silent-failure paths uniformly.
+		if (this.poolEntropy[0] < Fortuna.RESEED_LIMIT)
+			throw new Error(
+				'leviathan-crypto: Fortuna initialization could not gather sufficient entropy. '
+				+ 'No working crypto.getRandomValues or node:crypto in this environment.',
+			);
 
 		this.startCollectors();
 	}
@@ -401,7 +512,7 @@ export class Fortuna {
 
 	private collectorDom(): void {
 		if (typeof document !== 'undefined' && document.documentElement) {
-			this.addRandomEvent(this.sha.hash(utf8ToBytes(document.documentElement.innerHTML)), this.robin.dom, 2);
+			this.addRandomEvent(this.hash.digest(utf8ToBytes(document.documentElement.innerHTML)), this.robin.dom, 2);
 			this.robin.dom = (this.robin.dom + 1) % Fortuna.NUM_POOLS;
 		}
 	}

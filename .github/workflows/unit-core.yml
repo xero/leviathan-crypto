@@ -15,13 +15,24 @@ jobs:
           bun-version: 'latest'
       - name: install dependencies
         run: bun i
-      - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed
+      - name: build wasm + embedded modules + ts declarations
+        run: bun run build:asm && bun run build:embed && bun run build:embed-workers && bun run build:ts
       - name: run core unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
           test/unit/init.test.ts
+          test/unit/init/exclusivity.test.ts
+          test/unit/init/init-race.test.ts
+          test/unit/init/atomic-defense.test.ts
+          test/unit/init/internal-api-stripped.test.ts
           test/unit/errors.test.ts
           test/unit/utils.test.ts
+          test/unit/ct/compare-branch-free.test.ts
+          test/unit/ct/module-shape.test.ts
           test/unit/fortuna.test.ts
+          test/unit/fortuna/wipe-lifecycle.test.ts
+          test/unit/fortuna/spec-conformance.test.ts
+          test/unit/fortuna/pluggable-primitives.test.ts
+          test/unit/fortuna/generator-hash-wipe.test.ts
           test/unit/loader/wasm_source.test.ts
+          test/unit/loader/thenable-dispatch.test.ts

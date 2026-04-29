@@ -14,6 +14,7 @@
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
 > - [Fortuna CSPRNG](#fortuna-csprng)
+> - [Ratchet (Sparse Post-Quantum Ratchet KDF)](#ratchet-sparse-post-quantum-ratchet-kdf)
 > - [Types](#types)
 > - [Utilities](#utilities)
 
@@ -191,11 +192,41 @@ Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
 
 ## Fortuna CSPRNG
 
-Requires `init({ serpent: serpentWasm, sha2: sha2Wasm })`. See [fortuna.md](./fortuna.md).
+Takes a `Generator` and a `HashFn` at create time. Required `init()` modules depend on which pair you pass; valid combinations are listed in [fortuna.md](./fortuna.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `Fortuna` | class | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create()` static factory, `get(n)`, `addEntropy()`, `stop()`. |
+| `Fortuna`            | class    | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create({ generator, hash })` static factory; `get(n)`, `addEntropy()`, `stop()`. |
+| `SerpentGenerator`   | const    | `Generator` const for `Fortuna`. Serpent-256 PRF in counter mode. Requires `init({ serpent })`. Re-exported from `'leviathan-crypto/serpent'`. |
+| `ChaCha20Generator`  | const    | `Generator` const for `Fortuna`. ChaCha20 PRF with fixed zero nonce. Requires `init({ chacha20 })`. Re-exported from `'leviathan-crypto/chacha20'`. |
+| `SHA256Hash`         | const    | `HashFn` const for `Fortuna`. Stateless SHA-256. Requires `init({ sha2 })`. Re-exported from `'leviathan-crypto/sha2'`. |
+| `SHA3_256Hash`       | const    | `HashFn` const for `Fortuna`. Stateless SHA3-256. Requires `init({ sha3 })`. Re-exported from `'leviathan-crypto/sha3'`. |
+| `Generator`          | type     | Interface implemented by `SerpentGenerator` and `ChaCha20Generator`. |
+| `HashFn`             | type     | Interface implemented by `SHA256Hash` and `SHA3_256Hash`. |
+
+---
+
+## Ratchet (Sparse Post-Quantum Ratchet KDF)
+
+`ratchetInit`, `KDFChain`, `ratchetReady` require `init({ sha2: sha2Wasm })`.
+`kemRatchetEncap`, `kemRatchetDecap` additionally require `init({ kyber: kyberWasm, sha3: sha3Wasm })`.
+Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `ratchetInit` | function | `ratchetInit(sk, context?)` — derives initial root key, send chain key, and receive chain key from a 32-byte shared secret (`KDF_SCKA_INIT`). Returns `RatchetInitResult`. |
+| `KDFChain` | class | Stateful symmetric ratchet chain (`KDF_SCKA_CK`). `new KDFChain(ck)`, `step()` → 32-byte message key, `stepWithCounter()` → `{ key, counter }`, `dispose()`. |
+| `SkippedKeyStore` | class | MKSKIPPED cache for a single `KDFChain` (DR spec §3.2/§3.5). `new SkippedKeyStore({ maxCacheSize?, maxSkipPerResolve? })`. `resolve(chain, counter)` → `ResolveHandle` — call `handle.commit()` on successful decrypt, `handle.rollback()` on auth failure. `advanceToBoundary(chain, pn)`, `size`, `wipeAll()`. Requires `sha2`. |
+| `RatchetKeypair` | class | Single-use ek/dk lifecycle for one KEM ratchet step. `new RatchetKeypair(kem)`, `readonly ek`, `decap(kem, rk, kemCt, context?)`, `dispose()`. Requires `sha2`, `kyber`, `sha3`. |
+| `kemRatchetEncap` | function | `kemRatchetEncap(kem, rk, peerEk, context?)` — encapsulation side of a KEM ratchet step (`KDF_SCKA_RK`). Returns `KemEncapResult` including `kemCt` to transmit to peer. |
+| `kemRatchetDecap` | function | `kemRatchetDecap(kem, rk, dk, kemCt, ownEk, context?)` — decapsulation side of a KEM ratchet step. `ownEk` is the local party's encapsulation key, bound into the HKDF info string alongside `peerEk` and `kemCt` as defense-in-depth on top of the KEM FO transform. Returns `KemDecapResult` with chain key slots swapped to match Bob's perspective. |
+| `ratchetReady` | function | `ratchetReady(): boolean` — returns `true` if `sha2` has been initialized. |
+| `RatchetInitResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }` — all 32-byte `Uint8Array` fields. |
+| `KemEncapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey, kemCt }` — three 32-byte keys plus the ML-KEM ciphertext. |
+| `KemDecapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }` — all 32-byte `Uint8Array` fields. Slots are swapped relative to the encap side. |
+| `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }` — canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
+| `MlKemLike` | interface | Structural interface satisfied by `MlKem512`, `MlKem768`, `MlKem1024`. Used as the `kem` parameter type for `kemRatchetEncap`/`kemRatchetDecap`/`RatchetKeypair`. |
+| `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key` — 32-byte message key (throws after settlement). `commit()` — wipes key, marks settled (call on successful decrypt). `rollback()` — returns key to store, marks settled (call on auth failure). Double-settle throws. |
 
 ---
 
@@ -225,7 +256,7 @@ No `init()` required. See [utils.md](./utils.md).
 | `bytesToUtf8` | function | `Uint8Array` to UTF-8 string. |
 | `base64ToBytes` | function | Base64/base64url string to `Uint8Array`. Returns `undefined` on invalid input. |
 | `bytesToBase64` | function | `Uint8Array` to base64 string. Pass `url=true` for base64url. |
-| `constantTimeEqual` | function | Best-available constant-time byte-array equality. Uses WASM SIMD when available to eliminate JIT timing leaks; falls back to XOR-accumulate in JS. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CT_MAX_BYTES`. |
+| `constantTimeEqual` | function | Constant-time byte-array equality. Runs entirely inside a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction) to eliminate JIT timing leaks. Throws a branded error on runtimes without WebAssembly SIMD; no JS fallback. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CT_MAX_BYTES`. |
 | `CT_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes, one 64 KiB WASM page split between two buffers). |
 | `wipe` | function | Zero a typed array in place. |
 | `xor` | function | XOR two equal-length `Uint8Array`s, returns new array. |
@@ -235,7 +266,11 @@ No `init()` required. See [utils.md](./utils.md).
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+

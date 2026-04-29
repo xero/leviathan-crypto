@@ -24,7 +24,7 @@
 // Public API classes for the SHA-3 WASM module.
 // Uses the init() module cache — call sha3Init(source) before constructing.
 
-import { getInstance, initModule } from '../init.js';
+import { getInstance, initModule, _acquireModule, _releaseModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
 
 export async function sha3Init(source: WasmSource): Promise<void> {
@@ -89,6 +89,7 @@ export class SHA3_256 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha3');
 		this.x.sha3_256Init();
 		absorb(this.x, msg);
 		this.x.sha3_256Final();
@@ -97,6 +98,7 @@ export class SHA3_256 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha3');
 		this.x.wipeBuffers();
 	}
 }
@@ -110,6 +112,7 @@ export class SHA3_512 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha3');
 		this.x.sha3_512Init();
 		absorb(this.x, msg);
 		this.x.sha3_512Final();
@@ -118,6 +121,7 @@ export class SHA3_512 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha3');
 		this.x.wipeBuffers();
 	}
 }
@@ -131,6 +135,7 @@ export class SHA3_384 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha3');
 		this.x.sha3_384Init();
 		absorb(this.x, msg);
 		this.x.sha3_384Final();
@@ -139,6 +144,7 @@ export class SHA3_384 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha3');
 		this.x.wipeBuffers();
 	}
 }
@@ -152,6 +158,7 @@ export class SHA3_224 {
 	}
 
 	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha3');
 		this.x.sha3_224Init();
 		absorb(this.x, msg);
 		this.x.sha3_224Final();
@@ -160,26 +167,43 @@ export class SHA3_224 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('sha3');
 		this.x.wipeBuffers();
 	}
 }
 
 // ── SHAKE128 ────────────────────────────────────────────────────────────────
 
-/** SHAKE128 XOF — extendable output, multi-squeeze capable. */
+/**
+ * SHAKE128 XOF — extendable output, multi-squeeze capable.
+ *
+ * Holds exclusive access to the `sha3` WASM module from construction until
+ * `dispose()`. Constructing a second SHAKE128/SHAKE256 or any other sha3
+ * user while this instance is live throws. Call `dispose()` when done.
+ */
 export class SHAKE128 {
 	private readonly x: Sha3Exports;
 	private readonly _rate = 168;
 	private _squeezing = false;
 	private _block = new Uint8Array(168);
 	private _blockPos = 168;
+	private _tok: symbol | undefined;
 
 	constructor() {
 		this.x = getExports();
-		this.x.shake128Init();
+		this._tok = _acquireModule('sha3');
+		try {
+			this.x.shake128Init();
+		} catch (e) {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+			throw e;
+		}
 	}
 
 	reset(): this {
+		if (this._tok === undefined)
+			throw new Error('SHAKE128: instance has been disposed');
 		this.x.shake128Init();
 		this._squeezing = false;
 		this._block.fill(0);
@@ -188,6 +212,8 @@ export class SHAKE128 {
 	}
 
 	absorb(msg: Uint8Array): this {
+		if (this._tok === undefined)
+			throw new Error('SHAKE128: instance has been disposed');
 		if (this._squeezing)
 			throw new Error(
 				'SHAKE128: cannot absorb after squeeze — call reset() first'
@@ -197,6 +223,8 @@ export class SHAKE128 {
 	}
 
 	squeeze(n: number): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SHAKE128: instance has been disposed');
 		if (n < 1) throw new RangeError(`squeeze length must be >= 1 (got ${n})`);
 
 		if (!this._squeezing) {
@@ -226,6 +254,8 @@ export class SHAKE128 {
 	}
 
 	hash(msg: Uint8Array, outputLength: number): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SHAKE128: instance has been disposed');
 		if (outputLength < 1)
 			throw new RangeError(`outputLength must be >= 1 (got ${outputLength})`);
 		this.reset();
@@ -234,27 +264,49 @@ export class SHAKE128 {
 	}
 
 	dispose(): void {
+		if (this._tok === undefined) return;
 		this._block.fill(0);
-		this.x.wipeBuffers();
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+		}
 	}
 }
 
 // ── SHAKE256 ────────────────────────────────────────────────────────────────
 
-/** SHAKE256 XOF — extendable output, multi-squeeze capable. */
+/**
+ * SHAKE256 XOF — extendable output, multi-squeeze capable.
+ *
+ * Holds exclusive access to the `sha3` WASM module from construction until
+ * `dispose()`. Constructing a second SHAKE128/SHAKE256 or any other sha3
+ * user while this instance is live throws. Call `dispose()` when done.
+ */
 export class SHAKE256 {
 	private readonly x: Sha3Exports;
 	private readonly _rate = 136;
 	private _squeezing = false;
 	private _block = new Uint8Array(136);
 	private _blockPos = 136;
+	private _tok: symbol | undefined;
 
 	constructor() {
 		this.x = getExports();
-		this.x.shake256Init();
+		this._tok = _acquireModule('sha3');
+		try {
+			this.x.shake256Init();
+		} catch (e) {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+			throw e;
+		}
 	}
 
 	reset(): this {
+		if (this._tok === undefined)
+			throw new Error('SHAKE256: instance has been disposed');
 		this.x.shake256Init();
 		this._squeezing = false;
 		this._block.fill(0);
@@ -263,6 +315,8 @@ export class SHAKE256 {
 	}
 
 	absorb(msg: Uint8Array): this {
+		if (this._tok === undefined)
+			throw new Error('SHAKE256: instance has been disposed');
 		if (this._squeezing)
 			throw new Error(
 				'SHAKE256: cannot absorb after squeeze — call reset() first'
@@ -272,6 +326,8 @@ export class SHAKE256 {
 	}
 
 	squeeze(n: number): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SHAKE256: instance has been disposed');
 		if (n < 1) throw new RangeError(`squeeze length must be >= 1 (got ${n})`);
 
 		if (!this._squeezing) {
@@ -301,6 +357,8 @@ export class SHAKE256 {
 	}
 
 	hash(msg: Uint8Array, outputLength: number): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SHAKE256: instance has been disposed');
 		if (outputLength < 1)
 			throw new RangeError(`outputLength must be >= 1 (got ${outputLength})`);
 		this.reset();
@@ -309,7 +367,17 @@ export class SHAKE256 {
 	}
 
 	dispose(): void {
+		if (this._tok === undefined) return;
 		this._block.fill(0);
-		this.x.wipeBuffers();
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+		}
 	}
 }
+
+// ── SHA3_256Hash ─────────────────────────────────────────────────────────────
+
+export { SHA3_256Hash } from './hash.js';

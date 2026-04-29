@@ -24,7 +24,7 @@
 // Public API classes for the ChaCha20 WASM module.
 // Uses the init() module cache — call chacha20Init(source) before constructing.
 
-import { getInstance, initModule } from '../init.js';
+import { getInstance, initModule, _acquireModule, _releaseModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
 import type { ChaChaExports } from './types.js';
 import { aeadEncrypt, aeadDecrypt, xcEncrypt, xcDecrypt } from './ops.js';
@@ -44,14 +44,25 @@ function getExports(): ChaChaExports {
 
 // ── ChaCha20 ──────────────────────────────────────────────────────────────────
 
+/**
+ * Raw ChaCha20 stream cipher (RFC 8439 §2.4).
+ *
+ * Holds exclusive access to the `chacha20` WASM module from construction
+ * until `dispose()`. Constructing a second ChaCha20 or any other chacha20
+ * user while this instance is live throws. Call `dispose()` when done.
+ */
 export class ChaCha20 {
 	private readonly x: ChaChaExports;
+	private _tok: symbol | undefined;
 
 	constructor() {
 		this.x = getExports();
+		this._tok = _acquireModule('chacha20');
 	}
 
 	beginEncrypt(key: Uint8Array, nonce: Uint8Array): void {
+		if (this._tok === undefined)
+			throw new Error('ChaCha20: instance has been disposed');
 		if (key.length !== 32)
 			throw new RangeError(`ChaCha20 key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 12)
@@ -64,6 +75,8 @@ export class ChaCha20 {
 	}
 
 	encryptChunk(chunk: Uint8Array): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('ChaCha20: instance has been disposed');
 		const maxChunk = this.x.getChunkSize();
 		if (chunk.length > maxChunk)
 			throw new RangeError(
@@ -86,7 +99,13 @@ export class ChaCha20 {
 	}
 
 	dispose(): void {
-		this.x.wipeBuffers();
+		if (this._tok === undefined) return;
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('chacha20', this._tok);
+			this._tok = undefined;
+		}
 	}
 }
 
@@ -100,6 +119,7 @@ export class Poly1305 {
 	}
 
 	mac(key: Uint8Array, msg: Uint8Array): Uint8Array {
+		_assertNotOwned('chacha20');
 		if (key.length !== 32)
 			throw new RangeError(`Poly1305 key must be 32 bytes (got ${key.length})`);
 		const mem    = new Uint8Array(this.x.memory.buffer);
@@ -123,6 +143,7 @@ export class Poly1305 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('chacha20');
 		this.x.wipeBuffers();
 	}
 }
@@ -160,12 +181,15 @@ export class ChaCha20Poly1305 {
 				'leviathan-crypto: encrypt() already called on this instance. '
 				+ 'Create a new instance for each encryption to prevent nonce reuse.',
 			);
+		// Strict single-use: lock FIRST, before anything else. Any subsequent
+		// throw — including validation errors — terminates the instance.
+		this._used = true;
+		_assertNotOwned('chacha20');
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 12)
 			throw new RangeError(`nonce must be 12 bytes (got ${nonce.length})`);
 		const { ciphertext, tag } = aeadEncrypt(this.x, key, nonce, plaintext, aad);
-		this._used = true;
 		const out = new Uint8Array(ciphertext.length + 16);
 		out.set(ciphertext);
 		out.set(tag, ciphertext.length);
@@ -178,6 +202,7 @@ export class ChaCha20Poly1305 {
 		ciphertext: Uint8Array,   // ciphertext || tag(16) combined
 		aad:        Uint8Array = new Uint8Array(0),
 	): Uint8Array {
+		_assertNotOwned('chacha20');
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 12)
@@ -190,6 +215,7 @@ export class ChaCha20Poly1305 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('chacha20');
 		this.x.wipeBuffers();
 	}
 }
@@ -226,13 +252,15 @@ export class XChaCha20Poly1305 {
 				'leviathan-crypto: encrypt() already called on this instance. '
 				+ 'Create a new instance for each encryption to prevent nonce reuse.',
 			);
+		// Strict single-use: lock FIRST, before anything else. Any subsequent
+		// throw — including validation errors — terminates the instance.
+		this._used = true;
+		_assertNotOwned('chacha20');
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 24)
 			throw new RangeError(`XChaCha20 nonce must be 24 bytes (got ${nonce.length})`);
-		const result = xcEncrypt(this.x, key, nonce, plaintext, aad);
-		this._used = true;
-		return result;
+		return xcEncrypt(this.x, key, nonce, plaintext, aad);
 	}
 
 	decrypt(
@@ -241,6 +269,7 @@ export class XChaCha20Poly1305 {
 		ciphertext: Uint8Array,
 		aad:        Uint8Array = new Uint8Array(0),
 	): Uint8Array {
+		_assertNotOwned('chacha20');
 		if (key.length !== 32)
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 24)
@@ -251,11 +280,16 @@ export class XChaCha20Poly1305 {
 	}
 
 	dispose(): void {
+		_assertNotOwned('chacha20');
 		this.x.wipeBuffers();
 	}
 }
 
 export { XChaCha20Cipher } from './cipher-suite.js';
+
+// ── ChaCha20Generator ────────────────────────────────────────────────────────
+
+export { ChaCha20Generator } from './generator.js';
 
 // ── Ready check ──────────────────────────────────────────────────────────────
 

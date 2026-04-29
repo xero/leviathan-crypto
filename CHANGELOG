@@ -1,6 +1,562 @@
-# Changelog
+# Leviathan Crypto Changelog
 
-## v2.0.1 (2026-04-10)
+## v2.1.0
+
+### Added
+
+- **Sparse Post-Quantum Ratchet (SPQR).** New module adding Double-Ratchet–style
+  messaging primitives with ML-KEM post-quantum key encapsulation. Requires
+  `init({ sha2 })` for the KDF-only layer; `init({ sha2, kyber, sha3 })` for
+  the full KEM layer.
+  - `ratchetInit(sharedSecret)` / `ratchetReady(state)`: initialise and probe
+    symmetric ratchet state from a shared root secret.
+  - `kemRatchetEncap(kem, rootKey, peerEk, context?)`: KEM ratchet step
+    (encap side); returns `{ sendChainKey, recvChainKey, kemCt }`.
+  - `kemRatchetDecap(kem, rootKey, dk, kemCt, ownEk, context?)`: KEM ratchet
+    step (decap side); binds `(peerEk, kemCt, context)` into HKDF info for
+    transcript integrity.
+  - `KDFChain(chainKey)`: forward-secret per-message KDF chain. `step()`
+    returns the next 32-byte message key and advances the chain;
+    `stepWithCounter()` returns `{ key, counter }` atomically. `dispose()`
+    wipes the chain key.
+  - `SkippedKeyStore`: MKSKIPPED cache (DR spec §3.2/§3.5). `resolve(chain,
+    counter)` returns a `ResolveHandle`: call `handle.commit()` on successful
+    decrypt (wipes the key) or `handle.rollback()` on auth failure (preserves
+    the key for a legitimate retry at the same counter). Split budgets:
+    `maxCacheSize` (default 100) bounds memory; `maxSkipPerResolve` (default
+    50) bounds per-message HKDF work. `advanceToBoundary(chain, pn)` for epoch
+    transitions; `wipeAll()` on teardown.
+  - `RatchetKeypair(kem)`: single-use ek/dk wrapper. `decap(kem, rootKey,
+    kemCt)` decapsulates exactly once then wipes the dk. `dispose()` is
+    idempotent.
+  - `RatchetMessageHeader` interface: `{ epoch, counter, pn?, kemCt? }`.
+
+- **Fortuna pluggable primitives.** `Fortuna` now accepts any compatible
+  cipher generator and hash function via the new `Generator` and `HashFn`
+  interfaces, rather than hardcoding Serpent-256 + SHA-256.
+  - `SerpentGenerator` (`leviathan-crypto/serpent`) wraps Serpent-256 in
+    counter mode, matching *Practical Cryptography* §9.4.
+  - `ChaCha20Generator` (`leviathan-crypto/chacha20`) wraps the ChaCha20
+    block function as a PRF with fixed zero nonce and 32-bit counter.
+  - `SHA256Hash` (`leviathan-crypto/sha2`) and `SHA3_256Hash`
+    (`leviathan-crypto/sha3`) are stateless hash primitives for the
+    accumulator and reseed key derivation.
+  - `Generator` and `HashFn` interfaces in `src/ts/types.ts`, also
+    re-exported from the root barrel.
+  - All four `(generator, hash)` combinations are exercised by KAT
+    regression vectors in `test/vectors/fortuna_kat.ts`.
+  - Tree-shaking: a chacha-only consumer no longer pulls Serpent's 123 KB
+    WASM module just to use the CSPRNG. The bundle now reflects the
+    primitive choice exactly.
+
+### Breaking Changes
+
+- **⚠ `OpenStream.seek(index)` rejects backward seeks.** When `index < this.counter`,
+	`seek` now throws `RangeError` with `'forward-only'` in the
+	message. Backward seek would re-use an already- consumed per-chunk counter
+	nonce against a new ciphertext, permitting plaintext replay against a stale
+	opener. Seek to the current counter is still a no-op. Construct a fresh
+	`OpenStream` from the same preamble to restart from the beginning.
+
+- **⚠ ML-KEM auto-validates keys on use.** `MlKemBase.encapsulate(ek)`,
+	`encapsulateDerand(ek, m)`, and `decapsulate(dk, c)` now invoke the FIPS 203
+	§7.2 / §7.3 validity checks before any cryptographic work. Invalid keys throw
+	`RangeError` with messages `leviathan-crypto: encapsulation key failed FIPS 203
+	§7.2 validity check` or `leviathan-crypto: decapsulation key failed FIPS 203
+	§7.3 validity check`. In 1.x the public `checkEncapsulationKey` /
+	`checkDecapsulationKey` probes existed as separate boolean gates that callers
+	had to remember to call. Both probes remain available for pre-flight inspection
+	without exception.
+
+- **⚠ Strict single-use on `ChaCha20Poly1305.encrypt` / `XChaCha20Poly1305.encrypt`.**
+  Any throw from `encrypt()` (including `RangeError` on key or nonce length)
+  now terminates the instance. A retry on the same AEAD always raises the
+  single-use guard (`encrypt() already called on this instance`), never a
+  fresh length error. Always allocate a new AEAD per message.
+
+- **⚠ `constantTimeEqual` requires WebAssembly SIMD.** The JS
+  XOR-accumulate fallback is removed. Runtimes without SIMD support
+  throw `Error: leviathan-crypto: constantTimeEqual requires
+  WebAssembly SIMD — this runtime does not support it` at first
+  call, matching the existing preflight on `serpentInit`,
+  `chacha20Init`, and `kyberInit`. The fallback was previously
+  documented as "best-effort constant-time, not a hardware-level
+  guarantee"; the library's overall posture is that SIMD is a
+  baseline requirement, and `constantTimeEqual` should not silently
+  degrade to a path whose constant-time properties depend on
+  V8/SpiderMonkey JIT decisions. Impact scope: consumers who use
+  `init({ sha2: ... })` or `init({ sha3: ... })` only (no serpent,
+  chacha20, or kyber) AND call `constantTimeEqual` directly AND run
+  on a non-SIMD runtime. All three conditions together. Consumers
+  in this narrow band must either pin to 2.1.x or provide their own
+  CT implementation.
+
+- **⚠ `SealStream` / `OpenStream` add a `'failed'` terminal state for
+  crypto-path throws.** Auth failures, WASM errors, and cipher exceptions
+  from `push()`, `pull()`, or `finalize()` wipe the derived keys and
+  transition the stream to state `'failed'`. Subsequent operations (including
+  `OpenStream.seek`) throw with `'failed'` in the message instead of
+  `'finalized'`. `dispose()` on a failed instance is a no-op. Argument-
+  validation errors on `SealStream` (chunk larger than `chunkSize`) throw
+  `RangeError` without mutating state or wiping keys. stream stays
+  `'ready'` and the caller can retry with a corrected chunk. `OpenStream`
+  does not make this distinction: wire-format errors on input ciphertext
+  are terminal to avoid exposing error-type oracles on attacker-controlled
+  streams.
+
+- **`OpenStream.seek(index)` validates `index` fully before mutating
+  `counter`.** Indices above `Number.MAX_SAFE_INTEGER` throw `RangeError`
+  at the seek site; previously they passed `Number.isInteger` and were
+  stored, then failed on the next `pull()`/`finalize()` through
+  `makeCounterNonce`, which ran inside the crypto-path try/catch and
+  tripped the `'failed'` key-wiping cleanup. Backward seeks and
+  non-integer/negative inputs were already validated; this closes the
+  remaining gap so any seek argument error leaves the stream usable.
+
+- **⚠ `hexToBytes` throws `RangeError` on non-hex characters.** Previously,
+  `parseInt('0g', 16)` returned `0` (not `NaN`) because it stops at the first
+  invalid character, and the resulting bytes were silently wrong. A leading
+  regex test now rejects any input containing characters outside
+  `[0-9a-fA-F]`. Odd-length input already threw and that behaviour is preserved.
+
+- **⚠ `base64ToBytes` throws `RangeError` on invalid input.** Previously
+  returned `undefined` for illegal charsets or `rem=1` length. The new
+  behaviour matches the throw-don't-return-null convention used everywhere
+  else in the library (AEAD `decrypt`, key validation, etc). Return type is
+  now `Uint8Array`, not `Uint8Array | undefined`. Callers doing
+  `if (bytes) { ... }` should drop the check and let throws propagate.
+
+- **⚠ `Fortuna.create()` requires explicit `generator` and `hash`.** No
+  defaults. Both must be passed:
+
+  ```typescript
+  // 2.0-2.1:
+  Fortuna.create()
+  Fortuna.create({ msPerReseed: 200 })
+
+  // 2.1.0:
+  import { SerpentGenerator } from 'leviathan-crypto/serpent'
+  import { SHA256Hash } from 'leviathan-crypto/sha2'
+
+  Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash })
+  Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: 200 })
+  ```
+
+  Migration for the legacy implicit pair: add
+  `{ generator: SerpentGenerator, hash: SHA256Hash }` to every existing
+  `Fortuna.create(...)` call. The `msPerReseed` and `entropy` options are
+  unchanged. `Fortuna.create()` with no arguments now throws `TypeError`,
+  and `Fortuna.create({})` throws the same.
+
+  `Fortuna.create()` also asserts
+  `hash.outputSize === generator.keySize` and throws `RangeError` if you
+  pair primitives of different sizes. All four shipped combinations
+  satisfy this constraint (every shipped primitive uses 32-byte keys and
+  32-byte digests).
+
+  **Migration table for Fortuna:**
+
+  | 2.0-2.1                              | 2.1.0                                                                                |
+  | ------------------------------------ | ------------------------------------------------------------------------------------ |
+  | `Fortuna.create()`                   | `Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash })`                  |
+  | `Fortuna.create({ msPerReseed: N })` | `Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: N })`  |
+  | `Fortuna.create({ entropy })`        | `Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, entropy })`         |
+
+  To pick a different cipher or hash, substitute `ChaCha20Generator` or
+  `SHA3_256Hash`. All four combinations are valid.
+
+### Security
+
+- **Post-dispose method-call guard on stateful classes.** `SHAKE128`, `SHAKE256`,
+  `ChaCha20`, `SerpentCtr`, and `SerpentCbc` now throw
+  `Error: <ClassName>: instance has been disposed` if any instance method is
+  invoked after `dispose()`. Previously, a disposed instance's methods would
+  still run against the shared WASM module (which by then might belong to a
+  different class), silently clobbering the live instance's state. Closes
+  the remaining shared-WASM-clobber sub-cases the construction-time
+  exclusivity guard does not reach.
+
+- **Kyber operations now hold the `sha3` exclusivity guard.**
+  `MlKemBase.keygenDerand`, `encapsulateDerand`, `decapsulate`,
+  `checkEncapsulationKey`, and `checkDecapsulationKey` now call
+  `_assertNotOwned('sha3')` and `_assertNotOwned('kyber')` at entry. Without
+  this, a live `SHAKE128` / `SHAKE256` instance plus any kyber op would
+  silently re-initialize the sha3 sponge mid-stream.
+
+- **Fortuna wipe-before-reassign discipline across all state transitions.**
+  `pseudoRandomData`, `reseed`, `addRandomEvent`, and the pool-reset branch
+  inside `get()` now zero the prior `Uint8Array` before dropping its
+  reference. Without this, the old generator key and entropy-pool chain
+  values were reachable through lingering references to the replaced
+  buffers. Forward secrecy of the CSPRNG depends on the prior state being
+  unrecoverable.
+
+- **`Fortuna.stop()` is now a complete teardown.** It wipes `genKey`,
+  `genCnt`, and every one of the 32 pool-hash chain values, and disposes
+  the inner `Serpent` and `SHA256` instances so their WASM exclusivity
+  tokens are released and their linear-memory buffers are zeroed.
+  Previously `stop()` left the pool-hash values, the Serpent subkey
+  schedule, and the SHA-256 intermediate state in memory.
+
+- **`SerpentCipher.sealChunk` / `openChunk` now wipe on any throw.** The
+  HMAC, CBC, intermediate IV, and tag input buffers are disposed /
+  zeroed in a `finally` block so an unexpected throw mid-chunk does not
+  leak key material through lingering references. The auth-failure
+  explicit-wipe path remains in place as defense in depth.
+
+- **`aeadDecrypt` auth-failure wipes the ChaCha keystream block buffer
+  and the Poly1305 one-time subkey.** The 64-byte `CHACHA_BLOCK_BUFFER`
+  holds the last-generated Poly1305 one-time-key block; on auth failure
+  it is now zeroed alongside the `CHUNK_CT` buffer. `chachaGenPolyKey`
+  additionally copies that block's first 32 bytes to `POLY_KEY_BUFFER`
+  (`POLY_KEY_OFFSET = 131248`) as the Poly1305 key for this (key, nonce) pair.
+  This is outside the 48..112 `CHACHA_BLOCK` range, so the auth-fail
+  branch now also zeroes `POLY_KEY_BUFFER[0..32]`. Under strict
+  single-use the instance is locked after the throw, so this wipe
+  closes the window before the next chacha op would overwrite the
+  subkey organically.
+
+- **`kemDecapsulate` zeroes its scratch slots.** The CPA secret key (`skCpa`),
+  message representative (`m'`), shared-secret candidates, noise polyvecs,
+  uncompressed `u`, and the PRF output block are all wiped before returning.
+  `skCpa` is the highest-severity residual, exposure compromises every
+  ciphertext under the corresponding `ek`. No secret-derived bytes persist in
+  kyber linear memory across a decapsulate call.
+
+- **`kemEncapsulateDerand` zeroes its scratch slots.** The randomness `m`,
+  noise polyvecs, uncompressed intermediate polynomials, and PRF output block
+  are wiped before returning. `m` is the highest-severity residual, it plus
+  the public `ek` reproduces the shared secret. Public output (`CT_OFFSET`,
+  `PK_OFFSET`) is intentionally preserved.
+
+- **`kemKeypairDerand` zeroes its scratch slots.** The CPA secret key
+  (`skCpa`), secret/error polyvecs, and PRF output block are wiped before
+  returning the keypair. Previously `skCpa` persisted for the entire session
+  lifetime under the common "keygen once, encap many" pattern, same severity
+  class as the decap residual. Public matrix and `t̂` slots are intentionally
+  preserved.
+
+- **Kyber public ops now zero sha3 scratch before returning.**
+  `kemKeypairDerand`, `kemEncapsulateDerand`, `kemDecapsulate`, and
+  `checkDecapsulationKey` each call `sx.wipeBuffers()` as the final step
+  on every path that executed sha3 work. This runs inside the
+  `_assertNotOwned('sha3')` window the kyber op holds for its duration,
+  so no live `SHAKE128` / `SHAKE256` instance can have its state
+  clobbered by the wipe, that was the reason `MlKemBase.dispose()`
+  stopped wiping sha3 earlier in this release cycle. The invariant that
+  no secret-derived sha3 residue persists across a kyber op boundary
+  previously relied on "the last sha3 call in every kyber path happens
+  to be keyed on public material" (SHAKE128 of public ρ for the
+  A-matrix expansion; SHA3-256 of public ek in the dk-assembly step of
+  keygen), a structural property maintained by manual discipline. That
+  invariant is now enforced mechanically: every public kyber op leaves
+  sha3 STATE, INPUT, and OUT regions zero regardless of call ordering.
+  Future refactors that reorder sha3 calls within a kyber op cannot
+  silently introduce residue.
+
+- **`MlKemBase.dispose()` no longer wipes sha3 buffers.** The previous
+  `this.sx.wipeBuffers()` call at dispose time zeroed shared sha3 linear
+  memory and clobbered any live `SHAKE128` / `SHAKE256` sponge held by
+  another caller. The wipe is unnecessary: every public kyber op now
+  zeros sha3 scratch before returning (see above), so sha3 scratch
+  carries no residue across a kyber op boundary. `MlKemBase.dispose()`
+  cleans only the kyber module, which it does own.
+
+  Across all three public KEM operations (keygen, encapsulate,
+  decapsulate), no kyber secret or secret-derived data persists in WASM
+  linear memory between ops. Lifecycle-level wipe via `MlKem.dispose()`
+  → `wipeBuffers()` continues to cover the entire layout.
+
+- **`_resetForTesting` no longer reaches the public package surface.**
+	The function is tagged `@internal` in `init.ts` and stripped from
+	`dist/init.d.ts` by `stripInternal: true`. The root barrel
+	`src/ts/index.ts` previously re-exported it without JSDoc, which
+	carries no `@internal` tag and bypasses `stripInternal`, so the
+	symbol leaked into `dist/index.d.ts` and `dist/index.js` anyway. A
+	consumer could import it from the public package and zero the
+	exclusivity-owners registry while a live stateful instance still
+	held its token, re-enabling the shared-WASM-state clobber the
+	exclusivity guard exists to prevent. The re-export is removed. The
+	regression guard now scans both `dist/init.d.ts` and
+	`dist/index.d.ts` for every `@internal`-tagged symbol in `init.ts`.
+	The public readiness probes (`_sha2Ready`, `_sha3Ready`,
+	`_serpentReady`, `_chachaReady`, `_kyberReady`) are intentional
+	underscore-prefixed exports and are unaffected.
+
+- **SHA-2 atomic `dispose()` asserts non-ownership before wiping.**
+	`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, and
+	`HMAC_SHA384` now call `_assertNotOwned('sha2')` as the first
+	statement of `dispose()`, matching the pattern already used by the
+	SHA-3, ChaCha20, and Serpent atomics. No stateful SHA-2 class
+	currently ships, so the gap was latent; closing it now prevents a
+	future stateful SHA-2 user (streaming HMAC, stateful KDF) from
+	having its key schedule silently clobbered by an unrelated atomic's
+	dispose.
+
+- **Fully branch-free `pkcs7Strip`.** The per-iteration pad-region
+	mask previously used a JS ternary on a value derived from the
+	trailing plaintext byte, the exact surface the Vaudenay-2002
+	padding oracle manipulates. The clamp on that value used
+	`Math.min(Math.max(...))`, which has no constant-time contract
+	under JS engines. The mask is now computed via arithmetic-shift on
+	a signed int32 and the clamp is gone; every operation on the
+	secret byte is a pure bit-twiddle with no spec-level branch. The
+	raw `SerpentCbc({ dangerUnauthenticated: true })` surface now
+	literally matches the branch-free claim on the PKCS7 step. The
+	recommended `SerpentCipher` path was not affected even before this
+	change, HMAC-verify-then-decrypt ordering makes the PKCS7 step
+	unreachable to an attacker who cannot forge a tag.
+
+- **Pool worker wipe waits for acknowledgement before termination.**
+	`SealStreamPool._killAll` previously posted `{type: 'wipe'}` to
+	each worker and immediately called `worker.terminate()`.
+	`terminate()` aborts synchronously and drops any queued messages
+	per WHATWG, so the worker-held 32-byte ChaCha20 subkey (or 96-byte
+	Serpent derived-keys buffer) and the worker's WASM linear memory
+	were not guaranteed to be zeroed before the worker died. Workers
+	now reply with `{type: 'wiped'}` after completing the wipe, and
+	the main thread waits up to 100 ms per worker before falling
+	through to `terminate()`. Main-thread `_masterKey` and derived-key
+	wipes run synchronously as before. `destroy()` remains synchronous
+	from the caller's perspective, the pool is observably dead the
+	moment it returns; worker teardown is bounded-async in the
+	background.
+
+- **Stateful `dispose()` bodies use `try`/`finally` around
+	`wipeBuffers()`.** `SerpentCtr.dispose()`, `SerpentCbc.dispose()`,
+	`ChaCha20.dispose()`, `SHAKE128.dispose()`, and
+	`SHAKE256.dispose()` previously released their module's
+	exclusivity token only on the happy path; a throw out of
+	`wipeBuffers()` stranded the token and wedged the module for the
+	rest of the process. `memory.fill` does not throw on any shipping
+	JS runtime today, so this was theoretical. The `try`/`finally`
+	makes the "dispose always releases" invariant unconditional.
+
+- **Fortuna pool-selection now matches *Practical Cryptography* §9.5.5.**
+	Prior versions used a bit-test (`reseedCnt & (1 << i)`) where the spec
+	requires a divisibility test (`r % (1 << i) === 0`, equivalently
+	`r & ((1 << i) - 1) === 0`). The two coincide only at `r = 1`. From
+	`r = 2` onward they diverge: under the bit-test, pool 0 was drained on
+	roughly half of all reseeds instead of every reseed, and the wide-mix
+	recovery property at `r = 2^i` (where the spec uses pools 0..i
+	together) never happened. The CSPRNG output remained pseudorandom
+	because the new key still derives via SHA-256-hash of the prior key
+	concatenated with whatever pool data was selected; the formal recovery
+	argument from the original paper is what the bug weakened. Schedule
+	is now spec-correct. Regression test:
+	`test/unit/fortuna/spec-conformance.test.ts`.
+
+- **Fortuna fails loudly when no entropy source is available.**
+	Previously `Fortuna.create()` could resolve in environments lacking
+	both `crypto.getRandomValues` and `node:crypto` and silently produce
+	deterministic output keyed by all zeros. `create()` now asserts that
+	pool 0 received at least 64 bits of entropy from the OS source during
+	initialization and throws
+	`'leviathan-crypto: Fortuna initialization could not gather sufficient entropy. No working crypto.getRandomValues or node:crypto in this environment.'`
+	otherwise. Reachable only in non-standard JavaScript runtimes (modern
+	browsers and Node always expose at least one source); the
+	silent-failure path is closed. Regression test in
+	`test/unit/fortuna/pluggable-primitives.test.ts`.
+
+- **`cbd2` (FIPS 203 §4.2.2 Algorithm 7) regression-pinned at the byte
+	level.** Three KATs in `test/unit/kyber/poly_arithmetic.test.ts`
+	Gate 5 lock down cbd2's exact spec contract: input independence
+	(coefficients 0..255 are uniquely determined by buffer bytes 0..127
+	only, never bytes 128..255), destination footprint (no write past
+	the 512-byte output polynomial, verified by 0xA5 sentinel-fill on
+	the adjacent poly slot), and exact coefficient agreement with an
+	inline FIPS 203 Algorithm 7 reference over 100 random inputs. The
+	pre-existing range invariant (`coeff ∈ [−2, 2]`) holds structurally
+	regardless of input length or iteration count, so it pins the
+	output range but not the byte budget or write footprint; the new
+	tests close that gap.
+
+### Changed
+
+- **`loader.ts` accepts any `PromiseLike<WasmSource>`.** The structural
+  thenable check now resolves the promise first and recursively re-dispatches
+  by the runtime type of the resolved value (so `Promise<ArrayBuffer>`,
+  `Promise<Uint8Array>`, and `Promise<string>` (gzip+base64 blob) work
+  alongside the already-supported `Promise<Response>`. Previously these
+  silently fell into `WebAssembly.compileStreaming`, which only accepts
+  `Response` / `Promise<Response>`, and produced an opaque browser-layer error.
+  Recursion is capped at depth 3. Deeper nesting throws
+  `TypeError: thenable nesting too deep (max 3)`. The public type
+  `WasmSource` widens its last branch from `Promise<Response>` to
+  `PromiseLike<WasmSource>`). Consumers using `Promise<Response>` are unaffected.
+
+- **`SerpentCipher` and the serpent pool worker share one primitive
+  implementation.** HMAC-SHA256, Serpent-CBC chunk encrypt/decrypt, and
+  PKCS7 pad/strip are extracted into `src/ts/serpent/shared-ops.ts` as pure
+  functions taking sha2/serpent WASM exports as parameters. Both
+  `cipher-suite.ts` (main thread) and `pool-worker.ts` call the same code.
+  Three knock-on effects: (a) the pool worker now uses
+  `cbcDecryptChunk_simd`, matching main-thread `SerpentCbc.decrypt` instead
+  of the scalar fallback. Multi-chunk pool decrypts pick up the SIMD
+  speedup. (b) The pool worker's previously distinguishable PKCS7 error
+  messages (`empty ciphertext`, `invalid PKCS7 padding`) are gone; the
+  Vaudenay 2002 oracle closure in `shared-ops.pkcs7Strip` now applies on
+  both sides. (c) Main-thread `sealChunk`/`openChunk` drop the per-chunk
+  `new HMAC_SHA256()` / `new SerpentCbc()` construction; the exclusivity
+  guard those constructors contributed is now asserted explicitly via
+  `_assertNotOwned('serpent')` + `_assertNotOwned('sha2')`. Not
+  user-visible; flagged as a build-touching change for downstream
+  worker-bundle rebuilds.
+
+- **`randomBytes` throws a branded error on runtimes without Web
+	Crypto.** `randomBytes(n)` previously let a missing
+	`globalThis.crypto.getRandomValues` surface as a plain
+	`ReferenceError: crypto is not defined` with no library
+	attribution. The function now guards explicitly and throws
+	`Error('leviathan-crypto: crypto.getRandomValues is required —
+	this runtime does not expose the Web Crypto API')`, matching the
+	"fail loudly with attribution" convention documented in
+	`AGENTS.md` §Memory and Security and the pattern already used by
+	`Fortuna.collectorCryptoRandom`.
+
+- **Pool worker spawn mechanism.** Pool workers are now bundled into
+  self-contained IIFE source strings at lib build time
+  (`scripts/embed-workers.ts`) and spawned via classic blob URLs from
+  inside `cipher-suite.ts`. This replaces the previous
+  `new Worker(new URL('./pool-worker.js', import.meta.url), { type: 'module' })`
+  pattern that triggered eager worker-chunk emission in Vite's transform
+  hook (shipping orphan chunks for unused cipher suites) and that failed
+  under `file://` in Chromium with module-worker cross-origin checks. The
+  shipping `dist/<cipher>/pool-worker.js` files remain in the package as
+  build inputs but are no longer the runtime spawn entries. Strict-CSP
+  consumers (`worker-src 'self'`, no `blob:`) can spread-override
+  `createPoolWorker` on the cipher object to plug in a URL-based factory;
+  see `docs/ciphersuite.md`.
+
+- **Build pipeline.** Added `build:embed-workers` step (between
+  `build:embed` and `build:ts`) and `esbuild` as a devDependency. The new
+  step bundles each pool worker into an IIFE for the change described
+  above. The unit-test workflows under `.github/workflows/` and the
+  `test` script in `package.json` were updated to invoke the new step
+  before vitest.
+
+### Documentation
+
+- **`docs/aead.md`: documents `chunkSize` header as a maximum, not an
+  actual size.** For `Seal.encrypt` (single-chunk), the header always
+  declares `max(plaintext.length, CHUNK_MIN)`. A zero-byte seal still
+  declares `chunkSize = CHUNK_MIN = 1024`. This is length-hiding, not a
+  size declaration.
+
+- **`docs/architecture.md`: "Five Independent WASM Modules" → "Six".** Adds
+  a row for the `ct` utility module (SIMD constant-time compare). `ct` is
+  internal and not part of the public `Module` union.
+
+- **`docs/chacha20.md`: documents `ChaCha20.beginEncrypt` counter=1
+  convention.** `beginEncrypt()` starts the keystream at block counter 1
+  per RFC 8439 §2.6 (block 0 is reserved for Poly1305 key generation).
+  Users diffing against RFC 8439 §2.4.2 (counter=0) expected a different
+  output; now called out.
+
+- **`docs/aead.md`: documents `SealStreamPool` lifecycle.** `seal()` leaves
+  the master key and derived keys resident until `destroy()`. `open()`
+  remains valid after a successful `seal()`, which can be surprising given
+  the "sealed" label. On any throw the pool enters `dead` state with all
+  keys wiped.
+
+- **`docs/sha3_audit.md`: adds a note on SHAKE dispose semantics.** The
+  original "wipe semantics correct" analysis stands; the exclusivity
+  token held by `SHAKE128` / `SHAKE256` and the post-dispose method-call
+  throws are additional guarantees layered on top, not a contradiction.
+
+- **`src/asm/kyber/params.ts`: corrected the QINV docstring.** The comment
+  claimed `q * QINV ≡ -1 mod 2^16` and `(3329 * -3327) & 0xFFFF == 0xFFFF`;
+  the pq-crystals Montgomery convention is `q * QINV ≡ 1 mod 2^16` and the
+  masked product is `0x0001`. Constant value `QINV = -3327` is unchanged
+  (it was correct; only the docstring was wrong).
+
+- **`docs/aead.md` documents the `SealStreamPool.open()` unframed
+	chunk-shape requirement.** `pool.open()` on unframed ciphertext
+	assumes every non-final chunk is exactly `chunkSize` plaintext
+	bytes. A blob produced by `SealStream.push()` with sub-full-size
+	chunks decrypts correctly through `OpenStream` but fails
+	authentication through `pool.open()` because the pool's split
+	boundary does not match the producer's. `framed: true` on both
+	sides makes the interop work regardless of per-chunk size. The
+	asymmetry is now called out explicitly in the pool section.
+
+- **`docs/kyber.md` frames `decapsulate`'s §7.3 pre-check as input
+	validation, not FO uniformity.** The §7.3 validity check on `dk`
+	throws `RangeError` on malformed key material. The FO transform
+	returns a pseudorandom shared secret on tampered or otherwise
+	invalid ciphertext. These two error behaviors are not uniform and
+	are not intended to be: FIPS 203 positions §7.3 as input
+	validation on key storage, and ML-KEM's threat model assumes `dk`
+	is recipient-controlled local storage. Callers whose protocols
+	expose `dk` to adversarial supply can pre-probe via
+	`checkDecapsulationKey(dk)` to bring §7.3 failure into the same
+	branch as other input-validation errors. No runtime change; no
+	strict-mode flag shipped in this release.
+
+- **`docs/ratchet.md` documents the commit-vs-rollback timing
+	asymmetry on `SkippedKeyStore`.** `commit` zeroes a 32-byte key
+	buffer; `rollback` may evict the oldest cached entry and always
+	inserts into the skipped-key map. The asymmetry is observable to
+	a network-layer attacker timing the receiver's per-message
+	processing, but only under narrow conditions. Specifically,
+	when a tampered ciphertext arrives at a given counter before the
+	legitimate message with the same counter. What the attacker
+	learns is whether the legitimate message has already been
+	processed by the receiver, not any key or plaintext bit. The
+	information overlaps with what a transport-layer observer
+	already has via message-delivery visibility. The library ships
+	no runtime padding in this release; protocols whose threat
+	model includes this leak can pad at their own layer.
+
+- **`docs/init.md` `WasmSource` type alias matches the actual type.**
+	Previously documented as `... | Response | Promise<Response>`;
+	the actual type in `src/ts/wasm-source.ts` ends with
+	`| PromiseLike<WasmSource>` and the loader resolves nested
+	thenables recursively up to depth 3 (as already documented in
+	`docs/loader.md`). The alias and one explanatory sentence in
+	`init.md` are updated to agree.
+
+- **`SECURITY.md` wording: Poly1305 tag compare.** The sentence
+	describing where the Poly1305 tag is compared previously placed
+	the compare "inside the WASM `aeadDecrypt` call", implying a
+	WASM-side check analogous to Kyber's in-WASM `ct_verify`. The
+	compare actually happens in TypeScript via `constantTimeEqual`,
+	which runs entirely inside the dedicated WASM SIMD constant-time
+	module (v128 XOR-accumulate with branch-free reduction). This
+	gates the call into the chacha20 WASM decrypt path. The wording
+	now reflects the actual architecture. The ordering property
+	(authentication before any plaintext production) is unchanged.
+
+- **`docs/stream_audit.md` error-bucket enumeration matches the
+	code.** The audit document previously listed three error-type
+	buckets surfaceable from `OpenStream.pull` on adversarial input;
+	the code actually surfaces six (state-machine error, framed
+	chunk too short, framed chunk length mismatch, chunk too short
+	to contain the tag, chunk exceeds max wire size,
+	`AuthenticationError`). All six are now enumerated with the
+	accompanying argument that none constitutes a cryptographic
+	oracle: every distinguishable bucket depends only on input
+	sizes the attacker chose, not on secret key bits, plaintext
+	bytes, or tag-compare internals.
+
+- **`docs/fortuna.md` rewritten** for the pluggable-primitives API. New
+	sections cover the `(Generator, HashFn)` matrix, the spec deviations
+	relative to *Practical Cryptography* (2003) §9.4 and §9.5, and updated
+	coexistence rules covering both Serpent and ChaCha20 stateful cipher
+	classes.
+
+- **`docs/types.md`** documents the new `Generator` and `HashFn`
+	interfaces.
+
+- **`docs/architecture.md`, `docs/init.md`, `docs/exports.md`,
+	`docs/examples.md`, `docs/CLAUDE_consumer.md`, `docs/test-suite.md`,
+	`test/vectors/README.md`** updated to reflect the API change.
+
+---
+
+## v2.0.1
+
+- Released: 2026-04-10
 
 ### Security
 
@@ -39,7 +595,9 @@
 
 ---
 
-## v2.0.0 (2026-04-10)
+## v2.0.0
+
+- Released: 2026-04-10
 
 ### Breaking Changes
 
@@ -56,13 +614,13 @@
 
 - **⚠ init() API redesigned.** `init(modules, mode, opts)` → `init(sources)` where
   `sources` is `Partial<Record<Module, WasmSource>>`. The loading strategy is
-  inferred from the source type — no mode string. Accepts 7 source types:
+  inferred from the source type (no mode string). Accepts 7 source types:
   embedded string, URL, ArrayBuffer, Uint8Array, WebAssembly.Module, Response,
   or Promise\<Response\>.
 
 - **⚠ SIMD is required for serpent and chacha20.** `init()` and `initModule()`
   perform a SIMD preflight check and throw a clear error on non-SIMD runtimes.
-  The three `hasSIMD()` dispatch ternaries are removed — serpent and chacha20
+  The three `hasSIMD()` dispatch ternaries are removed. Serpent and chacha20
   always use their SIMD code paths. sha2 and sha3 modules are unaffected.
 
 - **⚠ `hasSIMD()` is now a public utility, not an internal dispatch mechanism.**
@@ -76,7 +634,7 @@
   short-circuiting and speculative optimization as theoretical side-channel
   vectors. Lazy-initialized on first call; falls back to JS XOR-accumulate
   on runtimes without SIMD (sha2/sha3-only consumers). Max 32768 bytes per
-  side — enforced on both code paths. WASM memory wiped after every comparison.
+  side (enforced on both code paths). WASM memory wiped after every comparison.
 
 - **aeadDecrypt wipes full chunk buffer on auth failure.** Previously only
   wiped `ciphertext.length` bytes; now wipes the full `maxChunk` region.
@@ -103,21 +661,21 @@
 
 ### Added
 
-- **SealStream / OpenStream** — cipher-agnostic chunked streaming AEAD.
+- **SealStream / OpenStream**: Cipher-agnostic chunked streaming AEAD.
   HKDF key derivation at construction. Counter nonces with final-flag
   domain separation. Seekable via `seek(index)`. Framed mode for network
   transports. `toTransformStream()` for Web Streams API integration.
 
-- **SealStreamPool** — parallel batch AEAD via Web Workers. Round-robin
+- **SealStreamPool**: Parallel batch AEAD via Web Workers. Round-robin
   chunk dispatch across N workers. Single-use seal guard (nonce reuse
-  prevention). Any auth error kills all workers and wipes keys — no retry.
+  prevention). Any auth error kills all workers and wipes keys (no retry).
 
-- **CipherSuite interface** — protocol for cipher-agnostic streaming.
+- **CipherSuite interface**: Protocol for cipher-agnostic streaming.
   `deriveKeys`, `sealChunk`, `openChunk`, `wipeKeys`, `createPoolWorker`.
   Shipped implementations: `XChaCha20Cipher` (format 0x01) and
   `SerpentCipher` (format 0x02).
 
-- **ML-KEM (FIPS 203)** — Post-quantum key encapsulation mechanism.
+- **ML-KEM (FIPS 203)**: Post-quantum key encapsulation mechanism.
   `MlKem512`, `MlKem768`, `MlKem1024` classes implementing the full
   Fujisaki-Okamoto KEM transform. SIMD-enabled WASM module (`kyber.wasm`)
   requiring WebAssembly SIMD support, with NTT, Montgomery/Barrett reduction,
@@ -127,14 +685,14 @@
   dedicated WASM `ct_verify`/`ct_cmov`. Requires `sha3` module for
   Keccak sponge operations (SHAKE128/256, SHA3-256/512).
 
-- **Keccak alias** — `'keccak'` module name resolves to `sha3` WASM
+- **Keccak alias**: `'keccak'` module name resolves to `sha3` WASM
   binary. `keccakInit()`, `leviathan-crypto/keccak` and
   `leviathan-crypto/keccak/embedded` subpath exports.
 
-- **AuthenticationError** — dedicated error class with `this.name` set.
+- **AuthenticationError**: Dedicated error class with `this.name` set.
   Replaces generic `Error('authentication failed')` throughout.
 
-- **writeHeader / readHeader / makeCounterNonce** — header codec with full
+- **writeHeader / readHeader / makeCounterNonce**: Header codec with full
   input validation (formatEnum range, nonce length, chunkSize u24 bounds,
   finalFlag tag whitelist, counter safe integer bounds).
 
@@ -156,7 +714,7 @@
 
 ### Internal
 
-- **WASM CT module.** `src/asm/ct/index.ts` — ~175 bytes compiled,
+- **WASM CT module.** `src/asm/ct/index.ts` is ~175 bytes compiled,
   SIMD-only, `--importMemory`, 1 page, no source map. Embedded as raw
   byte array literal in `src/ts/ct-wasm.ts` (gitignored, generated by build).
 
@@ -182,7 +740,9 @@
 
 ---
 
-## v1.4.0 (2026-04-01)
+## v1.4.0
+
+- Released: 2026-04-01
 
 ### Breaking Changes
 
@@ -190,8 +750,8 @@
   Each sealed chunk now prepends a cleartext `isLast(1)` byte.
   Wire format: `isLast(1) || IV(16) || ciphertext || HMAC(32)`.
   Previously non-final chunks required two HKDF derivations + two HMAC
-  verifications to distinguish from final chunks — a per-chunk timing
-  differential that leaked stream position to observers with oracle access.
+  verifications to distinguish from final chunks. This per-chunk timing
+  differential leaked stream position to observers with oracle access.
   Existing SerpentStream ciphertexts are unreadable by the new opener.
 
 - **⚠ SerpentSeal / SerpentStreamSealer: AAD support changes wire format.**
@@ -199,12 +759,12 @@
   AAD is folded into the HMAC input with domain separation (4-byte length prefix).
   Existing SerpentSeal ciphertexts cannot be decrypted by the new version
   unless AAD is empty AND the HMAC input construction is identical to the old
-  path — it is not, due to the length prefix.
+  path. It is not identical due to the length prefix.
 
 - **⚠ hexToBytes: odd-length input now throws.**
   Previously right-padded: `'abc'` → `'abc0'` → `[0xab, 0xc0]`.
   Now throws `RangeError('hexToBytes: odd-length string')`.
-  Silent corruption in a crypto context is unacceptable — every other crypto
+  Silent corruption in a crypto context is unacceptable. Every other crypto
   library throws on odd-length hex.
 
 - **⚠ base64url: encoding drops padding per RFC 4648 §5.**
@@ -230,12 +790,12 @@
 
 ### Added
 
-- **XChaCha20Seal** — high-level AEAD class that binds key at construction and
+- **XChaCha20Seal**: High-level AEAD class that binds key at construction and
   manages nonces internally. Fresh random 24-byte nonce per `encrypt()` call.
   Wire format: `nonce(24) || ciphertext || tag(16)`.
   Recommended entry point for XChaCha20 encryption.
 
-- **XChaCha20StreamSealer / XChaCha20StreamOpener** — chunked streaming
+- **XChaCha20StreamSealer / XChaCha20StreamOpener**: Chunked streaming
   authenticated encryption for large payloads using XChaCha20-Poly1305.
   Per-chunk random nonces, position-bound AAD, framed mode for network
   transports. API mirrors SerpentStreamSealer/Opener.
@@ -248,7 +808,7 @@
 ### Performance
 
 - **Gzip-compressed embedded WASM.** 198KB → ~33KB total embedded footprint.
-  Serpent alone: 167KB → 20KB. Fully internal to the loader — consumers
+  Serpent alone: 167KB → 20KB. Fully internal to the loader. Consumers
   call `init('embedded')` identically. DecompressionStream availability
   is gated by the same floor as WASM SIMD.
 
@@ -283,7 +843,9 @@
 
 ---
 
-## v1.3.1 (2026-03-30)
+## v1.3.1
+
+- Released: 2026-03-30
 
 ### Changes
 
@@ -294,11 +856,13 @@
 
 ---
 
-## v1.3.0 (2026-03-28)
+## v1.3.0
+
+- Released: 2026-03-28
 
 ### Breaking Changes
 
-- **Removed:** `SerpentStreamEncoder` and `SerpentStreamDecoder` — deleted with no grace period.
+- **Removed:** `SerpentStreamEncoder` and `SerpentStreamDecoder` (deleted with no grace period).
 
 ### Migration
 
@@ -320,13 +884,15 @@
 
 ---
 
-## v1.2.0 (2026-03-27)
+## v1.2.0
+
+- Released: 2026-03-27
 
 ### Added
 
 - WASM SIMD acceleration for Serpent-256 CTR, Serpent-256 CBC-decrypt, and ChaCha20.
 - 4-wide inter-block parallelism via WebAssembly v128 instructions.
-- `hasSIMD()` utility — detects WASM SIMD support once and caches the result.
+- `hasSIMD()` utility: Detects WASM SIMD support once and caches the result.
 - Dispatch is fully transparent: `SerpentCtr.encryptChunk`, `SerpentCbc.decrypt`, and
   `ChaCha20.encryptChunk` auto-select the SIMD path when available. No API change.
 - New auto-generated source: `serpent_simd.ts`, `ctr_simd.ts`, `cbc_simd.ts`,
@@ -340,8 +906,8 @@
 
 ### Fixed
 
-- **HMAC / HKDF:** zero all intermediate key material after use — `buf`, `oldPrev`,
-  final `T(N)`, and PRK now `fill(0)` before returning. Previously these values
+- **HMAC / HKDF:** Zero all intermediate key material after use (`buf`, `oldPrev`,
+  final `T(N)`, and PRK) via `fill(0)` before returning. Previously these values
   lingered in WASM linear memory until the next operation overwrote them.
 
 ---
@@ -358,7 +924,9 @@ Fortuna CSPRNG.
 
 ---
 
-## v0.2.0 (unpublished)
+## v0.2.0
+
+- Unreleased
 
 Pure WASM beta. AssemblyScript → WASM pipeline established. All primitives ported
 to linear memory with static buffer layouts against their respective specs, then
@@ -366,7 +934,9 @@ validated aginst our alpha versions. Lean TypeScript API layer over WASM exports
 
 ---
 
-## v0.1.0 (unpublished)
+## v0.1.0
+
+- Unreleased
 
 Pure TypeScript alpha. Initial implementations of Serpent-256 and ChaCha20 used
 as reference for later WASM ports and test vector derivation.

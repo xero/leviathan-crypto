@@ -56,6 +56,20 @@ describe('hexToBytes / bytesToHex', () => {
 		expect(() => hexToBytes('abc')).toThrow(RangeError);
 		expect(() => hexToBytes('0xabc')).toThrow(RangeError); // odd after prefix strip
 	});
+
+	test('invalid hex character throws', () => {
+		// `parseInt('0g', 16)` returns 0 — it stops at the first invalid
+		// character after parsing a valid prefix, rather than failing. That
+		// silently produced the wrong byte. The regex guard now rejects any
+		// input outside `[0-9a-fA-F]` up front.
+		expect(() => hexToBytes('0g')).toThrow(RangeError);
+		expect(() => hexToBytes('zzzz')).toThrow(RangeError);
+		expect(() => hexToBytes('deadxx')).toThrow(RangeError);
+	});
+
+	test('mixed-case input still works', () => {
+		expect(bytesToHex(hexToBytes('deadBEEF'))).toBe('deadbeef');
+	});
 });
 
 // ── utf8ToBytes / bytesToUtf8 ───────────────────────────────────────────────
@@ -97,9 +111,12 @@ describe('base64ToBytes / bytesToBase64', () => {
 		expect(decoded).toEqual(bytes);
 	});
 
-	test('invalid input returns undefined', () => {
-		expect(base64ToBytes('!!!!')).toBeUndefined();  // invalid charset
-		expect(base64ToBytes('a')).toBeUndefined();     // rem=1, always invalid
+	test('invalid input throws', () => {
+		// Throws RangeError on illegal charsets and rem=1 inputs, matching the
+		// throw-don't-return-null convention used everywhere else in the lib.
+		expect(() => base64ToBytes('!!!!')).toThrow(RangeError);  // invalid charset
+		expect(() => base64ToBytes('!!!')).toThrow(RangeError);   // odd-plus-garbage
+		expect(() => base64ToBytes('a')).toThrow(RangeError);     // rem=1, always invalid
 	});
 
 	test('empty input', () => {

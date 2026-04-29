@@ -12,6 +12,7 @@
 >   - [`Poly1305`](#poly1305)
 >   - [`ChaCha20Poly1305`](#chacha20poly1305)
 >   - [`XChaCha20Poly1305`](#xchacha20poly1305)
+>   - [`ChaCha20Generator`](#chacha20generator)
 > - [XChaCha20Cipher](#xchacha20cipher)
 > - [Usage Examples](#usage-examples)
 > - [Error Conditions](#error-conditions)
@@ -20,11 +21,13 @@
 
 ## Overview
 
-**ChaCha20** is a modern stream cipher designed by Daniel J. Bernstein. It is fast
-on all platforms (including those without hardware AES), resistant to timing attacks
-by design, and widely deployed in TLS, SSH, and WireGuard. ChaCha20 encrypts data
-by generating a pseudorandom keystream from a 256-bit key and a nonce, then XORing
-it with the plaintext. It does **not** provide authentication on its own. A modified message will decrypt to garbage with no warning.
+**ChaCha20** is a modern stream cipher designed by Daniel J. Bernstein. It is
+fast on all platforms (including those without hardware AES), resistant to
+timing attacks by design, and widely deployed in TLS, SSH, and WireGuard.
+ChaCha20 encrypts data by generating a pseudorandom keystream from a 256-bit
+key and a nonce, then XORing it with the plaintext. It does **not** provide
+authentication on its own. A modified message will decrypt to garbage with no
+warning.
 
 **Poly1305** is a one-time message authentication code (MAC). Given a unique 256-bit
 key and a message, it produces a 16-byte tag that proves the message has not been
@@ -41,10 +44,10 @@ you get an error instead of corrupted data. The nonce is 96 bits (12 bytes).
 **XChaCha20-Poly1305** extends the nonce to 192 bits (24 bytes) using the HChaCha20
 subkey derivation step. This makes random nonce generation completely safe. With a
 24-byte nonce, the probability of a collision is negligible even after billions of
-messages. **For most users, `Seal` with `XChaCha20Cipher` is the recommended choice.** It
-produces a self-contained authenticated blob with no nonce management, no
-instantiation, and no `dispose()`. For protocol interop requiring explicit nonce
-control, use `XChaCha20Poly1305` directly.
+messages. **For most users, [`Seal`](./aead.md#seal) with [`XChaCha20Cipher`](./ciphersuite.md#xchacha20cipher)
+is the recommended choice.** It produces a self-contained authenticated blob with
+no nonce management, no instantiation, and no `dispose()`. For protocol interop
+requiring explicit nonce control, use `XChaCha20Poly1305` directly.
 
 ---
 
@@ -54,10 +57,10 @@ control, use `XChaCha20Poly1305` directly.
 > Read this section before writing any code. These are not theoretical concerns.
 > They are the mistakes that cause real-world breaches.
 
-- **Use `Seal` with `XChaCha20Cipher` unless you need explicit nonce control.**
-  It is the safest default: authenticated encryption in a single static call.
-  If you are unsure which class to pick, pick this one. Use `XChaCha20Poly1305`
-  when protocol interop requires you to manage nonces yourself.
+- **Use [`Seal`](./aead.md#seal) with [`XChaCha20Cipher`](./ciphersuite.md#xchacha20cipher)
+  unless you need explicit nonce control.** It is the safest default: authenticated
+  encryption in a single static call. If you are unsure which class to pick, pick this
+  one. Use `XChaCha20Poly1305` when protocol interop requires you to manage nonces yourself.
 
 - **Never reuse a nonce with the same key.** This is the single most important
   rule. If you encrypt two different messages with the same key and the same nonce,
@@ -138,13 +141,21 @@ Error: leviathan-crypto: call init({ chacha20: ... }) before using this class
 Raw ChaCha20 stream cipher. **No authentication.** Use `XChaCha20Poly1305` instead
 unless you are building a custom protocol and understand the risks.
 
+> [!CAUTION]
+> `ChaCha20` is stateful and holds exclusive access to the `chacha20` WASM
+> module for its entire lifetime. Constructing a second `ChaCha20`, or any
+> atomic chacha20 class (`Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`,
+> or a `XChaCha20Cipher`-backed `Seal`/`SealStream`), while this instance is
+> live throws. Call `dispose()` when done. Pool workers are unaffected.
+
 #### Constructor
 
 ```typescript
 new ChaCha20()
 ```
 
-Throws if `init({ chacha20: chacha20Wasm })` has not been called.
+Throws if `init({ chacha20: chacha20Wasm })` has not been called, or if
+another stateful chacha20 instance is still live.
 
 ---
 
@@ -158,6 +169,13 @@ Prepares the cipher for encryption with the given key and nonce.
 | `nonce` | `Uint8Array` | 12 bytes (96 bits) |
 
 **Throws** `RangeError` if `key` is not 32 bytes or `nonce` is not 12 bytes.
+
+> [!NOTE]
+> **Block counter convention.** `beginEncrypt()` starts the ChaCha20 keystream
+> at block counter 1, not 0. Block 0 is reserved for Poly1305 one-time key
+> generation per RFC 8439 §2.6. The class is designed for use inside an AEAD
+> construction; if you need to match RFC 8439 §2.4.2 verbatim (keystream
+> starting at counter 0), use the lower-level primitives directly.
 
 ---
 
@@ -176,7 +194,8 @@ a new `Uint8Array` containing the ciphertext (same length as input).
 
 #### `beginDecrypt(key: Uint8Array, nonce: Uint8Array): void`
 
-Prepares the cipher for decryption. Identical to `beginEncrypt`. ChaCha20 is symmetric; encryption and decryption are the same XOR operation.
+Prepares the cipher for decryption. Identical to `beginEncrypt`. ChaCha20 is
+symmetric; encryption and decryption are the same XOR operation.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -204,6 +223,11 @@ plaintext (same length as input).
 
 Wipes all key material and intermediate state from WASM memory. Always call this
 when you are done with the instance.
+
+After `dispose()`, all instance methods (`beginEncrypt`, `encryptChunk`,
+`beginDecrypt`, `decryptChunk`) throw `Error: ChaCha20: instance has been
+disposed`. Disposal is permanent; construct a new instance if you need to
+continue.
 
 ---
 
@@ -272,6 +296,13 @@ appended.
 > Each `ChaCha20Poly1305` instance allows only **one** `encrypt()` call. A second
 > call throws to prevent accidental nonce reuse. Create a new instance for each
 > encryption, or use `Seal` with `XChaCha20Cipher` for automatic nonce management.
+>
+> **Strict single-use on any throw.** Any throw from `encrypt()`, including
+> `RangeError` from wrong-length `key` or `nonce`, exclusivity errors, or any
+> failure inside the WASM call, is *terminal*. The guard is set before
+> argument validation, so a subsequent `encrypt()` on the same instance throws
+> the single-use error rather than retrying. Always allocate a new AEAD
+> instance per message.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -283,9 +314,9 @@ appended.
 **Returns** `Uint8Array`: ciphertext + 16-byte tag (length = plaintext.length + 16).
 
 **Throws:**
-- `RangeError` if `key` is not 32 bytes
-- `RangeError` if `nonce` is not 12 bytes
-- `RangeError` if `plaintext` exceeds the maximum chunk size
+- `RangeError` if `key` is not 32 bytes *(terminal: instance locked)*
+- `RangeError` if `nonce` is not 12 bytes *(terminal: instance locked)*
+- `RangeError` if `plaintext` exceeds the maximum chunk size *(terminal: instance locked)*
 - `Error` if `encrypt()` has already been called on this instance
 
 ---
@@ -297,7 +328,8 @@ parameter must include the appended 16-byte tag (i.e., the exact output of
 `encrypt()`). If authentication fails, an error is thrown and no plaintext is
 returned.
 
-Tag comparison uses a constant-time XOR-accumulate pattern; no timing side channel leaks whether the tag was "close" to correct.
+Tag comparison uses a constant-time XOR-accumulate pattern; no timing side
+channel leaks whether the tag was "close" to correct.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -326,8 +358,8 @@ Wipes all key material and intermediate state from WASM memory.
 
 XChaCha20-Poly1305 AEAD (draft-irtf-cfrg-xchacha). RFC-faithful stateless
 primitive. Key and nonce are passed per-call. Use when protocol interop
-requires explicit nonce control. For most use cases, prefer `Seal` with
-`XChaCha20Cipher` (automatic nonce management, no instantiation).
+requires explicit nonce control. For most use cases, prefer [`Seal`](./aead.md#seal)
+with [`XChaCha20Cipher`](./ciphersuite.md#xchacha20cipher)(automatic nonce management, no instantiation).
 
 It uses a 24-byte (192-bit) nonce, which is large enough that randomly generated
 nonces will never collide in practice. Internally, it derives a subkey via
@@ -351,6 +383,19 @@ Throws if `init({ chacha20: chacha20Wasm })` has not been called.
 
 Encrypts plaintext and returns the ciphertext with the 16-byte tag appended.
 
+> [!WARNING]
+> Same single-use contract as `ChaCha20Poly1305.encrypt()`. Each instance
+> allows only **one** `encrypt()` call. A second call throws to prevent
+> accidental nonce reuse. Create a new instance for each encryption, or use
+> `Seal` with `XChaCha20Cipher` for automatic nonce management.
+>
+> **Strict single-use on any throw.** Any throw from `encrypt()` is *terminal*,
+> whether the cause is a `RangeError` from wrong-length `key` or `nonce`, an
+> exclusivity error, or a failure inside the WASM call. The guard is set
+> before argument validation, so a subsequent `encrypt()` on the same instance
+> throws the single-use error rather than retrying with a reused nonce. Always
+> allocate a new AEAD instance per message.
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `key` | `Uint8Array` | | 32 bytes (256-bit key) |
@@ -361,8 +406,10 @@ Encrypts plaintext and returns the ciphertext with the 16-byte tag appended.
 **Returns** `Uint8Array`: ciphertext + 16-byte tag (length = plaintext.length + 16).
 
 **Throws:**
-- `RangeError` if `key` is not 32 bytes
-- `RangeError` if `nonce` is not 24 bytes
+- `RangeError` if `key` is not 32 bytes *(terminal: instance locked)*
+- `RangeError` if `nonce` is not 24 bytes *(terminal: instance locked)*
+- `RangeError` if `plaintext` exceeds the maximum chunk size *(terminal: instance locked)*
+- `Error` if `encrypt()` has already been called on this instance
 
 ---
 
@@ -395,6 +442,59 @@ Wipes all key material and intermediate state from WASM memory.
 
 ---
 
+### ChaCha20Generator
+
+ChaCha20 block-function PRF for Fortuna's generator slot (RFC 8439 §2.3).
+Uses a fixed zero nonce; Fortuna's counter is the only varying input.
+Implements the `Generator` interface. Plain `const` object — no instantiation,
+no `dispose()`.
+
+Requires `init({ chacha20: chacha20Wasm })`. See [fortuna.md](./fortuna.md)
+for full usage with `Fortuna.create()`.
+
+| Property | Value |
+|----------|-------|
+| `keySize` | `32` |
+| `blockSize` | `64` |
+| `counterSize` | `4` |
+| `wasmModules` | `['chacha20']` |
+
+#### `ChaCha20Generator.generate(key, counter, n): Uint8Array`
+
+Produces `n` bytes from `(key, counter)`. Neither input is mutated. Wipes WASM
+key/state/keystream scratch before returning.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `Uint8Array` | 32 bytes |
+| `counter` | `Uint8Array` | 4 bytes, read as a little-endian u32 |
+| `n` | `number` | Output byte count: 0 ≤ n ≤ 2³⁰ |
+
+**Returns** a new `Uint8Array` of length `n`.
+
+**Throws:**
+- `RangeError('ChaCha20Generator: key must be 32 bytes (got N)')` if key length ≠ 32
+- `RangeError('ChaCha20Generator: counter must be 4 bytes (got N)')` if counter length ≠ 4
+- `RangeError('ChaCha20Generator: n must be a non-negative safe integer <= 2^30 (got N)')` if n is out of range
+- `Error` if another stateful instance currently owns the `chacha20` WASM module
+
+#### Usage with `Fortuna`
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { ChaCha20Generator } from 'leviathan-crypto/chacha20'
+import { SHA256Hash } from 'leviathan-crypto/sha2'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ chacha20: chacha20Wasm, sha2: sha2Wasm })
+const rng = await Fortuna.create({ generator: ChaCha20Generator, hash: SHA256Hash })
+const bytes = rng.get(32)
+rng.stop()
+```
+
+---
+
 ## XChaCha20Cipher
 
 `CipherSuite` implementation for XChaCha20-Poly1305. Pass to `Seal`,
@@ -412,7 +512,7 @@ Requires `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })`.
 | `keySize` | `32` |
 | `tagSize` | `16` (Poly1305) |
 | `padded` | `false` |
-| `wasmModules` | `['chacha20', 'sha2']` |
+| `wasmModules` | `['chacha20']` |
 
 #### `XChaCha20Cipher.keygen(): Uint8Array`
 
@@ -638,7 +738,7 @@ const pt2 = cipher.decryptChunk(ct2)
 
 // WARNING: Without authentication, an attacker can flip bits in ciphertext
 // and the corresponding plaintext bits will flip with no error.
-// Pair with HMAC (Encrypt-then-MAC) or use XChaCha20Poly1305 instead.
+// Use the seal api or XChaCha20Poly1305 instead.
 
 cipher.dispose()
 ```
@@ -660,15 +760,21 @@ cipher.dispose()
 | Chunk or plaintext exceeds WASM buffer size | `RangeError` | `plaintext exceeds N bytes — split into smaller chunks` / `chunk exceeds maximum size of N bytes — split into smaller chunks` |
 | Authentication tag does not match on decrypt | `Error` | `ChaCha20Poly1305: authentication failed` |
 | Empty plaintext | | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
+| `ChaCha20Generator.generate()` key ≠ 32 bytes | `RangeError` | `ChaCha20Generator: key must be 32 bytes (got N)` |
+| `ChaCha20Generator.generate()` counter ≠ 4 bytes | `RangeError` | `ChaCha20Generator: counter must be 4 bytes (got N)` |
+| `ChaCha20Generator.generate()` n out of range | `RangeError` | `ChaCha20Generator: n must be a non-negative safe integer <= 2^30 (got N)` |
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [lexicon](./lexicon.md) — Glossary of cryptographic terms
-> - [asm_chacha](./asm_chacha.md) — WASM (AssemblyScript) implementation details for the chacha20 module
-> - [authenticated encryption](./aead.md) — `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument
-> - [serpent](./serpent.md) — `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming
-> - [sha2](./sha2.md) — SHA-2 hashes and HMAC. Needed for Encrypt-then-MAC if using raw ChaCha20
-> - [types](./types.md) — `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [lexicon](./lexicon.md) | Glossary of cryptographic terms |
+| [asm_chacha](./asm_chacha.md) | WASM (AssemblyScript) implementation details for the chacha20 module |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument |
+| [serpent](./serpent.md) | `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming |
+| [sha2](./sha2.md) | SHA-2 hashes and HMAC. Needed for Encrypt-then-MAC if using raw ChaCha20 |
+| [types](./types.md) | `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |
+

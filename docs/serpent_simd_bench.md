@@ -111,9 +111,12 @@ purpose of SIMD throughput.
 
 ---
 
-> **Cross-references:**
-> - [index](./README.md) — Project Documentation index
-> - [asm_serpent](./asm_serpent.md) — WASM API reference including SIMD exports
-> - [serpent](./serpent.md) — TypeScript wrapper classes
-> - [chacha_simd_bench](./chacha_simd_bench.md) — ChaCha20 SIMD benchmark (same inter-block model)
-> - [serpent_audit.md](./serpent_audit.md) — Serpent-256 implementation audit
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [asm_serpent](./asm_serpent.md) | WASM API reference including SIMD exports |
+| [serpent](./serpent.md) | TypeScript wrapper classes |
+| [chacha_simd_bench](./chacha_simd_bench.md) | ChaCha20 SIMD benchmark (same inter-block model) |
+| [serpent_audit.md](./serpent_audit.md) | Serpent-256 implementation audit |

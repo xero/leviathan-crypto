@@ -158,9 +158,12 @@ require no shuffles). And the v128 local loads are genuinely beneficial since th
 
 ---
 
-> **Cross-references:**
-> - [index](./README.md) — Project Documentation index
-> - [asm_chacha](./asm_chacha.md) — WASM API reference including SIMD exports
-> - [chacha20](./chacha20.md) — TypeScript wrapper classes
-> - [serpent_simd_bench](./serpent_simd_bench.md) — Serpent-256 SIMD benchmark (same inter-block model)
-> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [asm_chacha](./asm_chacha.md) | WASM API reference including SIMD exports |
+| [chacha20](./chacha20.md) | TypeScript wrapper classes |
+| [serpent_simd_bench](./serpent_simd_bench.md) | Serpent-256 SIMD benchmark (same inter-block model) |
+| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |

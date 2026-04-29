@@ -37,7 +37,7 @@ export class OpenStream {
 	private readonly keys: DerivedKeys;
 	private readonly maxWireChunk: number;
 	private counter = 0;
-	private state: 'ready' | 'finalized' = 'ready';
+	private state: 'ready' | 'finalized' | 'failed' = 'ready';
 
 	constructor(cipher: CipherSuite, key: Uint8Array, preamble: Uint8Array) {
 		this.cipher = cipher;
@@ -81,8 +81,11 @@ export class OpenStream {
 
 	pull(chunk: Uint8Array, opts?: { aad?: Uint8Array }): Uint8Array {
 		if (this.state !== 'ready')
-			throw new Error('OpenStream: cannot pull after finalize');
-
+			throw new Error(`OpenStream: cannot pull in state '${this.state}'`);
+		// Argument and wire-format validation runs before the crypto-failure
+		// try/catch so a malformed chunk throws without wiping keys or
+		// transitioning to 'failed'. The caller can retry with a corrected
+		// chunk. Symmetric with SealStream.push.
 		const data = this.framed ? this._stripFrame(chunk) : chunk;
 		if (data.length < this.cipher.tagSize)
 			throw new RangeError(
@@ -92,16 +95,21 @@ export class OpenStream {
 			throw new RangeError(
 				`chunk exceeds max wire size (${data.length} > ${this.maxWireChunk})`,
 			);
-		const nonce = makeCounterNonce(this.counter, TAG_DATA);
-		const plaintext = this.cipher.openChunk(this.keys, nonce, data, opts?.aad);
-		this.counter++;
-		return plaintext;
+		try {
+			const nonce = makeCounterNonce(this.counter, TAG_DATA);
+			const plaintext = this.cipher.openChunk(this.keys, nonce, data, opts?.aad);
+			this.counter++;
+			return plaintext;
+		} catch (err) {
+			this.cipher.wipeKeys(this.keys);
+			this.state = 'failed';
+			throw err;
+		}
 	}
 
 	finalize(chunk: Uint8Array, opts?: { aad?: Uint8Array }): Uint8Array {
 		if (this.state !== 'ready')
-			throw new Error('OpenStream: already finalized');
-
+			throw new Error(`OpenStream: cannot finalize in state '${this.state}'`);
 		const data = this.framed ? this._stripFrame(chunk) : chunk;
 		if (data.length < this.cipher.tagSize)
 			throw new RangeError(
@@ -111,11 +119,17 @@ export class OpenStream {
 			throw new RangeError(
 				`chunk exceeds max wire size (${data.length} > ${this.maxWireChunk})`,
 			);
-		const nonce = makeCounterNonce(this.counter, TAG_FINAL);
-		const plaintext = this.cipher.openChunk(this.keys, nonce, data, opts?.aad);
-		this.cipher.wipeKeys(this.keys);
-		this.state = 'finalized';
-		return plaintext;
+		try {
+			const nonce = makeCounterNonce(this.counter, TAG_FINAL);
+			const plaintext = this.cipher.openChunk(this.keys, nonce, data, opts?.aad);
+			this.cipher.wipeKeys(this.keys);
+			this.state = 'finalized';
+			return plaintext;
+		} catch (err) {
+			this.cipher.wipeKeys(this.keys);
+			this.state = 'failed';
+			throw err;
+		}
 	}
 
 	dispose(): void {
@@ -123,13 +137,21 @@ export class OpenStream {
 			this.cipher.wipeKeys(this.keys);
 			this.state = 'finalized';
 		}
+		// 'failed' already wiped keys; 'finalized' already wiped keys — no-op.
 	}
 
 	seek(index: number): void {
 		if (this.state !== 'ready')
-			throw new Error('OpenStream: cannot seek after finalize');
-		if (!Number.isInteger(index) || index < 0)
-			throw new RangeError(`seek index must be a non-negative integer (got ${index})`);
+			throw new Error(`OpenStream: cannot seek in state '${this.state}'`);
+		if (!Number.isSafeInteger(index) || index < 0)
+			throw new RangeError(
+				`seek index must be a non-negative safe integer ≤ Number.MAX_SAFE_INTEGER (got ${index})`,
+			);
+		if (index < this.counter)
+			throw new RangeError(
+				`OpenStream: seek is forward-only — current counter ${this.counter}, requested ${index}. `
+				+ 'Backward seeks would permit plaintext replay; construct a new OpenStream to restart.',
+			);
 		this.counter = index;
 	}
 

@@ -19,6 +19,8 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
+import { BUFFER_END } from './buffers'
+
 export {
 	getModuleId, getMemoryPages,
 	getSha256HOffset, getSha256BlockOffset, getSha256WOffset,
@@ -36,8 +38,8 @@ export { hmac256Init, hmac256Update, hmac256Final } from './hmac'
 export { hmac512Init, hmac512Update, hmac512Final,
          hmac384Init, hmac384Update, hmac384Final } from './hmac512'
 
-// Zero all SHA-2 module buffers (offsets 0..1975).
+// Zero all SHA-2 module buffers (offsets 0..BUFFER_END-1).
 // Must be called in dispose() to clear key material and intermediate state.
 export function wipeBuffers(): void {
-	memory.fill(0, 0, 1976)
+	memory.fill(0, 0, BUFFER_END)
 }

@@ -49,7 +49,7 @@
 //     HMAC512_IPAD_OFFSET:   1656 (128 bytes — K' XOR ipad)
 //     HMAC512_OPAD_OFFSET:   1784 (128 bytes — K' XOR opad)
 //     HMAC512_INNER_OFFSET:  1912 (64 bytes — inner hash saved by hmacFinal)
-//     END:                   1976
+//     BUFFER_END:            HMAC512_INNER_OFFSET + 64 = end of the last buffer
 
 // ── SHA-256 buffer offsets ───────────────────────────────────────────────────
 
@@ -77,7 +77,12 @@ export const HMAC512_IPAD_OFFSET:   i32 = 1656
 export const HMAC512_OPAD_OFFSET:   i32 = 1784
 export const HMAC512_INNER_OFFSET:  i32 = 1912
 
-// END = 1976
+/**
+ * End of the SHA-2 module buffer region (exclusive upper bound).
+ * `HMAC512_INNER_OFFSET + 64` = end of the last 64-byte buffer.
+ * Used by `wipeBuffers()` in `index.ts`.
+ */
+export const BUFFER_END:            i32 = HMAC512_INNER_OFFSET + 64
 
 // ── Module identity ──────────────────────────────────────────────────────────
 

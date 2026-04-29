@@ -37,16 +37,16 @@
 
 ### 1.1 Rotation and Shift Operations
 
-**SHA-256** (`sha256.ts:149–152`): All rotation and shift operations use AssemblyScript built-in `rotr<i32>()`, which compiles to the WASM `i32.rotr` instruction, a single hardware instruction on all modern architectures. The implementation uses no manual shift-or patterns.
+**SHA-256** (`sha256.ts:149–152`): We use AssemblyScript's built-in `rotr<i32>()`, which compiles directly to the WASM `i32.rotr` instruction—a single CPU instruction on all modern architectures. No manual shift-or patterns.
 
-- `rotr<i32>(x, n)`: right rotation, equivalent to `(x >>> n) | (x << (32 - n))`
-- `x >>> n`: logical (unsigned) right shift (WASM `i32.shr_u`)
+- `rotr<i32>(x, n)`: right rotation. Equivalent to `(x >>> n) | (x << (32 - n))`.
+- `x >>> n`: logical (unsigned) right shift (WASM `i32.shr_u`).
 
-**SHA-512** (`sha512.ts:172`): Defines `rotr64(x, n)` as `(x >>> n) | (x << (64 - n))` using i64 operands. AssemblyScript does not provide a built-in `rotr<i64>()`, so this manual implementation is correct and compiles to efficient WASM i64 shift/or instructions.
+**SHA-512** (`sha512.ts:172`): AssemblyScript has no built-in `rotr<i64>()`, so we define `rotr64(x, n)` as `(x >>> n) | (x << (64 - n))` using i64 operands. This manual form compiles to efficient WASM i64 shift/or instructions.
 
-- `x >>> n` on i64: logical right shift (WASM `i64.shr_u`)
+- `x >>> n` on i64: logical right shift (WASM `i64.shr_u`).
 
-**Wraparound:** All SHA-256 arithmetic is on `i32`, which natively wraps at 2^32 in WASM. No masking needed. SHA-512 uses `i64`, natively wrapping at 2^64. This is correct per FIPS 180-4 §2.2.1.
+**Wraparound:** SHA-256 arithmetic is on `i32`, which wraps natively at 2^32 in WASM with no masking. SHA-512 uses `i64`, wrapping natively at 2^64. Both are correct per FIPS 180-4 §2.2.1.
 
 ---
 
@@ -74,7 +74,7 @@
 | sigma0_512(x) | `ROTR^1(x) ^ ROTR^8(x) ^ SHR^7(x)` | `rotr64(x, 1) ^ rotr64(x, 8) ^ (x >>> 7)` | Exact |
 | sigma1_512(x) | `ROTR^19(x) ^ ROTR^61(x) ^ SHR^6(x)` | `rotr64(x, 19) ^ rotr64(x, 61) ^ (x >>> 6)` | Exact |
 
-All rotation amounts are correct. SHA-256 and SHA-512 use **different** rotation constants. The implementation correctly defines separate function sets and includes a prominent warning comment (`sha512.ts:170`): "DO NOT copy from SHA-256. The rotation constants are different."
+All rotation amounts are correct. SHA-256 and SHA-512 use different rotation constants—a detail that's easy to miss when copying between implementations. We define separate function sets for each variant. The code includes a prominent warning (`sha512.ts:170`): "DO NOT copy from SHA-256. The rotation constants are different."
 
 > [!NOTE]
 > All six SHA-256 functions and all six SHA-512 functions are marked `@inline`.
@@ -174,7 +174,7 @@ Verified by computing `floor(frac(sqrt(prime[i])) * 2^64)` for primes 23, 29, 31
 
 #### SHA-224 Initial Hash Values
 
-The implementation does not include a separate SHA-224 variant. The TASK-sha2.md §4.2.3 reference lists the SHA-224 IVs:
+The implementation does not include a separate SHA-224 variant. The reference lists the SHA-224 IVs:
 
 ```
 h0 = 0xc1059ed8    h1 = 0x367cd507
@@ -527,12 +527,16 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [sha3_audit](./sha3_audit.md) — SHA-3 companion audit (independent construction)
-> - [hmac_audit](./hmac_audit.md) — HMAC-SHA256 builds on SHA-256
-> - [hkdf_audit](./hkdf_audit.md) — HKDF-SHA256 builds on HMAC-SHA256
-> - [serpent_audit](./serpent_audit.md) — uses HMAC-SHA256 in SerpentCipher
-> - [chacha_audit](./chacha_audit.md) — XChaCha20-Poly1305 companion audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [sha3_audit](./sha3_audit.md) | SHA-3 companion audit (independent construction) |
+| [hmac_audit](./hmac_audit.md) | HMAC-SHA256 builds on SHA-256 |
+| [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 builds on HMAC-SHA256 |
+| [serpent_audit](./serpent_audit.md) | uses HMAC-SHA256 in SerpentCipher |
+| [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 companion audit |
+

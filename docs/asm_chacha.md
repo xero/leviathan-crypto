@@ -1,7 +1,11 @@
 # ChaCha20/Poly1305 WASM Reference
 
-> [!NOTE]
-> AssemblyScript implementation of the full ChaCha20-Poly1305 AEAD family, compiled to `chacha20.wasm`. See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.
+> [!IMPORTANT]
+> This low-level reference details the ChaCha20 AssemblyScript source and WASM
+> exports, intended for those auditing, contributing to, or building against
+> the raw module. Most consumers, however, should instead use the TypeScript
+> wrapper classes (see the [TypeScript API reference](./chacha20.md) or the
+> higher-level [`Seal` and `SealStream` AEAD guide](./aead.md)).
 
 > ### Table of Contents
 > - [Overview](#overview)
@@ -15,58 +19,35 @@
 
 ## Overview
 
-This module implements the full ChaCha20-Poly1305 AEAD family in a single
-WASM binary with shared linear memory:
+This module implements the full ChaCha20-Poly1305 AEAD family in one WASM binary with shared linear memory.
 
-**ChaCha20.** Stream cipher (RFC 8439 S2.3-S2.4). 256-bit key, 96-bit nonce, 32-bit block counter, 20 rounds (10 double rounds of column + diagonal quarter-rounds).
+**ChaCha20** (RFC 8439 §2.3-2.4) is a stream cipher. 256-bit key, 96-bit nonce, 32-bit block counter, 20 rounds (10 double rounds alternating column and diagonal quarter-rounds).
 
-**Poly1305.** One-time MAC (RFC 8439 S2.5). Authenticates arbitrary-length messages under a 256-bit one-time key (r || s). Uses a radix-2^26 representation with u64 limbs for accumulation.
+**Poly1305** (RFC 8439 §2.5) is a one-time MAC. It authenticates messages of arbitrary length using a 256-bit one-time key (r || s). Internally it uses radix-2^26 representation with u64 limbs to avoid overflow during multiplication.
 
-**ChaCha20-Poly1305 AEAD.** (RFC 8439 S2.8). The TypeScript layer composes `chachaGenPolyKey` + `chachaEncryptChunk` + `polyInit`/`polyUpdate`/`polyFinal` to produce authenticated ciphertext. The WASM module provides the primitives; the TS wrapper orchestrates the AEAD construction.
+**ChaCha20-Poly1305 AEAD** (RFC 8439 §2.8) combines the two. The TypeScript layer orchestrates the composition by calling `chachaGenPolyKey`, `chachaEncryptChunk`, and `polyInit`/`polyUpdate`/`polyFinal` in sequence to produce authenticated ciphertext. The WASM module exports the primitives; TypeScript drives the construction.
 
-**HChaCha20.** Subkey derivation (draft-irtf-cfrg-xchacha S2.1). Extracts a 256-bit subkey from a 256-bit key and 128-bit nonce prefix. Used by XChaCha20 to extend the nonce space to 192 bits.
+**HChaCha20** (draft-irtf-cfrg-xchacha §2.1) derives a 256-bit subkey from a key and 128-bit nonce prefix. XChaCha20 uses this to extend the nonce space to 192 bits, making random nonce generation practical for large message volumes.
 
-All cryptographic computation runs in WASM. The TypeScript layer writes inputs
-to linear memory, calls exported functions, and reads outputs. It never
-implements algorithm logic.
+All cryptography runs in WASM. The TypeScript layer writes inputs to linear memory, calls WASM exports, and reads outputs. It implements no algorithm logic.
 
 ---
 
 ## Security Notes
 
-**Constant-time by construction.** ChaCha20's quarter-round uses only ARX
-operations (add, rotate, XOR). There are no table lookups, no secret-dependent
-branches, and no variable-time multiplications. This makes ChaCha20 inherently
-resistant to cache-timing side channels; it is the same property that motivated its adoption in TLS 1.3 as the non-AES cipher suite.
+**Constant-time by construction.** ChaCha20 uses only ARX operations (add, rotate, XOR). No lookups, no secret-dependent branches, no variable-time arithmetic. This design is why TLS 1.3 adopted ChaCha20 as its non-AES cipher—it's inherently resistant to cache-timing side channels.
 
-**Poly1305 accumulator arithmetic.** The Poly1305 implementation uses a
-radix-2^26 limb representation stored in u64 words. Multiplication is schoolbook
-over five limbs with reduction modulo p = 2^130 - 5. The u64 intermediate
-products avoid overflow without needing multi-precision carries during the
-multiply step. The final reduction in `polyFinal` uses a constant-time
-conditional select (mask-and-OR) to choose between h and h - p, avoiding
-branching on secret-derived values.
+**Poly1305 accumulator arithmetic.** Poly1305 uses radix-2^26 limbs stored in u64 words. Schoolbook multiplication over five limbs with reduction modulo p = 2^130 - 5. The u64 intermediate products avoid overflow without needing multi-precision carries. The final reduction in `polyFinal` uses constant-time conditional select (mask-and-OR) to choose between h and h - p, avoiding branches on secret values.
 
-**Nonce reuse is catastrophic.** For standard ChaCha20 (96-bit nonce), reusing
-a (key, nonce) pair leaks the XOR of two plaintexts and completely breaks
-Poly1305 authentication. With a 96-bit nonce, random nonce generation has a
-non-negligible collision probability after ~2^48 messages under the same key.
-If random nonces are required, use XChaCha20-Poly1305 instead.
+**Nonce reuse is catastrophic.** Reusing a (key, nonce) pair with standard ChaCha20 (96-bit nonce) leaks the XOR of two plaintexts and completely breaks Poly1305 authentication. With random 96-bit nonces, collision occurs after approximately 2^48 messages under the same key. If you require random nonces, use XChaCha20-Poly1305 instead.
 
-**XChaCha20 extends nonce to 192 bits.** HChaCha20 derives a per-message subkey
-from the first 128 bits of a 192-bit nonce, then ChaCha20 encrypts with the
-remaining 64 bits (zero-padded to 96 bits). The 192-bit nonce space makes random
-nonce generation safe for up to ~2^96 messages. Effectively unlimited.
+**XChaCha20 extends nonce to 192 bits.** HChaCha20 derives a per-message subkey from the first 128 bits of a 192-bit nonce, then ChaCha20 encrypts with the remaining 64 bits (zero-padded to 96 bits). The 192-bit nonce space allows random generation safely for up to 2^96 messages—effectively unlimited.
 
-**`wipeBuffers()` zeroes all buffer regions.** Every buffer in the module (keys, nonces, counters, keystream blocks, ChaCha20 state which contains a copy of the key in words 4-11, Poly1305 internal state h, r, 5*r, s, chunk buffers, and XChaCha20 subkey material) is overwritten with zeros. The
-TypeScript `dispose()` method must call this unconditionally. Key material and
-intermediate state must not persist in WASM memory after an operation completes.
+**`wipeBuffers()` zeroes all buffer regions.** Every buffer in the module (keys, nonces, counters, keystream blocks, the ChaCha20 state which contains a key copy in words 4-11, Poly1305 internal state h, r, 5*r, s, chunk buffers, and XChaCha20 subkey material) gets overwritten with zeros. The TypeScript `dispose()` method must call this unconditionally. Key material and intermediate state must not persist in WASM memory after an operation completes.
 
-**Bare ChaCha20 is unauthenticated.** `chachaEncryptChunk` / `chachaDecryptChunk`
-provide confidentiality only. Without Poly1305 authentication, ciphertext is
-malleable. An attacker can flip plaintext bits by flipping ciphertext bits.
-Always use ChaCha20-Poly1305 AEAD or pair bare ChaCha20 with HMAC in an
-Encrypt-then-MAC construction.
+**Bare ChaCha20 is unauthenticated.** The functions `chachaEncryptChunk` and `chachaDecryptChunk` provide confidentiality only. Without Poly1305 authentication, ciphertext is malleable—an attacker can flip plaintext bits by flipping ciphertext bits. Always use ChaCha20-Poly1305 AEAD or pair bare ChaCha20 with HMAC in an Encrypt-then-MAC construction.
+
+**See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.**
 
 ---
 
@@ -474,10 +455,14 @@ TypeScript layer, not in the WASM module. `wipe.ts` imports buffer offsets from
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md) — Project Documentation index
-> - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
-> - [chacha20](./chacha20.md) — TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`)
-> - [asm_serpent](./asm_serpent.md) — alternative symmetric cipher (Serpent WASM module)
-> - [chacha_audit.md](./chacha_audit.md) — XChaCha20-Poly1305 implementation audit
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [chacha20](./chacha20.md) | TypeScript wrapper classes (`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`) |
+| [asm_serpent](./asm_serpent.md) | alternative symmetric cipher (Serpent WASM module) |
+| [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |
+

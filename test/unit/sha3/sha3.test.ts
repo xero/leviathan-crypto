@@ -44,8 +44,8 @@ beforeAll(async () => {
 	await init({ sha3: sha3Wasm });
 });
 
-// ── Gate 7: SHA3-256 empty message ──────────────────────────────────────────
-// GATE
+// GATE — SHA3-256 empty message: FIPS 202 §A.1
+// Vector: sha3.ts[sha3_256Vectors[0]]
 describe('Gate 7 — SHA3-256 empty message', () => {
 	test('SHA3-256("") matches FIPS 202', () => {
 		const h = new SHA3_256();

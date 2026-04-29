@@ -52,3 +52,26 @@ export interface AEAD {
 	decrypt(ciphertext: Uint8Array, aad?: Uint8Array): Uint8Array;
 	dispose(): void;
 }
+
+/**
+ * Stateless cipher PRF for Fortuna's generator slot. Produces `n` bytes of
+ * keystream from `(key, counter)` without mutating either input. Implementations
+ * are plain const objects, not classes.
+ */
+export interface Generator {
+	readonly keySize: number;       // bytes
+	readonly blockSize: number;     // bytes per cipher block
+	readonly counterSize: number;   // bytes — Fortuna allocates genCnt of this size
+	readonly wasmModules: readonly string[];
+	generate(key: Uint8Array, counter: Uint8Array, n: number): Uint8Array;
+}
+
+/**
+ * Stateless hash function for Fortuna's accumulator and reseed slots. Output
+ * size must match the generator's key size when paired in Fortuna.
+ */
+export interface HashFn {
+	readonly outputSize: number;    // bytes
+	readonly wasmModules: readonly string[];
+	digest(msg: Uint8Array): Uint8Array;
+}

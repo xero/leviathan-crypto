@@ -25,7 +25,7 @@
  * Tests the SerpentCbc wrapper: PKCS7 padding, round-trips, IV sensitivity,
  * CBC chaining verification, and parameter validation.
  */
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { init, SerpentCbc } from '../../../src/ts/index.js';
 import { getWasm } from '../helpers';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
@@ -38,7 +38,17 @@ let cbc: SerpentCbc;
 
 beforeAll(async () => {
 	await init({ serpent: serpentWasm });
+});
+
+// SerpentCbc holds an exclusive token on the 'serpent' WASM module for its
+// lifetime, which blocks raw getInstance('serpent') access from the same
+// process. Recreate per test so individual tests can dispose and reach the
+// raw WASM directly when they need to.
+beforeEach(() => {
 	cbc = new SerpentCbc({ dangerUnauthenticated: true });
+});
+afterEach(() => {
+	cbc.dispose();
 });
 
 // ── PKCS7 padding output length ───────────────────────────────────────────
@@ -170,6 +180,9 @@ describe('SerpentCbc — IV sensitivity', () => {
 
 		const ct = cbc.encrypt(key, iv1, combined);
 
+		// Release the serpent token before grabbing raw WASM exports.
+		cbc.dispose();
+
 		// Verify chaining manually via raw WASM
 		const wasm = getWasm();
 		const mem = new Uint8Array(wasm.memory.buffer);
@@ -201,6 +214,12 @@ describe('SerpentCbc — IV sensitivity', () => {
 describe('SerpentCbc — WASM chunk boundary', () => {
 	const key = new Uint8Array(32).fill(0x55);
 	const iv  = new Uint8Array(16).fill(0xAA);
+
+	// These tests poke the WASM module directly and therefore need the
+	// serpent exclusivity token released; the outer beforeEach re-creates cbc.
+	beforeEach(() => {
+		cbc.dispose();
+	});
 
 	function setupWasm() {
 		const wasm = getWasm();

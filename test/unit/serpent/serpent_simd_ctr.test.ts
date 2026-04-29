@@ -28,7 +28,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { getInstance } from '../../../src/ts/init.js';
-import { CTR_VECTORS } from './ctr_vectors';
+import { CTR_VECTORS } from '../../vectors/serpent_ctr.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 interface CtrExports {
