@@ -1,6 +1,6 @@
 {
 	"name": "leviathan-crypto",
-	"version": "2.0.1",
+	"version": "2.1.0",
 	"author": "xero (https://x-e.ro)",
 	"license": "MIT",
 	"description": "Post-quantum WASM cryptography with paranoid ciphers (Serpent-256, XChaCha20-Poly1305), ML-KEM, and forward-secret ratcheting. Zero dependencies. Constant-time verified and strictly typed.",
