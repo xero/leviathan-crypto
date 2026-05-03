@@ -36,16 +36,6 @@ export async function kyberInit(source: WasmSource): Promise<void> {
 	return initModule('kyber', source);
 }
 
-export function _kyberReady(): boolean {
-	try {
-		getInstance('kyber');
-		getInstance('sha3');
-		return true;
-	} catch {
-		return false;
-	}
-}
-
 export type { WasmSource };
 export type { KyberKeyPair, KyberEncapsulation, KyberExports, Sha3Exports };
 export { MLKEM512, MLKEM768, MLKEM1024 };

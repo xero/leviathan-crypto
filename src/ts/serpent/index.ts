@@ -254,19 +254,3 @@ export { SerpentCipher } from './cipher-suite.js';
 // ── SerpentGenerator ────────────────────────────────────────────────────────
 
 export { SerpentGenerator } from './generator.js';
-
-// ── Ready check ─────────────────────────────────────────────────────────────
-
-/**
- * Returns `true` if the serpent WASM module has been initialised.
- * Used by tests and internal guards; not part of the public API.
- * @internal
- */
-export function _serpentReady(): boolean {
-	try {
-		getInstance('serpent');
-		return true;
-	} catch {
-		return false;
-	}
-}

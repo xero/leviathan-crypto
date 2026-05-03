@@ -379,19 +379,3 @@ export { XChaCha20Cipher } from './cipher-suite.js';
 // ── ChaCha20Generator ───────────────────────────────────────────────────────
 
 export { ChaCha20Generator } from './generator.js';
-
-// ── Ready check ─────────────────────────────────────────────────────────────
-
-/**
- * Returns `true` if the chacha20 WASM module has been initialised.
- * Used by tests and internal guards; not part of the public API.
- * @internal
- */
-export function _chachaReady(): boolean {
-	try {
-		getInstance('chacha20');
-		return true;
-	} catch {
-		return false;
-	}
-}

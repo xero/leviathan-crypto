@@ -774,10 +774,10 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 |_(barrel itself)_|`init` (dispatching function — calls per-module init functions via `Promise.all`)|
 |`init.ts`|`Module`, `WasmSource`, `isInitialized`|
 |`errors.ts`|`AuthenticationError`|
-|`serpent/index.ts`|`Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher`, `_serpentReady`|
-|`chacha20/index.ts`|`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`, `_chachaReady`|
-|`sha2/index.ts`|`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`, `_sha2Ready`|
-|`sha3/index.ts`|`SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `_sha3Ready`|
+|`serpent/index.ts`|`Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher`|
+|`chacha20/index.ts`|`ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`|
+|`sha2/index.ts`|`SHA256`, `SHA512`, `SHA384`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`|
+|`sha3/index.ts`|`SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`|
 |`keccak/index.ts`|`keccakInit` + re-exports all sha3 classes (alias subpath)|
 |`kyber/index.ts`|`kyberInit`, `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024`, `KyberKeyPair`, `KyberEncapsulation`, `KyberParams`, `MLKEM512`, `MLKEM768`, `MLKEM1024`|
 |`stream/index.ts`|`Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite`, `DerivedKeys`, `SealStreamOpts`, `PoolOpts`, `FLAG_FRAMED`, `TAG_DATA`, `TAG_FINAL`, `HEADER_SIZE`, `CHUNK_MIN`, `CHUNK_MAX`|

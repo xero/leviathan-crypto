@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 import { describe, test, expect, beforeEach } from 'vitest';
-import { init, _serpentReady, _chachaReady, _sha2Ready, _sha3Ready } from '../../src/ts/index.js';
+import { init } from '../../src/ts/index.js';
 import { getInstance, isInitialized, _resetForTesting } from '../../src/ts/init.js';
 import { keccakInit } from '../../src/ts/keccak/index.js';
 import { serpentWasm } from '../../src/ts/serpent/embedded.js';
@@ -53,24 +53,24 @@ describe('init()', () => {
 
 	test('embedded mode — single module', async () => {
 		await init({ serpent: serpentWasm });
-		expect(_serpentReady()).toBe(true);
-		expect(_chachaReady()).toBe(false);
+		expect(isInitialized('serpent')).toBe(true);
+		expect(isInitialized('chacha20')).toBe(false);
 	});
 
 	test('embedded mode — multiple modules', async () => {
 		await init({ serpent: serpentWasm, sha3: sha3Wasm });
-		expect(_serpentReady()).toBe(true);
-		expect(_sha3Ready()).toBe(true);
-		expect(_chachaReady()).toBe(false);
-		expect(_sha2Ready()).toBe(false);
+		expect(isInitialized('serpent')).toBe(true);
+		expect(isInitialized('sha3')).toBe(true);
+		expect(isInitialized('chacha20')).toBe(false);
+		expect(isInitialized('sha2')).toBe(false);
 	});
 
 	test('embedded mode — all four modules', async () => {
 		await init({ serpent: serpentWasm, chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm });
-		expect(_serpentReady()).toBe(true);
-		expect(_chachaReady()).toBe(true);
-		expect(_sha2Ready()).toBe(true);
-		expect(_sha3Ready()).toBe(true);
+		expect(isInitialized('serpent')).toBe(true);
+		expect(isInitialized('chacha20')).toBe(true);
+		expect(isInitialized('sha2')).toBe(true);
+		expect(isInitialized('sha3')).toBe(true);
 	});
 
 	test('idempotent — second init is a no-op', async () => {
@@ -83,7 +83,7 @@ describe('init()', () => {
 
 	test('partial init — loading serpent does not make sha3 available', async () => {
 		await init({ serpent: serpentWasm });
-		expect(_serpentReady()).toBe(true);
+		expect(isInitialized('serpent')).toBe(true);
 		expect(() => getInstance('sha3')).toThrow();
 	});
 
@@ -97,7 +97,7 @@ describe('init()', () => {
 		// Ensure we pass a proper ArrayBuffer (not a Node Buffer's backing store)
 		const arrayBuf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 		await init({ serpent: arrayBuf });
-		expect(_serpentReady()).toBe(true);
+		expect(isInitialized('serpent')).toBe(true);
 	});
 
 	// ── keccak alias ─────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ describe('init()', () => {
 
 	test('init with keccak name loads sha3 instance', async () => {
 		await init({ keccak: sha3Wasm });
-		expect(_sha3Ready()).toBe(true);
+		expect(isInitialized('sha3')).toBe(true);
 		expect(isInitialized('sha3')).toBe(true);
 		expect(isInitialized('keccak')).toBe(true);
 	});

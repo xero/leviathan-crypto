@@ -1,5 +1,74 @@
 # Leviathan Crypto Changelog
 
+## v2.1.1
+
+### Breaking Changes
+
+- **⚠ `_<module>Ready` probes removed.** The five low-level readiness probes
+  (`_serpentReady`, `_chachaReady`, `_sha2Ready`, `_sha3Ready`, `_kyberReady`)
+  are gone from both type and runtime exports — submodule definitions deleted,
+  root barrel re-exports stripped. They were a redundant parallel API to the
+  already-public `isInitialized(mod: Module): boolean` helper exported from
+  the root barrel and from each submodule. The underscore-prefixed names were
+  never part of the documented public surface; they only appeared in
+  `docs/architecture.md` as part of the export map, never in user-facing API
+  docs. Removed without a deprecation window — one source of truth from this
+  release forward.
+
+  Migration is mechanical:
+
+  | before                 | after                          |
+  |------------------------|--------------------------------|
+  | `_serpentReady()`      | `isInitialized('serpent')`     |
+  | `_chachaReady()`       | `isInitialized('chacha20')`    |
+  | `_sha2Ready()`         | `isInitialized('sha2')`        |
+  | `_sha3Ready()`         | `isInitialized('sha3')`        |
+  | `_kyberReady()`        | `isInitialized('kyber')`       |
+
+  Update the import: `import { isInitialized } from 'leviathan-crypto'`.
+
+  Note one semantic narrowing: `_kyberReady()` previously checked **both** the
+  `kyber` and `sha3` modules (kyber depends on SHAKE for its KDF/PRF). The
+  replacement `isInitialized('kyber')` checks only the `kyber` module. If the
+  combined check matters, do `isInitialized('kyber') && isInitialized('sha3')`.
+  In practice every code path that uses MlKem* classes touches a sha3-backed
+  init separately, so the strict combined check is rare outside of test code.
+
+  This removal also resolves a v2.1.0 packaging bug — `_serpentReady` and
+  `_chachaReady` were missing from `dist/serpent/index.d.ts` and
+  `dist/chacha20/index.d.ts` because their source declarations carried
+  `@internal` while the root barrel re-exported them by name, so downstream
+  `tsc --noEmit` failed to resolve the re-export. The bug dissolves with the
+  symbols themselves; no per-symbol fix needed.
+
+### Test Suite
+
+- **`internal-api-stripped.test.ts` invariant inverted for the five probes.**
+  Previously asserted "Public `_<module>Ready` probes survive" via a
+  string-presence check on `dist/index.d.ts` (which was satisfied by the
+  re-export line itself regardless of resolution — the test passed even
+  against the broken 2.1.0 build). Now asserts full removal across
+  `dist/index.d.ts`, `dist/index.js`, and each submodule
+  `dist/<mod>/index.d.ts` and `dist/<mod>/index.js`. Adds positive controls
+  on `isInitialized` to confirm the replacement is exported. Docstring
+  rewritten to document the post-2.2.0 contract.
+
+- **`init.test.ts` migrated.** All `_<module>Ready()` call sites swapped to
+  `isInitialized('<module>')`.
+
+### Documentation
+
+- `docs/CLAUDE_consumer.md` adds a "Probing initialization state" section
+  documenting `isInitialized(mod)` as the canonical readiness probe, with a
+  note that the per-module `_<module>Ready()` probes were removed in 2.2.0.
+  Full API reference remains in `docs/init.md`.
+
+- `docs/architecture.md` per-submodule export map drops the `_<module>Ready`
+  entries for serpent, chacha20, sha2, and sha3 (kyber's row never listed it).
+
+- `docs/test-suite.md` updated to describe the inverted invariant and the new
+  test count (10 → 21).
+
 ## v2.1.0
 
 ### Added

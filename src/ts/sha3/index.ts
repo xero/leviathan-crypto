@@ -59,14 +59,6 @@ function getExports(): Sha3Exports {
 	return getInstance('sha3').exports as unknown as Sha3Exports;
 }
 
-export function _sha3Ready(): boolean {
-	try {
-		getInstance('sha3'); return true;
-	} catch {
-		return false;
-	}
-}
-
 // Write msg into INPUT_OFFSET in chunks of 168 bytes (max rate)
 function absorb(x: Sha3Exports, msg: Uint8Array): void {
 	const mem = new Uint8Array(x.memory.buffer);

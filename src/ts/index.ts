@@ -74,12 +74,12 @@ export async function init(
 export type { Module, WasmSource };
 export { isInitialized } from './init.js';
 export { AuthenticationError } from './errors.js';
-export { serpentInit, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, SerpentGenerator, _serpentReady } from './serpent/index.js';
-export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher, ChaCha20Generator, _chachaReady } from './chacha20/index.js';
-export { sha2Init, SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash, _sha2Ready } from './sha2/index.js';
-export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, SHA3_256Hash, _sha3Ready } from './sha3/index.js';
+export { serpentInit, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, SerpentGenerator } from './serpent/index.js';
+export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher, ChaCha20Generator } from './chacha20/index.js';
+export { sha2Init, SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash } from './sha2/index.js';
+export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, SHA3_256Hash } from './sha3/index.js';
 export { keccakInit } from './keccak/index.js';
-export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite, _kyberReady } from './kyber/index.js';
+export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from './kyber/index.js';
 export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';

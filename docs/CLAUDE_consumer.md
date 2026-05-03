@@ -120,6 +120,28 @@ try {
 
 ---
 
+## Probing initialization state
+
+`isInitialized(mod)` is the canonical readiness probe. Pass any module name
+(`'serpent'`, `'chacha20'`, `'sha2'`, `'sha3'`, `'keccak'`, `'kyber'`) and
+get back a boolean. Useful for tests, diagnostic gates, and lazy-loading
+flows. It is a diagnostic indicator, not a control mechanism — for normal
+flows just call `init()` and let it short-circuit on already-loaded modules.
+
+```typescript
+import { isInitialized } from 'leviathan-crypto'
+
+if (!isInitialized('sha2')) {
+    await init({ sha2: sha2Wasm })
+}
+```
+
+The five per-module `_<module>Ready()` probes that existed in 2.1.x were
+removed in 2.2.0 in favour of this single helper. See `docs/init.md` for
+the full reference.
+
+---
+
 ## Critical: subpath init function names
 
 Each subpath export has its own module-specific init function, not `init()`.

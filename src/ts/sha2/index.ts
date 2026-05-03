@@ -71,14 +71,6 @@ function getExports(): Sha2Exports {
 	return getInstance('sha2').exports as unknown as Sha2Exports;
 }
 
-export function _sha2Ready(): boolean {
-	try {
-		getInstance('sha2'); return true;
-	} catch {
-		return false;
-	}
-}
-
 // Write msg into input buffer in chunks, calling update for each chunk.
 function feedHash(x: Sha2Exports, msg: Uint8Array, inputOff: number, chunkSize: number,
 	updateFn: (len: number) => void): void {
