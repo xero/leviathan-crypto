@@ -80,7 +80,7 @@ test.describe('KyberSuite — e2e (MlKem768 + XChaCha20)', () => {
 		expect(result).toBe(true);
 	});
 
-	test('preamble is HEADER_SIZE + 1088 bytes', async ({ page }) => {
+	test('preamble is HEADER_SIZE + kemCt + commitment bytes', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);
 			const { chacha20Wasm } = await import(`${base}/dist/chacha20/embedded.js`);
@@ -95,7 +95,8 @@ test.describe('KyberSuite — e2e (MlKem768 + XChaCha20)', () => {
 			const sealer = new lib.SealStream(suite, encapsulationKey);
 			const len = sealer.preamble.length;
 			sealer.dispose();
-			return len === 20 + 1088;
+			// 20 header + 1088 MlKem768 ciphertext + 32 commitment = 1140
+			return len === 20 + 1088 + 32;
 		}, BASE);
 		expect(result).toBe(true);
 	});

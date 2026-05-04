@@ -27,6 +27,7 @@
 export interface DerivedKeys {
 	readonly bytes: Uint8Array;
 	readonly kemCiphertext?: Uint8Array;  // KEM encrypt only; absent for symmetric
+	readonly commitment?: Uint8Array;     // key commitment for the seal preamble; present iff CipherSuite.commitmentSize > 0
 }
 
 export interface CipherSuite {
@@ -37,11 +38,12 @@ export interface CipherSuite {
 	readonly decKeySize?: number;         // open/decrypt key size (dk bytes for KEM)
 	                                      // absent → same as keySize (symmetric case)
 	readonly kemCtSize: number;           // 0 for symmetric; KEM ciphertext bytes otherwise
+	readonly commitmentSize: number;      // 0 ⇒ no commitment; >0 ⇒ deriveKeys() returns commitment of exactly this length, verified before chunk processing on open
 	readonly tagSize: number;
 	readonly padded: boolean;
 	readonly wasmChunkSize: number;  // WASM CHUNK_SIZE constant; for padded ciphers, pool validates paddedFull <= this
 
-	deriveKeys(key: Uint8Array, nonce: Uint8Array, kemCt?: Uint8Array): DerivedKeys;
+	deriveKeys(key: Uint8Array, nonce: Uint8Array, kemCt?: Uint8Array, header?: Uint8Array): DerivedKeys;
 
 	sealChunk(
 		keys: DerivedKeys,

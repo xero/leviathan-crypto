@@ -62,15 +62,15 @@ import { sha256Init, sha256Update, sha256Final } from './sha256'
 // After this call SHA256_INPUT_OFFSET is free for message data.
 export function hmac256Init(keyLen: i32): void {
 	// RFC 2104 §3: K' = K padded to block size (64 bytes) with zeros.
-	// Simultaneously build HMAC256_IPAD_OFFSET = K' XOR ipad and HMAC256_OPAD_OFFSET = K' XOR opad.
-	for (let i = 0; i < keyLen; i++) {
-		const kb = load<u8>(SHA256_INPUT_OFFSET + i)
+	// Single 64-iteration pass with branchless masking — work per iteration
+	// is constant, so total time does not depend on keyLen.
+	for (let i: i32 = 0; i < 64; i++) {
+		// mask = 0xFF when i < keyLen, 0x00 when i >= keyLen
+		const inKey: i32 = (i - keyLen) >> 31
+		const mask:  u8  = <u8>inKey
+		const kb:    u8  = load<u8>(SHA256_INPUT_OFFSET + i) & mask
 		store<u8>(HMAC256_IPAD_OFFSET + i, kb ^ 0x36)
 		store<u8>(HMAC256_OPAD_OFFSET + i, kb ^ 0x5c)
-	}
-	for (let i = keyLen; i < 64; i++) {
-		store<u8>(HMAC256_IPAD_OFFSET + i, 0x36)   // K'[i]=0x00 XOR ipad = 0x36
-		store<u8>(HMAC256_OPAD_OFFSET + i, 0x5c)   // K'[i]=0x00 XOR opad = 0x5c
 	}
 	// Begin inner hash: H((K' ⊕ ipad) || m)
 	sha256Init()

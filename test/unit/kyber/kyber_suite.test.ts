@@ -55,7 +55,7 @@ const PARAM_SETS = [
 ];
 
 const INNER_CIPHERS = [
-	['XChaCha20', XChaCha20Cipher, 0x01] as const,
+	['XChaCha20', XChaCha20Cipher, 0x03] as const,  // XChaCha20 v3
 	['Serpent',   SerpentCipher,   0x02] as const,
 ];
 
@@ -73,16 +73,16 @@ for (const [kemName, mkKem, params, kemNibble] of PARAM_SETS) {
 				kem.dispose();
 			});
 
-			it('preamble length is HEADER_SIZE + kemCtSize', () => {
+			it('preamble length is HEADER_SIZE + kemCtSize + commitmentSize', () => {
 				const kem = mkKem();
 				const suite = KyberSuite(kem, inner);
 				const { encapsulationKey: ek } = suite.keygen();
 				const pt    = randomBytes(64);
 				const blob  = Seal.encrypt(suite, ek, pt);
-				const expectedPreambleLen = HEADER_SIZE + params.ctBytes;
+				const expectedPreambleLen = HEADER_SIZE + params.ctBytes + inner.commitmentSize;
 				expect(suite.kemCtSize).toBe(params.ctBytes);
+				expect(suite.commitmentSize).toBe(inner.commitmentSize);
 				expect(blob.length).toBeGreaterThan(expectedPreambleLen);
-				// First expectedPreambleLen bytes are preamble
 				const preamble = blob.subarray(0, expectedPreambleLen);
 				expect(preamble.length).toBe(expectedPreambleLen);
 				kem.dispose();
@@ -134,13 +134,13 @@ for (const [kemName, mkKem, params, kemNibble] of PARAM_SETS) {
 				kem.dispose();
 			});
 
-			it('SealStream preamble includes KEM ciphertext', () => {
+			it('SealStream preamble includes KEM ciphertext and commitment', () => {
 				const kem = mkKem();
 				const suite = KyberSuite(kem, inner);
 				const { encapsulationKey: ek } = suite.keygen();
 				const sealer = new SealStream(suite, ek);
 				sealer.finalize(new Uint8Array(0));
-				expect(sealer.preamble.length).toBe(HEADER_SIZE + params.ctBytes);
+				expect(sealer.preamble.length).toBe(HEADER_SIZE + params.ctBytes + inner.commitmentSize);
 				kem.dispose();
 			});
 		});

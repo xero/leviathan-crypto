@@ -19,6 +19,16 @@ Every primitive in this library was implemented by hand in AssemblyScript agains
 
 All implementations verify against published known-answer test vectors from NIST, RFC appendices, NESSIE, and the Argon2 reference suite. Test vectors are immutable; if an implementation produces incorrect output, we fix the code and never adjust the vectors to match.
 
+ML-KEM produces its 32-byte shared secret directly from a SHA-3 output rather than from a big-integer encoding, so the construction is structurally immune to the leading-zero-trim timing leak that affected TLS-DH(E) (Raccoon attack).
+
+### Authenticator robustness (key-committing AEAD)
+
+The seal layer is key-committing across all supported cipher suites. SerpentCipher achieves this natively. HMAC-SHA-256 over the chunk authenticator binds the message to the MAC key under SHA-256 collision resistance, so two distinct keys cannot produce the same tag for distinct messages. XChaCha20Cipher relies on Poly1305, which is not key-committing on its own, so the seal v3 wire format adds an explicit 32-byte commitment to the preamble. The commitment is derived from the master key via HKDF-SHA-256 alongside the encryption key. `OpenStream` and `SealStreamPool` verify the commitment against the receiver's derived value in constant time before any chunk is processed; a wrong key fails fast with `AuthenticationError` carrying the discriminator string `commitment-xchacha20`, before the Poly1305 tag is consulted.
+
+This closes the Invisible Salamanders attack surface (Albrecht, Degabriele, Janson, Struck, RWC 2019) for any higher-level construction built on the seal primitive. Multi-recipient envelope encryption, group messaging with sender keys, and multi-tenant data warehouses get this property without adding their own commitment scheme.
+
+The XChaCha20 v3 HKDF info string also incorporates the full 20-byte header. Tampering with `formatEnum`, the framed flag, the nonce, or `chunkSize` produces different keys and fails the AEAD on the first chunk, rather than relying on indirect detection through chunk-boundary mismatch.
+
 ### Side-channel resistance
 
 Serpent's S-boxes use Boolean gate circuits with no table lookups, no data-dependent memory access, and no data-dependent branches. Every bit processes unconditionally on every block. This is the most timing-safe cipher approach available in WASM, where JIT optimization can otherwise introduce observable timing variation.

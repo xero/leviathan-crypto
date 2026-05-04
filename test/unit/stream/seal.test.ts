@@ -120,9 +120,10 @@ describe('Seal blob is OpenStream-compatible', () => {
 			const key  = randomBytes(32);
 			const pt   = randomBytes(128);
 			const blob = Seal.encrypt(suite, key, pt);
-			const preamble = blob.subarray(0, HEADER_SIZE + suite.kemCtSize);
+			const preambleLen = HEADER_SIZE + suite.kemCtSize + suite.commitmentSize;
+			const preamble = blob.subarray(0, preambleLen);
 			const opener   = new OpenStream(suite, key, preamble);
-			const out = opener.finalize(blob.subarray(HEADER_SIZE + suite.kemCtSize));
+			const out = opener.finalize(blob.subarray(preambleLen));
 			expect(out).toEqual(pt);
 		});
 	}
@@ -206,5 +207,80 @@ describe('CipherSuite new properties', () => {
 	it('symmetric suites have no decKeySize', () => {
 		expect(XChaCha20Cipher.decKeySize).toBeUndefined();
 		expect(SerpentCipher.decKeySize).toBeUndefined();
+	});
+});
+
+// ── Salamander mitigation: commitment + header binding (v3 wire format) ─────
+
+describe('CipherSuite commitmentSize round-trip', () => {
+	it('XChaCha20Cipher declares commitmentSize: 32', () => {
+		expect(XChaCha20Cipher.commitmentSize).toBe(32);
+	});
+
+	it('SerpentCipher declares commitmentSize: 0', () => {
+		expect(SerpentCipher.commitmentSize).toBe(0);
+	});
+
+	it('XChaCha20.deriveKeys returns a 32-byte commitment matching commitmentSize', () => {
+		const key = randomBytes(32);
+		const nonce = randomBytes(16);
+		// Round-trip a Seal blob to obtain a valid 20-byte header, then call
+		// deriveKeys directly so we can inspect the returned DerivedKeys.
+		const blob = Seal._fromNonce(XChaCha20Cipher, key, new Uint8Array(0), nonce);
+		const header = blob.subarray(0, HEADER_SIZE);
+		const dk = XChaCha20Cipher.deriveKeys(key, nonce, undefined, header);
+		try {
+			expect(dk.commitment).toBeInstanceOf(Uint8Array);
+			expect(dk.commitment!.length).toBe(XChaCha20Cipher.commitmentSize);
+		} finally {
+			XChaCha20Cipher.wipeKeys(dk);
+		}
+	});
+
+	it('Serpent.deriveKeys returns no commitment field', () => {
+		const key = randomBytes(32);
+		const nonce = randomBytes(16);
+		const dk = SerpentCipher.deriveKeys(key, nonce);
+		try {
+			expect(dk.commitment).toBeUndefined();
+		} finally {
+			SerpentCipher.wipeKeys(dk);
+		}
+	});
+});
+
+describe('Seal.decrypt: commitment-mismatch fails fast (XChaCha20 v3)', () => {
+	it('flipping a byte in the commitment region throws AuthenticationError', () => {
+		const key = randomBytes(32);
+		const pt  = randomBytes(64);
+		const blob = Seal.encrypt(XChaCha20Cipher, key, pt).slice();
+		// Commitment lives at [HEADER_SIZE, HEADER_SIZE + 32). Flip a byte inside it.
+		const flipOffset = HEADER_SIZE + 5;
+		blob[flipOffset] ^= 0xff;
+		let caught: Error | null = null;
+		try {
+			Seal.decrypt(XChaCha20Cipher, key, blob);
+		} catch (e) {
+			caught = e as Error;
+		}
+		expect(caught).not.toBeNull();
+		expect(caught!.message).toContain('commitment-xchacha20');
+	});
+});
+
+describe('Seal.decrypt: header tampering surfaces as authentication failure', () => {
+	it('flipping a byte in the chunkSize portion of the header causes failure', () => {
+		const key = randomBytes(32);
+		const pt  = randomBytes(64);
+		const blob = Seal.encrypt(XChaCha20Cipher, key, pt).slice();
+		// chunkSize is bytes 17..20 of the header. Tamper with byte 18.
+		blob[18] ^= 0x01;
+		let threw = false;
+		try {
+			Seal.decrypt(XChaCha20Cipher, key, blob);
+		} catch {
+			threw = true;
+		}
+		expect(threw).toBe(true);
 	});
 });

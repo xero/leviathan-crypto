@@ -67,7 +67,7 @@ All cryptographic computation runs in WASM outside the JavaScript JIT. Serpent's
 
 ### Header (20 bytes)
 
-Every stream begins with a 20-byte header:
+Every stream begins with a 20-byte header. The layout is identical across cipher suites:
 
 ```
 bytes:
@@ -76,11 +76,39 @@ bytes:
 17-19: chunk size as u24 big-endian
 ```
 
-**Format IDs:** `0x01` = XChaCha20-Poly1305, `0x02` = Serpent-256. KEM suites encode both the parameter set and inner cipher in a single byte. See [ciphersuite.md](./ciphersuite.md#kybersuite) for the full format enum table.
+| Format ID | Cipher | Wire format version |
+|---|---|---|
+| `0x02` | Serpent-256 | v2 |
+| `0x03` | XChaCha20-Poly1305 | v3 |
 
-The 16-byte nonce is a HKDF salt, not a direct cipher nonce. `XChaCha20Cipher` passes it to HChaCha20 for subkey derivation. `SerpentCipher` uses it as the HKDF-SHA-256 salt to derive 96 bytes of enc/mac/iv key material.
+The legacy XChaCha20 v2 format used `0x01`, which the parser now rejects as unknown. KEM suites encode both the parameter set and the inner cipher in the same byte. See [ciphersuite.md](./ciphersuite.md#kybersuite) for the full format enum table.
 
-The framed flag (bit 7) prefixes each chunk with a `u32be` length. Use framed mode for flat byte streams where chunks are concatenated without an external framing layer. Leave it off when the transport provides its own message boundaries such as WebSocket frames or IPC messages.
+The 16-byte nonce drives HKDF key derivation and HChaCha20 subkey derivation. It is not the cipher nonce directly. The framed flag (bit 7) prefixes each chunk with a `u32be` length. Use framed mode for flat byte streams where chunks concatenate without an external framing layer. Leave it off when the transport provides its own message boundaries, such as WebSocket frames or IPC messages.
+
+### XChaCha20 Preamble (52 bytes)
+
+The XChaCha20 v3 preamble carries the header and a 32-byte key commitment:
+
+```
+bytes:
+  0-19: header (20 bytes)
+ 20-51: key commitment (32 bytes)
+```
+
+The commitment is the second half of a 64-byte HKDF-SHA-256 output: bytes 0..32 feed HChaCha20 subkey derivation, bytes 32..64 are the commitment. `OpenStream` and `SealStreamPool` verify the commitment against the receiver's derived value in constant time before any chunk is processed. A wrong key fails fast with `AuthenticationError`, before Poly1305 is consulted. The discriminator string is `commitment-xchacha20`. This closes the Invisible Salamanders attack surface for XChaCha20 suites; see the [authenticator robustness section](../SECURITY.md#authenticator-robustness-key-committing-aead) in `SECURITY.md` for the threat model.
+
+The HKDF info string is `xchacha20-sealstream-v3` followed by the full 20-byte header. Tampering with `formatEnum`, the framed flag, the nonce, or `chunkSize` produces different derived keys, so the AEAD fails directly on the first chunk rather than relying on indirect detection through chunk-boundary mismatch.
+
+### Serpent Preamble (20 bytes)
+
+The Serpent v2 preamble is the header alone:
+
+```
+bytes:
+  0-19: header (20 bytes)
+```
+
+Serpent has no separate commitment field. HMAC-SHA-256 over the chunk authenticator is collision-resistant under SHA-256, which gives Serpent the same key-committing property natively.
 
 ### Counter Nonce (12 bytes)
 
@@ -100,10 +128,10 @@ HKDF-SHA-256 derives cipher-specific key material from the master key and the ra
 
 | Cipher | HKDF info | Output | Structure |
 |---|---|---|---|
-| XChaCha20 | `xchacha20-sealstream-v2` | 32 B | HKDF → streamKey → HChaCha20 → subkey |
-| Serpent | `serpent-sealstream-v2` | 96 B | `enc_key[0:32] \| mac_key[32:64] \| iv_key[64:96]` |
+| XChaCha20 v3 | `xchacha20-sealstream-v3` `\|\|` header(20) | 64 B | `streamKey[0:32] \| commitment[32:64]`; streamKey feeds HChaCha20 → subkey |
+| Serpent v2 | `serpent-sealstream-v2` | 96 B | `enc_key[0:32] \| mac_key[32:64] \| iv_key[64:96]` |
 
-XChaCha20 performs an additional HChaCha20 subkey derivation step using the first 16 bytes of the nonce. The intermediate streamKey is wiped immediately after use.
+XChaCha20 v3 binds the full preamble header into the HKDF info string and emits 64 bytes. The first 32 bytes feed HChaCha20 subkey derivation; the second 32 bytes are the commitment that ends up in the preamble. The intermediate streamKey is wiped immediately after subkey derivation.
 
 Serpent derives three keys: an encryption key for CBC, a MAC key for HMAC-SHA-256, and an IV key for per-chunk IV derivation via `HMAC-SHA-256(iv_key, counterNonce)[0:16]`. The CBC IV is derived deterministically on both sides and never transmitted.
 

@@ -25,6 +25,8 @@
 // construction (Hoang/Reyhanitabar/Rogaway/Vizár, CRYPTO 2015).
 
 import { isInitialized } from '../init.js';
+import { constantTimeEqual } from '../utils.js';
+import { AuthenticationError } from '../errors.js';
 import type { CipherSuite, DerivedKeys } from './types.js';
 import { TAG_DATA, TAG_FINAL, CHUNK_MIN, CHUNK_MAX, HEADER_SIZE } from './constants.js';
 import { readHeader, makeCounterNonce } from './header.js';
@@ -51,12 +53,13 @@ export class OpenStream {
 		if (key.length !== decKeySize)
 			throw new RangeError(`key must be ${decKeySize} bytes (got ${key.length})`);
 
-		const expectedPreambleLen = HEADER_SIZE + cipher.kemCtSize;
+		const expectedPreambleLen = HEADER_SIZE + cipher.kemCtSize + cipher.commitmentSize;
 		if (preamble.length !== expectedPreambleLen)
 			throw new RangeError(
 				`preamble must be exactly ${expectedPreambleLen} bytes (got ${preamble.length})`,
 			);
-		const h = readHeader(preamble.subarray(0, HEADER_SIZE));
+		const headerBytes = preamble.subarray(0, HEADER_SIZE);
+		const h = readHeader(headerBytes);
 		if (h.formatEnum !== cipher.formatEnum)
 			throw new Error(
 				`expected format 0x${cipher.formatEnum.toString(16).padStart(2, '0')} (${cipher.formatName}), `
@@ -68,8 +71,30 @@ export class OpenStream {
 		const kemCt = cipher.kemCtSize > 0
 			? preamble.subarray(HEADER_SIZE, HEADER_SIZE + cipher.kemCtSize)
 			: undefined;
+		const commitmentOffset = HEADER_SIZE + cipher.kemCtSize;
+		const recvCommitment = cipher.commitmentSize > 0
+			? preamble.subarray(commitmentOffset, commitmentOffset + cipher.commitmentSize)
+			: undefined;
 
-		this.keys = cipher.deriveKeys(key, h.nonce, kemCt);
+		this.keys = cipher.deriveKeys(key, h.nonce, kemCt, headerBytes);
+
+		// Verify commitment before any chunk is processed. Wrong key fails
+		// fast with AuthenticationError, before Poly1305 is consulted.
+		if (cipher.commitmentSize > 0) {
+			const derivedCommitment = this.keys.commitment;
+			if (!derivedCommitment || derivedCommitment.length !== cipher.commitmentSize) {
+				cipher.wipeKeys(this.keys);
+				throw new Error(
+					`leviathan-crypto: ${cipher.formatName}.deriveKeys returned `
+					+ `${derivedCommitment?.length ?? 'no'} commitment bytes, expected ${cipher.commitmentSize}`,
+				);
+			}
+			if (!recvCommitment || !constantTimeEqual(derivedCommitment, recvCommitment)) {
+				cipher.wipeKeys(this.keys);
+				throw new AuthenticationError(`commitment-${cipher.formatName}`);
+			}
+		}
+
 		this.chunkSize = h.chunkSize;
 		this.framed = h.framed;
 		// Max ciphertext chunk: padded plaintext + tag

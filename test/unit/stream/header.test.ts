@@ -5,11 +5,13 @@ import { HEADER_SIZE, TAG_DATA, TAG_FINAL } from '../../../src/ts/stream/constan
 // ── readHeader strict length ────────────────────────────────────────────────
 
 describe('readHeader()', () => {
-	const valid = writeHeader(0x01, false, new Uint8Array(16), 65536);
+	// 0x03 is the XChaCha20 v3 format enum; readHeader simply parses it,
+	// the per-cipher format check happens downstream in OpenStream.
+	const valid = writeHeader(0x03, false, new Uint8Array(16), 65536);
 
 	it('accepts exactly HEADER_SIZE bytes', () => {
 		const h = readHeader(valid);
-		expect(h.formatEnum).toBe(0x01);
+		expect(h.formatEnum).toBe(0x03);
 		expect(h.chunkSize).toBe(65536);
 	});
 
@@ -25,11 +27,12 @@ describe('readHeader()', () => {
 	});
 
 	it('rejects header with reserved bit 6 set (0x40)', () => {
-		// Manually construct a header byte with bit 6 set alongside a valid formatEnum.
-		// Without this check, 0x41 would silently parse as formatEnum=0x01 and pass
-		// cipher format checks for xchacha20 — a malformed wire format accepted silently.
+		// Manually construct a header byte with bit 6 set alongside a valid
+		// formatEnum. Without this check, 0x43 would silently parse as
+		// formatEnum=0x03 and pass cipher format checks for xchacha20 v3 —
+		// a malformed wire format accepted silently.
 		const bad = new Uint8Array(valid);
-		bad[0] = 0x41; // xchacha20 (0x01) | reserved bit 6 (0x40)
+		bad[0] = 0x43; // xchacha20 v3 (0x03) | reserved bit 6 (0x40)
 		expect(() => readHeader(bad)).toThrow(RangeError);
 	});
 });
@@ -91,11 +94,11 @@ describe('writeHeader() formatEnum range', () => {
 	});
 
 	it('KEM nibble + cipher nibble roundtrips through readHeader', () => {
-		// mlkem768 (0x20) | xchacha20 (0x01) = 0x21
-		const h = writeHeader(0x21, false, new Uint8Array(16), 65536);
+		// mlkem768 (0x20) | xchacha20 v3 (0x03) = 0x23
+		const h = writeHeader(0x23, false, new Uint8Array(16), 65536);
 		const parsed = readHeader(h);
-		expect(parsed.formatEnum).toBe(0x21);
+		expect(parsed.formatEnum).toBe(0x23);
 		expect((parsed.formatEnum >> 4) & 0x07).toBe(0x02); // KEM nibble = mlkem768
-		expect(parsed.formatEnum & 0x0f).toBe(0x01);         // cipher nibble = xchacha20
+		expect(parsed.formatEnum & 0x0f).toBe(0x03);         // cipher nibble = xchacha20 v3
 	});
 });

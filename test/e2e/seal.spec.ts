@@ -72,8 +72,10 @@ test.describe('Seal — e2e', () => {
 			const key  = lib.randomBytes(32);
 			const pt   = lib.randomBytes(256);
 			const blob = lib.Seal.encrypt(lib.XChaCha20Cipher, key, pt);
-			const opener = new lib.OpenStream(lib.XChaCha20Cipher, key, blob.subarray(0, 20));
-			const out  = opener.finalize(blob.subarray(20));
+			// XChaCha20 v3 preamble = header(20) + commitment(32) = 52 bytes
+			const preambleLen = 20 + lib.XChaCha20Cipher.commitmentSize;
+			const opener = new lib.OpenStream(lib.XChaCha20Cipher, key, blob.subarray(0, preambleLen));
+			const out  = opener.finalize(blob.subarray(preambleLen));
 			return out.length === pt.length
 				&& (out as Uint8Array).every((b: number, i: number) => b === pt[i]);
 		}, BASE);
@@ -90,8 +92,9 @@ test.describe('Seal — e2e', () => {
 			const key  = lib.randomBytes(32);
 			const pt   = lib.randomBytes(256);
 			const blob = lib.Seal.encrypt(lib.SerpentCipher, key, pt);
-			const opener = new lib.OpenStream(lib.SerpentCipher, key, blob.subarray(0, 20));
-			const out  = opener.finalize(blob.subarray(20));
+			const preambleLen = 20 + lib.SerpentCipher.commitmentSize; // Serpent: commitmentSize is 0
+			const opener = new lib.OpenStream(lib.SerpentCipher, key, blob.subarray(0, preambleLen));
+			const out  = opener.finalize(blob.subarray(preambleLen));
 			return out.length === pt.length
 				&& (out as Uint8Array).every((b: number, i: number) => b === pt[i]);
 		}, BASE);

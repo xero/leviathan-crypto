@@ -70,8 +70,8 @@ test.describe('SealStreamPool — e2e', () => {
 		expect(result).toBe(true);
 	});
 
-	// pool.header is read before destroy(); chunkSize=2048 with 2048-byte payload
-	// produces one chunk, so opener.finalize(ct) handles the full ciphertext.
+	// chunkSize=2048 with 2048-byte payload produces one chunk, so the opener
+	// reads the preamble (header + cipher commitment) and finalizes the body.
 	test('pool seal → OpenStream open (XChaCha20)', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);
@@ -85,10 +85,11 @@ test.describe('SealStreamPool — e2e', () => {
 			});
 			const pt = lib.randomBytes(2048);
 			const ct = await pool.seal(pt);
-			const header = pool.header;
 			pool.destroy();
-			const opener = new lib.OpenStream(lib.XChaCha20Cipher, key, header);
-			const dec = opener.finalize(ct.subarray(20));
+			// Preamble = header(20) + commitment(32) for XChaCha20 v3
+			const preambleLen = 20 + lib.XChaCha20Cipher.commitmentSize;
+			const opener = new lib.OpenStream(lib.XChaCha20Cipher, key, ct.subarray(0, preambleLen));
+			const dec = opener.finalize(ct.subarray(preambleLen));
 			return dec.length === pt.length
 				&& (dec as Uint8Array).every((b: number, i: number) => b === pt[i]);
 		}, BASE);

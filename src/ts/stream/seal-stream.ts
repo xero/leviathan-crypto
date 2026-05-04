@@ -42,7 +42,7 @@ function u32beFrame(n: number): Uint8Array {
 let _injectNonce: Uint8Array | undefined;
 
 export class SealStream {
-	/** Preamble sent before the first chunk: header [|| kemCiphertext]. */
+	/** Preamble sent before the first chunk: header [|| kemCiphertext] [|| commitment]. */
 	readonly preamble: Uint8Array;
 
 	private readonly cipher: CipherSuite;
@@ -69,10 +69,21 @@ export class SealStream {
 
 		const nonce = _injectNonce ?? randomBytes(16);
 		_injectNonce = undefined;
-		this.keys = cipher.deriveKeys(key, nonce);
-		const kemCt = this.keys.kemCiphertext;
+		// Header must be built before deriveKeys — XChaCha20 binds it into
+		// the HKDF info string. SerpentCipher accepts and ignores it.
 		const header = writeHeader(cipher.formatEnum, this.framed, nonce, this.chunkSize);
-		this.preamble = kemCt ? concat(header, kemCt) : header;
+		this.keys = cipher.deriveKeys(key, nonce, undefined, header);
+		const kemCt = this.keys.kemCiphertext;
+		const commitment = cipher.commitmentSize > 0 ? this.keys.commitment : undefined;
+		if (cipher.commitmentSize > 0 && (!commitment || commitment.length !== cipher.commitmentSize))
+			throw new Error(
+				`leviathan-crypto: ${cipher.formatName}.deriveKeys returned `
+				+ `${commitment?.length ?? 'no'} commitment bytes, expected ${cipher.commitmentSize}`,
+			);
+		const parts: Uint8Array[] = [header];
+		if (kemCt) parts.push(kemCt);
+		if (commitment) parts.push(commitment);
+		this.preamble = parts.length === 1 ? header : concat(...parts);
 	}
 
 	/**

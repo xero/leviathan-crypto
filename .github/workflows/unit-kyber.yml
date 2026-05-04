@@ -24,6 +24,7 @@ jobs:
           test/unit/kyber/poly_arithmetic.test.ts
           test/unit/kyber/mlkem.test.ts
           test/unit/kyber/kyber_suite.test.ts
+          test/unit/kyber/suite-commitment.test.ts
           test/unit/kyber/decap-scratch-wipe.test.ts
           test/unit/kyber/encap-scratch-wipe.test.ts
           test/unit/kyber/keygen-scratch-wipe.test.ts
