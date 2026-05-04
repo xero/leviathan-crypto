@@ -36,9 +36,9 @@
  *       not apply at the barrel. This bypasses (a)–(c) and leaks the
  *       symbol into `dist/index.d.ts` and `dist/index.js`.
  *
- * It also guards the v2.2.0 removal of the five `_<module>Ready` probes. They
+ * It also guards the v2.1.1 removal of the five `_<module>Ready` probes. They
  * were public type-API in 2.1.x (parallel to the canonical `isInitialized(mod)`
- * helper), removed in 2.2.0 in favour of one source of truth. Asserting their
+ * helper), removed in 2.1.1 in favour of one source of truth. Asserting their
  * absence across submodule `.d.ts`, submodule `.js`, root barrel `.d.ts`, and
  * root barrel `.js` catches a re-introduction in either source declaration or
  * barrel re-export.
@@ -78,12 +78,12 @@ const FORTUNA_INTERNAL_SYMBOLS = [
 	'_getPoolHash',
 ];
 
-// Removed in v2.2.0. These were per-module readiness probes parallel to
+// Removed in v2.1.1. These were per-module readiness probes parallel to
 // `isInitialized(mod)`. Removal is total: source declarations gone, barrel
 // re-exports gone, runtime exports gone. The test checks all four artifact
 // classes (submodule .d.ts, submodule .js, barrel .d.ts, barrel .js) so a
 // regression in any one of them surfaces immediately.
-const REMOVED_READY_PROBES: Array<{ module: string; symbol: string }> = [
+const REMOVED_READY_PROBES: { module: string; symbol: string }[] = [
 	{ module: 'serpent',  symbol: '_serpentReady' },
 	{ module: 'chacha20', symbol: '_chachaReady'  },
 	{ module: 'sha2',     symbol: '_sha2Ready'    },
@@ -169,7 +169,7 @@ describe('internal-API strip from root barrel (dist/index.d.ts, dist/index.js)',
 	});
 });
 
-describe('removed `_<module>Ready` probes are absent from each submodule (v2.2.0)', () => {
+describe('removed `_<module>Ready` probes are absent from each submodule (v2.1.1)', () => {
 	// Catches re-introduction at either the source declaration (would re-emit
 	// into the submodule `.d.ts` / `.js`) or the barrel re-export (would land
 	// in `dist/index.{d.ts,js}` and is covered by the barrel block above).
@@ -180,7 +180,7 @@ describe('removed `_<module>Ready` probes are absent from each submodule (v2.2.0
 			if (!dts) return;
 			expect(
 				dts,
-				`${symbol} re-emitted in dist/${module}/index.d.ts — it was removed in v2.2.0; use isInitialized('${module}') instead.`,
+				`${symbol} re-emitted in dist/${module}/index.d.ts — it was removed in v2.1.1; use isInitialized('${module}') instead.`,
 			).not.toContain(symbol);
 		});
 
@@ -190,7 +190,7 @@ describe('removed `_<module>Ready` probes are absent from each submodule (v2.2.0
 			if (!js) return;
 			expect(
 				js,
-				`${symbol} re-emitted in dist/${module}/index.js — it was removed in v2.2.0.`,
+				`${symbol} re-emitted in dist/${module}/index.js — it was removed in v2.1.1.`,
 			).not.toContain(symbol);
 		});
 	}

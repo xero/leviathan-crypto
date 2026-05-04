@@ -41,6 +41,14 @@
   `tsc --noEmit` failed to resolve the re-export. The bug dissolves with the
   symbols themselves; no per-symbol fix needed.
 
+- **`isInitialized(mod)` now re-exported from every submodule subpath.**
+  Previously only the root barrel and the kyber subpath re-exported it.
+  Tree-shake-friendly imports can now do
+  `import { serpentInit, isInitialized } from 'leviathan-crypto/serpent'`
+  in a single line. Purely additive on the seven other submodule subpaths
+  (serpent, chacha20, sha2, sha3, keccak, stream, ratchet); kyber's
+  existing re-export is unchanged.
+
 ### Test Suite
 
 - **`internal-api-stripped.test.ts` invariant inverted for the five probes.**
@@ -51,7 +59,7 @@
   `dist/index.d.ts`, `dist/index.js`, and each submodule
   `dist/<mod>/index.d.ts` and `dist/<mod>/index.js`. Adds positive controls
   on `isInitialized` to confirm the replacement is exported. Docstring
-  rewritten to document the post-2.2.0 contract.
+  rewritten to document the post-2.1.1 contract.
 
 - **`init.test.ts` migrated.** All `_<module>Ready()` call sites swapped to
   `isInitialized('<module>')`.
@@ -60,7 +68,7 @@
 
 - `docs/CLAUDE_consumer.md` adds a "Probing initialization state" section
   documenting `isInitialized(mod)` as the canonical readiness probe, with a
-  note that the per-module `_<module>Ready()` probes were removed in 2.2.0.
+  note that the per-module `_<module>Ready()` probes were removed in 2.1.1.
   Full API reference remains in `docs/init.md`.
 
 - `docs/architecture.md` per-submodule export map drops the `_<module>Ready`
@@ -68,6 +76,29 @@
 
 - `docs/test-suite.md` updated to describe the inverted invariant and the new
   test count (10 → 21).
+
+- `docs/architecture.md` picks up the `ratchet/index.ts` row (added in v2.1.0
+  but never recorded in the export map), `kyberInit` in the subpath-init list,
+  and a footnote noting that `isInitialized(mod)` is now reachable from every
+  submodule subpath.
+
+- `docs/cdn.md` examples no longer hardcode the package version — non-SRI
+  URLs are unversioned (resolved by unpkg's redirect to the latest release)
+  so the doc stops needing a sed-pass at every version bump. The SRI example
+  keeps an explicit version pin since the integrity hash is bytes-specific.
+  Added a "Pinning" callout at the top recommending pinned versions for
+  production. The "WASM filenames" table picks up a missing `kyber.wasm` row.
+
+### Internal
+
+- **`loader.ts` exports tagged `@internal`.** The three loader functions
+  (`decodeWasm`, `compileWasm`, `loadWasm`) now strip from the published
+  `dist/loader.d.ts`, matching `docs/loader.md`'s long-standing claim that
+  the module is internal. The `_depth` recursion-guard parameter on
+  `compileWasm` was renamed to `depth` since the underscore signal is
+  redundant once the function is type-private. No runtime change; internal
+  callers (`init.ts`, `seal-stream-pool.ts`) and tests are unaffected
+  (relative source imports, not the published `.d.ts`).
 
 ## v2.1.0
 

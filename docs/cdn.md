@@ -10,6 +10,9 @@ leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com).
 > - [Manual loading (fetch + ArrayBuffer)](#manual-loading-fetch--arraybuffer)
 > - [Import maps](#import-maps)
 
+> [!IMPORTANT]
+> **Version pinning.** The CDN examples below use unversioned URLs, which unpkg resolves to the latest published release. This is convenient for development and quick experimentation. For production, pin to a specific version (e.g. `@2.1.0`) so a future release can't change behaviour without warning. The SRI example below pins explicitly because the integrity hash is bytes-specific — never combine SRI with `@latest` or an unversioned URL.
+
 ---
 
 ## Embedded mode (Zero config)
@@ -20,9 +23,9 @@ themselves.
 
 ```html
 <script type="module">
-  import { init, Seal, SerpentCipher } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/index.js'
-  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/serpent/embedded.js'
-  import { sha2Wasm }    from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/sha2/embedded.js'
+  import { init, Seal, SerpentCipher } from 'https://unpkg.com/leviathan-crypto/dist/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto/dist/serpent/embedded.js'
+  import { sha2Wasm }    from 'https://unpkg.com/leviathan-crypto/dist/sha2/embedded.js'
 
   await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
@@ -38,8 +41,8 @@ Subpath imports also work with full URLs:
 
 ```html
 <script type="module">
-  import { serpentInit, SerpentCipher } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/serpent/index.js'
-  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/serpent/embedded.js'
+  import { serpentInit, SerpentCipher } from 'https://unpkg.com/leviathan-crypto/dist/serpent/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto/dist/serpent/embedded.js'
 
   await serpentInit(serpentWasm)
   // ...
@@ -55,10 +58,10 @@ Pass a `URL` pointing at the `.wasm` file on the CDN. The browser uses
 
 ```html
 <script type="module">
-  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/index.js'
+  import { init, SHA256 } from 'https://unpkg.com/leviathan-crypto/dist/index.js'
 
   await init({
-    sha2: new URL('https://unpkg.com/leviathan-crypto@2.1.0/dist/sha2.wasm')
+    sha2: new URL('https://unpkg.com/leviathan-crypto/dist/sha2.wasm')
   })
 
   const sha    = new SHA256()
@@ -78,6 +81,7 @@ The server must respond with `Content-Type: application/wasm`.
 | `chacha20` | `chacha20.wasm` |
 | `sha2`     | `sha2.wasm`     |
 | `sha3`     | `sha3.wasm`     |
+| `kyber`    | `kyber.wasm`    |
 
 ---
 
@@ -93,7 +97,7 @@ before instantiation.
   import { sha2Wasm } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/sha2/embedded.js'
 
   const res = await fetch('https://unpkg.com/leviathan-crypto@2.1.0/dist/chacha20.wasm', {
-    // integrity hash is version-specific, update when upgrading
+    // SRI requires version + hash to be paired — both update together.
     integrity: 'sha384-...'
   })
   const binary = new Uint8Array(await res.arrayBuffer())
@@ -124,16 +128,16 @@ If you want the same import style as the npm docs, add one before your module sc
 <script type="importmap">
 {
   "imports": {
-    "leviathan-crypto":                    "https://unpkg.com/leviathan-crypto@2.1.0/dist/index.js",
-    "leviathan-crypto/serpent":            "https://unpkg.com/leviathan-crypto@2.1.0/dist/serpent/index.js",
-    "leviathan-crypto/serpent/embedded":   "https://unpkg.com/leviathan-crypto@2.1.0/dist/serpent/embedded.js",
-    "leviathan-crypto/chacha20":           "https://unpkg.com/leviathan-crypto@2.1.0/dist/chacha20/index.js",
-    "leviathan-crypto/chacha20/embedded":  "https://unpkg.com/leviathan-crypto@2.1.0/dist/chacha20/embedded.js",
-    "leviathan-crypto/sha2":               "https://unpkg.com/leviathan-crypto@2.1.0/dist/sha2/index.js",
-    "leviathan-crypto/sha2/embedded":      "https://unpkg.com/leviathan-crypto@2.1.0/dist/sha2/embedded.js",
-    "leviathan-crypto/sha3":               "https://unpkg.com/leviathan-crypto@2.1.0/dist/sha3/index.js",
-    "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto@2.1.0/dist/sha3/embedded.js",
-    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto@2.1.0/dist/stream/index.js"
+    "leviathan-crypto":                    "https://unpkg.com/leviathan-crypto/dist/index.js",
+    "leviathan-crypto/serpent":            "https://unpkg.com/leviathan-crypto/dist/serpent/index.js",
+    "leviathan-crypto/serpent/embedded":   "https://unpkg.com/leviathan-crypto/dist/serpent/embedded.js",
+    "leviathan-crypto/chacha20":           "https://unpkg.com/leviathan-crypto/dist/chacha20/index.js",
+    "leviathan-crypto/chacha20/embedded":  "https://unpkg.com/leviathan-crypto/dist/chacha20/embedded.js",
+    "leviathan-crypto/sha2":               "https://unpkg.com/leviathan-crypto/dist/sha2/index.js",
+    "leviathan-crypto/sha2/embedded":      "https://unpkg.com/leviathan-crypto/dist/sha2/embedded.js",
+    "leviathan-crypto/sha3":               "https://unpkg.com/leviathan-crypto/dist/sha3/index.js",
+    "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto/dist/sha3/embedded.js",
+    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto/dist/stream/index.js"
   }
 }
 </script>

@@ -111,7 +111,7 @@ This library replaces both with a pluggable contract. The deviations:
    second-preimage resistance, output indistinguishable from random) hold
    for both.
 
-3. **Hash output size is required to match generator key size in v2.2.0.**
+3. **Hash output size is required to match generator key size.**
    The reseed step `genKey = hash(genKey || seed)` writes the hash output
    directly into the generator key slot, with no KDF layer. This forbids
    exotic combinations such as SHA-512 paired with a 32-byte-key generator.

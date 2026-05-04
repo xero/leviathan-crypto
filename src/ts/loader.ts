@@ -37,6 +37,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
  * Decode a gzip+base64 embedded WASM string to raw bytes.
  * Guards against missing DecompressionStream (Node <18, non-browser runtimes).
  * Exported for pool worker launchers that decode blobs before spawning threads.
+ * @internal
  */
 export async function decodeWasm(b64: string): Promise<Uint8Array> {
 	if (typeof DecompressionStream === 'undefined')
@@ -77,9 +78,10 @@ const MAX_THENABLE_DEPTH = 3;
  * Thenable sources (Promise<Response>, Promise<ArrayBuffer>, etc.) are
  * resolved and then re-dispatched by the runtime type of the resolved value.
  * Depth is capped at `MAX_THENABLE_DEPTH` to prevent runaway recursion.
+ * @internal
  */
-export async function compileWasm(source: WasmSource, _depth = 0): Promise<WebAssembly.Module> {
-	if (_depth > MAX_THENABLE_DEPTH)
+export async function compileWasm(source: WasmSource, depth = 0): Promise<WebAssembly.Module> {
+	if (depth > MAX_THENABLE_DEPTH)
 		throw new TypeError(`leviathan-crypto: thenable nesting too deep (max ${MAX_THENABLE_DEPTH})`);
 	if (typeof source === 'string') {
 		if (source.length === 0) throw new TypeError('leviathan-crypto: invalid WasmSource — empty string');
@@ -97,7 +99,7 @@ export async function compileWasm(source: WasmSource, _depth = 0): Promise<WebAs
 		return WebAssembly.compileStreaming(source);
 	if (source != null && typeof (source as { then?: unknown }).then === 'function') {
 		const resolved = await (source as PromiseLike<unknown>);
-		return compileWasm(resolved as WasmSource, _depth + 1);
+		return compileWasm(resolved as WasmSource, depth + 1);
 	}
 	throw new TypeError(
 		`leviathan-crypto: invalid WasmSource — got ${source === null ? 'null' : typeof source}`,
@@ -110,6 +112,7 @@ export async function compileWasm(source: WasmSource, _depth = 0): Promise<WebAs
  *
  * Throws `TypeError` for null, numeric, or unrecognised inputs, or if a
  * thenable source nests deeper than `MAX_THENABLE_DEPTH`.
+ * @internal
  */
 export async function loadWasm(source: WasmSource): Promise<WebAssembly.Instance> {
 	// All leviathan-crypto WASM modules export their own memory and import

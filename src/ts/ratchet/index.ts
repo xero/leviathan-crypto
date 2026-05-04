@@ -38,6 +38,7 @@ export type {
 }                                                        from './types.js';
 
 import { isInitialized } from '../init.js';
+export { isInitialized };
 
 export function ratchetReady(): boolean {
 	try {

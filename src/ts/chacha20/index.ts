@@ -43,6 +43,7 @@ export async function chacha20Init(source: WasmSource): Promise<void> {
 }
 
 export type { WasmSource };
+export { isInitialized } from '../init.js';
 
 /** Returns the raw chacha20 WASM export object. @internal */
 function getExports(): ChaChaExports {

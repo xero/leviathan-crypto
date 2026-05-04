@@ -38,6 +38,7 @@ export async function serpentInit(source: WasmSource): Promise<void> {
 }
 
 export type { WasmSource };
+export { isInitialized } from '../init.js';
 
 /** Typed subset of the serpent WASM module exports used by this file. @internal */
 interface SerpentExports {

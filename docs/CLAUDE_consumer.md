@@ -137,7 +137,7 @@ if (!isInitialized('sha2')) {
 ```
 
 The five per-module `_<module>Ready()` probes that existed in 2.1.x were
-removed in 2.2.0 in favour of this single helper. See `docs/init.md` for
+removed in 2.1.1 in favour of this single helper. See `docs/init.md` for
 the full reference.
 
 ---

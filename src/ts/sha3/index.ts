@@ -32,6 +32,7 @@ export async function sha3Init(source: WasmSource): Promise<void> {
 }
 
 export type { WasmSource };
+export { isInitialized } from '../init.js';
 
 interface Sha3Exports {
 	memory:          WebAssembly.Memory;

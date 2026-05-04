@@ -781,11 +781,18 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 |`keccak/index.ts`|`keccakInit` + re-exports all sha3 classes (alias subpath)|
 |`kyber/index.ts`|`kyberInit`, `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024`, `KyberKeyPair`, `KyberEncapsulation`, `KyberParams`, `MLKEM512`, `MLKEM768`, `MLKEM1024`|
 |`stream/index.ts`|`Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite`, `DerivedKeys`, `SealStreamOpts`, `PoolOpts`, `FLAG_FRAMED`, `TAG_DATA`, `TAG_FINAL`, `HEADER_SIZE`, `CHUNK_MIN`, `CHUNK_MAX`|
+|`ratchet/index.ts`|`KDFChain`, `ratchetInit`, `ratchetReady`, `kemRatchetEncap`, `kemRatchetDecap`, `SkippedKeyStore`, `RatchetKeypair`, `RatchetInitResult`, `KemEncapResult`, `KemDecapResult`, `MlKemLike`, `RatchetMessageHeader`, `ResolveHandle`, `SkippedKeyStoreOpts`|
 |`fortuna.ts`|`Fortuna`|
 |`types.ts`|`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`, `Generator`, `HashFn`|
 |`utils.ts`|`hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`, `constantTimeEqual`, `CT_MAX_BYTES`, `wipe`, `xor`, `concat`, `randomBytes`, `hasSIMD`|
 
-Each subpath export also exports its own module-specific init function for tree-shakeable loading: `serpentInit(source)`, `chacha20Init(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`.
+Each subpath export also exports its own module-specific init function for tree-shakeable loading: `serpentInit(source)`, `chacha20Init(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`.
+
+`isInitialized(mod)` is also re-exported from every submodule subpath (in addition to the root barrel and `init.ts`), so tree-shake-friendly imports can pick up the readiness probe alongside the cipher classes:
+
+```typescript
+import { serpentInit, isInitialized } from 'leviathan-crypto/serpent'
+```
 
 ---
 

@@ -21,6 +21,7 @@
 //
 // src/ts/stream/index.ts
 
+export { isInitialized } from '../init.js';
 export { SealStream } from './seal-stream.js';
 export { OpenStream } from './open-stream.js';
 export { Seal } from './seal.js';
