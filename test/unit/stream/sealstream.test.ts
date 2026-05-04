@@ -92,7 +92,7 @@ for (const [name, cipher, keyLen] of suites) {
 			it('single chunk', () => {
 				const pt = randomBytes(100);
 				const { preamble, encrypted } = sealAndCollect(cipher, key, [pt]);
-				expect(preamble.length).toBe(HEADER_SIZE);
+				expect(preamble.length).toBe(HEADER_SIZE + cipher.commitmentSize);
 				const result = openAll(cipher, key, preamble, encrypted);
 				expect(result).toHaveLength(1);
 				expect(result[0]).toEqual(pt);
@@ -341,8 +341,8 @@ for (const [name, cipher, keyLen] of suites) {
 					})(),
 				]);
 
-				// First output is the preamble
-				expect(sealOutput[0].length).toBe(HEADER_SIZE);
+				// First output is the preamble (header + cipher-specific commitment)
+				expect(sealOutput[0].length).toBe(HEADER_SIZE + cipher.commitmentSize);
 				const preamble = sealOutput[0];
 				const encrypted = sealOutput.slice(1);
 
@@ -581,8 +581,10 @@ describe('cross-cipher rejection', () => {
 		const sealer = new SealStream(XChaCha20Cipher, key);
 		const preamble = sealer.preamble;
 		sealer.finalize(new Uint8Array(0));
+		// XChaCha20 v3 preamble (52 bytes) is longer than Serpent expects (20 bytes);
+		// the length check fires before the format check.
 		expect(() => new OpenStream(SerpentCipher, key, preamble))
-			.toThrow(/expected format 0x02.*got 0x01/);
+			.toThrow(/preamble must be exactly 20 bytes/);
 	});
 
 	it('Serpent preamble → XChaCha20Cipher opener → throws Error (not AuthenticationError)', () => {
@@ -590,17 +592,24 @@ describe('cross-cipher rejection', () => {
 		const sealer = new SealStream(SerpentCipher, key);
 		const preamble = sealer.preamble;
 		sealer.finalize(new Uint8Array(0));
+		// Serpent preamble (20 bytes) is shorter than XChaCha20 v3 expects (52 bytes);
+		// the length check fires before the format check.
 		expect(() => new OpenStream(XChaCha20Cipher, key, preamble))
-			.toThrow(/expected format 0x01.*got 0x02/);
+			.toThrow(/preamble must be exactly 52 bytes/);
 	});
 
 	it('format mismatch error is Error, not AuthenticationError', () => {
 		const key = randomBytes(32);
-		const sealer = new SealStream(XChaCha20Cipher, key);
-		const preamble = sealer.preamble;
-		sealer.finalize(new Uint8Array(0));
+		// Equal-length preamble across both ciphers is impossible (XChaCha20 v3
+		// is 52 bytes, Serpent is 20). Forge a 20-byte header that claims
+		// format 0x03 to bypass the length check and trigger the format check
+		// on the SerpentCipher opener.
+		const forged = new Uint8Array(HEADER_SIZE);
+		forged[0] = 0x03; // XChaCha20 v3 format enum, no framed flag
+		// chunkSize = 1024
+		forged[17] = 0; forged[18] = 0x04; forged[19] = 0;
 		try {
-			new OpenStream(SerpentCipher, key, preamble);
+			new OpenStream(SerpentCipher, key, forged);
 			expect.unreachable('should have thrown');
 		} catch (e) {
 			expect(e).toBeInstanceOf(Error);
@@ -612,22 +621,27 @@ describe('cross-cipher rejection', () => {
 // ── OpenStream preamble chunkSize validation ────────────────────────────────
 
 describe('OpenStream preamble chunkSize validation', () => {
-	// writeHeader rejects chunkSize < CHUNK_MIN now, so construct the header
+	// writeHeader rejects chunkSize < CHUNK_MIN now, so construct the preamble
 	// manually to exercise OpenStream's own defense against forged preambles.
-	function forgeHeader(formatEnum: number, framed: boolean, nonce: Uint8Array, chunkSize: number): Uint8Array {
-		const h = new Uint8Array(HEADER_SIZE);
-		h[0] = (framed ? 0x80 : 0) | formatEnum;
-		h.set(nonce, 1);
-		h[17] = (chunkSize >> 16) & 0xff;
-		h[18] = (chunkSize >>  8) & 0xff;
-		h[19] =  chunkSize        & 0xff;
-		return h;
+	// The forged preamble is padded to the cipher's full preamble length
+	// (header + commitmentSize) so the length check passes and the chunkSize
+	// check runs.
+	function forgePreamble(cipher: typeof XChaCha20Cipher | typeof SerpentCipher, framed: boolean, nonce: Uint8Array, chunkSize: number): Uint8Array {
+		const out = new Uint8Array(HEADER_SIZE + cipher.commitmentSize);
+		out[0] = (framed ? 0x80 : 0) | cipher.formatEnum;
+		out.set(nonce, 1);
+		out[17] = (chunkSize >> 16) & 0xff;
+		out[18] = (chunkSize >>  8) & 0xff;
+		out[19] =  chunkSize        & 0xff;
+		// commitment region (if any) stays zeros — we never reach the
+		// commitment check because the chunkSize check fires first.
+		return out;
 	}
 
 	it('chunkSize below CHUNK_MIN → throws RangeError', () => {
 		const key = randomBytes(32);
-		const badHeader = forgeHeader(XChaCha20Cipher.formatEnum, false, randomBytes(16), 512);
-		expect(() => new OpenStream(XChaCha20Cipher, key, badHeader))
+		const badPreamble = forgePreamble(XChaCha20Cipher, false, randomBytes(16), 512);
+		expect(() => new OpenStream(XChaCha20Cipher, key, badPreamble))
 			.toThrow(/header chunkSize/);
 	});
 
@@ -638,8 +652,8 @@ describe('OpenStream preamble chunkSize validation', () => {
 
 	it('chunkSize = 0 → throws RangeError', () => {
 		const key = randomBytes(32);
-		const badHeader = forgeHeader(SerpentCipher.formatEnum, false, randomBytes(16), 0);
-		expect(() => new OpenStream(SerpentCipher, key, badHeader))
+		const badPreamble = forgePreamble(SerpentCipher, false, randomBytes(16), 0);
+		expect(() => new OpenStream(SerpentCipher, key, badPreamble))
 			.toThrow(/header chunkSize/);
 	});
 });
@@ -648,11 +662,12 @@ describe('OpenStream preamble chunkSize validation', () => {
 
 describe('CipherSuite contract', () => {
 	it('XChaCha20Cipher properties', () => {
-		expect(XChaCha20Cipher.formatEnum).toBe(0x01);
+		expect(XChaCha20Cipher.formatEnum).toBe(0x03);
 		expect(XChaCha20Cipher.keySize).toBe(32);
 		expect(XChaCha20Cipher.tagSize).toBe(16);
 		expect(XChaCha20Cipher.padded).toBe(false);
-		expect(XChaCha20Cipher.hkdfInfo).toBe('xchacha20-sealstream-v2');
+		expect(XChaCha20Cipher.hkdfInfo).toBe('xchacha20-sealstream-v3');
+		expect(XChaCha20Cipher.commitmentSize).toBe(32);
 		expect(XChaCha20Cipher.wasmModules).toEqual(['chacha20']);
 	});
 
@@ -662,6 +677,7 @@ describe('CipherSuite contract', () => {
 		expect(SerpentCipher.tagSize).toBe(32);
 		expect(SerpentCipher.padded).toBe(true);
 		expect(SerpentCipher.hkdfInfo).toBe('serpent-sealstream-v2');
+		expect(SerpentCipher.commitmentSize).toBe(0);
 		expect(SerpentCipher.wasmModules).toEqual(['serpent', 'sha2']);
 	});
 
@@ -742,5 +758,32 @@ describe('SerpentCipher specific', () => {
 		// Seek to counter=5, try to pull chunk 3's ciphertext
 		opener.seek(5);
 		expect(() => opener.pull(encrypted[3])).toThrow(AuthenticationError);
+	});
+});
+
+// ── OpenStream commitment verification (XChaCha20 v3) ───────────────────────
+
+describe('OpenStream — commitment verification (XChaCha20 v3)', () => {
+	it('flipping a byte in the commitment region throws AuthenticationError on construction', () => {
+		const key = randomBytes(32);
+		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });
+		const preamble = sealer.preamble.slice();
+		sealer.finalize(new Uint8Array(0));
+
+		// Commitment region: [HEADER_SIZE, HEADER_SIZE + 32). Flip a byte inside it.
+		preamble[HEADER_SIZE + 7] ^= 0xff;
+		expect(() => new OpenStream(XChaCha20Cipher, key, preamble))
+			.toThrow(/commitment-xchacha20/);
+	});
+
+	it('valid commitment passes, OpenStream constructs successfully', () => {
+		const key = randomBytes(32);
+		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });
+		const preamble = sealer.preamble.slice();
+		const ct = sealer.finalize(new Uint8Array(0));
+
+		// Untouched preamble — opener should construct, decrypt cleanly.
+		const opener = new OpenStream(XChaCha20Cipher, key, preamble);
+		expect(opener.finalize(ct)).toEqual(new Uint8Array(0));
 	});
 });

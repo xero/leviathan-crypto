@@ -71,6 +71,7 @@ function makeThrowingSealer(): CipherSuite {
 		hkdfInfo: XChaCha20Cipher.hkdfInfo,
 		keySize: XChaCha20Cipher.keySize,
 		kemCtSize: XChaCha20Cipher.kemCtSize,
+		commitmentSize: XChaCha20Cipher.commitmentSize,
 		tagSize: XChaCha20Cipher.tagSize,
 		padded: XChaCha20Cipher.padded,
 		wasmChunkSize: XChaCha20Cipher.wasmChunkSize,

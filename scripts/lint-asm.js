@@ -35,6 +35,7 @@ const ASC_OPTS = '--runtime stub --noAssert --optimizeLevel 3 --shrinkLevel 1'
 const modules = [
 	{ name: 'serpent',  entry: 'src/asm/serpent/index.ts',  memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
 	{ name: 'chacha20', entry: 'src/asm/chacha20/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
+	{ name: 'aes',      entry: 'src/asm/aes/index.ts',      memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
 	{ name: 'sha2',     entry: 'src/asm/sha2/index.ts',     memory: '--initialMemory 3 --maximumMemory 3' },
 	{ name: 'sha3',     entry: 'src/asm/sha3/index.ts',     memory: '--initialMemory 3 --maximumMemory 3' },
 	{ name: 'ct',       entry: 'src/asm/ct/index.ts',       memory: '--initialMemory 1 --maximumMemory 1', extra: '--enable simd' },

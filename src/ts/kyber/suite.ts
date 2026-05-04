@@ -69,12 +69,13 @@ export function KyberSuite(
 		keySize: p.ekBytes,
 		decKeySize: p.dkBytes,
 		kemCtSize: p.ctBytes,
+		commitmentSize: inner.commitmentSize,
 		tagSize: inner.tagSize,
 		padded: inner.padded,
 		wasmChunkSize: inner.wasmChunkSize,
 		wasmModules: [...inner.wasmModules, 'kyber', 'sha3'],
 
-		deriveKeys(key: Uint8Array, nonce: Uint8Array, kemCt?: Uint8Array): DerivedKeys {
+		deriveKeys(key: Uint8Array, nonce: Uint8Array, kemCt?: Uint8Array, header?: Uint8Array): DerivedKeys {
 			let sharedSecret: Uint8Array;
 			let outKemCt: Uint8Array | undefined;
 			let ctForInfo: Uint8Array;
@@ -98,13 +99,16 @@ export function KyberSuite(
 			hkdf.dispose();
 			sharedSecret.fill(0);
 
-			// Delegate actual per-cipher key derivation to the inner suite
-			const innerKeys = inner.deriveKeys(derived, nonce);
+			// Delegate actual per-cipher key derivation to the inner suite.
+			// Header is forwarded so XChaCha20's deriveKeys can bind it into
+			// HKDF info; SerpentCipher accepts and ignores it.
+			const innerKeys = inner.deriveKeys(derived, nonce, undefined, header);
 			derived.fill(0);
 
-			return outKemCt
-				? { bytes: innerKeys.bytes, kemCiphertext: outKemCt }
-				: innerKeys;
+			if (!outKemCt) return innerKeys;
+			return innerKeys.commitment
+				? { bytes: innerKeys.bytes, kemCiphertext: outKemCt, commitment: innerKeys.commitment }
+				: { bytes: innerKeys.bytes, kemCiphertext: outKemCt };
 		},
 
 		sealChunk: inner.sealChunk.bind(inner),

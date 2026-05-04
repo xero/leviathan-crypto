@@ -70,15 +70,15 @@ import { sha512Init, sha384Init, sha512Update, sha512Final, sha384Final } from '
 // After this call, SHA512_INPUT_OFFSET is free for message data.
 export function hmac512Init(keyLen: i32): void {
 	// RFC 2104 §3: K' = K padded to block size (128 bytes) with zeros.
-	// Build HMAC512_IPAD_OFFSET = K' XOR ipad and HMAC512_OPAD_OFFSET = K' XOR opad.
-	for (let i = 0; i < keyLen; i++) {
-		const kb = load<u8>(SHA512_INPUT_OFFSET + i)
+	// Single 128-iteration pass with branchless masking — work per iteration
+	// is constant, so total time does not depend on keyLen.
+	for (let i: i32 = 0; i < 128; i++) {
+		// mask = 0xFF when i < keyLen, 0x00 when i >= keyLen
+		const inKey: i32 = (i - keyLen) >> 31
+		const mask:  u8  = <u8>inKey
+		const kb:    u8  = load<u8>(SHA512_INPUT_OFFSET + i) & mask
 		store<u8>(HMAC512_IPAD_OFFSET + i, kb ^ 0x36)
 		store<u8>(HMAC512_OPAD_OFFSET + i, kb ^ 0x5c)
-	}
-	for (let i = keyLen; i < 128; i++) {
-		store<u8>(HMAC512_IPAD_OFFSET + i, 0x36)   // K'[i]=0x00 XOR ipad = 0x36
-		store<u8>(HMAC512_OPAD_OFFSET + i, 0x5c)   // K'[i]=0x00 XOR opad = 0x5c
 	}
 	// Begin inner hash: H((K' ⊕ ipad) || m)
 	sha512Init()
@@ -118,14 +118,15 @@ export function hmac512Final(): void {
 // keyLen must be ≤ 128. Starts the inner SHA-384 hash with the ipad block.
 export function hmac384Init(keyLen: i32): void {
 	// Same ipad/opad construction as hmac512Init — same 128-byte block size.
-	for (let i = 0; i < keyLen; i++) {
-		const kb = load<u8>(SHA512_INPUT_OFFSET + i)
+	// Single 128-iteration pass with branchless masking — work per iteration
+	// is constant, so total time does not depend on keyLen.
+	for (let i: i32 = 0; i < 128; i++) {
+		// mask = 0xFF when i < keyLen, 0x00 when i >= keyLen
+		const inKey: i32 = (i - keyLen) >> 31
+		const mask:  u8  = <u8>inKey
+		const kb:    u8  = load<u8>(SHA512_INPUT_OFFSET + i) & mask
 		store<u8>(HMAC512_IPAD_OFFSET + i, kb ^ 0x36)
 		store<u8>(HMAC512_OPAD_OFFSET + i, kb ^ 0x5c)
-	}
-	for (let i = keyLen; i < 128; i++) {
-		store<u8>(HMAC512_IPAD_OFFSET + i, 0x36)
-		store<u8>(HMAC512_OPAD_OFFSET + i, 0x5c)
 	}
 	// Begin inner SHA-384 hash: H384((K' ⊕ ipad) || m)
 	sha384Init()

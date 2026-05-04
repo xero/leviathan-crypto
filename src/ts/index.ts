@@ -26,6 +26,7 @@ import { sha2Init } from './sha2/index.js';
 import { sha3Init } from './sha3/index.js';
 import { keccakInit } from './keccak/index.js';
 import { kyberInit } from './kyber/index.js';
+import { aesInit } from './aes/index.js';
 import type { Module } from './init.js';
 import type { WasmSource } from './wasm-source.js';
 import { hasSIMD } from './utils.js';
@@ -37,6 +38,7 @@ const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	sha3: sha3Init,
 	keccak: keccakInit,
 	kyber: kyberInit,
+	aes: aesInit,
 };
 
 /**
@@ -55,9 +57,9 @@ export async function init(
 ): Promise<void> {
 	const entries = Object.entries(sources) as [string, WasmSource][];
 	// SIMD preflight — serpent, chacha20, and kyber modules contain SIMD instructions
-	if (('serpent' in sources || 'chacha20' in sources || 'kyber' in sources) && !hasSIMD())
+	if (('serpent' in sources || 'chacha20' in sources || 'kyber' in sources || 'aes' in sources) && !hasSIMD())
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, and kyber require WebAssembly SIMD — '
+			'leviathan-crypto: serpent, chacha20, kyber, and aes require WebAssembly SIMD — '
 			+ 'this runtime does not support it',
 		);
 	for (const [mod, src] of entries) {
@@ -80,6 +82,7 @@ export { sha2Init, SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384
 export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, SHA3_256Hash } from './sha3/index.js';
 export { keccakInit } from './keccak/index.js';
 export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from './kyber/index.js';
+export { aesInit, AES } from './aes/index.js';
 export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';

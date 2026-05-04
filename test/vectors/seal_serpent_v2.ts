@@ -19,59 +19,28 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// Seal v2 KAT vectors — single-chunk STREAM construction.
+// Seal Serpent v2 KAT vectors — single-chunk STREAM construction.
 //
 // SELF-GENERATED — no external authority for these wire formats.
-// Generated with fixed nonce seams, then independently verified
-// against the underlying primitives (HKDF-SHA-256, HChaCha20,
-// ChaCha20-Poly1305, SerpentCbc, HMAC-SHA-256).
+// Serpent v2 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
+// authentication is collision-resistant under SHA-256, which is
+// key-committing — no separate commitment is needed in the preamble.
+// Generated with fixed nonce seams, then independently verified against
+// the underlying primitives (HKDF-SHA-256, SerpentCbc, HMAC-SHA-256).
 // Vectors serve as regression trip-wires for Seal wire format stability.
 // Audit status: SELF-VERIFIED
 
-export interface SealV2Vector {
+export interface SealSerpentV2Vector {
 	description: string;
-	cipher: 'xchacha20' | 'serpent';
-	key: string;         // hex
-	nonce: string;       // hex, 16 bytes
-	plaintext: string;   // hex
-	preamble: string;    // hex, always 20 bytes for symmetric
-	blob: string;        // hex, full output = preamble || ciphertext
+	key: string;          // hex, 32 bytes
+	nonce: string;        // hex, 16 bytes
+	plaintext: string;    // hex
+	preamble: string;     // hex, 20 bytes
+	blob: string;         // hex, full output = preamble || ciphertext
 }
 
-export const xc1: SealV2Vector = {
-	description: 'XC1: xchacha20, 0x01 key, 0xaa nonce, 100-byte 0xcd plaintext',
-	cipher: 'xchacha20',
-	key: '0101010101010101010101010101010101010101010101010101010101010101',
-	nonce: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-	plaintext:
-		'cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
-		'cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
-		'cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
-		'cdcdcdcd',
-	preamble: '01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000400',
-	blob:
-		'01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000400f1bb75999695c450a541ce55' +
-		'8fab1fdeffbcae49a55ef2d7243f419f17f9787c6a4652f0f8584fdd27d7018e' +
-		'2eff08290c0dd45a3638309d4b140324ee2d67198bbbbf0db469919cb088fdd4' +
-		'3258bdc9bcddd8e594aff93295ccabed09f2b9183b47d5a9cbf2c06a73bc75f8' +
-		'c8e61709dd765f2d',
-};
-
-export const xc_empty: SealV2Vector = {
-	description: 'XC_EMPTY: xchacha20, 0x02 key, 0xbb nonce, empty plaintext',
-	cipher: 'xchacha20',
-	key: '0202020202020202020202020202020202020202020202020202020202020202',
-	nonce: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-	plaintext: '',
-	preamble: '01bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000400',
-	blob:
-		'01bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00040078a13a924a9524de425f4052' +
-		'0bc1704f',
-};
-
-export const sc1: SealV2Vector = {
-	description: 'SC1: serpent, 0x03 key, 0xcc nonce, 100-byte 0xef plaintext',
-	cipher: 'serpent',
+export const sc1: SealSerpentV2Vector = {
+	description: 'SC1: serpent v2, 0x03 key, 0xcc nonce, 100-byte 0xef plaintext',
 	key: '0303030303030303030303030303030303030303030303030303030303030303',
 	nonce: 'cccccccccccccccccccccccccccccccc',
 	plaintext:
@@ -89,9 +58,8 @@ export const sc1: SealV2Vector = {
 		'a2f5a2f0',
 };
 
-export const sc_empty: SealV2Vector = {
-	description: 'SC_EMPTY: serpent, 0x04 key, 0xdd nonce, empty plaintext',
-	cipher: 'serpent',
+export const sc_empty: SealSerpentV2Vector = {
+	description: 'SC_EMPTY: serpent v2, 0x04 key, 0xdd nonce, empty plaintext',
 	key: '0404040404040404040404040404040404040404040404040404040404040404',
 	nonce: 'dddddddddddddddddddddddddddddddd',
 	plaintext: '',

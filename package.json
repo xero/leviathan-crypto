@@ -21,6 +21,8 @@
 		"./keccak/embedded": "./dist/keccak/embedded.js",
 		"./kyber": "./dist/kyber/index.js",
 		"./kyber/embedded": "./dist/kyber/embedded.js",
+		"./aes": "./dist/aes/index.js",
+		"./aes/embedded": "./dist/aes/embedded.js",
 		"./ratchet": "./dist/ratchet/index.js"
 	},
 	"types": "./dist/index.d.ts",

@@ -56,7 +56,7 @@ export class Seal {
 		blob: Uint8Array,
 		opts?: { aad?: Uint8Array },
 	): Uint8Array {
-		const preambleLen = HEADER_SIZE + suite.kemCtSize;
+		const preambleLen = HEADER_SIZE + suite.kemCtSize + suite.commitmentSize;
 		if (blob.length < preambleLen)
 			throw new RangeError(`Seal.decrypt: blob too short — need at least ${preambleLen} bytes (got ${blob.length})`);
 		const preamble = blob.subarray(0, preambleLen);

@@ -22,9 +22,12 @@ jobs:
           bun vitest run --reporter=verbose --no-coverage
           test/unit/stream/header.test.ts
           test/unit/stream/sealstream.test.ts
-          test/unit/stream/sealstream_kat.test.ts
+          test/unit/stream/sealstream_xchacha_kat.test.ts
+          test/unit/stream/sealstream_serpent_kat.test.ts
           test/unit/stream/seal.test.ts
-          test/unit/stream/seal_kat.test.ts
+          test/unit/stream/seal_xchacha_kat.test.ts
+          test/unit/stream/seal_serpent_kat.test.ts
+          test/unit/stream/salamander-resistance.test.ts
           test/unit/stream/pool.test.ts
           test/unit/stream/pool-terminal-on-throw.test.ts
           test/unit/stream/pool-byte-exact.test.ts

@@ -140,6 +140,7 @@ import { CT_WASM } from './ct-wasm.js';
 
 let _ctCompare: ((a: number, b: number, len: number) => number) | null = null;
 let _ctMem: WebAssembly.Memory | null = null;
+let _ctMemView: Uint8Array | null = null;
 let _ctInit = false;
 let _ctInitError: Error | null = null;
 
@@ -177,6 +178,7 @@ function _initCt(): void {
 			compare: (a: number, b: number, len: number) => number;
 		};
 		_ctMem     = exports.memory;
+		_ctMemView = new Uint8Array(_ctMem.buffer);
 		_ctCompare = exports.compare;
 	} catch (cause) {
 		_ctInitError = new Error(
@@ -198,20 +200,23 @@ export const constantTimeEqual = (a: Uint8Array, b: Uint8Array): boolean => {
 	if (a.length > CT_MAX_BYTES)
 		throw new RangeError(`constantTimeEqual: max ${CT_MAX_BYTES} bytes (got ${a.length})`);
 	_initCt();
-	// Copy module-level refs to locals. _initCt() either populates both
-	// _ctMem and _ctCompare or throws; the null check below is a defensive
-	// invariant guard that is unreachable on a correctly-initialized module.
-	const memObj  = _ctMem;
+	// Copy module-level refs to locals. _initCt() either populates all three
+	// or throws; the null check below is a defensive invariant guard that is
+	// unreachable on a correctly-initialized module.
+	const mem     = _ctMemView;
 	const compare = _ctCompare;
-	if (!memObj || !compare)
+	if (!mem || !compare)
 		throw new Error('leviathan-crypto: ct init invariant violated');
-	const mem = new Uint8Array(memObj.buffer);
 	mem.set(a, 0);
 	mem.set(b, a.length);
 	try {
 		return compare(0, a.length, a.length) === 1;
 	} finally {
-		mem.fill(0, 0, a.length * 2);
+		// Wipe the full ct memory region, not just the bytes we wrote.
+		// Defense in depth against stale residue from longer prior calls.
+		// The module-private WASM memory is never read from outside this
+		// function, but we keep the surface clean regardless.
+		mem.fill(0, 0, CT_MAX_BYTES * 2);
 	}
 };
 
@@ -225,6 +230,7 @@ export function _ctResetForTesting(): void {
 	_ctInit = false;
 	_ctCompare = null;
 	_ctMem = null;
+	_ctMemView = null;
 	_ctInitError = null;
 }
 

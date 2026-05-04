@@ -24,6 +24,11 @@
 // SerpentCipher — CipherSuite implementation for the STREAM construction.
 // 3-key HKDF derivation, HMAC-derived CBC IV, Serpent-CBC + HMAC-SHA-256.
 // Verify-then-decrypt ordering prevents padding oracle attacks (Vaudenay 2002).
+//
+// Salamander immunity: HMAC-SHA-256 is key-committing under SHA-256 collision
+// resistance, so Serpent suites need no separate commitment in the preamble
+// (commitmentSize: 0). Two distinct master keys cannot produce a tag that
+// validates under both for the same chunk.
 
 import { HKDF_SHA256 } from '../sha2/index.js';
 import { constantTimeEqual, wipe, concat, randomBytes } from '../utils.js';
@@ -57,6 +62,7 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 	hkdfInfo: 'serpent-sealstream-v2',
 	keySize: 32,
 	kemCtSize: 0,
+	commitmentSize: 0,
 	tagSize: 32,
 	padded: true,
 	wasmChunkSize: 65552,  // src/asm/serpent/buffers.ts CHUNK_SIZE (65536 + 16 PKCS7 max overhead)
@@ -74,7 +80,7 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 	 * @param nonce      Stream nonce (16 bytes minimum)
 	 * @returns          `DerivedKeys` holding the 96-byte material
 	 */
-	deriveKeys(masterKey: Uint8Array, nonce: Uint8Array, _kemCt?: Uint8Array): DerivedKeys {
+	deriveKeys(masterKey: Uint8Array, nonce: Uint8Array, _kemCt?: Uint8Array, _header?: Uint8Array): DerivedKeys {
 		const hkdf = new HKDF_SHA256();
 		const derived = hkdf.derive(masterKey, nonce, INFO, 96);
 		hkdf.dispose();

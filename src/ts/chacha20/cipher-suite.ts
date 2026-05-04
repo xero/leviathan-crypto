@@ -27,12 +27,13 @@
 import { getInstance, _assertNotOwned } from '../init.js';
 import { HKDF_SHA256 } from '../sha2/index.js';
 import { aeadEncrypt, aeadDecrypt, deriveSubkey } from './ops.js';
-import { wipe, randomBytes } from '../utils.js';
+import { wipe, randomBytes, concat } from '../utils.js';
+import { HEADER_SIZE } from '../stream/constants.js';
 import { WORKER_SOURCE } from '../embedded/chacha20-pool-worker.js';
 import type { ChaChaExports } from './types.js';
 import type { CipherSuite, DerivedKeys } from '../stream/types.js';
 
-const INFO = new TextEncoder().encode('xchacha20-sealstream-v2');
+const INFO = new TextEncoder().encode('xchacha20-sealstream-v3');
 
 /** Returns the raw chacha20 WASM export object. @internal */
 function getExports(): ChaChaExports {
@@ -50,11 +51,12 @@ function getExports(): ChaChaExports {
  * this object directly. Use `XChaCha20Cipher.keygen()` to generate a 32-byte key.
  */
 export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
-	formatEnum: 0x01,
+	formatEnum: 0x03,
 	formatName: 'xchacha20',
-	hkdfInfo: 'xchacha20-sealstream-v2',
+	hkdfInfo: 'xchacha20-sealstream-v3',
 	keySize: 32,
 	kemCtSize: 0,
+	commitmentSize: 32,
 	tagSize: 16,
 	padded: false,
 	wasmChunkSize: 65536,  // src/asm/chacha20/buffers.ts CHUNK_SIZE
@@ -66,23 +68,48 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 	},
 
 	/**
-	 * Derive a 32-byte HChaCha20 subkey from `masterKey` and `nonce` via
-	 * HKDF-SHA-256 followed by HChaCha20 subkey derivation.
+	 * Derive a 32-byte HChaCha20 subkey and a 32-byte key commitment from
+	 * `masterKey` and `nonce` via HKDF-SHA-256 followed by HChaCha20 subkey
+	 * derivation. The full 20-byte preamble header is appended to the HKDF
+	 * info string, binding `formatEnum`, framed flag, nonce, and chunkSize
+	 * into the derived material — header tampering causes derived keys to
+	 * differ and AEAD fails on the first chunk.
+	 *
+	 * The 64-byte HKDF output is split: bytes 0..32 feed HChaCha20 subkey
+	 * derivation, bytes 32..64 are the key commitment that ends up in the
+	 * preamble. Verifying the commitment before any chunk is processed
+	 * closes the Invisible Salamanders attack surface — Poly1305 alone is
+	 * not key-committing, so without this an adversary with control over
+	 * two master keys could craft a single ciphertext + tag that decrypts
+	 * validly under both.
+	 *
 	 * @param masterKey  32-byte master key
-	 * @param nonce      Stream nonce (24 bytes minimum for XChaCha20 subkey derivation)
-	 * @returns          `DerivedKeys` holding the 32-byte subkey
+	 * @param nonce      Stream nonce (16 bytes — also used as HChaCha20 input)
+	 * @param _kemCt     Unused for symmetric XChaCha20; KEM wrappers pass it through
+	 * @param header     20-byte preamble header — required (throws otherwise)
+	 * @returns          `DerivedKeys` holding the 32-byte HChaCha20 subkey and 32-byte commitment
 	 */
-	deriveKeys(masterKey: Uint8Array, nonce: Uint8Array, _kemCt?: Uint8Array): DerivedKeys {
+	deriveKeys(masterKey: Uint8Array, nonce: Uint8Array, _kemCt?: Uint8Array, header?: Uint8Array): DerivedKeys {
+		if (!header || header.length !== HEADER_SIZE)
+			throw new Error(`XChaCha20Cipher.deriveKeys: header binding required (got ${header?.length ?? 'undefined'} bytes)`);
+
 		_assertNotOwned('chacha20');
 		const hkdf = new HKDF_SHA256();
-		const streamKey = hkdf.derive(masterKey, nonce, INFO, 32);
+		// INFO || header — binds formatEnum, framed flag, nonce, chunkSize into the KDF.
+		// Any header tampering produces different keys, AEAD fails on the first chunk.
+		const info = concat(INFO, header);
+		const okm = hkdf.derive(masterKey, nonce, info, 64);
 		hkdf.dispose();
 
-		// HChaCha20 subkey derivation — nonce[0:16] as XChaCha input
+		// Bytes 0..32: streamKey for HChaCha20 subkey derivation.
+		// Bytes 32..64: key commitment for the seal preamble.
+		const streamKey  = okm.subarray(0, 32);
+		const commitment = okm.slice(32, 64);          // independent backing — survives okm wipe
+
 		const x = getExports();
 		const subkey = deriveSubkey(x, streamKey, nonce);
-		wipe(streamKey);
-		return { bytes: subkey };
+		wipe(okm);                                     // wipe both halves of okm; commitment is safe (independent backing)
+		return { bytes: subkey, commitment };
 	},
 
 	/**

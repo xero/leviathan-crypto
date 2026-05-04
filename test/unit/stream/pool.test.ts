@@ -124,8 +124,11 @@ for (const cfg of configs) {
 				});
 				const pt = randomBytes(500);
 				const ct = await pool.seal(pt);
-				const opener = new OpenStream(cfg.cipher, key, pool.header);
-				const dec = opener.finalize(ct.subarray(20));
+				// Preamble = header [|| commitment]; pool emits the same layout
+				// as SealStream so OpenStream can consume it directly.
+				const preambleLen = 20 + cfg.cipher.commitmentSize;
+				const opener = new OpenStream(cfg.cipher, key, ct.subarray(0, preambleLen));
+				const dec = opener.finalize(ct.subarray(preambleLen));
 				expect(dec).toEqual(pt);
 				pool.destroy();
 			});
@@ -522,5 +525,31 @@ describe('SealStreamPool.create() — KEM rejection', () => {
 		await expect(SealStreamPool.create(kemStub as CipherSuite, randomBytes(32), {
 			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
 		})).rejects.toThrow(/KEM/);
+	});
+});
+
+// ── Commitment verification (XChaCha20 v3 salamander mitigation) ────────────
+
+describe('SealStreamPool.open() — commitment verification', () => {
+	it('rejects ciphertext with tampered commitment, fails fast with AuthenticationError', async () => {
+		const key = randomBytes(32);
+		const pool = await SealStreamPool.create(XChaCha20Cipher, key, {
+			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
+		});
+		const pt = randomBytes(2048);
+		const ct = (await pool.seal(pt)).slice();
+		pool.destroy();
+
+		// Flip a byte inside the commitment region of the preamble:
+		// [HEADER_SIZE, HEADER_SIZE + 32).
+		ct[20 + 5] ^= 0xff;
+
+		const opener = await SealStreamPool.create(XChaCha20Cipher, key, {
+			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
+		});
+		// Open() should reject before any chunk dispatch. Match the discriminator
+		// string baked into AuthenticationError.
+		await expect(opener.open(ct)).rejects.toThrow(/commitment-xchacha20/);
+		opener.destroy();
 	});
 });

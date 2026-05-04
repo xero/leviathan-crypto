@@ -7,6 +7,7 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > ### Table of Contents
 > - [Initialization](#initialization)
 > - [Serpent-256](#serpent-256)
+> - [AES](#aes)
 > - [Stream](#stream)
 > - [Errors](#errors)
 > - [XChaCha20 / Poly1305](#xchacha20--poly1305)
@@ -60,6 +61,17 @@ Subpath: `leviathan-crypto/serpent`. See [serpent.md](./serpent.md).
 | `Serpent` | class | Serpent-256 ECB block cipher. `loadKey()`, `encryptBlock()`, `decryptBlock()`. Unauthenticated. |
 | `SerpentCtr` | class | Serpent-256 CTR mode. `beginEncrypt()`, `encryptChunk()`, `beginDecrypt()`, `decryptChunk()`. Unauthenticated. |
 | `SerpentCbc` | class | Serpent-256 CBC mode with PKCS7 padding. `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. Unauthenticated. |
+
+---
+
+## AES
+
+Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD. Phase 2 ships the raw block cipher only — `AES` is the building block for upcoming CTR/CBC/GCM modes.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `aesInit` | function | Module-scoped init. `aesInit(source: WasmSource)` loads only aes. |
+| `AES` | class | AES ECB block cipher. `loadKey(key)` (16, 24, or 32 byte keys), `encryptBlock(plaintext)`, `decryptBlock(ciphertext)` (FIPS 197 §5.3.5 Equivalent Inverse Cipher). Unauthenticated. Atomic — does not hold module exclusivity. |
 
 ---
 

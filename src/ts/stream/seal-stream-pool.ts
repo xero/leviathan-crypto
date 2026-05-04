@@ -26,7 +26,7 @@
 // Any error is fatal: auth failure, crash, or timeout kills all workers,
 // wipes keys, and rejects all pending promises.
 
-import { randomBytes, wipe } from '../utils.js';
+import { randomBytes, wipe, constantTimeEqual } from '../utils.js';
 import { isInitialized } from '../init.js';
 import { compileWasm } from '../loader.js';
 import { AuthenticationError } from '../errors.js';
@@ -73,6 +73,7 @@ export class SealStreamPool {
 	private readonly _framed: boolean;
 	private readonly _timeout: number;
 	private readonly _header: Uint8Array;
+	private readonly _commitment: Uint8Array | null;
 	private _workers: Worker[];
 	private _idle: Worker[];
 	private _queue: QueuedJob[];
@@ -89,6 +90,7 @@ export class SealStreamPool {
 		keys: DerivedKeys,
 		masterKey: Uint8Array,
 		header: Uint8Array,
+		commitment: Uint8Array | null,
 		chunkSize: number,
 		framed: boolean,
 		timeout: number,
@@ -104,6 +106,7 @@ export class SealStreamPool {
 		this._keys = keys;
 		this._masterKey = masterKey;
 		this._header = header;
+		this._commitment = commitment;
 		this._chunkSize = chunkSize;
 		this._framed = framed;
 		this._timeout = timeout;
@@ -173,10 +176,22 @@ export class SealStreamPool {
 		if (key.length !== cipher.keySize)
 			throw new RangeError(`key must be ${cipher.keySize} bytes (got ${key.length})`);
 
-		// Generate nonce and derive keys
+		// Generate nonce and build header before deriveKeys — XChaCha20 binds
+		// the header into HKDF info; SerpentCipher accepts and ignores it.
 		const nonce = randomBytes(16);
-		const keys = cipher.deriveKeys(key, nonce);
 		const header = writeHeader(cipher.formatEnum, framed, nonce, chunkSize);
+		const keys = cipher.deriveKeys(key, nonce, undefined, header);
+		let commitment: Uint8Array | null = null;
+		if (cipher.commitmentSize > 0) {
+			if (!keys.commitment || keys.commitment.length !== cipher.commitmentSize) {
+				cipher.wipeKeys(keys);
+				throw new Error(
+					`leviathan-crypto: ${cipher.formatName}.deriveKeys returned `
+					+ `${keys.commitment?.length ?? 'no'} commitment bytes, expected ${cipher.commitmentSize}`,
+				);
+			}
+			commitment = keys.commitment;
+		}
 
 		// Spawn workers sequentially (compatible with @vitest/web-worker)
 		const workers: Worker[] = [];
@@ -208,7 +223,7 @@ export class SealStreamPool {
 			workers.push(w);
 		}
 
-		return new SealStreamPool(cipher, workers, keys, key.slice(), header, chunkSize, framed, timeout);
+		return new SealStreamPool(cipher, workers, keys, key.slice(), header, commitment, chunkSize, framed, timeout);
 	}
 
 	get header(): Uint8Array {
@@ -242,11 +257,16 @@ export class SealStreamPool {
 
 		try {
 			const results = await Promise.all(jobs);
-			let totalLen = HEADER_SIZE;
+			const commitmentLen = this._cipher.commitmentSize;
+			let totalLen = HEADER_SIZE + commitmentLen;
 			for (const r of results) totalLen += this._framed ? r.length + 4 : r.length;
 			const ciphertext = new Uint8Array(totalLen);
 			ciphertext.set(this._header, 0);
 			let pos = HEADER_SIZE;
+			if (this._commitment) {
+				ciphertext.set(this._commitment, pos);
+				pos += commitmentLen;
+			}
 			for (const r of results) {
 				if (this._framed) {
 					new DataView(ciphertext.buffer, pos).setUint32(0, r.length, false);
@@ -291,12 +311,39 @@ export class SealStreamPool {
 		// The pool's _keys are tied to its own seal nonce — for arbitrary incoming
 		// ciphertext the nonce may differ, so we derive fresh keys here.
 		if (!this._masterKey) throw new Error('leviathan-crypto: pool master key has been wiped');
-		const openKeys = this._cipher.deriveKeys(this._masterKey, h.nonce);
+		const headerBytes = ciphertext.subarray(0, HEADER_SIZE);
+		const commitmentLen = this._cipher.commitmentSize;
+		const minLen = HEADER_SIZE + commitmentLen;
+		if (ciphertext.length < minLen)
+			throw new RangeError(
+				`leviathan-crypto: ciphertext too short — need at least ${minLen} bytes for header + commitment`,
+			);
+		const openKeys = this._cipher.deriveKeys(this._masterKey, h.nonce, undefined, headerBytes);
 		let openKeysWiped = false;
 
+		// Verify commitment before any chunk dispatch. Wrong key fails fast
+		// with AuthenticationError, before Poly1305 is consulted.
+		if (commitmentLen > 0) {
+			const derivedCommitment = openKeys.commitment;
+			if (!derivedCommitment || derivedCommitment.length !== commitmentLen) {
+				this._cipher.wipeKeys(openKeys);
+				throw new Error(
+					`leviathan-crypto: ${this._cipher.formatName}.deriveKeys returned `
+					+ `${derivedCommitment?.length ?? 'no'} commitment bytes, expected ${commitmentLen}`,
+				);
+			}
+			const recvCommitment = ciphertext.subarray(HEADER_SIZE, HEADER_SIZE + commitmentLen);
+			if (!constantTimeEqual(derivedCommitment, recvCommitment)) {
+				this._cipher.wipeKeys(openKeys);
+				const err = new AuthenticationError(`commitment-${this._cipher.formatName}`);
+				this._killAll(err);
+				throw err;
+			}
+		}
+
 		try {
-			// Strip header before chunk splitting
-			const body = ciphertext.subarray(HEADER_SIZE);
+			// Strip header + commitment before chunk splitting
+			const body = ciphertext.subarray(HEADER_SIZE + commitmentLen);
 			if (body.length === 0)
 				throw new RangeError('leviathan-crypto: empty ciphertext — seal() always produces at least one chunk');
 
