@@ -48,6 +48,7 @@ const modules = [
   { name: 'sha2',    wasm: 'sha2.wasm' },
   { name: 'sha3',    wasm: 'sha3.wasm' },
   { name: 'kyber',   wasm: 'kyber.wasm' },
+  { name: 'aes',     wasm: 'aes.wasm' },
 ]
 
 for (const { name, wasm } of modules) {

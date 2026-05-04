@@ -2,7 +2,7 @@
 
 ### Test Suite & Vector Corpus
 
-Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2107 tests.
+Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2153 tests.
 
 > ### Table of Contents
 > - [Test Counts](#test-counts)
@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 1844                        | All pass |
+| Unit | Vitest     | 1859                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2138**                    | All pass |
+|      | **Total**  | **2153**                    | All pass |
 
 ---
 
@@ -88,6 +88,10 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `ratchet/skipped_key_store.test.ts`           | `SkippedKeyStore`: happy-path commit, rollback, rollback + legitimate delivery, `wipeAll`, `resolve()` argument validation, settle guards (double-settle throws, key access after settle throws), key lifecycle, split budgets (`maxCacheSize`, `maxSkipPerResolve`) | 25 tests               | —                   |
 | `ratchet/resolve-handle-dos-mitigation.test.ts` | DoS-mitigation: `rollback()` returns the key to the store under the same counter so a later legitimate delivery at that counter can still decrypt; bounded HKDF work via `maxSkipPerResolve`                                                | 2 tests                | —                   |
 | `ratchet/ratchet_keypair.test.ts`             | `RatchetKeypair`: round-trip keygen/decap, single-use guard (second `decap` throws), `dispose()` is idempotent, context round-trip                                                                                                          | 8 tests                | —                   |
+| `aes/aes_transpose.test.ts`                   | Bit-transposition round-trip identity: 128 distinct bytes, all-zeros, all-0xFF, FIPS 197 §B plaintext + 7 dummy blocks                                                                                                                       | 4 tests                | Gate 1              |
+| `aes/aes_sbox.test.ts`                        | Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7: all 256 byte inputs                                                                                                                                                                    | 256 vectors, 1 test    | Gate 2              |
+| `aes/aes_round.test.ts`                       | Single AES round vs FIPS 197 §B Round 1 intermediate (`aesRoundIntermediates128[0]`)                                                                                                                                                         | 1 test                 | Gate 3              |
+| `aes/aes_kat.test.ts`                         | AES-128 ECB encrypt KAT: FIPS 197 §B + 4 NIST CAVP `.rsp` files (GFSbox 14, KeySbox 42, VarKey 256, VarTxt 256)                                                                                                                              | 568 vectors, 9 tests   | Gate 4              |
 | `fortuna.test.ts`                             | Fortuna CSPRNG: `Fortuna.create()`, `get()` (always Uint8Array), entropy threshold, `stop()` disposes instance, `SerpentCtr` exclusivity coexistence, `stop()` exception-safety when serpent module is held by `SerpentCtr` (disposed flag set, key material wiped, throw surfaced). All tests run with `SerpentGenerator` + `SHA256Hash` to preserve historical coverage. | 11 tests               | —                   |
 | `fortuna/wipe-lifecycle.test.ts`              | Wipe-before-reassign discipline in `pseudoRandomData`, `reseed`, `addRandomEvent`, and pool reset (4 tests); `stop()` wipes `genKey` + `genCnt` + every pool-hash chain and calls `wipeBuffers()` on every WASM module the chosen generator and hash touched (3 tests) | 7 tests                | —                   |
 | `fortuna/spec-conformance.test.ts`            | Fortuna pool-selection conformance with Practical Cryptography §9.5.5: pool P_i consumed iff 2^i divides `reseedCnt`. Walks reseeds 1..16, asserts the consumed-pool set matches the divisibility rule per reseed. Includes `pool 0 consumed on every reseed` regression for the F-1 fix | 2 tests                | —                   |

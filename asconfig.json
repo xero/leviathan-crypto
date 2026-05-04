@@ -11,6 +11,7 @@
     "src/asm/serpent/index.ts",
     "src/asm/chacha/index.ts",
     "src/asm/sha2/index.ts",
-    "src/asm/sha3/index.ts"
+    "src/asm/sha3/index.ts",
+    "src/asm/aes/index.ts"
   ]
 }

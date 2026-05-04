@@ -1,0 +1,132 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+// src/ts/aes/index.ts
+//
+// Public API classes for the AES WASM module.
+// Phase 2a: AES-128 encrypt only. AES-192/256 + decrypt land in 2b.
+
+import { getInstance, initModule, _assertNotOwned } from '../init.js';
+import type { WasmSource } from '../wasm-source.js';
+
+/**
+ * Load and initialise the AES WASM module from `source`.
+ * Must be called before constructing any AES class.
+ * @param source  WASM binary — gzip+base64 string, URL, ArrayBuffer, Uint8Array,
+ *                pre-compiled WebAssembly.Module, Response, or Promise<Response>
+ */
+export async function aesInit(source: WasmSource): Promise<void> {
+	return initModule('aes', source);
+}
+
+export type { WasmSource };
+export { isInitialized } from '../init.js';
+
+/** Typed subset of the AES WASM module exports used by this file. @internal */
+interface AesExports {
+	memory:                     WebAssembly.Memory
+	getKeyOffset:               () => number
+	getBlockPtOffset:           () => number
+	getBlockCtOffset:           () => number
+	getBlockPt8xOffset:         () => number
+	getBlockCt8xOffset:         () => number
+	getRoundKeysOffset:         () => number
+	getBitslicedStateOffset:    () => number
+	getCanrightScratchOffset:   () => number
+	getChunkPtOffset:           () => number
+	getChunkCtOffset:           () => number
+	getChunkSize:               () => number
+	loadKey:                    (n: number) => number
+	encryptBlock:               () => void
+	encryptBlock_8x:            () => void
+	wipeBuffers:                () => void
+	// Debug-only exports used by gate tests.
+	transposeRoundTrip:         () => void
+	sboxRoundTrip:              () => void
+	singleRound:                (roundIdx: number) => void
+}
+
+/** Returns the raw AES WASM export object. @internal */
+function getExports(): AesExports {
+	return getInstance('aes').exports as unknown as AesExports;
+}
+
+// ── AES ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Low-level AES-128 block cipher — raw ECB encrypt.
+ *
+ * Phase 2a: AES-128 only. `loadKey` accepts only 16-byte keys and throws
+ * `RangeError` on 24- or 32-byte input. Phase 2b widens this and adds
+ * `decryptBlock`.
+ *
+ * Atomic (stateless): each method call is independent. Does not hold
+ * exclusive module access. Call `dispose()` after use to wipe WASM key
+ * material.
+ */
+export class AES {
+	private readonly x: AesExports;
+
+	constructor() {
+		this.x = getExports();
+	}
+
+	/**
+	 * Expand `key` into the WASM key schedule. Must be called before
+	 * `encryptBlock`.
+	 * @param key  16 bytes (Phase 2a — 192/256 land in 2b)
+	 */
+	loadKey(key: Uint8Array): void {
+		_assertNotOwned('aes');
+		if (key.length !== 16)
+			throw new RangeError(
+				`AES.loadKey: key must be 16 bytes (got ${key.length}); `
+				+ 'AES-192/256 not yet supported in this phase',
+			);
+		const mem = new Uint8Array(this.x.memory.buffer);
+		mem.set(key, this.x.getKeyOffset());
+		if (this.x.loadKey(key.length) !== 0) throw new Error('loadKey failed');
+	}
+
+	/**
+	 * Encrypt one 128-bit block with the previously loaded key schedule.
+	 * FIPS 197 §5.1 Algorithm 1, Nr=10.
+	 * @param plaintext  16-byte plaintext block
+	 * @returns          16-byte ciphertext block
+	 */
+	encryptBlock(plaintext: Uint8Array): Uint8Array {
+		_assertNotOwned('aes');
+		if (plaintext.length !== 16)
+			throw new RangeError(`block must be 16 bytes (got ${plaintext.length})`);
+		const mem   = new Uint8Array(this.x.memory.buffer);
+		const ptOff = this.x.getBlockPtOffset();
+		const ctOff = this.x.getBlockCtOffset();
+		mem.set(plaintext, ptOff);
+		this.x.encryptBlock();
+		return mem.slice(ctOff, ctOff + 16);
+	}
+
+	/** Wipe WASM key material and intermediate buffers. */
+	dispose(): void {
+		_assertNotOwned('aes');
+		this.x.wipeBuffers();
+	}
+}

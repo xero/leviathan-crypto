@@ -42,6 +42,7 @@ const modules = [
   { name: 'sha3',    entry: 'src/asm/sha3/index.ts', memory: '--initialMemory 3 --maximumMemory 3' },
   { name: 'ct', entry: 'src/asm/ct/index.ts', memory: '--initialMemory 1 --maximumMemory 1', extra: '--enable simd', noSourceMap: true },
   { name: 'kyber', entry: 'src/asm/kyber/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
+  { name: 'aes', entry: 'src/asm/aes/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
 ]
 
 for (const { name, entry, memory, extra = '', noSourceMap = false } of modules) {
