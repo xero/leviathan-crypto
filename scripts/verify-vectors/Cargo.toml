@@ -1,0 +1,25 @@
+[package]
+name        = "verify-vectors"
+version     = "0.1.0"
+edition     = "2021"
+description = "Independent Rust verifier for leviathan-crypto's seal/sealstream test vectors"
+publish     = false
+
+[[bin]]
+name = "verify-vectors"
+path = "src/main.rs"
+
+# Exact-version pinning. Verifier dependencies are part of the audit surface;
+# we do not silently consume new versions. CI's Cargo.lock plus this exact
+# pin gives belt-and-suspenders reproducibility.
+[dependencies]
+chacha20poly1305 = { version = "=0.10.1", default-features = false, features = ["alloc"] }
+hkdf             = { version = "=0.12.4", default-features = false }
+hmac             = { version = "=0.12.1", default-features = false }
+sha2             = { version = "=0.10.9", default-features = false }
+serpent          = { version = "=0.6.0",  default-features = false }
+hex              = { version = "=0.4.3",  default-features = false, features = ["std"] }
+
+[profile.release]
+opt-level = 3
+lto       = true

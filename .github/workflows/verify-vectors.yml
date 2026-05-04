@@ -3,8 +3,10 @@ on:
   workflow_call:
 permissions:
   contents: read
+
 jobs:
   hashsums:
+    name: vector checksums
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -12,3 +14,30 @@ jobs:
       - name: verify test vector checksums
         working-directory: test/vectors
         run: sha256sum --check SHA256SUMS
+
+  rust-verify:
+    name: independent rust verifier
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: hashsums
+    defaults:
+      run:
+        working-directory: scripts/verify-vectors
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: install rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: 1.95.0
+
+      - name: cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: scripts/verify-vectors
+
+      - name: build verify-vectors (release)
+        run: cargo build --release --locked
+
+      - name: run verify-vectors against pinned KAT corpus
+        run: ./target/release/verify-vectors
