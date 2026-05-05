@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 1991                        | All pass |
+| Unit | Vitest     | 1993                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2285**                    | All pass |
+|      | **Total**  | **2287**                    | All pass |
 
 ---
 
@@ -89,7 +89,7 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `ratchet/resolve-handle-dos-mitigation.test.ts` | DoS-mitigation: `rollback()` returns the key to the store under the same counter so a later legitimate delivery at that counter can still decrypt; bounded HKDF work via `maxSkipPerResolve`                                                | 2 tests                | —                   |
 | `ratchet/ratchet_keypair.test.ts`             | `RatchetKeypair`: round-trip keygen/decap, single-use guard (second `decap` throws), `dispose()` is idempotent, context round-trip                                                                                                          | 8 tests                | —                   |
 | `aes/aes_transpose.test.ts`                   | Bit-transposition round-trip identity: 128 distinct bytes, all-zeros, all-0xFF, FIPS 197 §B plaintext + 7 dummy blocks, single-bit isolation, asymmetric (block<<4)\|byte pattern                                                            | 6 tests                | Gate 1              |
-| `aes/aes_sbox.test.ts`                        | Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7: all 256 byte inputs                                                                                                                                                                    | 256 vectors, 1 test    | Gate 2              |
+| `aes/aes_sbox.test.ts`                        | Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7 (all 256 byte inputs); Boyar-Peralta scalar S-box (key-schedule path, SLP_AES_113) — exhaustive 256-byte coverage + packed 4-byte word independence                                       | 512 vectors + 8 packed, 3 tests | Gate 2     |
 | `aes/aes_round.test.ts`                       | Single AES round vs FIPS 197 §B Round 1 intermediate (`aesRoundIntermediates128[0]`)                                                                                                                                                         | 1 test                 | Gate 3              |
 | `aes/aes_kat.test.ts`                         | AES-128/192/256 ECB encrypt KAT: FIPS 197 §B + 12 NIST CAVP AESVS `.rsp` files (GFSbox 7+6+5, KeySbox 21+24+16, VarKey 128+192+256, VarTxt 128+128+128 per direction)                                                                          | 1039 vectors, 25 tests | Gate 4              |
 | `aes/aes_decrypt.test.ts`                     | AES-128/192/256 ECB decrypt KAT (Equivalent Inverse Cipher, FIPS 197 §5.3.5): FIPS 197 §B inverse, encrypt→decrypt round-trip on 32 random vectors, 12 NIST CAVP AESVS `.rsp` `[DECRYPT]` sections                                            | 1039 vectors, 26 tests | Gate 5              |

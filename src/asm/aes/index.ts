@@ -59,6 +59,7 @@ export {
 	// Debug-only exports used by gate tests.
 	transposeRoundTrip,
 	sboxRoundTrip,
+	sboxWordExport,
 	singleRound,
 } from './aes'
 
