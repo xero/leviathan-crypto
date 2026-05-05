@@ -66,12 +66,14 @@ Subpath: `leviathan-crypto/serpent`. See [serpent.md](./serpent.md).
 
 ## AES
 
-Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD. Phase 2 ships the raw block cipher only — `AES` is the building block for upcoming CTR/CBC/GCM modes.
+Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD, with CBC and CTR mode wrappers (SP 800-38A §6.2, §6.5). The raw block cipher (`AES`) is the building block for upcoming GCM/GCM-SIV AEAD layers; `AESCbc` and `AESCtr` are unauthenticated direct mode access.
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `aesInit` | function | Module-scoped init. `aesInit(source: WasmSource)` loads only aes. |
 | `AES` | class | AES ECB block cipher. `loadKey(key)` (16, 24, or 32 byte keys), `encryptBlock(plaintext)`, `decryptBlock(ciphertext)` (FIPS 197 §5.3.5 Equivalent Inverse Cipher). Unauthenticated. Atomic — does not hold module exclusivity. |
+| `AESCbc` | class | AES CBC mode (SP 800-38A §6.2) with PKCS7 padding (RFC 5652 §6.3). `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. **Unauthenticated** — requires `{ dangerUnauthenticated: true }` opt-in; pair with HMAC (Encrypt-then-MAC) or use `Seal` with `SerpentCipher`/`XChaCha20Cipher` instead. SIMD CBC decrypt; scalar CBC encrypt (chaining is sequential by definition). Stateful — holds the AES module exclusively until `dispose()`. |
+| `AESCtr` | class | AES CTR mode (SP 800-38A §6.5). `loadKey(key)`, `setNonce(nonce)`, `encrypt(plaintext)` / `decrypt(ciphertext)`. Counter is 128-bit big-endian (SP 800-38A Appendix B.1, matches §F.5 worked examples). **Unauthenticated** — pair with HMAC or use an authenticated cipher instead. SIMD via the bitsliced 8-block kernel. Stateful — counter advances across calls; reset with `setNonce`. |
 
 ---
 

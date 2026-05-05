@@ -28,7 +28,7 @@
 // (NR_BUFFER) is written by `keyExpansion` and read by encrypt/decrypt at
 // the top of each call.
 //
-// Total: 136641 bytes < 3 × 64KB = 196608 (59967 bytes spare).
+// Total: 136704 bytes < 3 × 64KB = 196608 (59904 bytes spare).
 //
 // Offset    Size      Name
 // 0         32        KEY_BUFFER (sized for AES-256)
@@ -52,12 +52,17 @@
 //                                              decrypt; rounds 0 and Nr are
 //                                              copies of forward keys, rounds
 //                                              1..Nr-1 are InvMixColumns(K[r]))
-// 5568      65536     CHUNK_PT_BUFFER     (CTR/GCM stream input — phase 3+)
-// 71104     65536     CHUNK_CT_BUFFER     (CTR/GCM stream output — phase 3+)
+// 5568      65536     CHUNK_PT_BUFFER     (CTR/CBC stream input)
+// 71104     65536     CHUNK_CT_BUFFER     (CTR/CBC stream output)
 // 136640    1         NR_BUFFER           (u8 — round count: 10/12/14, written
 //                                          by keyExpansion, read by encrypt/
 //                                          decrypt round loops)
-// 136641              END                 (< 196608 = 3 pages ✓)
+// 136656    16        NONCE_BUFFER        (CTR initial counter value)
+// 136672    16        COUNTER_BUFFER      (CTR working counter, 128-bit LE)
+// 136688    16        CBC_IV_BUFFER       (CBC chaining block — IV on first
+//                                          chunk, last ciphertext block on
+//                                          subsequent chunks)
+// 136704              END                 (< 196608 = 3 pages ✓)
 //
 // Why bitsliced round keys are 128 bytes/round (not 16): per Käsper-Schwabe §4.5,
 // each AES round key is pre-transposed to bitsliced form so that AddRoundKey is
@@ -94,7 +99,11 @@ export const INV_ROUND_KEYS_OFFSET:       i32 = 3648;
 export const CHUNK_PT_OFFSET:             i32 = 5568;
 export const CHUNK_CT_OFFSET:             i32 = 71104;
 export const NR_OFFSET:                   i32 = 136640;
-// END = 136641 < 196608 ✓
+// NR_BUFFER is u8 at 136640; pad to 16-byte boundary before mode-state buffers.
+export const NONCE_OFFSET:                i32 = 136656;
+export const COUNTER_OFFSET:              i32 = 136672;
+export const CBC_IV_OFFSET:               i32 = 136688;
+// END = 136704 < 196608 ✓
 
 // Sizes referenced from wipe.ts and aes.ts.
 export const ROUND_KEYS_SIZE:           i32 = 1920;   // 15 round keys × 8 v128 (AES-256 future)
@@ -103,6 +112,9 @@ export const CANRIGHT_SCRATCH_SIZE:     i32 = 1024;   // 64 v128 scratch slots
 export const KEY_SCHEDULE_SCRATCH_SIZE: i32 = 256;    // 240 B used by AES-256, padded to 256
 export const INV_ROUND_KEYS_SIZE:       i32 = 1920;   // parallel to ROUND_KEYS_SIZE
 export const NR_SIZE:                   i32 = 1;      // u8 — Nr ∈ {10, 12, 14}
+export const NONCE_SIZE:                i32 = 16;     // CTR initial counter value
+export const COUNTER_SIZE:              i32 = 16;     // CTR working counter (128-bit LE)
+export const CBC_IV_SIZE:               i32 = 16;     // CBC chaining block
 
 // ── Buffer offset getters ───────────────────────────────────────────────────
 
@@ -161,6 +173,18 @@ export function getChunkCtOffset(): i32 {
 /** Returns the byte offset of NR_BUFFER (u8 round count: 10/12/14). */
 export function getNrOffset(): i32 {
 	return NR_OFFSET;
+}
+/** Returns the byte offset of NONCE_BUFFER (CTR initial counter, 16 bytes). */
+export function getNonceOffset(): i32 {
+	return NONCE_OFFSET;
+}
+/** Returns the byte offset of COUNTER_BUFFER (CTR working counter, 128-bit LE, 16 bytes). */
+export function getCounterOffset(): i32 {
+	return COUNTER_OFFSET;
+}
+/** Returns the byte offset of CBC_IV_BUFFER (CBC chaining block, 16 bytes). */
+export function getCbcIvOffset(): i32 {
+	return CBC_IV_OFFSET;
 }
 /** Returns the chunk buffer size in bytes (65536). */
 export function getChunkSize(): i32 {

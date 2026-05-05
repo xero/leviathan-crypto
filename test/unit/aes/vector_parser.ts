@@ -137,3 +137,94 @@ export function parseEcbMctFile(filename: string): {
 } {
 	return parseEcbKatFile(filename);
 }
+
+// ── CBC parsers (KAT, MMT, MCT — same record format with an extra IV) ──────
+
+/** One row from a CAVP CBC `.rsp` ENCRYPT or DECRYPT section. */
+export interface CbcKatVector {
+	count: number;
+	key:   string;  // hex
+	iv:    string;  // hex (16 bytes)
+	pt:    string;  // hex
+	ct:    string;  // hex
+}
+
+/**
+ * Parse a NIST CAVP AESVS CBC-style `.rsp` file. Same shape as the ECB
+ * parser, but every record carries a 16-byte IV between KEY and PLAINTEXT.
+ * Used by the CBC KAT, MMT, and MCT gates.
+ */
+export function parseCbcKatFile(filename: string): {
+	encrypt: CbcKatVector[];
+	decrypt: CbcKatVector[];
+} {
+	const text = readFileSync(resolve(VECTORS_DIR, filename), 'utf8');
+	const encrypt: CbcKatVector[] = [];
+	const decrypt: CbcKatVector[] = [];
+
+	let section: 'ENCRYPT' | 'DECRYPT' | null = null;
+	let cur: Partial<CbcKatVector> = {};
+
+	const flush = () => {
+		if (cur.count != null && cur.key != null && cur.iv != null && cur.pt != null && cur.ct != null) {
+			const v = cur as CbcKatVector;
+			if (section === 'ENCRYPT') encrypt.push(v);
+			else if (section === 'DECRYPT') decrypt.push(v);
+		}
+		cur = {};
+	};
+
+	for (const rawLine of text.split('\n')) {
+		const line = rawLine.replace(/\r$/, '').trim();
+		if (line === '') {
+			flush();
+			continue;
+		}
+		if (line.startsWith('#')) continue;
+		if (line === '[ENCRYPT]') {
+			flush();
+			section = 'ENCRYPT';
+			continue;
+		}
+		if (line === '[DECRYPT]') {
+			flush();
+			section = 'DECRYPT';
+			continue;
+		}
+		const eq = line.indexOf('=');
+		if (eq < 0) continue;
+		const key = line.slice(0, eq).trim();
+		const val = line.slice(eq + 1).trim();
+		switch (key) {
+		case 'COUNT':      cur.count = parseInt(val, 10); break;
+		case 'KEY':        cur.key   = val.toLowerCase(); break;
+		case 'IV':         cur.iv    = val.toLowerCase(); break;
+		case 'PLAINTEXT':  cur.pt    = val.toLowerCase(); break;
+		case 'CIPHERTEXT': cur.ct    = val.toLowerCase(); break;
+		default: break;
+		}
+	}
+	flush();
+
+	return { encrypt, decrypt };
+}
+
+/** Parse a CBC MMT file. Same format as KAT but PT/CT are multi-block (16..160 bytes). */
+export function parseCbcMmtFile(filename: string): {
+	encrypt: CbcKatVector[];
+	decrypt: CbcKatVector[];
+} {
+	return parseCbcKatFile(filename);
+}
+
+/**
+ * Parse a CBC MCT file. Each record is one chain seed; the runner re-
+ * derives the inner-loop chain per AESAVS §6.4.2 and asserts the final
+ * KEY / IV / PLAINTEXT / CIPHERTEXT against the next row.
+ */
+export function parseCbcMctFile(filename: string): {
+	encrypt: CbcKatVector[];
+	decrypt: CbcKatVector[];
+} {
+	return parseCbcKatFile(filename);
+}

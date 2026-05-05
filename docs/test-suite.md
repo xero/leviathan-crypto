@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 1921                        | All pass |
+| Unit | Vitest     | 1991                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2215**                    | All pass |
+|      | **Total**  | **2285**                    | All pass |
 
 ---
 
@@ -95,6 +95,10 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `aes/aes_decrypt.test.ts`                     | AES-128/192/256 ECB decrypt KAT (Equivalent Inverse Cipher, FIPS 197 §5.3.5): FIPS 197 §B inverse, encrypt→decrypt round-trip on 32 random vectors, 12 NIST CAVP AESVS `.rsp` `[DECRYPT]` sections                                            | 1039 vectors, 26 tests | Gate 5              |
 | `aes/aes_mmt.test.ts`                         | AES-128/192/256 ECB Multi-block Message Test (AESAVS §6.3): 3 NIST CAVP `aes_ECBMMT*.rsp` files, 10 enc + 10 dec vectors per file, plaintext lengths 1–10 blocks                                                                              | 60 vectors, 9 tests    | Gate 6              |
 | `aes/aes_mct.test.ts`                         | AES-128/192/256 ECB Monte Carlo Test (AESAVS §6.4.1): 3 NIST CAVP `aes_ECBMCT*.rsp` files, 100 enc + 100 dec chains per file, 1000 inner iterations per chain, key-size-dependent chain rule (AES-192 uses last 8 B of CT[998] ‖ CT[999])     | 600 chains × 1000 iter, 9 tests | Gate 7     |
+| `aes/aes_cbc.test.ts`                         | AES-128/192/256 CBC raw-block KAT (SP 800-38A §6.2): 12 NIST CAVP `aes_CBC{GFSbox,KeySbox,VarKey,VarTxt}*.rsp` files, encrypt + decrypt directions; bypasses PKCS7 to exercise the WASM mode directly. Decrypt path uses `cbcDecryptChunk_simd` | 2078 vectors, 36 tests | Gate 8              |
+| `aes/aes_cbc_mmt.test.ts`                     | AES-128/192/256 CBC Multi-block Message Test (AESAVS §6.3): 3 NIST CAVP `aes_CBCMMT*.rsp` files, 10 enc + 10 dec vectors per file, plaintext lengths 1–10 blocks                                                                              | 60 vectors, 9 tests    | Gate 9              |
+| `aes/aes_cbc_mct.test.ts`                     | AES-128/192/256 CBC Monte Carlo Test (AESAVS §6.4.2): 3 NIST CAVP `aes_CBCMCT*.rsp` files, 100 enc + 100 dec chains per file, 1000 inner iterations per chain. Inner loop uses the §6.4.2 chain rule: `PT[j+1] = CT[j-1]` (encrypt) / `CT[j+1] = PT[j-1]` (decrypt); next-chain seed is the **penultimate** output, not the final | 600 chains × 1000 iter, 9 tests | Gate 10    |
+| `aes/aes_ctr.test.ts`                         | AES-128/192/256 CTR mode (SP 800-38A §6.5, Appendix B.1): 6 SP 800-38A §F.5 worked-example vectors (3 keysizes × encrypt/decrypt), round-trip check, scalar/SIMD consistency across batch boundaries (1, 7, 8, 9, 16, 17, 128, 129 blocks), partial-block tail. Counter direction: 128-bit big-endian | 16 tests               | Gate 11             |
 | `fortuna.test.ts`                             | Fortuna CSPRNG: `Fortuna.create()`, `get()` (always Uint8Array), entropy threshold, `stop()` disposes instance, `SerpentCtr` exclusivity coexistence, `stop()` exception-safety when serpent module is held by `SerpentCtr` (disposed flag set, key material wiped, throw surfaced). All tests run with `SerpentGenerator` + `SHA256Hash` to preserve historical coverage. | 11 tests               | —                   |
 | `fortuna/wipe-lifecycle.test.ts`              | Wipe-before-reassign discipline in `pseudoRandomData`, `reseed`, `addRandomEvent`, and pool reset (4 tests); `stop()` wipes `genKey` + `genCnt` + every pool-hash chain and calls `wipeBuffers()` on every WASM module the chosen generator and hash touched (3 tests) | 7 tests                | —                   |
 | `fortuna/spec-conformance.test.ts`            | Fortuna pool-selection conformance with Practical Cryptography §9.5.5: pool P_i consumed iff 2^i divides `reseedCnt`. Walks reseeds 1..16, asserts the consumed-pool set matches the divisibility rule per reseed. Includes `pool 0 consumed on every reseed` regression for the F-1 fix | 2 tests                | —                   |

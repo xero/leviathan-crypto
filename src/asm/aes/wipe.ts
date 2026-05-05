@@ -36,6 +36,9 @@ import {
 	CHUNK_PT_OFFSET, CHUNK_CT_OFFSET,
 	CHUNK_SIZE,
 	NR_OFFSET, NR_SIZE,
+	NONCE_OFFSET, NONCE_SIZE,
+	COUNTER_OFFSET, COUNTER_SIZE,
+	CBC_IV_OFFSET, CBC_IV_SIZE,
 } from './buffers'
 
 /**
@@ -56,4 +59,7 @@ export function wipeBuffers(): void {
 	memory.fill(CHUNK_PT_OFFSET,             0, CHUNK_SIZE);
 	memory.fill(CHUNK_CT_OFFSET,             0, CHUNK_SIZE);
 	memory.fill(NR_OFFSET,                   0, NR_SIZE);
+	memory.fill(NONCE_OFFSET,                0, NONCE_SIZE);
+	memory.fill(COUNTER_OFFSET,              0, COUNTER_SIZE);
+	memory.fill(CBC_IV_OFFSET,               0, CBC_IV_SIZE);
 }

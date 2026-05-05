@@ -156,3 +156,8 @@ export class AES {
 		this.x.wipeBuffers();
 	}
 }
+
+// ── CBC + CTR mode wrappers ─────────────────────────────────────────────────
+
+export { AESCbc } from './aes-cbc.js';
+export { AESCtr } from './aes-ctr.js';

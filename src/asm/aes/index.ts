@@ -42,6 +42,9 @@ export {
 	getChunkCtOffset,
 	getChunkSize,
 	getNrOffset,
+	getNonceOffset,
+	getCounterOffset,
+	getCbcIvOffset,
 	getMemoryPages,
 } from './buffers'
 
@@ -58,6 +61,31 @@ export {
 	sboxRoundTrip,
 	singleRound,
 } from './aes'
+
+// ── CBC mode (cbc.ts, cbc_simd.ts) ─────────────────────────────────────────
+
+export {
+	cbcEncryptChunk,
+	cbcDecryptChunk,
+} from './cbc'
+
+export {
+	cbcDecryptChunk_simd,
+} from './cbc_simd'
+
+// ── CTR mode (ctr.ts, ctr_simd.ts) ─────────────────────────────────────────
+
+export {
+	resetCounter,
+	setCounter,
+	encryptChunk,
+	decryptChunk,
+} from './ctr'
+
+export {
+	encryptChunk_simd,
+	decryptChunk_simd,
+} from './ctr_simd'
 
 // ── Buffer wipe (wipe.ts) ───────────────────────────────────────────────────
 

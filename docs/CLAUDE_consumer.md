@@ -174,7 +174,7 @@ await serpentInit(serpentWasm)
 | Classes | Required modules |
 |---------|-----------------|
 | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher` | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
-| `AES` | `init({ aes: aesWasm })` — AES-128/192/256, raw block cipher (encrypt + decrypt). |
+| `AES`, `AESCbc`, `AESCtr` | `init({ aes: aesWasm })` — AES-128/192/256. `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5). Both `AESCbc` and `AESCtr` are unauthenticated — pair with HMAC or use `Seal` instead. |
 | `SealStream`, `OpenStream`, `SerpentCipher` (when using SerpentCipher) | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
 | `SealStream`, `OpenStream`, `XChaCha20Cipher` (when using XChaCha20Cipher) | `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })` |
 | `SealStreamPool` | depends on cipher: same modules as the cipher suite + `sha2` |

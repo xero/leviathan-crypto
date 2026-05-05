@@ -26,3 +26,6 @@ jobs:
           test/unit/aes/aes_kat.test.ts
           test/unit/aes/aes_decrypt.test.ts
           test/unit/aes/aes_mmt.test.ts
+          test/unit/aes/aes_cbc.test.ts
+          test/unit/aes/aes_cbc_mmt.test.ts
+          test/unit/aes/aes_ctr.test.ts

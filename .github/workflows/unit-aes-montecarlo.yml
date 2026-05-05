@@ -21,3 +21,4 @@ jobs:
         run: >
           bun vitest run --reporter=verbose --no-coverage
           test/unit/aes/aes_mct.test.ts
+          test/unit/aes/aes_cbc_mct.test.ts
