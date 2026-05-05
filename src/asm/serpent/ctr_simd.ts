@@ -56,7 +56,8 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 
 /**
  * Load 4 consecutive counter values into SIMD working registers at SIMD_WORK_OFFSET.
- * Applies Serpent byte-reversal: r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0].
+ * Loads each block as 4 little-endian u32 words in NIST natural byte order:
+ * r[0]=LE(bytes[0..3]), r[1]=LE(bytes[4..7]), r[2]=LE(bytes[8..11]), r[3]=LE(bytes[12..15]).
  * Each v128 register w holds lane[k] = word w of block k (k = 0..3).
  * Advances the counter by 4 as a side effect.
  * @internal

@@ -1,6 +1,77 @@
 # Leviathan Crypto Changelog
 
-## v2.1.1
+## v3.0.0
+
+### Breaking Changes
+
+- **⚠ Serpent public byte-order convention flipped to NIST natural byte
+  order.** v2 and earlier loaded a 16-byte block into internal words with
+  bytes 15..12 in `r[0]`, the AES-submission floppy byte order. v3 loads
+  bytes 0..3 into `r[0]` as a little-endian u32 with byte 0 as the LSB.
+  This is the convention used by FIPS 197 (AES), AB&K's NESSIE submission
+  of Serpent, the Wikipedia pseudocode, and the RustCrypto, Crypto++,
+  Botan, and BouncyCastle implementations. v2 stood alone in the ecosystem
+  on the floppy convention, and AB&K's own NESSIE submission already
+  preferred the natural-order layout.
+
+  **The wire format is incompatible.** v2 ciphertexts produced by
+  `SerpentCipher`, `SerpentCbc`, or `SerpentCtr` cannot be decrypted by
+  v3, and v3 ciphertexts cannot be decrypted by v2. There is no
+  automated migration path. Persisted v2 ciphertexts must be decrypted
+  under v2 and re-encrypted under v3. Consumers using only `Seal`,
+  `SealStream`, `SealStreamPool`, or `OpenStream` see no API change.
+  Only the wire bytes change.
+
+  **The cipher math is unchanged.** S-boxes, linear transform, key
+  schedule, and round count are byte identical to v2. Only the I/O
+  convention at the public API boundary moved. The KAT corpus (NESSIE
+  Set 1–8 across all three key sizes; NIST CAVP would behave identically
+  if it covered Serpent) passes against the same expected hex values
+  consumed unchanged.
+
+  **The HKDF info string is bumped.** `serpent-sealstream-v2` →
+  `serpent-sealstream-v3`. Two consequences: a v2 stream key cannot
+  derive into a v3 derived-key set even on the same master key and
+  nonce, and the info-string change provides a clean domain separator
+  between the two wire formats so a misrouted v2 blob cannot
+  authenticate under v3 keys.
+
+  **Pinned KAT vector files renamed.** `seal_serpent_v2.ts` →
+  `seal_serpent_v3.ts`, `sealstream_serpent_v2.ts` →
+  `sealstream_serpent_v3.ts`. The TypeScript types
+  (`SealSerpentV2Vector`, `SealStreamSerpentV2Vector`) became
+  `SealSerpentV3Vector` and `SealStreamSerpentV3Vector`. The
+  `serpent_ctr.ts` self-generated CTR vector file kept its name but its
+  bytes were regenerated under the v3 cipher.
+
+  **AES-submission KAT files unchanged.** The floppy-format KAT files
+  shipped on the `floppy1` branch (`serpent_ecb_*.txt`,
+  `serpent_cbc_*.txt`) remain in `test/vectors/` byte-identical. v3
+  consumes them via byte-reversal preprocessing at the test-helper
+  boundary (`test/unit/helpers.ts`, `test/unit/serpent/vector_parser.ts`).
+  The reversal lives in TypeScript test code, not in the WASM. The
+  NESSIE files (`serpent_nessie-*.txt`) feed straight through without
+  reversal, since they were already in NIST natural byte order.
+
+  **Why now.** v3 is the first release where the wire format is allowed
+  to break: the ChaCha salamander-resistance fix already invalidated v2
+  XChaCha sealstream output, AES landed alongside Serpent and uses NIST
+  natural byte order natively, and the project has not yet hit 1.0
+  semantic-version stability for its wire format. Aligning Serpent with
+  AES, with AB&K's submission preference, and with the rest of the
+  ecosystem now avoids carrying a single-cipher convention mismatch
+  forward indefinitely.
+
+  Migration:
+
+  | scenario | action |
+  |---|---|
+  | `Seal`, `SealStream`, `SealStreamPool`, `OpenStream` consumers | none. API unchanged; only wire bytes change. Re-encrypt persisted blobs. |
+  | `SerpentCbc`, `SerpentCtr` consumers | none in API. Re-encrypt persisted ciphertexts under v3. |
+  | Consumers passing v2 hex KAT bytes through `SerpentCbc.decrypt` | reverse all 16 bytes of each block, or regenerate under v3. |
+  | Cross-language interop with RustCrypto / Crypto++ / Botan / BouncyCastle | now works without byte-reversal. v2 required reversal at the boundary. |
+
+
 
 ### Breaking Changes
 

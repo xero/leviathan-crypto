@@ -129,7 +129,7 @@ HKDF-SHA-256 derives cipher-specific key material from the master key and the ra
 | Cipher | HKDF info | Output | Structure |
 |---|---|---|---|
 | XChaCha20 v3 | `xchacha20-sealstream-v3` `\|\|` header(20) | 64 B | `streamKey[0:32] \| commitment[32:64]`; streamKey feeds HChaCha20 → subkey |
-| Serpent v2 | `serpent-sealstream-v2` | 96 B | `enc_key[0:32] \| mac_key[32:64] \| iv_key[64:96]` |
+| Serpent v3 | `serpent-sealstream-v3` | 96 B | `enc_key[0:32] \| mac_key[32:64] \| iv_key[64:96]` |
 
 XChaCha20 v3 binds the full preamble header into the HKDF info string and emits 64 bytes. The first 32 bytes feed HChaCha20 subkey derivation; the second 32 bytes are the commitment that ends up in the preamble. The intermediate streamKey is wiped immediately after subkey derivation.
 

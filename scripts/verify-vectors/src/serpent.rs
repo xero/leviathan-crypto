@@ -127,8 +127,8 @@ fn seal_chunk_serpent(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Common preamble validation. Serpent v2 has no commitment, so this is much
-// simpler than the XChaCha20 v3 case — just header sanity checks plus key
+// Common preamble validation. Serpent v3 has no commitment, so this is much
+// simpler than the XChaCha20 v3 case. Just header sanity checks plus key
 // derivation.
 // ────────────────────────────────────────────────────────────────────────────
 

@@ -52,6 +52,12 @@ Audit of the `leviathan-crypto` WebAssembly Serpent-256 implementation (Assembly
 > including the original test vectors, reference implementation, and S-box
 > tables. Also included is the `ctr_harness` we developed for CTR mode vector
 > generation, a self-generated tool with no external authority.
+>
+> The branch is a historical archive of the AES submission package. v3's public
+> Serpent API does NOT use the floppy byte-order convention from this reference;
+> see [1.5](#15-byte-ordering). The reference is preserved to validate the
+> cipher math (S-boxes, linear transform, key schedule), which is convention
+> independent, not the I/O convention itself.
 
 ---
 
@@ -113,12 +119,12 @@ The `kl` function (`serpent.ts:297–319`) implements the inverse linear transfo
 
 ### 1.3 Key Schedule
 
-`loadKey` (`serpent.ts:350–408`) implements the full Serpent key schedule. The process has three stages:
+`loadKey` (`serpent.ts:636–699`) implements the full Serpent key schedule. The process has three stages:
 
-**Key loading and padding** (lines 351–372):
-The function validates the key (16, 24, or 32 bytes; returns -1 otherwise), then zeros the 132-word subkey buffer. It sets a padding bit by storing `1` at word position `keyLen`—matching the reference C `shortToLongKey()`. Next, it reverse-copies key bytes (`key[k] = input[keyLen - k - 1]`), following the AES submission byte ordering convention (see [1.5](#15-byte-ordering)). Finally, it repacks 8 groups of 4 byte-valued words into 8 little-endian uint32 words.
+**Key loading and padding** (lines 637–658):
+The function validates the key (16, 24, or 32 bytes; returns -1 otherwise), then zeros the 132-word subkey buffer. It sets a padding bit by storing `1` at word position `keyLen`, matching the reference C `shortToLongKey()`. Next, it copies the key bytes in source order (`key[i] = input[i]`) per the v3 NIST natural byte order convention (see [1.5](#15-byte-ordering)). Finally, it repacks 8 groups of 4 byte-valued words into 8 little-endian uint32 words.
 
-**Prekey expansion** (lines 383–392):
+**Prekey expansion** (lines 669–678):
 ```
 w[i] = (w[i-8] ^ w[i-5] ^ w[i-3] ^ w[i-1] ^ 0x9E3779B9 ^ i) <<< 11
 ```
@@ -132,7 +138,7 @@ w[i] = rotateLeft(w[i-8] ^ w[i-5] ^ w[i-3] ^ w[i-1] ^ PHI ^ i, 11)
 
 The golden ratio constant `φ = 0x9E3779B9` matches in both implementations.
 
-**Subkey derivation** (lines 395–405):
+**Subkey derivation** (lines 681–699):
 
 Round keys are derived by applying bitslice S-boxes to groups of 4 prekey words. The S-box selection follows `S_{(3-n) mod 8}` per the spec:
 - K₃₂ uses S₃, K₃₁ uses S₄, K₃₀ uses S₅, ..., cycling through all 8 S-boxes.
@@ -145,10 +151,10 @@ Reference C applies S-boxes via nibble extraction and scatter: for each of the 3
 
 ### 1.4 Round Structure
 
-**Encryption** (`serpent.ts:414–450`):
+**Encryption** (`serpent.ts:703–740`):
 
 ```
-Load PT (byte-reverse) → K(0) XOR → 32 rounds → K(32) XOR → Store CT (byte-reverse)
+Load PT (LE-load 4 words) → K(0) XOR → 32 rounds → K(32) XOR → Store CT (LE-store 4 words)
 ```
 
 Round structure for `n = 0..31`:
@@ -159,10 +165,10 @@ This matches the spec exactly. The reference C `encryptGivenKHat()`:
 - Rounds 0–30: XOR K̂ᵢ, Ŝ(i), LT
 - Round 31: XOR K̂₃₁, Ŝ(31), XOR K̂₃₂ (no LT)
 
-**Decryption** (`serpent.ts:456–490`):
+**Decryption** (`serpent.ts:749–787`):
 
 ```
-Load CT (byte-reverse) → K(32) XOR → 32 inverse rounds → K(0) XOR → Store PT (byte-reverse)
+Load CT (LE-load 4 words) → K(32) XOR → 32 inverse rounds → K(0) XOR → Store PT (LE-store 4 words)
 ```
 
 Inverse round structure for `n = 0..31`:
@@ -172,38 +178,42 @@ Inverse round structure for `n = 0..31`:
 
 The inverse S-box selection `SI[7 - n%8]` correctly reverses the forward order: SI7, SI6, SI5, SI4, SI3, SI2, SI1, SI0, SI7, SI6, ...
 
-The final K(0) XOR in decryption uses slots `(2, 3, 1, 4)` rather than the default `(0, 1, 2, 3)`, because the last inverse S-box (SI0) leaves its output in a non-standard register arrangement. The plaintext is stored from registers `r[4, 1, 3, 2]`. This is the correct slot permutation for the decrypt path, as determined by the DC constant encoding.
+The final K(0) XOR in decryption uses slots `(2, 3, 1, 4)` rather than the default `(0, 1, 2, 3)`, because the last inverse S-box (SI0) leaves its output in a non-standard register arrangement. The plaintext is stored from registers `r[2, 3, 1, 4]` to undo that arrangement. This is the correct slot permutation for the decrypt path, as determined by the DC constant encoding.
 
 ---
 
 ### 1.5 Byte Ordering
 
-leviathan-crypto uses the **original Serpent AES submission byte ordering**:
+v3 uses **NIST natural byte order** at the public Serpent API. Bytes 0..3 of a 16-byte block load into internal word `r[0]` as a little-endian u32, with byte 0 as the LSB. This is the convention used by FIPS 197 (AES), AB&K's NESSIE submission of Serpent, the Wikipedia pseudocode, and the RustCrypto, Crypto++, Botan, and BouncyCastle Serpent implementations.
 
-**Input loading** (encrypt, `serpent.ts:418–422`):
+**Input loading** (encrypt, `serpent.ts:707–711`):
 ```
-r[0] = bytes[15..12] as LE uint32  (MSW of reversed block)
-r[1] = bytes[11..8]  as LE uint32
-r[2] = bytes[7..4]   as LE uint32
-r[3] = bytes[3..0]   as LE uint32  (LSW of reversed block)
-```
-
-**Output storing** (encrypt, `serpent.ts:441–449`):
-```
-ct[0..3]   = r[3] as BE bytes
-ct[4..7]   = r[2] as BE bytes
-ct[8..11]  = r[1] as BE bytes
-ct[12..15] = r[0] as BE bytes
+r[0] = LE(pt[ 0.. 3])    (byte 0 = LSB)
+r[1] = LE(pt[ 4.. 7])
+r[2] = LE(pt[ 8..11])
+r[3] = LE(pt[12..15])    (byte 15 = MSB)
 ```
 
-This is **not** the NESSIE convention. NESSIE test vectors require word-reversal and byte-swap preprocessing before comparison, which the NESSIE test harness handles. The AES submission vectors (`floppy4/`) work directly with this convention.
-
-**Key loading** (`serpent.ts:361–362`):
+**Output storing** (encrypt, `serpent.ts:732–739`):
 ```
-key[k] = input_byte[keyLen - k - 1]
+ct[ 0.. 3] = LE(r[0])
+ct[ 4.. 7] = LE(r[1])
+ct[ 8..11] = LE(r[2])
+ct[12..15] = LE(r[3])
 ```
 
-Key bytes are reversed before packing as LE uint32 words. This matches the reference C `makeUserKeyFromKeyMaterial()` function, which processes hex digits in the same reversed order.
+**Decryption mirrors encryption at the I/O boundary.** The ciphertext load (`serpent.ts:751–756`) and plaintext store (`serpent.ts:778–786`) use the same natural-order LE words. The internal slot ordering after the inverse round structure is `(2, 3, 1, 4)`, set by `keyXor(2, 3, 1, 4, 0)` at line 772; the final store reads `r[2]`, `r[3]`, `r[1]`, `r[4]` in that order to undo the slot rotation that the inverse SI0 leaves behind. This slot permutation is spec-defined and not a convention choice.
+
+**Key loading** (`serpent.ts:645–649`):
+```
+key[i] = input_byte[i]    (straight copy, no reversal)
+```
+
+Key bytes pass through to the prekey-expansion buffer in source order, then pack as 8 little-endian u32 words for the prekey recurrence.
+
+**Migration from v2.** v2 and earlier used the AES-submission floppy byte order at the public API: bytes 15..12 of a 16-byte block loaded into `r[0]`, the block byte-reversed relative to NIST order. v3 flipped to NIST natural byte order to match FIPS 197, AB&K's submission preference, and the rest of the ecosystem. The cipher math is unchanged: S-boxes, linear transform, key schedule, and round count are byte identical to v2. Only the I/O convention at the public API boundary moved.
+
+**AES-submission KAT files still consumed.** The `floppy1` branch preserves the original AES-submission package as a faithful historical archive. The KAT files shipped in that package (`serpent_ecb_*.txt`, `serpent_cbc_*.txt`) use floppy byte order and remain in `test/vectors/`. v3 consumes them via byte-reversal preprocessing at the test-helper boundary (`test/unit/helpers.ts`, `test/unit/serpent/vector_parser.ts`), reversing all 16 bytes of each key, plaintext, and ciphertext block before feeding the WASM. The transform is its own inverse; the same helper handles floppy → NIST and NIST → floppy. The reversal lives in TypeScript test code, not in the WASM.
 
 ---
 
@@ -213,7 +223,7 @@ Key bytes are reversed before packing as LE uint32 words. This matches the refer
 
 The unrolled variant:
 - Imports `sb0`–`sb7`, `si0`–`si7`, `lk`, `kl`, `keyXor` from `serpent.ts` (same functions, not copies).
-- Uses identical byte-reversal load/store logic.
+- Uses identical LE-word load/store logic — natural byte order, no reversal at the I/O boundary.
 - Round 31 correctly skips the linear transform in both encrypt and decrypt.
 - The S-box and slot assignments in each expanded round match the values that the loop-based version would produce via EC/DC lookup.
 
@@ -624,7 +634,7 @@ The `constantTimeEqual` comparison itself (XOR-accumulate over all 32 bytes, no 
 At stream construction, HKDF-SHA-256 derives three keys from the master key and a 16-byte random nonce:
 
 ```
-HKDF-SHA-256(masterKey, nonce, "serpent-sealstream-v2", 96) → enc_key[0:32] ‖ mac_key[32:64] ‖ iv_key[64:96]
+HKDF-SHA-256(masterKey, nonce, "serpent-sealstream-v3", 96) → enc_key[0:32] ‖ mac_key[32:64] ‖ iv_key[64:96]
 ```
 
 Position binding is achieved through the 12-byte counter nonce (11-byte big-endian counter + 1-byte final flag). The HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`, binding authentication to chunk position and associated data. The CBC IV for each chunk is derived deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.

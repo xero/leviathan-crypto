@@ -11,7 +11,7 @@
 //   Serpent v3:
 //     - HKDF-SHA-256 from RustCrypto's `hkdf` + `sha2` crates
 //     - HMAC-SHA-256 from RustCrypto's `hmac` crate (per-chunk IV + tag)
-//     - Serpent block cipher from RustCrypto's `serpent` crate (NESSIE-correct)
+//     - Serpent block cipher from RustCrypto's `serpent` crate (NIST natural byte order, matches v3 leviathan-crypto)
 //     - CBC chaining + PKCS#7 padding hand-rolled here
 //
 // Different language, different libraries, different person who wrote the

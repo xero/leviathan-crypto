@@ -173,8 +173,8 @@ The two cipher suites use distinct HKDF info strings:
 
 | Cipher | Info string | Defined at |
 |--------|------------|------------|
-| XChaCha20 | `xchacha20-sealstream-v2` | `src/ts/chacha20/cipher-suite.ts:34` |
-| Serpent | `serpent-sealstream-v2` | `src/ts/serpent/cipher-suite.ts:34` |
+| XChaCha20 | `xchacha20-sealstream-v3` `\|\|` header(20) | `src/ts/chacha20/cipher-suite.ts:36` |
+| Serpent | `serpent-sealstream-v3` | `src/ts/serpent/cipher-suite.ts:47` |
 
 A codebase search confirms **no v1 info strings exist**: there are no occurrences of `serpent-stream-v1`, `serpent-sealstream-v1`, `xchacha20-stream-v1`, or `xchacha20-sealstream-v1` anywhere in the repository. The only two HKDF `.derive()` call sites are the two cipher suite `deriveKeys()` methods.
 
@@ -184,31 +184,37 @@ The info strings differ from each other and from any other string in the codebas
 
 ### XChaCha20 Key Path
 
-Full derivation path (`src/ts/chacha20/cipher-suite.ts:48–59`):
+Full derivation path (`src/ts/chacha20/cipher-suite.ts:92–112`):
 
 ```
-masterKey(32B) → HKDF-SHA-256(salt=nonce, info='xchacha20-sealstream-v2', len=32) → streamKey(32B)
+info := 'xchacha20-sealstream-v3' || header(20)
+masterKey(32B) → HKDF-SHA-256(salt=nonce, info=info, len=64) → okm(64B)
+    streamKey  = okm[0:32]
+    commitment = okm[32:64]      (independent backing — survives okm wipe)
     → HChaCha20(key=streamKey, nonce=nonce[0:16]‖0×8) → subkey(32B)
-wipe(streamKey)
+wipe(okm)                         (wipes both halves; commitment safe)
+return { bytes: subkey, commitment }
 ```
 
-1. `HKDF_SHA256.derive(masterKey, nonce, INFO, 32)` produces a 32-byte `streamKey`
-2. `deriveSubkey(exports, streamKey, padded)` calls HChaCha20 with the first 16 bytes of the stream nonce, padded to 24 bytes with zeros (`cipher-suite.ts:55–57`)
-3. `wipe(streamKey)` zeroes the intermediate key immediately (`cipher-suite.ts:58`)
-4. The returned `DerivedKeys.bytes` is the 32-byte HChaCha20 subkey
+1. `concat(INFO, header)` binds the full 20-byte preamble (`formatEnum`, framed flag, nonce, `chunkSize`) into the HKDF info string. Header tampering produces different derived keys, so the AEAD fails on the first chunk rather than on indirect chunk-boundary mismatch.
+2. `HKDF_SHA256.derive(masterKey, nonce, info, 64)` produces 64 bytes of output keying material.
+3. `okm.subarray(0, 32)` is the `streamKey` view; `okm.slice(32, 64)` copies bytes 32..64 into independent backing for the commitment so the upcoming wipe of `okm` does not zero it.
+4. `deriveSubkey(exports, streamKey, nonce)` calls HChaCha20 with the first 16 bytes of the stream nonce and writes the 32-byte subkey.
+5. `wipe(okm)` zeros the entire 64-byte output buffer — both the streamKey view and the original commitment region. The independent commitment copy survives.
+6. Returned `DerivedKeys` carries both the 32-byte HChaCha20 subkey (`bytes`) and the 32-byte commitment.
 
-The subkey is used with ChaCha20-Poly1305 (the inner AEAD, not raw ChaCha20) via `aeadEncrypt`/`aeadDecrypt` in `ops.ts`.
+The subkey is used with ChaCha20-Poly1305 (the inner AEAD, not raw ChaCha20) via `aeadEncrypt`/`aeadDecrypt` in `ops.ts`. The commitment is written to the seal preamble after the header and verified by `OpenStream` and `SealStreamPool` in constant time before any chunk is processed; a key-mismatch raises `AuthenticationError` with discriminator `commitment-xchacha20` before Poly1305 is consulted. This closes the Invisible Salamanders attack surface for XChaCha20 suites.
 
 The same nonce bytes [0:16] appear in both the HKDF salt and the HChaCha20 input. This is safe: the two operations use different keys (masterKey vs streamKey), and HKDF-SHA-256 produces a computationally independent streamKey before HChaCha20 processes it.
 
-**Verdict:** Correct. The intermediate `streamKey` is wiped. The subkey is used with AEAD, not raw encryption.
+**Verdict:** Correct. The 64-byte output splits cleanly into subkey-derivation material and a key-committing commitment; both halves of `okm` are wiped via the shared backing, while the commitment survives via its independent copy. The subkey is used with AEAD, not raw encryption.
 
 ### Serpent Key Path
 
 Full derivation path (`src/ts/serpent/cipher-suite.ts:44–49`):
 
 ```
-masterKey(32B) → HKDF-SHA-256(salt=nonce, info='serpent-sealstream-v2', len=96) → derived(96B)
+masterKey(32B) → HKDF-SHA-256(salt=nonce, info='serpent-sealstream-v3', len=96) → derived(96B)
     derived[0:32]  = enc_key  (Serpent-CBC encryption)
     derived[32:64] = mac_key  (HMAC-SHA-256 authentication)
     derived[64:96] = iv_key   (per-chunk CBC IV derivation)
@@ -536,7 +542,7 @@ A nonce collision between two streams with the same master key would produce ide
 
 > "While the3 'info' value is optional in the definition of HKDF, it is often of great importance in applications. Its main objective is to bind the derived key material to application- and context-specific information."
 
-The two info strings (`xchacha20-sealstream-v2`, `serpent-sealstream-v2`) are distinct, non-empty, and uniquely identify the cipher suite. This means the same (masterKey, nonce) pair used with different cipher suites produces independent derived keys.
+The two info strings (`xchacha20-sealstream-v3`, `serpent-sealstream-v3`) are distinct, non-empty, and uniquely identify the cipher suite. XChaCha20 additionally appends the 20-byte preamble header to its info string, which provides per-stream binding (any tampering with `formatEnum`, framed flag, nonce, or `chunkSize` produces different derived keys) on top of the per-suite domain separator. This means the same (masterKey, nonce) pair used with different cipher suites produces independent derived keys.
 
 **Known attacks on HKDF output splitting:** There are no known attacks against splitting HKDF output into multiple keys when the output is a PRF and the info field provides domain separation. The extract-then-expand paradigm of HKDF is specifically designed for this use case (RFC 5869 §1).
 

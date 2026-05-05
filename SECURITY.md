@@ -17,7 +17,7 @@
 
 Every primitive in this library was implemented by hand in AssemblyScript against the authoritative specification: [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final) for SHA-2, [FIPS 202](https://csrc.nist.gov/publications/detail/fips/202/final) for SHA-3, [FIPS 203](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf) for ML-KEM, [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) for ChaCha20-Poly1305, [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104) for HMAC, [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869) for HKDF, and the original [Serpent-256 specification](https://www.cl.cam.ac.uk/~rja14/Papers/serpent.pdf) with S-box reference. No algorithm came from an existing implementation. The spec is the source of truth.
 
-All implementations verify against published known-answer test vectors from NIST, RFC appendices, NESSIE, and the Argon2 reference suite. Test vectors are immutable; if an implementation produces incorrect output, we fix the code and never adjust the vectors to match.
+All implementations verify against published known-answer test vectors from NIST, RFC appendices, NESSIE (Serpent test vectors), and the Argon2 reference suite. Test vectors are immutable; if an implementation produces incorrect output, we fix the code and never adjust the vectors to match.
 
 ML-KEM produces its 32-byte shared secret directly from a SHA-3 output rather than from a big-integer encoding, so the construction is structurally immune to the leading-zero-trim timing leak that affected TLS-DH(E) (Raccoon attack).
 
@@ -123,9 +123,10 @@ Every fix is documented in the full [CHANGELOG](https://github.com/xero/leviatha
 
 | Version | Status | Summary |
 | --- | --- | --- |
-| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✓ supported | Adds SPQR post-quantum KEM ratchet primitives |
-| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ superseded | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. Upgrade to v2.1.x |
-| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. Upgrade to v2.1.x |
+| [v3.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v3-0-0) | ✓ supported | Serpent public byte-order convention flipped to NIST natural order (wire-format break against v2); ChaCha salamander defense; AES-128/192/256 raw block cipher landed |
+| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Upgrade to v3.0.x; note the Serpent wire-format break |
+| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. Upgrade to v3.0.x |
+| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. Upgrade to v3.0.x |
 
 > [!CAUTION]
 > v2.0.0 has a known silent-corruption bug. `SealStreamPool` with `SerpentCipher` silently produces corrupt plaintext with no authentication error on decrypt for inputs ≥ 65536 bytes. See [v2.0.1 release notes](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) and update to the latest version immediately.

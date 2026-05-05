@@ -165,7 +165,7 @@ return { bytes: derived };
 **HKDF parameters:**
 - IKM = masterKey (32 bytes, the stream encryption key)
 - Salt = nonce (16 bytes, random per stream, from the stream header)
-- Info = `"serpent-sealstream-v2"` (21-byte UTF-8 string)
+- Info = `"serpent-sealstream-v3"` (21-byte UTF-8 string)
 - L = 96 bytes (split into enc_key[0:32] + mac_key[32:64] + iv_key[64:96])
 
 The info field is a plain domain-separation string. The AEAD construction achieves position binding through the 12-byte counter nonce (HMAC covers `counterNonce ‖ u32be(aad_len) ‖ aad ‖ ciphertext`), not through the HKDF info. The CBC IV for each chunk derives deterministically: `HMAC-SHA-256(iv_key, counterNonce)[0:16]`.
@@ -179,20 +179,24 @@ Per-stream key derivation via `deriveKeys()`:
 
 ```typescript
 const hkdf = new HKDF_SHA256();
-const streamKey = hkdf.derive(masterKey, nonce, INFO, 32);
-// HChaCha20 subkey derivation, nonce[0:16] as XChaCha input
-const subkey = deriveSubkey(x, streamKey, padded);
-wipe(streamKey);
-return { bytes: subkey };
+const info = concat(INFO, header);                      // INFO || header(20)
+const okm  = hkdf.derive(masterKey, nonce, info, 64);
+const streamKey  = okm.subarray(0, 32);                 // view into okm
+const commitment = okm.slice(32, 64);                   // independent backing
+const subkey = deriveSubkey(x, streamKey, nonce);       // HChaCha20
+wipe(okm);                                              // zeros both halves; commitment safe
+return { bytes: subkey, commitment };
 ```
 
 **HKDF parameters:**
 - IKM = masterKey (32 bytes)
 - Salt = nonce (16 bytes, random per stream)
-- Info = `"xchacha20-sealstream-v2"` (23-byte UTF-8 string)
-- L = 32 bytes → streamKey → HChaCha20(streamKey, nonce[0:16]) → subkey
+- Info = `"xchacha20-sealstream-v3"` (23-byte UTF-8 string) || preamble header (20 bytes) = 43 bytes total
+- L = 64 bytes → bytes 0..32 = streamKey, bytes 32..64 = key commitment
 
-The intermediate `streamKey` is wiped immediately after HChaCha20 derivation. The final `subkey` is used for ChaCha20-Poly1305 AEAD per chunk with counter nonces.
+`streamKey` feeds HChaCha20 subkey derivation with the first 16 bytes of the stream nonce. `commitment` is written into the seal preamble and verified by `OpenStream` / `SealStreamPool` against the receiver's derived value in constant time before any chunk is decrypted; mismatch throws `AuthenticationError` with discriminator `commitment-xchacha20` before Poly1305 runs. This closes the Invisible Salamanders attack surface for XChaCha20 suites (Poly1305 alone is not key committing).
+
+The full 64-byte `okm` buffer is wiped after subkey derivation. The `streamKey` view shares backing with `okm` and zeros along with it; the `commitment` was copied via `slice()` into independent backing, so it survives the wipe and ends up in the preamble. The final `subkey` is used for ChaCha20-Poly1305 AEAD per chunk with counter nonces.
 
 #### SealStreamPool (`src/ts/stream/seal-stream-pool.ts`)
 
@@ -303,7 +307,7 @@ The `info` parameter in HKDF-Expand binds the derived key to its context. Two HK
 
 | Component | Value | Purpose |
 |-----------|-------|---------|
-| Info string | `"serpent-sealstream-v2"` | Distinguishes SerpentCipher from other HKDF uses |
+| Info string | `"serpent-sealstream-v3"` | Distinguishes SerpentCipher from other HKDF uses |
 | Salt (nonce) | 16 random bytes | Binds to this specific stream |
 
 Position binding is not in the HKDF info (as in v1) but in the AEAD construction: the 12-byte counter nonce (chunk index + final flag) is included in the HMAC input and CBC IV derivation.
@@ -312,10 +316,10 @@ Position binding is not in the HKDF info (as in v1) but in the AEAD construction
 
 | Component | Value | Purpose |
 |-----------|-------|---------|
-| Info string | `"xchacha20-sealstream-v2"` | Distinguishes XChaCha20Cipher from SerpentCipher and other uses |
+| Info string | `"xchacha20-sealstream-v3"` || preamble header(20) | Distinguishes XChaCha20Cipher from SerpentCipher and other uses; binds the full preamble |
 | Salt (nonce) | 16 random bytes | Binds to this specific stream |
 
-The two cipher suites use different info strings: `"serpent-sealstream-v2"` vs `"xchacha20-sealstream-v2"`. Even with the same master key and nonce, the derived keys diverge. The info field is a plain UTF-8 string—no structured binary fields, simpler than the v1 approach but equally secure. Position binding happens in the AEAD layer via the counter nonce, not in the HKDF info field.
+The two cipher suites use different info strings: `"serpent-sealstream-v3"` vs `"xchacha20-sealstream-v3"`. Even with the same master key and nonce, the derived keys diverge. Both info strings are plain UTF-8; XChaCha20 additionally appends the 20-byte preamble header (`formatEnum`, framed flag, nonce, `chunkSize`) to its info string so any header tampering produces different derived keys and the AEAD fails on the first chunk. Position binding happens in the AEAD layer via the counter nonce, not in the HKDF info field.
 
 ---
 

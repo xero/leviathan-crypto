@@ -17,8 +17,8 @@ either of them with an ML-KEM layer for hybrid post-quantum encryption.
 |                   | `SerpentCipher`                | `XChaCha20Cipher`         |
 | ----------------- | ------------------------------ | ------------------------- |
 | Cipher            | Serpent-256 CBC + HMAC-SHA-256 | XChaCha20-Poly1305        |
-| `formatEnum`      | `0x02`                         | `0x01`                    |
-| `hkdfInfo`        | `serpent-sealstream-v2`        | `xchacha20-sealstream-v2` |
+| `formatEnum`      | `0x02`                         | `0x03`                    |
+| `hkdfInfo`        | `serpent-sealstream-v3`        | `xchacha20-sealstream-v3` |
 | `keySize`         | 32 bytes                       | 32 bytes                  |
 | `tagSize`         | 32 bytes                       | 16 bytes                  |
 | `padded`          | `true` (PKCS7)                 | `false`                   |
@@ -58,8 +58,13 @@ const key = XChaCha20Cipher.keygen()  // 32 bytes
 ```
 
 `XChaCha20Cipher` uses XChaCha20-Poly1305 AEAD per chunk. HKDF-SHA-256
-derives a stream key, then HChaCha20 derives a per-chunk subkey. The
-intermediate stream key is wiped immediately after derivation.
+takes the 20-byte preamble header as part of its info string and emits
+64 bytes: bytes 0..32 feed HChaCha20 subkey derivation, bytes 32..64
+are a 32-byte key commitment that ends up in the preamble. The
+commitment is verified before any chunk is processed and closes the
+Invisible Salamanders attack surface (Poly1305 alone is not key
+committing). The intermediate stream key is wiped immediately after
+subkey derivation.
 
 See [chacha20.md](./chacha20.md) for the full ChaCha20 primitive reference.
 
@@ -90,12 +95,16 @@ byte. This allows `OpenStream` to infer the full suite from the preamble alone.
 
 | Suite                           | `formatEnum` | Preamble size |
 | ------------------------------- | ------------ | ------------- |
-| `MlKem512` + `XChaCha20Cipher`  | `0x11`       | 788 bytes     |
+| `MlKem512` + `XChaCha20Cipher`  | `0x13`       | 820 bytes     |
 | `MlKem512` + `SerpentCipher`    | `0x12`       | 788 bytes     |
-| `MlKem768` + `XChaCha20Cipher`  | `0x21`       | 1108 bytes    |
+| `MlKem768` + `XChaCha20Cipher`  | `0x23`       | 1140 bytes    |
 | `MlKem768` + `SerpentCipher`    | `0x22`       | 1108 bytes    |
-| `MlKem1024` + `XChaCha20Cipher` | `0x31`       | 1588 bytes    |
+| `MlKem1024` + `XChaCha20Cipher` | `0x33`       | 1620 bytes    |
 | `MlKem1024` + `SerpentCipher`   | `0x32`       | 1588 bytes    |
+
+XChaCha20 hybrid suites carry a 32-byte commitment in the preamble after
+the KEM ciphertext (header(20) + kemCt + commitment(32)); Serpent hybrid
+suites have no commitment field (header(20) + kemCt).
 
 See [kyber.md](./kyber.md) for the full ML-KEM reference and key management guidance.
 
@@ -110,7 +119,7 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 
 | Field           | Type                  | Description                                                              |
 | --------------- | --------------------- | ------------------------------------------------------------------------ |
-| `formatEnum`    | `number`              | Wire format ID. Bits 0-3 cipher nibble (0x1=xchacha20, 0x2=serpent); bits 4-5 KEM selector (0x00=none, 0x10=ML-KEM-512, 0x20=ML-KEM-768, 0x30=ML-KEM-1024); bit 6 reserved; max `0x3f`. |
+| `formatEnum`    | `number`              | Wire format ID. Bits 0-3 cipher nibble (0x2=serpent, 0x3=xchacha20); bits 4-5 KEM selector (0x00=none, 0x10=ML-KEM-512, 0x20=ML-KEM-768, 0x30=ML-KEM-1024); bit 6 reserved; max `0x3f`. |
 | `formatName`    | `string`              | Human-readable label, e.g. `'xchacha20'`, `'serpent'`. Used in hybrid suite names (`'mlkem768+xchacha20'`). |
 | `hkdfInfo`      | `string`              | HKDF info string for domain separation between cipher suites.            |
 | `keySize`       | `number`              | Required master key length in bytes. For KEM suites this is the encapsulation key (ek) size. |
@@ -133,8 +142,9 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 
 ### Implementing a custom CipherSuite
 
-Your `formatEnum` must not conflict with the built-in values (`0x01`, `0x02`,
-`0x11` through `0x32`). Bits 6 and 7 of header byte 0 are reserved. The
+Your `formatEnum` must not conflict with the built-in values (`0x02`, `0x03`,
+`0x12`, `0x13`, `0x22`, `0x23`, `0x32`, `0x33`). Bits 6 and 7 of header byte
+0 are reserved. The
 `hkdfInfo` string must be unique to your cipher to prevent key reuse across suites.
 `wipeKeys` must zero every byte of derived key material — the stream layer calls
 it unconditionally after finalize.

@@ -323,11 +323,11 @@ in byte 0 of the 20-byte header (bits 4-6 = KEM, bits 0-3 = cipher):
 
 | Suite | formatEnum |
 |-------|-----------|
-| MlKem512 + XChaCha20 | `0x11` |
+| MlKem512 + XChaCha20 | `0x13` |
 | MlKem512 + Serpent | `0x12` |
-| MlKem768 + XChaCha20 | `0x21` |
+| MlKem768 + XChaCha20 | `0x23` |
 | MlKem768 + Serpent | `0x22` |
-| MlKem1024 + XChaCha20 | `0x31` |
+| MlKem1024 + XChaCha20 | `0x33` |
 | MlKem1024 + Serpent | `0x32` |
 
 Symmetric suites have KEM bits = `0x00` and are backward compatible.

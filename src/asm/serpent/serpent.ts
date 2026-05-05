@@ -701,8 +701,8 @@ export function loadKey(keyLen: i32): i32 {
  * `loadKey()` must be called before this function.
  */
 export function encryptBlock(): void {
-	// Load plaintext: 4 little-endian 32-bit words in natural byte order
-	// (NIST / NESSIE / Wikipedia / RustCrypto convention).
+	// Load plaintext: 4 little-endian 32-bit words in NIST natural byte order
+	// (matches FIPS 197, AB&K's NESSIE submission, Wikipedia, and RustCrypto's `serpent` crate).
 	// r[0]=LE(pt[0..3]), r[1]=LE(pt[4..7]), r[2]=LE(pt[8..11]), r[3]=LE(pt[12..15]).
 	const p = BLOCK_PT_OFFSET
 	rset(0, i32(load<u8>(p +  0)) | (i32(load<u8>(p +  1)) << 8) | (i32(load<u8>(p +  2)) << 16) | (i32(load<u8>(p +  3)) << 24))
