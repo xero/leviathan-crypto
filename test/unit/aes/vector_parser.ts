@@ -21,8 +21,15 @@
 //
 // test/unit/aes/vector_parser.ts
 //
-// Parser for NIST CAVP AES Known-Answer Test (.rsp) files.
-// Phase 2a: encrypt-only consumption; phase 2b extends with decrypt + MMT/MCT.
+// Parser for NIST CAVP AESVS ECB-mode `.rsp` files. Returns ENCRYPT and
+// DECRYPT sections separately. Used by the KAT, MMT, and MCT gates: all
+// three test types share the same record structure (COUNT / KEY /
+// PLAINTEXT / CIPHERTEXT, blank-line separated, [ENCRYPT] / [DECRYPT]
+// section markers); only the byte lengths differ.
+//   • KAT — single-block PT/CT (16 bytes).
+//   • MMT — variable-length PT/CT (1..10 blocks of 16 bytes).
+//   • MCT — single-block PT/CT, 100 chains per direction; each row is
+//          one chain's seed (cipher-derived per AESAVS §6.4.1).
 
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -41,7 +48,7 @@ export interface KatVector {
 
 /**
  * Parse a NIST CAVP AESVS ECB-style `.rsp` file. Returns the ENCRYPT and
- * DECRYPT sections separately. Phase 2a uses only ENCRYPT.
+ * DECRYPT sections separately. Used by all three ECB gate types.
  *
  * Format (from CAVS 11.1 `.rsp` files in `test/vectors/`):
  *   # comment lines start with '#'
@@ -104,4 +111,29 @@ export function parseEcbKatFile(filename: string): {
 	flush();
 
 	return { encrypt, decrypt };
+}
+
+/**
+ * Parse an AESVS Multi-block Message Test (`aes_ECBMMT*.rsp`) file. Same
+ * record structure as the KAT files; PT/CT are 1..10 blocks long
+ * (i * 16 bytes for i ∈ [1, 10]).
+ */
+export function parseEcbMmtFile(filename: string): {
+	encrypt: KatVector[];
+	decrypt: KatVector[];
+} {
+	return parseEcbKatFile(filename);
+}
+
+/**
+ * Parse an AESVS Monte Carlo Test (`aes_ECBMCT*.rsp`) file. Same record
+ * structure as the KAT files. Each section contains 100 chain seeds; the
+ * test runner re-derives KEY[i+1] / PT[i+1] per AESAVS §6.4.1 and asserts
+ * each row's KEY / PLAINTEXT / CIPHERTEXT.
+ */
+export function parseEcbMctFile(filename: string): {
+	encrypt: KatVector[];
+	decrypt: KatVector[];
+} {
+	return parseEcbKatFile(filename);
 }

@@ -2,7 +2,7 @@
 
 ### Test Suite & Vector Corpus
 
-Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2153 tests.
+Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2215 tests.
 
 > ### Table of Contents
 > - [Test Counts](#test-counts)
@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 1859                        | All pass |
+| Unit | Vitest     | 1921                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2153**                    | All pass |
+|      | **Total**  | **2215**                    | All pass |
 
 ---
 
@@ -88,10 +88,13 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `ratchet/skipped_key_store.test.ts`           | `SkippedKeyStore`: happy-path commit, rollback, rollback + legitimate delivery, `wipeAll`, `resolve()` argument validation, settle guards (double-settle throws, key access after settle throws), key lifecycle, split budgets (`maxCacheSize`, `maxSkipPerResolve`) | 25 tests               | —                   |
 | `ratchet/resolve-handle-dos-mitigation.test.ts` | DoS-mitigation: `rollback()` returns the key to the store under the same counter so a later legitimate delivery at that counter can still decrypt; bounded HKDF work via `maxSkipPerResolve`                                                | 2 tests                | —                   |
 | `ratchet/ratchet_keypair.test.ts`             | `RatchetKeypair`: round-trip keygen/decap, single-use guard (second `decap` throws), `dispose()` is idempotent, context round-trip                                                                                                          | 8 tests                | —                   |
-| `aes/aes_transpose.test.ts`                   | Bit-transposition round-trip identity: 128 distinct bytes, all-zeros, all-0xFF, FIPS 197 §B plaintext + 7 dummy blocks                                                                                                                       | 4 tests                | Gate 1              |
+| `aes/aes_transpose.test.ts`                   | Bit-transposition round-trip identity: 128 distinct bytes, all-zeros, all-0xFF, FIPS 197 §B plaintext + 7 dummy blocks, single-bit isolation, asymmetric (block<<4)\|byte pattern                                                            | 6 tests                | Gate 1              |
 | `aes/aes_sbox.test.ts`                        | Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7: all 256 byte inputs                                                                                                                                                                    | 256 vectors, 1 test    | Gate 2              |
 | `aes/aes_round.test.ts`                       | Single AES round vs FIPS 197 §B Round 1 intermediate (`aesRoundIntermediates128[0]`)                                                                                                                                                         | 1 test                 | Gate 3              |
-| `aes/aes_kat.test.ts`                         | AES-128 ECB encrypt KAT: FIPS 197 §B + 4 NIST CAVP `.rsp` files (GFSbox 14, KeySbox 42, VarKey 256, VarTxt 256)                                                                                                                              | 568 vectors, 9 tests   | Gate 4              |
+| `aes/aes_kat.test.ts`                         | AES-128/192/256 ECB encrypt KAT: FIPS 197 §B + 12 NIST CAVP AESVS `.rsp` files (GFSbox 7+6+5, KeySbox 21+24+16, VarKey 128+192+256, VarTxt 128+128+128 per direction)                                                                          | 1039 vectors, 25 tests | Gate 4              |
+| `aes/aes_decrypt.test.ts`                     | AES-128/192/256 ECB decrypt KAT (Equivalent Inverse Cipher, FIPS 197 §5.3.5): FIPS 197 §B inverse, encrypt→decrypt round-trip on 32 random vectors, 12 NIST CAVP AESVS `.rsp` `[DECRYPT]` sections                                            | 1039 vectors, 26 tests | Gate 5              |
+| `aes/aes_mmt.test.ts`                         | AES-128/192/256 ECB Multi-block Message Test (AESAVS §6.3): 3 NIST CAVP `aes_ECBMMT*.rsp` files, 10 enc + 10 dec vectors per file, plaintext lengths 1–10 blocks                                                                              | 60 vectors, 9 tests    | Gate 6              |
+| `aes/aes_mct.test.ts`                         | AES-128/192/256 ECB Monte Carlo Test (AESAVS §6.4.1): 3 NIST CAVP `aes_ECBMCT*.rsp` files, 100 enc + 100 dec chains per file, 1000 inner iterations per chain, key-size-dependent chain rule (AES-192 uses last 8 B of CT[998] ‖ CT[999])     | 600 chains × 1000 iter, 9 tests | Gate 7     |
 | `fortuna.test.ts`                             | Fortuna CSPRNG: `Fortuna.create()`, `get()` (always Uint8Array), entropy threshold, `stop()` disposes instance, `SerpentCtr` exclusivity coexistence, `stop()` exception-safety when serpent module is held by `SerpentCtr` (disposed flag set, key material wiped, throw surfaced). All tests run with `SerpentGenerator` + `SHA256Hash` to preserve historical coverage. | 11 tests               | —                   |
 | `fortuna/wipe-lifecycle.test.ts`              | Wipe-before-reassign discipline in `pseudoRandomData`, `reseed`, `addRandomEvent`, and pool reset (4 tests); `stop()` wipes `genKey` + `genCnt` + every pool-hash chain and calls `wipeBuffers()` on every WASM module the chosen generator and hash touched (3 tests) | 7 tests                | —                   |
 | `fortuna/spec-conformance.test.ts`            | Fortuna pool-selection conformance with Practical Cryptography §9.5.5: pool P_i consumed iff 2^i divides `reseedCnt`. Walks reseeds 1..16, asserts the consumed-pool set matches the divisibility rule per reseed. Includes `pool 0 consumed on every reseed` regression for the F-1 fix | 2 tests                | —                   |

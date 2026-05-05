@@ -21,7 +21,7 @@
 //
 // src/asm/aes/sbox.ts
 //
-// Bitsliced AES S-box (forward only) using the Canright tower-field
+// Bitsliced AES S-box (forward + inverse) using the Canright tower-field
 // decomposition.
 //
 // Reference: D. Canright, "A Very Compact S-box for AES", CHES 2005
@@ -34,12 +34,18 @@
 // (k=0 LSB, k=7 MSB; Käsper-Schwabe §4.1). Sub-results are spilled to
 // CANRIGHT_SCRATCH_OFFSET v128 slots.
 //
-// Algorithm: s = (M·X)·gf256_inv(X⁻¹·a) ⊕ b
+// Forward:  s = (M·X)·gf256_inv(X⁻¹·a) ⊕ b
+// Inverse:  a = X·gf256_inv((X⁻¹·M⁻¹)·s ⊕ X⁻¹·M⁻¹·b)
 //   where X is the standard-basis representation of the tower basis
 //   (Y_i·Z_j·W_k tensor products, computed via direct GF(2⁸) arithmetic
 //   from Canright §2.1's [Y¹⁶,Y]=[0xFE,0xFF], [Z⁴,Z]=[0x5D,0x5C],
 //   [W²,W]=[0xBC,0xBD]), M is the AES affine matrix (Canright §2),
-//   and b = 0x63 is the affine constant (Canright §2 / FIPS 197 §5.1.1).
+//   b = 0x63 is the AES affine constant (Canright §2 / FIPS 197 §5.1.1),
+//   and X⁻¹·M⁻¹·b = 0x7E (precomputed; see `invSboxBitsliced` derivation).
+//
+// The GF(2⁸) inversion kernel is its own inverse and is shared between
+// forward and inverse S-box; only the front (X⁻¹ vs. X⁻¹·M⁻¹) and back
+// (M·X vs. X) basis-change matrices differ.
 
 import {
 	BITSLICED_STATE_OFFSET,
@@ -161,6 +167,72 @@ import {
 	cset(out + 3, a3);
 }
 
+// ── GF(2⁸) inversion kernel (shared by forward + inverse S-box) ─────────────
+
+/**
+ * GF(2⁸) inversion via tower decomposition. Self-inverse: this kernel is
+ * shared by both `sboxBitsliced` and `invSboxBitsliced` — only the front
+ * (X⁻¹ vs X⁻¹·M⁻¹) and back (M·X vs X) basis-change matrices differ.
+ *
+ * Input: 8 v128 in tower-basis representation (γ₁ = high 4 = (t7,t6,t5,t4),
+ * γ₀ = low 4 = (t3,t2,t1,t0)).
+ *
+ * Output: 8 v128 in tower basis written to scratch slots 28..35
+ * (slot 28 = u₇ … slot 35 = u₀).
+ *
+ * Reference: Canright 2005 §2.1 — γ⁻¹ = δ₁Y¹⁶ + δ₀Y where δ₁ = θ⁻¹·γ₀
+ * and δ₀ = θ⁻¹·γ₁ (note the swap), with θ = γ₁γ₀ ⊕ ν·(γ₁⊕γ₀)² in GF(2⁴).
+ */
+@inline function gf256InvKernel(
+	t0: v128, t1: v128, t2: v128, t3: v128,
+	t4: v128, t5: v128, t6: v128, t7: v128,
+): void {
+	// Subfield-byte bit assignment (high-to-low): t7,t6 = γ₁_Γ₁ (W²,W) ;
+	// t5,t4 = γ₁_Γ₀ ; t3,t2 = γ₀_Γ₁ ; t1,t0 = γ₀_Γ₀.
+	// So γ₁ = (t7, t6, t5, t4) and γ₀ = (t3, t2, t1, t0).
+
+	// Step 2a: γ₁γ₀ — GF(2⁴) multiply. Slots 8..11.
+	gf16_mul_to(8, t7, t6, t5, t4, t3, t2, t1, t0);
+
+	// Step 2b: ν · (γ₁⊕γ₀)² — Canright eq 7. Slots 16..19.
+	gf16_sq_scale_nu_to(
+		16,
+		v128.xor(t7, t3),
+		v128.xor(t6, t2),
+		v128.xor(t5, t1),
+		v128.xor(t4, t0),
+	);
+
+	// Step 2c: θ = γ₁γ₀ ⊕ ν·(γ₁⊕γ₀)² — Canright eq 5 with τ = 1.
+	const th0 = v128.xor(cget(8),  cget(16));
+	const th1 = v128.xor(cget(9),  cget(17));
+	const th2 = v128.xor(cget(10), cget(18));
+	const th3 = v128.xor(cget(11), cget(19));
+
+	// Step 2d: θ⁻¹ = gf16_inv(θ). θ = Θ₁Z⁴ + Θ₀Z; inversion uses
+	// θ_inner = Θ₁Θ₀ + N(Θ₁⊕Θ₀)² in GF(2²), then the GF(2²) inverse =
+	// gf4_sq (squaring) since GF(2²)* has order 3.
+	gf4_mul_to(20, th0, th1, th2, th3);
+	const sum_sq0 = v128.xor(th1, th3);
+	const sum_sq1 = v128.xor(th0, th2);
+	const Ns0 = sum_sq1;
+	const Ns1 = v128.xor(sum_sq0, sum_sq1);
+	const ti0 = v128.xor(cget(20), Ns0);
+	const ti1 = v128.xor(cget(21), Ns1);
+	const tin0 = ti1;
+	const tin1 = ti0;
+	gf4_mul_to(22, tin0, tin1, th2, th3);    // slots 22..23 = Θinv_Z⁴
+	gf4_mul_to(24, tin0, tin1, th0, th1);    // slots 24..25 = Θinv_Z
+
+	// Step 2e: δ₁ = θ⁻¹·γ₀ , δ₀ = θ⁻¹·γ₁. Canright eq 5 at GF(2⁸) level.
+	const ti_a = cget(22);
+	const ti_b = cget(23);
+	const ti_c = cget(24);
+	const ti_d = cget(25);
+	gf16_mul_to(28, ti_a, ti_b, ti_c, ti_d, t3, t2, t1, t0);   // δ₁ = θinv · γ₀ → u₇..u₄
+	gf16_mul_to(32, ti_a, ti_b, ti_c, ti_d, t7, t6, t5, t4);   // δ₀ = θinv · γ₁ → u₃..u₀
+}
+
 // ── Composed S-box ──────────────────────────────────────────────────────────
 
 /**
@@ -209,67 +281,8 @@ export function sboxBitsliced(): void {
 	const t6 = v128.xor(v128.xor(s0, s4), v128.xor(s5, s6));
 	const t7 = v128.xor(v128.xor(v128.xor(s0, s1), s2), v128.xor(v128.xor(s5, s6), s7));
 
-	// Subfield-byte bit assignment (high-to-low): t7,t6 = γ₁_Γ₁ (W²,W) ;
-	// t5,t4 = γ₁_Γ₀ ; t3,t2 = γ₀_Γ₁ ; t1,t0 = γ₀_Γ₀.
-	// So γ₁ = (t7, t6, t5, t4) and γ₀ = (t3, t2, t1, t0).
-
-	// ── Step 2a: γ₁γ₀ — GF(2⁴) multiply ──────────────────────────────
-	// Slots 8..11 = γ₁ · γ₀.
-	gf16_mul_to(8, t7, t6, t5, t4, t3, t2, t1, t0);
-
-	// ── Step 2b: ν · (γ₁⊕γ₀)² — Canright eq 7 ────────────────────────
-	// Sum γ₁⊕γ₀ in GF(2⁴) is (t7⊕t3, t6⊕t2, t5⊕t1, t4⊕t0).
-	// Slots 16..19 = ν · sum².
-	gf16_sq_scale_nu_to(
-		16,
-		v128.xor(t7, t3),
-		v128.xor(t6, t2),
-		v128.xor(t5, t1),
-		v128.xor(t4, t0),
-	);
-
-	// ── Step 2c: θ = γ₁γ₀ ⊕ ν·(γ₁⊕γ₀)²  ──────────────────────────────
-	// Canright eq 5 specialised to τ = 1.
-	const th0 = v128.xor(cget(8),  cget(16));
-	const th1 = v128.xor(cget(9),  cget(17));
-	const th2 = v128.xor(cget(10), cget(18));
-	const th3 = v128.xor(cget(11), cget(19));
-
-	// ── Step 2d: θ⁻¹ = gf16_inv(θ) ───────────────────────────────────
-	// Canright eq 5 at the GF(2⁴) level. θ = Θ₁Z⁴ + Θ₀Z; inversion uses
-	// θ_inner = Θ₁Θ₀ + N(Θ₁⊕Θ₀)² in GF(2²), then the GF(2²) inverse =
-	// gf4_sq (squaring) since GF(2²)* has order 3.
-	// Θ₁ = (th0, th1) ; Θ₀ = (th2, th3).
-	// Θ₁Θ₀ = gf4_mul to slots 20..21.
-	gf4_mul_to(20, th0, th1, th2, th3);
-	// (Θ₁ ⊕ Θ₀)² in GF(2²) is gf4_sq(swap) = (th0⊕th2, th1⊕th3) swapped
-	//   → ((th1⊕th3), (th0⊕th2)).
-	const sum_sq0 = v128.xor(th1, th3);
-	const sum_sq1 = v128.xor(th0, th2);
-	// N · (Θ₁⊕Θ₀)² in GF(2²) per Canright eq 8 = (sum_sq1, sum_sq0⊕sum_sq1).
-	const Ns0 = sum_sq1;
-	const Ns1 = v128.xor(sum_sq0, sum_sq1);
-	// θ_inner = Θ₁Θ₀ ⊕ N·(Θ₁⊕Θ₀)² in GF(2²).
-	const ti0 = v128.xor(cget(20), Ns0);
-	const ti1 = v128.xor(cget(21), Ns1);
-	// θ_inner⁻¹ = gf4_sq(ti) = (ti1, ti0).
-	const tin0 = ti1;
-	const tin1 = ti0;
-	// Output of GF(2⁴) inverter: Θinv_Z⁴ = θ_inner⁻¹ · Θ₀ ; Θinv_Z = θ_inner⁻¹ · Θ₁.
-	// (Canright eq 5 at GF(2⁴) level: output Z⁴ coord = θinv · input Z coord.)
-	gf4_mul_to(22, tin0, tin1, th2, th3);    // slots 22..23 = Θinv_Z⁴
-	gf4_mul_to(24, tin0, tin1, th0, th1);    // slots 24..25 = Θinv_Z
-	// θ⁻¹ in GF(2⁴) = (slots 22..25) = (Θinv_Z⁴_W², Θinv_Z⁴_W, Θinv_Z_W², Θinv_Z_W).
-
-	// ── Step 2e: δ₁ = θ⁻¹ · γ₀ ; δ₀ = θ⁻¹ · γ₁ ───────────────────────
-	// Canright eq 5 at GF(2⁸) level: γ⁻¹ = δ₁Y¹⁶ + δ₀Y where δ₁ = θ⁻¹·γ₀,
-	// δ₀ = θ⁻¹·γ₁. (Note the swap: high output coord uses low input coord.)
-	const ti_a = cget(22);
-	const ti_b = cget(23);
-	const ti_c = cget(24);
-	const ti_d = cget(25);
-	gf16_mul_to(28, ti_a, ti_b, ti_c, ti_d, t3, t2, t1, t0);   // δ₁ = θinv · γ₀
-	gf16_mul_to(32, ti_a, ti_b, ti_c, ti_d, t7, t6, t5, t4);   // δ₀ = θinv · γ₁
+	// ── Step 2: GF(2⁸) inversion kernel — writes u₇..u₀ to slots 28..35.
+	gf256InvKernel(t0, t1, t2, t3, t4, t5, t6, t7);
 
 	// Subfield output u (8 bits, high-to-low): u[7..4] = δ₁ ; u[3..0] = δ₀.
 	const u7 = cget(28);
@@ -304,4 +317,79 @@ export function sboxBitsliced(): void {
 	bset(6, v128.xor(v128.xor(u3, u7), allOnes));
 	// out[7] = u[3] ⊕ u[5] ⊕ b₇(=0)
 	bset(7, v128.xor(u3, u5));
+}
+
+/**
+ * Inverse AES S-box on 8 parallel blocks in bitsliced layout.
+ *
+ * Reads 8 v128 from BITSLICED_STATE_OFFSET; writes 8 v128 back to the
+ * same offsets. Uses CANRIGHT_SCRATCH_OFFSET for intermediates.
+ *
+ * Pipeline (mirror of forward, swapped basis-change matrices, XOR moves
+ * from post-affine to pre-affine):
+ *   1. Apply A_inv = X⁻¹·M⁻¹  (combined inverse-affine + standard→tower).
+ *   2. XOR pre-affine constant c_inv = X⁻¹·M⁻¹·b = 0x7E (bits {1..6}).
+ *   3. Compute γ⁻¹ in GF(2⁸) — same kernel as forward (self-inverse).
+ *   4. Apply X (tower → standard basis). No final XOR.
+ *
+ * The A_inv matrix and c_inv constant are derived by Gaussian elimination
+ * on the existing forward X⁻¹ and M·X matrices (sboxBitsliced steps 1
+ * and 3+4). Verification: S(0x00)=0x63 ⇒ S⁻¹(0x63)=0x00 ; full coverage
+ * via the CAVP ECB-128 [DECRYPT] vectors in aes_decrypt.test.ts.
+ */
+export function invSboxBitsliced(): void {
+	const s0 = bget(0);
+	const s1 = bget(1);
+	const s2 = bget(2);
+	const s3 = bget(3);
+	const s4 = bget(4);
+	const s5 = bget(5);
+	const s6 = bget(6);
+	const s7 = bget(7);
+
+	const allOnes = v128.not(v128.splat<i32>(0));
+
+	// ── Step 1: A_inv = X⁻¹·M⁻¹ then ⊕ c_inv (= 0x7E = bits {1..6}) ───
+	// Output bit p (subfield) = XOR over standard bits q where A_inv[p][q]=1,
+	// then XOR with bit p of c_inv (flip when c_inv bit is 1).
+	// c_inv: bits 1,2,3,4,5,6 are 1; bits 0,7 are 0.
+	const t0 = v128.xor(v128.xor(s0, s1), v128.xor(v128.xor(s4, s5), s6));
+	const t1 = v128.xor(v128.xor(v128.xor(s0, s3), s4), allOnes);
+	const t2 = v128.xor(v128.xor(v128.xor(s2, s5), s7), allOnes);
+	const t3 = v128.xor(v128.xor(v128.xor(s4, s6), s7), allOnes);
+	const t4 = v128.xor(v128.xor(v128.xor(v128.xor(s0, s1), s3), s6), allOnes);
+	const t5 = v128.xor(v128.xor(s4, s6), allOnes);
+	const t6 = v128.xor(v128.xor(v128.xor(v128.xor(s0, s1), s4), s6), allOnes);
+	const t7 = v128.xor(s4, s7);
+
+	// ── Step 2: GF(2⁸) inversion kernel — writes u₇..u₀ to slots 28..35.
+	gf256InvKernel(t0, t1, t2, t3, t4, t5, t6, t7);
+
+	const u7 = cget(28);
+	const u6 = cget(29);
+	const u5 = cget(30);
+	const u4 = cget(31);
+	const u3 = cget(32);
+	const u2 = cget(33);
+	const u1 = cget(34);
+	const u0 = cget(35);
+
+	// ── Step 3: X — tower normal basis → standard basis. No final XOR. ─
+	// Output bit p (standard) = XOR over subfield bits q where X[p][q]=1.
+	// out[0] = u[2]
+	bset(0, u2);
+	// out[1] = u[1] ⊕ u[5]
+	bset(1, v128.xor(u1, u5));
+	// out[2] = u[1] ⊕ u[4] ⊕ u[5] ⊕ u[7]
+	bset(2, v128.xor(v128.xor(v128.xor(u1, u4), u5), u7));
+	// out[3] = u[1] ⊕ u[2] ⊕ u[3] ⊕ u[4] ⊕ u[5] ⊕ u[6]
+	bset(3, v128.xor(v128.xor(v128.xor(u1, u2), v128.xor(u3, u4)), v128.xor(u5, u6)));
+	// out[4] = u[1] ⊕ u[6]
+	bset(4, v128.xor(u1, u6));
+	// out[5] = u[0] ⊕ u[2] ⊕ u[3] ⊕ u[5] ⊕ u[6] ⊕ u[7]
+	bset(5, v128.xor(v128.xor(v128.xor(u0, u2), v128.xor(u3, u5)), v128.xor(u6, u7)));
+	// out[6] = u[0] ⊕ u[1] ⊕ u[3] ⊕ u[5] ⊕ u[6] ⊕ u[7]
+	bset(6, v128.xor(v128.xor(v128.xor(u0, u1), v128.xor(u3, u5)), v128.xor(u6, u7)));
+	// out[7] = u[1] ⊕ u[4]
+	bset(7, v128.xor(u1, u4));
 }

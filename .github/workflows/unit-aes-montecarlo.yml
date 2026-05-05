@@ -1,4 +1,4 @@
-name: unit-aes
+name: unit-aes-montecarlo
 on:
   workflow_call:
 permissions:
@@ -6,7 +6,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: setup bun
@@ -17,12 +17,7 @@ jobs:
         run: bun i
       - name: build wasm + embedded modules
         run: bun run build:asm && bun run build:embed && bun run build:embed-workers
-      - name: run aes unit tests
+      - name: run aes monte carlo unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
-          test/unit/aes/aes_transpose.test.ts
-          test/unit/aes/aes_sbox.test.ts
-          test/unit/aes/aes_round.test.ts
-          test/unit/aes/aes_kat.test.ts
-          test/unit/aes/aes_decrypt.test.ts
-          test/unit/aes/aes_mmt.test.ts
+          test/unit/aes/aes_mct.test.ts

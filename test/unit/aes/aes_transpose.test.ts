@@ -96,4 +96,36 @@ describe('AES bit transposition (Gate 1)', () => {
 		const output = mem.slice(x.getBlockCt8xOffset(), x.getBlockCt8xOffset() + 128);
 		expect(Array.from(output)).toEqual(Array.from(input));
 	});
+
+	// Hardening — single bit set in an otherwise-zero buffer. Catches
+	// off-by-one swaps in the bit-matrix transpose that the trivially-symmetric
+	// cases above (all zeros, all 0xFF) would let through.
+	it('round-trip identity: single bit set at block 4 byte 9 bit 3', () => {
+		const x   = getDebugExports();
+		const mem = new Uint8Array(x.memory.buffer);
+		const input = new Uint8Array(128);
+		input[4 * 16 + 9] = 1 << 3;
+		mem.set(input, x.getBlockPt8xOffset());
+		x.transposeRoundTrip();
+		const output = mem.slice(x.getBlockCt8xOffset(), x.getBlockCt8xOffset() + 128);
+		expect(Array.from(output)).toEqual(Array.from(input));
+	});
+
+	// Hardening — asymmetric pattern. Each byte = (block_index << 4) | byte_index,
+	// so any wrong block-permutation or byte-permutation would surface as a
+	// nibble swap rather than an aliased identity.
+	it('round-trip identity: asymmetric (block << 4) | byte pattern', () => {
+		const x   = getDebugExports();
+		const mem = new Uint8Array(x.memory.buffer);
+		const input = new Uint8Array(128);
+		for (let b = 0; b < 8; b++) {
+			for (let i = 0; i < 16; i++) {
+				input[b * 16 + i] = ((b << 4) | i) & 0xff;
+			}
+		}
+		mem.set(input, x.getBlockPt8xOffset());
+		x.transposeRoundTrip();
+		const output = mem.slice(x.getBlockCt8xOffset(), x.getBlockCt8xOffset() + 128);
+		expect(Array.from(output)).toEqual(Array.from(input));
+	});
 });

@@ -76,6 +76,10 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-aes.yml
 
+  unit-aes-mct:
+    needs: [build]
+    uses: ./.github/workflows/unit-aes-montecarlo.yml
+
   suite-status:
     name: test-suite-status
     needs:
@@ -94,6 +98,7 @@ jobs:
       - unit-nessie
       - unit-ratchet
       - unit-aes
+      - unit-aes-mct
     runs-on: ubuntu-latest
     steps:
       - run: echo "All required tests have passed."

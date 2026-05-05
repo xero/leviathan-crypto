@@ -22,7 +22,7 @@
 // src/asm/aes/index.ts
 //
 // AES WASM module — public exports.
-// Phase 2a: AES-128 encrypt only. Decrypt + AES-192/256 are phase 2b.
+// Supports AES-128/192/256 encrypt + decrypt; raw block cipher only.
 
 // ── Buffer layout (buffers.ts) ──────────────────────────────────────────────
 
@@ -36,18 +36,23 @@ export {
 	getRoundKeysOffset,
 	getBitslicedStateOffset,
 	getCanrightScratchOffset,
+	getKeyScheduleScratchOffset,
+	getInvRoundKeysOffset,
 	getChunkPtOffset,
 	getChunkCtOffset,
 	getChunkSize,
+	getNrOffset,
 	getMemoryPages,
 } from './buffers'
 
-// ── AES-128 encrypt (aes.ts) ────────────────────────────────────────────────
+// ── AES encrypt + decrypt (aes.ts) ─────────────────────────────────────────
 
 export {
 	loadKey,
 	encryptBlock,
 	encryptBlock_8x,
+	decryptBlock,
+	decryptBlock_8x,
 	// Debug-only exports used by gate tests.
 	transposeRoundTrip,
 	sboxRoundTrip,
