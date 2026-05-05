@@ -187,6 +187,716 @@ fn extract_bool(body: &str, field: &str) -> Option<bool> {
     None
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// AES-GCM-SIV vectors (RFC 8452 Appendix C, parsed from aes_gcm_siv.ts).
+// ────────────────────────────────────────────────────────────────────────────
+
+// The verifier exercises only (key, nonce, aad, plaintext, result). The
+// other fields (record_auth_key, record_enc_key, polyval_input,
+// polyval_result, polyval_xor_nonce, polyval_masked, tag,
+// initial_counter) are gate-bisection fixtures for Phase 4b-impl unit
+// tests and are intentionally read-but-not-used here.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct AesGcmSivVector {
+    pub description:      String,
+    pub plaintext:        Vec<u8>,
+    pub aad:              Vec<u8>,
+    pub key:              Vec<u8>,
+    pub nonce:            Vec<u8>,
+    pub record_auth_key:  Vec<u8>,
+    pub record_enc_key:   Vec<u8>,
+    pub polyval_input:    Vec<u8>,
+    pub polyval_result:   Vec<u8>,
+    pub polyval_xor_nonce:Vec<u8>,
+    pub polyval_masked:   Vec<u8>,
+    pub tag:              Vec<u8>,
+    pub initial_counter:  Vec<u8>,
+    pub result:           Vec<u8>,
+}
+
+/// Parse aes_gcm_siv.ts. Returns three arrays in declaration order:
+///   - aesGcmSiv128Vectors             (24 records)
+///   - aesGcmSiv256Vectors             (24 records)
+///   - aesGcmSivCounterWrapVectors      ( 2 records)
+pub fn parse_aes_gcm_siv_file(src: &str) -> (
+    Vec<AesGcmSivVector>,
+    Vec<AesGcmSivVector>,
+    Vec<AesGcmSivVector>,
+) {
+    let v128  = parse_siv_array(src, "aesGcmSiv128Vectors");
+    let v256  = parse_siv_array(src, "aesGcmSiv256Vectors");
+    let vwrap = parse_siv_array(src, "aesGcmSivCounterWrapVectors");
+    (v128, v256, vwrap)
+}
+
+fn parse_siv_array(src: &str, export_name: &str) -> Vec<AesGcmSivVector> {
+    let needle = format!("export const {}:", export_name);
+    let Some(start) = src.find(&needle) else { return Vec::new(); };
+    // Skip the type annotation (which contains `[]`) by anchoring on the `=`.
+    let Some(eq_rel) = src[start..].find('=') else { return Vec::new(); };
+    let after_eq = start + eq_rel + 1;
+    let lbracket = match src[after_eq..].find('[') {
+        Some(i) => after_eq + i + 1,
+        None    => return Vec::new(),
+    };
+    let rbracket = match find_matching_bracket(&src[lbracket..]) {
+        Some(i) => lbracket + i,
+        None    => return Vec::new(),
+    };
+    let body = &src[lbracket..rbracket];
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesGcmSivVector {
+            description:        extract_string(&obj, "description"),
+            plaintext:          hex::decode(extract_hex(&obj, "plaintext")).unwrap_or_default(),
+            aad:                hex::decode(extract_hex(&obj, "aad")).unwrap_or_default(),
+            key:                hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            nonce:              hex::decode(extract_hex(&obj, "nonce")).unwrap_or_default(),
+            record_auth_key:    hex::decode(extract_hex(&obj, "recordAuthKey")).unwrap_or_default(),
+            record_enc_key:     hex::decode(extract_hex(&obj, "recordEncKey")).unwrap_or_default(),
+            polyval_input:      hex::decode(extract_hex(&obj, "polyvalInput")).unwrap_or_default(),
+            polyval_result:     hex::decode(extract_hex(&obj, "polyvalResult")).unwrap_or_default(),
+            polyval_xor_nonce:  hex::decode(extract_hex(&obj, "polyvalXorNonce")).unwrap_or_default(),
+            polyval_masked:     hex::decode(extract_hex(&obj, "polyvalMasked")).unwrap_or_default(),
+            tag:                hex::decode(extract_hex(&obj, "tag")).unwrap_or_default(),
+            initial_counter:    hex::decode(extract_hex(&obj, "initialCounter")).unwrap_or_default(),
+            result:             hex::decode(extract_hex(&obj, "result")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// POLYVAL vectors (RFC 8452 §7 + Appendix A, parsed from polyval.ts).
+// ────────────────────────────────────────────────────────────────────────────
+
+// PolyvalFieldOpsVector and PolyvalMulXVector are unit-test-only
+// fixtures for Phase 4b-impl. The verifier reads them so the corpus is
+// fully traversed end-to-end, but does not exercise them — RustCrypto's
+// `polyval` crate does not expose dot() / mulX_GHASH directly, and the
+// SIV vectors in aes_gcm_siv.ts transitively cover POLYVAL
+// multiplication. The non-description fields are therefore intentionally
+// read-but-not-used here.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct PolyvalFieldOpsVector {
+    pub description: String,
+    pub a:           Vec<u8>,
+    pub b:           Vec<u8>,
+    pub sum:         Vec<u8>,
+    pub product:     Vec<u8>,
+    pub dot:         Vec<u8>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct PolyvalMulXVector {
+    pub description:  String,
+    pub input:        Vec<u8>,
+    pub mul_x_ghash:  Vec<u8>,
+    pub mul_x_polyval:Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PolyvalHashVector {
+    pub description: String,
+    pub h:           Vec<u8>,
+    pub blocks:      Vec<Vec<u8>>,
+    pub expected:    Vec<u8>,
+}
+
+pub fn parse_polyval_file(src: &str) -> (
+    Option<PolyvalFieldOpsVector>,
+    Vec<PolyvalMulXVector>,
+    Vec<PolyvalHashVector>,
+) {
+    let field_ops = parse_polyval_fieldops(src);
+    let mul_x     = parse_polyval_mulx(src);
+    let hashes    = parse_polyval_hashes(src);
+    (field_ops, mul_x, hashes)
+}
+
+fn parse_polyval_fieldops(src: &str) -> Option<PolyvalFieldOpsVector> {
+    // `export const polyvalFieldOps: PolyvalFieldOpsVector = { ... };`
+    let needle = "export const polyvalFieldOps:";
+    let start  = src.find(needle)?;
+    let lbrace = start + src[start..].find('{')?;
+    let rbrace = lbrace + find_matching_brace(&src[lbrace..])?;
+    let obj    = &src[lbrace + 1..rbrace];
+    Some(PolyvalFieldOpsVector {
+        description: extract_string(obj, "description"),
+        a:           hex::decode(extract_hex(obj, "a")).unwrap_or_default(),
+        b:           hex::decode(extract_hex(obj, "b")).unwrap_or_default(),
+        sum:         hex::decode(extract_hex(obj, "sum")).unwrap_or_default(),
+        product:     hex::decode(extract_hex(obj, "product")).unwrap_or_default(),
+        dot:         hex::decode(extract_hex(obj, "dot")).unwrap_or_default(),
+    })
+}
+
+fn parse_polyval_mulx(src: &str) -> Vec<PolyvalMulXVector> {
+    let needle = "export const polyvalMulXVectors:";
+    let Some(start) = src.find(needle) else { return Vec::new(); };
+    let Some(eq_rel) = src[start..].find('=') else { return Vec::new(); };
+    let after_eq = start + eq_rel + 1;
+    let Some(rel)   = src[after_eq..].find('[') else { return Vec::new(); };
+    let lbracket    = after_eq + rel + 1;
+    let Some(end)   = find_matching_bracket(&src[lbracket..]) else { return Vec::new(); };
+    let body        = &src[lbracket..lbracket + end];
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| PolyvalMulXVector {
+            description:   extract_string(&obj, "description"),
+            input:         hex::decode(extract_hex(&obj, "input")).unwrap_or_default(),
+            mul_x_ghash:   hex::decode(extract_hex(&obj, "mulX_ghash")).unwrap_or_default(),
+            mul_x_polyval: hex::decode(extract_hex(&obj, "mulX_polyval")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+fn parse_polyval_hashes(src: &str) -> Vec<PolyvalHashVector> {
+    let needle = "export const polyvalHashVectors:";
+    let Some(start) = src.find(needle) else { return Vec::new(); };
+    let Some(eq_rel) = src[start..].find('=') else { return Vec::new(); };
+    let after_eq = start + eq_rel + 1;
+    let Some(rel)   = src[after_eq..].find('[') else { return Vec::new(); };
+    let lbracket    = after_eq + rel + 1;
+    let Some(end)   = find_matching_bracket(&src[lbracket..]) else { return Vec::new(); };
+    let body        = &src[lbracket..lbracket + end];
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| PolyvalHashVector {
+            description: extract_string(&obj, "description"),
+            h:           hex::decode(extract_hex(&obj, "h")).unwrap_or_default(),
+            blocks:      extract_hex_array(&obj, "blocks"),
+            expected:    hex::decode(extract_hex(&obj, "expected")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// New shared helpers for the SIV / POLYVAL parsers.
+// (Existing `extract_string` / `extract_hex` / `extract_int` / `extract_bool`
+// / `extract_chunks` are unchanged and still serve the original seal +
+// sealstream parsers.)
+// ────────────────────────────────────────────────────────────────────────────
+
+fn find_matching_bracket(s: &str) -> Option<usize> {
+    let mut depth = 1i32;
+    let mut in_q  = false;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '\'' => in_q = !in_q,
+            '[' if !in_q => depth += 1,
+            ']' if !in_q => {
+                depth -= 1;
+                if depth == 0 { return Some(i); }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn find_matching_brace(s: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut in_q  = false;
+    let mut started = false;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '\'' => in_q = !in_q,
+            '{' if !in_q => { depth += 1; started = true; }
+            '}' if !in_q => {
+                depth -= 1;
+                if started && depth == 0 { return Some(i); }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+// Split a top-level array body into individual `{ ... }` object bodies.
+// Honours nested braces and single-quoted strings. Comma-and-whitespace
+// between objects is discarded.
+fn split_top_level_objects(body: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut in_q  = false;
+    let mut start = None::<usize>;
+    for (i, ch) in body.char_indices() {
+        match ch {
+            '\'' => in_q = !in_q,
+            '{' if !in_q => {
+                if depth == 0 { start = Some(i + 1); }
+                depth += 1;
+            }
+            '}' if !in_q => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(s) = start.take() {
+                        out.push(body[s..i].to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+// Parse a `field: ['hex1', 'hex2', ...]` array. Elements may be multi-line
+// concatenated via `'a' + 'b'` in the same way extract_hex handles single
+// fields; here each top-level comma-separated item joins all its quoted
+// fragments into a single hex string and returns the decoded bytes.
+fn extract_hex_array(body: &str, field: &str) -> Vec<Vec<u8>> {
+    let needle = format!("{}:", field);
+    let Some(start) = body.find(&needle) else { return Vec::new(); };
+    let after = start + needle.len();
+    let Some(rel) = body[after..].find('[') else { return Vec::new(); };
+    let lbracket = after + rel + 1;
+    let Some(end) = find_matching_bracket(&body[lbracket..]) else { return Vec::new(); };
+    let arr = &body[lbracket..lbracket + end];
+
+    // Comma-separated entries; each entry is one or more single-quoted hex
+    // chunks joined by `+`.
+    let mut entries = Vec::new();
+    let mut cur     = String::new();
+    let mut in_q    = false;
+    let mut chunk   = String::new();
+    let push_entry = |s: &mut String, out: &mut Vec<Vec<u8>>| {
+        let trimmed = s.trim();
+        if !trimmed.is_empty() {
+            out.push(hex::decode(trimmed).unwrap_or_default());
+        }
+        s.clear();
+    };
+    for ch in arr.chars() {
+        match ch {
+            '\'' if !in_q => { in_q = true; }
+            '\'' if in_q  => {
+                in_q = false;
+                cur.push_str(&chunk);
+                chunk.clear();
+            }
+            c if in_q => chunk.push(c),
+            ',' => push_entry(&mut cur, &mut entries),
+            _ => {}
+        }
+    }
+    push_entry(&mut cur, &mut entries);
+    entries
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// AES-mode vectors (aes.ts, aes_cbc.ts, aes_ctr.ts, aes_gcm.ts).
+//
+// These files use two TS conveniences that the seal/sealstream/SIV
+// parsers above do not need to handle:
+//
+//   - top-level const declarations (`const SHARED_PT = '6bc1...' + '...';`)
+//     referenced in record fields as bare identifiers (`pt: SHARED_PT,`)
+//   - cross-array record references (`key: aesCbcEncryptVectors[0].key,`)
+//     used by the decrypt arrays to mirror the encrypt arrays without
+//     re-typing the hex.
+//
+// The preprocessing helpers below textually substitute both patterns
+// with `'<hex>'` literals before the array-of-records walker runs, so
+// the existing extract_hex/extract_string helpers Just Work on the
+// rewritten source.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct AesBlockVector {
+    pub description: String,
+    pub key:         Vec<u8>,
+    pub pt:          Vec<u8>,
+    pub ct:          Vec<u8>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct AesKeyExpansionVector {
+    pub description:        String,
+    pub key_bits:            u32,
+    pub key:                 Vec<u8>,
+    pub round_key_schedule:  Vec<u8>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct AesRoundIntermediateVector {
+    pub description:       String,
+    pub round:             u32,
+    pub start:             Vec<u8>,
+    pub after_sub_bytes:   Vec<u8>,
+    pub after_shift_rows:  Vec<u8>,
+    pub after_mix_columns: Vec<u8>,
+    pub round_key:         Vec<u8>,
+    pub end:               Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AesVectors {
+    pub cipher_128:       Vec<AesBlockVector>,
+    pub cipher_192:       Vec<AesBlockVector>,
+    pub cipher_256:       Vec<AesBlockVector>,
+    pub key_expansion:    Vec<AesKeyExpansionVector>,
+    pub sbox:             Option<Vec<u8>>,
+    pub round_inter_128:  Vec<AesRoundIntermediateVector>,
+    pub round_inter_192:  Vec<AesRoundIntermediateVector>,
+    pub round_inter_256:  Vec<AesRoundIntermediateVector>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AesCbcVector {
+    pub description: String,
+    pub key:         Vec<u8>,
+    pub iv:          Vec<u8>,
+    pub pt:          Vec<u8>,
+    pub ct:          Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AesCtrVector {
+    pub description:     String,
+    pub key:             Vec<u8>,
+    pub initial_counter: Vec<u8>,
+    pub pt:              Vec<u8>,
+    pub ct:              Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AesGcmVector {
+    pub description: String,
+    pub key:         Vec<u8>,
+    pub iv:          Vec<u8>,
+    pub aad:         Vec<u8>,
+    pub pt:          Vec<u8>,
+    pub ct:          Vec<u8>,
+    pub tag:         Vec<u8>,
+}
+
+// ──── aes.ts ────
+
+pub fn parse_aes_file(src: &str) -> AesVectors {
+    let s = preprocess_consts(src);
+    AesVectors {
+        cipher_128:       parse_block_array(&s, "aes128CipherVectors"),
+        cipher_192:       parse_block_array(&s, "aes192CipherVectors"),
+        cipher_256:       parse_block_array(&s, "aes256CipherVectors"),
+        key_expansion:    parse_key_expansion_array(&s, "aesKeyExpansionVectors"),
+        sbox:             parse_uint8_array_literal(&s, "aesSboxTable"),
+        round_inter_128:  parse_round_inter_array(&s, "aesRoundIntermediates128"),
+        round_inter_192:  parse_round_inter_array(&s, "aesRoundIntermediates192"),
+        round_inter_256:  parse_round_inter_array(&s, "aesRoundIntermediates256"),
+    }
+}
+
+fn parse_block_array(src: &str, export_name: &str) -> Vec<AesBlockVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesBlockVector {
+            description: extract_string(&obj, "description"),
+            key:         hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            pt:          hex::decode(extract_hex(&obj, "pt")).unwrap_or_default(),
+            ct:          hex::decode(extract_hex(&obj, "ct")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+fn parse_key_expansion_array(src: &str, export_name: &str) -> Vec<AesKeyExpansionVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesKeyExpansionVector {
+            description:       extract_string(&obj, "description"),
+            key_bits:           extract_int(&obj, "keyBits").unwrap_or(0),
+            key:                hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            round_key_schedule: hex::decode(extract_hex(&obj, "roundKeySchedule")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+fn parse_round_inter_array(src: &str, export_name: &str) -> Vec<AesRoundIntermediateVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesRoundIntermediateVector {
+            description:       extract_string(&obj, "description"),
+            round:             extract_int(&obj, "round").unwrap_or(0),
+            start:             hex::decode(extract_hex(&obj, "start")).unwrap_or_default(),
+            after_sub_bytes:   hex::decode(extract_hex(&obj, "afterSubBytes")).unwrap_or_default(),
+            after_shift_rows:  hex::decode(extract_hex(&obj, "afterShiftRows")).unwrap_or_default(),
+            after_mix_columns: hex::decode(extract_hex(&obj, "afterMixColumns")).unwrap_or_default(),
+            round_key:         hex::decode(extract_hex(&obj, "roundKey")).unwrap_or_default(),
+            end:               hex::decode(extract_hex(&obj, "end")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// `export const aesSboxTable: Uint8Array = new Uint8Array([0x63, 0x7c, ...]);`
+fn parse_uint8_array_literal(src: &str, export_name: &str) -> Option<Vec<u8>> {
+    let needle = format!("export const {}", export_name);
+    let start  = src.find(&needle)?;
+    // Find the `[` that opens the byte list (the second `[` after the
+    // type annotation `Uint8Array`).
+    let after_eq = start + src[start..].find('=')? + 1;
+    let lbracket = after_eq + src[after_eq..].find('[')? + 1;
+    let len      = find_matching_bracket(&src[lbracket..])?;
+    let body     = &src[lbracket..lbracket + len];
+
+    // Strip `//` line comments — aes.ts annotates each S-box row with
+    // `// row 0xN_:` headers, and a comment-leading comma-segment would
+    // otherwise eat the first byte of the following row.
+    let stripped: String = body.lines()
+        .map(|l| match l.find("//") { Some(i) => &l[..i], None => l })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let mut bytes = Vec::with_capacity(256);
+    for tok in stripped.split(',') {
+        let t = tok.trim();
+        if t.is_empty() { continue; }
+        // Hex literal `0x..` or decimal byte.
+        let v: Option<u8> = if let Some(s) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
+            u8::from_str_radix(s, 16).ok()
+        } else {
+            t.parse().ok()
+        };
+        if let Some(b) = v { bytes.push(b); }
+    }
+    if bytes.is_empty() { None } else { Some(bytes) }
+}
+
+// ──── aes_cbc.ts ────
+
+pub fn parse_aes_cbc_file(src: &str) -> (Vec<AesCbcVector>, Vec<AesCbcVector>) {
+    let s_consts = preprocess_consts(src);
+    let enc = parse_cbc_array(&s_consts, "aesCbcEncryptVectors");
+    let s_refs = preprocess_array_refs(&s_consts, "aesCbcEncryptVectors", &cbc_to_field_map(&enc));
+    let dec = parse_cbc_array(&s_refs, "aesCbcDecryptVectors");
+    (enc, dec)
+}
+
+fn parse_cbc_array(src: &str, export_name: &str) -> Vec<AesCbcVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesCbcVector {
+            description: extract_string(&obj, "description"),
+            key:         hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            iv:          hex::decode(extract_hex(&obj, "iv")).unwrap_or_default(),
+            pt:          hex::decode(extract_hex(&obj, "pt")).unwrap_or_default(),
+            ct:          hex::decode(extract_hex(&obj, "ct")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+fn cbc_to_field_map(records: &[AesCbcVector]) -> Vec<Vec<(&'static str, Vec<u8>)>> {
+    records.iter().map(|r| vec![
+        ("key",         r.key.clone()),
+        ("iv",          r.iv.clone()),
+        ("pt",          r.pt.clone()),
+        ("ct",          r.ct.clone()),
+    ]).collect()
+}
+
+// ──── aes_ctr.ts ────
+
+pub fn parse_aes_ctr_file(src: &str) -> (Vec<AesCtrVector>, Vec<AesCtrVector>) {
+    let s_consts = preprocess_consts(src);
+    let enc = parse_ctr_array(&s_consts, "aesCtrEncryptVectors");
+    let s_refs = preprocess_array_refs(&s_consts, "aesCtrEncryptVectors", &ctr_to_field_map(&enc));
+    let dec = parse_ctr_array(&s_refs, "aesCtrDecryptVectors");
+    (enc, dec)
+}
+
+fn parse_ctr_array(src: &str, export_name: &str) -> Vec<AesCtrVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesCtrVector {
+            description:     extract_string(&obj, "description"),
+            key:             hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            initial_counter: hex::decode(extract_hex(&obj, "initialCounter")).unwrap_or_default(),
+            pt:              hex::decode(extract_hex(&obj, "pt")).unwrap_or_default(),
+            ct:              hex::decode(extract_hex(&obj, "ct")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+fn ctr_to_field_map(records: &[AesCtrVector]) -> Vec<Vec<(&'static str, Vec<u8>)>> {
+    records.iter().map(|r| vec![
+        ("key",            r.key.clone()),
+        ("initialCounter", r.initial_counter.clone()),
+        ("pt",             r.pt.clone()),
+        ("ct",             r.ct.clone()),
+    ]).collect()
+}
+
+// ──── aes_gcm.ts ────
+
+pub fn parse_aes_gcm_file(src: &str) -> Vec<AesGcmVector> {
+    // No SHARED_* consts or cross-array refs in this file.
+    let Some(body) = locate_array_body(src, "aesGcmVectors") else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| AesGcmVector {
+            description: extract_string(&obj, "description"),
+            key:         hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            iv:          hex::decode(extract_hex(&obj, "iv")).unwrap_or_default(),
+            aad:         hex::decode(extract_hex(&obj, "aad")).unwrap_or_default(),
+            pt:          hex::decode(extract_hex(&obj, "pt")).unwrap_or_default(),
+            ct:          hex::decode(extract_hex(&obj, "ct")).unwrap_or_default(),
+            tag:         hex::decode(extract_hex(&obj, "tag")).unwrap_or_default(),
+        })
+        .collect()
+    // NOTE: GcmFailVector negative vectors are not present in
+    // McGrew-Viega Appendix B and would require a separate export to
+    // parse. If `aesGcmFailVectors` is ever added, this parser needs
+    // an extension.
+}
+
+// ──── shared helpers for the AES-mode parsers ────
+
+// Find `export const NAME ... = [ ... ];` and return the body between
+// the matched array brackets. Skips the type annotation's `[]`.
+fn locate_array_body<'a>(src: &'a str, export_name: &str) -> Option<&'a str> {
+    let needle = format!("export const {}:", export_name);
+    let start  = src.find(&needle)?;
+    let after_eq = start + src[start..].find('=')? + 1;
+    let lbracket = after_eq + src[after_eq..].find('[')? + 1;
+    let len      = find_matching_bracket(&src[lbracket..])?;
+    Some(&src[lbracket..lbracket + len])
+}
+
+// Walk top-level `const NAME = '...' + '...' + ...;` declarations and
+// substitute each NAME with a single quoted hex literal in the source.
+// Identifiers must be SCREAMING_SNAKE_CASE so we don't accidentally
+// rewrite normal variables. Multiple consts are processed in order.
+fn preprocess_consts(src: &str) -> String {
+    let mut out = src.to_string();
+    let mut consts: Vec<(String, String)> = Vec::new();
+
+    // Iterate over `const NAME = ` occurrences at line starts (allowing
+    // leading whitespace). Each declaration ends at the first `;` after
+    // the `=`.
+    let mut cursor = 0usize;
+    while let Some(rel) = out[cursor..].find("const ") {
+        let abs_start = cursor + rel;
+        // Require this `const` to be at line start (or preceded by
+        // whitespace only on its line) to avoid matching inside strings.
+        let line_start = out[..abs_start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let prefix = &out[line_start..abs_start];
+        if !prefix.trim().is_empty() {
+            cursor = abs_start + 6;
+            continue;
+        }
+
+        let after_const = abs_start + 6;
+        // Read the identifier.
+        let name_end = match out[after_const..].find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
+            Some(i) => after_const + i,
+            None    => break,
+        };
+        let name = out[after_const..name_end].to_string();
+        // Only screaming snake.
+        if !name.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+           || name.is_empty()
+        {
+            cursor = name_end;
+            continue;
+        }
+        // Find `=` and `;`.
+        let eq_pos = match out[name_end..].find('=') { Some(i) => name_end + i + 1, None => break };
+        let semi   = match out[eq_pos..].find(';')   { Some(i) => eq_pos + i,        None => break };
+        let rhs    = &out[eq_pos..semi];
+
+        // Concatenate every quoted fragment in the RHS.
+        let mut hex = String::new();
+        let mut in_q = false;
+        let mut chunk = String::new();
+        for ch in rhs.chars() {
+            match ch {
+                '\'' if !in_q => in_q = true,
+                '\'' if in_q  => { in_q = false; hex.push_str(&chunk); chunk.clear(); }
+                c if in_q => chunk.push(c),
+                _ => {}
+            }
+        }
+        if !hex.is_empty() {
+            consts.push((name, hex));
+        }
+        cursor = semi + 1;
+    }
+
+    // Substitute each NAME (token-bounded) with `'hex'`.
+    for (name, hex) in consts {
+        out = replace_identifier_token(&out, &name, &format!("'{}'", hex));
+    }
+    out
+}
+
+// Replace whole-identifier occurrences of `name` with `replacement`,
+// honouring identifier-character boundaries on both sides so
+// substrings inside other identifiers (or comments containing the
+// name) are not rewritten.
+fn replace_identifier_token(src: &str, name: &str, replacement: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let bytes = src.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i..].starts_with(name.as_bytes()) {
+            let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+            let after_idx = i + name.len();
+            let after_ok  = after_idx >= bytes.len() || !is_ident_char(bytes[after_idx]);
+            if before_ok && after_ok {
+                out.push_str(replacement);
+                i = after_idx;
+                continue;
+            }
+        }
+        // Push next char (must respect UTF-8 boundary).
+        let ch_len = next_utf8_len(bytes, i);
+        out.push_str(&src[i..i + ch_len]);
+        i += ch_len;
+    }
+    out
+}
+
+fn is_ident_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+fn next_utf8_len(bytes: &[u8], i: usize) -> usize {
+    let b = bytes[i];
+    if b < 0x80          { 1 }
+    else if b < 0xc0     { 1 } // continuation; shouldn't start here, but be safe
+    else if b < 0xe0     { 2 }
+    else if b < 0xf0     { 3 }
+    else                 { 4 }
+}
+
+// Replace `array_name[idx].field` references with the corresponding
+// hex literal from the supplied per-record field map.
+fn preprocess_array_refs(
+    src:        &str,
+    array_name: &str,
+    records:    &[Vec<(&'static str, Vec<u8>)>],
+) -> String {
+    let mut out = src.to_string();
+    for (idx, fields) in records.iter().enumerate() {
+        for (field, value) in fields {
+            let pat = format!("{}[{}].{}", array_name, idx, field);
+            let replacement = format!("'{}'", hex::encode(value));
+            out = out.replace(&pat, &replacement);
+        }
+    }
+    out
+}
+
 // Extract the chunks: [...] array. Each chunk object has plaintext and
 // ciphertext fields. The array body is split at top-level `},` boundaries.
 fn extract_chunks(body: &str) -> Vec<ChunkVector> {
