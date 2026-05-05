@@ -28,7 +28,9 @@
 // (NR_BUFFER) is written by `keyExpansion` and read by encrypt/decrypt at
 // the top of each call.
 //
-// Total: 136704 bytes < 3 × 64KB = 196608 (59904 bytes spare).
+// Total: 202624 bytes < 4 × 64KB = 262144 (59520 bytes spare). The 4-page
+// budget (vs the original 3 pages) comes from Phase 4a's 64 KiB
+// AAD_BUFFER for AES-GCM authenticated additional data.
 //
 // Offset    Size      Name
 // 0         32        KEY_BUFFER (sized for AES-256)
@@ -62,7 +64,32 @@
 // 136688    16        CBC_IV_BUFFER       (CBC chaining block — IV on first
 //                                          chunk, last ciphertext block on
 //                                          subsequent chunks)
-// 136704              END                 (< 196608 = 3 pages ✓)
+// 136704    16        H_BUFFER            (GCM hash subkey H = AES_ENC(K, 0^128),
+//                                          derived once per loadKey)
+// 136720    16        J0_BUFFER           (GCM pre-counter block, set per
+//                                          seal/open call)
+// 136736    16        GHASH_ACC_BUFFER    (GHASH running accumulator, evolved
+//                                          across AAD and CT blocks)
+// 136752    16        TAG_BUFFER          (computed-tag scratch on seal,
+//                                          comparison target on open)
+// 136768    16        J0E_BUFFER          (E(K, J0) pad — derived in gcmStart
+//                                          and XORed with S to form the tag)
+// 136784    16        GCM_LENS_BUFFER     (running GCM seal/open state:
+//                                          bytes [0..7]  = AAD bit-length (u64 BE),
+//                                          bytes [8..15] = PT/CT bit-length so far (u64 BE))
+// 136800    16        GCM_SCRATCH_BUFFER  (zero-padded partial block scratch
+//                                          for GHASH absorption tail; reused
+//                                          between AAD-tail, CT-tail, lengths)
+// 136816    16        GCM_CB_BUFFER       (GCTR working counter — high 96 bits
+//                                          fixed from J0, low 32 bits 32-bit
+//                                          BE incrementing per block)
+// 136832    256       GF128_TABLE_BUFFER  (16 entries × 16 bytes — 4-bit
+//                                          windowed multiply table, computed
+//                                          from H once per loadKey)
+// 137088    65536     AAD_BUFFER          (GCM additional authenticated data;
+//                                          single-shot caller writes AAD here
+//                                          before gcmStart)
+// 202624              END                 (< 262144 = 4 pages ✓)
 //
 // Why bitsliced round keys are 128 bytes/round (not 16): per Käsper-Schwabe §4.5,
 // each AES round key is pre-transposed to bitsliced form so that AddRoundKey is
@@ -103,7 +130,18 @@ export const NR_OFFSET:                   i32 = 136640;
 export const NONCE_OFFSET:                i32 = 136656;
 export const COUNTER_OFFSET:              i32 = 136672;
 export const CBC_IV_OFFSET:               i32 = 136688;
-// END = 136704 < 196608 ✓
+// ── GCM (Phase 4a) buffers ─────────────────────────────────────────────────
+export const H_OFFSET:                    i32 = 136704;
+export const J0_OFFSET:                   i32 = 136720;
+export const GHASH_ACC_OFFSET:            i32 = 136736;
+export const TAG_OFFSET:                  i32 = 136752;
+export const J0E_OFFSET:                  i32 = 136768;
+export const GCM_LENS_OFFSET:             i32 = 136784;
+export const GCM_SCRATCH_OFFSET:          i32 = 136800;
+export const GCM_CB_OFFSET:               i32 = 136816;
+export const GF128_TABLE_OFFSET:          i32 = 136832;
+export const AAD_OFFSET:                  i32 = 137088;
+// END = 137088 + 65536 = 202624 < 262144 = 4 pages ✓
 
 // Sizes referenced from wipe.ts and aes.ts.
 export const ROUND_KEYS_SIZE:           i32 = 1920;   // 15 round keys × 8 v128 (AES-256 future)
@@ -115,6 +153,16 @@ export const NR_SIZE:                   i32 = 1;      // u8 — Nr ∈ {10, 12, 
 export const NONCE_SIZE:                i32 = 16;     // CTR initial counter value
 export const COUNTER_SIZE:              i32 = 16;     // CTR working counter (128-bit LE)
 export const CBC_IV_SIZE:               i32 = 16;     // CBC chaining block
+export const H_SIZE:                    i32 = 16;     // GCM hash subkey
+export const J0_SIZE:                   i32 = 16;     // GCM pre-counter block
+export const GHASH_ACC_SIZE:            i32 = 16;     // GHASH running accumulator
+export const TAG_SIZE:                  i32 = 16;     // GCM authentication tag (always 128-bit)
+export const J0E_SIZE:                  i32 = 16;     // E(K, J0) pad
+export const GCM_LENS_SIZE:             i32 = 16;     // [aadBits 64BE | ptBits 64BE]
+export const GCM_SCRATCH_SIZE:          i32 = 16;     // partial-block tail scratch
+export const GCM_CB_SIZE:               i32 = 16;     // GCTR working counter
+export const GF128_TABLE_SIZE:          i32 = 256;    // 16 entries × 16 bytes
+export const AAD_BUFFER_SIZE:           i32 = 65536;  // 64 KiB max single-shot AAD
 
 // ── Buffer offset getters ───────────────────────────────────────────────────
 
@@ -185,6 +233,34 @@ export function getCounterOffset(): i32 {
 /** Returns the byte offset of CBC_IV_BUFFER (CBC chaining block, 16 bytes). */
 export function getCbcIvOffset(): i32 {
 	return CBC_IV_OFFSET;
+}
+/** Returns the byte offset of H_BUFFER (GCM hash subkey, 16 bytes). */
+export function getHOffset(): i32 {
+	return H_OFFSET;
+}
+/** Returns the byte offset of J0_BUFFER (GCM pre-counter block, 16 bytes). */
+export function getJ0Offset(): i32 {
+	return J0_OFFSET;
+}
+/** Returns the byte offset of GHASH_ACC_BUFFER (running GHASH accumulator, 16 bytes). */
+export function getGhashAccOffset(): i32 {
+	return GHASH_ACC_OFFSET;
+}
+/** Returns the byte offset of TAG_BUFFER (GCM authentication tag, 16 bytes). */
+export function getTagOffset(): i32 {
+	return TAG_OFFSET;
+}
+/** Returns the byte offset of GF128_TABLE_BUFFER (4-bit windowed multiply table, 256 bytes). */
+export function getGf128TableOffset(): i32 {
+	return GF128_TABLE_OFFSET;
+}
+/** Returns the byte offset of AAD_BUFFER (GCM additional authenticated data, 65536 bytes). */
+export function getAadOffset(): i32 {
+	return AAD_OFFSET;
+}
+/** Returns the maximum AAD buffer size in bytes (65536). */
+export function getAadBufferSize(): i32 {
+	return AAD_BUFFER_SIZE;
 }
 /** Returns the chunk buffer size in bytes (65536). */
 export function getChunkSize(): i32 {

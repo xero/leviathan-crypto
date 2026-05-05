@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 1993                        | All pass |
+| Unit | Vitest     | 2038                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2287**                    | All pass |
+|      | **Total**  | **2332**                    | All pass |
 
 ---
 
@@ -99,6 +99,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `aes/aes_cbc_mmt.test.ts`                     | AES-128/192/256 CBC Multi-block Message Test (AESAVS §6.3): 3 NIST CAVP `aes_CBCMMT*.rsp` files, 10 enc + 10 dec vectors per file, plaintext lengths 1–10 blocks                                                                              | 60 vectors, 9 tests    | Gate 9              |
 | `aes/aes_cbc_mct.test.ts`                     | AES-128/192/256 CBC Monte Carlo Test (AESAVS §6.4.2): 3 NIST CAVP `aes_CBCMCT*.rsp` files, 100 enc + 100 dec chains per file, 1000 inner iterations per chain. Inner loop uses the §6.4.2 chain rule: `PT[j+1] = CT[j-1]` (encrypt) / `CT[j+1] = PT[j-1]` (decrypt); next-chain seed is the **penultimate** output, not the final | 600 chains × 1000 iter, 9 tests | Gate 10    |
 | `aes/aes_ctr.test.ts`                         | AES-128/192/256 CTR mode (SP 800-38A §6.5, Appendix B.1): 6 SP 800-38A §F.5 worked-example vectors (3 keysizes × encrypt/decrypt), round-trip check, scalar/SIMD consistency across batch boundaries (1, 7, 8, 9, 16, 17, 128, 129 blocks), partial-block tail. Counter direction: 128-bit big-endian | 16 tests               | Gate 11             |
+| `aes/aes_ghash.test.ts`                       | Standalone GHASH validation across all 18 McGrew-Viega Appendix B test cases (AES-128/192/256, 96-bit IV fast path and 64-/480-bit IV slow path). Drives loadKey → H derivation → 4-bit-windowed GF(2^128) multiply table → ghashStart/AbsorbWithLen directly; final tag = E(K, J0) XOR S compared with the published Tag. Isolates the GHASH primitive from full GCM | 18 tests               | Gate 12             |
+| `aes/aes_gcm_seal.test.ts`                    | AESGCM seal direction (SP 800-38D §7.1): 18 McGrew-Viega Appendix B vectors plus the three NIST CAVP `aes_gcmEncryptExtIV{128,192,256}.rsp` files (~23k vectors, 128-bit-tag subset). Output `ct\|\|tag` matched byte-for-byte against published expected values | 18 + ~3k vectors, 21 tests | Gate 13             |
+| `aes/aes_gcm_open.test.ts`                    | AESGCM open direction (SP 800-38D §7.2): three NIST CAVP `aes_gcmDecrypt{128,192,256}.rsp` files (128-bit-tag subset). Both passing vectors (decrypt to published PT) and FAIL vectors (must throw `RangeError('authentication failed')` on every tamper of tag/CT/AAD/IV/key). Verify-before-decrypt path | ~6k vectors, 6 tests | Gate 14             |
 | `fortuna.test.ts`                             | Fortuna CSPRNG: `Fortuna.create()`, `get()` (always Uint8Array), entropy threshold, `stop()` disposes instance, `SerpentCtr` exclusivity coexistence, `stop()` exception-safety when serpent module is held by `SerpentCtr` (disposed flag set, key material wiped, throw surfaced). All tests run with `SerpentGenerator` + `SHA256Hash` to preserve historical coverage. | 11 tests               | —                   |
 | `fortuna/wipe-lifecycle.test.ts`              | Wipe-before-reassign discipline in `pseudoRandomData`, `reseed`, `addRandomEvent`, and pool reset (4 tests); `stop()` wipes `genKey` + `genCnt` + every pool-hash chain and calls `wipeBuffers()` on every WASM module the chosen generator and hash touched (3 tests) | 7 tests                | —                   |
 | `fortuna/spec-conformance.test.ts`            | Fortuna pool-selection conformance with Practical Cryptography §9.5.5: pool P_i consumed iff 2^i divides `reseedCnt`. Walks reseeds 1..16, asserts the consumed-pool set matches the divisibility rule per reseed. Includes `pool 0 consumed on every reseed` regression for the F-1 fix | 2 tests                | —                   |

@@ -157,7 +157,8 @@ export class AES {
 	}
 }
 
-// ── CBC + CTR mode wrappers ─────────────────────────────────────────────────
+// ── CBC + CTR + GCM mode wrappers ───────────────────────────────────────────
 
 export { AESCbc } from './aes-cbc.js';
 export { AESCtr } from './aes-ctr.js';
+export { AESGCM } from './aes-gcm.js';

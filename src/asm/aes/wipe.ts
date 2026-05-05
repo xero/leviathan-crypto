@@ -39,6 +39,16 @@ import {
 	NONCE_OFFSET, NONCE_SIZE,
 	COUNTER_OFFSET, COUNTER_SIZE,
 	CBC_IV_OFFSET, CBC_IV_SIZE,
+	H_OFFSET, H_SIZE,
+	J0_OFFSET, J0_SIZE,
+	GHASH_ACC_OFFSET, GHASH_ACC_SIZE,
+	TAG_OFFSET, TAG_SIZE,
+	J0E_OFFSET, J0E_SIZE,
+	GCM_LENS_OFFSET, GCM_LENS_SIZE,
+	GCM_SCRATCH_OFFSET, GCM_SCRATCH_SIZE,
+	GCM_CB_OFFSET, GCM_CB_SIZE,
+	GF128_TABLE_OFFSET, GF128_TABLE_SIZE,
+	AAD_OFFSET, AAD_BUFFER_SIZE,
 } from './buffers'
 
 /**
@@ -62,4 +72,14 @@ export function wipeBuffers(): void {
 	memory.fill(NONCE_OFFSET,                0, NONCE_SIZE);
 	memory.fill(COUNTER_OFFSET,              0, COUNTER_SIZE);
 	memory.fill(CBC_IV_OFFSET,               0, CBC_IV_SIZE);
+	memory.fill(H_OFFSET,                    0, H_SIZE);
+	memory.fill(J0_OFFSET,                   0, J0_SIZE);
+	memory.fill(GHASH_ACC_OFFSET,            0, GHASH_ACC_SIZE);
+	memory.fill(TAG_OFFSET,                  0, TAG_SIZE);
+	memory.fill(J0E_OFFSET,                  0, J0E_SIZE);
+	memory.fill(GCM_LENS_OFFSET,             0, GCM_LENS_SIZE);
+	memory.fill(GCM_SCRATCH_OFFSET,          0, GCM_SCRATCH_SIZE);
+	memory.fill(GCM_CB_OFFSET,               0, GCM_CB_SIZE);
+	memory.fill(GF128_TABLE_OFFSET,          0, GF128_TABLE_SIZE);
+	memory.fill(AAD_OFFSET,                  0, AAD_BUFFER_SIZE);
 }

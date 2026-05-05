@@ -45,6 +45,13 @@ export {
 	getNonceOffset,
 	getCounterOffset,
 	getCbcIvOffset,
+	getHOffset,
+	getJ0Offset,
+	getGhashAccOffset,
+	getTagOffset,
+	getGf128TableOffset,
+	getAadOffset,
+	getAadBufferSize,
 	getMemoryPages,
 } from './buffers'
 
@@ -87,6 +94,31 @@ export {
 	encryptChunk_simd,
 	decryptChunk_simd,
 } from './ctr_simd'
+
+// ── GCM mode (gcm.ts, ghash.ts, gf128.ts) ──────────────────────────────────
+
+export {
+	gcmStart,
+	gcmEncryptChunk,
+	gcmAbsorbCtChunk,
+	gcmDecryptChunk,
+	gcmResetCtrToJ0Plus1,
+	gcmFinalize,
+	gcmCompareTag,
+} from './gcm'
+
+// Test-only exports for Gate 12 (standalone GHASH validation).
+export {
+	gf128InitTable,
+	gf128MulH,
+} from './gf128'
+
+export {
+	ghashStart,
+	ghashAbsorbBlock,
+	ghashAbsorbWithLen,
+	ghashFinalize,
+} from './ghash'
 
 // ── Buffer wipe (wipe.ts) ───────────────────────────────────────────────────
 
