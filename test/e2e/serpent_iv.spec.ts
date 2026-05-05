@@ -69,6 +69,7 @@ async function loadWasm() {
 }
 function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) }
 function toHex(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') }
+function rev(b)     { var n = b.length, o = new Uint8Array(n); for (var i = 0; i < n; i++) o[i] = b[n - 1 - i]; return o }
 `;
 
 test.beforeEach(async ({ page }) => {
@@ -81,14 +82,14 @@ test('Intermediate values — final CT for all 3 key sizes', async ({ page }) =>
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const { key, pt, ct } of cases) {
-			const k = fromHex(key);
+			const k = rev(fromHex(key));
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push(`loadKey failed len=${k.length}`); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(pt), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(rev(fromHex(pt)), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
-			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
+			const got = toHex(rev(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16)));
 			if (got !== ct) errs.push(`key=${key.slice(0, 8)}... exp=${ct} got=${got}`);
 		}
 		return errs;

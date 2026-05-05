@@ -123,5 +123,7 @@ declare function xchachaEncrypt(
 ): Uint8Array;
 
 // ── Serpent-Nessie spec ────────────────────────────────────────────
-declare function nessieBytes(hex: string): string;
 declare function parseNessie(text: string): { key: string; pt: string; ct: string }[];
+
+// ── Serpent-KAT/IV/MonteCarlo specs (floppy-format byte reverser) ──
+declare function rev(b: Uint8Array): Uint8Array;

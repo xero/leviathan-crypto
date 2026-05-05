@@ -29,7 +29,7 @@
  * usage:
  *   bun run scripts/gen-seal-vectors.ts                    # default --cipher all
  *   bun run scripts/gen-seal-vectors.ts --cipher xchacha   # writes seal_xchacha_v3.ts only
- *   bun run scripts/gen-seal-vectors.ts --cipher serpent   # writes seal_serpent_v2.ts only
+ *   bun run scripts/gen-seal-vectors.ts --cipher serpent   # writes seal_serpent_v3.ts only
  */
 import {
 	init, SerpentCbc, HMAC_SHA256, HKDF_SHA256,
@@ -75,7 +75,7 @@ const hmac = new HMAC_SHA256();
 const x    = getInstance('chacha20').exports as unknown as ChaChaExports;
 
 const xcInfo = new TextEncoder().encode('xchacha20-sealstream-v3');
-const scInfo = new TextEncoder().encode('serpent-sealstream-v2');
+const scInfo = new TextEncoder().encode('serpent-sealstream-v3');
 
 function concat(...arrays: Uint8Array[]): Uint8Array {
 	let len = 0;
@@ -218,7 +218,7 @@ export const xc_empty: SealXChachaV3Vector = {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Serpent path — v2 wire format (unchanged)
+// Serpent path — v3 wire format
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildSerpent(): string {
@@ -260,7 +260,7 @@ function buildSerpent(): string {
 		const sc1_tagInput = concat(sc1_cn0, u32be(0), sc1_cbcCt);
 		const sc1_tag      = hmac.hash(sc1_macKey, sc1_tagInput);
 		assert(hex(sc1_blob) === hex(concat(sc1_preamble, sc1_cbcCt, sc1_tag)), 'SC1 verify');
-		console.log('SC1 (serpent v2): verified');
+		console.log('SC1 (serpent v3): verified');
 
 		const sce_derived  = hkdf.derive(sce_key, sce_headerNonce, scInfo, 96);
 		const sce_encKey   = sce_derived.subarray(0, 32);
@@ -272,7 +272,7 @@ function buildSerpent(): string {
 		const sce_tagInput = concat(sce_cn0, u32be(0), sce_cbcCt);
 		const sce_tag      = hmac.hash(sce_macKey, sce_tagInput);
 		assert(hex(sce_blob) === hex(concat(sce_preamble, sce_cbcCt, sce_tag)), 'SC_EMPTY verify');
-		console.log('SC_EMPTY (serpent v2): verified');
+		console.log('SC_EMPTY (serpent v3): verified');
 	} finally {
 		cbc.dispose();
 	}
@@ -281,7 +281,7 @@ function buildSerpent(): string {
 // Seal Serpent v2 KAT vectors — single-chunk STREAM construction.
 //
 // SELF-GENERATED — no external authority for these wire formats.
-// Serpent v2 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
+// Serpent v3 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
 // authentication is collision-resistant under SHA-256, which is
 // key-committing — no separate commitment is needed in the preamble.
 // Generated with fixed nonce seams, then independently verified against
@@ -289,7 +289,7 @@ function buildSerpent(): string {
 // Vectors serve as regression trip-wires for Seal wire format stability.
 // Audit status: SELF-VERIFIED
 
-export interface SealSerpentV2Vector {
+export interface SealSerpentV3Vector {
 \tdescription: string;
 \tkey: string;          // hex, 32 bytes
 \tnonce: string;        // hex, 16 bytes
@@ -298,8 +298,8 @@ export interface SealSerpentV2Vector {
 \tblob: string;         // hex, full output = preamble || ciphertext
 }
 
-export const sc1: SealSerpentV2Vector = {
-\tdescription: 'SC1: serpent v2, 0x03 key, 0xcc nonce, 100-byte 0xef plaintext',
+export const sc1: SealSerpentV3Vector = {
+\tdescription: 'SC1: serpent v3, 0x03 key, 0xcc nonce, 100-byte 0xef plaintext',
 \tkey: '${hex(sc1_key)}',
 \tnonce: '${hex(sc1_nonce)}',
 \tplaintext:
@@ -309,8 +309,8 @@ export const sc1: SealSerpentV2Vector = {
 \t\t${splitHex(hex(sc1_blob))},
 };
 
-export const sc_empty: SealSerpentV2Vector = {
-\tdescription: 'SC_EMPTY: serpent v2, 0x04 key, 0xdd nonce, empty plaintext',
+export const sc_empty: SealSerpentV3Vector = {
+\tdescription: 'SC_EMPTY: serpent v3, 0x04 key, 0xdd nonce, empty plaintext',
 \tkey: '${hex(sce_key)}',
 \tnonce: '${hex(sce_nonce)}',
 \tplaintext: '',
@@ -332,8 +332,8 @@ if (cipher === 'xchacha' || cipher === 'all') {
 }
 if (cipher === 'serpent' || cipher === 'all') {
 	const file = buildSerpent();
-	writeFileSync('test/vectors/seal_serpent_v2.ts', file);
-	console.log('Written test/vectors/seal_serpent_v2.ts');
+	writeFileSync('test/vectors/seal_serpent_v3.ts', file);
+	console.log('Written test/vectors/seal_serpent_v3.ts');
 }
 
 hmac.dispose(); hkdf.dispose();

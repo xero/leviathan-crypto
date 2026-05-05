@@ -8,10 +8,10 @@
 //     - HChaCha20 hand-rolled here from RFC 8439 §2.3
 //     - ChaCha20-Poly1305 from RustCrypto's `chacha20poly1305` crate
 //
-//   Serpent v2:
+//   Serpent v3:
 //     - HKDF-SHA-256 from RustCrypto's `hkdf` + `sha2` crates
 //     - HMAC-SHA-256 from RustCrypto's `hmac` crate (per-chunk IV + tag)
-//     - Serpent block cipher from RustCrypto's `serpent` crate (NESSIE-correct)
+//     - Serpent block cipher from RustCrypto's `serpent` crate (NIST natural byte order, matches v3 leviathan-crypto)
 //     - CBC chaining + PKCS#7 padding hand-rolled here
 //
 // Different language, different libraries, different person who wrote the
@@ -22,7 +22,7 @@
 // Usage:
 //   cargo run --release                                       # all ciphers, all targets
 //   cargo run --release -- --cipher xchacha                   # XChaCha20 v3 only (seal + sealstream)
-//   cargo run --release -- --cipher serpent --target seal     # Serpent v2 single-chunk only
+//   cargo run --release -- --cipher serpent --target seal     # Serpent v3 single-chunk only
 //
 // Vector paths are computed relative to CARGO_MANIFEST_DIR.
 
@@ -134,8 +134,8 @@ fn run_xchacha_sealstream(use_color: bool) -> bool {
 }
 
 fn run_serpent_seal(use_color: bool) -> bool {
-    let path = vector_path("seal_serpent_v2.ts");
-    print_section("Serpent v2 — seal (single-chunk)");
+    let path = vector_path("seal_serpent_v3.ts");
+    print_section("Serpent v3 — seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -145,7 +145,7 @@ fn run_serpent_seal(use_color: bool) -> bool {
             return false;
         }
     };
-    let vectors = parse::parse_seal_file(&src, "SealSerpentV2Vector");
+    let vectors = parse::parse_seal_file(&src, "SealSerpentV3Vector");
     println!("Parsed {} vectors\n", vectors.len());
     if vectors.is_empty() {
         eprintln!("{}", colorize(use_color, RED, "✗ no vectors parsed"));
@@ -163,8 +163,8 @@ fn run_serpent_seal(use_color: bool) -> bool {
 }
 
 fn run_serpent_sealstream(use_color: bool) -> bool {
-    let path = vector_path("sealstream_serpent_v2.ts");
-    print_section("Serpent v2 — sealstream (multi-chunk)");
+    let path = vector_path("sealstream_serpent_v3.ts");
+    print_section("Serpent v3 — sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -174,7 +174,7 @@ fn run_serpent_sealstream(use_color: bool) -> bool {
             return false;
         }
     };
-    let vectors = parse::parse_sealstream_file(&src, "SealStreamSerpentV2Vector");
+    let vectors = parse::parse_sealstream_file(&src, "SealStreamSerpentV3Vector");
     println!("Parsed {} vectors\n", vectors.len());
     if vectors.is_empty() {
         eprintln!("{}", colorize(use_color, RED, "✗ no vectors parsed"));

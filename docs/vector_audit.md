@@ -40,13 +40,13 @@ The Rust verifier at `scripts/verify-vectors/` re-derives every byte of every Ti
 
 The verifier independently computes the 32-byte key commitment from HKDF bytes 32..64 and asserts it matches the pinned preamble, then encrypts each chunk with the derived subkey and compares the wire bytes. Multi-chunk path verifies per-chunk counter increment, TAG_DATA versus TAG_FINAL flag handling, and framed-mode `u32be` length prefixes.
 
-**Serpent v2 seal and sealstream.** Verified against:
+**Serpent v3 seal and sealstream.** Verified against:
 - HKDF-SHA-256 from RustCrypto's `hkdf` + `sha2` crates (96-byte output).
 - HMAC-SHA-256 from RustCrypto's `hmac` crate, used both for per-chunk IV derivation and for chunk authentication.
 - Serpent block cipher from RustCrypto's `serpent = "0.6"` crate, separately confirmed byte-correct against NESSIE Set 1 vector#0 across all three key sizes (128/192/256).
 - CBC chaining and PKCS#7 padding hand-rolled from spec.
 
-leviathan-crypto's Serpent implementation uses the AES-submission "floppy" byte-order convention internally; RustCrypto's `serpent` crate uses the NESSIE convention. The two are reachable from each other by reversing all bytes of the key and each block (as documented in `test/unit/serpent/vector_parser.ts`). The verifier applies this transform at the block-cipher boundary, leaving CBC chaining math unaffected.
+Both leviathan-crypto v3 and RustCrypto's `serpent` crate use NIST natural byte order at their public APIs. The verifier feeds keys, IVs, and plaintext blocks through unchanged; no byte-reversal dance applies at the block-cipher boundary. v2 used the AES-submission floppy byte order at its public API and required a reversal at this boundary; v3 removes that asymmetry.
 
 **The combined invariant.** When both verifiers (XChaCha20 and Serpent) emit byte-identical output to the pinned KATs, the wire format is reproducible across two independent crypto stacks. RustCrypto and leviathan-crypto have no shared source code, no shared build system, and no shared person who wrote them. A bug in either stack that affects wire bytes would surface as a verifier mismatch.
 
@@ -66,7 +66,7 @@ Spelling out the limits of the audit is part of the audit.
 
 **Tier 3 vectors (ratchet, fortuna) are not covered.** No external reference exists to verify against; internal consistency tests in the unit suite cover the available correctness properties.
 
-**KEM-wrapped seal blobs are not yet covered.** Symmetric XChaCha20 v3 and Serpent v2 are covered. KyberSuite blobs add an ML-KEM ciphertext to the preamble whose contents are deterministic from a seeded RNG; verifying them in Rust would require pulling RustCrypto's `ml-kem` crate in (currently pre-1.0). NIST ACVP covers the KEM piece independently.
+**KEM-wrapped seal blobs are not yet covered.** Symmetric XChaCha20 v3 and Serpent v3 are covered. KyberSuite blobs add an ML-KEM ciphertext to the preamble whose contents are deterministic from a seeded RNG; verifying them in Rust would require pulling RustCrypto's `ml-kem` crate in (currently pre-1.0). NIST ACVP covers the KEM piece independently.
 
 ---
 
@@ -97,9 +97,9 @@ Tier 2 self-generated files. These are produced by the generator scripts and pin
 | File | Generator | Verifier coverage |
 |---|---|---|
 | `seal_xchacha_v3.ts` | `scripts/gen-seal-vectors.ts --cipher xchacha` | full |
-| `seal_serpent_v2.ts` | `scripts/gen-seal-vectors.ts --cipher serpent` | full |
+| `seal_serpent_v3.ts` | `scripts/gen-seal-vectors.ts --cipher serpent` | full |
 | `sealstream_xchacha_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher xchacha` | full |
-| `sealstream_serpent_v2.ts` | `scripts/gen-sealstream-vectors.ts --cipher serpent` | full |
+| `sealstream_serpent_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher serpent` | full |
 
 If a Tier 1 file needs to be refreshed (upstream errata, format change), download the new file, replace the local copy, regenerate `SHA256SUMS`, update the "Last fetched" date in this table, and confirm the relevant unit-test job in `.github/workflows/` still passes.
 

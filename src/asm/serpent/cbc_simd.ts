@@ -24,8 +24,8 @@
 // SIMD-accelerated Serpent CBC decrypt: 4 blocks decrypted simultaneously.
 // CBC encrypt stays scalar (sequential dependency — not parallelizable).
 //
-// After decryptBlock_simd_4x(), output registers are [4,1,3,2]:
-//   r[4] → bytes 0..3, r[1] → bytes 4..7, r[3] → bytes 8..11, r[2] → bytes 12..15
+// After decryptBlock_simd_4x(), output registers are [2,3,1,4]:
+//   r[2] → bytes 0..3, r[3] → bytes 4..7, r[1] → bytes 8..11, r[4] → bytes 12..15
 
 import {
 	CBC_IV_OFFSET,
@@ -40,51 +40,47 @@ import {
 import { decryptBlock_simd_4x } from './serpent_simd'
 import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 
-// ── Byte-reversal word load ─────────────────────────────────────────────────
-// Serpent internal format: r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0]
+// ── Little-endian word load (NIST natural byte order) ──────────────────────
+// Serpent internal format: r[i] = LE(bytes[4i..4i+3])
 
 /**
  * Read Serpent working-register word 0 from a 16-byte block at `base`.
- * Applies Serpent byte-reversal: bytes[15..12] assembled as big-endian i32.
  * @internal
  * @param base  byte offset of the 16-byte block in WASM linear memory
- * @returns     word 0 in Serpent internal format
+ * @returns     LE-loaded u32 from bytes[0..3]
  */
 @inline function w0(base: i32): i32 {
-	return i32(load<u8>(base + 15)) | (i32(load<u8>(base + 14)) << 8) | (i32(load<u8>(base + 13)) << 16) | (i32(load<u8>(base + 12)) << 24)
+	return i32(load<u8>(base +  0)) | (i32(load<u8>(base +  1)) << 8) | (i32(load<u8>(base +  2)) << 16) | (i32(load<u8>(base +  3)) << 24)
 }
 
 /**
  * Read Serpent working-register word 1 from a 16-byte block at `base`.
- * Applies Serpent byte-reversal: bytes[11..8] assembled as big-endian i32.
  * @internal
  * @param base  byte offset of the 16-byte block in WASM linear memory
- * @returns     word 1 in Serpent internal format
+ * @returns     LE-loaded u32 from bytes[4..7]
  */
 @inline function w1(base: i32): i32 {
-	return i32(load<u8>(base + 11)) | (i32(load<u8>(base + 10)) << 8) | (i32(load<u8>(base +  9)) << 16) | (i32(load<u8>(base +  8)) << 24)
+	return i32(load<u8>(base +  4)) | (i32(load<u8>(base +  5)) << 8) | (i32(load<u8>(base +  6)) << 16) | (i32(load<u8>(base +  7)) << 24)
 }
 
 /**
  * Read Serpent working-register word 2 from a 16-byte block at `base`.
- * Applies Serpent byte-reversal: bytes[7..4] assembled as big-endian i32.
  * @internal
  * @param base  byte offset of the 16-byte block in WASM linear memory
- * @returns     word 2 in Serpent internal format
+ * @returns     LE-loaded u32 from bytes[8..11]
  */
 @inline function w2(base: i32): i32 {
-	return i32(load<u8>(base +  7)) | (i32(load<u8>(base +  6)) << 8) | (i32(load<u8>(base +  5)) << 16) | (i32(load<u8>(base +  4)) << 24)
+	return i32(load<u8>(base +  8)) | (i32(load<u8>(base +  9)) << 8) | (i32(load<u8>(base + 10)) << 16) | (i32(load<u8>(base + 11)) << 24)
 }
 
 /**
  * Read Serpent working-register word 3 from a 16-byte block at `base`.
- * Applies Serpent byte-reversal: bytes[3..0] assembled as big-endian i32.
  * @internal
  * @param base  byte offset of the 16-byte block in WASM linear memory
- * @returns     word 3 in Serpent internal format
+ * @returns     LE-loaded u32 from bytes[12..15]
  */
 @inline function w3(base: i32): i32 {
-	return i32(load<u8>(base +  3)) | (i32(load<u8>(base +  2)) << 8) | (i32(load<u8>(base +  1)) << 16) | (i32(load<u8>(base +  0)) << 24)
+	return i32(load<u8>(base + 12)) | (i32(load<u8>(base + 13)) << 8) | (i32(load<u8>(base + 14)) << 16) | (i32(load<u8>(base + 15)) << 24)
 }
 
 // ── Load 4 ciphertext blocks into SIMD working registers ────────────────────
@@ -112,32 +108,33 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 
 /**
  * Write one decrypted CBC block to plaintext memory, XORing with the chaining block.
- * Decryption output slot layout: r[4]→bytes[0..3], r[1]→[4..7], r[3]→[8..11], r[2]→[12..15].
+ * Decryption output slot layout: r[2]→bytes[0..3], r[3]→[4..7], r[1]→[8..11], r[4]→[12..15].
+ * Each word is stored little-endian (NIST natural byte order).
  * @internal
  * @param ptBase    byte offset of the plaintext destination in WASM linear memory
  * @param chainBase byte offset of the 16-byte chaining block (IV or previous ciphertext)
- * @param rw4       decrypted word from register slot 4 (bytes 0..3)
- * @param rw1       decrypted word from register slot 1 (bytes 4..7)
- * @param rw3       decrypted word from register slot 3 (bytes 8..11)
- * @param rw2       decrypted word from register slot 2 (bytes 12..15)
+ * @param rw2       decrypted word from register slot 2 (bytes 0..3)
+ * @param rw3       decrypted word from register slot 3 (bytes 4..7)
+ * @param rw1       decrypted word from register slot 1 (bytes 8..11)
+ * @param rw4       decrypted word from register slot 4 (bytes 12..15)
  */
-@inline function writeDecryptedBlock(ptBase: i32, chainBase: i32, rw4: i32, rw1: i32, rw3: i32, rw2: i32): void {
-	store<u8>(ptBase +  0, u8(rw4 >>> 24) ^ load<u8>(chainBase +  0))
-	store<u8>(ptBase +  1, u8(rw4 >>> 16) ^ load<u8>(chainBase +  1))
-	store<u8>(ptBase +  2, u8(rw4 >>>  8) ^ load<u8>(chainBase +  2))
-	store<u8>(ptBase +  3, u8(rw4       ) ^ load<u8>(chainBase +  3))
-	store<u8>(ptBase +  4, u8(rw1 >>> 24) ^ load<u8>(chainBase +  4))
-	store<u8>(ptBase +  5, u8(rw1 >>> 16) ^ load<u8>(chainBase +  5))
-	store<u8>(ptBase +  6, u8(rw1 >>>  8) ^ load<u8>(chainBase +  6))
-	store<u8>(ptBase +  7, u8(rw1       ) ^ load<u8>(chainBase +  7))
-	store<u8>(ptBase +  8, u8(rw3 >>> 24) ^ load<u8>(chainBase +  8))
-	store<u8>(ptBase +  9, u8(rw3 >>> 16) ^ load<u8>(chainBase +  9))
-	store<u8>(ptBase + 10, u8(rw3 >>>  8) ^ load<u8>(chainBase + 10))
-	store<u8>(ptBase + 11, u8(rw3       ) ^ load<u8>(chainBase + 11))
-	store<u8>(ptBase + 12, u8(rw2 >>> 24) ^ load<u8>(chainBase + 12))
-	store<u8>(ptBase + 13, u8(rw2 >>> 16) ^ load<u8>(chainBase + 13))
-	store<u8>(ptBase + 14, u8(rw2 >>>  8) ^ load<u8>(chainBase + 14))
-	store<u8>(ptBase + 15, u8(rw2       ) ^ load<u8>(chainBase + 15))
+@inline function writeDecryptedBlock(ptBase: i32, chainBase: i32, rw2: i32, rw3: i32, rw1: i32, rw4: i32): void {
+	store<u8>(ptBase +  0, u8(rw2       ) ^ load<u8>(chainBase +  0))
+	store<u8>(ptBase +  1, u8(rw2 >>>  8) ^ load<u8>(chainBase +  1))
+	store<u8>(ptBase +  2, u8(rw2 >>> 16) ^ load<u8>(chainBase +  2))
+	store<u8>(ptBase +  3, u8(rw2 >>> 24) ^ load<u8>(chainBase +  3))
+	store<u8>(ptBase +  4, u8(rw3       ) ^ load<u8>(chainBase +  4))
+	store<u8>(ptBase +  5, u8(rw3 >>>  8) ^ load<u8>(chainBase +  5))
+	store<u8>(ptBase +  6, u8(rw3 >>> 16) ^ load<u8>(chainBase +  6))
+	store<u8>(ptBase +  7, u8(rw3 >>> 24) ^ load<u8>(chainBase +  7))
+	store<u8>(ptBase +  8, u8(rw1       ) ^ load<u8>(chainBase +  8))
+	store<u8>(ptBase +  9, u8(rw1 >>>  8) ^ load<u8>(chainBase +  9))
+	store<u8>(ptBase + 10, u8(rw1 >>> 16) ^ load<u8>(chainBase + 10))
+	store<u8>(ptBase + 11, u8(rw1 >>> 24) ^ load<u8>(chainBase + 11))
+	store<u8>(ptBase + 12, u8(rw4       ) ^ load<u8>(chainBase + 12))
+	store<u8>(ptBase + 13, u8(rw4 >>>  8) ^ load<u8>(chainBase + 13))
+	store<u8>(ptBase + 14, u8(rw4 >>> 16) ^ load<u8>(chainBase + 14))
+	store<u8>(ptBase + 15, u8(rw4 >>> 24) ^ load<u8>(chainBase + 15))
 }
 
 // ── Deinterleave 4 decrypted blocks with CBC chaining XOR ───────────────────
@@ -151,33 +148,33 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
  * @param processed  byte offset into the current chunk (marks start of this 4-block group)
  */
 @inline function deinterleaveDecrypt4x(processed: i32): void {
-	const r4 = v128.load(SIMD_WORK_OFFSET + 4 * 16)
-	const r1 = v128.load(SIMD_WORK_OFFSET + 1 * 16)
-	const r3 = v128.load(SIMD_WORK_OFFSET + 3 * 16)
 	const r2 = v128.load(SIMD_WORK_OFFSET + 2 * 16)
+	const r3 = v128.load(SIMD_WORK_OFFSET + 3 * 16)
+	const r1 = v128.load(SIMD_WORK_OFFSET + 1 * 16)
+	const r4 = v128.load(SIMD_WORK_OFFSET + 4 * 16)
 
 	const ptBase = CHUNK_PT_OFFSET + processed
 	const ctBase = CHUNK_CT_OFFSET + processed
 
 	// Block 0: chain = CBC_IV_OFFSET
 	writeDecryptedBlock(ptBase, CBC_IV_OFFSET,
-		i32x4.extract_lane(r4, 0), i32x4.extract_lane(r1, 0),
-		i32x4.extract_lane(r3, 0), i32x4.extract_lane(r2, 0))
+		i32x4.extract_lane(r2, 0), i32x4.extract_lane(r3, 0),
+		i32x4.extract_lane(r1, 0), i32x4.extract_lane(r4, 0))
 
 	// Block 1: chain = CT[n+0]
 	writeDecryptedBlock(ptBase + 16, ctBase,
-		i32x4.extract_lane(r4, 1), i32x4.extract_lane(r1, 1),
-		i32x4.extract_lane(r3, 1), i32x4.extract_lane(r2, 1))
+		i32x4.extract_lane(r2, 1), i32x4.extract_lane(r3, 1),
+		i32x4.extract_lane(r1, 1), i32x4.extract_lane(r4, 1))
 
 	// Block 2: chain = CT[n+1]
 	writeDecryptedBlock(ptBase + 32, ctBase + 16,
-		i32x4.extract_lane(r4, 2), i32x4.extract_lane(r1, 2),
-		i32x4.extract_lane(r3, 2), i32x4.extract_lane(r2, 2))
+		i32x4.extract_lane(r2, 2), i32x4.extract_lane(r3, 2),
+		i32x4.extract_lane(r1, 2), i32x4.extract_lane(r4, 2))
 
 	// Block 3: chain = CT[n+2]
 	writeDecryptedBlock(ptBase + 48, ctBase + 32,
-		i32x4.extract_lane(r4, 3), i32x4.extract_lane(r1, 3),
-		i32x4.extract_lane(r3, 3), i32x4.extract_lane(r2, 3))
+		i32x4.extract_lane(r2, 3), i32x4.extract_lane(r3, 3),
+		i32x4.extract_lane(r1, 3), i32x4.extract_lane(r4, 3))
 
 	// Update chaining block to CT[n+3] — the last ciphertext in this group
 	memory.copy(CBC_IV_OFFSET, ctBase + 48, 16)

@@ -56,7 +56,8 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 
 /**
  * Load 4 consecutive counter values into SIMD working registers at SIMD_WORK_OFFSET.
- * Applies Serpent byte-reversal: r[0]=bytes[15..12], r[1]=[11..8], r[2]=[7..4], r[3]=[3..0].
+ * Loads each block as 4 little-endian u32 words in NIST natural byte order:
+ * r[0]=LE(bytes[0..3]), r[1]=LE(bytes[4..7]), r[2]=LE(bytes[8..11]), r[3]=LE(bytes[12..15]).
  * Each v128 register w holds lane[k] = word w of block k (k = 0..3).
  * Advances the counter by 4 as a side effect.
  * @internal
@@ -65,41 +66,42 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	// Save base counter
 	const c0 = COUNTER_OFFSET
 
-	// Helper: read 4 bytes from counter at offset o as Serpent-internal word (big-endian reversal)
-	// w(o) = byte[o+3] | (byte[o+2]<<8) | (byte[o+1]<<16) | (byte[o]<<24)
+	// Helper: read 4 bytes from counter at offset o as Serpent-internal word
+	// (NIST natural byte order — little-endian load):
+	// w(o) = byte[o] | (byte[o+1]<<8) | (byte[o+2]<<16) | (byte[o+3]<<24)
 
 	// We need 4 counter values: ctr+0, ctr+1, ctr+2, ctr+3
 	// Build words for each block, interleave into v128 registers
 
 	// Block 0: current counter
-	const b0w0 = i32(load<u8>(c0 + 15)) | (i32(load<u8>(c0 + 14)) << 8) | (i32(load<u8>(c0 + 13)) << 16) | (i32(load<u8>(c0 + 12)) << 24)
-	const b0w1 = i32(load<u8>(c0 + 11)) | (i32(load<u8>(c0 + 10)) << 8) | (i32(load<u8>(c0 +  9)) << 16) | (i32(load<u8>(c0 +  8)) << 24)
-	const b0w2 = i32(load<u8>(c0 +  7)) | (i32(load<u8>(c0 +  6)) << 8) | (i32(load<u8>(c0 +  5)) << 16) | (i32(load<u8>(c0 +  4)) << 24)
-	const b0w3 = i32(load<u8>(c0 +  3)) | (i32(load<u8>(c0 +  2)) << 8) | (i32(load<u8>(c0 +  1)) << 16) | (i32(load<u8>(c0 +  0)) << 24)
+	const b0w0 = i32(load<u8>(c0 +  0)) | (i32(load<u8>(c0 +  1)) << 8) | (i32(load<u8>(c0 +  2)) << 16) | (i32(load<u8>(c0 +  3)) << 24)
+	const b0w1 = i32(load<u8>(c0 +  4)) | (i32(load<u8>(c0 +  5)) << 8) | (i32(load<u8>(c0 +  6)) << 16) | (i32(load<u8>(c0 +  7)) << 24)
+	const b0w2 = i32(load<u8>(c0 +  8)) | (i32(load<u8>(c0 +  9)) << 8) | (i32(load<u8>(c0 + 10)) << 16) | (i32(load<u8>(c0 + 11)) << 24)
+	const b0w3 = i32(load<u8>(c0 + 12)) | (i32(load<u8>(c0 + 13)) << 8) | (i32(load<u8>(c0 + 14)) << 16) | (i32(load<u8>(c0 + 15)) << 24)
 
 	incrementCounter()
 
 	// Block 1
-	const b1w0 = i32(load<u8>(c0 + 15)) | (i32(load<u8>(c0 + 14)) << 8) | (i32(load<u8>(c0 + 13)) << 16) | (i32(load<u8>(c0 + 12)) << 24)
-	const b1w1 = i32(load<u8>(c0 + 11)) | (i32(load<u8>(c0 + 10)) << 8) | (i32(load<u8>(c0 +  9)) << 16) | (i32(load<u8>(c0 +  8)) << 24)
-	const b1w2 = i32(load<u8>(c0 +  7)) | (i32(load<u8>(c0 +  6)) << 8) | (i32(load<u8>(c0 +  5)) << 16) | (i32(load<u8>(c0 +  4)) << 24)
-	const b1w3 = i32(load<u8>(c0 +  3)) | (i32(load<u8>(c0 +  2)) << 8) | (i32(load<u8>(c0 +  1)) << 16) | (i32(load<u8>(c0 +  0)) << 24)
+	const b1w0 = i32(load<u8>(c0 +  0)) | (i32(load<u8>(c0 +  1)) << 8) | (i32(load<u8>(c0 +  2)) << 16) | (i32(load<u8>(c0 +  3)) << 24)
+	const b1w1 = i32(load<u8>(c0 +  4)) | (i32(load<u8>(c0 +  5)) << 8) | (i32(load<u8>(c0 +  6)) << 16) | (i32(load<u8>(c0 +  7)) << 24)
+	const b1w2 = i32(load<u8>(c0 +  8)) | (i32(load<u8>(c0 +  9)) << 8) | (i32(load<u8>(c0 + 10)) << 16) | (i32(load<u8>(c0 + 11)) << 24)
+	const b1w3 = i32(load<u8>(c0 + 12)) | (i32(load<u8>(c0 + 13)) << 8) | (i32(load<u8>(c0 + 14)) << 16) | (i32(load<u8>(c0 + 15)) << 24)
 
 	incrementCounter()
 
 	// Block 2
-	const b2w0 = i32(load<u8>(c0 + 15)) | (i32(load<u8>(c0 + 14)) << 8) | (i32(load<u8>(c0 + 13)) << 16) | (i32(load<u8>(c0 + 12)) << 24)
-	const b2w1 = i32(load<u8>(c0 + 11)) | (i32(load<u8>(c0 + 10)) << 8) | (i32(load<u8>(c0 +  9)) << 16) | (i32(load<u8>(c0 +  8)) << 24)
-	const b2w2 = i32(load<u8>(c0 +  7)) | (i32(load<u8>(c0 +  6)) << 8) | (i32(load<u8>(c0 +  5)) << 16) | (i32(load<u8>(c0 +  4)) << 24)
-	const b2w3 = i32(load<u8>(c0 +  3)) | (i32(load<u8>(c0 +  2)) << 8) | (i32(load<u8>(c0 +  1)) << 16) | (i32(load<u8>(c0 +  0)) << 24)
+	const b2w0 = i32(load<u8>(c0 +  0)) | (i32(load<u8>(c0 +  1)) << 8) | (i32(load<u8>(c0 +  2)) << 16) | (i32(load<u8>(c0 +  3)) << 24)
+	const b2w1 = i32(load<u8>(c0 +  4)) | (i32(load<u8>(c0 +  5)) << 8) | (i32(load<u8>(c0 +  6)) << 16) | (i32(load<u8>(c0 +  7)) << 24)
+	const b2w2 = i32(load<u8>(c0 +  8)) | (i32(load<u8>(c0 +  9)) << 8) | (i32(load<u8>(c0 + 10)) << 16) | (i32(load<u8>(c0 + 11)) << 24)
+	const b2w3 = i32(load<u8>(c0 + 12)) | (i32(load<u8>(c0 + 13)) << 8) | (i32(load<u8>(c0 + 14)) << 16) | (i32(load<u8>(c0 + 15)) << 24)
 
 	incrementCounter()
 
 	// Block 3
-	const b3w0 = i32(load<u8>(c0 + 15)) | (i32(load<u8>(c0 + 14)) << 8) | (i32(load<u8>(c0 + 13)) << 16) | (i32(load<u8>(c0 + 12)) << 24)
-	const b3w1 = i32(load<u8>(c0 + 11)) | (i32(load<u8>(c0 + 10)) << 8) | (i32(load<u8>(c0 +  9)) << 16) | (i32(load<u8>(c0 +  8)) << 24)
-	const b3w2 = i32(load<u8>(c0 +  7)) | (i32(load<u8>(c0 +  6)) << 8) | (i32(load<u8>(c0 +  5)) << 16) | (i32(load<u8>(c0 +  4)) << 24)
-	const b3w3 = i32(load<u8>(c0 +  3)) | (i32(load<u8>(c0 +  2)) << 8) | (i32(load<u8>(c0 +  1)) << 16) | (i32(load<u8>(c0 +  0)) << 24)
+	const b3w0 = i32(load<u8>(c0 +  0)) | (i32(load<u8>(c0 +  1)) << 8) | (i32(load<u8>(c0 +  2)) << 16) | (i32(load<u8>(c0 +  3)) << 24)
+	const b3w1 = i32(load<u8>(c0 +  4)) | (i32(load<u8>(c0 +  5)) << 8) | (i32(load<u8>(c0 +  6)) << 16) | (i32(load<u8>(c0 +  7)) << 24)
+	const b3w2 = i32(load<u8>(c0 +  8)) | (i32(load<u8>(c0 +  9)) << 8) | (i32(load<u8>(c0 + 10)) << 16) | (i32(load<u8>(c0 + 11)) << 24)
+	const b3w3 = i32(load<u8>(c0 + 12)) | (i32(load<u8>(c0 + 13)) << 8) | (i32(load<u8>(c0 + 14)) << 16) | (i32(load<u8>(c0 + 15)) << 24)
 
 	incrementCounter()
 
@@ -112,7 +114,8 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 
 /**
  * XOR one 16-byte keystream block (supplied as 4 × i32 words) with plaintext.
- * Applies Serpent output byte-reversal: ct[0..3] = w3 big-endian, ct[4..7] = w2, etc.
+ * Each word is stored little-endian (NIST natural byte order):
+ * ct[0..3] = LE(w0), ct[4..7] = LE(w1), ct[8..11] = LE(w2), ct[12..15] = LE(w3).
  * i32x4.extract_lane requires compile-time constant indices, so this helper is
  * called with literal lane values extracted by the caller.
  * @internal
@@ -124,22 +127,22 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
  * @param w3      keystream word 3 (Serpent register r[3])
  */
 @inline function xorKeystreamBlock(ptBase: i32, ctBase: i32, w0: i32, w1: i32, w2: i32, w3: i32): void {
-	store<u8>(ctBase +  0, u8(w3 >>> 24) ^ load<u8>(ptBase +  0))
-	store<u8>(ctBase +  1, u8(w3 >>> 16) ^ load<u8>(ptBase +  1))
-	store<u8>(ctBase +  2, u8(w3 >>>  8) ^ load<u8>(ptBase +  2))
-	store<u8>(ctBase +  3, u8(w3       ) ^ load<u8>(ptBase +  3))
-	store<u8>(ctBase +  4, u8(w2 >>> 24) ^ load<u8>(ptBase +  4))
-	store<u8>(ctBase +  5, u8(w2 >>> 16) ^ load<u8>(ptBase +  5))
-	store<u8>(ctBase +  6, u8(w2 >>>  8) ^ load<u8>(ptBase +  6))
-	store<u8>(ctBase +  7, u8(w2       ) ^ load<u8>(ptBase +  7))
-	store<u8>(ctBase +  8, u8(w1 >>> 24) ^ load<u8>(ptBase +  8))
-	store<u8>(ctBase +  9, u8(w1 >>> 16) ^ load<u8>(ptBase +  9))
-	store<u8>(ctBase + 10, u8(w1 >>>  8) ^ load<u8>(ptBase + 10))
-	store<u8>(ctBase + 11, u8(w1       ) ^ load<u8>(ptBase + 11))
-	store<u8>(ctBase + 12, u8(w0 >>> 24) ^ load<u8>(ptBase + 12))
-	store<u8>(ctBase + 13, u8(w0 >>> 16) ^ load<u8>(ptBase + 13))
-	store<u8>(ctBase + 14, u8(w0 >>>  8) ^ load<u8>(ptBase + 14))
-	store<u8>(ctBase + 15, u8(w0       ) ^ load<u8>(ptBase + 15))
+	store<u8>(ctBase +  0, u8(w0       ) ^ load<u8>(ptBase +  0))
+	store<u8>(ctBase +  1, u8(w0 >>>  8) ^ load<u8>(ptBase +  1))
+	store<u8>(ctBase +  2, u8(w0 >>> 16) ^ load<u8>(ptBase +  2))
+	store<u8>(ctBase +  3, u8(w0 >>> 24) ^ load<u8>(ptBase +  3))
+	store<u8>(ctBase +  4, u8(w1       ) ^ load<u8>(ptBase +  4))
+	store<u8>(ctBase +  5, u8(w1 >>>  8) ^ load<u8>(ptBase +  5))
+	store<u8>(ctBase +  6, u8(w1 >>> 16) ^ load<u8>(ptBase +  6))
+	store<u8>(ctBase +  7, u8(w1 >>> 24) ^ load<u8>(ptBase +  7))
+	store<u8>(ctBase +  8, u8(w2       ) ^ load<u8>(ptBase +  8))
+	store<u8>(ctBase +  9, u8(w2 >>>  8) ^ load<u8>(ptBase +  9))
+	store<u8>(ctBase + 10, u8(w2 >>> 16) ^ load<u8>(ptBase + 10))
+	store<u8>(ctBase + 11, u8(w2 >>> 24) ^ load<u8>(ptBase + 11))
+	store<u8>(ctBase + 12, u8(w3       ) ^ load<u8>(ptBase + 12))
+	store<u8>(ctBase + 13, u8(w3 >>>  8) ^ load<u8>(ptBase + 13))
+	store<u8>(ctBase + 14, u8(w3 >>> 16) ^ load<u8>(ptBase + 14))
+	store<u8>(ctBase + 15, u8(w3 >>> 24) ^ load<u8>(ptBase + 15))
 }
 
 /**

@@ -509,7 +509,7 @@ Requires `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })`.
 
 | Property | Value |
 |----------|-------|
-| `formatEnum` | `0x01` |
+| `formatEnum` | `0x03` |
 | `keySize` | `32` |
 | `tagSize` | `16` (Poly1305) |
 | `padded` | `false` |

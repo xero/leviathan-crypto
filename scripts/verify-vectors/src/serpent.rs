@@ -1,4 +1,4 @@
-// Serpent v2 verifier for both seal blobs (single chunk) and sealstream
+// Serpent v3 verifier for both seal blobs (single chunk) and sealstream
 // blobs (N chunks, optionally framed).
 //
 // Wire format:
@@ -9,7 +9,7 @@
 //
 //   header:    formatEnum(1) || nonce(16) || chunkSize(u24be, 3)
 //              formatEnum bit 7 = framed flag, bit 6 = reserved (0),
-//                           bits 5..0 = format ID. Serpent v2 = 0x02.
+//                           bits 5..0 = cipher format ID. Serpent = 0x02.
 //
 //   per-chunk: ct = Serpent-CBC-PKCS7(enc_key, iv, plaintext)
 //              tag = HMAC-SHA-256(mac_key, counterNonce || u32be(aad_len) || aad || ct)
@@ -26,7 +26,7 @@
 //                enc_key = okm[0..32]   — Serpent-256 encryption
 //                mac_key = okm[32..64]  — HMAC-SHA-256 chunk authentication
 //                iv_key  = okm[64..96]  — per-chunk IV derivation via HMAC
-//              info string is plain b'serpent-sealstream-v2' (no header bound).
+//              info string is plain b'serpent-sealstream-v3' (no header bound).
 
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
@@ -41,7 +41,7 @@ use crate::parse::{SealVector, SealStreamVector};
 type HmacSha256 = Hmac<Sha256>;
 type Block      = Array<u8, U16>;
 
-const INFO_V2:     &[u8] = b"serpent-sealstream-v2";
+const INFO_V3:     &[u8] = b"serpent-sealstream-v3";
 const HEADER_SIZE: usize = 20;
 const TAG_SIZE:    usize = 32;
 const FORMAT_ENUM: u8    = 0x02;
@@ -49,16 +49,16 @@ const TAG_DATA:    u8    = 0x00;
 const TAG_FINAL:   u8    = 0x01;
 
 #[derive(Debug)]
-pub struct DerivedV2 {
+pub struct DerivedV3 {
     pub enc_key: [u8; 32],
     pub mac_key: [u8; 32],
     pub iv_key:  [u8; 32],
 }
 
-pub fn derive_v2(master_key: &[u8; 32], nonce16: &[u8; 16]) -> DerivedV2 {
+pub fn derive_v3(master_key: &[u8; 32], nonce16: &[u8; 16]) -> DerivedV3 {
     let hkdf = Hkdf::<Sha256>::new(Some(nonce16), master_key);
     let mut okm = [0u8; 96];
-    hkdf.expand(INFO_V2, &mut okm).expect("hkdf expand 96");
+    hkdf.expand(INFO_V3, &mut okm).expect("hkdf expand 96");
 
     let mut enc_key = [0u8; 32];
     enc_key.copy_from_slice(&okm[0..32]);
@@ -67,7 +67,7 @@ pub fn derive_v2(master_key: &[u8; 32], nonce16: &[u8; 16]) -> DerivedV2 {
     let mut iv_key = [0u8; 32];
     iv_key.copy_from_slice(&okm[64..96]);
 
-    DerivedV2 { enc_key, mac_key, iv_key }
+    DerivedV3 { enc_key, mac_key, iv_key }
 }
 
 fn make_counter_nonce(counter: u64, final_flag: u8) -> [u8; 12] {
@@ -89,22 +89,11 @@ fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
 
 // Encrypt one chunk: PKCS#7-pad, CBC-chain, HMAC-tag, return ct || tag.
 //
-// IMPORTANT: leviathan-crypto's Serpent uses the AES-submission "floppy"
-// byte order, which is reachable from RustCrypto's NESSIE byte order by
-// fully reversing the byte arrays for key, plaintext block, and ciphertext
-// block. Reverse-all-bytes is its own inverse (b[i] ↔ b[len-1-i]).
-//
-// Per leviathan-crypto's test/unit/serpent/vector_parser.ts:
-//   "The correct leviathan-specific preprocessing is: REVERSE ALL BYTES.
-//    Same transform works for key, plaintext, and ciphertext (it is its
-//    own inverse)."
-//
-// We reverse the encryption key once at construction time, then wrap each
-// block-encrypt call with a reverse-input / reverse-output dance. CBC
-// chaining (the IV XOR'ing) happens in leviathan-crypto's byte order
-// throughout, so the chain math is unaffected.
+// leviathan-crypto v3 uses NIST natural byte order at the public Serpent
+// API — matching RustCrypto's `serpent` crate, FIPS 197, and AB&K's NESSIE
+// submission. Keys and blocks pass through unmodified.
 fn seal_chunk_serpent(
-    keys:        &DerivedV2,
+    keys:        &DerivedV3,
     counter:     u64,
     final_flag:  u8,
     plaintext:   &[u8],
@@ -115,24 +104,13 @@ fn seal_chunk_serpent(
     let iv_full = hmac_sha256(&keys.iv_key, &counter_nonce);
     let iv      = &iv_full[..16];
 
-    // Reverse the encryption key for RustCrypto. RustCrypto uses NESSIE
-    // byte order; leviathan-crypto uses AES-floppy byte order.
-    let mut enc_key_reversed = [0u8; 32];
-    for i in 0..32 {
-        enc_key_reversed[i] = keys.enc_key[31 - i];
-    }
-    let cipher = Serpent::new_from_slice(&enc_key_reversed).expect("Serpent::new_from_slice");
+    let cipher = Serpent::new_from_slice(&keys.enc_key).expect("Serpent::new_from_slice");
 
-    // Serpent-CBC-PKCS7. Each block's input gets reversed before feeding
-    // RustCrypto, output gets reversed after. The CBC chain itself runs
-    // in leviathan-crypto byte order.
     let padded = pad(plaintext);
     let ct = cbc_encrypt(iv, &padded, |block| {
-        let mut reversed = [0u8; 16];
-        for i in 0..16 { reversed[i] = block[15 - i]; }
-        let mut arr: Block = Array::try_from(&reversed[..]).unwrap();
+        let mut arr: Block = Array::try_from(&block[..]).unwrap();
         cipher.encrypt_block(&mut arr);
-        for i in 0..16 { block[i] = arr.as_slice()[15 - i]; }
+        block.copy_from_slice(arr.as_slice());
     });
 
     // tag = HMAC-SHA-256(mac_key, counterNonce || u32be(aad_len=0) || aad="" || ct)
@@ -149,14 +127,14 @@ fn seal_chunk_serpent(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Common preamble validation. Serpent v2 has no commitment, so this is much
-// simpler than the XChaCha20 v3 case — just header sanity checks plus key
+// Common preamble validation. Serpent v3 has no commitment, so this is much
+// simpler than the XChaCha20 v3 case. Just header sanity checks plus key
 // derivation.
 // ────────────────────────────────────────────────────────────────────────────
 
 pub struct PreambleCheck<'a> {
     pub header:  &'a [u8],
-    pub derived: DerivedV2,
+    pub derived: DerivedV3,
 }
 
 pub fn check_preamble<'a>(
@@ -174,7 +152,7 @@ pub fn check_preamble<'a>(
     }
     if preamble.len() != HEADER_SIZE {
         return Err(format!(
-            "{label}: v2 preamble must be {} bytes (got {})",
+            "{label}: v3 preamble must be {} bytes (got {})",
             HEADER_SIZE, preamble.len(),
         ));
     }
@@ -200,7 +178,7 @@ pub fn check_preamble<'a>(
 
     let key_arr:   &[u8; 32] = key.try_into().unwrap();
     let nonce_arr: &[u8; 16] = nonce.try_into().unwrap();
-    let derived = derive_v2(key_arr, nonce_arr);
+    let derived = derive_v3(key_arr, nonce_arr);
 
     log.push("  derived 96 bytes from HKDF-SHA-256: enc_key[0..32] || mac_key[32..64] || iv_key[64..96]".to_string());
 

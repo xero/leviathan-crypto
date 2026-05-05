@@ -123,6 +123,7 @@ async function loadWasm() {
 }
 function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) }
 function toHex(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') }
+function rev(b)     { var n = b.length, o = new Uint8Array(n); for (var i = 0; i < n; i++) o[i] = b[n - 1 - i]; return o }
 `;
 
 test.beforeEach(async ({ page }) => {
@@ -137,16 +138,16 @@ test(`Monte Carlo ECB encrypt — ${mcVecs.length} vectors × 10000 inner`, asyn
 		const ctOff = wasm.getBlockCtOffset();
 		const errs: string[] = [];
 		for (const v of vecs) {
-			const key = fromHex(v.key);
+			const key = rev(fromHex(v.key));
 			new Uint8Array(wasm.memory.buffer).set(key, wasm.getKeyOffset());
 			wasm.loadKey(key.length);
-			new Uint8Array(wasm.memory.buffer).set(fromHex(v.pt), ptOff);
+			new Uint8Array(wasm.memory.buffer).set(rev(fromHex(v.pt)), ptOff);
 			for (let j = 0; j < 10000; j++) {
 				wasm.encryptBlock();
 				new Uint8Array(wasm.memory.buffer).set(
 					new Uint8Array(wasm.memory.buffer).subarray(ctOff, ctOff + 16), ptOff);
 			}
-			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(ptOff, ptOff + 16));
+			const got = toHex(rev(new Uint8Array(wasm.memory.buffer).slice(ptOff, ptOff + 16)));
 			if (got !== v.ct) errs.push(`ks=${v.keysize} exp=${v.ct} got=${got}`);
 		}
 		return errs;
@@ -161,11 +162,11 @@ test(`Monte Carlo CBC encrypt — ${mcCbcEncVecs.length} vectors × 10000 inner`
 		const ctOff = wasm.getBlockCtOffset();
 		const errs: string[] = [];
 		for (const v of vecs) {
-			const key = fromHex(v.key);
+			const key = rev(fromHex(v.key));
 			new Uint8Array(wasm.memory.buffer).set(key, wasm.getKeyOffset());
 			wasm.loadKey(key.length);
-			let iv = fromHex(v.iv);
-			let pt = fromHex(v.pt);
+			let iv = rev(fromHex(v.iv));
+			let pt = rev(fromHex(v.pt));
 			let ct9999 = new Uint8Array(16);
 			for (let j = 0; j < 10000; j++) {
 				const cv = new Uint8Array(iv);
@@ -177,7 +178,7 @@ test(`Monte Carlo CBC encrypt — ${mcCbcEncVecs.length} vectors × 10000 inner`
 				pt = cv;
 				iv = new Uint8Array(ct9999);
 			}
-			const got = toHex(ct9999);
+			const got = toHex(rev(ct9999));
 			if (got !== v.ct) errs.push(`ks=${v.keysize} exp=${v.ct} got=${got}`);
 		}
 		return errs;
@@ -192,11 +193,11 @@ test(`Monte Carlo CBC decrypt — ${mcCbcDecVecs.length} vectors × 10000 inner`
 		const ctOff = wasm.getBlockCtOffset();
 		const errs: string[] = [];
 		for (const v of vecs) {
-			const key = fromHex(v.key);
+			const key = rev(fromHex(v.key));
 			new Uint8Array(wasm.memory.buffer).set(key, wasm.getKeyOffset());
 			wasm.loadKey(key.length);
-			let iv = fromHex(v.iv);
-			let ct = fromHex(v.ct);
+			let iv = rev(fromHex(v.iv));
+			let ct = rev(fromHex(v.ct));
 			let pt9999 = new Uint8Array(16);
 			for (let j = 0; j < 10000; j++) {
 				new Uint8Array(wasm.memory.buffer).set(ct, ctOff);
@@ -208,7 +209,7 @@ test(`Monte Carlo CBC decrypt — ${mcCbcDecVecs.length} vectors × 10000 inner`
 				iv = new Uint8Array(ct);
 				ct = new Uint8Array(pt);
 			}
-			const got = toHex(pt9999);
+			const got = toHex(rev(pt9999));
 			if (got !== v.pt) errs.push(`ks=${v.keysize} exp=${v.pt} got=${got}`);
 		}
 		return errs;

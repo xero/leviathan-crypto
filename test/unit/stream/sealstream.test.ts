@@ -676,7 +676,7 @@ describe('CipherSuite contract', () => {
 		expect(SerpentCipher.keySize).toBe(32);
 		expect(SerpentCipher.tagSize).toBe(32);
 		expect(SerpentCipher.padded).toBe(true);
-		expect(SerpentCipher.hkdfInfo).toBe('serpent-sealstream-v2');
+		expect(SerpentCipher.hkdfInfo).toBe('serpent-sealstream-v3');
 		expect(SerpentCipher.commitmentSize).toBe(0);
 		expect(SerpentCipher.wasmModules).toEqual(['serpent', 'sha2']);
 	});

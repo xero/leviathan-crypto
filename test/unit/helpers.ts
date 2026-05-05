@@ -97,3 +97,41 @@ export const decryptBlock = (ctHex: string): string => {
 
 /** Zeros all WASM memory buffers via the exported wipeBuffers() function. */
 export const wipeBuffers = (): void => getWasm().wipeBuffers();
+
+// ── Floppy byte-order wrappers ──────────────────────────────────────────────
+// AES-submission floppy byte order reverses all 16 bytes of each key,
+// plaintext, and ciphertext block relative to the WASM's NIST natural byte
+// order. These wrappers apply the reversal on the way in and on the way out
+// so callers can keep the floppy-format hex strings from KAT files unchanged.
+
+/** Returns a byte-reversed copy. The floppy ↔ NIST natural-order conversion. */
+export const reverseBytes = (bytes: Uint8Array): Uint8Array => {
+	const out = new Uint8Array(bytes.length);
+	for (let i = 0; i < bytes.length; i++) out[i] = bytes[bytes.length - 1 - i];
+	return out;
+};
+
+/** loadKey() with floppy-byte-order key hex (reverses bytes before loading). */
+export const loadKeyFloppy = (keyHex: string): void => {
+	const w = getWasm();
+	const key = reverseBytes(fromHex(keyHex));
+	writeBytes(key, w.getKeyOffset());
+	const result = w.loadKey(key.length);
+	if (result !== 0) throw new Error(`loadKey failed for length ${key.length}`);
+};
+
+/** encryptBlock() with floppy-byte-order pt hex; returns floppy-byte-order ct hex. */
+export const encryptBlockFloppy = (ptHex: string): string => {
+	const w = getWasm();
+	writeBytes(reverseBytes(fromHex(ptHex)), w.getBlockPtOffset());
+	w.encryptBlock();
+	return toHex(reverseBytes(readBytes(w.getBlockCtOffset(), 16)));
+};
+
+/** decryptBlock() with floppy-byte-order ct hex; returns floppy-byte-order pt hex. */
+export const decryptBlockFloppy = (ctHex: string): string => {
+	const w = getWasm();
+	writeBytes(reverseBytes(fromHex(ctHex)), w.getBlockCtOffset());
+	w.decryptBlock();
+	return toHex(reverseBytes(readBytes(w.getBlockPtOffset(), 16)));
+};

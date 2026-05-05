@@ -364,8 +364,11 @@ export const parseMcCbcDecryptFile = (name: string) => parseMcCbcDecrypt(readVec
  *   handles this via the awaitingKeyLine2 state flag.
  * Returns: Array of NessieVector
  *
- * Preprocessing: NESSIE uses big-endian byte order. Use prepareNessieKey /
- *   prepareNessiePlaintext / prepareNessieCiphertext to convert before use.
+ * Preprocessing: NESSIE vectors use the natural byte order the WASM consumes
+ *   directly (FIPS 197 / NIST). Feed key/plain/cipher hex to fromHex without
+ *   reversal. Floppy-format vector files (serpent_ecb_*.txt, serpent_cbc_*.txt)
+ *   are the ones that need prepareFloppyKey / prepareFloppyPlaintext /
+ *   prepareFloppyCiphertext applied at the test boundary.
  */
 
 export interface NessieVector {
@@ -437,10 +440,12 @@ export function parseNessieVectors(text: string): NessieVector[] {
 
 export const parseNessieFile = (name: string) => parseNessieVectors(readVector(name));
 
-// ── NESSIE preprocessing ────────────────────────────────────────────────────
-// The correct leviathan-specific preprocessing is: REVERSE ALL BYTES.
-// Same transform works for key, plaintext, and ciphertext (it is its own inverse).
-// Source: sources/leviathan/test/helpers/nessie.ts
+// ── Floppy-format vector preprocessing ──────────────────────────────────────
+// AES-submission floppy-format vector files (serpent_ecb_*.txt,
+// serpent_cbc_*.txt) need REVERSE ALL BYTES applied before being fed to the
+// WASM, which uses NIST natural byte order at its public API (matching
+// FIPS 197 / Wikipedia / RustCrypto / AB&K's NESSIE submission).
+// Transform is its own inverse: same helper would convert in either direction.
 
 function reverseAll(bytes: Uint8Array): Uint8Array {
 	const out = new Uint8Array(bytes.length);
@@ -448,6 +453,6 @@ function reverseAll(bytes: Uint8Array): Uint8Array {
 	return out;
 }
 
-export const prepareNessieKey        = (hexKey: string): Uint8Array => reverseAll(hex2bytes(hexKey));
-export const prepareNessiePlaintext  = (hexPT: string): Uint8Array  => reverseAll(hex2bytes(hexPT));
-export const prepareNessieCiphertext = (hexCT: string): Uint8Array  => reverseAll(hex2bytes(hexCT));
+export const prepareFloppyKey        = (hexKey: string): Uint8Array => reverseAll(hex2bytes(hexKey));
+export const prepareFloppyPlaintext  = (hexPT: string): Uint8Array  => reverseAll(hex2bytes(hexPT));
+export const prepareFloppyCiphertext = (hexCT: string): Uint8Array  => reverseAll(hex2bytes(hexCT));
