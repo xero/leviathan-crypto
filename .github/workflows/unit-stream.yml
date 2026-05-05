@@ -24,9 +24,14 @@ jobs:
           test/unit/stream/sealstream.test.ts
           test/unit/stream/sealstream_xchacha_kat.test.ts
           test/unit/stream/sealstream_serpent_kat.test.ts
+          test/unit/stream/sealstream_aes_kat.test.ts
           test/unit/stream/seal.test.ts
           test/unit/stream/seal_xchacha_kat.test.ts
           test/unit/stream/seal_serpent_kat.test.ts
+          test/unit/stream/seal_aes_kat.test.ts
+          test/unit/stream/xchacha20-cipher-suite.test.ts
+          test/unit/stream/serpent-cipher-suite.test.ts
+          test/unit/stream/aes-cipher-suite.test.ts
           test/unit/stream/salamander-resistance.test.ts
           test/unit/stream/pool.test.ts
           test/unit/stream/pool-terminal-on-throw.test.ts

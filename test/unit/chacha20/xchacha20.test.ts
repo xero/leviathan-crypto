@@ -329,3 +329,61 @@ describe('XChaCha20Poly1305 — wipe-before-throw', () => {
 		xchacha.dispose();
 	});
 });
+
+// ── Atomic-class wipe-after-return ──────────────────────────────────────────
+
+// Verifies post-call `wipeBuffers()` discipline on atomic-class
+// `encrypt`/`decrypt`: after a successful AEAD call, the chacha20 module's
+// key buffer reads as zeros, ensuring the caller's key does not persist in
+// WASM linear memory after the public method returns. Mirrors the AES Gate
+// 17g (`aes_gcm_siv_open.test.ts`) shape — a sentinel key is staged in JS,
+// the call runs to completion, and KEY_OFFSET / POLY_KEY_OFFSET /
+// XCHACHA_SUBKEY_OFFSET are read directly from `x.memory.buffer` and
+// asserted zero (the XCHACHA_SUBKEY region is the HChaCha20-derived
+// inner-key material specific to the X variant).
+describe('XChaCha20Poly1305 — wipe-after-return', () => {
+	it('encrypt: KEY, POLY_KEY, and XCHACHA_SUBKEY regions are zero after a successful call', () => {
+		const key   = new Uint8Array(32).fill(0x42);   // distinctive sentinel
+		const nonce = crypto.getRandomValues(new Uint8Array(24));
+		const pt    = crypto.getRandomValues(new Uint8Array(128));
+
+		const aead = new XChaCha20Poly1305();
+		aead.encrypt(key, nonce, pt);
+
+		const x         = getWasm();
+		const mem       = new Uint8Array(x.memory.buffer);
+		const keyReg    = mem.slice(x.getKeyOffset(),            x.getKeyOffset()            + 32);
+		const polyReg   = mem.slice(x.getPolyKeyOffset(),        x.getPolyKeyOffset()        + 32);
+		const subkeyReg = mem.slice(x.getXChaChaSubkeyOffset(),  x.getXChaChaSubkeyOffset()  + 32);
+
+		expect(Array.from(keyReg).every(b => b === 0)).toBe(true);
+		expect(Array.from(polyReg).every(b => b === 0)).toBe(true);
+		expect(Array.from(subkeyReg).every(b => b === 0)).toBe(true);
+		aead.dispose();
+	});
+
+	it('decrypt: KEY, POLY_KEY, and XCHACHA_SUBKEY regions are zero after a successful call', () => {
+		const key   = new Uint8Array(32).fill(0x42);
+		const nonce = crypto.getRandomValues(new Uint8Array(24));
+		const pt    = crypto.getRandomValues(new Uint8Array(128));
+
+		const enc = new XChaCha20Poly1305();
+		const sealed = enc.encrypt(key, nonce, pt);
+		enc.dispose();
+
+		const dec = new XChaCha20Poly1305();
+		const recovered = dec.decrypt(key, nonce, sealed);
+		expect(toHex(recovered)).toBe(toHex(pt));
+
+		const x         = getWasm();
+		const mem       = new Uint8Array(x.memory.buffer);
+		const keyReg    = mem.slice(x.getKeyOffset(),            x.getKeyOffset()            + 32);
+		const polyReg   = mem.slice(x.getPolyKeyOffset(),        x.getPolyKeyOffset()        + 32);
+		const subkeyReg = mem.slice(x.getXChaChaSubkeyOffset(),  x.getXChaChaSubkeyOffset()  + 32);
+
+		expect(Array.from(keyReg).every(b => b === 0)).toBe(true);
+		expect(Array.from(polyReg).every(b => b === 0)).toBe(true);
+		expect(Array.from(subkeyReg).every(b => b === 0)).toBe(true);
+		dec.dispose();
+	});
+});

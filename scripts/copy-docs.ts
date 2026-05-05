@@ -38,6 +38,7 @@ const OUT  = resolve(ROOT, 'dist/docs');
 
 // consumer API docs only
 const INCLUDE = [
+	'aes.md',
 	'architecture.md',
 	'argon2id.md',
 	'chacha20.md',

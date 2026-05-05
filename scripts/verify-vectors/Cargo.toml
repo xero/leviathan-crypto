@@ -2,7 +2,7 @@
 name        = "verify-vectors"
 version     = "0.1.0"
 edition     = "2021"
-description = "Independent Rust verifier for leviathan-crypto's seal/sealstream test vectors"
+description = "Independent Rust verifier for leviathan-crypto's test vectors"
 publish     = false
 
 [[bin]]
@@ -12,12 +12,51 @@ path = "src/main.rs"
 # Exact-version pinning. Verifier dependencies are part of the audit surface;
 # we do not silently consume new versions. CI's Cargo.lock plus this exact
 # pin gives belt-and-suspenders reproducibility.
+#
+# All deps are pinned with `=X.Y.Z` and `default-features = false`; only the
+# minimum feature set the verifier actually uses is enabled. Per-crate notes
+# describe what each dep oracles (which .ts vector file or wire-format step)
+
 [dependencies]
+# RFC 8439 ChaCha20-Poly1305: exercised by the seal_xchacha_v3 and
+# sealstream_xchacha_v3 verifiers (per-chunk AEAD). `alloc` enables the
+# Aead trait's Vec-returning encrypt() / decrypt().
 chacha20poly1305 = { version = "=0.10.1", default-features = false, features = ["alloc"] }
+# RFC 5869 HKDF: used as the key-derivation step for both XChaCha20 v3
+# (HKDF-SHA-256, 64-byte stream key + commitment) and Serpent v3 (HKDF-SHA-256,
+# 96-byte enc/mac/iv split). Pairs with `sha2` below.
 hkdf             = { version = "=0.12.4", default-features = false }
+# RFC 2104 HMAC: used by Serpent v3 for per-chunk MAC tags
+# (HMAC-SHA-256 over header‖chunkIndex‖chunkLen‖ciphertext).
 hmac             = { version = "=0.12.1", default-features = false }
+# FIPS 180-4 SHA-256: the hash primitive feeding `hkdf` and `hmac` above.
+# Indirectly required by every seal/sealstream verifier.
 sha2             = { version = "=0.10.9", default-features = false }
+# Serpent block cipher (NIST natural byte order): exercised by the
+# Serpent v3 seal + sealstream verifiers via hand-rolled CBC chaining
+# in src/serpent.rs.
 serpent          = { version = "=0.6.0",  default-features = false }
+# RustCrypto AES-GCM-SIV: RFC 8452 oracle for aes_gcm_siv.ts vectors.
+# `aes` feature pulls in the RustCrypto `aes` backend (Aes128GcmSiv +
+# Aes256GcmSiv types); `alloc` enables the Aead trait's Vec-returning
+# encrypt() / decrypt(). Both are needed by the verifier.
+aes-gcm-siv      = { version = "=0.11.1", default-features = false, features = ["aes", "alloc"] }
+# RustCrypto POLYVAL: RFC 8452 §3 / Appendix A oracle for polyval.ts hash trace.
+polyval          = { version = "=0.7.1",  default-features = false }
+# AES + AES-mode crates from RustCrypto. Used to cross-verify the
+# pre-existing AES vector corpus (aes.ts, aes_cbc.ts, aes_ctr.ts,
+# aes_gcm.ts) against an independent implementation lineage. The
+# `block-padding`/`alloc` features on `cbc` give us the
+# `encrypt_padded_vec::<NoPadding>` helper used by the CBC verifier;
+# `alloc` on `aes-gcm` enables the Aead trait's Vec-returning
+# encrypt() / decrypt() (same shape as `aes-gcm-siv`).
+aes              = { version = "=0.9.0",  default-features = false }
+cbc              = { version = "=0.2.0",  default-features = false, features = ["block-padding", "alloc"] }
+ctr              = { version = "=0.10.0", default-features = false }
+aes-gcm          = { version = "=0.10.3", default-features = false, features = ["aes", "alloc"] }
+# Hex codec used everywhere we surface bytes in logs (computed/expected
+# diffs, header dumps). `std` so we can return the standard `String`
+# type from `hex::encode`.
 hex              = { version = "=0.4.3",  default-features = false, features = ["std"] }
 
 [profile.release]

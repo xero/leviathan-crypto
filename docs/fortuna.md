@@ -7,7 +7,7 @@ A CSPRNG that continuously collects entropy from the environment and generates c
 > ### Table of Contents
 > - [Overview](#overview)
 > - [Pluggable primitives](#pluggable-primitives)
-> - [Spec deviations](#spec-deviations)
+> - [Alternative primitives](#alternative-primitives)
 > - [Security Notes](#security-notes)
 > - [API Reference](#api-reference)
 > - [Usage Examples](#usage-examples)
@@ -45,11 +45,12 @@ with exponentially increasing reseed intervals, making it resilient to
 entropy estimation attacks and individual source failures.
 
 The original spec uses AES-256 in counter mode with SHA-256. This
-implementation lets you pick from Serpent-256 or ChaCha20 for the generator,
-paired with SHA-256 or SHA3-256 for the hash. See
-[Pluggable primitives](#pluggable-primitives) for the available combinations
-and [Spec deviations](#spec-deviations) for what changes when you pick
-something other than the original pair.
+implementation lets you pick AES-256, Serpent-256, or ChaCha20 for the
+generator, paired with SHA-256 or SHA3-256 for the hash. AES is the
+spec-canonical choice; Serpent and ChaCha20 are alternative primitives.
+See [Pluggable primitives](#pluggable-primitives) for the available
+combinations and [Alternative primitives](#alternative-primitives) for
+what each substitution buys you.
 
 ---
 
@@ -65,6 +66,7 @@ pattern matches `SerpentCipher` and `XChaCha20Cipher` in the AEAD layer.
 
 | Generator           | Source path                  | `keySize` | Cipher backend           |
 | ------------------- | ---------------------------- | --------- | ------------------------ |
+| `AESGenerator`      | `leviathan-crypto/aes`       | 32        | AES-256 ECB              |
 | `SerpentGenerator`  | `leviathan-crypto/serpent`   | 32        | Serpent-256 ECB          |
 | `ChaCha20Generator` | `leviathan-crypto/chacha20`  | 32        | ChaCha20 with zero nonce |
 
@@ -73,7 +75,7 @@ pattern matches `SerpentCipher` and `XChaCha20Cipher` in the AEAD layer.
 | `SHA256Hash`   | `leviathan-crypto/sha2`    | 32           | SHA-256      |
 | `SHA3_256Hash` | `leviathan-crypto/sha3`    | 32           | SHA3-256     |
 
-All four combinations are valid because every shipped `Generator` has
+All six combinations are valid because every shipped `Generator` has
 `keySize: 32` and every shipped `HashFn` has `outputSize: 32`.
 `Fortuna.create()` asserts `hash.outputSize === generator.keySize` and
 throws `RangeError` if you pair primitives of different sizes.
@@ -86,7 +88,7 @@ primitives, an XChaCha20-Poly1305 application can pair `Fortuna` with
 
 ---
 
-## Spec deviations
+## Alternative primitives
 
 The original Fortuna spec (Ferguson and Schneier, *Practical Cryptography*
 2003) is concrete about its choice of primitives:
@@ -94,17 +96,25 @@ The original Fortuna spec (Ferguson and Schneier, *Practical Cryptography*
 - §9.4 specifies AES-256 in counter mode as the generator.
 - §9.5 specifies SHA-256 for the accumulator pools and reseed key derivation.
 
-This library replaces both with a pluggable contract. The deviations:
+`AESGenerator` + `SHA256Hash` is the spec-canonical pair. This library
+also offers Serpent-256 and ChaCha20 as alternative generators, and
+SHA3-256 as an alternative hash. The construction is otherwise identical
+— the pool-selection schedule, the 32-pool count, the 64-bit reseed
+threshold, the 100ms reseed interval, and the entropy-credit constants
+are unchanged from the spec.
 
-1. **Generator can be Serpent-256 or ChaCha20.** Serpent-256 is a 256-bit-key
-   block cipher with the same shape as AES; substituting it changes the
-   underlying permutation but preserves the counter-mode-PRF construction.
-   ChaCha20 is a stream cipher whose block function is itself a strong PRF
-   on `(key, nonce, counter)`; we fix the nonce to zero and treat the block
-   counter as Fortuna's generator counter. Both substitutions are valid in
-   the sense that the security argument for Fortuna's generator depends on
-   the underlying primitive being a strong PRF, which Serpent-256 and
-   ChaCha20 both are under standard assumptions.
+The pluggable choices:
+
+1. **Generator can be AES-256, Serpent-256, or ChaCha20.** Serpent-256 is
+   a 256-bit-key block cipher with the same shape as AES; substituting
+   it changes the underlying permutation but preserves the
+   counter-mode-PRF construction. ChaCha20 is a stream cipher whose block
+   function is itself a strong PRF on `(key, nonce, counter)`; we fix
+   the nonce to zero and treat the block counter as Fortuna's generator
+   counter. All three are valid choices: the security argument for
+   Fortuna's generator depends on the underlying primitive being a
+   strong PRF, which AES-256, Serpent-256, and ChaCha20 all are under
+   standard assumptions.
 
 2. **Hash can be SHA-256 or SHA3-256.** SHA3-256 is a sponge-based hash; the
    security properties Fortuna requires from the hash (collision resistance,
@@ -118,9 +128,9 @@ This library replaces both with a pluggable contract. The deviations:
    If a real use case for size mismatches appears later, an HKDF mode can
    be added without breaking existing pairings.
 
-The pool-selection schedule, the 32-pool count, the 64-bit reseed threshold,
-the 100ms reseed interval, and the entropy-credit constants are unchanged
-from the spec.
+The motivation for pluggability is bundle size, not deviation from the
+spec. Picking the alternate generator lets a chacha-only or
+serpent-only consumer avoid pulling in the AES WASM module.
 
 ---
 
@@ -185,7 +195,7 @@ static async create(opts: {
 
 | Parameter          | Type         | Default  | Description |
 |--------------------|--------------|----------|-------------|
-| `opts.generator`   | `Generator`  | required | Cipher-as-PRF backing the generator. `SerpentGenerator` or `ChaCha20Generator`. |
+| `opts.generator`   | `Generator`  | required | Cipher-as-PRF backing the generator. `AESGenerator`, `SerpentGenerator`, or `ChaCha20Generator`. |
 | `opts.hash`        | `HashFn`     | required | Stateless hash for accumulator and reseed. `SHA256Hash` or `SHA3_256Hash`. |
 | `opts.msPerReseed` | `number`     | `100`    | Minimum milliseconds between reseeds. |
 | `opts.entropy`     | `Uint8Array` |          | Optional extra entropy mixed in during creation. |
@@ -313,9 +323,30 @@ rng.stop()
 
 ### Original Fortuna pair
 
-Serpent-256 with SHA-256 matches the closest analogue to the spec
-(swapping AES for Serpent). Use this if your application already pulls in
-the Serpent module.
+AES-256 with SHA-256 is the original spec pair (*Practical Cryptography*
+§9.4 + §9.5). Use this if you want the canonical Ferguson-Schneier
+construction or your application already pulls in the AES module.
+
+```typescript
+import { init, Fortuna } from 'leviathan-crypto'
+import { AESGenerator } from 'leviathan-crypto/aes'
+import { SHA256Hash } from 'leviathan-crypto/sha2'
+import { aesWasm } from 'leviathan-crypto/aes/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ aes: aesWasm, sha2: sha2Wasm })
+
+const rng = await Fortuna.create({ generator: AESGenerator, hash: SHA256Hash })
+const bytes = rng.get(32)
+rng.stop()
+```
+
+### Serpent variant
+
+Serpent-256 with SHA-256 substitutes Serpent's permutation for AES's,
+preserving the counter-mode-PRF construction. Use this if your
+application already pulls in the Serpent module and you do not want to
+add AES to the bundle.
 
 ```typescript
 import { init, Fortuna } from 'leviathan-crypto'
@@ -466,10 +497,10 @@ reading the spec:
 
 3. **Generation.** To produce output, the generator runs the chosen cipher
    PRF on an incrementing counter under the current generation key. For
-   Serpent-256, this is ECB encryption of the counter block. For ChaCha20,
-   this is the block function with a fixed zero nonce and the counter as
-   block index. The output is the concatenation of cipher output blocks,
-   truncated to the requested length.
+   AES-256 and Serpent-256, this is ECB encryption of the counter block.
+   For ChaCha20, this is the block function with a fixed zero nonce and
+   the counter as block index. The output is the concatenation of cipher
+   output blocks, truncated to the requested length.
 
 4. **Key replacement.** Immediately after producing output, the generator
    runs again to produce 32 fresh bytes for the new generation key. The old
@@ -494,6 +525,7 @@ leviathan-crypto: another stateful instance is using the '<module>' WASM module 
 
 The relevant pairings:
 
+- `AESGenerator` blocked by no current acquirer (the raw `AES`, `AESCbc`, `AESCtr`, `AESGCM`, and `AESGCMSIV` classes are atomic), but it is blocked by any live `AESGCMSIVCipher` stream backed by the same module.
 - `SerpentGenerator` blocked by `Serpent`, `SerpentCtr`, `SerpentCbc`, or any other live serpent acquirer.
 - `ChaCha20Generator` blocked by `ChaCha20` (the raw stream cipher acquires the chacha20 module on construction).
 - `SHA256Hash` blocked by any future stateful sha2 user (none currently exist; `HMAC_SHA256` and `HKDF_SHA256` are atomic).
@@ -518,8 +550,9 @@ output from both.
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
-| [serpent](./serpent.md) | Serpent-256 TypeScript API (one option for the Fortuna generator) |
-| [chacha20](./chacha20.md) | ChaCha20 TypeScript API (the other option for the Fortuna generator) |
+| [exports#aes](./exports.md#aes) | AES-256 TypeScript API (the spec-canonical option for the Fortuna generator) |
+| [serpent](./serpent.md) | Serpent-256 TypeScript API (alternative option for the Fortuna generator) |
+| [chacha20](./chacha20.md) | ChaCha20 TypeScript API (alternative option for the Fortuna generator) |
 | [sha2](./sha2.md) | SHA-256 TypeScript API (one option for the Fortuna hash) |
 | [sha3](./sha3.md) | SHA3-256 TypeScript API (the other option for the Fortuna hash) |
 | [types](./types.md) | `Generator` and `HashFn` interface definitions |

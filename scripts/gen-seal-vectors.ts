@@ -37,24 +37,28 @@ import {
 } from '../src/ts/index.js';
 import { serpentWasm } from '../src/ts/serpent/embedded.js';
 import { chacha20Wasm } from '../src/ts/chacha20/embedded.js';
+import { aesWasm } from '../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../src/ts/sha2/embedded.js';
 import { Seal, OpenStream, HEADER_SIZE } from '../src/ts/stream/index.js';
 import { SerpentCipher } from '../src/ts/serpent/cipher-suite.js';
 import { XChaCha20Cipher } from '../src/ts/chacha20/cipher-suite.js';
+import { AESGCMSIVCipher } from '../src/ts/aes/cipher-suite.js';
 import { readHeader, makeCounterNonce } from '../src/ts/stream/header.js';
 import { TAG_FINAL } from '../src/ts/stream/constants.js';
 import { aeadEncrypt, deriveSubkey } from '../src/ts/chacha20/ops.js';
+import { sivAeadEncrypt } from '../src/ts/aes/ops.js';
 import { getInstance } from '../src/ts/init.js';
 import type { ChaChaExports } from '../src/ts/chacha20/types.js';
+import type { AesExports } from '../src/ts/aes/types.js';
 import { writeFileSync } from 'fs';
 
 const args = process.argv.slice(2);
 const cipherFlag = args.indexOf('--cipher');
 const cipher = cipherFlag >= 0 ? args[cipherFlag + 1] : 'all';
-if (!['xchacha', 'serpent', 'all'].includes(cipher))
-	throw new Error(`unknown --cipher: ${cipher} (expected: xchacha, serpent, all)`);
+if (!['xchacha', 'serpent', 'aes', 'all'].includes(cipher))
+	throw new Error(`unknown --cipher: ${cipher} (expected: xchacha, serpent, aes, all)`);
 
-await init({ serpent: serpentWasm, sha2: sha2Wasm, chacha20: chacha20Wasm });
+await init({ serpent: serpentWasm, sha2: sha2Wasm, chacha20: chacha20Wasm, aes: aesWasm });
 
 function hex(b: Uint8Array): string { return bytesToHex(b); }
 function assert(cond: boolean, msg: string) {
@@ -74,8 +78,9 @@ const hmac = new HMAC_SHA256();
 // lazily for verification only after all SerpentCipher seal calls complete.
 const x    = getInstance('chacha20').exports as unknown as ChaChaExports;
 
-const xcInfo = new TextEncoder().encode('xchacha20-sealstream-v3');
-const scInfo = new TextEncoder().encode('serpent-sealstream-v3');
+const xcInfo  = new TextEncoder().encode('xchacha20-sealstream-v3');
+const scInfo  = new TextEncoder().encode('serpent-sealstream-v3');
+const aesInfo = new TextEncoder().encode('aes-gcm-siv-sealstream-v3');
 
 function concat(...arrays: Uint8Array[]): Uint8Array {
 	let len = 0;
@@ -322,6 +327,110 @@ export const sc_empty: SealSerpentV3Vector = {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// AES-GCM-SIV path — v3 wire format (commitment + header-bound HKDF)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function buildAes(): string {
+	const aesX = getInstance('aes').exports as unknown as AesExports;
+
+	// AC1: 100-byte plaintext
+	const ac1_key   = new Uint8Array(32); ac1_key.fill(0x05);
+	const ac1_nonce = new Uint8Array(16); ac1_nonce.fill(0xee);
+	const ac1_pt    = new Uint8Array(100); ac1_pt.fill(0x12);
+
+	const ac1_blob       = Seal._fromNonce(AESGCMSIVCipher, ac1_key, ac1_pt, ac1_nonce);
+	const ac1_preambleLen = HEADER_SIZE + AESGCMSIVCipher.commitmentSize;
+	const ac1_preamble   = ac1_blob.subarray(0, ac1_preambleLen);
+	const ac1_header     = ac1_preamble.subarray(0, HEADER_SIZE);
+	const ac1_commitment = ac1_preamble.subarray(HEADER_SIZE, ac1_preambleLen);
+	const { nonce: ac1_headerNonce } = readHeader(ac1_header);
+	// HKDF info = INFO || 20-byte header — header-bound derivation, mirrors XChaCha20.
+	const ac1_info = concat(aesInfo, ac1_header);
+	const ac1_okm  = hkdf.derive(ac1_key, ac1_headerNonce, ac1_info, 64);
+	const ac1_aesKey    = ac1_okm.subarray(0, 32);
+	const ac1_expCommit = ac1_okm.subarray(32, 64);
+	assert(hex(ac1_commitment) === hex(ac1_expCommit), 'AC1 commitment matches HKDF bytes 32..64');
+	const ac1_cn0  = makeCounterNonce(0, TAG_FINAL);
+	const ac1_enc  = sivAeadEncrypt(aesX, ac1_aesKey, ac1_cn0, ac1_pt, new Uint8Array(0));
+	const ac1_expected = concat(ac1_preamble, ac1_enc.ciphertext, ac1_enc.tag);
+	assert(hex(ac1_blob) === hex(ac1_expected), 'AC1 verify');
+	const ac1_opener = new OpenStream(AESGCMSIVCipher, ac1_key, ac1_preamble);
+	assert(hex(ac1_opener.finalize(ac1_blob.subarray(ac1_preambleLen))) === hex(ac1_pt), 'AC1 round-trip');
+	console.log('AC1 (aes-gcm-siv v3): verified');
+
+	// AC_EMPTY: empty plaintext
+	const ace_key   = new Uint8Array(32); ace_key.fill(0x06);
+	const ace_nonce = new Uint8Array(16); ace_nonce.fill(0x99);
+	const ace_pt    = new Uint8Array(0);
+
+	const ace_blob       = Seal._fromNonce(AESGCMSIVCipher, ace_key, ace_pt, ace_nonce);
+	const ace_preambleLen = HEADER_SIZE + AESGCMSIVCipher.commitmentSize;
+	const ace_preamble   = ace_blob.subarray(0, ace_preambleLen);
+	const ace_header     = ace_preamble.subarray(0, HEADER_SIZE);
+	const ace_commitment = ace_preamble.subarray(HEADER_SIZE, ace_preambleLen);
+	const { nonce: ace_headerNonce } = readHeader(ace_header);
+	const ace_info = concat(aesInfo, ace_header);
+	const ace_okm  = hkdf.derive(ace_key, ace_headerNonce, ace_info, 64);
+	const ace_aesKey    = ace_okm.subarray(0, 32);
+	const ace_expCommit = ace_okm.subarray(32, 64);
+	assert(hex(ace_commitment) === hex(ace_expCommit), 'AC_EMPTY commitment matches HKDF bytes 32..64');
+	const ace_cn0  = makeCounterNonce(0, TAG_FINAL);
+	const ace_enc  = sivAeadEncrypt(aesX, ace_aesKey, ace_cn0, ace_pt, new Uint8Array(0));
+	const ace_expected = concat(ace_preamble, ace_enc.ciphertext, ace_enc.tag);
+	assert(hex(ace_blob) === hex(ace_expected), 'AC_EMPTY verify');
+	const ace_opener = new OpenStream(AESGCMSIVCipher, ace_key, ace_preamble);
+	assert(hex(ace_opener.finalize(ace_blob.subarray(ace_preambleLen))) === hex(ace_pt), 'AC_EMPTY round-trip');
+	console.log('AC_EMPTY (aes-gcm-siv v3): verified');
+
+	return `${asciiHeader}
+// Seal AES-GCM-SIV v3 KAT vectors — single-chunk STREAM construction.
+//
+// SELF-GENERATED — no external authority for these wire formats.
+// AES-GCM-SIV v3 wire format: 20-byte header + 32-byte key commitment in
+// the preamble (52 bytes total). HKDF info string is
+// 'aes-gcm-siv-sealstream-v3' concatenated with the 20-byte header,
+// binding formatEnum, framed flag, nonce, and chunkSize into the derived
+// material. Generated with fixed nonce seams, then independently verified
+// against the underlying primitives (HKDF-SHA-256 and the raw AES-GCM-SIV
+// WASM ops in src/ts/aes/ops.ts).
+// Vectors serve as regression trip-wires for Seal wire format stability.
+// Audit status: SELF-VERIFIED
+
+export interface SealAesV3Vector {
+\tdescription: string;
+\tkey: string;          // hex, 32 bytes
+\tnonce: string;        // hex, 16 bytes
+\tplaintext: string;    // hex
+\tpreamble: string;     // hex, 52 bytes (20 header + 32 commitment)
+\tblob: string;         // hex, full output = preamble || ciphertext
+}
+
+export const ac1: SealAesV3Vector = {
+\tdescription: 'AC1: aes-gcm-siv v3, 0x05 key, 0xee nonce, 100-byte 0x12 plaintext',
+\tkey: '${hex(ac1_key)}',
+\tnonce: '${hex(ac1_nonce)}',
+\tplaintext:
+\t\t${splitHex(hex(ac1_pt))},
+\tpreamble:
+\t\t${splitHex(hex(ac1_preamble))},
+\tblob:
+\t\t${splitHex(hex(ac1_blob))},
+};
+
+export const ac_empty: SealAesV3Vector = {
+\tdescription: 'AC_EMPTY: aes-gcm-siv v3, 0x06 key, 0x99 nonce, empty plaintext',
+\tkey: '${hex(ace_key)}',
+\tnonce: '${hex(ace_nonce)}',
+\tplaintext: '',
+\tpreamble:
+\t\t${splitHex(hex(ace_preamble))},
+\tblob:
+\t\t${splitHex(hex(ace_blob))},
+};
+`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Drive the requested cipher path(s)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -334,6 +443,11 @@ if (cipher === 'serpent' || cipher === 'all') {
 	const file = buildSerpent();
 	writeFileSync('test/vectors/seal_serpent_v3.ts', file);
 	console.log('Written test/vectors/seal_serpent_v3.ts');
+}
+if (cipher === 'aes' || cipher === 'all') {
+	const file = buildAes();
+	writeFileSync('test/vectors/seal_aes_v3.ts', file);
+	console.log('Written test/vectors/seal_aes_v3.ts');
 }
 
 hmac.dispose(); hkdf.dispose();

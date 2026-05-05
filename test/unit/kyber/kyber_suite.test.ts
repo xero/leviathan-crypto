@@ -29,9 +29,11 @@ import { MlKem512, MlKem768, MlKem1024 } from '../../../src/ts/kyber/index.js';
 import { MLKEM512, MLKEM768, MLKEM1024 } from '../../../src/ts/kyber/params.js';
 import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
 import { SerpentCipher } from '../../../src/ts/serpent/cipher-suite.js';
+import { AESGCMSIVCipher } from '../../../src/ts/aes/cipher-suite.js';
 import { Seal, SealStream, OpenStream, HEADER_SIZE } from '../../../src/ts/stream/index.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
 import { kyberWasm } from '../../../src/ts/kyber/embedded.js';
@@ -40,6 +42,7 @@ beforeAll(async () => {
 	await init({
 		chacha20: chacha20Wasm,
 		serpent: serpentWasm,
+		aes: aesWasm,
 		sha2: sha2Wasm,
 		sha3: sha3Wasm,
 		kyber: kyberWasm,
@@ -55,8 +58,9 @@ const PARAM_SETS = [
 ];
 
 const INNER_CIPHERS = [
-	['XChaCha20', XChaCha20Cipher, 0x03] as const,  // XChaCha20 v3
-	['Serpent',   SerpentCipher,   0x02] as const,
+	['XChaCha20',   XChaCha20Cipher, 0x03] as const,  // XChaCha20 v3
+	['Serpent',     SerpentCipher,   0x02] as const,
+	['AES-GCM-SIV', AESGCMSIVCipher, 0x04] as const,
 ];
 
 for (const [kemName, mkKem, params, kemNibble] of PARAM_SETS) {
@@ -99,7 +103,7 @@ for (const [kemName, mkKem, params, kemNibble] of PARAM_SETS) {
 				const kem = mkKem();
 				const suite = KyberSuite(kem, inner);
 				const kemLabel = kemName === 'MlKem512' ? 'mlkem512' : kemName === 'MlKem768' ? 'mlkem768' : 'mlkem1024';
-				const innerLabel = cipherName === 'XChaCha20' ? 'xchacha20' : 'serpent';
+				const innerLabel = inner.formatName;
 				expect(suite.formatName).toBe(`${kemLabel}+${innerLabel}`);
 				kem.dispose();
 			});

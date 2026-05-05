@@ -46,8 +46,10 @@ import {
 	KEY_SCHEDULE_SCRATCH_OFFSET, KEY_SCHEDULE_SCRATCH_SIZE,
 	INV_ROUND_KEYS_OFFSET,
 	NR_OFFSET,
+	H_OFFSET,
 } from './buffers'
 import { sboxBitsliced, invSboxBitsliced } from './sbox'
+import { gf128InitTable } from './gf128'
 
 // ── Bitsliced state slot helpers ────────────────────────────────────────────
 
@@ -196,6 +198,78 @@ function transposeIn(): void {
  *  axes). */
 function transposeOut(): void {
 	transpose8x8(BITSLICED_STATE_OFFSET, BLOCK_CT_8X_OFFSET);
+}
+
+// ── Single-block transpose (BLOCK_PT/CT direct path) ───────────────────────
+//
+// `encryptBlock` / `decryptBlock` sit on the per-block hot path of AES-GCM-SIV
+// (`sivCtrXform` calls them once per counter block). The 8×8 transpose above
+// is amortised across 8 parallel blocks; for the atomic case we previously
+// padded BLOCK_PT_8X with 7 zero blocks and then ran the full 8x transpose,
+// which paid 92 v128 ops per direction plus a 112-byte zero-fill per call.
+//
+// `transposeIn1` / `transposeOut1` work directly on the 16-byte BLOCK_PT
+// and BLOCK_CT buffers and never touch BLOCK_PT_8X / BLOCK_CT_8X. The
+// bitsliced state register state[k] still holds bit-k of byte-j across
+// 8 lanes; the single-block path populates lane 0 (bit 0 of each state[k]
+// byte) and leaves lanes 1..7 of each byte zero. The 8x kernel then runs
+// as before — its work on the dummy lanes is unchanged (it computes
+// AES(0) seven times in parallel and we ignore the result), but we save
+// the input-side byte-fill and 4× the transpose op count.
+
+/**
+ * Single-block transposeIn — read BLOCK_PT (16 bytes), produce a bitsliced
+ * state where lane 0 of each state[k] byte holds block-0's bit-k and lanes
+ * 1..7 are zero.
+ *
+ * Steps:
+ *   1. Apply the K-S §4.1 4×4 byte-shuffle (FIPS column-major →
+ *      K-S row-by-row). The shuffle is identical to step A of `transpose8x8`.
+ *   2. For each bit k ∈ {0..7}: state[k][j] = (shuffled[j] >> k) & 1, with
+ *      bits 1..7 of each byte zeroed (the dummy lanes).
+ */
+@inline function transposeIn1(): void {
+	const blk = v128.shuffle<i8>(
+		v128.load(BLOCK_PT_OFFSET), v128.load(BLOCK_PT_OFFSET),
+		0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15,
+	);
+	const ONE = i8x16.splat(<i8>1);
+	v128.store(BITSLICED_STATE_OFFSET +   0, v128.and(blk, ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  16, v128.and(i8x16.shr_u(blk, 1), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  32, v128.and(i8x16.shr_u(blk, 2), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  48, v128.and(i8x16.shr_u(blk, 3), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  64, v128.and(i8x16.shr_u(blk, 4), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  80, v128.and(i8x16.shr_u(blk, 5), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  96, v128.and(i8x16.shr_u(blk, 6), ONE));
+	v128.store(BITSLICED_STATE_OFFSET + 112, v128.and(i8x16.shr_u(blk, 7), ONE));
+}
+
+/**
+ * Single-block transposeOut — read the bitsliced state, reconstruct block 0
+ * by extracting bit-0 of each state[k] byte and writing the result to
+ * BLOCK_CT. Bits 1..7 of each state[k] byte hold AES(0) results for the
+ * seven dummy lanes and are masked out.
+ *
+ * Steps (inverse of `transposeIn1`):
+ *   1. For each k: take bit 0 of state[k] byte j, shift left by k, OR into
+ *      the running accumulator.
+ *   2. Apply the K-S §4.1 4×4 byte-shuffle (self-inverse — restores FIPS
+ *      column-major byte order) and store to BLOCK_CT.
+ */
+@inline function transposeOut1(): void {
+	const ONE = i8x16.splat(<i8>1);
+	let out = v128.and(v128.load(BITSLICED_STATE_OFFSET +   0), ONE);
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  16), ONE), 1));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  32), ONE), 2));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  48), ONE), 3));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  64), ONE), 4));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  80), ONE), 5));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  96), ONE), 6));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET + 112), ONE), 7));
+	out = v128.shuffle<i8>(out, out,
+		0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15,
+	);
+	v128.store(BLOCK_CT_OFFSET, out);
 }
 
 // ── ShiftRows (Käsper-Schwabe §4.3 + FIPS 197 §5.1.2) ──────────────────────
@@ -541,26 +615,191 @@ function addInvRoundKey(roundIdx: i32): void {
 }
 
 /**
- * Apply forward S-box to a single byte using the bitsliced S-box.
+ * AES forward S-box on 4 packed bytes — Boyar-Peralta scalar circuit.
  *
- * Used by SubWord during key expansion. Loads the byte into block 0 byte 0
- * of BLOCK_PT_8X (with all other 127 bytes zeroed), runs transposeIn →
- * sboxBitsliced → transposeOut, returns block 0 byte 0 of the result.
+ * Reference: J. Boyar and R. Peralta, "A New Combinational Logic
+ * Minimization Technique with Applications to Cryptology", NIST 2010
+ * (tsapps.nist.gov/publication/get_pdf.cfm?pub_id=902701) and "A small
+ * depth-16 circuit for the AES S-box", IACR ePrint 2011/332. Canonical
+ * straight-line program: cs.yale.edu/homes/peralta/CircuitStuff/SLP_AES_113.txt
+ * (113 gates: 32 AND, 81 XOR/XNOR; depth 27).
  *
- * Inefficient (one S-box application per byte costs the full 8-block
- * pipeline) but only invoked 4 × 10 = 40 times during AES-128 key
- * expansion — negligible in the overall cost.
+ * Used by `keyExpansion` for the SubWord step. Replaces the previous
+ * single-byte path that ran the full 8-block bitsliced pipeline (~380
+ * v128 ops + 128-byte memory.fill per byte). The scalar SLP runs once
+ * per call regardless of how many of the 4 input bit-positions are
+ * populated, so packing 4 bytes per call is essentially free.
+ *
+ * Layout: each input byte j ∈ {0..3} of `w` is bitsliced across the low
+ * 4 bit-positions of 8 i32 SLP registers (U0..U7 in MSB-first AES bit
+ * order: bit-7 of byte j → bit j of U0, bit-0 of byte j → bit j of U7).
+ * Output S0..S7 unpack symmetrically. Bits ≥ 4 of the SLP registers are
+ * not meaningful — XOR keeps them zero, but the four output XNOR gates
+ * (S1, S2, S6, S7) leave bits 4..31 set; the unpack masks via `& 1` so
+ * those high bits are inert.
+ *
+ * The SLP is the *full* AES S-box: GF(2⁸) inversion + AES affine M with
+ * the 0x63 constant absorbed into the four output XNOR gates (MSB-first
+ * S1, S2, S6, S7 = LSB-first bits 6, 5, 1, 0 of 0x63, FIPS 197 §5.1.1).
+ *
+ * @param w  4 input bytes packed little-endian.
+ * @returns  4 output bytes packed little-endian.
  */
-function sboxByte(b: u8): u8 {
-	// Zero the 8x staging buffer.
-	memory.fill(BLOCK_PT_8X_OFFSET, 0, 128);
-	// Place the input at block 0 byte 0.
-	store<u8>(BLOCK_PT_8X_OFFSET, b);
-	transposeIn();
-	sboxBitsliced();
-	transposeOut();
-	// Read the output byte from block 0 byte 0.
-	return load<u8>(BLOCK_CT_8X_OFFSET);
+function sboxWord(w: u32): u32 {
+	// pack4: bit-7 of byte j → bit j of U0 ; bit-0 of byte j → bit j of U7.
+	let U0: i32 = 0, U1: i32 = 0, U2: i32 = 0, U3: i32 = 0;
+	let U4: i32 = 0, U5: i32 = 0, U6: i32 = 0, U7: i32 = 0;
+	for (let j: i32 = 0; j < 4; j++) {
+		const b = <i32>((w >> (j << 3)) & 0xff);
+		U0 |= ((b >> 7) & 1) << j;
+		U1 |= ((b >> 6) & 1) << j;
+		U2 |= ((b >> 5) & 1) << j;
+		U3 |= ((b >> 4) & 1) << j;
+		U4 |= ((b >> 3) & 1) << j;
+		U5 |= ((b >> 2) & 1) << j;
+		U6 |= ((b >> 1) & 1) << j;
+		U7 |= ((b >> 0) & 1) << j;
+	}
+
+	// ── Boyar-Peralta SLP (verbatim from SLP_AES_113.txt) ──────────────
+	// Linear top layer (y-variables): 23 XORs.
+	const y14 = U3 ^ U5;
+	const y13 = U0 ^ U6;
+	const y9  = U0 ^ U3;
+	const y8  = U0 ^ U5;
+	const t0  = U1 ^ U2;
+	const y1  = t0  ^ U7;
+	const y4  = y1  ^ U3;
+	const y12 = y13 ^ y14;
+	const y2  = y1  ^ U0;
+	const y5  = y1  ^ U6;
+	const y3  = y5  ^ y8;
+	const t1  = U4  ^ y12;
+	const y15 = t1  ^ U5;
+	const y20 = t1  ^ U1;
+	const y6  = y15 ^ U7;
+	const y10 = y15 ^ t0;
+	const y11 = y20 ^ y9;
+	const y7  = U7  ^ y11;
+	const y17 = y10 ^ y11;
+	const y19 = y10 ^ y8;
+	const y16 = t0  ^ y11;
+	const y21 = y13 ^ y16;
+	const y18 = U0  ^ y16;
+
+	// Nonlinear middle layer (t-variables): 32 ANDs interleaved with XORs.
+	const t2  = y12 & y15;
+	const t3  = y3  & y6;
+	const t4  = t3  ^ t2;
+	const t5  = y4  & U7;
+	const t6  = t5  ^ t2;
+	const t7  = y13 & y16;
+	const t8  = y5  & y1;
+	const t9  = t8  ^ t7;
+	const t10 = y2  & y7;
+	const t11 = t10 ^ t7;
+	const t12 = y9  & y11;
+	const t13 = y14 & y17;
+	const t14 = t13 ^ t12;
+	const t15 = y8  & y10;
+	const t16 = t15 ^ t12;
+	const t17 = t4  ^ y20;
+	const t18 = t6  ^ t16;
+	const t19 = t9  ^ t14;
+	const t20 = t11 ^ t16;
+	const t21 = t17 ^ t14;
+	const t22 = t18 ^ y19;
+	const t23 = t19 ^ y21;
+	const t24 = t20 ^ y18;
+	const t25 = t21 ^ t22;
+	const t26 = t21 & t23;
+	const t27 = t24 ^ t26;
+	const t28 = t25 & t27;
+	const t29 = t28 ^ t22;
+	const t30 = t23 ^ t24;
+	const t31 = t22 ^ t26;
+	const t32 = t31 & t30;
+	const t33 = t32 ^ t24;
+	const t34 = t23 ^ t33;
+	const t35 = t27 ^ t33;
+	const t36 = t24 & t35;
+	const t37 = t36 ^ t34;
+	const t38 = t27 ^ t36;
+	const t39 = t29 & t38;
+	const t40 = t25 ^ t39;
+	const t41 = t40 ^ t37;
+	const t42 = t29 ^ t33;
+	const t43 = t29 ^ t40;
+	const t44 = t33 ^ t37;
+	const t45 = t42 ^ t41;
+
+	// 18 ANDs producing z-variables.
+	const z0  = t44 & y15;
+	const z1  = t37 & y6;
+	const z2  = t33 & U7;
+	const z3  = t43 & y16;
+	const z4  = t40 & y1;
+	const z5  = t29 & y7;
+	const z6  = t42 & y11;
+	const z7  = t45 & y17;
+	const z8  = t41 & y10;
+	const z9  = t44 & y12;
+	const z10 = t37 & y3;
+	const z11 = t33 & y4;
+	const z12 = t43 & y13;
+	const z13 = t40 & y5;
+	const z14 = t29 & y2;
+	const z15 = t42 & y9;
+	const z16 = t45 & y14;
+	const z17 = t41 & y8;
+
+	// Linear bottom layer (tc + S variables): 30 XOR/XNORs.
+	// `#` in the SLP is XNOR, written here as `~(a ^ b)` — the four output
+	// XNORs absorb the AES affine constant 0x63.
+	const tc1  = z15 ^ z16;
+	const tc2  = z10 ^ tc1;
+	const tc3  = z9  ^ tc2;
+	const tc4  = z0  ^ z2;
+	const tc5  = z1  ^ z0;
+	const tc6  = z3  ^ z4;
+	const tc7  = z12 ^ tc4;
+	const tc8  = z7  ^ tc6;
+	const tc9  = z8  ^ tc7;
+	const tc10 = tc8 ^ tc9;
+	const tc11 = tc6 ^ tc5;
+	const tc12 = z3  ^ z5;
+	const tc13 = z13 ^ tc1;
+	const tc14 = tc4 ^ tc12;
+	const S3   = tc3  ^ tc11;
+	const tc16 = z6   ^ tc8;
+	const tc17 = z14  ^ tc10;
+	const tc18 = tc13 ^ tc14;
+	const S7   = ~(z12  ^ tc18);
+	const tc20 = z15  ^ tc16;
+	const tc21 = tc2  ^ z11;
+	const S0   = tc3  ^ tc16;
+	const S6   = ~(tc10 ^ tc18);
+	const S4   = tc14 ^ S3;
+	const S1   = ~(S3   ^ tc16);
+	const tc26 = tc17 ^ tc20;
+	const S2   = ~(tc26 ^ z17);
+	const S5   = tc21 ^ tc17;
+
+	// unpack4: bit j of S0 → bit-7 of output byte j ; bit j of S7 → bit-0.
+	let out: u32 = 0;
+	for (let j: i32 = 0; j < 4; j++) {
+		let b: i32 = 0;
+		b |= ((S0 >> j) & 1) << 7;
+		b |= ((S1 >> j) & 1) << 6;
+		b |= ((S2 >> j) & 1) << 5;
+		b |= ((S3 >> j) & 1) << 4;
+		b |= ((S4 >> j) & 1) << 3;
+		b |= ((S5 >> j) & 1) << 2;
+		b |= ((S6 >> j) & 1) << 1;
+		b |= ((S7 >> j) & 1) << 0;
+		out |= (<u32>b) << (j << 3);
+	}
+	return out;
 }
 
 /**
@@ -606,18 +845,28 @@ function keyExpansion(keyLen: i32): void {
 		let t3 = load<u8>(SCRATCH + (i - 1) * 4 + 3);
 
 		if (i % Nk == 0) {
-			// RotWord: (t0,t1,t2,t3) → (t1,t2,t3,t0); SubWord; XOR Rcon.
-			const r0 = t1, r1 = t2, r2 = t3, r3 = t0;
-			t0 = sboxByte(r0) ^ rcon(i / Nk);
-			t1 = sboxByte(r1);
-			t2 = sboxByte(r2);
-			t3 = sboxByte(r3);
+			// RotWord then SubWord on (t0,t1,t2,t3) = SubWord on (t1,t2,t3,t0).
+			// One sboxWord call replaces 4 single-byte applications.
+			const rotated = (<u32>t1)
+				| ((<u32>t2) << 8)
+				| ((<u32>t3) << 16)
+				| ((<u32>t0) << 24);
+			const subbed = sboxWord(rotated);
+			t0 = (<u8>subbed) ^ rcon(i / Nk);
+			t1 = <u8>(subbed >> 8);
+			t2 = <u8>(subbed >> 16);
+			t3 = <u8>(subbed >> 24);
 		} else if (Nk > 6 && i % Nk == 4) {
 			// AES-256 only — extra SubWord, no RotWord, no Rcon.
-			t0 = sboxByte(t0);
-			t1 = sboxByte(t1);
-			t2 = sboxByte(t2);
-			t3 = sboxByte(t3);
+			const packed = (<u32>t0)
+				| ((<u32>t1) << 8)
+				| ((<u32>t2) << 16)
+				| ((<u32>t3) << 24);
+			const subbed = sboxWord(packed);
+			t0 = <u8>subbed;
+			t1 = <u8>(subbed >> 8);
+			t2 = <u8>(subbed >> 16);
+			t3 = <u8>(subbed >> 24);
 		}
 
 		// w[i] = w[i-Nk] ⊕ temp.
@@ -672,12 +921,28 @@ function keyExpansion(keyLen: i32): void {
  * InvMixColumns-transformed EqInvCipher schedule at INV_ROUND_KEYS, and
  * persists Nr to NR_BUFFER for the round loops to consume.
  *
+ * Phase 4a addition: also derives the GCM hash subkey
+ * H = AES_ENC(K, 0^128) into H_BUFFER and builds the GF(2^128) 4-bit
+ * windowed multiply table. This adds one AES block encrypt + 16 GF
+ * multiplies per loadKey call (≈ a few microseconds); the cost is
+ * paid by every consumer of loadKey but read only by AES-GCM. CTR/CBC
+ * never touch the GCM-only buffers.
+ *
  * @param keyLen  16, 24, or 32
  * @returns       0 on success, nonzero on any other key length.
  */
 export function loadKey(keyLen: i32): i32 {
 	if (keyLen != 16 && keyLen != 24 && keyLen != 32) return 1;
 	keyExpansion(keyLen);
+
+	// Phase 4a: derive GCM hash subkey H = AES_ENC(K, 0^128) and build
+	// the 4-bit windowed multiply table from H. SP 800-38D §7.1 step 1.
+	store<u64>(BLOCK_PT_OFFSET,     0);
+	store<u64>(BLOCK_PT_OFFSET + 8, 0);
+	encryptBlock();
+	store<u64>(H_OFFSET,     load<u64>(BLOCK_CT_OFFSET));
+	store<u64>(H_OFFSET + 8, load<u64>(BLOCK_CT_OFFSET + 8));
+	gf128InitTable();
 	return 0;
 }
 
@@ -717,17 +982,35 @@ export function encryptBlock_8x(): void {
 /**
  * AES encrypt a single block at BLOCK_PT_OFFSET, writing to BLOCK_CT_OFFSET.
  *
- * The bitsliced kernel processes 8 blocks in parallel. For single-block
- * encryption we copy the input to block 0 of BLOCK_PT_8X, zero the other
- * 7 blocks, run encryptBlock_8x, and copy block 0 of BLOCK_CT_8X to
- * BLOCK_CT_OFFSET. The 7 dummy blocks are wasted work but later phases
- * (CTR, GCM) feed 8-block batches naturally.
+ * Direct single-block path: `transposeIn1` reads BLOCK_PT into the bitsliced
+ * state (lane 0 populated, lanes 1..7 zero), the standard 8x round kernel
+ * runs, and `transposeOut1` reconstructs block 0 from the state and writes
+ * BLOCK_CT. The 7 dummy lanes still pay AES work in the kernel (it's
+ * inherently 8-wide), but BLOCK_PT_8X / BLOCK_CT_8X are never touched —
+ * saves the prior 144 bytes of memory ops and ~⅔ of the transpose v128
+ * count per call. Hot path for AES-GCM-SIV's `sivCtrXform`.
+ *
+ * Reference: FIPS 197 §5.1 Algorithm 1, Nr ∈ {10, 12, 14}. Kernel layout:
+ * Käsper-Schwabe 2009 §4. Nr is read from NR_BUFFER (persisted by the most
+ * recent loadKey() call).
  */
 export function encryptBlock(): void {
-	memory.copy(BLOCK_PT_8X_OFFSET, BLOCK_PT_OFFSET, 16);
-	memory.fill(BLOCK_PT_8X_OFFSET + 16, 0, 112);
-	encryptBlock_8x();
-	memory.copy(BLOCK_CT_OFFSET, BLOCK_CT_8X_OFFSET, 16);
+	const Nr: i32 = <i32>load<u8>(NR_OFFSET);
+
+	transposeIn1();
+
+	addRoundKey(0);
+	for (let round: i32 = 1; round < Nr; round++) {
+		sboxBitsliced();
+		shiftRows();
+		mixColumns();
+		addRoundKey(round);
+	}
+	sboxBitsliced();
+	shiftRows();
+	addRoundKey(Nr);
+
+	transposeOut1();
 }
 
 /**
@@ -774,12 +1057,32 @@ export function decryptBlock_8x(): void {
 /**
  * AES decrypt a single block at BLOCK_PT_OFFSET (ciphertext input),
  * writing plaintext to BLOCK_CT_OFFSET.
+ *
+ * Direct single-block path mirroring `encryptBlock` — reads BLOCK_PT
+ * (treated as ciphertext input here, matching the buffer-naming
+ * convention where BLOCK_PT/CT are named for the encrypt direction) and
+ * writes BLOCK_CT (plaintext output). Never touches BLOCK_PT_8X /
+ * BLOCK_CT_8X.
+ *
+ * Reference: FIPS 197 §5.3.5 Equivalent Inverse Cipher.
  */
 export function decryptBlock(): void {
-	memory.copy(BLOCK_PT_8X_OFFSET, BLOCK_PT_OFFSET, 16);
-	memory.fill(BLOCK_PT_8X_OFFSET + 16, 0, 112);
-	decryptBlock_8x();
-	memory.copy(BLOCK_CT_OFFSET, BLOCK_CT_8X_OFFSET, 16);
+	const Nr: i32 = <i32>load<u8>(NR_OFFSET);
+
+	transposeIn1();
+
+	addInvRoundKey(Nr);
+	for (let round: i32 = Nr - 1; round >= 1; round--) {
+		invSboxBitsliced();
+		invShiftRows();
+		invMixColumns();
+		addInvRoundKey(round);
+	}
+	invSboxBitsliced();
+	invShiftRows();
+	addInvRoundKey(0);
+
+	transposeOut1();
 }
 
 // ── DEBUG-ONLY exports for gate tests 1, 2, 3 ───────────────────────────────
@@ -792,6 +1095,15 @@ export function decryptBlock(): void {
 export function transposeRoundTrip(): void {
 	transposeIn();
 	transposeOut();
+}
+
+/**
+ * DEBUG-ONLY: used by aes_sbox.test.ts to exhaustively verify the
+ * Boyar-Peralta scalar S-box used by the key schedule. Direct passthrough
+ * to `sboxWord`.
+ */
+export function sboxWordExport(w: u32): u32 {
+	return sboxWord(w);
 }
 
 /**

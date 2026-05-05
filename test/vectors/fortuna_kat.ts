@@ -31,7 +31,7 @@
 
 export interface FortunaVector {
 	description: string;
-	generator: 'serpent' | 'chacha20';
+	generator: 'serpent' | 'chacha20' | 'aes';
 	hash: 'sha2' | 'sha3';
 	entropySeed: string;        // hex, 64 bytes of repeated byte pattern
 	genKeyAfterCreate: string;  // hex, length matches generator.keySize
@@ -72,4 +72,22 @@ export const chacha20_sha3: FortunaVector = {
 	entropySeed: '04040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404',
 	genKeyAfterCreate: '2d46c3c12b37a0372f31c4f19b9d6fbe6101ab1d3c0660aa600e1329f4ce54db',
 	firstGet32: '5dbe8838baaf83cd87a58dd65f8ea322bba6a0f602d202550633025172f47d33',
+};
+
+export const aes_sha2: FortunaVector = {
+	description: 'AES + SHA-256',
+	generator: 'aes',
+	hash: 'sha2',
+	entropySeed: '05050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505',
+	genKeyAfterCreate: '743f706f852e7569b13dbc153c6fe6b16d1fd4a2b19cd44ddcefeb47c17cfe76',
+	firstGet32: '660fd219797c54da5464df318055b4f3f53b01ca77d2ea4eaa089ace1a258c11',
+};
+
+export const aes_sha3: FortunaVector = {
+	description: 'AES + SHA3-256',
+	generator: 'aes',
+	hash: 'sha3',
+	entropySeed: '06060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606',
+	genKeyAfterCreate: 'a86d1ad3713343b4ed60f5eb896331876ca69140730a1321740a860ba0ac89d3',
+	firstGet32: 'a0c6ad322ece541833a8d43bdf102249214953585a640252e71157f22b6503e1',
 };

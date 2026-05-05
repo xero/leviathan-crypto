@@ -45,6 +45,13 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 |--------|-------------|
 | [ratchet.md](./ratchet.md) | `ratchetInit`, `KDFChain`, `kemRatchetEncap`, `kemRatchetDecap`: Sparse Post-Quantum Ratchet KDF primitives (DR spec §5 + §7.2) |
 
+### AES (FIPS 197)
+
+| Module | Description |
+|--------|-------------|
+| [aes.md](./aes.md) | TypeScript API: `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator`, `AESGCMSIVCipher` |
+| [asm_aes.md](./asm_aes.md) | WASM implementation: bitsliced 8-block kernel, Canright tower-field S-box, CBC/CTR/GCM/GCM-SIV modes |
+
 ### Serpent-256
 
 | Module | Description |

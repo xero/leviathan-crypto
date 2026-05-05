@@ -6,25 +6,27 @@ The extension point for the streaming AEAD layer. `Seal`, `SealStream`, `OpenStr
 
 ---
 
-Three implementations are included: `SerpentCipher`, `XChaCha20Cipher`, and
-`KyberSuite`. The first two are symmetric cipher suites. `KyberSuite` wraps
-either of them with an ML-KEM layer for hybrid post-quantum encryption.
+Four implementations are included: `SerpentCipher`, `XChaCha20Cipher`,
+`AESGCMSIVCipher`, and `KyberSuite`. The first three are symmetric cipher
+suites. `KyberSuite` wraps any of them with an ML-KEM layer for hybrid
+post-quantum encryption.
 
 ---
 
 ## Symmetric implementations
 
-|                   | `SerpentCipher`                | `XChaCha20Cipher`         |
-| ----------------- | ------------------------------ | ------------------------- |
-| Cipher            | Serpent-256 CBC + HMAC-SHA-256 | XChaCha20-Poly1305        |
-| `formatEnum`      | `0x02`                         | `0x03`                    |
-| `hkdfInfo`        | `serpent-sealstream-v3`        | `xchacha20-sealstream-v3` |
-| `keySize`         | 32 bytes                       | 32 bytes                  |
-| `tagSize`         | 32 bytes                       | 16 bytes                  |
-| `padded`          | `true` (PKCS7)                 | `false`                   |
-| `wasmChunkSize`   | `65552`                        | `65536`                   |
-| `wasmModules`     | `['serpent', 'sha2']`          | `['chacha20', 'sha2']`    |
-| Auth construction | Encrypt-then-MAC               | AEAD                      |
+|                   | `SerpentCipher`                | `XChaCha20Cipher`         | `AESGCMSIVCipher`             |
+| ----------------- | ------------------------------ | ------------------------- | ----------------------------- |
+| Cipher            | Serpent-256 CBC + HMAC-SHA-256 | XChaCha20-Poly1305        | AES-256-GCM-SIV (RFC 8452)    |
+| `formatEnum`      | `0x02`                         | `0x03`                    | `0x04`                        |
+| `hkdfInfo`        | `serpent-sealstream-v3`        | `xchacha20-sealstream-v3` | `aes-gcm-siv-sealstream-v3`   |
+| `keySize`         | 32 bytes                       | 32 bytes                  | 32 bytes                      |
+| `tagSize`         | 32 bytes                       | 16 bytes                  | 16 bytes                      |
+| `commitmentSize`  | `0`                            | `32` (HtE)                | `32` (HtE)                    |
+| `padded`          | `true` (PKCS7)                 | `false`                   | `false`                       |
+| `wasmChunkSize`   | `65552`                        | `65536`                   | `65536`                       |
+| `wasmModules`     | `['serpent', 'sha2']`          | `['chacha20', 'sha2']`    | `['aes', 'sha2']`             |
+| Auth construction | Encrypt-then-MAC               | AEAD                      | AEAD (nonce-misuse-resistant) |
 
 ### SerpentCipher
 
@@ -68,6 +70,34 @@ subkey derivation.
 
 See [chacha20.md](./chacha20.md) for the full ChaCha20 primitive reference.
 
+### AESGCMSIVCipher
+
+```typescript
+import { init, AESGCMSIVCipher } from 'leviathan-crypto'
+import { aesWasm }  from 'leviathan-crypto/aes/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ aes: aesWasm, sha2: sha2Wasm })
+
+const key = AESGCMSIVCipher.keygen()  // 32 bytes
+```
+
+`AESGCMSIVCipher` uses AES-256-GCM-SIV (RFC 8452) AEAD per chunk —
+nonce-misuse-resistant authenticated encryption with a 16-byte tag.
+HKDF-SHA-256 takes the 20-byte preamble header as part of its info
+string and emits 64 bytes: bytes 0..32 are the per-stream AES-GCM-SIV
+key (no subkey-derivation step — AES-GCM-SIV's nonce is 12 bytes,
+used directly per chunk; there is no HChaCha20 analog), bytes 32..64
+are a 32-byte key commitment that ends up in the preamble. The
+commitment is verified before any chunk is processed and closes the
+Invisible Salamanders attack surface — AES-GCM-SIV's POLYVAL-based MAC
+is not key-committing on its own (same posture as Poly1305).
+
+The cipher suite is AES-256 only. The standalone `AESGCMSIV` primitive
+class continues to support both AES-128 and AES-256 (RFC 8452 §6).
+
+See [exports.md](./exports.md#aes) for the AES primitive reference and the AES export inventory.
+
 ---
 
 ## KyberSuite
@@ -93,18 +123,23 @@ material. Neither party ever transmits the shared secret.
 `formatEnum` encodes both the KEM parameter set and inner cipher in a single
 byte. This allows `OpenStream` to infer the full suite from the preamble alone.
 
-| Suite                           | `formatEnum` | Preamble size |
-| ------------------------------- | ------------ | ------------- |
-| `MlKem512` + `XChaCha20Cipher`  | `0x13`       | 820 bytes     |
-| `MlKem512` + `SerpentCipher`    | `0x12`       | 788 bytes     |
-| `MlKem768` + `XChaCha20Cipher`  | `0x23`       | 1140 bytes    |
-| `MlKem768` + `SerpentCipher`    | `0x22`       | 1108 bytes    |
-| `MlKem1024` + `XChaCha20Cipher` | `0x33`       | 1620 bytes    |
-| `MlKem1024` + `SerpentCipher`   | `0x32`       | 1588 bytes    |
+| Suite                            | `formatEnum` | Preamble size |
+| -------------------------------- | ------------ | ------------- |
+| `MlKem512` + `XChaCha20Cipher`   | `0x13`       | 820 bytes     |
+| `MlKem512` + `SerpentCipher`     | `0x12`       | 788 bytes     |
+| `MlKem512` + `AESGCMSIVCipher`   | `0x14`       | 820 bytes     |
+| `MlKem768` + `XChaCha20Cipher`   | `0x23`       | 1140 bytes    |
+| `MlKem768` + `SerpentCipher`     | `0x22`       | 1108 bytes    |
+| `MlKem768` + `AESGCMSIVCipher`   | `0x24`       | 1140 bytes    |
+| `MlKem1024` + `XChaCha20Cipher`  | `0x33`       | 1620 bytes    |
+| `MlKem1024` + `SerpentCipher`    | `0x32`       | 1588 bytes    |
+| `MlKem1024` + `AESGCMSIVCipher`  | `0x34`       | 1620 bytes    |
 
-XChaCha20 hybrid suites carry a 32-byte commitment in the preamble after
-the KEM ciphertext (header(20) + kemCt + commitment(32)); Serpent hybrid
-suites have no commitment field (header(20) + kemCt).
+XChaCha20 and AES-GCM-SIV hybrid suites carry a 32-byte commitment in
+the preamble after the KEM ciphertext (header(20) + kemCt + commitment(32));
+Serpent hybrid suites have no commitment field (header(20) + kemCt).
+The AES-GCM-SIV preamble sizes match XChaCha20 because both have
+`commitmentSize: 32`.
 
 See [kyber.md](./kyber.md) for the full ML-KEM reference and key management guidance.
 
@@ -119,7 +154,7 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 
 | Field           | Type                  | Description                                                              |
 | --------------- | --------------------- | ------------------------------------------------------------------------ |
-| `formatEnum`    | `number`              | Wire format ID. Bits 0-3 cipher nibble (0x2=serpent, 0x3=xchacha20); bits 4-5 KEM selector (0x00=none, 0x10=ML-KEM-512, 0x20=ML-KEM-768, 0x30=ML-KEM-1024); bit 6 reserved; max `0x3f`. |
+| `formatEnum`    | `number`              | Wire format ID. Bits 0-3 cipher nibble (0x2=serpent, 0x3=xchacha20, 0x4=aes-gcm-siv); bits 4-5 KEM selector (0x00=none, 0x10=ML-KEM-512, 0x20=ML-KEM-768, 0x30=ML-KEM-1024); bit 6 reserved; max `0x3f`. |
 | `formatName`    | `string`              | Human-readable label, e.g. `'xchacha20'`, `'serpent'`. Used in hybrid suite names (`'mlkem768+xchacha20'`). |
 | `hkdfInfo`      | `string`              | HKDF info string for domain separation between cipher suites.            |
 | `keySize`       | `number`              | Required master key length in bytes. For KEM suites this is the encapsulation key (ek) size. |
@@ -143,8 +178,9 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 ### Implementing a custom CipherSuite
 
 Your `formatEnum` must not conflict with the built-in values (`0x02`, `0x03`,
-`0x12`, `0x13`, `0x22`, `0x23`, `0x32`, `0x33`). Bits 6 and 7 of header byte
-0 are reserved. The
+`0x04`, `0x12`, `0x13`, `0x14`, `0x22`, `0x23`, `0x24`, `0x32`, `0x33`,
+`0x34`). Bit 6 of header byte 0 is reserved (`readHeader` rejects it); bit
+7 is `FLAG_FRAMED` and is set by the framing layer. The
 `hkdfInfo` string must be unique to your cipher to prevent key reuse across suites.
 `wipeKeys` must zero every byte of derived key material — the stream layer calls
 it unconditionally after finalize.

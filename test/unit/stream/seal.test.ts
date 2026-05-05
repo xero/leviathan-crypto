@@ -20,267 +20,267 @@
 //                           ▀█████▀▀
 //
 /**
- * Seal — unified single-shot encrypt/decrypt tests.
+ * Seal — cipher-agnostic stream contract tests, parameterized over
+ * `_cipher-spec.ts`. Per-cipher behaviors that vary in shape (header
+ * binding, commitment field, native key-committing properties) live in
+ * test/unit/stream/<cipher>-cipher-suite.test.ts.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, randomBytes } from '../../../src/ts/index.js';
 import { Seal, OpenStream, HEADER_SIZE } from '../../../src/ts/stream/index.js';
-import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
-import { SerpentCipher } from '../../../src/ts/serpent/cipher-suite.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
-import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
+import { aesWasm }     from '../../../src/ts/aes/embedded.js';
+import { sha2Wasm }    from '../../../src/ts/sha2/embedded.js';
+import { CIPHER_SPECS } from './_cipher-spec.js';
 
 beforeAll(async () => {
-	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm });
+	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, aes: aesWasm, sha2: sha2Wasm });
 });
 
-// ── Symmetric round-trips ───────────────────────────────────────────────────
+// ── CipherSuite contract pinning ────────────────────────────────────────────
 
-describe('Seal symmetric round-trips', () => {
-	for (const [name, suite] of [
-		['XChaCha20', XChaCha20Cipher] as const,
-		['Serpent', SerpentCipher] as const,
-	]) {
-		describe(name, () => {
-			const key = randomBytes(32);
-
-			it('encrypt/decrypt round-trip', () => {
-				const pt = randomBytes(256);
-				const blob = Seal.encrypt(suite, key, pt);
-				const out = Seal.decrypt(suite, key, blob);
-				expect(out).toEqual(pt);
+describe('CipherSuite contract pinning', () => {
+	for (const spec of CIPHER_SPECS) {
+		describe(spec.name, () => {
+			it('keygen() returns a 32-byte Uint8Array', () => {
+				const k = spec.suite.keygen();
+				expect(k).toBeInstanceOf(Uint8Array);
+				expect(k.length).toBe(spec.keySize);
 			});
 
-			it('encrypt/decrypt with AAD', () => {
-				const pt = randomBytes(128);
-				const aad = new TextEncoder().encode('seal-test-aad');
-				const blob = Seal.encrypt(suite, key, pt, { aad });
-				const out = Seal.decrypt(suite, key, blob, { aad });
-				expect(out).toEqual(pt);
+			it('keygen() produces independent keys', () => {
+				const k1 = spec.suite.keygen();
+				const k2 = spec.suite.keygen();
+				expect(k1).not.toEqual(k2);
 			});
 
-			it('empty plaintext round-trip', () => {
-				const blob = Seal.encrypt(suite, key, new Uint8Array(0));
-				const out = Seal.decrypt(suite, key, blob);
-				expect(out).toEqual(new Uint8Array(0));
-			});
-
-			it('blob = preamble(20B) || ciphertext', () => {
-				const pt = randomBytes(64);
-				const blob = Seal.encrypt(suite, key, pt);
-				// preamble is HEADER_SIZE for symmetric
-				expect(blob.length).toBeGreaterThan(HEADER_SIZE);
-				const preamble = blob.subarray(0, HEADER_SIZE);
-				// preamble byte[0] encodes formatEnum (lower 6 bits)
-				expect(preamble[0] & 0x3f).toBe(suite.formatEnum);
+			it('public field values are pinned', () => {
+				expect(spec.suite.formatEnum).toBe(spec.formatEnum);
+				expect(spec.suite.formatName).toBe(spec.formatName);
+				expect(spec.suite.hkdfInfo).toBe(spec.hkdfInfo);
+				expect(spec.suite.keySize).toBe(spec.keySize);
+				expect(spec.suite.kemCtSize).toBe(spec.kemCtSize);
+				expect(spec.suite.commitmentSize).toBe(spec.commitmentSize);
+				expect(spec.suite.tagSize).toBe(spec.tagSize);
+				expect(spec.suite.padded).toBe(spec.padded);
+				expect(spec.suite.wasmChunkSize).toBe(spec.wasmChunkSize);
+				expect(Array.from(spec.suite.wasmModules)).toEqual(Array.from(spec.wasmModules));
+				expect(spec.suite.decKeySize).toBeUndefined();
 			});
 		});
 	}
 });
 
-// ── KAT: _fromNonce is deterministic ────────────────────────────────────────
+// ── Seal round-trips ────────────────────────────────────────────────────────
 
-describe('Seal._fromNonce determinism', () => {
-	it('XChaCha20 — same inputs produce same blob twice', () => {
-		const key   = randomBytes(32);
-		const pt    = randomBytes(64);
-		const nonce = randomBytes(16);
-		const b1 = Seal._fromNonce(XChaCha20Cipher, key, pt, nonce);
-		const b2 = Seal._fromNonce(XChaCha20Cipher, key, pt, nonce);
-		expect(b1).toEqual(b2);
-	});
+describe('Seal round-trips', () => {
+	for (const spec of CIPHER_SPECS) {
+		describe(spec.name, () => {
+			it('encrypt/decrypt round-trip', () => {
+				const key = spec.suite.keygen();
+				const pt = randomBytes(256);
+				const blob = Seal.encrypt(spec.suite, key, pt);
+				const out  = Seal.decrypt(spec.suite, key, blob);
+				expect(out).toEqual(pt);
+			});
 
-	it('Serpent — same inputs produce same blob twice', () => {
-		const key   = randomBytes(32);
-		const pt    = randomBytes(64);
-		const nonce = randomBytes(16);
-		const b1 = Seal._fromNonce(SerpentCipher, key, pt, nonce);
-		const b2 = Seal._fromNonce(SerpentCipher, key, pt, nonce);
-		expect(b1).toEqual(b2);
-	});
+			it('encrypt/decrypt with AAD', () => {
+				const key = spec.suite.keygen();
+				const pt  = randomBytes(128);
+				const aad = new TextEncoder().encode('seal-test-aad');
+				const blob = Seal.encrypt(spec.suite, key, pt, { aad });
+				const out  = Seal.decrypt(spec.suite, key, blob, { aad });
+				expect(out).toEqual(pt);
+			});
 
-	it('different nonces produce different blobs', () => {
-		const key = randomBytes(32);
-		const pt  = randomBytes(64);
-		const b1 = Seal._fromNonce(XChaCha20Cipher, key, pt, randomBytes(16));
-		const b2 = Seal._fromNonce(XChaCha20Cipher, key, pt, randomBytes(16));
-		expect(b1).not.toEqual(b2);
-	});
+			it('decrypt with mismatched AAD throws with tag discriminator', () => {
+				const key  = spec.suite.keygen();
+				const pt   = randomBytes(64);
+				const blob = Seal.encrypt(spec.suite, key, pt, { aad: new TextEncoder().encode('a') });
+				let caught: Error | null = null;
+				try {
+					Seal.decrypt(spec.suite, key, blob, { aad: new TextEncoder().encode('b') });
+				} catch (e) {
+					caught = e as Error;
+				}
+				expect(caught).not.toBeNull();
+				expect(caught!.message).toContain(spec.tagDiscriminator);
+				expect(caught!.message).not.toContain('commitment-');
+			});
+
+			it('empty plaintext round-trip', () => {
+				const key = spec.suite.keygen();
+				const blob = Seal.encrypt(spec.suite, key, new Uint8Array(0));
+				const out  = Seal.decrypt(spec.suite, key, blob);
+				expect(out).toEqual(new Uint8Array(0));
+			});
+
+			it('blob = preamble || ciphertext, preamble byte[0] encodes formatEnum', () => {
+				const key = spec.suite.keygen();
+				const pt  = randomBytes(64);
+				const blob = Seal.encrypt(spec.suite, key, pt);
+				expect(blob.length).toBeGreaterThan(HEADER_SIZE + spec.commitmentSize);
+				expect(blob[0] & 0x3f).toBe(spec.formatEnum);
+			});
+		});
+	}
 });
 
-// ── OpenStream can decrypt a Seal blob ──────────────────────────────────────
+// ── Size-sweep round-trips (parameterized) ─────────────────────────────────
+//
+// Boundary-size regression test: every cipher must round-trip across the
+// full range of plaintext sizes Seal supports, from empty (0) through
+// the per-chunk WASM cap (65535). Catches regressions where a cipher
+// mishandles edge sizes — empty input, single byte, exact block size,
+// or sizes near the chunk boundary.
+
+describe('Seal round-trips across plaintext sizes', () => {
+	const SIZES = [0, 1, 16, 1024, 65535];
+	for (const spec of CIPHER_SPECS) {
+		describe(spec.name, () => {
+			const key = spec.suite.keygen();
+			for (const n of SIZES) {
+				it(`plaintext size ${n}: encrypt → decrypt round-trips`, () => {
+					const pt = randomBytes(n);
+					const blob = Seal.encrypt(spec.suite, key, pt);
+					const out = Seal.decrypt(spec.suite, key, blob);
+					expect(Array.from(out)).toEqual(Array.from(pt));
+				});
+			}
+		});
+	}
+});
+
+// ── Seal._fromNonce determinism ─────────────────────────────────────────────
+
+describe('Seal._fromNonce determinism', () => {
+	for (const spec of CIPHER_SPECS) {
+		describe(spec.name, () => {
+			it('same inputs produce same blob twice', () => {
+				const key   = spec.suite.keygen();
+				const pt    = randomBytes(64);
+				const nonce = randomBytes(16);
+				const b1 = Seal._fromNonce(spec.suite, key, pt, nonce);
+				const b2 = Seal._fromNonce(spec.suite, key, pt, nonce);
+				expect(b1).toEqual(b2);
+			});
+
+			it('different nonces produce different blobs', () => {
+				const key = spec.suite.keygen();
+				const pt  = randomBytes(64);
+				const b1 = Seal._fromNonce(spec.suite, key, pt, randomBytes(16));
+				const b2 = Seal._fromNonce(spec.suite, key, pt, randomBytes(16));
+				expect(b1).not.toEqual(b2);
+			});
+		});
+	}
+});
+
+// ── Seal blob is OpenStream-compatible ──────────────────────────────────────
 
 describe('Seal blob is OpenStream-compatible', () => {
-	for (const [name, suite] of [
-		['XChaCha20', XChaCha20Cipher] as const,
-		['Serpent', SerpentCipher] as const,
-	]) {
-		it(`${name}: OpenStream.finalize decrypts Seal.encrypt output`, () => {
-			const key  = randomBytes(32);
+	for (const spec of CIPHER_SPECS) {
+		it(`${spec.name}: OpenStream.finalize decrypts Seal.encrypt output`, () => {
+			const key  = spec.suite.keygen();
 			const pt   = randomBytes(128);
-			const blob = Seal.encrypt(suite, key, pt);
-			const preambleLen = HEADER_SIZE + suite.kemCtSize + suite.commitmentSize;
+			const blob = Seal.encrypt(spec.suite, key, pt);
+			const preambleLen = HEADER_SIZE + spec.kemCtSize + spec.commitmentSize;
 			const preamble = blob.subarray(0, preambleLen);
-			const opener   = new OpenStream(suite, key, preamble);
+			const opener   = new OpenStream(spec.suite, key, preamble);
 			const out = opener.finalize(blob.subarray(preambleLen));
 			expect(out).toEqual(pt);
 		});
 	}
 });
 
-// ── Error cases ─────────────────────────────────────────────────────────────
+// ── Seal error handling — input validation ──────────────────────────────────
 
 describe('Seal error handling', () => {
-	it('truncated blob throws RangeError', () => {
-		const key = randomBytes(32);
-		const tooShort = new Uint8Array(HEADER_SIZE - 1);
-		expect(() => Seal.decrypt(XChaCha20Cipher, key, tooShort)).toThrow(RangeError);
-	});
+	for (const spec of CIPHER_SPECS) {
+		describe(spec.name, () => {
+			it('truncated blob throws RangeError', () => {
+				const key = spec.suite.keygen();
+				const tooShort = new Uint8Array(HEADER_SIZE - 1);
+				expect(() => Seal.decrypt(spec.suite, key, tooShort)).toThrow(RangeError);
+			});
 
-	it('wrong suite throws format mismatch error', () => {
-		const key  = randomBytes(32);
-		const pt   = randomBytes(64);
-		const blob = Seal.encrypt(XChaCha20Cipher, key, pt);
-		expect(() => Seal.decrypt(SerpentCipher, key, blob))
-			.toThrow(/expected format/);
-	});
-
-	it('wrong key → authentication failure', () => {
-		const key     = randomBytes(32);
-		const wrongKey = randomBytes(32);
-		const pt   = randomBytes(64);
-		const blob = Seal.encrypt(XChaCha20Cipher, key, pt);
-		expect(() => Seal.decrypt(XChaCha20Cipher, wrongKey, blob)).toThrow();
-	});
-
-	it('tampered blob → authentication failure', () => {
-		const key  = randomBytes(32);
-		const pt   = randomBytes(64);
-		const blob = Seal.encrypt(XChaCha20Cipher, key, pt).slice();
-		blob[blob.length - 1] ^= 0xff;
-		expect(() => Seal.decrypt(XChaCha20Cipher, key, blob)).toThrow();
-	});
+			it('wrong suite throws format mismatch error', () => {
+				// Pick the first OTHER cipher spec for the cross-decrypt attempt.
+				const other = CIPHER_SPECS.find(s => s !== spec)!;
+				const key  = spec.suite.keygen();
+				const pt   = randomBytes(64);
+				const blob = Seal.encrypt(spec.suite, key, pt);
+				expect(() => Seal.decrypt(other.suite, key, blob))
+					.toThrow(/expected format/);
+			});
+		});
+	}
 });
 
-// ── Cipher suite keygen() ───────────────────────────────────────────────────
+// ── Seal failure modes — discriminator-asserted ─────────────────────────────
 
-describe('Regression: cipher keygen()', () => {
-	it('XChaCha20Cipher.keygen() returns 32 bytes', () => {
-		const k = XChaCha20Cipher.keygen();
-		expect(k).toBeInstanceOf(Uint8Array);
-		expect(k.length).toBe(32);
-	});
+describe('Seal failure modes', () => {
+	for (const spec of CIPHER_SPECS) {
+		describe(spec.name, () => {
+			it('wrong key throws AuthenticationError', () => {
+				const key      = spec.suite.keygen();
+				const wrongKey = spec.suite.keygen();
+				const pt   = randomBytes(64);
+				const blob = Seal.encrypt(spec.suite, key, pt);
+				let caught: Error | null = null;
+				try {
+					Seal.decrypt(spec.suite, wrongKey, blob);
+				} catch (e) {
+					caught = e as Error;
+				}
+				expect(caught).not.toBeNull();
+				if (spec.commitDiscriminator) {
+					// v3 ciphers fail at commitment check before AEAD touches anything.
+					expect(caught!.message).toContain(spec.commitDiscriminator);
+				} else {
+					// Serpent has no commitment; wrong key surfaces as HMAC tag mismatch.
+					expect(caught!.message).toContain(spec.tagDiscriminator);
+					expect(caught!.message).not.toContain('commitment-');
+				}
+			});
 
-	it('SerpentCipher.keygen() returns 32 bytes', () => {
-		const k = SerpentCipher.keygen();
-		expect(k).toBeInstanceOf(Uint8Array);
-		expect(k.length).toBe(32);
-	});
+			it('tampered tag throws AuthenticationError with tag discriminator', () => {
+				const key  = spec.suite.keygen();
+				const pt   = randomBytes(128);
+				const blob = Seal.encrypt(spec.suite, key, pt).slice();
+				// Tag is at the end. Flip a byte inside the trailing tag region.
+				blob[blob.length - 4] ^= 0xff;
+				let caught: Error | null = null;
+				try {
+					Seal.decrypt(spec.suite, key, blob);
+				} catch (e) {
+					caught = e as Error;
+				}
+				expect(caught).not.toBeNull();
+				expect(caught!.message).toContain(spec.tagDiscriminator);
+				// AEAD/HMAC tag mismatch, NOT commitment.
+				expect(caught!.message).not.toContain('commitment-');
+			});
 
-	it('XChaCha20Cipher.keygen() produces different keys each call', () => {
-		const k1 = XChaCha20Cipher.keygen();
-		const k2 = XChaCha20Cipher.keygen();
-		expect(k1).not.toEqual(k2);
-	});
-});
-
-// ── New CipherSuite properties ──────────────────────────────────────────────
-
-describe('CipherSuite new properties', () => {
-	it('XChaCha20Cipher.formatName', () => {
-		expect(XChaCha20Cipher.formatName).toBe('xchacha20');
-	});
-
-	it('SerpentCipher.formatName', () => {
-		expect(SerpentCipher.formatName).toBe('serpent');
-	});
-
-	it('XChaCha20Cipher.kemCtSize is 0', () => {
-		expect(XChaCha20Cipher.kemCtSize).toBe(0);
-	});
-
-	it('SerpentCipher.kemCtSize is 0', () => {
-		expect(SerpentCipher.kemCtSize).toBe(0);
-	});
-
-	it('symmetric suites have no decKeySize', () => {
-		expect(XChaCha20Cipher.decKeySize).toBeUndefined();
-		expect(SerpentCipher.decKeySize).toBeUndefined();
-	});
-});
-
-// ── Salamander mitigation: commitment + header binding (v3 wire format) ─────
-
-describe('CipherSuite commitmentSize round-trip', () => {
-	it('XChaCha20Cipher declares commitmentSize: 32', () => {
-		expect(XChaCha20Cipher.commitmentSize).toBe(32);
-	});
-
-	it('SerpentCipher declares commitmentSize: 0', () => {
-		expect(SerpentCipher.commitmentSize).toBe(0);
-	});
-
-	it('XChaCha20.deriveKeys returns a 32-byte commitment matching commitmentSize', () => {
-		const key = randomBytes(32);
-		const nonce = randomBytes(16);
-		// Round-trip a Seal blob to obtain a valid 20-byte header, then call
-		// deriveKeys directly so we can inspect the returned DerivedKeys.
-		const blob = Seal._fromNonce(XChaCha20Cipher, key, new Uint8Array(0), nonce);
-		const header = blob.subarray(0, HEADER_SIZE);
-		const dk = XChaCha20Cipher.deriveKeys(key, nonce, undefined, header);
-		try {
-			expect(dk.commitment).toBeInstanceOf(Uint8Array);
-			expect(dk.commitment!.length).toBe(XChaCha20Cipher.commitmentSize);
-		} finally {
-			XChaCha20Cipher.wipeKeys(dk);
-		}
-	});
-
-	it('Serpent.deriveKeys returns no commitment field', () => {
-		const key = randomBytes(32);
-		const nonce = randomBytes(16);
-		const dk = SerpentCipher.deriveKeys(key, nonce);
-		try {
-			expect(dk.commitment).toBeUndefined();
-		} finally {
-			SerpentCipher.wipeKeys(dk);
-		}
-	});
-});
-
-describe('Seal.decrypt: commitment-mismatch fails fast (XChaCha20 v3)', () => {
-	it('flipping a byte in the commitment region throws AuthenticationError', () => {
-		const key = randomBytes(32);
-		const pt  = randomBytes(64);
-		const blob = Seal.encrypt(XChaCha20Cipher, key, pt).slice();
-		// Commitment lives at [HEADER_SIZE, HEADER_SIZE + 32). Flip a byte inside it.
-		const flipOffset = HEADER_SIZE + 5;
-		blob[flipOffset] ^= 0xff;
-		let caught: Error | null = null;
-		try {
-			Seal.decrypt(XChaCha20Cipher, key, blob);
-		} catch (e) {
-			caught = e as Error;
-		}
-		expect(caught).not.toBeNull();
-		expect(caught!.message).toContain('commitment-xchacha20');
-	});
-});
-
-describe('Seal.decrypt: header tampering surfaces as authentication failure', () => {
-	it('flipping a byte in the chunkSize portion of the header causes failure', () => {
-		const key = randomBytes(32);
-		const pt  = randomBytes(64);
-		const blob = Seal.encrypt(XChaCha20Cipher, key, pt).slice();
-		// chunkSize is bytes 17..20 of the header. Tamper with byte 18.
-		blob[18] ^= 0x01;
-		let threw = false;
-		try {
-			Seal.decrypt(XChaCha20Cipher, key, blob);
-		} catch {
-			threw = true;
-		}
-		expect(threw).toBe(true);
-	});
+			it('tampered ciphertext throws AuthenticationError with tag discriminator', () => {
+				const key  = spec.suite.keygen();
+				const pt   = randomBytes(128);
+				const blob = Seal.encrypt(spec.suite, key, pt).slice();
+				// Flip a byte in the middle of the ciphertext region: after the
+				// preamble (header + commitment), before the trailing tag.
+				const ctOffset = HEADER_SIZE + spec.commitmentSize + 10;
+				blob[ctOffset] ^= 0xff;
+				let caught: Error | null = null;
+				try {
+					Seal.decrypt(spec.suite, key, blob);
+				} catch (e) {
+					caught = e as Error;
+				}
+				expect(caught).not.toBeNull();
+				expect(caught!.message).toContain(spec.tagDiscriminator);
+				expect(caught!.message).not.toContain('commitment-');
+			});
+		});
+	}
 });

@@ -34,11 +34,13 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { SerpentGenerator }  from '../../../src/ts/serpent/index.js';
 import { ChaCha20Generator } from '../../../src/ts/chacha20/index.js';
+import { AESGenerator }      from '../../../src/ts/aes/index.js';
 import { serpentWasm }       from '../../../src/ts/serpent/embedded.js';
 import { chacha20Wasm }      from '../../../src/ts/chacha20/embedded.js';
+import { aesWasm }           from '../../../src/ts/aes/embedded.js';
 
 beforeAll(async () => {
-	await init({ serpent: serpentWasm, chacha20: chacha20Wasm });
+	await init({ serpent: serpentWasm, chacha20: chacha20Wasm, aes: aesWasm });
 });
 
 // Sizes spanning: empty, sub-block, on-block, just-past-block, mid-block,
@@ -66,6 +68,20 @@ describe('ChaCha20Generator output shape — exact-size buffer, no extra keystre
 	for (const n of SIZES) {
 		it(`n=${n}: result.length === buffer.byteLength === ${n}`, () => {
 			const out = ChaCha20Generator.generate(key, counter, n);
+			expect(out.length).toBe(n);
+			expect(out.byteOffset).toBe(0);
+			expect((out.buffer as ArrayBuffer).byteLength).toBe(n);
+		});
+	}
+});
+
+describe('AESGenerator output shape — exact-size buffer, no extra keystream', () => {
+	const key = new Uint8Array(32).fill(0xab);
+	const counter = new Uint8Array(16).fill(0xcd);
+
+	for (const n of SIZES) {
+		it(`n=${n}: result.length === buffer.byteLength === ${n}`, () => {
+			const out = AESGenerator.generate(key, counter, n);
 			expect(out.length).toBe(n);
 			expect(out.byteOffset).toBe(0);
 			expect((out.buffer as ArrayBuffer).byteLength).toBe(n);

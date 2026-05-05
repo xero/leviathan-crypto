@@ -82,7 +82,7 @@ export { sha2Init, SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384
 export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, SHA3_256Hash } from './sha3/index.js';
 export { keccakInit } from './keccak/index.js';
 export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from './kyber/index.js';
-export { aesInit, AES } from './aes/index.js';
+export { aesInit, AES, AESCbc, AESCtr, AESGCM, AESGCMSIV, AESGenerator, AESGCMSIVCipher } from './aes/index.js';
 export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';

@@ -96,7 +96,10 @@ export class Serpent {
 			throw new RangeError(`key must be 16, 24, or 32 bytes (got ${key.length})`);
 		const mem = new Uint8Array(this.x.memory.buffer);
 		mem.set(key, this.x.getKeyOffset());
-		if (this.x.loadKey(key.length) !== 0) throw new Error('loadKey failed');
+		if (this.x.loadKey(key.length) !== 0) {
+			this.x.wipeBuffers();
+			throw new Error('loadKey failed');
+		}
 	}
 
 	/**
@@ -187,7 +190,10 @@ export class SerpentCtr {
 		const mem = new Uint8Array(this.x.memory.buffer);
 		mem.set(key,   this.x.getKeyOffset());
 		mem.set(nonce, this.x.getNonceOffset());
-		this.x.loadKey(key.length);
+		if (this.x.loadKey(key.length) !== 0) {
+			this.x.wipeBuffers();
+			throw new Error('SerpentCtr: loadKey failed');
+		}
 		this.x.resetCounter();
 	}
 

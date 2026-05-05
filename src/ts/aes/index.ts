@@ -111,7 +111,10 @@ export class AES {
 			);
 		const mem = new Uint8Array(this.x.memory.buffer);
 		mem.set(key, this.x.getKeyOffset());
-		if (this.x.loadKey(key.length) !== 0) throw new Error('loadKey failed');
+		if (this.x.loadKey(key.length) !== 0) {
+			this.x.wipeBuffers();
+			throw new Error('loadKey failed');
+		}
 	}
 
 	/**
@@ -156,3 +159,12 @@ export class AES {
 		this.x.wipeBuffers();
 	}
 }
+
+// ── CBC + CTR + GCM mode wrappers ───────────────────────────────────────────
+
+export { AESCbc } from './aes-cbc.js';
+export { AESCtr } from './aes-ctr.js';
+export { AESGCM } from './aes-gcm.js';
+export { AESGCMSIV } from './aes-gcm-siv.js';
+export { AESGenerator } from './generator.js';
+export { AESGCMSIVCipher } from './cipher-suite.js';

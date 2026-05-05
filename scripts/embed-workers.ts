@@ -52,6 +52,7 @@ const HEADER =
 const ciphers = [
 	{ name: 'chacha20', entry: 'src/ts/chacha20/pool-worker.ts' },
 	{ name: 'serpent',  entry: 'src/ts/serpent/pool-worker.ts'  },
+	{ name: 'aes',      entry: 'src/ts/aes/pool-worker.ts'      },
 ]
 
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true })

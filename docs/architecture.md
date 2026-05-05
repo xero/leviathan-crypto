@@ -2,7 +2,7 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture design, comprising six independent WASM modules unified by a misuse-resistant TypeScript API, which delivers both Serpent's paranoia and ChaCha's elegance as a zero-dependency, tree-shakable, post-quantum library.
+Overview of Leviathan Crypto's architecture design, comprising seven independent WASM modules unified by a misuse-resistant TypeScript API, which delivers Serpent's paranoia, ChaCha's elegance, and AES's ubiquity as a zero-dependency, tree-shakable, post-quantum library.
 
 > ### Table of Contents
 >
@@ -10,7 +10,7 @@ Overview of Leviathan Crypto's architecture design, comprising six independent W
 > - [Scope](#scope)
 > - [Repository Structure](#repository-structure)
 > - [Architecture: TypeScript over WASM](#architecture-typescript-over-wasm)
-> - [Six Independent WASM Modules](#six-independent-wasm-modules)
+> - [Seven Independent WASM Modules](#seven-independent-wasm-modules)
 > - [init() API](#init-api)
 > - [Public API Classes](#public-api-classes)
 > - [Build Pipeline](#build-pipeline)
@@ -27,7 +27,7 @@ Overview of Leviathan Crypto's architecture design, comprising six independent W
 
 **JS is the problem, SIMD WASM is the solution.** JavaScript engines offer no formal constant-time guarantees. JIT compilers optimize based on runtime patterns, which leak secrets through cache access and instruction timing. By contrast, [WebAssembly](https://github.com/xero/leviathan-crypto/wiki/wasm) executes outside the JIT entirely, running compiled bytecode with linear memory you control. No speculative optimization, no value-dependent branches between source and execution.
 
-**WebAssembly is the correctness layer.** All algorithm logic lives in WASM. Six AssemblyScript modules ([`serpent`](https://github.com/xero/leviathan-crypto/wiki/asm_serpent), [`chacha20`](https://github.com/xero/leviathan-crypto/wiki/asm_chacha), [`sha2`](https://github.com/xero/leviathan-crypto/wiki/asm_sha2), [`sha3`](https://github.com/xero/leviathan-crypto/wiki/asm_sha3), [`kyber`](https://github.com/xero/leviathan-crypto/wiki/asm_kyber), and [`ct`](https://github.com/xero/leviathan-crypto/wiki/asm_ct)) compile independently to WASM with SIMD where it pays off. Each module is its own instance with its own linear memory. Within a module, stateful primitives share the instance, and a runtime exclusivity model keeps them from interfering with each other.
+**WebAssembly is the correctness layer.** All algorithm logic lives in WASM. Seven AssemblyScript modules ([`serpent`](https://github.com/xero/leviathan-crypto/wiki/asm_serpent), [`chacha20`](https://github.com/xero/leviathan-crypto/wiki/asm_chacha), `aes`, [`sha2`](https://github.com/xero/leviathan-crypto/wiki/asm_sha2), [`sha3`](https://github.com/xero/leviathan-crypto/wiki/asm_sha3), [`kyber`](https://github.com/xero/leviathan-crypto/wiki/asm_kyber), and [`ct`](https://github.com/xero/leviathan-crypto/wiki/asm_ct)) compile independently to WASM with SIMD where it pays off. Each module is its own instance with its own linear memory. Within a module, stateful primitives share the instance, and a runtime exclusivity model keeps them from interfering with each other.
 
 **TypeScript is the ergonomics layer.** The strongly-typed public API covers [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal), [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream), [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool), [`Fortuna`](https://github.com/xero/leviathan-crypto/wiki/fortuna), [`HKDF`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha256), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore), and others. The design is misuse-resistant by default. Authentication is verify-then-decrypt; key material wipes on dispose; validation runs before any crypto path; one-shot AEADs lock on first call. TypeScript never implements cryptographic algorithms. It orchestrates the WASM layer and enforces best practice through API shape, not convention.
 
@@ -47,6 +47,7 @@ Overview of Leviathan Crypto's architecture design, comprising six independent W
 | ----------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`serpent`](./asm_serpent.md) | Serpent-256 block cipher: ECB, CTR, CBC                   | [`Serpent`](./serpent.md) (cipher class for mode operations)                                                                                                                                                    |
 | [`chacha20`](./asm_chacha.md) | ChaCha20, Poly1305, ChaCha20-Poly1305, XChaCha20-Poly1305 | [`ChaCha20`](./chacha20.md#chacha20), [`Poly1305`](./chacha20.md#poly1305), [`XChaCha20Poly1305`](./chacha20.md#xchacha20poly1305)                                                                                                                  |
+| `aes`                         | AES-128/192/256 block cipher: ECB, CBC, CTR, GCM, GCM-SIV (RFC 8452) | `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator` (Practical Cryptography §9.4 generator for `Fortuna`)                                                                  |
 | [`sha2`](./asm_sha2.md)       | SHA-256, SHA-384, SHA-512, HMAC variants, HKDF variants   | [`SHA256`](./sha2.md#sha256), [`SHA384`](./sha2.md#sha384), [`SHA512`](./sha2.md#sha512), [`HMAC_SHA256`](./sha2.md#hmac_sha256), [`HMAC_SHA384`](./sha2.md#hmac_sha384), [`HMAC_SHA512`](./sha2.md#hmac_sha512), [`HKDF_SHA256`](./sha2.md#hkdf_sha256), [`HKDF_SHA512`](./sha2.md#hkdf_sha512) |
 | [`sha3`](./asm_sha3.md)       | SHA3-224/256/384/512, SHAKE128, SHAKE256 (XOFs)           | [`SHA3_256`](./sha3.md#sha3_256), [`SHA3_512`](./sha3.md#sha3_512), [`SHAKE256`](./sha3.md#shake256)                                                                                                                                       |
 | [`kyber`](./asm_kyber.md)     | MlKem512, MlKem768, MlKem1024                             | [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), [`MlKem1024`](./kyber.md#parameter-sets)                                                                                                                                   |
@@ -59,6 +60,7 @@ Overview of Leviathan Crypto's architecture design, comprising six independent W
 | ------------------------------------- | ------------------------------------ | ----------------------------------- |
 | [`SerpentCipher`](./ciphersuite.md#serpentcipher)   | `serpent` + `sha2` (CBC+HMAC-SHA256) | Authenticated encryption via STREAM |
 | [`XChaCha20Cipher`](./ciphersuite.md#xchacha20cipher) | `chacha20` (XChaCha20-Poly1305 AEAD) | Streaming authenticated encryption  |
+| [`AESGCMSIVCipher`](./ciphersuite.md#aesgcmsivcipher) | `aes` + `sha2` (AES-256-GCM-SIV, RFC 8452) | Nonce-misuse-resistant authenticated encryption |
 | [`KyberSuite`](./ciphersuite.md#kybersuite)      | `kyber` + (any cipher)               | Post-quantum key encapsulation      |
 
 **High-Level Constructs.** Pure TypeScript abstractions over cipher suites.
@@ -377,14 +379,15 @@ Higher-level classes like `Seal`, `SealStream`, and `SealStreamPool` are pure Ty
 
 ---
 
-## Six Independent WASM Modules
+## Seven Independent WASM Modules
 
-Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Five of the six modules load through `init()`. The sixth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
+Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Six of the seven modules load through `init()`. The seventh, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
 
 |Module|Binary|Primitives|
 |---|---|---|
 |`serpent`|`serpent.wasm`|Serpent-256 block cipher: ECB, CTR mode, CBC mode|
 |`chacha20`|`chacha20.wasm`|ChaCha20, Poly1305, ChaCha20-Poly1305 AEAD, XChaCha20-Poly1305 AEAD|
+|`aes`|`aes.wasm`|AES-128/192/256 block cipher (FIPS 197), CBC, CTR, GCM, GCM-SIV (RFC 8452)|
 |`sha2`|`sha2.wasm`|SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, HMAC-SHA512|
 |`sha3`|`sha3.wasm`|SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256|
 |`kyber`|`kyber.wasm`|ML-KEM polynomial arithmetic: SIMD NTT/invNTT (v128 butterflies with scalar tail), basemul, Montgomery/Barrett, CBD, compress, CT verify/cmov|

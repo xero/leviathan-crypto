@@ -38,16 +38,18 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
 import { SerpentGenerator }  from '../../../src/ts/serpent/index.js';
 import { ChaCha20Generator } from '../../../src/ts/chacha20/index.js';
+import { AESGenerator }      from '../../../src/ts/aes/index.js';
 import { SHA256Hash }        from '../../../src/ts/sha2/index.js';
 import { SHA3_256Hash }      from '../../../src/ts/sha3/index.js';
 import { getInstance }       from '../../../src/ts/init.js';
 import { serpentWasm }       from '../../../src/ts/serpent/embedded.js';
 import { chacha20Wasm }      from '../../../src/ts/chacha20/embedded.js';
+import { aesWasm }           from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm }          from '../../../src/ts/sha2/embedded.js';
 import { sha3Wasm }          from '../../../src/ts/sha3/embedded.js';
 
 beforeAll(async () => {
-	await init({ serpent: serpentWasm, chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm });
+	await init({ serpent: serpentWasm, chacha20: chacha20Wasm, aes: aesWasm, sha2: sha2Wasm, sha3: sha3Wasm });
 });
 
 function isZero(buf: Uint8Array): boolean {
@@ -91,6 +93,27 @@ describe('ChaCha20Generator.generate — wipe-on-return', () => {
 		const keyRegion = mem.slice(x.getKeyOffset(), x.getKeyOffset() + 32);
 		const ptRegion  = mem.slice(x.getChunkPtOffset(), x.getChunkPtOffset() + 128);
 		const ctRegion  = mem.slice(x.getChunkCtOffset(), x.getChunkCtOffset() + 128);
+		expect(isZero(keyRegion)).toBe(true);
+		expect(isZero(ptRegion)).toBe(true);
+		expect(isZero(ctRegion)).toBe(true);
+	});
+});
+
+describe('AESGenerator.generate — wipe-on-return', () => {
+	it('zeroes the key + block plaintext + block ciphertext WASM scratch after return', () => {
+		const x = getInstance('aes').exports as unknown as {
+			memory:           WebAssembly.Memory;
+			getKeyOffset:     () => number;
+			getBlockPtOffset: () => number;
+			getBlockCtOffset: () => number;
+		};
+		const key     = new Uint8Array(32).fill(0x44);
+		const counter = new Uint8Array(16).fill(0x66);
+		AESGenerator.generate(key, counter, 64);
+		const mem = new Uint8Array(x.memory.buffer);
+		const keyRegion = mem.slice(x.getKeyOffset(), x.getKeyOffset() + 32);
+		const ptRegion  = mem.slice(x.getBlockPtOffset(), x.getBlockPtOffset() + 16);
+		const ctRegion  = mem.slice(x.getBlockCtOffset(), x.getBlockCtOffset() + 16);
 		expect(isZero(keyRegion)).toBe(true);
 		expect(isZero(ptRegion)).toBe(true);
 		expect(isZero(ctRegion)).toBe(true);

@@ -34,6 +34,7 @@
 
 import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
 import { SerpentCipher }   from '../../../src/ts/serpent/cipher-suite.js';
+import { AESGCMSIVCipher } from '../../../src/ts/aes/cipher-suite.js';
 
 export const TestXChaCha20Cipher = {
 	...XChaCha20Cipher,
@@ -47,6 +48,14 @@ export const TestSerpentCipher = {
 	...SerpentCipher,
 	createPoolWorker: (): Worker => new Worker(
 		new URL('../../../src/ts/serpent/pool-worker.ts', import.meta.url),
+		{ type: 'module' },
+	),
+};
+
+export const TestAESGCMSIVCipher = {
+	...AESGCMSIVCipher,
+	createPoolWorker: (): Worker => new Worker(
+		new URL('../../../src/ts/aes/pool-worker.ts', import.meta.url),
 		{ type: 'module' },
 	),
 };

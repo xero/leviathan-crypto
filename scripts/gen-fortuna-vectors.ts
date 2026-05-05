@@ -34,16 +34,18 @@
 import { init, Fortuna, bytesToHex } from '../src/ts/index.js';
 import { SerpentGenerator } from '../src/ts/serpent/index.js';
 import { ChaCha20Generator } from '../src/ts/chacha20/index.js';
+import { AESGenerator } from '../src/ts/aes/index.js';
 import { SHA256Hash } from '../src/ts/sha2/index.js';
 import { SHA3_256Hash } from '../src/ts/sha3/index.js';
 import { serpentWasm } from '../src/ts/serpent/embedded.js';
 import { chacha20Wasm } from '../src/ts/chacha20/embedded.js';
+import { aesWasm } from '../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../src/ts/sha2/embedded.js';
 import { sha3Wasm } from '../src/ts/sha3/embedded.js';
 import type { Generator, HashFn } from '../src/ts/types.js';
 import { writeFileSync } from 'fs';
 
-await init({ serpent: serpentWasm, chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm });
+await init({ serpent: serpentWasm, chacha20: chacha20Wasm, aes: aesWasm, sha2: sha2Wasm, sha3: sha3Wasm });
 
 function hex(b: Uint8Array): string { return bytesToHex(b); }
 
@@ -51,7 +53,7 @@ const combinations: {
 	name: string;
 	exportName: string;
 	generator: Generator;
-	generatorName: 'serpent' | 'chacha20';
+	generatorName: 'serpent' | 'chacha20' | 'aes';
 	hash: HashFn;
 	hashName: 'sha2' | 'sha3';
 	index: number;
@@ -60,12 +62,14 @@ const combinations: {
 	{ name: 'Serpent + SHA3-256', exportName: 'serpent_sha3',  generator: SerpentGenerator,  generatorName: 'serpent',  hash: SHA3_256Hash, hashName: 'sha3', index: 1 },
 	{ name: 'ChaCha20 + SHA-256', exportName: 'chacha20_sha2', generator: ChaCha20Generator, generatorName: 'chacha20', hash: SHA256Hash,   hashName: 'sha2', index: 2 },
 	{ name: 'ChaCha20 + SHA3-256',exportName: 'chacha20_sha3', generator: ChaCha20Generator, generatorName: 'chacha20', hash: SHA3_256Hash, hashName: 'sha3', index: 3 },
+	{ name: 'AES + SHA-256',      exportName: 'aes_sha2',      generator: AESGenerator,      generatorName: 'aes',      hash: SHA256Hash,   hashName: 'sha2', index: 4 },
+	{ name: 'AES + SHA3-256',     exportName: 'aes_sha3',      generator: AESGenerator,      generatorName: 'aes',      hash: SHA3_256Hash, hashName: 'sha3', index: 5 },
 ];
 
 interface Record {
 	exportName: string;
 	description: string;
-	generator: 'serpent' | 'chacha20';
+	generator: 'serpent' | 'chacha20' | 'aes';
 	hash: 'sha2' | 'sha3';
 	entropySeed: string;
 	genKeyAfterCreate: string;
@@ -172,7 +176,7 @@ const file = `${asciiHeader}
 
 export interface FortunaVector {
 \tdescription: string;
-\tgenerator: 'serpent' | 'chacha20';
+\tgenerator: 'serpent' | 'chacha20' | 'aes';
 \thash: 'sha2' | 'sha3';
 \tentropySeed: string;        // hex, 64 bytes of repeated byte pattern
 \tgenKeyAfterCreate: string;  // hex, length matches generator.keySize
