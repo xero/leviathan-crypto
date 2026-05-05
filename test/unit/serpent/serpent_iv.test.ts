@@ -29,7 +29,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
-import { loadKey, readBytes, getWasm } from '../helpers';
+import { loadKeyFloppy, readBytes, getWasm } from '../helpers';
 import { parseIvFile } from './vector_parser';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
@@ -60,7 +60,7 @@ describe('Intermediate values — serpent_ecb_iv.txt key schedule (Gate 2)', () 
 	it('SK[0..32] match reference for all key sizes', () => {
 		const wasm = getWasm();
 		for (const { key, sk } of cases) {
-			loadKey(key);
+			loadKeyFloppy(key);
 			const subkeyBuf = readBytes(wasm.getSubkeyOffset(), 33 * 4 * 4);
 			for (let i = 0; i <= 32; i++) {
 				const expected = sk[i];

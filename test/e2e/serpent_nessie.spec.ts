@@ -39,7 +39,6 @@ async function loadWasm() {
 }
 function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) }
 function toHex(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') }
-function nessieBytes(hex) { return hex.match(/.{2}/g).reverse().join('').toLowerCase() }
 function parseNessie(text) {
   var vecs = [], key = '', keyPart1 = '', awaitKey2 = false
   var pt = '', ct = '', hasPt = false, hasCt = false
@@ -78,13 +77,13 @@ test('NESSIE 256-bit — all 1284 vectors', async ({ page }) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const v of raw) {
-			const k  = fromHex(nessieBytes(v.key));
-			const ct = nessieBytes(v.ct);
+			const k  = fromHex(v.key);
+			const ct = v.ct.toLowerCase();
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push('loadKey failed'); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(nessieBytes(v.pt)), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(fromHex(v.pt), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
 			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
 			if (got !== ct) errs.push(`exp=${ct} got=${got}`);
@@ -102,13 +101,13 @@ test('NESSIE 128-bit — all 1028 vectors', async ({ page }) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const v of raw) {
-			const k  = fromHex(nessieBytes(v.key));
-			const ct = nessieBytes(v.ct);
+			const k  = fromHex(v.key);
+			const ct = v.ct.toLowerCase();
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push('loadKey failed'); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(nessieBytes(v.pt)), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(fromHex(v.pt), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
 			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
 			if (got !== ct) errs.push(`exp=${ct} got=${got}`);

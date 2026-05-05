@@ -2,8 +2,8 @@
 //
 //   SealXChachaV3Vector       — single-chunk seal blob, flat fields
 //   SealStreamXChachaV3Vector — multi-chunk sealstream, with nested chunks array
-//   SealSerpentV2Vector       — single-chunk seal blob, flat fields (Serpent)
-//   SealStreamSerpentV2Vector — multi-chunk sealstream, with nested chunks array
+//   SealSerpentV3Vector       — single-chunk seal blob, flat fields (Serpent)
+//   SealStreamSerpentV3Vector — multi-chunk sealstream, with nested chunks array
 //
 // This parser only handles output produced by scripts/gen-seal-vectors.ts and
 // scripts/gen-sealstream-vectors.ts. Hand-edited vector files are not

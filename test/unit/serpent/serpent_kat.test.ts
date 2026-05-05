@@ -28,7 +28,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
-import { loadKey, encryptBlock, decryptBlock } from '../helpers';
+import { loadKeyFloppy, encryptBlockFloppy, decryptBlockFloppy } from '../helpers';
 import { parseVtFile, parseVkFile } from './vector_parser';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
@@ -45,15 +45,15 @@ describe('KAT — serpent_ecb_vt.txt variable-text (384 vectors)', () => {
 
 	it('all 384 encrypt', () => {
 		for (const { key, pt, ct } of vectors) {
-			loadKey(key);
-			expect(encryptBlock(pt)).toBe(ct);
+			loadKeyFloppy(key);
+			expect(encryptBlockFloppy(pt)).toBe(ct);
 		}
 	});
 
 	it('all 384 decrypt', () => {
 		for (const { key, pt, ct } of vectors) {
-			loadKey(key);
-			expect(decryptBlock(ct)).toBe(pt);
+			loadKeyFloppy(key);
+			expect(decryptBlockFloppy(ct)).toBe(pt);
 		}
 	});
 });
@@ -67,15 +67,15 @@ describe('KAT — serpent_ecb_vk.txt variable-key (576 vectors)', () => {
 
 	it('all 576 encrypt', () => {
 		for (const { key, pt, ct } of vectors) {
-			loadKey(key);
-			expect(encryptBlock(pt)).toBe(ct);
+			loadKeyFloppy(key);
+			expect(encryptBlockFloppy(pt)).toBe(ct);
 		}
 	});
 
 	it('all 576 decrypt', () => {
 		for (const { key, pt, ct } of vectors) {
-			loadKey(key);
-			expect(decryptBlock(ct)).toBe(pt);
+			loadKeyFloppy(key);
+			expect(decryptBlockFloppy(ct)).toBe(pt);
 		}
 	});
 });

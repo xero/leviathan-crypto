@@ -44,7 +44,7 @@ import {
 import { WORKER_SOURCE } from '../embedded/serpent-pool-worker.js';
 import type { CipherSuite, DerivedKeys } from '../stream/types.js';
 
-const INFO = new TextEncoder().encode('serpent-sealstream-v2');
+const INFO = new TextEncoder().encode('serpent-sealstream-v3');
 
 /**
  * `CipherSuite` implementation for the stream construction using Serpent-256.
@@ -59,7 +59,7 @@ const INFO = new TextEncoder().encode('serpent-sealstream-v2');
 export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 	formatEnum: 0x02,
 	formatName: 'serpent',
-	hkdfInfo: 'serpent-sealstream-v2',
+	hkdfInfo: 'serpent-sealstream-v3',
 	keySize: 32,
 	kemCtSize: 0,
 	commitmentSize: 0,

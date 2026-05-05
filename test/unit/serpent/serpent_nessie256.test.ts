@@ -28,8 +28,8 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
-import { toHex, writeBytes, readBytes, getWasm } from '../helpers';
-import { parseNessieFile, prepareNessieKey, prepareNessiePlaintext, prepareNessieCiphertext } from './vector_parser';
+import { toHex, fromHex, writeBytes, readBytes, getWasm } from '../helpers';
+import { parseNessieFile } from './vector_parser';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
 beforeAll(async () => {
@@ -46,9 +46,9 @@ describe('NESSIE Serpent-256 vectors (1284 vectors)', () => {
 	it('all 1284 encrypt', () => {
 		const wasm = getWasm();
 		for (const { key, plain, cipher } of vectors) {
-			const k = prepareNessieKey(key);
-			const pt = prepareNessiePlaintext(plain);
-			const ctExpected = prepareNessieCiphertext(cipher);
+			const k = fromHex(key);
+			const pt = fromHex(plain);
+			const ctExpected = fromHex(cipher);
 
 			writeBytes(k, wasm.getKeyOffset());
 			wasm.loadKey(k.length);
@@ -63,9 +63,9 @@ describe('NESSIE Serpent-256 vectors (1284 vectors)', () => {
 	it('all 1284 decrypt', () => {
 		const wasm = getWasm();
 		for (const { key, plain, cipher } of vectors) {
-			const k = prepareNessieKey(key);
-			const ct = prepareNessieCiphertext(cipher);
-			const ptExpected = prepareNessiePlaintext(plain);
+			const k = fromHex(key);
+			const ct = fromHex(cipher);
+			const ptExpected = fromHex(plain);
 
 			writeBytes(k, wasm.getKeyOffset());
 			wasm.loadKey(k.length);

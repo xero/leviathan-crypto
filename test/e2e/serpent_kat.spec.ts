@@ -65,6 +65,9 @@ async function loadWasm() {
 }
 function fromHex(h) { return Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16))) }
 function toHex(b)   { return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('') }
+// AES-submission floppy vectors need REVERSE-ALL-BYTES at the WASM boundary
+// (v3 WASM uses NIST natural byte order at its public API).
+function rev(b)     { var n = b.length, o = new Uint8Array(n); for (var i = 0; i < n; i++) o[i] = b[n - 1 - i]; return o }
 `;
 
 test.beforeEach(async ({ page }) => {
@@ -77,14 +80,14 @@ test('KAT variable-text — all 384 vectors', async ({ page }) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const { key, pt, ct } of vecs) {
-			const k = fromHex(key);
+			const k = rev(fromHex(key));
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push('loadKey failed'); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(pt), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(rev(fromHex(pt)), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
-			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
+			const got = toHex(rev(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16)));
 			if (got !== ct) errs.push(`pt=${pt} exp=${ct} got=${got}`);
 		}
 		return errs;
@@ -97,14 +100,14 @@ test('KAT variable-key — all 576 vectors', async ({ page }) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const { key, pt, ct } of vecs) {
-			const k = fromHex(key);
+			const k = rev(fromHex(key));
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push('loadKey failed'); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(pt), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(rev(fromHex(pt)), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
-			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
+			const got = toHex(rev(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16)));
 			if (got !== ct) errs.push(`key=${key.slice(0, 8)}... exp=${ct} got=${got}`);
 		}
 		return errs;
@@ -117,14 +120,14 @@ test('KAT decrypt — all 384 vt vectors', async ({ page }) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const { key, pt, ct } of vecs) {
-			const k = fromHex(key);
+			const k = rev(fromHex(key));
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push('loadKey failed'); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(ct), wasm.getBlockCtOffset());
+			new Uint8Array(wasm.memory.buffer).set(rev(fromHex(ct)), wasm.getBlockCtOffset());
 			wasm.decryptBlock();
-			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockPtOffset(), wasm.getBlockPtOffset() + 16));
+			const got = toHex(rev(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockPtOffset(), wasm.getBlockPtOffset() + 16)));
 			if (got !== pt) errs.push(`ct=${ct} exp=${pt} got=${got}`);
 		}
 		return errs;
@@ -137,14 +140,14 @@ test('S-box table entry — all 1536 vectors', async ({ page }) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
 		for (const { key, pt, ct } of vecs) {
-			const k = fromHex(key);
+			const k = rev(fromHex(key));
 			new Uint8Array(wasm.memory.buffer).set(k, wasm.getKeyOffset());
 			if (wasm.loadKey(k.length) !== 0) {
 				errs.push('loadKey failed'); continue;
 			}
-			new Uint8Array(wasm.memory.buffer).set(fromHex(pt), wasm.getBlockPtOffset());
+			new Uint8Array(wasm.memory.buffer).set(rev(fromHex(pt)), wasm.getBlockPtOffset());
 			wasm.encryptBlock();
-			const got = toHex(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16));
+			const got = toHex(rev(new Uint8Array(wasm.memory.buffer).slice(wasm.getBlockCtOffset(), wasm.getBlockCtOffset() + 16)));
 			if (got !== ct) errs.push(`pt=${pt} exp=${ct} got=${got}`);
 		}
 		return errs;

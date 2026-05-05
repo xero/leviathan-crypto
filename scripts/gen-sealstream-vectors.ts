@@ -29,7 +29,7 @@
  * usage:
  *   bun run scripts/gen-sealstream-vectors.ts                  # default --cipher all
  *   bun run scripts/gen-sealstream-vectors.ts --cipher xchacha # writes sealstream_xchacha_v3.ts only
- *   bun run scripts/gen-sealstream-vectors.ts --cipher serpent # writes sealstream_serpent_v2.ts only
+ *   bun run scripts/gen-sealstream-vectors.ts --cipher serpent # writes sealstream_serpent_v3.ts only
  */
 import {
 	init, SerpentCbc, HMAC_SHA256, HKDF_SHA256,
@@ -87,7 +87,7 @@ function u32be(n: number): Uint8Array {
 }
 
 const xcInfo = new TextEncoder().encode('xchacha20-sealstream-v3');
-const scInfo = new TextEncoder().encode('serpent-sealstream-v2');
+const scInfo = new TextEncoder().encode('serpent-sealstream-v3');
 const x = getInstance('chacha20').exports as unknown as ChaChaExports;
 
 const asciiHeader = `//                  ▄▄▄▄▄▄▄▄▄▄
@@ -286,7 +286,7 @@ ${xcf1_cts.map((ct, i) => `\t\t{
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Serpent path — v2 wire format (unchanged)
+// Serpent path — v3 wire format
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildSerpent(): string {
@@ -351,7 +351,7 @@ function buildSerpent(): string {
 		const sc1_tagInput = concat(sc1_cn0, u32be(0), sc1_cbcCt);
 		const sc1_tag      = hmac.hash(sc1_macKey, sc1_tagInput);
 		assert(hex(sc1_ct0) === hex(concat(sc1_cbcCt, sc1_tag)), 'SC1 chunk 0 verify');
-		console.log('SC1 (serpent v2): single-chunk verified');
+		console.log('SC1 (serpent v3): single-chunk verified');
 
 		const sc3_derived = hkdf.derive(sc3_key, sc3_nonce, scInfo, 96);
 		const sc3_encKey  = sc3_derived.subarray(0, 32);
@@ -366,13 +366,13 @@ function buildSerpent(): string {
 			const tag = hmac.hash(sc3_macKey, tagInput);
 			assert(hex(sc3_cts[i]) === hex(concat(cbcCt, tag)), `SC3 chunk ${i} verify`);
 		}
-		console.log('SC3 (serpent v2): multi-chunk verified');
+		console.log('SC3 (serpent v3): multi-chunk verified');
 
 		for (let i = 0; i < 2; i++) {
 			const expected = concat(u32be(scf1_uf_cts[i].length), scf1_uf_cts[i]);
 			assert(hex(scf1_cts[i]) === hex(expected), `SCF1 chunk ${i} framing verify`);
 		}
-		console.log('SCF1 (serpent v2): framed verified');
+		console.log('SCF1 (serpent v3): framed verified');
 	} finally {
 		cbc.dispose();
 	}
@@ -381,7 +381,7 @@ function buildSerpent(): string {
 // SealStream Serpent v2 KAT vectors — STREAM construction.
 //
 // SELF-GENERATED — no external authority for these wire formats.
-// Serpent v2 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
+// Serpent v3 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
 // authentication is collision-resistant under SHA-256, which is
 // key-committing — no separate commitment is needed in the preamble.
 // Generated with fixed nonce seams, then each chunk independently
@@ -390,7 +390,7 @@ function buildSerpent(): string {
 // stability.
 // Audit status: SELF-VERIFIED
 
-export interface SealStreamSerpentV2Vector {
+export interface SealStreamSerpentV3Vector {
 \tdescription: string;
 \tkey: string;
 \tnonce: string;
@@ -400,8 +400,8 @@ export interface SealStreamSerpentV2Vector {
 \tchunks: { plaintext: string; ciphertext: string }[];
 }
 
-export const sc1: SealStreamSerpentV2Vector = {
-\tdescription: 'SC1: serpent v2 single-chunk, 0x02 key, 0xbb nonce, 100-byte 0xef plaintext',
+export const sc1: SealStreamSerpentV3Vector = {
+\tdescription: 'SC1: serpent v3 single-chunk, 0x02 key, 0xbb nonce, 100-byte 0xef plaintext',
 \tkey: '${hex(sc1_key)}',
 \tnonce: '${hex(sc1_nonce)}',
 \tchunkSize: 1024,
@@ -415,8 +415,8 @@ export const sc1: SealStreamSerpentV2Vector = {
 \t],
 };
 
-export const sc3: SealStreamSerpentV2Vector = {
-\tdescription: 'SC3: serpent v2 multi-chunk, sequential key, 0xe0+ nonce, varied plaintexts + empty finalize',
+export const sc3: SealStreamSerpentV3Vector = {
+\tdescription: 'SC3: serpent v3 multi-chunk, sequential key, 0xe0+ nonce, varied plaintexts + empty finalize',
 \tkey: '${hex(sc3_key)}',
 \tnonce: '${hex(sc3_nonce)}',
 \tchunkSize: 1024,
@@ -430,8 +430,8 @@ ${sc3_cts.map((ct, i) => `\t\t{
 \t],
 };
 
-export const scf1: SealStreamSerpentV2Vector = {
-\tdescription: 'SCF1: serpent v2 framed, 2 chunks (push + finalize)',
+export const scf1: SealStreamSerpentV3Vector = {
+\tdescription: 'SCF1: serpent v3 framed, 2 chunks (push + finalize)',
 \tkey: '${hex(scf1_key)}',
 \tnonce: '${hex(scf1_nonce)}',
 \tchunkSize: 1024,
@@ -455,8 +455,8 @@ if (cipher === 'xchacha' || cipher === 'all') {
 }
 if (cipher === 'serpent' || cipher === 'all') {
 	const file = buildSerpent();
-	writeFileSync('test/vectors/sealstream_serpent_v2.ts', file);
-	console.log('Written test/vectors/sealstream_serpent_v2.ts');
+	writeFileSync('test/vectors/sealstream_serpent_v3.ts', file);
+	console.log('Written test/vectors/sealstream_serpent_v3.ts');
 }
 
 hmac.dispose(); hkdf.dispose();

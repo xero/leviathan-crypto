@@ -642,10 +642,10 @@ export function loadKey(keyLen: i32): i32 {
 	// Set padding bit at position keyLen (before byte reversal, as per reference)
 	store<i32>(SUBKEY_OFFSET + keyLen * 4, 1)
 
-	// Reverse-copy key bytes: key[i] = input_byte[keyLen-i-1]
+	// Natural-order key copy: key[i] = input_byte[i]
 	// Each element stores 1 byte value as i32 (like the TS Uint32Array usage)
 	for (let k = 0; k < keyLen; k++) {
-		store<i32>(SUBKEY_OFFSET + k * 4, i32(load<u8>(KEY_OFFSET + keyLen - k - 1)))
+		store<i32>(SUBKEY_OFFSET + k * 4, i32(load<u8>(KEY_OFFSET + k)))
 	}
 
 	// Repack 8 groups of 4 byte-valued i32s into 8 little-endian uint32 words
@@ -701,14 +701,14 @@ export function loadKey(keyLen: i32): i32 {
  * `loadKey()` must be called before this function.
  */
 export function encryptBlock(): void {
-	// Load plaintext: reverse bytes then read as 4 little-endian 32-bit words
-	// blk = reversed pt, then r[k] = getW(blk, k*4) = LE load from blk[k*4..k*4+3]
-	// Equivalent: r[0]=pt as LE from bytes[15..12], r[1]=bytes[11..8], etc.
+	// Load plaintext: 4 little-endian 32-bit words in natural byte order
+	// (NIST / NESSIE / Wikipedia / RustCrypto convention).
+	// r[0]=LE(pt[0..3]), r[1]=LE(pt[4..7]), r[2]=LE(pt[8..11]), r[3]=LE(pt[12..15]).
 	const p = BLOCK_PT_OFFSET
-	rset(0, i32(load<u8>(p + 15)) | (i32(load<u8>(p + 14)) << 8) | (i32(load<u8>(p + 13)) << 16) | (i32(load<u8>(p + 12)) << 24))
-	rset(1, i32(load<u8>(p + 11)) | (i32(load<u8>(p + 10)) << 8) | (i32(load<u8>(p +  9)) << 16) | (i32(load<u8>(p +  8)) << 24))
-	rset(2, i32(load<u8>(p +  7)) | (i32(load<u8>(p +  6)) << 8) | (i32(load<u8>(p +  5)) << 16) | (i32(load<u8>(p +  4)) << 24))
-	rset(3, i32(load<u8>(p +  3)) | (i32(load<u8>(p +  2)) << 8) | (i32(load<u8>(p +  1)) << 16) | (i32(load<u8>(p +  0)) << 24))
+	rset(0, i32(load<u8>(p +  0)) | (i32(load<u8>(p +  1)) << 8) | (i32(load<u8>(p +  2)) << 16) | (i32(load<u8>(p +  3)) << 24))
+	rset(1, i32(load<u8>(p +  4)) | (i32(load<u8>(p +  5)) << 8) | (i32(load<u8>(p +  6)) << 16) | (i32(load<u8>(p +  7)) << 24))
+	rset(2, i32(load<u8>(p +  8)) | (i32(load<u8>(p +  9)) << 8) | (i32(load<u8>(p + 10)) << 16) | (i32(load<u8>(p + 11)) << 24))
+	rset(3, i32(load<u8>(p + 12)) | (i32(load<u8>(p + 13)) << 8) | (i32(load<u8>(p + 14)) << 16) | (i32(load<u8>(p + 15)) << 24))
 
 	// K(0): XOR initial subkey
 	keyXor(0, 1, 2, 3, 0)
@@ -726,16 +726,17 @@ export function encryptBlock(): void {
 	// K(32): XOR final subkey
 	keyXor(0, 1, 2, 3, 32)
 
-	// Store ciphertext big-endian: ct[0..3]=r[3], ct[4..7]=r[2], ct[8..11]=r[1], ct[12..15]=r[0]
+	// Store ciphertext little-endian, natural slot order:
+	// ct[0..3]=LE(r[0]), ct[4..7]=LE(r[1]), ct[8..11]=LE(r[2]), ct[12..15]=LE(r[3])
 	const c = BLOCK_CT_OFFSET
-	let v = rget(3)
-	store<u8>(c + 0, u8(v >>> 24)); store<u8>(c + 1, u8(v >>> 16)); store<u8>(c + 2, u8(v >>> 8)); store<u8>(c + 3, u8(v))
-	v = rget(2)
-	store<u8>(c + 4, u8(v >>> 24)); store<u8>(c + 5, u8(v >>> 16)); store<u8>(c + 6, u8(v >>> 8)); store<u8>(c + 7, u8(v))
+	let v = rget(0)
+	store<u8>(c +  0, u8(v)); store<u8>(c +  1, u8(v >>> 8)); store<u8>(c +  2, u8(v >>> 16)); store<u8>(c +  3, u8(v >>> 24))
 	v = rget(1)
-	store<u8>(c + 8, u8(v >>> 24)); store<u8>(c + 9, u8(v >>> 16)); store<u8>(c + 10, u8(v >>> 8)); store<u8>(c + 11, u8(v))
-	v = rget(0)
-	store<u8>(c + 12, u8(v >>> 24)); store<u8>(c + 13, u8(v >>> 16)); store<u8>(c + 14, u8(v >>> 8)); store<u8>(c + 15, u8(v))
+	store<u8>(c +  4, u8(v)); store<u8>(c +  5, u8(v >>> 8)); store<u8>(c +  6, u8(v >>> 16)); store<u8>(c +  7, u8(v >>> 24))
+	v = rget(2)
+	store<u8>(c +  8, u8(v)); store<u8>(c +  9, u8(v >>> 8)); store<u8>(c + 10, u8(v >>> 16)); store<u8>(c + 11, u8(v >>> 24))
+	v = rget(3)
+	store<u8>(c + 12, u8(v)); store<u8>(c + 13, u8(v >>> 8)); store<u8>(c + 14, u8(v >>> 16)); store<u8>(c + 15, u8(v >>> 24))
 }
 
 // ── Block decryption ────────────────────────────────────────────────────────
@@ -746,12 +747,13 @@ export function encryptBlock(): void {
  * `loadKey()` must be called before this function.
  */
 export function decryptBlock(): void {
-	// Load ciphertext (same byte-reversal as encrypt)
+	// Load ciphertext: 4 little-endian 32-bit words in natural byte order
+	// (mirrors encryptBlock's plaintext load).
 	const c = BLOCK_CT_OFFSET
-	rset(0, i32(load<u8>(c + 15)) | (i32(load<u8>(c + 14)) << 8) | (i32(load<u8>(c + 13)) << 16) | (i32(load<u8>(c + 12)) << 24))
-	rset(1, i32(load<u8>(c + 11)) | (i32(load<u8>(c + 10)) << 8) | (i32(load<u8>(c +  9)) << 16) | (i32(load<u8>(c +  8)) << 24))
-	rset(2, i32(load<u8>(c +  7)) | (i32(load<u8>(c +  6)) << 8) | (i32(load<u8>(c +  5)) << 16) | (i32(load<u8>(c +  4)) << 24))
-	rset(3, i32(load<u8>(c +  3)) | (i32(load<u8>(c +  2)) << 8) | (i32(load<u8>(c +  1)) << 16) | (i32(load<u8>(c +  0)) << 24))
+	rset(0, i32(load<u8>(c +  0)) | (i32(load<u8>(c +  1)) << 8) | (i32(load<u8>(c +  2)) << 16) | (i32(load<u8>(c +  3)) << 24))
+	rset(1, i32(load<u8>(c +  4)) | (i32(load<u8>(c +  5)) << 8) | (i32(load<u8>(c +  6)) << 16) | (i32(load<u8>(c +  7)) << 24))
+	rset(2, i32(load<u8>(c +  8)) | (i32(load<u8>(c +  9)) << 8) | (i32(load<u8>(c + 10)) << 16) | (i32(load<u8>(c + 11)) << 24))
+	rset(3, i32(load<u8>(c + 12)) | (i32(load<u8>(c + 13)) << 8) | (i32(load<u8>(c + 14)) << 16) | (i32(load<u8>(c + 15)) << 24))
 
 	// K(32): XOR final subkey
 	keyXor(0, 1, 2, 3, 32)
@@ -769,16 +771,19 @@ export function decryptBlock(): void {
 	// K(0): final key XOR for decryption uses slots (2,3,1,4)
 	keyXor(2, 3, 1, 4, 0)
 
-	// Store plaintext: pt[0..3]=r[4], pt[4..7]=r[1], pt[8..11]=r[3], pt[12..15]=r[2]
+	// Store plaintext little-endian, natural slot order. The final keyXor
+	// places K(0) words 0..3 into slots (2,3,1,4); the natural-order store
+	// mirrors that by reversing the v2 (4,1,3,2) sequence:
+	// pt[0..3]=LE(r[2]), pt[4..7]=LE(r[3]), pt[8..11]=LE(r[1]), pt[12..15]=LE(r[4])
 	const p = BLOCK_PT_OFFSET
-	let v = rget(4)
-	store<u8>(p + 0, u8(v >>> 24)); store<u8>(p + 1, u8(v >>> 16)); store<u8>(p + 2, u8(v >>> 8)); store<u8>(p + 3, u8(v))
-	v = rget(1)
-	store<u8>(p + 4, u8(v >>> 24)); store<u8>(p + 5, u8(v >>> 16)); store<u8>(p + 6, u8(v >>> 8)); store<u8>(p + 7, u8(v))
+	let v = rget(2)
+	store<u8>(p +  0, u8(v)); store<u8>(p +  1, u8(v >>> 8)); store<u8>(p +  2, u8(v >>> 16)); store<u8>(p +  3, u8(v >>> 24))
 	v = rget(3)
-	store<u8>(p + 8, u8(v >>> 24)); store<u8>(p + 9, u8(v >>> 16)); store<u8>(p + 10, u8(v >>> 8)); store<u8>(p + 11, u8(v))
-	v = rget(2)
-	store<u8>(p + 12, u8(v >>> 24)); store<u8>(p + 13, u8(v >>> 16)); store<u8>(p + 14, u8(v >>> 8)); store<u8>(p + 15, u8(v))
+	store<u8>(p +  4, u8(v)); store<u8>(p +  5, u8(v >>> 8)); store<u8>(p +  6, u8(v >>> 16)); store<u8>(p +  7, u8(v >>> 24))
+	v = rget(1)
+	store<u8>(p +  8, u8(v)); store<u8>(p +  9, u8(v >>> 8)); store<u8>(p + 10, u8(v >>> 16)); store<u8>(p + 11, u8(v >>> 24))
+	v = rget(4)
+	store<u8>(p + 12, u8(v)); store<u8>(p + 13, u8(v >>> 8)); store<u8>(p + 14, u8(v >>> 16)); store<u8>(p + 15, u8(v >>> 24))
 }
 
 // ── wipeBuffers ─────────────────────────────────────────────────────────────

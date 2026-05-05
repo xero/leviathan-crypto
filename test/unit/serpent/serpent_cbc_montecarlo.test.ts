@@ -28,7 +28,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
-import { fromHex, toHex, getWasm } from '../helpers';
+import { fromHex, toHex, getWasm, reverseBytes } from '../helpers';
 import { parseMcCbcEncryptFile, parseMcCbcDecryptFile } from './vector_parser';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 
@@ -103,10 +103,10 @@ describe('CBC Monte Carlo — serpent_cbc_e_m.txt', () => {
 		const wasm = getWasm();
 		const mem = new Uint8Array(wasm.memory.buffer);
 		for (const v of vectors) {
-			const key = fromHex(v.key);
+			const key = reverseBytes(fromHex(v.key));
 			wasmLoadKey(mem, key, wasm);
-			const ct9999 = runCbcEncryptLoop(mem, fromHex(v.iv), fromHex(v.pt), wasm);
-			expect(toHex(ct9999)).toBe(v.ct);
+			const ct9999 = runCbcEncryptLoop(mem, reverseBytes(fromHex(v.iv)), reverseBytes(fromHex(v.pt)), wasm);
+			expect(toHex(reverseBytes(ct9999))).toBe(v.ct);
 		}
 	});
 });
@@ -122,10 +122,10 @@ describe('CBC Monte Carlo — serpent_cbc_d_m.txt', () => {
 		const wasm = getWasm();
 		const mem = new Uint8Array(wasm.memory.buffer);
 		for (const v of vectors) {
-			const key = fromHex(v.key);
+			const key = reverseBytes(fromHex(v.key));
 			wasmLoadKey(mem, key, wasm);
-			const pt9999 = runCbcDecryptLoop(mem, fromHex(v.iv), fromHex(v.ct), wasm);
-			expect(toHex(pt9999)).toBe(v.pt);
+			const pt9999 = runCbcDecryptLoop(mem, reverseBytes(fromHex(v.iv)), reverseBytes(fromHex(v.ct)), wasm);
+			expect(toHex(reverseBytes(pt9999))).toBe(v.pt);
 		}
 	});
 });

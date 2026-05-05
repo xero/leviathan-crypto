@@ -48,27 +48,28 @@ function getWasm(): SerpentSimdExports {
 	return getInstance('serpent').exports as unknown as SerpentSimdExports;
 }
 
-// Convert 16-byte block to 4 Serpent-internal words (byte-reversed LE)
+// Convert 16-byte block to 4 Serpent-internal words (NIST natural byte order:
+// each word is a little-endian load from consecutive bytes).
 // Matches the load order in serpent.ts encryptBlock:
-//   r[0] = bytes[15..12], r[1] = bytes[11..8], r[2] = bytes[7..4], r[3] = bytes[3..0]
+//   r[0] = LE(bytes[0..3]), r[1] = LE(bytes[4..7]), r[2] = LE(bytes[8..11]), r[3] = LE(bytes[12..15])
 function blockToWords(block: Uint8Array): [number, number, number, number] {
 	const w = (o: number) =>
-		block[o + 3] | (block[o + 2] << 8) | (block[o + 1] << 16) | (block[o] << 24);
-	return [w(12), w(8), w(4), w(0)];
+		block[o] | (block[o + 1] << 8) | (block[o + 2] << 16) | (block[o + 3] << 24);
+	return [w(0), w(4), w(8), w(12)];
 }
 
-// Convert 4 Serpent-internal words back to 16-byte block
+// Convert 4 Serpent-internal words back to 16-byte block (LE store).
 // Matches the store order in serpent.ts encryptBlock:
-//   ct[0..3] = r[3], ct[4..7] = r[2], ct[8..11] = r[1], ct[12..15] = r[0]
+//   ct[0..3] = LE(r[0]), ct[4..7] = LE(r[1]), ct[8..11] = LE(r[2]), ct[12..15] = LE(r[3])
 function wordsToBlock(w0: number, w1: number, w2: number, w3: number): Uint8Array {
 	const out = new Uint8Array(16);
 	const put = (o: number, v: number) => {
-		out[o] = (v >>> 24) & 0xFF;
-		out[o + 1] = (v >>> 16) & 0xFF;
-		out[o + 2] = (v >>> 8) & 0xFF;
-		out[o + 3] = v & 0xFF;
+		out[o] = v & 0xFF;
+		out[o + 1] = (v >>> 8) & 0xFF;
+		out[o + 2] = (v >>> 16) & 0xFF;
+		out[o + 3] = (v >>> 24) & 0xFF;
 	};
-	put(0, w3); put(4, w2); put(8, w1); put(12, w0);
+	put(0, w0); put(4, w1); put(8, w2); put(12, w3);
 	return out;
 }
 
