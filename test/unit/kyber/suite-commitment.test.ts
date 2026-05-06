@@ -116,15 +116,19 @@ describe('KyberSuite — commitmentSize forwarding', () => {
 		}
 	});
 
-	it('KyberSuite(MlKem768, AESGCMSIVCipher).wasmModules covers aes, sha2, kyber, sha3', () => {
+	it('KyberSuite(MlKem768, AESGCMSIVCipher).wasmModules covers aes, kyber, sha3', () => {
 		const kem = new MlKem768();
 		try {
 			const suite = KyberSuite(kem, AESGCMSIVCipher);
 			const set = new Set(suite.wasmModules);
 			expect(set.has('aes')).toBe(true);
-			expect(set.has('sha2')).toBe(true);
 			expect(set.has('kyber')).toBe(true);
 			expect(set.has('sha3')).toBe(true);
+			// sha2 is a stream-layer (HKDF) dependency, not declared per-cipher.
+			// KyberSuite combines its inner cipher's wasmModules with kyber+sha3;
+			// sha2 is NOT in the set. Defense-in-depth pin so a future regression
+			// that re-adds sha2 to AES's wasmModules trips this test.
+			expect(set.has('sha2')).toBe(false);
 		} finally {
 			kem.dispose();
 		}

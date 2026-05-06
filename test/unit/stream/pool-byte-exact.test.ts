@@ -78,7 +78,7 @@ interface CipherConfig {
 const configs: CipherConfig[] = [
 	{ name: 'XChaCha20',  cipher: XChaCha20Cipher, wasm: chacha20Wasm },
 	{ name: 'Serpent',    cipher: SerpentCipher,   wasm: { serpent: serpentWasm, sha2: sha2Wasm } },
-	{ name: 'AES-GCM-SIV', cipher: AESGCMSIVCipher, wasm: { aes: aesWasm, sha2: sha2Wasm } },
+	{ name: 'AES-GCM-SIV', cipher: AESGCMSIVCipher, wasm: { aes: aesWasm } },
 ];
 
 // Drive a SealStream byte-for-byte identically to how SealStreamPool.seal

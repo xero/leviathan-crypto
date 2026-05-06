@@ -68,7 +68,7 @@ const configs: CipherTestConfig[] = [
 	{
 		name: 'AES-GCM-SIV',
 		cipher: AESGCMSIVCipher,
-		wasm: { aes: aesWasm, sha2: sha2Wasm },
+		wasm: { aes: aesWasm },
 		keyLen: 32,
 	},
 ];
