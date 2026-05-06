@@ -111,7 +111,10 @@ export class AES {
 			);
 		const mem = new Uint8Array(this.x.memory.buffer);
 		mem.set(key, this.x.getKeyOffset());
-		if (this.x.loadKey(key.length) !== 0) throw new Error('loadKey failed');
+		if (this.x.loadKey(key.length) !== 0) {
+			this.x.wipeBuffers();
+			throw new Error('loadKey failed');
+		}
 	}
 
 	/**

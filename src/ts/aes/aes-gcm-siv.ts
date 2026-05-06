@@ -40,7 +40,7 @@
 // the tag is a function of the plaintext.)
 
 import { getInstance, _acquireModule, _releaseModule } from '../init.js';
-import { constantTimeEqual } from '../utils.js';
+import { constantTimeEqual, wipe } from '../utils.js';
 import { AuthenticationError } from '../errors.js';
 
 // RFC 8452 §6: K_LEN ∈ {16, 32} — AES-128-GCM-SIV or AES-256-GCM-SIV.
@@ -155,9 +155,9 @@ export class AESGCMSIV {
 			const out = new Uint8Array(plaintext.length + TAG_LEN);
 			out.set(this._mem(x).subarray(ctOff,  ctOff  + plaintext.length), 0);
 			out.set(this._mem(x).subarray(tagOff, tagOff + TAG_LEN), plaintext.length);
-			x.wipeBuffers();
 			return out;
 		} finally {
+			x.wipeBuffers();
 			_releaseModule('aes', tok);
 		}
 	}
@@ -217,16 +217,24 @@ export class AESGCMSIV {
 
 			const ok = constantTimeEqual(expectedTag, providedTagCopy);
 			if (!ok) {
+				// Belt-and-suspenders: surgical wipe of the unauthenticated
+				// plaintext before the broader wipeBuffers in finally fires.
+				// Also wipe JS-heap tag copies to mirror the discipline in
+				// chacha20 ops and serpent cipher-suite.
 				x.sivWipeOnFail();
+				wipe(expectedTag);
+				wipe(providedTagCopy);
 				throw new AuthenticationError('siv');
 			}
 
-			// Match — read PT before wiping.
+			// Match — read PT before wiping. pt is a JS-heap slice copy.
 			const ptOff = x.getChunkPtOffset();
 			const pt = this._mem(x).slice(ptOff, ptOff + ctLen);
-			x.wipeBuffers();
+			wipe(expectedTag);
+			wipe(providedTagCopy);
 			return pt;
 		} finally {
+			x.wipeBuffers();
 			_releaseModule('aes', tok);
 		}
 	}
@@ -266,6 +274,7 @@ export class AESGCMSIV {
 		const mem = this._mem(x);
 		mem.set(this._key, x.getKeyOffset());
 		if (x.loadKey(this._key.length) !== 0) {
+			x.wipeBuffers();
 			throw new Error('AESGCMSIV: loadKey failed');
 		}
 		mem.set(nonce, x.getNonceOffset());

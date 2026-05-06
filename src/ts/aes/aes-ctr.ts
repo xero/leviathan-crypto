@@ -90,7 +90,10 @@ export class AESCtr {
 		if (key.length !== 16 && key.length !== 24 && key.length !== 32)
 			throw new RangeError(`AES key must be 16, 24, or 32 bytes (got ${key.length})`);
 		this.mem.set(key, this.x.getKeyOffset());
-		if (this.x.loadKey(key.length) !== 0) throw new Error('loadKey failed');
+		if (this.x.loadKey(key.length) !== 0) {
+			this.x.wipeBuffers();
+			throw new Error('loadKey failed');
+		}
 	}
 
 	/**

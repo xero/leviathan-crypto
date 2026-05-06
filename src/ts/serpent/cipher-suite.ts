@@ -82,8 +82,12 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 	 */
 	deriveKeys(masterKey: Uint8Array, nonce: Uint8Array, _kemCt?: Uint8Array, _header?: Uint8Array): DerivedKeys {
 		const hkdf = new HKDF_SHA256();
-		const derived = hkdf.derive(masterKey, nonce, INFO, 96);
-		hkdf.dispose();
+		let derived: Uint8Array;
+		try {
+			derived = hkdf.derive(masterKey, nonce, INFO, 96);
+		} finally {
+			hkdf.dispose();
+		}
 		// bytes[0:32]=enc_key, bytes[32:64]=mac_key, bytes[64:96]=iv_key
 		return { bytes: derived };
 	},

@@ -31,7 +31,7 @@
 // passes them down.
 
 import type { AesExports } from './types.js';
-import { constantTimeEqual } from '../utils.js';
+import { constantTimeEqual, wipe } from '../utils.js';
 import { AuthenticationError } from '../errors.js';
 
 const KEY_LEN_256 = 32;
@@ -78,8 +78,10 @@ export function sivAeadEncrypt(
 	const mem = new Uint8Array(x.memory.buffer);
 
 	mem.set(key, x.getKeyOffset());
-	if (x.loadKey(KEY_LEN_256) !== 0)
+	if (x.loadKey(KEY_LEN_256) !== 0) {
+		x.wipeBuffers();
 		throw new Error('AES-GCM-SIV: loadKey failed');
+	}
 
 	mem.set(nonce, x.getNonceOffset());
 	if (aad.length > 0)
@@ -140,8 +142,10 @@ export function sivAeadDecrypt(
 	const mem = new Uint8Array(x.memory.buffer);
 
 	mem.set(key, x.getKeyOffset());
-	if (x.loadKey(KEY_LEN_256) !== 0)
+	if (x.loadKey(KEY_LEN_256) !== 0) {
+		x.wipeBuffers();
 		throw new Error('AES-GCM-SIV: loadKey failed');
+	}
 
 	mem.set(nonce, x.getNonceOffset());
 	if (aad.length > 0)
@@ -164,6 +168,8 @@ export function sivAeadDecrypt(
 
 	if (!constantTimeEqual(expectedTag, providedTagCopy)) {
 		x.sivWipeOnFail();
+		wipe(expectedTag);
+		wipe(providedTagCopy);
 		throw new AuthenticationError(cipherName);
 	}
 

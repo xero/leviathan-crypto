@@ -209,8 +209,15 @@ function buildXChacha(): string {
 		const expectedFramed = concat(u32be(expectedRaw.length), expectedRaw);
 		assert(hex(xcf1_cts[i]) === hex(expectedFramed), `XCF1 chunk ${i} framed verify`);
 	}
-	// Sanity: unframed vector with same params doesn't equal framed payload bytes
-	void xcf1_uf_cts;
+	// Framed v3 ciphertexts differ from unframed because the framed flag enters
+	// HKDF info, producing different streamKeys and different keystreams. Assert
+	// divergence so a future header-binding regression cannot silently collide.
+	for (let i = 0; i < 2; i++) {
+		assert(
+			hex(xcf1_cts[i].subarray(4)) !== hex(xcf1_uf_cts[i]),
+			`XCF1 framed chunk ${i} must differ from unframed (header binding regression check)`,
+		);
+	}
 	const xcf1_opener = new OpenStream(XChaCha20Cipher, xcf1_key, xcf1_preamble);
 	assert(hex(xcf1_opener.pull(xcf1_cts[0])) === hex(xcf1_pts[0]), 'XCF1 chunk 0 round-trip');
 	assert(hex(xcf1_opener.finalize(xcf1_cts[1])) === hex(xcf1_pts[1]), 'XCF1 chunk 1 round-trip');
@@ -544,7 +551,15 @@ function buildAes(): string {
 		const expectedFramed = concat(u32be(expectedRaw.length), expectedRaw);
 		assert(hex(acf1_cts[i]) === hex(expectedFramed), `ACF1 chunk ${i} framed verify`);
 	}
-	void acf1_uf_cts;
+	// Framed v3 ciphertexts differ from unframed because the framed flag enters
+	// HKDF info, producing different aesKey and different ciphertexts. Assert
+	// divergence so a future header-binding regression cannot silently collide.
+	for (let i = 0; i < 2; i++) {
+		assert(
+			hex(acf1_cts[i].subarray(4)) !== hex(acf1_uf_cts[i]),
+			`ACF1 framed chunk ${i} must differ from unframed (header binding regression check)`,
+		);
+	}
 	const acf1_opener = new OpenStream(AESGCMSIVCipher, acf1_key, acf1_preamble);
 	assert(hex(acf1_opener.pull(acf1_cts[0])) === hex(acf1_pts[0]), 'ACF1 chunk 0 round-trip');
 	assert(hex(acf1_opener.finalize(acf1_cts[1])) === hex(acf1_pts[1]), 'ACF1 chunk 1 round-trip');

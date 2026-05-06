@@ -5,7 +5,7 @@
 // and the pool worker (pool.worker.ts), eliminating duplication.
 
 import type { ChaChaExports } from './types.js';
-import { constantTimeEqual } from '../utils.js';
+import { constantTimeEqual, wipe } from '../utils.js';
 import { AuthenticationError } from '../errors.js';
 
 // ── Module-private helpers ──────────────────────────────────────────────────
@@ -243,13 +243,16 @@ export function xcEncrypt(
 	aad:       Uint8Array,
 ): Uint8Array {
 	const subkey = deriveSubkey(x, key, nonce);
-	const inner  = innerNonce(nonce);
-	const { ciphertext, tag } = aeadEncrypt(x, subkey, inner, plaintext, aad);
-
-	const result = new Uint8Array(ciphertext.length + 16);
-	result.set(ciphertext);
-	result.set(tag, ciphertext.length);
-	return result;
+	try {
+		const inner  = innerNonce(nonce);
+		const { ciphertext, tag } = aeadEncrypt(x, subkey, inner, plaintext, aad);
+		const result = new Uint8Array(ciphertext.length + 16);
+		result.set(ciphertext);
+		result.set(tag, ciphertext.length);
+		return result;
+	} finally {
+		wipe(subkey);
+	}
 }
 
 /**
@@ -273,6 +276,10 @@ export function xcDecrypt(
 	const ct     = ciphertext.subarray(0, ciphertext.length - 16);
 	const tag    = ciphertext.subarray(ciphertext.length - 16);
 	const subkey = deriveSubkey(x, key, nonce);
-	const inner  = innerNonce(nonce);
-	return aeadDecrypt(x, subkey, inner, ct, tag, aad, 'xchacha20-poly1305');
+	try {
+		const inner  = innerNonce(nonce);
+		return aeadDecrypt(x, subkey, inner, ct, tag, aad, 'xchacha20-poly1305');
+	} finally {
+		wipe(subkey);
+	}
 }

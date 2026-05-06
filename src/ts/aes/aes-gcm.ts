@@ -258,7 +258,10 @@ export class AESGCM {
 
 	private _loadKey(key: Uint8Array): void {
 		this.mem.set(key, this.x.getKeyOffset());
-		this.x.loadKey(key.length);
+		if (this.x.loadKey(key.length) !== 0) {
+			this.x.wipeBuffers();
+			throw new Error('AESGCM: loadKey failed');
+		}
 	}
 
 	private _writeIv(iv: Uint8Array): void {

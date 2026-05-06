@@ -66,6 +66,7 @@ export interface SerpentOpsExports {
 	loadKey:              (n: number) => number;
 	cbcEncryptChunk:      (n: number) => number;
 	cbcDecryptChunk_simd: (n: number) => number;
+	wipeBuffers:          () => void;
 }
 
 // ── HMAC-SHA-256 ────────────────────────────────────────────────────────────
@@ -151,17 +152,24 @@ export function cbcEncryptChunk(
 	chunk: Uint8Array,
 ): Uint8Array {
 	loadKeyAndIv(kx, key, iv);
-	const padded = pkcs7Pad(chunk);
-	const ptOff = kx.getChunkPtOffset();
-	const ctOff = kx.getChunkCtOffset();
-	const mem = new Uint8Array(kx.memory.buffer);
-	mem.set(padded, ptOff);
-	const ret = kx.cbcEncryptChunk(padded.length);
-	if (ret < 0) throw new RangeError(
-		`cbcEncryptChunk rejected len=${padded.length}` +
-		` (WASM CHUNK_SIZE=${kx.getChunkSize()})`,
-	);
-	return new Uint8Array(kx.memory.buffer).slice(ctOff, ctOff + padded.length);
+	try {
+		const padded = pkcs7Pad(chunk);
+		const ptOff = kx.getChunkPtOffset();
+		const ctOff = kx.getChunkCtOffset();
+		const mem = new Uint8Array(kx.memory.buffer);
+		mem.set(padded, ptOff);
+		const ret = kx.cbcEncryptChunk(padded.length);
+		if (ret < 0) throw new RangeError(
+			`cbcEncryptChunk rejected len=${padded.length}` +
+			` (WASM CHUNK_SIZE=${kx.getChunkSize()})`,
+		);
+		return new Uint8Array(kx.memory.buffer).slice(ctOff, ctOff + padded.length);
+	} catch (err) {
+		// Length-error or any other throw past loadKeyAndIv leaves key+iv staged.
+		// Wipe before re-throwing — the cipher-suite caller may not call dispose.
+		kx.wipeBuffers();
+		throw err;
+	}
 }
 
 /**
@@ -184,17 +192,25 @@ export function cbcDecryptChunk(
 	if (ct.length === 0 || ct.length % 16 !== 0)
 		throw new RangeError(PKCS7_INVALID);
 	loadKeyAndIv(kx, key, iv);
-	const ctOff = kx.getChunkCtOffset();
-	const ptOff = kx.getChunkPtOffset();
-	const mem = new Uint8Array(kx.memory.buffer);
-	mem.set(ct, ctOff);
-	const ret = kx.cbcDecryptChunk_simd(ct.length);
-	if (ret < 0) throw new RangeError(
-		`cbcDecryptChunk_simd rejected len=${ct.length}` +
-		` (WASM CHUNK_SIZE=${kx.getChunkSize()})`,
-	);
-	const raw = new Uint8Array(kx.memory.buffer).slice(ptOff, ptOff + ct.length);
-	return pkcs7Strip(raw);
+	try {
+		const ctOff = kx.getChunkCtOffset();
+		const ptOff = kx.getChunkPtOffset();
+		const mem = new Uint8Array(kx.memory.buffer);
+		mem.set(ct, ctOff);
+		const ret = kx.cbcDecryptChunk_simd(ct.length);
+		if (ret < 0) throw new RangeError(
+			`cbcDecryptChunk_simd rejected len=${ct.length}` +
+			` (WASM CHUNK_SIZE=${kx.getChunkSize()})`,
+		);
+		const raw = new Uint8Array(kx.memory.buffer).slice(ptOff, ptOff + ct.length);
+		return pkcs7Strip(raw);
+	} catch (err) {
+		// Length-error, padding mismatch, or any other throw past loadKeyAndIv
+		// leaves key+iv staged. Wipe before re-throwing — bad PKCS7 padding is
+		// a Vaudenay-attack signal; per-chunk staged key+iv must not survive it.
+		kx.wipeBuffers();
+		throw err;
+	}
 }
 
 /**
@@ -215,6 +231,9 @@ function loadKeyAndIv(
 		throw new RangeError(`CBC IV must be 16 bytes (got ${iv.length})`);
 	const mem = new Uint8Array(kx.memory.buffer);
 	mem.set(key, kx.getKeyOffset());
-	kx.loadKey(key.length);
+	if (kx.loadKey(key.length) !== 0) {
+		kx.wipeBuffers();
+		throw new Error('Serpent shared-ops: loadKey failed');
+	}
 	mem.set(iv, kx.getCbcIvOffset());
 }

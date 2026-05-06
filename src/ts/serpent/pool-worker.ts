@@ -70,6 +70,7 @@ self.onmessage = async (e: MessageEvent) => {
 			msg.derivedKeyBytes.fill(0);
 			self.postMessage({ type: 'ready' });
 		} catch (err) {
+			if (msg.derivedKeyBytes) msg.derivedKeyBytes.fill(0);
 			self.postMessage({ type: 'error', id: -1, message: (err as Error).message, isAuthError: false });
 		}
 		return;

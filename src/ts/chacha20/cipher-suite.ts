@@ -95,11 +95,15 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 
 		_assertNotOwned('chacha20');
 		const hkdf = new HKDF_SHA256();
-		// INFO || header — binds formatEnum, framed flag, nonce, chunkSize into the KDF.
-		// Any header tampering produces different keys, AEAD fails on the first chunk.
-		const info = concat(INFO, header);
-		const okm = hkdf.derive(masterKey, nonce, info, 64);
-		hkdf.dispose();
+		let okm: Uint8Array;
+		try {
+			// INFO || header — binds formatEnum, framed flag, nonce, chunkSize into the KDF.
+			// Any header tampering produces different keys, AEAD fails on the first chunk.
+			const info = concat(INFO, header);
+			okm = hkdf.derive(masterKey, nonce, info, 64);
+		} finally {
+			hkdf.dispose();
+		}
 
 		// Bytes 0..32: streamKey for HChaCha20 subkey derivation.
 		// Bytes 32..64: key commitment for the seal preamble.

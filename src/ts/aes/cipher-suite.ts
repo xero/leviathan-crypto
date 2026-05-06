@@ -70,7 +70,7 @@ export const AESGCMSIVCipher: CipherSuite & { keygen(): Uint8Array } = {
 	tagSize: 16,
 	padded: false,
 	wasmChunkSize: 65536,  // src/asm/aes/buffers.ts AES_CHUNK_SIZE
-	wasmModules: ['aes', 'sha2'],
+	wasmModules: ['aes'],
 
 	/** Generate a random 32-byte master key suitable for use with `AESGCMSIVCipher`. @returns 32 cryptographically random bytes */
 	keygen(): Uint8Array {
@@ -111,11 +111,15 @@ export const AESGCMSIVCipher: CipherSuite & { keygen(): Uint8Array } = {
 		_assertNotOwned('aes');
 		_assertNotOwned('sha2');
 		const hkdf = new HKDF_SHA256();
-		// INFO || header — binds formatEnum, framed flag, nonce, chunkSize into the KDF.
-		// Any header tampering produces different keys, AEAD fails on the first chunk.
-		const info = concat(INFO, header);
-		const okm = hkdf.derive(masterKey, nonce, info, 64);
-		hkdf.dispose();
+		let okm: Uint8Array;
+		try {
+			// INFO || header — binds formatEnum, framed flag, nonce, chunkSize into the KDF.
+			// Any header tampering produces different keys, AEAD fails on the first chunk.
+			const info = concat(INFO, header);
+			okm = hkdf.derive(masterKey, nonce, info, 64);
+		} finally {
+			hkdf.dispose();
+		}
 
 		// Bytes 0..32: per-stream AES-GCM-SIV key (no subkey derivation step).
 		// Bytes 32..64: key commitment for the seal preamble.
