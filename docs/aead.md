@@ -81,6 +81,7 @@ bytes:
 |---|---|---|
 | `0x02` | Serpent-256 | v2 |
 | `0x03` | XChaCha20-Poly1305 | v3 |
+| `0x04` | AES-256-GCM-SIV (RFC 8452) | v3 |
 
 The legacy XChaCha20 v2 format used `0x01`, which the parser now rejects as unknown. KEM suites encode both the parameter set and the inner cipher in the same byte. See [ciphersuite.md](./ciphersuite.md#kybersuite) for the full format enum table.
 

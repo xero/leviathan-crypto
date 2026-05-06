@@ -37,9 +37,10 @@ WebAssembly, which provides more predictable execution timing than optimized
 JavaScript. This reduces the risk of timing side-channels introduced by the
 JIT compiler.
 
-**Each module gets its own linear memory.** Every WASM module receives 3 pages
-(192 KB) of independent memory. Key material in one module cannot be read by
-another. There is no shared memory between modules.
+**Each module gets its own linear memory.** Every WASM module receives a few
+64 KB pages of independent memory (3 pages for most modules, 4 for AES due to
+the GCM-SIV state). Key material in one module cannot be read by another.
+There is no shared memory between modules.
 
 **No silent auto-initialization.** Every wrapper class checks that its backing
 module has been initialized. If it has not, the class throws immediately rather
@@ -53,7 +54,7 @@ auditable.
 ### Types
 
 ```typescript
-type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber'
+type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber'
 ```
 
 The WASM module families. Each one backs a group of related classes.
@@ -61,9 +62,11 @@ The WASM module families. Each one backs a group of related classes.
 
 | Module | Classes it enables |
 |---|---|
+| `'aes'` | `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator` |
+| `'aes'` + `'sha2'` | `AESGCMSIVCipher`, `Seal` (with `AESGCMSIVCipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
 | `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr` |
 | `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
-| `Fortuna` combinations | `Fortuna` accepts a `Generator` + `HashFn` pair. Valid module combinations: `'serpent' + 'sha2'`, `'serpent' + 'sha3'`, `'chacha20' + 'sha2'`, `'chacha20' + 'sha3'`. See [fortuna.md](./fortuna.md). |
+| `Fortuna` combinations | `Fortuna` accepts a `Generator` + `HashFn` pair. Valid module combinations: `'aes' + 'sha2'`, `'aes' + 'sha3'`, `'serpent' + 'sha2'`, `'serpent' + 'sha3'`, `'chacha20' + 'sha2'`, `'chacha20' + 'sha3'`. See [fortuna.md](./fortuna.md). |
 | `'chacha20'` | `ChaCha20`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
 | `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
@@ -118,6 +121,7 @@ Each module subpath exports its own init function for tree-shakeable imports.
 These take a single `WasmSource` argument.
 
 ```typescript
+async function aesInit(source: WasmSource): Promise<void>
 async function serpentInit(source: WasmSource): Promise<void>
 async function chacha20Init(source: WasmSource): Promise<void>
 async function sha2Init(source: WasmSource): Promise<void>
@@ -138,6 +142,7 @@ ready-to-use `WasmSource`:
 
 | Subpath | Export |
 |---|---|
+| `leviathan-crypto/aes/embedded` | `aesWasm` |
 | `leviathan-crypto/serpent/embedded` | `serpentWasm` |
 | `leviathan-crypto/chacha20/embedded` | `chacha20Wasm` |
 | `leviathan-crypto/sha2/embedded` | `sha2Wasm` |
