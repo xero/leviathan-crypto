@@ -76,6 +76,8 @@ Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD, with CBC and CTR mod
 | `AESCtr` | class | AES CTR mode (SP 800-38A §6.5). `loadKey(key)`, `setNonce(nonce)`, `encrypt(plaintext)` / `decrypt(ciphertext)`. Counter is 128-bit big-endian (SP 800-38A Appendix B.1, matches §F.5 worked examples). **Unauthenticated** — pair with HMAC or use an authenticated cipher instead. SIMD via the bitsliced 8-block kernel. Stateful — counter advances across calls; reset with `setNonce`. |
 | `AESGCM` | class | AES-GCM authenticated encryption (SP 800-38D §7). `seal(key, iv, aad, pt)` returns `ciphertext \|\| tag` (128-bit tag); `open(key, iv, aad, sealed)` verifies and returns plaintext, throws `RangeError('authentication failed')` on any verification failure. 12-byte (96-bit) IV is the recommended fast path; variable-length IVs trigger the GHASH-on-IV slow path per §7.1 step 2. AAD up to 64 KiB; PT up to 64 KiB per single call (chunked iteration internally for larger inputs). Tag length fixed at 128 bits. Stateful — holds the AES module exclusively until `dispose()`. |
 | `AESGCMSIV` | class | AES-GCM-SIV nonce-misuse-resistant authenticated encryption (RFC 8452). Constructor takes a 16-byte (AES-128) or 32-byte (AES-256) key — AES-192 is **not** supported (RFC 8452 §6 only defines AES-128/256 variants). `seal(nonce, plaintext, aad?)` returns `ciphertext \|\| tag`; `open(nonce, sealed, aad?)` returns plaintext, throws `AuthenticationError('siv')` on any verification failure. Nonce must be exactly 12 bytes. AAD ≤ 64 KiB; plaintext ≤ 64 KiB per call (single-shot only — larger messages will use a future streaming SIV variant). Tag verification routes through `constantTimeEqual` in the dedicated `ct` WASM module. Atomic. |
+| `AESGenerator` | const | `Generator` const for `Fortuna`. AES-256 ECB counter-mode PRF (Practical Cryptography §9.4 — the spec-canonical Fortuna generator). `keySize: 32`, `blockSize: 16`, `counterSize: 16`. Requires `init({ aes })`. Re-exported from the root barrel. |
+| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `KyberSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher` — closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
 
 ---
 
@@ -90,7 +92,7 @@ Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 | `SealStream` | class | Cipher-agnostic streaming encryption (STREAM construction). `push(chunk)`, `finalize(chunk)`, `toTransformStream()`. |
 | `OpenStream` | class | Cipher-agnostic streaming decryption. `pull(chunk)`, `finalize(chunk)`, `seek(index)`, `toTransformStream()`. |
 | `SealStreamPool` | class | Parallel batch seal/open via Web Workers. `SealStreamPool.create(cipher, key, opts)` static factory. |
-| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`, `KyberSuite`. See [ciphersuite.md](./ciphersuite.md). |
+| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`, `AESGCMSIVCipher`, `KyberSuite`. See [ciphersuite.md](./ciphersuite.md). |
 | `DerivedKeys` | interface | Opaque key material returned by `CipherSuite.deriveKeys()`. |
 | `SealStreamOpts` | type | Options for SealStream: `chunkSize?`, `framed?`. |
 | `PoolOpts` | type | Options for SealStreamPool: `wasm`, `workers?`, `chunkSize?`, `framed?`, `jobTimeout?`. |
@@ -214,11 +216,12 @@ Takes a `Generator` and a `HashFn` at create time. Required `init()` modules dep
 | Export | Kind | Description |
 |--------|------|-------------|
 | `Fortuna`            | class    | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create({ generator, hash })` static factory; `get(n)`, `addEntropy()`, `stop()`. |
+| `AESGenerator`       | const    | `Generator` const for `Fortuna`. AES-256 PRF in counter mode (Practical Cryptography §9.4 — the spec-canonical generator). Requires `init({ aes })`. Re-exported from `'leviathan-crypto/aes'`. |
 | `SerpentGenerator`   | const    | `Generator` const for `Fortuna`. Serpent-256 PRF in counter mode. Requires `init({ serpent })`. Re-exported from `'leviathan-crypto/serpent'`. |
 | `ChaCha20Generator`  | const    | `Generator` const for `Fortuna`. ChaCha20 PRF with fixed zero nonce. Requires `init({ chacha20 })`. Re-exported from `'leviathan-crypto/chacha20'`. |
 | `SHA256Hash`         | const    | `HashFn` const for `Fortuna`. Stateless SHA-256. Requires `init({ sha2 })`. Re-exported from `'leviathan-crypto/sha2'`. |
 | `SHA3_256Hash`       | const    | `HashFn` const for `Fortuna`. Stateless SHA3-256. Requires `init({ sha3 })`. Re-exported from `'leviathan-crypto/sha3'`. |
-| `Generator`          | type     | Interface implemented by `SerpentGenerator` and `ChaCha20Generator`. |
+| `Generator`          | type     | Interface implemented by `AESGenerator`, `SerpentGenerator`, and `ChaCha20Generator`. |
 | `HashFn`             | type     | Interface implemented by `SHA256Hash` and `SHA3_256Hash`. |
 
 ---

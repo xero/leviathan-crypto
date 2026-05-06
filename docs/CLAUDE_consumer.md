@@ -174,7 +174,7 @@ await serpentInit(serpentWasm)
 | Classes | Required modules |
 |---------|-----------------|
 | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher` | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
-| `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV` | `init({ aes: aesWasm })` — AES-128/192/256 (AESGCMSIV is AES-128/256 only — RFC 8452 §6 does not define AES-192-GCM-SIV). `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5); `AESGCM` is authenticated AEAD (SP 800-38D §7) with a 128-bit tag; `AESGCMSIV` is nonce-misuse-resistant authenticated AEAD (RFC 8452) with a 128-bit tag, single-shot, plaintext capped at 64 KiB per call. `AESCbc` and `AESCtr` are unauthenticated — pair with HMAC or use `Seal` / `AESGCM` / `AESGCMSIV` instead. |
+| `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator` | `init({ aes: aesWasm })` — AES-128/192/256 (AESGCMSIV is AES-128/256 only — RFC 8452 §6 does not define AES-192-GCM-SIV). `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5); `AESGCM` is authenticated AEAD (SP 800-38D §7) with a 128-bit tag; `AESGCMSIV` is nonce-misuse-resistant authenticated AEAD (RFC 8452) with a 128-bit tag, single-shot, plaintext capped at 64 KiB per call; `AESGenerator` is an AES-256 ECB counter-mode PRF for the `Fortuna` generator slot (Practical Cryptography §9.4 — the spec-canonical Fortuna generator). `AESCbc` and `AESCtr` are unauthenticated — pair with HMAC or use `Seal` / `AESGCM` / `AESGCMSIV` instead. |
 | `SealStream`, `OpenStream`, `SerpentCipher` (when using SerpentCipher) | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
 | `SealStream`, `OpenStream`, `XChaCha20Cipher` (when using XChaCha20Cipher) | `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })` |
 | `SealStreamPool` | depends on cipher: same modules as the cipher suite + `sha2` |
@@ -182,7 +182,7 @@ await serpentInit(serpentWasm)
 | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })` |
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })` — `'keccak'` is an alias for `'sha3'` |
 | `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })` — both modules required |
-| `Fortuna` | `init(...)` with one cipher module (`serpent` or `chacha20`) plus one hash module (`sha2` or `sha3`). All four combinations are valid. |
+| `Fortuna` | `init(...)` with one cipher module (`aes`, `serpent`, or `chacha20`) plus one hash module (`sha2` or `sha3`). All six combinations are valid. |
 | `KDFChain`, `ratchetInit`, `ratchetReady`, `SkippedKeyStore` | `init({ sha2: sha2Wasm })` |
 | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })` |
 
@@ -382,7 +382,7 @@ const bytes   = fortuna.get(32)
 fortuna.stop()
 ```
 
-Substitute `SerpentGenerator` for `ChaCha20Generator`, or `SHA3_256Hash` for `SHA256Hash`, to use other primitive combinations. Match the `init()` modules to whichever pair you pick.
+Substitute `AESGenerator` (Practical Cryptography §9.4 — the spec-canonical generator) or `SerpentGenerator` for `ChaCha20Generator`, or `SHA3_256Hash` for `SHA256Hash`, to use other primitive combinations. Match the `init()` modules to whichever pair you pick.
 
 ### Sparse Post-Quantum Ratchet (KDF layer only)
 

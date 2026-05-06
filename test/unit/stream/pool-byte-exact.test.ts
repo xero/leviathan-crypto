@@ -40,17 +40,19 @@ import { SealStream, SealStreamPool } from '../../../src/ts/stream/index.js';
 import {
 	TestXChaCha20Cipher as XChaCha20Cipher,
 	TestSerpentCipher   as SerpentCipher,
+	TestAESGCMSIVCipher as AESGCMSIVCipher,
 } from './_test-ciphers.js';
 import { readHeader } from '../../../src/ts/stream/header.js';
 import { HEADER_SIZE } from '../../../src/ts/stream/constants.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import type { CipherSuite } from '../../../src/ts/stream/types.js';
 import type { WasmSource } from '../../../src/ts/wasm-source.js';
 
 beforeAll(async () => {
-	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm });
+	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, aes: aesWasm, sha2: sha2Wasm });
 });
 
 // chunkSize — the pool default for these tests. Keep small enough that the
@@ -74,8 +76,9 @@ interface CipherConfig {
 }
 
 const configs: CipherConfig[] = [
-	{ name: 'XChaCha20', cipher: XChaCha20Cipher, wasm: chacha20Wasm },
-	{ name: 'Serpent',   cipher: SerpentCipher,   wasm: { serpent: serpentWasm, sha2: sha2Wasm } },
+	{ name: 'XChaCha20',  cipher: XChaCha20Cipher, wasm: chacha20Wasm },
+	{ name: 'Serpent',    cipher: SerpentCipher,   wasm: { serpent: serpentWasm, sha2: sha2Wasm } },
+	{ name: 'AES-GCM-SIV', cipher: AESGCMSIVCipher, wasm: { aes: aesWasm, sha2: sha2Wasm } },
 ];
 
 // Drive a SealStream byte-for-byte identically to how SealStreamPool.seal

@@ -23,18 +23,20 @@ import { describe, test, expect, beforeAll, afterEach, vi } from 'vitest';
 import { init, Fortuna } from '../../../src/ts/index.js';
 import { SerpentGenerator } from '../../../src/ts/serpent/index.js';
 import { ChaCha20Generator } from '../../../src/ts/chacha20/index.js';
+import { AESGenerator } from '../../../src/ts/aes/index.js';
 import { SHA256Hash } from '../../../src/ts/sha2/index.js';
 import { SHA3_256Hash } from '../../../src/ts/sha3/index.js';
 import { _resetForTesting } from '../../../src/ts/init.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
+import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
 import * as fortunaKat from '../../vectors/fortuna_kat.js';
 import { hexToBytes } from '../../../src/ts/index.js';
 
 beforeAll(async () => {
-	await init({ serpent: serpentWasm, chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm });
+	await init({ serpent: serpentWasm, chacha20: chacha20Wasm, aes: aesWasm, sha2: sha2Wasm, sha3: sha3Wasm });
 });
 
 describe('Fortuna — pluggable primitives validation', () => {
@@ -67,6 +69,8 @@ const combinations = [
 	{ name: 'serpent+sha3',   generator: SerpentGenerator,  hash: SHA3_256Hash, kat: fortunaKat.serpent_sha3   },
 	{ name: 'chacha20+sha2',  generator: ChaCha20Generator, hash: SHA256Hash,   kat: fortunaKat.chacha20_sha2  },
 	{ name: 'chacha20+sha3',  generator: ChaCha20Generator, hash: SHA3_256Hash, kat: fortunaKat.chacha20_sha3  },
+	{ name: 'aes+sha2',       generator: AESGenerator,      hash: SHA256Hash,   kat: fortunaKat.aes_sha2       },
+	{ name: 'aes+sha3',       generator: AESGenerator,      hash: SHA3_256Hash, kat: fortunaKat.aes_sha3       },
 ] as const;
 
 for (const combo of combinations) {

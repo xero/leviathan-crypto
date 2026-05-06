@@ -32,3 +32,4 @@ jobs:
           test/unit/aes/aes_ghash.test.ts
           test/unit/aes/aes_gcm_seal.test.ts
           test/unit/aes/aes_gcm_open.test.ts
+          test/unit/aes/aes_generator.test.ts

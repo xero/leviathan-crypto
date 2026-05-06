@@ -18,12 +18,13 @@ Authenticated encryption in leviathan-crypto centers on four classes: `Seal`, `S
 
 These four form a natural progression by use case. Use `Seal` for data that fits in memory. Use `SealStream` and `OpenStream` for data arriving in chunks or too large to buffer. Use `SealStreamPool` for parallel chunked encryption across Web Workers. All four share the same wire format, so `OpenStream` can decrypt a `Seal` blob and vice versa.
 
-leviathan-crypto includes two cipher suites. A third suite wraps either with ML-KEM for post-quantum hybrid encryption.
+leviathan-crypto includes three symmetric cipher suites. A fourth suite wraps any of them with ML-KEM for post-quantum hybrid encryption.
 
 | Suite | Cipher | Tag | Modules |
 |---|---|---|---|
 | `SerpentCipher` | Serpent-256 CBC + HMAC-SHA-256 | 32 B | `serpent`, `sha2` |
 | `XChaCha20Cipher` | XChaCha20-Poly1305 | 16 B | `chacha20`, `sha2` |
+| `AESGCMSIVCipher` | AES-256-GCM-SIV (RFC 8452) | 16 B | `aes`, `sha2` |
 | `KyberSuite` | ML-KEM + inner cipher | depends | `kyber`, `sha3`, + inner |
 
 See [ciphersuite.md](./ciphersuite.md) for full cipher suite documentation.
@@ -110,6 +111,20 @@ bytes:
 
 Serpent has no separate commitment field. HMAC-SHA-256 over the chunk authenticator is collision-resistant under SHA-256, which gives Serpent the same key-committing property natively.
 
+### AES-GCM-SIV Preamble (52 bytes)
+
+The AES-GCM-SIV v3 preamble carries the header and a 32-byte key commitment, identical in layout to XChaCha20:
+
+```
+bytes:
+  0-19: header (20 bytes)
+ 20-51: key commitment (32 bytes)
+```
+
+The commitment is the second half of a 64-byte HKDF-SHA-256 output: bytes 0..32 are the per-stream AES-GCM-SIV key (no subkey-derivation step — AES-GCM-SIV's nonce is 12 bytes, used directly per chunk; there is no HChaCha20 analog), bytes 32..64 are the commitment. `OpenStream` and `SealStreamPool` verify the commitment against the receiver's derived value in constant time before any chunk is processed. A wrong key fails fast with `AuthenticationError`, before AES-GCM-SIV is consulted. The discriminator string is `commitment-aes-gcm-siv`. This closes the Invisible Salamanders attack surface for AES-GCM-SIV — POLYVAL is not key-committing on its own (same posture as Poly1305).
+
+The HKDF info string is `aes-gcm-siv-sealstream-v3` followed by the full 20-byte header. Tampering with `formatEnum`, the framed flag, the nonce, or `chunkSize` produces different derived keys, so the AEAD fails directly on the first chunk rather than relying on indirect detection through chunk-boundary mismatch.
+
 ### Counter Nonce (12 bytes)
 
 Each chunk is encrypted with a 12-byte nonce:
@@ -193,7 +208,7 @@ const ctLast = sealer.finalize(lastChunk)  // keys wiped
 
 | Parameter | Type | Description |
 |---|---|---|
-| `cipher` | `CipherSuite` | `XChaCha20Cipher`, `SerpentCipher`, or a `KyberSuite` instance. |
+| `cipher` | `CipherSuite` | `XChaCha20Cipher`, `SerpentCipher`, `AESGCMSIVCipher`, or a `KyberSuite` instance. |
 | `key` | `Uint8Array` | Master key. Must be `cipher.keySize` bytes (32 for both symmetric suites). |
 | `opts.chunkSize` | `number` | Max plaintext bytes per chunk. Range: [1024, 16777215]. Default: 65536. |
 | `opts.framed` | `boolean` | Prepend `u32be` length prefix to each chunk. Default: false. |

@@ -163,3 +163,5 @@ export { AESCbc } from './aes-cbc.js';
 export { AESCtr } from './aes-ctr.js';
 export { AESGCM } from './aes-gcm.js';
 export { AESGCMSIV } from './aes-gcm-siv.js';
+export { AESGenerator } from './generator.js';
+export { AESGCMSIVCipher } from './cipher-suite.js';

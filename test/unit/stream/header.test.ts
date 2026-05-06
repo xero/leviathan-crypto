@@ -101,4 +101,35 @@ describe('writeHeader() formatEnum range', () => {
 		expect((parsed.formatEnum >> 4) & 0x07).toBe(0x02); // KEM nibble = mlkem768
 		expect(parsed.formatEnum & 0x0f).toBe(0x03);         // cipher nibble = xchacha20 v3
 	});
+
+	it('aes-gcm-siv cipher nibble (0x04) roundtrips through readHeader', () => {
+		const h = writeHeader(0x04, false, new Uint8Array(16), 65536);
+		const parsed = readHeader(h);
+		expect(parsed.formatEnum).toBe(0x04);
+		expect(parsed.formatEnum & 0x0f).toBe(0x04);         // cipher nibble = aes-gcm-siv
+	});
+
+	it('mlkem512 (0x10) | aes-gcm-siv (0x04) = 0x14 roundtrips', () => {
+		const h = writeHeader(0x14, false, new Uint8Array(16), 65536);
+		const parsed = readHeader(h);
+		expect(parsed.formatEnum).toBe(0x14);
+		expect((parsed.formatEnum >> 4) & 0x07).toBe(0x01); // KEM nibble = mlkem512
+		expect(parsed.formatEnum & 0x0f).toBe(0x04);         // cipher nibble = aes-gcm-siv
+	});
+
+	it('mlkem768 (0x20) | aes-gcm-siv (0x04) = 0x24 roundtrips', () => {
+		const h = writeHeader(0x24, false, new Uint8Array(16), 65536);
+		const parsed = readHeader(h);
+		expect(parsed.formatEnum).toBe(0x24);
+		expect((parsed.formatEnum >> 4) & 0x07).toBe(0x02); // KEM nibble = mlkem768
+		expect(parsed.formatEnum & 0x0f).toBe(0x04);         // cipher nibble = aes-gcm-siv
+	});
+
+	it('mlkem1024 (0x30) | aes-gcm-siv (0x04) = 0x34 roundtrips', () => {
+		const h = writeHeader(0x34, false, new Uint8Array(16), 65536);
+		const parsed = readHeader(h);
+		expect(parsed.formatEnum).toBe(0x34);
+		expect((parsed.formatEnum >> 4) & 0x07).toBe(0x03); // KEM nibble = mlkem1024
+		expect(parsed.formatEnum & 0x0f).toBe(0x04);         // cipher nibble = aes-gcm-siv
+	});
 });

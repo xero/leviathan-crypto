@@ -30,15 +30,17 @@ import { SealStreamPool, OpenStream, SealStream } from '../../../src/ts/stream/i
 import {
 	TestXChaCha20Cipher as XChaCha20Cipher,
 	TestSerpentCipher   as SerpentCipher,
+	TestAESGCMSIVCipher as AESGCMSIVCipher,
 } from './_test-ciphers.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import type { CipherSuite } from '../../../src/ts/stream/types.js';
 import type { WasmSource } from '../../../src/ts/wasm-source.js';
 
 beforeAll(async () => {
-	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm });
+	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, aes: aesWasm, sha2: sha2Wasm });
 });
 
 // ── Per-cipher test suites ──────────────────────────────────────────────────
@@ -61,6 +63,12 @@ const configs: CipherTestConfig[] = [
 		name: 'Serpent',
 		cipher: SerpentCipher,
 		wasm: { serpent: serpentWasm, sha2: sha2Wasm },
+		keyLen: 32,
+	},
+	{
+		name: 'AES-GCM-SIV',
+		cipher: AESGCMSIVCipher,
+		wasm: { aes: aesWasm, sha2: sha2Wasm },
 		keyLen: 32,
 	},
 ];

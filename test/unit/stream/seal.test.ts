@@ -27,12 +27,14 @@ import { init, randomBytes } from '../../../src/ts/index.js';
 import { Seal, OpenStream, HEADER_SIZE } from '../../../src/ts/stream/index.js';
 import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
 import { SerpentCipher } from '../../../src/ts/serpent/cipher-suite.js';
+import { AESGCMSIVCipher } from '../../../src/ts/aes/cipher-suite.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 
 beforeAll(async () => {
-	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm });
+	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, aes: aesWasm, sha2: sha2Wasm });
 });
 
 // ── Symmetric round-trips ───────────────────────────────────────────────────
@@ -41,6 +43,7 @@ describe('Seal symmetric round-trips', () => {
 	for (const [name, suite] of [
 		['XChaCha20', XChaCha20Cipher] as const,
 		['Serpent', SerpentCipher] as const,
+		['AES-GCM-SIV', AESGCMSIVCipher] as const,
 	]) {
 		describe(name, () => {
 			const key = randomBytes(32);
@@ -115,6 +118,7 @@ describe('Seal blob is OpenStream-compatible', () => {
 	for (const [name, suite] of [
 		['XChaCha20', XChaCha20Cipher] as const,
 		['Serpent', SerpentCipher] as const,
+		['AES-GCM-SIV', AESGCMSIVCipher] as const,
 	]) {
 		it(`${name}: OpenStream.finalize decrypts Seal.encrypt output`, () => {
 			const key  = randomBytes(32);
@@ -178,6 +182,12 @@ describe('Regression: cipher keygen()', () => {
 		expect(k.length).toBe(32);
 	});
 
+	it('AESGCMSIVCipher.keygen() returns 32 bytes', () => {
+		const k = AESGCMSIVCipher.keygen();
+		expect(k).toBeInstanceOf(Uint8Array);
+		expect(k.length).toBe(32);
+	});
+
 	it('XChaCha20Cipher.keygen() produces different keys each call', () => {
 		const k1 = XChaCha20Cipher.keygen();
 		const k2 = XChaCha20Cipher.keygen();
@@ -196,6 +206,10 @@ describe('CipherSuite new properties', () => {
 		expect(SerpentCipher.formatName).toBe('serpent');
 	});
 
+	it('AESGCMSIVCipher.formatName', () => {
+		expect(AESGCMSIVCipher.formatName).toBe('aes-gcm-siv');
+	});
+
 	it('XChaCha20Cipher.kemCtSize is 0', () => {
 		expect(XChaCha20Cipher.kemCtSize).toBe(0);
 	});
@@ -204,9 +218,14 @@ describe('CipherSuite new properties', () => {
 		expect(SerpentCipher.kemCtSize).toBe(0);
 	});
 
+	it('AESGCMSIVCipher.kemCtSize is 0', () => {
+		expect(AESGCMSIVCipher.kemCtSize).toBe(0);
+	});
+
 	it('symmetric suites have no decKeySize', () => {
 		expect(XChaCha20Cipher.decKeySize).toBeUndefined();
 		expect(SerpentCipher.decKeySize).toBeUndefined();
+		expect(AESGCMSIVCipher.decKeySize).toBeUndefined();
 	});
 });
 
@@ -219,6 +238,10 @@ describe('CipherSuite commitmentSize round-trip', () => {
 
 	it('SerpentCipher declares commitmentSize: 0', () => {
 		expect(SerpentCipher.commitmentSize).toBe(0);
+	});
+
+	it('AESGCMSIVCipher declares commitmentSize: 32', () => {
+		expect(AESGCMSIVCipher.commitmentSize).toBe(32);
 	});
 
 	it('XChaCha20.deriveKeys returns a 32-byte commitment matching commitmentSize', () => {
@@ -234,6 +257,20 @@ describe('CipherSuite commitmentSize round-trip', () => {
 			expect(dk.commitment!.length).toBe(XChaCha20Cipher.commitmentSize);
 		} finally {
 			XChaCha20Cipher.wipeKeys(dk);
+		}
+	});
+
+	it('AES-GCM-SIV.deriveKeys returns a 32-byte commitment matching commitmentSize', () => {
+		const key = randomBytes(32);
+		const nonce = randomBytes(16);
+		const blob = Seal._fromNonce(AESGCMSIVCipher, key, new Uint8Array(0), nonce);
+		const header = blob.subarray(0, HEADER_SIZE);
+		const dk = AESGCMSIVCipher.deriveKeys(key, nonce, undefined, header);
+		try {
+			expect(dk.commitment).toBeInstanceOf(Uint8Array);
+			expect(dk.commitment!.length).toBe(AESGCMSIVCipher.commitmentSize);
+		} finally {
+			AESGCMSIVCipher.wipeKeys(dk);
 		}
 	});
 
@@ -265,6 +302,25 @@ describe('Seal.decrypt: commitment-mismatch fails fast (XChaCha20 v3)', () => {
 		}
 		expect(caught).not.toBeNull();
 		expect(caught!.message).toContain('commitment-xchacha20');
+	});
+});
+
+describe('Seal.decrypt: commitment-mismatch fails fast (AES-GCM-SIV v3)', () => {
+	it('flipping a byte in the commitment region throws AuthenticationError', () => {
+		const key = randomBytes(32);
+		const pt  = randomBytes(64);
+		const blob = Seal.encrypt(AESGCMSIVCipher, key, pt).slice();
+		// Commitment lives at [HEADER_SIZE, HEADER_SIZE + 32). Flip a byte inside it.
+		const flipOffset = HEADER_SIZE + 5;
+		blob[flipOffset] ^= 0xff;
+		let caught: Error | null = null;
+		try {
+			Seal.decrypt(AESGCMSIVCipher, key, blob);
+		} catch (e) {
+			caught = e as Error;
+		}
+		expect(caught).not.toBeNull();
+		expect(caught!.message).toContain('commitment-aes-gcm-siv');
 	});
 });
 

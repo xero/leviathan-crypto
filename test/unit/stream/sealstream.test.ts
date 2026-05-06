@@ -29,13 +29,15 @@ import { SealStream, OpenStream, CHUNK_MIN, CHUNK_MAX, HEADER_SIZE } from '../..
 import { writeHeader } from '../../../src/ts/stream/header.js';
 import { XChaCha20Cipher } from '../../../src/ts/chacha20/cipher-suite.js';
 import { SerpentCipher } from '../../../src/ts/serpent/cipher-suite.js';
+import { AESGCMSIVCipher } from '../../../src/ts/aes/cipher-suite.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
+import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import type { CipherSuite } from '../../../src/ts/stream/types.js';
 
 beforeAll(async () => {
-	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, sha2: sha2Wasm });
+	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, aes: aesWasm, sha2: sha2Wasm });
 });
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -80,6 +82,7 @@ function openAll(
 const suites: [string, CipherSuite, number][] = [
 	['XChaCha20', XChaCha20Cipher, 32],
 	['Serpent', SerpentCipher, 32],
+	['AES-GCM-SIV', AESGCMSIVCipher, 32],
 ];
 
 for (const [name, cipher, keyLen] of suites) {
