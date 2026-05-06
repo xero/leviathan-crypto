@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 2485                        | All pass |
+| Unit | Vitest     | 2489                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2779**                    | All pass |
+|      | **Total**  | **2783**                    | All pass |
 
 ---
 
@@ -63,8 +63,8 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `chacha20/chacha20_simd_4x_gate.test.ts`      | 4-wide inter-block SIMD: byte-identical to scalar for 192/256/320/512/337 bytes                                                                                                                                                              | 5 tests                | GATE                |
 | `chacha20/chacha20_simd.test.ts`              | SIMD cross-check: RFC §2.4.2 vector + size sweep (64–65536B) + round-trip                                                                                                                                                                    | 11 tests               | —                   |
 | `chacha20/poly1305.test.ts`                   | Poly1305 MAC vectors (§2.5.2, §2.6.2, A.3 #1–#6)                                                                                                                                                                                              | 9 tests                | Gate 4              |
-| `chacha20/chacha20poly1305.test.ts`           | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation)                                                                                                                                                                             | 26 tests               | Gate 5              |
-| `chacha20/xchacha20.test.ts`                  | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation)                                                                                                                                                                      | 19 tests               | Gate 6              |
+| `chacha20/chacha20poly1305.test.ts`           | ChaCha20-Poly1305 AEAD (§2.8.2, round-trips, tamper, validation). Wipe-after-return: after a successful `encrypt`/`decrypt`, KEY_OFFSET and POLY_KEY_OFFSET read as zeros — verifies the atomic-class try/finally `wipeBuffers()` discipline | 28 tests               | Gate 5              |
+| `chacha20/xchacha20.test.ts`                  | XChaCha20-Poly1305 (HChaCha20, §A.3.2, round-trips, tamper, validation). Wipe-after-return: after a successful `encrypt`/`decrypt`, KEY_OFFSET, POLY_KEY_OFFSET, and XCHACHA_SUBKEY_OFFSET read as zeros — verifies the atomic-class try/finally `wipeBuffers()` discipline (HChaCha20 inner-key material included) | 21 tests               | Gate 6              |
 | `chacha20/single-use-guard.test.ts`           | Strict single-use guard on `ChaCha20Poly1305.encrypt()` and `XChaCha20Poly1305.encrypt()`: happy path locks after one call; crypto-path throw locks; validation throws on key/nonce length ALSO lock — every retry on a used instance surfaces the single-use error | 8 tests                | —                   |
 | `chacha20/aead-decrypt-wipe.test.ts`          | `ChaCha20Poly1305.decrypt` wipe-on-auth-failure: `CHUNK_CT` region zeroed, `CHACHA_BLOCK_BUFFER` zeroed, `POLY_KEY_BUFFER` zeroed (regression for residual key bytes after tamper)                                                            | 3 tests                | —                   |
 | `sha2/sha256.test.ts`                         | SHA-256 vectors, streaming, `wipeBuffers`, leviathan cross-check                                                                                                                                                                             | 11 tests               | Gate 3              |

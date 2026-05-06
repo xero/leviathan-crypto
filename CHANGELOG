@@ -10,7 +10,7 @@
   `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`. Nonce-misuse-resistant
   authenticated encryption — single-stream key reuse across the same
   nonce reduces IND-CPA to message-equality leakage rather than full
-  break, the strongest posture among the three shipped symmetric suites.
+  break, the strongest nonce-reuse posture among the three shipped symmetric suites.
 
   HtE explicit-commitment construction matches `XChaCha20Cipher`:
   HKDF-SHA-256 emits 64 bytes from `(masterKey, nonce, INFO || header)`,

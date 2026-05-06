@@ -246,11 +246,15 @@ export class ChaCha20Poly1305 {
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 12)
 			throw new RangeError(`nonce must be 12 bytes (got ${nonce.length})`);
-		const { ciphertext, tag } = aeadEncrypt(this.x, key, nonce, plaintext, aad);
-		const out = new Uint8Array(ciphertext.length + 16);
-		out.set(ciphertext);
-		out.set(tag, ciphertext.length);
-		return out;
+		try {
+			const { ciphertext, tag } = aeadEncrypt(this.x, key, nonce, plaintext, aad);
+			const out = new Uint8Array(ciphertext.length + 16);
+			out.set(ciphertext);
+			out.set(tag, ciphertext.length);
+			return out;
+		} finally {
+			this.x.wipeBuffers();
+		}
 	}
 
 	/**
@@ -275,9 +279,13 @@ export class ChaCha20Poly1305 {
 			throw new RangeError(`nonce must be 12 bytes (got ${nonce.length})`);
 		if (ciphertext.length < 16)
 			throw new RangeError(`ciphertext too short — must include 16-byte tag (got ${ciphertext.length})`);
-		const ct  = ciphertext.subarray(0, ciphertext.length - 16);
-		const tag = ciphertext.subarray(ciphertext.length - 16);
-		return aeadDecrypt(this.x, key, nonce, ct, tag, aad);
+		try {
+			const ct  = ciphertext.subarray(0, ciphertext.length - 16);
+			const tag = ciphertext.subarray(ciphertext.length - 16);
+			return aeadDecrypt(this.x, key, nonce, ct, tag, aad);
+		} finally {
+			this.x.wipeBuffers();
+		}
 	}
 
 	/** Wipe WASM cipher and MAC state. */
@@ -340,7 +348,11 @@ export class XChaCha20Poly1305 {
 			throw new RangeError(`key must be 32 bytes (got ${key.length})`);
 		if (nonce.length !== 24)
 			throw new RangeError(`XChaCha20 nonce must be 24 bytes (got ${nonce.length})`);
-		return xcEncrypt(this.x, key, nonce, plaintext, aad);
+		try {
+			return xcEncrypt(this.x, key, nonce, plaintext, aad);
+		} finally {
+			this.x.wipeBuffers();
+		}
 	}
 
 	/**
@@ -365,7 +377,11 @@ export class XChaCha20Poly1305 {
 			throw new RangeError(`XChaCha20 nonce must be 24 bytes (got ${nonce.length})`);
 		if (ciphertext.length < 16)
 			throw new RangeError(`ciphertext too short — must include 16-byte tag (got ${ciphertext.length})`);
-		return xcDecrypt(this.x, key, nonce, ciphertext, aad);
+		try {
+			return xcDecrypt(this.x, key, nonce, ciphertext, aad);
+		} finally {
+			this.x.wipeBuffers();
+		}
 	}
 
 	/** Wipe WASM cipher and MAC state. */

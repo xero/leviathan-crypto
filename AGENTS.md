@@ -177,13 +177,13 @@ that way.
 
 These are decisions already made. Do not relitigate them without raising it first.
 
-- **Six WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
-  `sha3.wasm`, `ct.wasm`, `kyber.wasm`. Each is independent — separate
-  linear memory, separate buffer layout, separate AssemblyScript entry
-  point. `ct.wasm` is an internal utility (SIMD constant-time compare,
-  not a user-facing module). `'keccak'` is an alias for `'sha3'` in the
-  TypeScript layer — it is not a separate module. No `keccak.wasm` exists
-  or should be created.
+- **Seven WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
+  `sha3.wasm`, `ct.wasm`, `kyber.wasm`, `aes.wasm`. Each is independent —
+  separate linear memory, separate buffer layout, separate AssemblyScript
+  entry point. `ct.wasm` is an internal utility (SIMD constant-time
+  compare, not a user-facing module). `'keccak'` is an alias for `'sha3'`
+  in the TypeScript layer — it is not a separate module. No `keccak.wasm`
+  exists or should be created.
 - **Static buffers only**: no dynamic allocation (`memory.grow()` is not used).
   All buffers are fixed offsets in linear memory defined in `buffers.ts`.
 - **Buffer layout starts at 0**: each module's layout is independent and starts
