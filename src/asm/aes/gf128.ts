@@ -55,7 +55,7 @@
 // AES-GCM-SIV (phase 4b).
 
 // ──────────────────────────────────────────────────────────────────────────
-// Phase 4b prep note. AES-GCM-SIV (RFC 8452) uses POLYVAL, a sibling
+// Phase 4b note. AES-GCM-SIV (RFC 8452) uses POLYVAL, a sibling
 // universal hash in a different field: reduction polynomial
 // x^128 + x^127 + x^126 + x^121 + 1 (vs GHASH's x^128 + x^7 + x^2 + x + 1)
 // and a bit-within-byte ordering where bit 0 of byte 0 is u^0 (vs GHASH's
@@ -72,22 +72,20 @@
 // interpretations of bit order takes care of reversing the bits within
 // each byte, and then reversing the bytes does the rest."
 //
-// Phase 4b will choose between two implementations of POLYVAL:
+// Phase 4b chose path (a): a reflection wrapper around the existing
+// gf128MulH multiplier. Per-SIV-operation setup byte-reverses the
+// POLYVAL hash subkey, applies mulX_GHASH (defined in this file as
+// `mulXGhash`), and feeds the result to `gf128InitTable`. Per-block
+// absorption byte-reverses the block into GHASH bit convention, XORs
+// into the running accumulator, and multiplies by H. `polyvalFinalize`
+// byte-reverses the accumulator back to POLYVAL bit convention.
+// `byteReverse16` and `mulXGhash` below are the two helpers required;
+// the existing GF(2^128) primitive does not change.
 //
-//   (a) Reflection wrapper around gf128MulH. One-time mulX_GHASH on the
-//       byte-reversed authentication subkey at table-build time, plus a
-//       16-byte byte-reverse on each input block (one v128 shuffle) and
-//       on the final output. GF128_TABLE_OFFSET is reused as-is.
-//
-//   (b) A POLYVAL-native multiply with reduction byte 0x87 in LSB-first
-//       storage. Removes the per-block byte-reverse, at the cost of a
-//       parallel multiplier (~250 lines) and a second 256-byte table
-//       buffer.
-//
-// (a) is the standard path for codebases that already have a GHASH
-// multiplier; (b) is what most modern POLYVAL-only codebases ship. The
-// choice belongs to 4b planning. This file's primitive does not change
-// in 4b under either path.
+// Path (b) — a POLYVAL-native multiplier with reduction byte 0x87 in
+// LSB-first storage — was rejected: it would have added ~250 lines of
+// parallel multiplier and a second 256-byte table for no algorithmic
+// benefit on a runtime that lacks PCLMULQDQ.
 // ──────────────────────────────────────────────────────────────────────────
 
 import {
@@ -309,4 +307,78 @@ export function gf128MulH(): void {
 		gf128MulU4(X);
 		xor16(T + (<i32>highNib) * 16, X);
 	}
+}
+
+// ── POLYVAL/GHASH bridge helpers (RFC 8452 §3, Appendix A) ─────────────────
+
+/**
+ * Reverse the byte order of a 16-byte block. Implements the `ByteReverse`
+ * operation from RFC 8452 §3, used by the POLYVAL/GHASH bridge formula:
+ *
+ *     POLYVAL(H, X_1..n) = ByteReverse(GHASH(mulX_GHASH(ByteReverse(H)),
+ *                                            ByteReverse(X_1..n)))
+ *
+ * Implemented as a single `v128.shuffle<u8>` with the inverse-byte-index
+ * pattern. `srcOff` and `dstOff` may alias.
+ */
+export function byteReverse16(srcOff: i32, dstOff: i32): void {
+	const x = v128.load(srcOff);
+	v128.store(dstOff, v128.shuffle<u8>(x, x,
+		15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+	));
+}
+
+/**
+ * Multiply the 128-bit value at `srcOff` by x in the GHASH field, writing
+ * the result to `dstOff`. `srcOff` and `dstOff` may alias.
+ *
+ * Implements `mulX_GHASH` from RFC 8452 §3 / Appendix A. The operation is
+ * one position right-shift in the GHASH bit convention with conditional
+ * reduction-byte XOR: if the LSB of input byte 15 is 1 (i.e. u^127's
+ * coefficient was set), XOR the reduction byte 0xE1 into output byte 0
+ * after the shift. Each byte's bits shift right by one position; the
+ * carry-out from each byte populates the MSB of the next byte.
+ *
+ * This is the same `· u` transform that `gf128MulU` applies in place;
+ * exposed here as src→dst for use during POLYVAL key-table setup, where
+ * the byte-reversed authentication subkey is multiplied by x and then
+ * loaded as H for the existing `gf128InitTable` builder.
+ */
+export function mulXGhash(srcOff: i32, dstOff: i32): void {
+	const b0  = load<u8>(srcOff +  0);
+	const b1  = load<u8>(srcOff +  1);
+	const b2  = load<u8>(srcOff +  2);
+	const b3  = load<u8>(srcOff +  3);
+	const b4  = load<u8>(srcOff +  4);
+	const b5  = load<u8>(srcOff +  5);
+	const b6  = load<u8>(srcOff +  6);
+	const b7  = load<u8>(srcOff +  7);
+	const b8  = load<u8>(srcOff +  8);
+	const b9  = load<u8>(srcOff +  9);
+	const b10 = load<u8>(srcOff + 10);
+	const b11 = load<u8>(srcOff + 11);
+	const b12 = load<u8>(srcOff + 12);
+	const b13 = load<u8>(srcOff + 13);
+	const b14 = load<u8>(srcOff + 14);
+	const b15 = load<u8>(srcOff + 15);
+
+	const carry: u32 = (<u32>b15) & 1;
+	const reduce: u8 = <u8>(carry * 0xE1);
+
+	store<u8>(dstOff +  0, ((b0  >> 1)              ) ^ reduce);
+	store<u8>(dstOff +  1, ((b1  >> 1) | ((b0  & 1) << 7)));
+	store<u8>(dstOff +  2, ((b2  >> 1) | ((b1  & 1) << 7)));
+	store<u8>(dstOff +  3, ((b3  >> 1) | ((b2  & 1) << 7)));
+	store<u8>(dstOff +  4, ((b4  >> 1) | ((b3  & 1) << 7)));
+	store<u8>(dstOff +  5, ((b5  >> 1) | ((b4  & 1) << 7)));
+	store<u8>(dstOff +  6, ((b6  >> 1) | ((b5  & 1) << 7)));
+	store<u8>(dstOff +  7, ((b7  >> 1) | ((b6  & 1) << 7)));
+	store<u8>(dstOff +  8, ((b8  >> 1) | ((b7  & 1) << 7)));
+	store<u8>(dstOff +  9, ((b9  >> 1) | ((b8  & 1) << 7)));
+	store<u8>(dstOff + 10, ((b10 >> 1) | ((b9  & 1) << 7)));
+	store<u8>(dstOff + 11, ((b11 >> 1) | ((b10 & 1) << 7)));
+	store<u8>(dstOff + 12, ((b12 >> 1) | ((b11 & 1) << 7)));
+	store<u8>(dstOff + 13, ((b13 >> 1) | ((b12 & 1) << 7)));
+	store<u8>(dstOff + 14, ((b14 >> 1) | ((b13 & 1) << 7)));
+	store<u8>(dstOff + 15, ((b15 >> 1) | ((b14 & 1) << 7)));
 }

@@ -28,9 +28,11 @@
 // (NR_BUFFER) is written by `keyExpansion` and read by encrypt/decrypt at
 // the top of each call.
 //
-// Total: 202624 bytes < 4 × 64KB = 262144 (59520 bytes spare). The 4-page
+// Total: 202688 bytes < 4 × 64KB = 262144 (59456 bytes spare). The 4-page
 // budget (vs the original 3 pages) comes from Phase 4a's 64 KiB
-// AAD_BUFFER for AES-GCM authenticated additional data.
+// AAD_BUFFER for AES-GCM authenticated additional data. Phase 4b adds
+// 64 bytes of AES-GCM-SIV state (POLYVAL auth/enc keys + initial counter)
+// after AAD.
 //
 // Offset    Size      Name
 // 0         32        KEY_BUFFER (sized for AES-256)
@@ -89,7 +91,23 @@
 // 137088    65536     AAD_BUFFER          (GCM additional authenticated data;
 //                                          single-shot caller writes AAD here
 //                                          before gcmStart)
-// 202624              END                 (< 262144 = 4 pages ✓)
+// ── AES-GCM-SIV (Phase 4b) ─────────────────────────────────────────────
+// 202624    16        POLYVAL_AUTH_KEY_BUFFER  (per-message authentication
+//                                          key derived from KGK by
+//                                          sivDeriveKeys, RFC 8452 §4)
+// 202640    32        POLYVAL_ENC_KEY_BUFFER   (per-message encryption key
+//                                          derived from KGK; sized for
+//                                          AES-256, AES-128 uses bytes
+//                                          [0..16] only)
+// 202672    16        SIV_IC_BUFFER            (SIV initial counter — tag
+//                                          with bit 7 of byte 15 set;
+//                                          first 4 bytes hold the 32-bit
+//                                          little-endian CTR counter)
+// 202688              END                 (< 262144 = 4 pages ✓; 59456 spare)
+//
+// GHASH_ACC_BUFFER also serves as the POLYVAL accumulator during AES-GCM-SIV
+// operations (Phase 4b). GHASH and POLYVAL are mutually exclusive at runtime
+// (atomic AEAD pattern); the alias is safe and saves 16 bytes of layout.
 //
 // Why bitsliced round keys are 128 bytes/round (not 16): per Käsper-Schwabe §4.5,
 // each AES round key is pre-transposed to bitsliced form so that AddRoundKey is
@@ -141,7 +159,13 @@ export const GCM_SCRATCH_OFFSET:          i32 = 136800;
 export const GCM_CB_OFFSET:               i32 = 136816;
 export const GF128_TABLE_OFFSET:          i32 = 136832;
 export const AAD_OFFSET:                  i32 = 137088;
-// END = 137088 + 65536 = 202624 < 262144 = 4 pages ✓
+// ── AES-GCM-SIV (Phase 4b) buffers ─────────────────────────────────────────
+// GHASH_ACC_OFFSET aliases as the POLYVAL accumulator (mutually exclusive
+// at runtime — atomic AEAD pattern), so no new offset is added for it.
+export const POLYVAL_AUTH_KEY_OFFSET:      i32 = 202624;
+export const POLYVAL_ENC_KEY_OFFSET:       i32 = 202640;
+export const SIV_IC_OFFSET:                i32 = 202672;
+// END = 202672 + 16 = 202688 < 262144 = 4 pages ✓
 
 // Sizes referenced from wipe.ts and aes.ts.
 export const ROUND_KEYS_SIZE:           i32 = 1920;   // 15 round keys × 8 v128 (AES-256 future)
@@ -163,6 +187,9 @@ export const GCM_SCRATCH_SIZE:          i32 = 16;     // partial-block tail scra
 export const GCM_CB_SIZE:               i32 = 16;     // GCTR working counter
 export const GF128_TABLE_SIZE:          i32 = 256;    // 16 entries × 16 bytes
 export const AAD_BUFFER_SIZE:           i32 = 65536;  // 64 KiB max single-shot AAD
+export const POLYVAL_AUTH_KEY_SIZE:     i32 = 16;     // RFC 8452 §4 — 128-bit auth key
+export const POLYVAL_ENC_KEY_SIZE:      i32 = 32;     // sized for AES-256 (AES-128 uses 16)
+export const SIV_IC_SIZE:               i32 = 16;     // SIV initial counter
 
 // ── Buffer offset getters ───────────────────────────────────────────────────
 
@@ -261,6 +288,18 @@ export function getAadOffset(): i32 {
 /** Returns the maximum AAD buffer size in bytes (65536). */
 export function getAadBufferSize(): i32 {
 	return AAD_BUFFER_SIZE;
+}
+/** Returns the byte offset of POLYVAL_AUTH_KEY_BUFFER (16 bytes; SIV per-message auth key). */
+export function getPolyvalAuthKeyOffset(): i32 {
+	return POLYVAL_AUTH_KEY_OFFSET;
+}
+/** Returns the byte offset of POLYVAL_ENC_KEY_BUFFER (32 bytes; SIV per-message encryption key). */
+export function getPolyvalEncKeyOffset(): i32 {
+	return POLYVAL_ENC_KEY_OFFSET;
+}
+/** Returns the byte offset of SIV_IC_BUFFER (16 bytes; SIV initial counter / scratch for provided tag). */
+export function getSivIcOffset(): i32 {
+	return SIV_IC_OFFSET;
 }
 /** Returns the chunk buffer size in bytes (65536). */
 export function getChunkSize(): i32 {

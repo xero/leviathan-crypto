@@ -52,6 +52,9 @@ export {
 	getGf128TableOffset,
 	getAadOffset,
 	getAadBufferSize,
+	getPolyvalAuthKeyOffset,
+	getPolyvalEncKeyOffset,
+	getSivIcOffset,
 	getMemoryPages,
 } from './buffers'
 
@@ -104,13 +107,14 @@ export {
 	gcmDecryptChunk,
 	gcmResetCtrToJ0Plus1,
 	gcmFinalize,
-	gcmCompareTag,
 } from './gcm'
 
 // Test-only exports for Gate 12 (standalone GHASH validation).
 export {
 	gf128InitTable,
 	gf128MulH,
+	mulXGhash,
+	byteReverse16,
 } from './gf128'
 
 export {
@@ -119,6 +123,25 @@ export {
 	ghashAbsorbWithLen,
 	ghashFinalize,
 } from './ghash'
+
+// ── POLYVAL absorber (polyval.ts) ───────────────────────────────────────────
+// Test-only exports for Gate 15 (standalone POLYVAL validation) plus
+// internal use by AES-GCM-SIV (aes-gcm-siv.ts).
+export {
+	polyvalStart,
+	polyvalAbsorbBlock,
+	polyvalAbsorbWithLen,
+	polyvalFinalize,
+} from './polyval'
+
+// ── AES-GCM-SIV (aes-gcm-siv.ts) ────────────────────────────────────────────
+
+export {
+	sivDeriveKeys,
+	sivSeal,
+	sivOpen,
+	sivWipeOnFail,
+} from './aes-gcm-siv'
 
 // ── Buffer wipe (wipe.ts) ───────────────────────────────────────────────────
 

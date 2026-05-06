@@ -174,7 +174,7 @@ await serpentInit(serpentWasm)
 | Classes | Required modules |
 |---------|-----------------|
 | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher` | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
-| `AES`, `AESCbc`, `AESCtr`, `AESGCM` | `init({ aes: aesWasm })` — AES-128/192/256. `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5); `AESGCM` is authenticated AEAD (SP 800-38D §7) with a 128-bit tag. `AESCbc` and `AESCtr` are unauthenticated — pair with HMAC or use `Seal` / `AESGCM` instead. |
+| `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV` | `init({ aes: aesWasm })` — AES-128/192/256 (AESGCMSIV is AES-128/256 only — RFC 8452 §6 does not define AES-192-GCM-SIV). `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5); `AESGCM` is authenticated AEAD (SP 800-38D §7) with a 128-bit tag; `AESGCMSIV` is nonce-misuse-resistant authenticated AEAD (RFC 8452) with a 128-bit tag, single-shot, plaintext capped at 64 KiB per call. `AESCbc` and `AESCtr` are unauthenticated — pair with HMAC or use `Seal` / `AESGCM` / `AESGCMSIV` instead. |
 | `SealStream`, `OpenStream`, `SerpentCipher` (when using SerpentCipher) | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
 | `SealStream`, `OpenStream`, `XChaCha20Cipher` (when using XChaCha20Cipher) | `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })` |
 | `SealStreamPool` | depends on cipher: same modules as the cipher suite + `sha2` |

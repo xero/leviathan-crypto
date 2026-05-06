@@ -73,18 +73,28 @@ describe('AES Boyar-Peralta scalar S-box (key-schedule path)', () => {
 	// transcribed into `sboxWord` in src/asm/aes/aes.ts. Expected outputs
 	// come from FIPS 197 §5.1.1 Figure 7 via the same `aesSboxTable`
 	// constant used by Gate 2.
-	it('all 256 byte inputs match FIPS 197 S-box table', () => {
+	it('all 256 byte inputs in each of 4 lane positions match FIPS 197 S-box table', () => {
 		const x = getDebugExports();
-		for (let b = 0; b < 256; b++) {
-			// Place the input in byte 0; bytes 1..3 stay zero.
-			const out = x.sboxWordExport(b >>> 0);
-			const got = out & 0xff;
-			expect(got, `S(${b.toString(16)}) — got 0x${got.toString(16)}, want 0x${aesSboxTable[b].toString(16)}`)
-				.toBe(aesSboxTable[b]);
-			// Bytes 1..3 of the output must be S(0) = 0x63 (per-byte independence).
-			expect((out >>> 8) & 0xff).toBe(aesSboxTable[0]);
-			expect((out >>> 16) & 0xff).toBe(aesSboxTable[0]);
-			expect((out >>> 24) & 0xff).toBe(aesSboxTable[0]);
+		// Exhaustive lane-independence: place input b at lane L (others zero)
+		// and verify every output lane independently. Output[L] must be S(b);
+		// the three other output lanes must be S(0) = 0x63. 1024 invocations,
+		// 4096 assertions — proves each of the four scalar circuits is correct
+		// across the full 256-byte input space.
+		for (let lane = 0; lane < 4; lane++) {
+			const shift = lane * 8;
+			for (let b = 0; b < 256; b++) {
+				const w   = (b << shift) >>> 0;
+				const out = x.sboxWordExport(w);
+				for (let j = 0; j < 4; j++) {
+					const inB   = j === lane ? b : 0;
+					const outB  = (out >>> (j * 8)) & 0xff;
+					const wantB = aesSboxTable[inB];
+					expect(
+						outB,
+						`lane ${lane}, S(0x${b.toString(16)}) at byte ${j}: got 0x${outB.toString(16)}, want 0x${wantB.toString(16)}`,
+					).toBe(wantB);
+				}
+			}
 		}
 	});
 

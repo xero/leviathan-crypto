@@ -25,6 +25,7 @@
 // authenticated AEAD. Tag length is fixed at 128 bits.
 
 import { getInstance, _acquireModule, _releaseModule } from '../init.js';
+import { constantTimeEqual } from '../utils.js';
 
 // Maximum plaintext per (key, IV) per SP 800-38D §5.2.1.1: 2^39 - 256 bits
 // = 2^36 - 32 bytes. Practical JS Uint8Array is much smaller, but we still
@@ -66,7 +67,6 @@ interface AesGcmExports {
 	gcmDecryptChunk:      (srcOff: number, dstOff: number, len: number) => number;
 	gcmResetCtrToJ0Plus1: () => void;
 	gcmFinalize:          () => void;
-	gcmCompareTag:        (expectedOff: number) => number;
 	wipeBuffers:          () => void;
 }
 
@@ -200,14 +200,15 @@ export class AESGCM {
 
 		// Compute tag → TAG_OFFSET, then constant-time compare with sealed[ctLen..].
 		this.x.gcmFinalize();
-		// Stage the received tag at ptOff[0..16] as scratch for gcmCompareTag.
-		// Pass 2 overwrites ptOff per chunk so this scratch is reclaimed on
-		// the first decrypt iteration. ctOff[0..16] would clobber the CT we
-		// still need for pass 2.
-		this.mem.set(sealed.subarray(ctLen, ctLen + 16), ptOff);
-		const matchRc = this.x.gcmCompareTag(ptOff);
-		if (matchRc !== 0) {
-			// Wipe scratch + WASM state before throwing.
+		// Slice the computed tag out of WASM memory (defensive copy — the
+		// WASM memory view can be reattached on grow). Compare via the
+		// dedicated `ct` WASM module exposed as `constantTimeEqual` in
+		// `../utils.js`. No tag compare lives inside the AES module
+		// itself — this is library-wide policy for atomic AEADs.
+		const tagOff = this.x.getTagOffset();
+		const expectedTag = this.mem.slice(tagOff, tagOff + 16);
+		const providedTag = sealed.slice(ctLen, ctLen + 16);
+		if (!constantTimeEqual(expectedTag, providedTag)) {
 			this.x.wipeBuffers();
 			throw new RangeError(AUTH_FAILED);
 		}

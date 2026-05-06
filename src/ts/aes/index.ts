@@ -162,3 +162,4 @@ export class AES {
 export { AESCbc } from './aes-cbc.js';
 export { AESCtr } from './aes-ctr.js';
 export { AESGCM } from './aes-gcm.js';
+export { AESGCMSIV } from './aes-gcm-siv.js';

@@ -43,23 +43,25 @@
 //        Derive J0 from IV (12-byte fast path or GHASH slow path),
 //        compute J0E = AES_ENC(K, J0), reset GHASH, absorb AAD, set up
 //        GCTR counter at inc_32(J0).  Stores aadLen and resets ctLen.
-//   gcmEncryptChunk(srcOff, dstOff, len)  → 0 on success, -1 on counter wrap
+//   gcmEncryptChunk(srcOff, dstOff, len)  → 0 on success, -1 on len < 0
 //        Run GCTR src→dst, absorb dst (CT) into GHASH, advance ctLen.
 //   gcmAbsorbCtChunk(srcOff, len)
 //        Absorb 'len' bytes of CT into GHASH, advance ctLen. Used by the
 //        open direction's verify-before-decrypt pass.
-//   gcmDecryptChunk(srcOff, dstOff, len)  → 0 on success, -1 on counter wrap
+//   gcmDecryptChunk(srcOff, dstOff, len)  → 0 on success, -1 on len < 0
 //        Run GCTR src→dst (no GHASH absorption — already done). Counter
 //        must be re-initialised by gcmResetCtrToJ0Plus1() before the
 //        first call after gcmFinalize.
 //   gcmFinalize()
 //        Absorb the final length-encoding block into GHASH, XOR with J0E
-//        to form the tag, store at TAG_OFFSET.
+//        to form the tag, store at TAG_OFFSET. The TS layer reads the
+//        computed tag via the memory view and routes the constant-time
+//        compare against the received tag through `constantTimeEqual`
+//        in `src/ts/utils.ts` (the dedicated `ct` WASM module). No AEAD
+//        compares tags inside its own module.
 //   gcmResetCtrToJ0Plus1()
 //        Reset GCTR working counter to inc_32(J0). Used between the
 //        absorb-CT pass and the decrypt pass for verify-before-decrypt.
-//   gcmCompareTag(expectedOff)  → 0 on match, -1 on mismatch
-//        Constant-time compare of TAG_OFFSET to 16 bytes at expectedOff.
 
 import {
 	BLOCK_PT_OFFSET, BLOCK_CT_OFFSET,
@@ -237,10 +239,12 @@ export function gcmStart(ivLen: i32, aadLen: i32): i32 {
 
 /**
  * GCTR engine: encrypt/decrypt `len` bytes from src to dst using the
- * current GCM_CB counter. Increments the counter per block; rejects if
- * the counter would wrap past 2^32 - 2 (per §5.2.1.1 implicit bound).
+ * current GCM_CB counter. Increments the counter per block. The 32-bit
+ * counter-wrap bound from SP 800-38D §5.2.1.1 (|P| ≤ 2^36 - 32 bytes) is
+ * enforced at the TS layer via MAX_PT_BYTES; this function trusts that
+ * cap and does not detect wrap.
  *
- * Returns 0 on success, -1 on counter wrap.
+ * Returns 0 on success, -1 only on invalid length input (`len < 0`).
  */
 function gctrXform(srcOff: i32, dstOff: i32, len: i32): i32 {
 	if (len <= 0) return 0;
@@ -302,7 +306,8 @@ function gctrXform(srcOff: i32, dstOff: i32, len: i32): i32 {
  * (dstOff..dstOff+len) into GHASH and advance ctBitLen.  Used by the
  * encrypt direction of seal.
  *
- * Returns 0 on success, -1 on counter wrap or invalid length.
+ * Returns 0 on success, -1 only on invalid length input (`len < 0`).
+ * Counter-wrap is bounded externally at the TS layer.
  */
 export function gcmEncryptChunk(srcOff: i32, dstOff: i32, len: i32): i32 {
 	if (len < 0) return -1;
@@ -345,7 +350,8 @@ export function gcmAbsorbCtChunk(srcOff: i32, len: i32): i32 {
  * open direction's post-tag-verify decrypt phase. Caller must have already
  * called gcmResetCtrToJ0Plus1() since gcmFinalize between the two phases.
  *
- * Returns 0 on success, -1 on counter wrap or invalid length.
+ * Returns 0 on success, -1 only on invalid length input (`len < 0`).
+ * Counter-wrap is bounded externally at the TS layer.
  */
 export function gcmDecryptChunk(srcOff: i32, dstOff: i32, len: i32): i32 {
 	if (len < 0) return -1;
@@ -379,22 +385,3 @@ export function gcmFinalize(): void {
 	store<u64>(TAG_OFFSET + 8, load<u64>(J0E_OFFSET + 8) ^ load<u64>(GHASH_ACC_OFFSET + 8));
 }
 
-/**
- * Constant-time compare of the 16-byte tag at TAG_OFFSET against 16 bytes
- * at expectedOff. OR-accumulates the 16 byte differences; returns 0 if all
- * bytes match, -1 otherwise.
- *
- * Implemented at the WASM layer so the tag-check pattern survives any JS
- * JIT optimizations that might short-circuit a byte-wise comparison.
- */
-export function gcmCompareTag(expectedOff: i32): i32 {
-	const a0: u64 = load<u64>(TAG_OFFSET);
-	const a1: u64 = load<u64>(TAG_OFFSET + 8);
-	const b0: u64 = load<u64>(expectedOff);
-	const b1: u64 = load<u64>(expectedOff + 8);
-
-	// Collapse 64 bits to 1 via OR-of-halves; return -1 if any byte differs.
-	const diff: u64 = (a0 ^ b0) | (a1 ^ b1);
-	const lo: u32 = <u32>diff | <u32>(diff >> 32);
-	return lo == 0 ? 0 : -1;
-}

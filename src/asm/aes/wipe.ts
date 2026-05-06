@@ -49,6 +49,9 @@ import {
 	GCM_CB_OFFSET, GCM_CB_SIZE,
 	GF128_TABLE_OFFSET, GF128_TABLE_SIZE,
 	AAD_OFFSET, AAD_BUFFER_SIZE,
+	POLYVAL_AUTH_KEY_OFFSET, POLYVAL_AUTH_KEY_SIZE,
+	POLYVAL_ENC_KEY_OFFSET, POLYVAL_ENC_KEY_SIZE,
+	SIV_IC_OFFSET, SIV_IC_SIZE,
 } from './buffers'
 
 /**
@@ -82,4 +85,7 @@ export function wipeBuffers(): void {
 	memory.fill(GCM_CB_OFFSET,               0, GCM_CB_SIZE);
 	memory.fill(GF128_TABLE_OFFSET,          0, GF128_TABLE_SIZE);
 	memory.fill(AAD_OFFSET,                  0, AAD_BUFFER_SIZE);
+	memory.fill(POLYVAL_AUTH_KEY_OFFSET,     0, POLYVAL_AUTH_KEY_SIZE);
+	memory.fill(POLYVAL_ENC_KEY_OFFSET,      0, POLYVAL_ENC_KEY_SIZE);
+	memory.fill(SIV_IC_OFFSET,               0, SIV_IC_SIZE);
 }

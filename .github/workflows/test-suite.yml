@@ -76,6 +76,10 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-aes.yml
 
+  unit-aes-siv:
+    needs: [build]
+    uses: ./.github/workflows/unit-aes-siv.yml
+
   unit-aes-mct:
     needs: [build]
     uses: ./.github/workflows/unit-aes-montecarlo.yml
@@ -98,6 +102,7 @@ jobs:
       - unit-nessie
       - unit-ratchet
       - unit-aes
+      - unit-aes-siv
       - unit-aes-mct
     runs-on: ubuntu-latest
     steps:

@@ -2,7 +2,7 @@
 
 ### Test Suite & Vector Corpus
 
-Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2215 tests.
+Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2315 tests.
 
 > ### Table of Contents
 > - [Test Counts](#test-counts)
@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 2038                        | All pass |
+| Unit | Vitest     | 2266                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2332**                    | All pass |
+|      | **Total**  | **2560**                    | All pass |
 
 ---
 
@@ -102,6 +102,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `aes/aes_ghash.test.ts`                       | Standalone GHASH validation across all 18 McGrew-Viega Appendix B test cases (AES-128/192/256, 96-bit IV fast path and 64-/480-bit IV slow path). Drives loadKey → H derivation → 4-bit-windowed GF(2^128) multiply table → ghashStart/AbsorbWithLen directly; final tag = E(K, J0) XOR S compared with the published Tag. Isolates the GHASH primitive from full GCM | 18 tests               | Gate 12             |
 | `aes/aes_gcm_seal.test.ts`                    | AESGCM seal direction (SP 800-38D §7.1): 18 McGrew-Viega Appendix B vectors plus the three NIST CAVP `aes_gcmEncryptExtIV{128,192,256}.rsp` files (~23k vectors, 128-bit-tag subset). Output `ct\|\|tag` matched byte-for-byte against published expected values | 18 + ~3k vectors, 21 tests | Gate 13             |
 | `aes/aes_gcm_open.test.ts`                    | AESGCM open direction (SP 800-38D §7.2): three NIST CAVP `aes_gcmDecrypt{128,192,256}.rsp` files (128-bit-tag subset). Both passing vectors (decrypt to published PT) and FAIL vectors (must throw `RangeError('authentication failed')` on every tamper of tag/CT/AAD/IV/key). Verify-before-decrypt path | ~6k vectors, 6 tests | Gate 14             |
+| `aes/aes_polyval.test.ts`                     | Standalone POLYVAL primitive validation (RFC 8452 §3, §7, Appendix A): full hash trace on the worked Appendix A example, `mulX_GHASH` on both Appendix A inputs, §7 field-ops XOR sanity, `byteReverse16` helper. Path-(a) reflection-wrapper bridge — exercises `mulXGhash`, `byteReverse16`, and the four POLYVAL absorber entry points directly | 6 tests                | Gate 15             |
+| `aes/aes_gcm_siv_seal.test.ts`                | AESGCMSIV seal direction (RFC 8452 Appendix C): all 50 published vectors (24 AES-128 + 24 AES-256 + 2 counter-wrap), full output `ct\|\|tag` matched byte-for-byte against RFC `result`. Also covers `derive_keys` correctness against `recordAuthKey`/`recordEncKey`, POLYVAL input construction sanity check, POLYVAL hash output (`S_s`) and encrypted tag at TAG_OFFSET against the RFC intermediate fields, and silent counter-wrap behaviour | 50 vectors, 156 tests  | Gate 16             |
+| `aes/aes_gcm_siv_open.test.ts`                | AESGCMSIV open direction (RFC 8452): round-trip on all 50 vectors plus tamper coverage — synthesised single-byte flips on tag/CT/AAD/nonce/key (one per keysize) must throw `AuthenticationError('siv')`. Gate 17g: after auth-fail, CHUNK_PT_OFFSET reads as zeros — verifies `sivWipeOnFail` actually wipes the unauthenticated plaintext before any TS code can observe it | 50 vectors, 66 tests   | Gate 17             |
 | `fortuna.test.ts`                             | Fortuna CSPRNG: `Fortuna.create()`, `get()` (always Uint8Array), entropy threshold, `stop()` disposes instance, `SerpentCtr` exclusivity coexistence, `stop()` exception-safety when serpent module is held by `SerpentCtr` (disposed flag set, key material wiped, throw surfaced). All tests run with `SerpentGenerator` + `SHA256Hash` to preserve historical coverage. | 11 tests               | —                   |
 | `fortuna/wipe-lifecycle.test.ts`              | Wipe-before-reassign discipline in `pseudoRandomData`, `reseed`, `addRandomEvent`, and pool reset (4 tests); `stop()` wipes `genKey` + `genCnt` + every pool-hash chain and calls `wipeBuffers()` on every WASM module the chosen generator and hash touched (3 tests) | 7 tests                | —                   |
 | `fortuna/spec-conformance.test.ts`            | Fortuna pool-selection conformance with Practical Cryptography §9.5.5: pool P_i consumed iff 2^i divides `reseedCnt`. Walks reseeds 1..16, asserts the consumed-pool set matches the divisibility rule per reseed. Includes `pool 0 consumed on every reseed` regression for the F-1 fix | 2 tests                | —                   |
