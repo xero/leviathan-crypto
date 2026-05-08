@@ -214,14 +214,15 @@ Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
 Requires `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`.
 Subpath: `leviathan-crypto/mldsa`. See [mldsa.md](./mldsa.md).
 
-Phase 4 ships `keygen` / `keygenDerand` only. `sign` and `verify` are added
-in subsequent phases.
+Phase 5 ships pure ML-DSA `keygen` / `keygenDerand` / `sign` /
+`signDeterministic` / `signDerand` / `verify`. HashML-DSA (FIPS 204 §5.4)
+is a separate phase.
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
 | `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly — use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
-| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `dispose()`. |
+| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `dispose()`. |
 | `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
 | `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
 | `MlDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 204 pkEncode / skEncode). |

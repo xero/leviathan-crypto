@@ -123,8 +123,10 @@ export function simple_bit_unpack(polyOff: i32, vByteOff: i32, bitlen: i32): voi
 // c = bitlen(a+b). For widths where a+b+1 is a power of 2 (t0, z) this is
 // exactly [-a, b]; for the η=2 (a+b=4) and η=4 (a+b=8) widths the unsigned
 // span exceeds a+b+1, so malformed input may produce coefficients outside
-// [-a, b]. Range validation is the caller's responsibility (skDecode wraps
-// this with an explicit |coeff| ≤ η check per FIPS 204 §7.2 line 5).
+// [-a, b]. Range validation is the caller's responsibility — `mldsaSignInternal`
+// (src/ts/mldsa/sign.ts) follows each s₁/s₂ unpack with `polyvec_chknorm(slot,
+// η+1, …)` and throws RangeError on out-of-range coefficients per FIPS 204
+// §7.2 / Alg 25 line 5.
 export function bit_unpack(polyOff: i32, vByteOff: i32, a: i32, b: i32): void {
 	const sum:    i32 = a + b;
 	const bitlen: i32 = 32 - <i32>clz(sum);

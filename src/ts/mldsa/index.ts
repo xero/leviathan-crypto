@@ -34,6 +34,15 @@ import { randomBytes, wipe } from '../utils.js';
 import type { MlDsaExports, Sha3Exports, MlDsaKeyPair } from './types.js';
 import { MlDsaParams, MLDSA44, MLDSA65, MLDSA87 } from './params.js';
 import { mldsaKeygenInternal } from './keygen.js';
+import { mldsaSignInternal } from './sign.js';
+import { mldsaVerifyInternal } from './verify.js';
+import { constructMPrime } from './format.js';
+import {
+	validateContext,
+	validateSigningKey,
+	validateRnd,
+	validateMessage,
+} from './validate.js';
 
 export async function mldsaInit(source: WasmSource): Promise<void> {
 	return initModule('mldsa', source);
@@ -114,6 +123,114 @@ export class MlDsaBase {
 			return this.keygenDerand(xi);
 		} finally {
 			wipe(xi);
+		}
+	}
+
+	/**
+	 * Hedged signing — FIPS 204 §3.4 (recommended default).
+	 * Generates a fresh 32-byte rnd via `randomBytes()` per signature; the
+	 * rnd is mixed into ρ'' so two signatures over the same (sk, M) produce
+	 * different bytes. Hedged signatures are recommended over deterministic
+	 * because they remain unforgeable under fault attacks that bias the
+	 * rejection-sampling stream (FIPS 204 §3.4 / §3.6.1).
+	 */
+	sign(sk: Uint8Array, M: Uint8Array, ctx: Uint8Array = new Uint8Array(0)): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		validateSigningKey(sk, this.params);
+		validateMessage(M);
+		validateContext(ctx);
+		// FIPS 204 §5.2 Algorithm 2 line 10 — M' = 0x00 ‖ |ctx| ‖ ctx ‖ M.
+		const MPrime = constructMPrime(0x00, ctx, M);
+		const rnd = randomBytes(32);
+		try {
+			return mldsaSignInternal(this.mx, this.sx, this.params, sk, MPrime, rnd);
+		} finally {
+			wipe(rnd);
+			wipe(MPrime);
+		}
+	}
+
+	/**
+	 * Deterministic signing — FIPS 204 §3.4. Sets rnd ← 0³² so two
+	 * signatures over the same (sk, M) produce identical bytes. Caller
+	 * accepts the §3.4 caveat: deterministic signatures are vulnerable to
+	 * fault attacks that bias the SampleInBall stream — use only when no
+	 * entropy is available or determinism is a hard protocol requirement.
+	 */
+	signDeterministic(sk: Uint8Array, M: Uint8Array, ctx: Uint8Array = new Uint8Array(0)): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		validateSigningKey(sk, this.params);
+		validateMessage(M);
+		validateContext(ctx);
+		const MPrime = constructMPrime(0x00, ctx, M);
+		const rnd = new Uint8Array(32);   // already zeros
+		try {
+			return mldsaSignInternal(this.mx, this.sx, this.params, sk, MPrime, rnd);
+		} finally {
+			wipe(MPrime);
+		}
+	}
+
+	/**
+	 * Externally-randomised signing — testing / CAVP API. Caller supplies
+	 * the 32-byte rnd; library does not mix in additional entropy. Hard
+	 * contract on the caller: rnd MUST come from an approved RBG and MUST
+	 * NOT be reused across signatures. ACVP `sigGen` test vectors (with a
+	 * supplied rnd) drive this path.
+	 */
+	signDerand(
+		sk:  Uint8Array,
+		M:   Uint8Array,
+		ctx: Uint8Array,
+		rnd: Uint8Array,
+	): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		validateSigningKey(sk, this.params);
+		validateMessage(M);
+		validateContext(ctx);
+		validateRnd(rnd);
+		const MPrime = constructMPrime(0x00, ctx, M);
+		try {
+			return mldsaSignInternal(this.mx, this.sx, this.params, sk, MPrime, rnd);
+		} finally {
+			wipe(MPrime);
+		}
+	}
+
+	/**
+	 * Pure ML-DSA verify — FIPS 204 §5.3 Algorithm 3 / §6.3 Algorithm 8.
+	 *
+	 * Returns boolean — `true` only if (a) the FIPS 204 norm bound on z
+	 * holds and (b) the constant-time comparison of c̃ to the recomputed
+	 * c̃' succeeds. Throws RangeError only on caller-side contract
+	 * violations (`ctx.length > 255`). Wrong-length pk/sig and malformed
+	 * hint encodings are NOT contract violations: they cause `verify` to
+	 * return false (FIPS 204 §3.6.2 / §D.3).
+	 */
+	verify(
+		vk:  Uint8Array,
+		M:   Uint8Array,
+		sig: Uint8Array,
+		ctx: Uint8Array = new Uint8Array(0),
+	): boolean {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		validateMessage(M);
+		// FIPS 204 §3.6.2 — wrong-length pk or σ is not a caller bug; it
+		// is a structural mismatch that cannot verify. Return false rather
+		// than throw, matching how Algorithm 3 returns ⊥ on length mismatch.
+		if (!(vk  instanceof Uint8Array) || vk.length  !== this.params.pkBytes)  return false;
+		if (!(sig instanceof Uint8Array) || sig.length !== this.params.sigBytes) return false;
+		// ctx oversize is a caller-side contract violation per Alg 3 line 1.
+		validateContext(ctx);
+		const MPrime = constructMPrime(0x00, ctx, M);
+		try {
+			return mldsaVerifyInternal(this.mx, this.sx, this.params, vk, MPrime, sig);
+		} finally {
+			wipe(MPrime);
 		}
 	}
 

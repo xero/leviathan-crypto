@@ -101,4 +101,92 @@ describe('sha3 scratch wiped after every public mldsa op', () => {
 		expectSha3ScratchZero();
 		dsa.dispose();
 	});
+
+	// ── Phase-5: sign / verify wipes too ────────────────────────────────
+	// Sign drives multiple SHAKE256 invocations: μ, ρ'', expandMask (per
+	// iteration), c̃ (per iteration), sample_in_ball (per iteration). The
+	// sha3 STATE / INPUT / OUT regions hold residue from each — wipe must
+	// fire before sign returns, regardless of how many iterations the
+	// rejection-sample loop ran.
+
+	it('MlDsa44.sign(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.sign(signingKey, new Uint8Array([1, 2, 3]));
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.signDeterministic(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.signDeterministic(signingKey, new Uint8Array([4, 5, 6]));
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.signDerand(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.signDerand(signingKey, new Uint8Array([7, 8]), new Uint8Array(0), new Uint8Array(32));
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa65.sign(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa65();
+		const { signingKey } = dsa.keygen();
+		dsa.sign(signingKey, new Uint8Array([9, 10, 11]));
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa87.sign(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa87();
+		const { signingKey } = dsa.keygen();
+		dsa.sign(signingKey, new Uint8Array([12, 13, 14]));
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.verify(...) → sha3 STATE/INPUT/OUT zero (success path)', () => {
+		const dsa = new MlDsa44();
+		const { verificationKey, signingKey } = dsa.keygen();
+		const msg = new Uint8Array([15, 16]);
+		const sig = dsa.sign(signingKey, msg);
+		expect(dsa.verify(verificationKey, msg, sig)).toBe(true);
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.verify(...) → sha3 STATE/INPUT/OUT zero (failure path)', () => {
+		const dsa = new MlDsa44();
+		const { verificationKey, signingKey } = dsa.keygen();
+		const msg = new Uint8Array([17, 18]);
+		const sig = dsa.sign(signingKey, msg);
+		sig[0] ^= 1;
+		expect(dsa.verify(verificationKey, msg, sig)).toBe(false);
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa65.verify(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa65();
+		const { verificationKey, signingKey } = dsa.keygen();
+		const msg = new Uint8Array([19, 20]);
+		const sig = dsa.sign(signingKey, msg);
+		dsa.verify(verificationKey, msg, sig);
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa87.verify(...) → sha3 STATE/INPUT/OUT zero', () => {
+		const dsa = new MlDsa87();
+		const { verificationKey, signingKey } = dsa.keygen();
+		const msg = new Uint8Array([21, 22]);
+		const sig = dsa.sign(signingKey, msg);
+		dsa.verify(verificationKey, msg, sig);
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
 });

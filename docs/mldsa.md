@@ -10,7 +10,8 @@ module-lattice signature scheme.
 > - [Parameter Sets](#parameter-sets)
 > - [Init](#init)
 > - [MlDsa API](#mldsa-api)
-> - [Key Format](#key-format)
+> - [Validation Behavior](#validation-behavior)
+> - [Key & Signature Format](#key--signature-format)
 > - [Wipe Discipline](#wipe-discipline)
 > - [Error Reference](#error-reference)
 
@@ -25,12 +26,16 @@ attack (EUF-CMA) holds even against adversaries with quantum computers. The
 hardness assumption is Module-Learning-With-Errors (M-LWE).
 
 This module exposes three classes — `MlDsa44`, `MlDsa65`, and `MlDsa87` —
-covering the three FIPS 204 parameter sets. Phase-4 of the v3 release ships
-key generation. Signature generation and verification land in subsequent
-phases.
+covering the three FIPS 204 parameter sets. Phase-5 of the v3 release ships
+key generation, pure ML-DSA signing (hedged, deterministic, externally-
+randomised), and verification. HashML-DSA (FIPS 204 §5.4) lands in a
+subsequent phase.
 
-Verification against 75 NIST ACVP keyGen-FIPS204 vectors (25 per parameter
-set) confirms byte-identical pk/sk output for every seed in the corpus.
+Verification against the full NIST ACVP corpora — 75 keyGen-FIPS204 vectors
+(25 per parameter set), 90 sigGen-FIPS204 external/pure tests, and 45
+sigVer-FIPS204 external/pure tests including known-fail cases — confirms
+byte-identical pk/sk/σ output and the SUF-CMA-critical malformed-input
+checks (FIPS 204 §D.3 / Algorithm 21).
 
 ---
 
@@ -128,6 +133,75 @@ dsa.dispose()
 xi.fill(0)  // ξ is the master secret — wipe after use
 ```
 
+### `sign(sk, M, ctx?): Uint8Array`
+
+Hedged signing — FIPS 204 §3.4 (recommended default). Produces a signature
+of `params.sigBytes` bytes. Each call sources a fresh 32-byte rnd from
+`crypto.getRandomValues`, mixes it into the per-signature ρ'', and wipes
+the local rnd buffer on return. Two `sign()` calls over the same `(sk, M)`
+return different bytes — both verify.
+
+```typescript
+const dsa = new MlDsa65()
+const { verificationKey, signingKey } = dsa.keygen()
+const sig = dsa.sign(signingKey, message)
+const ok  = dsa.verify(verificationKey, message, sig)   // true
+dsa.dispose()
+```
+
+Hedged signing is preferred over deterministic per FIPS 204 §3.4: hedged
+signatures remain unforgeable against fault attacks that bias the
+rejection-sampling stream, where deterministic signatures do not.
+
+`ctx` defaults to an empty Uint8Array. Caller-supplied ctx must be ≤ 255
+bytes per FIPS 204 §5.2 line 1; longer values throw `RangeError`. The
+signature binds (M, ctx) — verifying with a different ctx returns false.
+
+### `signDeterministic(sk, M, ctx?): Uint8Array`
+
+Deterministic signing — FIPS 204 §3.4. Sets rnd ← 0³² so two signatures
+over the same `(sk, M, ctx)` return identical bytes.
+
+```typescript
+const sig1 = dsa.signDeterministic(signingKey, message)
+const sig2 = dsa.signDeterministic(signingKey, message)
+// sig1 === sig2 byte-for-byte
+```
+
+⚠ Deterministic signatures are vulnerable to fault attacks per FIPS 204
+§3.4. Use only when no entropy source is available (embedded boot,
+hard reproducibility requirement) or when running CAVP / ACVP tests.
+Prefer `sign()` for production.
+
+### `signDerand(sk, M, ctx, rnd): Uint8Array`
+
+Externally-randomised signing — testing / CAVP API. Caller supplies a
+32-byte `rnd`; the library does not mix in additional entropy.
+
+```typescript
+const rnd = randomBytes(32)
+const sig = dsa.signDerand(signingKey, message, ctx, rnd)
+```
+
+⚠ Hard contract on the caller: `rnd` MUST come from an approved RBG
+(FIPS 204 §3.6.1) and MUST NOT be reused across signatures. Reuse leaks
+the signing key. The library does not enforce single-use; the caller
+owns this discipline.
+
+### `verify(vk, M, sig, ctx?): boolean`
+
+Pure ML-DSA verify — FIPS 204 §5.3 Algorithm 3 / §6.3 Algorithm 8.
+Returns `true` only if both the FIPS 204 norm bound (‖z‖∞ < γ₁ − β) holds
+and the constant-time comparison of c̃ to the recomputed c̃' succeeds.
+
+```typescript
+const ok = dsa.verify(verificationKey, message, sig, ctx)   // boolean
+```
+
+`verify` returns `false` on a wrong signature, throws `RangeError` on a
+caller-side contract violation. See [Validation Behavior](#validation-behavior)
+for the exact split.
+
 ### `dispose(): void`
 
 Wipe all mldsa WASM scratch memory. Idempotent. Safe to call multiple times.
@@ -158,7 +232,36 @@ interface MlDsaParams {
 
 ---
 
-## Key Format
+## Validation Behavior
+
+ML-DSA distinguishes two failure classes — verification failures (binary,
+return false) versus caller-contract violations (throw RangeError). The
+split follows FIPS 204 §3.6.2 / §5.3 Algorithm 3.
+
+| Condition                                | `sign()` / variants     | `verify()`              |
+| ---------------------------------------- | ----------------------- | ----------------------- |
+| `sk` length mismatch                     | throw `RangeError`      | n/a                     |
+| `vk` length mismatch                     | n/a                     | return `false`          |
+| `σ` length mismatch                      | n/a                     | return `false`          |
+| `ctx.length > 255`                       | throw `RangeError`      | throw `RangeError`      |
+| `rnd.length !== 32` (signDerand only)    | throw `RangeError`      | n/a                     |
+| Malformed hint encoding (Alg 21 §D.3)    | n/a                     | return `false`          |
+| Wrong signature for `(vk, M, ctx)`       | n/a                     | return `false`          |
+| Norm bound `‖z‖∞ ≥ γ₁ − β`               | n/a                     | return `false`          |
+
+Why the asymmetry: wrong-length pk/σ are *structural* indicators that the
+input is not a valid ML-DSA signature — same verdict as a wrong signature.
+Per FIPS 204 §3.6.2, both conditions return false. Oversize ctx, by
+contrast, is a *caller* mistake (the caller built ctx, not an attacker)
+and throws so the bug surfaces immediately.
+
+The malformed-hint case is SUF-CMA-critical (FIPS 204 §D.3 — added in the
+final standard relative to the IPD draft). Algorithm 21 lines 4, 9, and
+17 each gate against a distinct forgery surface; all three are enforced.
+
+---
+
+## Key & Signature Format
 
 `verificationKey` (pk) — FIPS 204 Algorithm 22 (pkEncode):
 
@@ -187,6 +290,20 @@ The 32-byte seed ξ is *not* part of the published sk. Storing ξ is sufficient
 to reconstruct the full key pair via `keygenDerand` — handle ξ with the same
 care as sk.
 
+`signature` (σ) — FIPS 204 Algorithm 26 (sigEncode):
+
+```
+σ = c̃(λ/4) ‖ BitPack(z[i], γ₁−1, γ₁) × ℓ ‖ HintBitPack(h, ω, k)
+```
+
+- `c̃` is the SHAKE256-derived signature commitment hash (32, 48, or 64
+  bytes for ML-DSA-44/65/87).
+- Each packed `z[i]` is `32 · (1 + bitlen(γ₁−1))` bytes — 576 (γ₁=2¹⁷)
+  or 640 (γ₁=2¹⁹).
+- `HintBitPack(h, ω, k)` is exactly `ω + k` bytes.
+
+Total signature size: `params.sigBytes` per parameter set.
+
 ---
 
 ## Wipe Discipline
@@ -209,6 +326,26 @@ Public regions intentionally left alone: the matrix Â (derived from ρ which
 is published in pk), the encoded pk, and t₁ (also published). The sha3
 module's STATE/INPUT/OUT regions are wiped before return.
 
+Every `sign` / `signDeterministic` / `signDerand` call wipes:
+
+- All 6 polyvec slots — ŝ₁ / ŝ₂ / t̂₀ in tomont form, plus per-iteration
+  intermediates: y, ⟨cs₁⟩, ⟨cs₂⟩, ⟨ct₀⟩, w, w − ⟨cs₂⟩, r₀, z, h.
+- All 8 poly slots — including signs scratch (8 B from c̃), the c
+  polynomial, and the polyvec_pointwise_acc_montgomery scratch in
+  POLY_SLOT_7 which carries a partial product across y_ntt.
+- `XOF_PRF_OFFSET` — last expandMask block (ρ''-derived) on rejected
+  iterations or sample_in_ball position bytes (c̃-derived) on accepted.
+- Defensive wipes on `SEED_OFFSET`, `TR_OFFSET`, `SK_OFFSET`,
+  `C_TILDE_OFFSET`, `MSG_REP_OFFSET` even though sign does not actively
+  write to them — closes any residue left by a prior op.
+- TS-side wipes on local μ, ρ'', c̃, w₁ byte-slice via try/finally so
+  they do not persist on the JS heap on early throw.
+
+`verify` wipes the corresponding 5-slot polyvec range, the 8-slot poly
+region, and the XOF buffer. Verify operates on public inputs (vk, σ, M,
+ctx all public), so the wipe is hygiene rather than secrecy — but the
+discipline matches sign so audits don't have to special-case verify.
+
 `dispose()` wipes the entire mutable mldsa region — call it when you are
 finished with the class.
 
@@ -221,8 +358,16 @@ finished with the class.
 | `leviathan-crypto: call init({ mldsa: ... }) before using MlDsa classes`                      | Class constructor invoked before `init({ mldsa, sha3 })`.                      |
 | `leviathan-crypto: call init({ sha3: ... }) before using MlDsa classes`                       | Init included `mldsa` but not `sha3`.                                          |
 | `RangeError: xi seed must be 32 bytes (got N)`                                                | `keygenDerand(xi)` called with `xi.length !== 32`.                             |
+| `RangeError: leviathan-crypto: signing key must be {N} bytes for {paramSet}`                  | `sign` / variants given a wrong-length sk.                                     |
+| `RangeError: leviathan-crypto: ctx must be ≤ 255 bytes`                                       | `sign` or `verify` given a ctx longer than 255 bytes.                          |
+| `RangeError: leviathan-crypto: rnd must be 32 bytes`                                          | `signDerand` given a rnd of wrong length.                                      |
+| `leviathan-crypto: ML-DSA signing exceeded {N} rejection-sample iterations`                   | The rejection-sampling loop did not converge within the 1000-iteration bound. Indicates a malformed sk or extremely unlikely pathological seed; treat as a bug. |
 | `leviathan-crypto: another stateful instance is using the 'sha3' WASM module — call dispose()`| A live `SHAKE128` / `SHAKE256` holds the sha3 module; release it first.        |
 | `leviathan-crypto: mldsa MATRIX_SLOT too small for {paramSet} (needs N, have M)`              | Internal layout assertion. Indicates a build-time buffer-region misconfiguration. |
+
+`verify` does NOT throw on signature failure — it returns `false`. Wrong-
+length pk/σ also return `false` (FIPS 204 §3.6.2). See [Validation
+Behavior](#validation-behavior) for the full split.
 
 ---
 

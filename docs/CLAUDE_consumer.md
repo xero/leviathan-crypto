@@ -380,8 +380,13 @@ await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
 const dsa = new MlDsa65()
 const { verificationKey, signingKey } = dsa.keygen()
 
+// Hedged signing — recommended default per FIPS 204 §3.4.
+const sig = dsa.sign(signingKey, message)
+const ok  = dsa.verify(verificationKey, message, sig)   // boolean
+
 // verificationKey: pk — Algorithm 22 (pkEncode), 1952 bytes for ML-DSA-65
 // signingKey:      sk — Algorithm 24 (skEncode), 4032 bytes for ML-DSA-65
+// sig:             σ  — Algorithm 26 (sigEncode), 3309 bytes for ML-DSA-65
 
 dsa.dispose()
 ```
@@ -392,8 +397,41 @@ get the same `(pk, sk)` every time. `keygen()` is `randomBytes(32)` plus
 
 ML-DSA classes require **both** `mldsa` and `sha3` initialized. Substitute
 `MlDsa44` (NIST category 2, smallest) or `MlDsa87` (category 5, highest
-assurance) for different security/size trade-offs. **Phase 4 ships keygen
-only — `sign` and `verify` land in subsequent phases.**
+assurance) for different security/size trade-offs.
+
+**Three signing modes:**
+
+- `sign(sk, M, ctx?)` — **hedged** (default). Generates a fresh 32-byte
+  rnd internally; two signatures over the same `(sk, M)` differ. Hedged
+  is preferred over deterministic per FIPS 204 §3.4 because hedged
+  signatures remain unforgeable under fault attacks that bias the
+  rejection-sampling stream.
+- `signDeterministic(sk, M, ctx?)` — sets rnd ← 0³² for byte-reproducible
+  signatures. **Vulnerable to fault attacks** per FIPS 204 §3.4 — use
+  only when no entropy source is available.
+- `signDerand(sk, M, ctx, rnd)` — testing / CAVP API. Caller supplies the
+  32-byte rnd. **Caller MUST source rnd from an approved RBG and MUST
+  NOT reuse it across signatures** — reuse leaks the signing key.
+
+> [!CAUTION]
+> **`verify` returns boolean — it does NOT throw on bad signatures.**
+> Caller must not branch on whether `verify` "completed without throwing"
+> — it always completes (modulo OOM). Only contract violations (`ctx.length
+> > 255`) throw `RangeError`. Wrong-length pk/σ return `false` per FIPS
+> 204 §3.6.2 — same verdict as a wrong signature. Malformed hint encodings
+> (per FIPS 204 §D.3 / Algorithm 21 lines 4, 9, 17) also return `false`.
+>
+> ```typescript
+> // CORRECT
+> if (!dsa.verify(vk, M, sig, ctx)) throw new Error('signature invalid')
+>
+> // WRONG — verify never throws on bad sig, the catch is dead code.
+> try { dsa.verify(vk, M, sig, ctx) } catch { /* unreachable for bad sigs */ }
+> ```
+
+`ctx` defaults to an empty Uint8Array. The signature binds `(M, ctx)` —
+verifying with a different ctx returns false. Use ctx for protocol
+domain-separation (e.g. application label, key purpose).
 
 ### Fortuna CSPRNG
 
