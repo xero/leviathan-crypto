@@ -54,6 +54,36 @@ aes              = { version = "=0.9.0",  default-features = false }
 cbc              = { version = "=0.2.0",  default-features = false, features = ["block-padding", "alloc"] }
 ctr              = { version = "=0.10.0", default-features = false }
 aes-gcm          = { version = "=0.10.3", default-features = false, features = ["aes", "alloc"] }
+# RustCrypto ML-KEM (FIPS 203 final): independent-lineage oracle for
+# kyber_keygen.ts and kyber_encapdecap.ts. `hazmat` exposes
+# `EncapsulationKey::encapsulate_deterministic(m)` so ACVP-supplied
+# message values reproduce the published ciphertext byte-for-byte; the
+# default `from_seed(d || z)` already gives deterministic keygen.
+ml-kem           = { version = "=0.3.0",  default-features = false, features = ["hazmat"] }
+# RustCrypto ML-DSA (FIPS 204 final): independent-lineage oracle for
+# mldsa_keygen.ts, mldsa_siggen.ts, and mldsa_sigver.ts. `rand_core`
+# enables `sign_mu_randomized(mu, &mut rng)` which the verifier feeds a
+# deterministic mock RNG so ACVP `rnd` values reproduce hedged
+# externalMu signatures exactly. `pkcs8` and `alloc` are not needed.
+# Note: rc.4 fixed GHSA-5x2r-hc65-25f9 (hint-index acceptance);
+# the pinned rc.9 includes that fix.
+ml-dsa           = { version = "=0.1.0-rc.9", default-features = false, features = ["rand_core"] }
+# rand_core 0.10 traits: needed to implement a deterministic CryptoRng
+# that returns ACVP-supplied rnd bytes for ml-dsa's sign_mu_randomized.
+rand_core        = { version = "=0.10.1", default-features = false }
+# hybrid-array 0.4 — provides the typed-array form (`Array<u8, U64>`) that
+# ml-dsa uses for B32 / B64. ml-dsa exposes B32 publicly but B64 is
+# `pub(crate)`; we construct the equivalent `Array<u8, U64>` value from a
+# fixed [u8; 64] for the externalMu sigGen / sigVer paths.
+hybrid-array     = { version = "=0.4.11", default-features = false }
+# RustCrypto sha2 / sha3 hash families: HashML-DSA pre-hash mode in
+# mldsa_siggen.ts / mldsa_sigver.ts requires hashing the message with
+# SHA2-{224,256,384,512,512/224,512/256}, SHA3-{224,256,384,512}, or
+# SHAKE-{128,256} before formatting M' = 0x01 || ctxLen || ctx ||
+# OID(hashAlg) || H(M). `sha2` is already pinned above for HKDF/HMAC
+# but the SHA-512/224 + SHA-512/256 variants live in this crate too;
+# `sha3` is added for the SHA-3 family + SHAKE.
+sha3             = { version = "=0.11.0", default-features = false }
 # Hex codec used everywhere we surface bytes in logs (computed/expected
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.

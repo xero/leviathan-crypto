@@ -10,6 +10,7 @@ export default defineConfig([
       "**/docs/**",
       "**/build/**",
       "**/dist/**",
+      ".claude/**",
       "src/asm/**",
 			"src/ts/embedded/**",
 			"src/ts/ct-wasm.ts",
