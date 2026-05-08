@@ -123,10 +123,11 @@ try {
 ## Probing initialization state
 
 `isInitialized(mod)` is the canonical readiness probe. Pass any module name
-(`'serpent'`, `'chacha20'`, `'sha2'`, `'sha3'`, `'keccak'`, `'kyber'`) and
-get back a boolean. Useful for tests, diagnostic gates, and lazy-loading
-flows. It is a diagnostic indicator, not a control mechanism — for normal
-flows just call `init()` and let it short-circuit on already-loaded modules.
+(`'serpent'`, `'chacha20'`, `'sha2'`, `'sha3'`, `'keccak'`, `'kyber'`,
+`'mldsa'`) and get back a boolean. Useful for tests, diagnostic gates, and
+lazy-loading flows. It is a diagnostic indicator, not a control mechanism —
+for normal flows just call `init()` and let it short-circuit on
+already-loaded modules.
 
 ```typescript
 import { isInitialized } from 'leviathan-crypto'
@@ -159,6 +160,7 @@ Each init function takes a single `WasmSource` argument. Use the module's
 | `leviathan-crypto/sha3` | `sha3Init(source)` | `leviathan-crypto/sha3/embedded` → `sha3Wasm` |
 | `leviathan-crypto/keccak` | `keccakInit(source)` | `leviathan-crypto/keccak/embedded` → `keccakWasm` |
 | `leviathan-crypto/kyber` | `kyberInit(source)` | `leviathan-crypto/kyber/embedded` → `kyberWasm` |
+| `leviathan-crypto/mldsa` | `mldsaInit(source)` | `leviathan-crypto/mldsa/embedded` → `mldsaWasm` |
 
 ```typescript
 // Tree-shakeable — loads only serpent WASM
@@ -182,6 +184,7 @@ await serpentInit(serpentWasm)
 | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })` |
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })` — `'keccak'` is an alias for `'sha3'` |
 | `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })` — both modules required |
+| `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })` — both modules required (post-quantum digital signatures, FIPS 204) |
 | `Fortuna` | `init(...)` with one cipher module (`aes`, `serpent`, or `chacha20`) plus one hash module (`sha2` or `sha3`). All six combinations are valid. |
 | `KDFChain`, `ratchetInit`, `ratchetReady`, `SkippedKeyStore` | `init({ sha2: sha2Wasm })` |
 | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })` |
@@ -365,6 +368,33 @@ a 32-byte shared secret suitable for use as a symmetric key.
   implicit-rejection path for tampered ciphertext, which returns a pseudorandom
   shared secret rather than throwing.
 
+### ML-DSA post-quantum digital signatures
+
+```typescript
+import { init, MlDsa65 } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+
+const dsa = new MlDsa65()
+const { verificationKey, signingKey } = dsa.keygen()
+
+// verificationKey: pk — Algorithm 22 (pkEncode), 1952 bytes for ML-DSA-65
+// signingKey:      sk — Algorithm 24 (skEncode), 4032 bytes for ML-DSA-65
+
+dsa.dispose()
+```
+
+`keygenDerand(xi)` is the deterministic variant — pass a 32-byte seed and
+get the same `(pk, sk)` every time. `keygen()` is `randomBytes(32)` plus
+`keygenDerand`.
+
+ML-DSA classes require **both** `mldsa` and `sha3` initialized. Substitute
+`MlDsa44` (NIST category 2, smallest) or `MlDsa87` (category 5, highest
+assurance) for different security/size trade-offs. **Phase 4 ships keygen
+only — `sign` and `verify` land in subsequent phases.**
+
 ### Fortuna CSPRNG
 
 `Fortuna.create()` requires explicit `generator` and `hash` parameters. There are no defaults.
@@ -500,6 +530,7 @@ The complete API reference ships in `docs/` alongside this file:
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `docs/aead.md` | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite` |
 | `docs/kyber.md` | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite` — ML-KEM (FIPS 203) API reference |
+| `docs/mldsa.md` | `MlDsa44`, `MlDsa65`, `MlDsa87` — ML-DSA (FIPS 204) digital-signature API reference |
 | `docs/fortuna.md` | `Fortuna` CSPRNG |
 | `docs/init.md` | `init()` API, loading modes, subpath imports |
 | `docs/utils.md` | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes` |

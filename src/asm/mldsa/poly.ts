@@ -98,6 +98,29 @@ export function poly_pointwise_montgomery(rOff: i32, aOff: i32, bOff: i32): void
 	}
 }
 
+// ── poly_tomont — convert each coefficient to Montgomery form ───────────────
+// p[i] ← p[i] · R mod q, where R = 2³². Implemented as
+//   p[i] ← MontgomeryReduce(p[i] · MONT_R_SQ),  MONT_R_SQ = R² mod q.
+//
+// MONT_R_SQ derivation: R = 2³² ≡ 4193792 (mod q). R² mod q = 2365951
+// (FIPS 204 §2.3 / Appendix A — same constant the Dilithium reference
+// names MONTSQ). Verified once via BigInt at the keygen-gate level
+// (test/unit/mldsa/mldsa.test.ts) when ACVP keygen vectors round-trip.
+//
+// Used by phase 4 keygen: after NTT(s₁), one factor of the matrix-vector
+// product needs to be in Montgomery form so that the subsequent
+// pointwise_montgomery (which applies an R⁻¹) leaves the regular-form
+// result Â·ŝ₁. The tomont scaling collapses with the post-NTT regular-form
+// stream into the Montgomery convention expected by the pointwise kernel.
+const MONT_R_SQ: i32 = 2365951;
+
+export function poly_tomont(polyOff: i32): void {
+	for (let i: i32 = 0; i < N; i++) {
+		const a: i32 = load<i32>(polyOff + i * 4);
+		store<i32>(polyOff + i * 4, montgomery_reduce(<i64>a * <i64>MONT_R_SQ));
+	}
+}
+
 // ── poly_chknorm — return 1 iff some |w_i| ≥ bound, else 0 ──────────────────
 // Implements the ||w||∞ < bound test of FIPS 204 §2.3 over i32 coefficients
 // already reduced to centered residues (mod± q). The early-exit on the first

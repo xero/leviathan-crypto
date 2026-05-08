@@ -26,3 +26,6 @@ jobs:
           test/unit/mldsa/encoding.test.ts
           test/unit/mldsa/rounding.test.ts
           test/unit/mldsa/sampling.test.ts
+          test/unit/mldsa/mldsa.test.ts
+          test/unit/mldsa/keygen-scratch-wipe.test.ts
+          test/unit/mldsa/sha3-scratch-wipe.test.ts

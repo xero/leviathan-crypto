@@ -37,7 +37,7 @@ import {
 	poly_reduce_simd as poly_reduce,
 	poly_caddq_simd  as poly_caddq,
 } from './poly_simd';
-import { poly_freeze, poly_chknorm } from './poly';
+import { poly_freeze, poly_chknorm, poly_tomont } from './poly';
 import { ntt_simd, invntt_simd } from './ntt_simd';
 import { power2round, decompose, highbits, lowbits, make_hint, use_hint } from './rounding';
 
@@ -72,6 +72,17 @@ export function polyvec_caddq(pvOff: i32, len: i32): void {
 export function polyvec_freeze(pvOff: i32, len: i32): void {
 	for (let i: i32 = 0; i < len; i++) {
 		poly_freeze(pvOff + i * POLY_BYTES);
+	}
+}
+
+/** Convert each coefficient of every polynomial to Montgomery form
+ *  (p[i] ← p[i]·R mod q, R = 2³²). Used by keygen between NTT(s₁) and the
+ *  matrix-vector product: tomont turns the regular-form ŝ₁ into the
+ *  Montgomery factor that the pointwise kernel expects, so that the
+ *  internal R⁻¹ leaves the result Â·ŝ₁ in regular form. */
+export function polyvec_tomont(pvOff: i32, len: i32): void {
+	for (let i: i32 = 0; i < len; i++) {
+		poly_tomont(pvOff + i * POLY_BYTES);
 	}
 }
 

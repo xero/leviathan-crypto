@@ -36,9 +36,12 @@ export {
 	getPolySlotBase, getPolySlotSize,
 	getPolySlot0, getPolySlot1, getPolySlot2, getPolySlot3,
 	getPolySlot4, getPolySlot5, getPolySlot6, getPolySlot7,
+	getMatrixSlot, getMatrixSlotSize,
 	getPolyvecSlotBase, getPolyvecSlotSize,
 	getPolyvecSlot0, getPolyvecSlot1, getPolyvecSlot2, getPolyvecSlot3,
-	getSeedOffset, getMsgRepOffset, getPkOffset, getSkOffset, getSigOffset,
+	getPolyvecSlot4, getPolyvecSlot5, getPolyvecSlot6, getPolyvecSlot7,
+	getSeedOffset, getTrOffset, getMsgRepOffset, getCTildeOffset,
+	getPkOffset, getSkOffset, getSigOffset,
 	getXofPrfOffset,
 	wipeBuffers,
 } from './buffers';
@@ -60,7 +63,7 @@ export { ntt_simd as ntt, invntt_simd as invntt }      from './ntt_simd';
 // freeze and chknorm are scalar-only (data-dependent control flow, see header
 // comments in poly.ts).
 
-export { poly_freeze, poly_chknorm } from './poly';
+export { poly_freeze, poly_chknorm, poly_tomont } from './poly';
 export {
 	poly_add    as poly_add_scalar,
 	poly_sub    as poly_sub_scalar,
@@ -97,7 +100,7 @@ export {
 
 export {
 	polyvec_add, polyvec_sub,
-	polyvec_reduce, polyvec_caddq, polyvec_freeze,
+	polyvec_reduce, polyvec_caddq, polyvec_freeze, polyvec_tomont,
 	polyvec_ntt, polyvec_invntt,
 	polyvec_pointwise_montgomery,
 	polyvec_pointwise_acc_montgomery,
