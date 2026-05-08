@@ -43,6 +43,7 @@ const modules = [
   { name: 'ct', entry: 'src/asm/ct/index.ts', memory: '--initialMemory 1 --maximumMemory 1', extra: '--enable simd', noSourceMap: true },
   { name: 'kyber', entry: 'src/asm/kyber/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
   { name: 'aes', entry: 'src/asm/aes/index.ts', memory: '--initialMemory 4 --maximumMemory 4', extra: '--enable simd' },
+  { name: 'mldsa', entry: 'src/asm/mldsa/index.ts', memory: '--initialMemory 4 --maximumMemory 4', extra: '--enable simd' },
 ]
 
 for (const { name, entry, memory, extra = '', noSourceMap = false } of modules) {

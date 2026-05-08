@@ -2,7 +2,7 @@
 
 ### Test Suite & Vector Corpus
 
-Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2509 tests.
+Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 2530 tests.
 
 > ### Table of Contents
 > - [Test Counts](#test-counts)
@@ -19,9 +19,9 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 | Type | Runner     | Tests                       | Status   |
 | ---- | ---------- | --------------------------- | -------- |
-| Unit | Vitest     | 2493                        | All pass |
+| Unit | Vitest     | 2514                        | All pass |
 | e2e  | Playwright | 294 (98 tests × 3 browsers) | All pass |
-|      | **Total**  | **2787**                    | All pass |
+|      | **Total**  | **2808**                    | All pass |
 
 ---
 
@@ -88,6 +88,8 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | `ratchet/skipped_key_store.test.ts`           | `SkippedKeyStore`: happy-path commit, rollback, rollback + legitimate delivery, `wipeAll`, `resolve()` argument validation, settle guards (double-settle throws, key access after settle throws), key lifecycle, split budgets (`maxCacheSize`, `maxSkipPerResolve`) | 25 tests               | —                   |
 | `ratchet/resolve-handle-dos-mitigation.test.ts` | DoS-mitigation: `rollback()` returns the key to the store under the same counter so a later legitimate delivery at that counter can still decrypt; bounded HKDF work via `maxSkipPerResolve`                                                | 2 tests                | —                   |
 | `ratchet/ratchet_keypair.test.ts`             | `RatchetKeypair`: round-trip keygen/decap, single-use guard (second `decap` throws), `dispose()` is idempotent, context round-trip                                                                                                          | 8 tests                | —                   |
+| `mldsa/reduce.test.ts`                        | ML-DSA reduction primitives (FIPS 204 Algorithm 49 + §2.3): Montgomery reduce on hand-verified inputs (0, q·2³², 2³², q−1, ±2³¹·q boundary) + 100 random i64 inputs (congruence + |r|<2q bound), centered Barrett reduce on boundary/extreme/200 random i32 inputs, fqmul ≡ montgomery_reduce(a·b) cross-check  | 10 tests               | GATE                |
+| `mldsa/ntt_simd_gate.test.ts`                 | ML-DSA NTT (FIPS 204 Algorithms 41/42/43): SIMD `ntt` byte-identical to `ntt_scalar` for zero / delta-at-42 / all-ones / 100 random polys; SIMD `invntt` byte-identical to `invntt_scalar` for 100 random NTT-domain polys; round-trip identity (SIMD and scalar) `invntt(ntt(p)) ≡ p (mod q)` over 100 random polys; BitRev₈ fixed points, zetas[0]=0 (unused), zetas[128] decodes to ζ=1753, full 256-entry zetas table self-check vs ζ^BitRev₈(k)·2³² mod q | 11 tests               | GATE                |
 | `aes/aes_transpose.test.ts`                   | Bit-transposition round-trip identity: 128 distinct bytes, all-zeros, all-0xFF, FIPS 197 §B plaintext + 7 dummy blocks, single-bit isolation, asymmetric (block<<4)\|byte pattern                                                            | 6 tests                | Gate 1              |
 | `aes/aes_sbox.test.ts`                        | Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7 (all 256 byte inputs); Boyar-Peralta scalar S-box (key-schedule path, SLP_AES_113) — exhaustive 256-byte coverage + packed 4-byte word independence                                       | 512 vectors + 8 packed, 3 tests | Gate 2     |
 | `aes/aes_round.test.ts`                       | Single AES round vs FIPS 197 §B Round 1 intermediate (`aesRoundIntermediates128[0]`)                                                                                                                                                         | 1 test                 | Gate 3              |

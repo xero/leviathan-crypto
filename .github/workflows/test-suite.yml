@@ -84,6 +84,10 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-aes-montecarlo.yml
 
+  unit-mldsa:
+    needs: [build]
+    uses: ./.github/workflows/unit-mldsa.yml
+
   suite-status:
     name: test-suite-status
     needs:
@@ -104,6 +108,7 @@ jobs:
       - unit-aes
       - unit-aes-siv
       - unit-aes-mct
+      - unit-mldsa
     runs-on: ubuntu-latest
     steps:
       - run: echo "All required tests have passed."
