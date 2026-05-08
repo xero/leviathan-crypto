@@ -123,28 +123,37 @@ export class AESGCM {
 			throw new Error('AESGCM: instance has been disposed');
 		this._validateInputs(key, iv, aad, pt.length);
 
-		this._loadKey(key);
-		this._writeIv(iv);
-		this._writeAad(aad);
-		const startRc = this.x.gcmStart(iv.length, aad.length);
-		if (startRc !== 0) throw new RangeError('invalid GCM input');
+		// Once we touch WASM state, wipe on every exit path. The output and
+		// tag are already in the JS-heap result by the time we hit the
+		// `finally`, so plaintext / round keys / GHASH state never outlive
+		// this call inside WASM memory — even if the caller forgets
+		// `dispose()`.
+		try {
+			this._loadKey(key);
+			this._writeIv(iv);
+			this._writeAad(aad);
+			const startRc = this.x.gcmStart(iv.length, aad.length);
+			if (startRc !== 0) throw new RangeError('invalid GCM input');
 
-		const output = new Uint8Array(pt.length + 16);
-		const ptOff  = this.x.getChunkPtOffset();
-		const ctOff  = this.x.getChunkCtOffset();
-		const tagOff = this.x.getTagOffset();
+			const output = new Uint8Array(pt.length + 16);
+			const ptOff  = this.x.getChunkPtOffset();
+			const ctOff  = this.x.getChunkCtOffset();
+			const tagOff = this.x.getTagOffset();
 
-		for (let off = 0; off < pt.length; off += PT_CHUNK_LIMIT) {
-			const chunkLen = Math.min(PT_CHUNK_LIMIT, pt.length - off);
-			this.mem.set(pt.subarray(off, off + chunkLen), ptOff);
-			const rc = this.x.gcmEncryptChunk(ptOff, ctOff, chunkLen);
-			if (rc !== 0) throw new RangeError('GCM counter overflow');
-			output.set(this.mem.subarray(ctOff, ctOff + chunkLen), off);
+			for (let off = 0; off < pt.length; off += PT_CHUNK_LIMIT) {
+				const chunkLen = Math.min(PT_CHUNK_LIMIT, pt.length - off);
+				this.mem.set(pt.subarray(off, off + chunkLen), ptOff);
+				const rc = this.x.gcmEncryptChunk(ptOff, ctOff, chunkLen);
+				if (rc !== 0) throw new RangeError('GCM counter overflow');
+				output.set(this.mem.subarray(ctOff, ctOff + chunkLen), off);
+			}
+
+			this.x.gcmFinalize();
+			output.set(this.mem.subarray(tagOff, tagOff + 16), pt.length);
+			return output;
+		} finally {
+			this.x.wipeBuffers();
 		}
-
-		this.x.gcmFinalize();
-		output.set(this.mem.subarray(tagOff, tagOff + 16), pt.length);
-		return output;
 	}
 
 	/**
@@ -181,53 +190,58 @@ export class AESGCM {
 			throw new RangeError(AUTH_FAILED);
 		}
 
-		this._loadKey(key);
-		this._writeIv(iv);
-		this._writeAad(aad);
-		const startRc = this.x.gcmStart(iv.length, aad.length);
-		if (startRc !== 0) throw new RangeError(AUTH_FAILED);
+		// Once we touch WASM state, wipe on every exit path. The plaintext
+		// is already in the JS-heap output slice by the time we hit the
+		// `finally`, so it never outlives this call inside WASM memory —
+		// even if the caller forgets `dispose()`. Auth-failure paths get
+		// the same wipe for free; we no longer need inline wipes before
+		// each throw.
+		try {
+			this._loadKey(key);
+			this._writeIv(iv);
+			this._writeAad(aad);
+			const startRc = this.x.gcmStart(iv.length, aad.length);
+			if (startRc !== 0) throw new RangeError(AUTH_FAILED);
 
-		const ptOff  = this.x.getChunkPtOffset();
-		const ctOff  = this.x.getChunkCtOffset();
+			const ptOff  = this.x.getChunkPtOffset();
+			const ctOff  = this.x.getChunkCtOffset();
 
-		// Pass 1: absorb every CT chunk into GHASH (no decryption yet).
-		for (let off = 0; off < ctLen; off += PT_CHUNK_LIMIT) {
-			const chunkLen = Math.min(PT_CHUNK_LIMIT, ctLen - off);
-			this.mem.set(sealed.subarray(off, off + chunkLen), ctOff);
-			const rc = this.x.gcmAbsorbCtChunk(ctOff, chunkLen);
-			if (rc !== 0) throw new RangeError(AUTH_FAILED);
-		}
-
-		// Compute tag → TAG_OFFSET, then constant-time compare with sealed[ctLen..].
-		this.x.gcmFinalize();
-		// Slice the computed tag out of WASM memory (defensive copy — the
-		// WASM memory view can be reattached on grow). Compare via the
-		// dedicated `ct` WASM module exposed as `constantTimeEqual` in
-		// `../utils.js`. No tag compare lives inside the AES module
-		// itself — this is library-wide policy for atomic AEADs.
-		const tagOff = this.x.getTagOffset();
-		const expectedTag = this.mem.slice(tagOff, tagOff + 16);
-		const providedTag = sealed.slice(ctLen, ctLen + 16);
-		if (!constantTimeEqual(expectedTag, providedTag)) {
-			this.x.wipeBuffers();
-			throw new RangeError(AUTH_FAILED);
-		}
-
-		// Pass 2: re-init counter, GCTR-decrypt every CT chunk → output.
-		this.x.gcmResetCtrToJ0Plus1();
-		const output = new Uint8Array(ctLen);
-		for (let off = 0; off < ctLen; off += PT_CHUNK_LIMIT) {
-			const chunkLen = Math.min(PT_CHUNK_LIMIT, ctLen - off);
-			this.mem.set(sealed.subarray(off, off + chunkLen), ctOff);
-			const rc = this.x.gcmDecryptChunk(ctOff, ptOff, chunkLen);
-			if (rc !== 0) {
-				this.x.wipeBuffers();
-				throw new RangeError(AUTH_FAILED);
+			// Pass 1: absorb every CT chunk into GHASH (no decryption yet).
+			for (let off = 0; off < ctLen; off += PT_CHUNK_LIMIT) {
+				const chunkLen = Math.min(PT_CHUNK_LIMIT, ctLen - off);
+				this.mem.set(sealed.subarray(off, off + chunkLen), ctOff);
+				const rc = this.x.gcmAbsorbCtChunk(ctOff, chunkLen);
+				if (rc !== 0) throw new RangeError(AUTH_FAILED);
 			}
-			output.set(this.mem.subarray(ptOff, ptOff + chunkLen), off);
-		}
 
-		return output;
+			// Compute tag → TAG_OFFSET, then constant-time compare with sealed[ctLen..].
+			this.x.gcmFinalize();
+			// Slice the computed tag out of WASM memory (defensive copy — the
+			// WASM memory view can be reattached on grow). Compare via the
+			// dedicated `ct` WASM module exposed as `constantTimeEqual` in
+			// `../utils.js`. No tag compare lives inside the AES module
+			// itself — this is library-wide policy for atomic AEADs.
+			const tagOff = this.x.getTagOffset();
+			const expectedTag = this.mem.slice(tagOff, tagOff + 16);
+			const providedTag = sealed.slice(ctLen, ctLen + 16);
+			if (!constantTimeEqual(expectedTag, providedTag))
+				throw new RangeError(AUTH_FAILED);
+
+			// Pass 2: re-init counter, GCTR-decrypt every CT chunk → output.
+			this.x.gcmResetCtrToJ0Plus1();
+			const output = new Uint8Array(ctLen);
+			for (let off = 0; off < ctLen; off += PT_CHUNK_LIMIT) {
+				const chunkLen = Math.min(PT_CHUNK_LIMIT, ctLen - off);
+				this.mem.set(sealed.subarray(off, off + chunkLen), ctOff);
+				const rc = this.x.gcmDecryptChunk(ctOff, ptOff, chunkLen);
+				if (rc !== 0) throw new RangeError(AUTH_FAILED);
+				output.set(this.mem.subarray(ptOff, ptOff + chunkLen), off);
+			}
+
+			return output;
+		} finally {
+			this.x.wipeBuffers();
+		}
 	}
 
 	/** Wipe WASM state and release exclusive module access. Idempotent. */

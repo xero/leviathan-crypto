@@ -32,7 +32,7 @@
 // methodology).
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { init } from '../../../src/ts/index.js';
+import { init, AESCbc } from '../../../src/ts/index.js';
 import { aesWasm } from '../../../src/ts/aes/embedded.js';
 import { getInstance } from '../../../src/ts/init.js';
 import { parseCbcKatFile, type CbcKatVector } from './vector_parser';
@@ -57,6 +57,22 @@ function getExports(): AesCbcExports {
 
 beforeAll(async () => {
 	await init({ aes: aesWasm });
+});
+
+// ── Constructor gate ────────────────────────────────────────────────────────
+
+describe('AESCbc — dangerUnauthenticated gate', () => {
+	it('new AESCbc() throws without dangerUnauthenticated flag', () => {
+		expect(() => new AESCbc()).toThrow(
+			'leviathan-crypto: AESCbc is unauthenticated — use Seal with SerpentCipher or XChaCha20Cipher instead.',
+		);
+	});
+
+	it('new AESCbc({ dangerUnauthenticated: true }) constructs successfully', () => {
+		const c = new AESCbc({ dangerUnauthenticated: true });
+		expect(c).toBeDefined();
+		c.dispose();
+	});
 });
 
 /** Encrypt one block (or multi-block) at a time via raw WASM CBC encrypt. */

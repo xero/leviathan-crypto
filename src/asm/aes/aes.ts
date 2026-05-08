@@ -200,6 +200,78 @@ function transposeOut(): void {
 	transpose8x8(BITSLICED_STATE_OFFSET, BLOCK_CT_8X_OFFSET);
 }
 
+// ── Single-block transpose (BLOCK_PT/CT direct path) ───────────────────────
+//
+// `encryptBlock` / `decryptBlock` sit on the per-block hot path of AES-GCM-SIV
+// (`sivCtrXform` calls them once per counter block). The 8×8 transpose above
+// is amortised across 8 parallel blocks; for the atomic case we previously
+// padded BLOCK_PT_8X with 7 zero blocks and then ran the full 8x transpose,
+// which paid 92 v128 ops per direction plus a 112-byte zero-fill per call.
+//
+// `transposeIn1` / `transposeOut1` work directly on the 16-byte BLOCK_PT
+// and BLOCK_CT buffers and never touch BLOCK_PT_8X / BLOCK_CT_8X. The
+// bitsliced state register state[k] still holds bit-k of byte-j across
+// 8 lanes; the single-block path populates lane 0 (bit 0 of each state[k]
+// byte) and leaves lanes 1..7 of each byte zero. The 8x kernel then runs
+// as before — its work on the dummy lanes is unchanged (it computes
+// AES(0) seven times in parallel and we ignore the result), but we save
+// the input-side byte-fill and 4× the transpose op count.
+
+/**
+ * Single-block transposeIn — read BLOCK_PT (16 bytes), produce a bitsliced
+ * state where lane 0 of each state[k] byte holds block-0's bit-k and lanes
+ * 1..7 are zero.
+ *
+ * Steps:
+ *   1. Apply the K-S §4.1 4×4 byte-shuffle (FIPS column-major →
+ *      K-S row-by-row). The shuffle is identical to step A of `transpose8x8`.
+ *   2. For each bit k ∈ {0..7}: state[k][j] = (shuffled[j] >> k) & 1, with
+ *      bits 1..7 of each byte zeroed (the dummy lanes).
+ */
+@inline function transposeIn1(): void {
+	const blk = v128.shuffle<i8>(
+		v128.load(BLOCK_PT_OFFSET), v128.load(BLOCK_PT_OFFSET),
+		0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15,
+	);
+	const ONE = i8x16.splat(<i8>1);
+	v128.store(BITSLICED_STATE_OFFSET +   0, v128.and(blk, ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  16, v128.and(i8x16.shr_u(blk, 1), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  32, v128.and(i8x16.shr_u(blk, 2), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  48, v128.and(i8x16.shr_u(blk, 3), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  64, v128.and(i8x16.shr_u(blk, 4), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  80, v128.and(i8x16.shr_u(blk, 5), ONE));
+	v128.store(BITSLICED_STATE_OFFSET +  96, v128.and(i8x16.shr_u(blk, 6), ONE));
+	v128.store(BITSLICED_STATE_OFFSET + 112, v128.and(i8x16.shr_u(blk, 7), ONE));
+}
+
+/**
+ * Single-block transposeOut — read the bitsliced state, reconstruct block 0
+ * by extracting bit-0 of each state[k] byte and writing the result to
+ * BLOCK_CT. Bits 1..7 of each state[k] byte hold AES(0) results for the
+ * seven dummy lanes and are masked out.
+ *
+ * Steps (inverse of `transposeIn1`):
+ *   1. For each k: take bit 0 of state[k] byte j, shift left by k, OR into
+ *      the running accumulator.
+ *   2. Apply the K-S §4.1 4×4 byte-shuffle (self-inverse — restores FIPS
+ *      column-major byte order) and store to BLOCK_CT.
+ */
+@inline function transposeOut1(): void {
+	const ONE = i8x16.splat(<i8>1);
+	let out = v128.and(v128.load(BITSLICED_STATE_OFFSET +   0), ONE);
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  16), ONE), 1));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  32), ONE), 2));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  48), ONE), 3));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  64), ONE), 4));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  80), ONE), 5));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET +  96), ONE), 6));
+	out = v128.or(out, i8x16.shl(v128.and(v128.load(BITSLICED_STATE_OFFSET + 112), ONE), 7));
+	out = v128.shuffle<i8>(out, out,
+		0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15,
+	);
+	v128.store(BLOCK_CT_OFFSET, out);
+}
+
 // ── ShiftRows (Käsper-Schwabe §4.3 + FIPS 197 §5.1.2) ──────────────────────
 //
 // In K-S' row-major bitsliced layout, ShiftRows permutes the 16 bytes in
@@ -910,17 +982,35 @@ export function encryptBlock_8x(): void {
 /**
  * AES encrypt a single block at BLOCK_PT_OFFSET, writing to BLOCK_CT_OFFSET.
  *
- * The bitsliced kernel processes 8 blocks in parallel. For single-block
- * encryption we copy the input to block 0 of BLOCK_PT_8X, zero the other
- * 7 blocks, run encryptBlock_8x, and copy block 0 of BLOCK_CT_8X to
- * BLOCK_CT_OFFSET. The 7 dummy blocks are wasted work but later phases
- * (CTR, GCM) feed 8-block batches naturally.
+ * Direct single-block path: `transposeIn1` reads BLOCK_PT into the bitsliced
+ * state (lane 0 populated, lanes 1..7 zero), the standard 8x round kernel
+ * runs, and `transposeOut1` reconstructs block 0 from the state and writes
+ * BLOCK_CT. The 7 dummy lanes still pay AES work in the kernel (it's
+ * inherently 8-wide), but BLOCK_PT_8X / BLOCK_CT_8X are never touched —
+ * saves the prior 144 bytes of memory ops and ~⅔ of the transpose v128
+ * count per call. Hot path for AES-GCM-SIV's `sivCtrXform`.
+ *
+ * Reference: FIPS 197 §5.1 Algorithm 1, Nr ∈ {10, 12, 14}. Kernel layout:
+ * Käsper-Schwabe 2009 §4. Nr is read from NR_BUFFER (persisted by the most
+ * recent loadKey() call).
  */
 export function encryptBlock(): void {
-	memory.copy(BLOCK_PT_8X_OFFSET, BLOCK_PT_OFFSET, 16);
-	memory.fill(BLOCK_PT_8X_OFFSET + 16, 0, 112);
-	encryptBlock_8x();
-	memory.copy(BLOCK_CT_OFFSET, BLOCK_CT_8X_OFFSET, 16);
+	const Nr: i32 = <i32>load<u8>(NR_OFFSET);
+
+	transposeIn1();
+
+	addRoundKey(0);
+	for (let round: i32 = 1; round < Nr; round++) {
+		sboxBitsliced();
+		shiftRows();
+		mixColumns();
+		addRoundKey(round);
+	}
+	sboxBitsliced();
+	shiftRows();
+	addRoundKey(Nr);
+
+	transposeOut1();
 }
 
 /**
@@ -967,12 +1057,32 @@ export function decryptBlock_8x(): void {
 /**
  * AES decrypt a single block at BLOCK_PT_OFFSET (ciphertext input),
  * writing plaintext to BLOCK_CT_OFFSET.
+ *
+ * Direct single-block path mirroring `encryptBlock` — reads BLOCK_PT
+ * (treated as ciphertext input here, matching the buffer-naming
+ * convention where BLOCK_PT/CT are named for the encrypt direction) and
+ * writes BLOCK_CT (plaintext output). Never touches BLOCK_PT_8X /
+ * BLOCK_CT_8X.
+ *
+ * Reference: FIPS 197 §5.3.5 Equivalent Inverse Cipher.
  */
 export function decryptBlock(): void {
-	memory.copy(BLOCK_PT_8X_OFFSET, BLOCK_PT_OFFSET, 16);
-	memory.fill(BLOCK_PT_8X_OFFSET + 16, 0, 112);
-	decryptBlock_8x();
-	memory.copy(BLOCK_CT_OFFSET, BLOCK_CT_8X_OFFSET, 16);
+	const Nr: i32 = <i32>load<u8>(NR_OFFSET);
+
+	transposeIn1();
+
+	addInvRoundKey(Nr);
+	for (let round: i32 = Nr - 1; round >= 1; round--) {
+		invSboxBitsliced();
+		invShiftRows();
+		invMixColumns();
+		addInvRoundKey(round);
+	}
+	invSboxBitsliced();
+	invShiftRows();
+	addInvRoundKey(0);
+
+	transposeOut1();
 }
 
 // ── DEBUG-ONLY exports for gate tests 1, 2, 3 ───────────────────────────────

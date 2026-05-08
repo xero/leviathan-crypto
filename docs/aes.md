@@ -90,6 +90,14 @@ The standalone `AESGCMSIV` class supports AES-128 and AES-256. The
 across deployments. The on-disk `formatEnum: 0x04` always means
 AES-256-GCM-SIV.
 
+The same restriction applies to the internal `sivAeadEncrypt` /
+`sivAeadDecrypt` helpers in `src/ts/aes/ops.ts` and to the AES pool
+worker — both fix the key length at 32 bytes. A 16-byte key reaches
+those paths only by misuse and throws
+`RangeError('AES-GCM-SIV: key must be 32 bytes (got 16)')`. Reach for
+the `AESGCMSIV` class directly (not the cipher suite) when AES-128 is
+required.
+
 ### Module exclusivity
 
 `AESCbc`, `AESCtr`, and `AESGCM` are stateful and hold exclusive access to
@@ -286,7 +294,7 @@ stream of chunks.
 
 ```typescript
 class AESCtr {
-	constructor()
+	constructor(opts: { dangerUnauthenticated: true })
 	loadKey(key: Uint8Array): void
 	setNonce(nonce: Uint8Array): void
 	encrypt(plaintext: Uint8Array): Uint8Array
@@ -300,11 +308,19 @@ the §F.5 worked examples. The 16-byte nonce is the full initial counter
 block, not a separate nonce/counter split. The counter advances across
 `encrypt`/`decrypt` calls and is reset only by a subsequent `setNonce()`.
 
-#### `constructor()`
+#### `constructor(opts: { dangerUnauthenticated: true })`
 
 Creates a new AESCtr instance and acquires exclusive access to the `aes`
 module. Throws if the module is not initialized or another stateful AES
-instance currently owns it.
+instance currently owns it. Throws if `{ dangerUnauthenticated: true }`
+is not passed:
+
+```
+leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. To use AESCtr directly, pass { dangerUnauthenticated: true }.
+```
+
+The opt-in matches `AESCbc` and `SerpentCtr`, putting CTR/CBC on equal
+footing as the only unauthenticated AES modes you can construct.
 
 ---
 
@@ -729,7 +745,7 @@ await init({ aes: aesWasm })
 const key   = randomBytes(32)
 const nonce = randomBytes(16)            // full 128-bit IC, never reuse with same key
 
-const ctr = new AESCtr()
+const ctr = new AESCtr({ dangerUnauthenticated: true })
 try {
 	ctr.loadKey(key)
 	ctr.setNonce(nonce)
@@ -781,6 +797,7 @@ try {
 |-----------|-----------|---------|
 | `init({ aes: ... })` not called before constructing any AES class | `Error` | `leviathan-crypto: call init({ aes: ... }) before using this class` |
 | `AESCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: AESCbc is unauthenticated — use Seal with SerpentCipher or XChaCha20Cipher instead. To use AESCbc directly, pass { dangerUnauthenticated: true }.` |
+| `AESCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. To use AESCtr directly, pass { dangerUnauthenticated: true }.` |
 | Key not 16, 24, or 32 bytes (`AES.loadKey`) | `RangeError` | `AES.loadKey: key must be 16, 24, or 32 bytes (got N)` |
 | Key not 16, 24, or 32 bytes (`AESCbc`/`AESCtr`/`AESGCM`) | `RangeError` | `AES key must be 16, 24, or 32 bytes (got N)` |
 | Key not 16 or 32 bytes (`AESGCMSIV`) | `RangeError` | `AESGCMSIV key must be 16 or 32 bytes (got N); AES-192-GCM-SIV is not defined by RFC 8452` |

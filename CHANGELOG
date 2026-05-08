@@ -140,9 +140,6 @@ release; the cipher suite + generator add no migration burden.
   | Cross-language interop with RustCrypto / Crypto++ / Botan / BouncyCastle | now works without byte-reversal. v2 required reversal at the boundary. |
 
 
-
-### Breaking Changes
-
 - **⚠ `_<module>Ready` probes removed.** The five low-level readiness probes
   (`_serpentReady`, `_chachaReady`, `_sha2Ready`, `_sha3Ready`, `_kyberReady`)
   are gone from both type and runtime exports — submodule definitions deleted,

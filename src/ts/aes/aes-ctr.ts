@@ -56,8 +56,12 @@ function getExports(): AesCtrExports {
  *
  * **WARNING: CTR mode is unauthenticated.** An attacker can flip ciphertext
  * bits without detection. Always pair with HMAC-SHA256 (Encrypt-then-MAC)
- * or use an authenticated cipher (`XChaCha20Poly1305`, `Seal` with
- * `SerpentCipher`) instead.
+ * or use an authenticated cipher (`AESGCM`, `AESGCMSIV`, or `Seal` with
+ * `AESGCMSIVCipher` / `SerpentCipher` / `XChaCha20Cipher`) instead.
+ *
+ * The constructor requires `{ dangerUnauthenticated: true }` so callers
+ * cannot reach the unauthenticated path by accident — same gate as
+ * `AESCbc` and `SerpentCtr`.
  *
  * The counter is 128-bit big-endian (SP 800-38A Appendix B.1 / §F.5).
  *
@@ -69,7 +73,13 @@ export class AESCtr {
 	private readonly x: AesCtrExports;
 	private _tok: symbol | undefined;
 
-	constructor() {
+	constructor(opts?: { dangerUnauthenticated: true }) {
+		if (!opts?.dangerUnauthenticated) {
+			throw new Error(
+				'leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. ' +
+				'To use AESCtr directly, pass { dangerUnauthenticated: true }.',
+			);
+		}
 		this.x = getExports();
 		this._tok = _acquireModule('aes');
 	}

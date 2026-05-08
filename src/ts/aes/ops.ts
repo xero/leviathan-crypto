@@ -48,6 +48,15 @@ const MAX_AAD     = 65536;
  * `sivSeal` overwrites CHUNK_PT with the ciphertext in place; the tag
  * lands at TAG_OFFSET.
  *
+ * @note AES-256 only — the key MUST be 32 bytes. The standalone
+ *       `AESGCMSIV` class accepts both 16-byte (AES-128) and 32-byte
+ *       (AES-256) keys per RFC 8452 §6, but this `ops.ts` path is the
+ *       internal helper for `AESGCMSIVCipher` and the AES pool worker,
+ *       both of which fix the cipher suite at AES-256 to keep the wire
+ *       format uniform across deployments. A 16-byte key here throws
+ *       `RangeError('AES-GCM-SIV: key must be 32 bytes (got 16)')`. Use
+ *       the `AESGCMSIV` class directly if you need AES-128.
+ *
  * @param x          AES WASM exports
  * @param key        32-byte AES-256 key (KGK in RFC 8452 terminology)
  * @param nonce      12-byte nonce — must be unique per `(key, message)`
@@ -108,6 +117,14 @@ export function sivAeadEncrypt(
  * On mismatch, `sivWipeOnFail()` zeroes the unauthenticated plaintext at
  * CHUNK_PT_OFFSET before this function throws. Subsequent reads of
  * the WASM memory cannot recover plaintext from a forged ciphertext.
+ *
+ * @note AES-256 only — the key MUST be 32 bytes (matching
+ *       `sivAeadEncrypt`). The standalone `AESGCMSIV` class supports
+ *       both AES-128 and AES-256, but this `ops.ts` helper is the
+ *       internal path used by `AESGCMSIVCipher` and the AES pool
+ *       worker, both of which fix the cipher suite at AES-256. A
+ *       16-byte key here throws
+ *       `RangeError('AES-GCM-SIV: key must be 32 bytes (got 16)')`.
  *
  * @param x           AES WASM exports
  * @param key         32-byte AES-256 key

@@ -56,11 +56,27 @@ beforeAll(async () => {
 	await init({ aes: aesWasm });
 });
 
+// ── Constructor gate ────────────────────────────────────────────────────────
+
+describe('AESCtr — dangerUnauthenticated gate', () => {
+	it('new AESCtr() throws without dangerUnauthenticated flag', () => {
+		expect(() => new AESCtr()).toThrow(
+			'leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead.',
+		);
+	});
+
+	it('new AESCtr({ dangerUnauthenticated: true }) constructs successfully', () => {
+		const c = new AESCtr({ dangerUnauthenticated: true });
+		expect(c).toBeDefined();
+		c.dispose();
+	});
+});
+
 // GATE: SP 800-38A §F.5 CTR worked examples — encrypt direction.
 describe('AES CTR (Gate 11) — SP 800-38A §F.5 encrypt', () => {
 	for (const v of aesCtrEncryptVectors) {
 		it(v.description, () => {
-			const aes = new AESCtr();
+			const aes = new AESCtr({ dangerUnauthenticated: true });
 			try {
 				aes.loadKey(fromHex(v.key));
 				aes.setNonce(fromHex(v.initialCounter));
@@ -75,7 +91,7 @@ describe('AES CTR (Gate 11) — SP 800-38A §F.5 encrypt', () => {
 describe('AES CTR (Gate 11) — SP 800-38A §F.5 decrypt', () => {
 	for (const v of aesCtrDecryptVectors) {
 		it(v.description, () => {
-			const aes = new AESCtr();
+			const aes = new AESCtr({ dangerUnauthenticated: true });
 			try {
 				aes.loadKey(fromHex(v.key));
 				aes.setNonce(fromHex(v.initialCounter));
@@ -94,7 +110,7 @@ describe('AES CTR (Gate 11) — round-trip', () => {
 		const ic  = fromHex(v.initialCounter);
 		const pt  = fromHex(v.pt);
 
-		const enc = new AESCtr();
+		const enc = new AESCtr({ dangerUnauthenticated: true });
 		let ct: Uint8Array;
 		try {
 			enc.loadKey(key); enc.setNonce(ic);
@@ -103,7 +119,7 @@ describe('AES CTR (Gate 11) — round-trip', () => {
 			enc.dispose();
 		}
 
-		const dec = new AESCtr();
+		const dec = new AESCtr({ dangerUnauthenticated: true });
 		try {
 			dec.loadKey(key); dec.setNonce(ic);
 			expect(toHex(dec.decrypt(ct))).toBe(toHex(pt));
@@ -153,7 +169,7 @@ describe('AES CTR (Gate 11) — partial-block tail', () => {
 		// 17-byte plaintext under AES-128 §F.5.1 setup; only the first byte of
 		// counter block 2's keystream is consumed.
 		const v = aesCtrEncryptVectors[0];   // AES-128
-		const aes = new AESCtr();
+		const aes = new AESCtr({ dangerUnauthenticated: true });
 		try {
 			aes.loadKey(fromHex(v.key));
 			aes.setNonce(fromHex(v.initialCounter));
