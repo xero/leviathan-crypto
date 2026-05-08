@@ -22,3 +22,7 @@ jobs:
           bun vitest run --reporter=verbose --no-coverage
           test/unit/mldsa/reduce.test.ts
           test/unit/mldsa/ntt_simd_gate.test.ts
+          test/unit/mldsa/poly_arithmetic.test.ts
+          test/unit/mldsa/encoding.test.ts
+          test/unit/mldsa/rounding.test.ts
+          test/unit/mldsa/sampling.test.ts

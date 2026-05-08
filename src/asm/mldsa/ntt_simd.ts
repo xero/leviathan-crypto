@@ -51,7 +51,7 @@ import { getZetasOffset } from './ntt';
 // that we discard). The closing v128.shuffle<i8> picks those low halves out
 // of two i64x2 vectors and packs them into one i32x4.
 @inline
-function fqmul_4x(a: v128, b: v128): v128 {
+export function fqmul_4x(a: v128, b: v128): v128 {
 	// p = a * b — full signed i64 products, low pair and high pair of lanes.
 	const p_lo: v128 = i64x2.extmul_low_i32x4_s(a, b);
 	const p_hi: v128 = i64x2.extmul_high_i32x4_s(a, b);
@@ -208,7 +208,7 @@ export function invntt_simd(polyOffset: i32): void {
 // (i64x2 × 2) carries the multiplication; shift right 43 yields t ≈ a/q;
 // r = a − t·q bounded by q in magnitude after correction.
 @inline
-function barrett_reduce_4x(a: v128): v128 {
+export function barrett_reduce_4x(a: v128): v128 {
 	const v_v:   v128 = i32x4.splat(BARRETT_V);
 	const rnd_v: v128 = i64x2.splat(<i64>1 << (BARRETT_SHIFT - 1));  // round-half-up: +2^(k-1)
 	const q_v:   v128 = i32x4.splat(Q);
