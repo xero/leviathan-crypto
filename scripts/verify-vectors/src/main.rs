@@ -34,6 +34,7 @@ use std::process::ExitCode;
 
 mod parse;
 mod primitives;
+mod byte_diff;
 mod xchacha;
 mod serpent;
 mod aes_gcm_siv;
@@ -129,6 +130,35 @@ fn run_mlkem(use_color: bool) -> bool {
         dkc_512.len(), dkc_768.len(), dkc_1024.len(),
     );
 
+    // Empty-array guard: a successful parse always returns >0 vectors for
+    // every published export. A zero count means an export-name mismatch
+    // (or a corpus structure change ACVP didn't telegraph) and would
+    // silently pass the run otherwise.
+    let parsed_lens: [(&str, usize); 15] = [
+        ("ml_kem_512_keygen",       kg_512.len()),
+        ("ml_kem_768_keygen",       kg_768.len()),
+        ("ml_kem_1024_keygen",      kg_1024.len()),
+        ("ml_kem_512_encap",        en_512.len()),
+        ("ml_kem_768_encap",        en_768.len()),
+        ("ml_kem_1024_encap",       en_1024.len()),
+        ("ml_kem_512_decap_val",    de_512.len()),
+        ("ml_kem_768_decap_val",    de_768.len()),
+        ("ml_kem_1024_decap_val",   de_1024.len()),
+        ("ml_kem_512_encap_key_check",  ekc_512.len()),
+        ("ml_kem_768_encap_key_check",  ekc_768.len()),
+        ("ml_kem_1024_encap_key_check", ekc_1024.len()),
+        ("ml_kem_512_decap_key_check",  dkc_512.len()),
+        ("ml_kem_768_decap_key_check",  dkc_768.len()),
+        ("ml_kem_1024_decap_key_check", dkc_1024.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more ML-KEM arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
     let mut all_ok = true;
     let mut count_ok: usize = 0;
     let mut count_fail: usize = 0;
@@ -214,6 +244,28 @@ fn run_mldsa(use_color: bool) -> bool {
         sg_44.len(), sg_65.len(), sg_87.len(),
         sv_44.len(), sv_65.len(), sv_87.len(),
     );
+
+    // Empty-array guard: same rationale as run_mlkem. A zero count for
+    // any published ACVP export means an export-name mismatch or corpus
+    // shape change, not a successful run.
+    let parsed_lens: [(&str, usize); 9] = [
+        ("ml_dsa_44_keygen", kg_44.len()),
+        ("ml_dsa_65_keygen", kg_65.len()),
+        ("ml_dsa_87_keygen", kg_87.len()),
+        ("ml_dsa_44_siggen", sg_44.len()),
+        ("ml_dsa_65_siggen", sg_65.len()),
+        ("ml_dsa_87_siggen", sg_87.len()),
+        ("ml_dsa_44_sigver", sv_44.len()),
+        ("ml_dsa_65_sigver", sv_65.len()),
+        ("ml_dsa_87_sigver", sv_87.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more ML-DSA arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
 
     let mut all_ok = true;
     let mut count_ok: usize = 0;

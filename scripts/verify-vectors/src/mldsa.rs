@@ -42,34 +42,8 @@ use ml_dsa::{
 use ml_dsa::signature::Keypair;
 use rand_core::TryRng;
 
+use crate::byte_diff::log_byte_diff;
 use crate::parse::{MlDsaKeyGenVector, MlDsaSigGenVector, MlDsaSigVerVector};
-
-// ────────────────────────────────────────────────────────────────────────────
-// Diff helpers
-// ────────────────────────────────────────────────────────────────────────────
-
-fn first_diff(computed: &[u8], expected: &[u8]) -> Option<(usize, u8, u8)> {
-    for (i, (a, b)) in computed.iter().zip(expected.iter()).enumerate() {
-        if a != b { return Some((i, *a, *b)); }
-    }
-    None
-}
-
-fn log_byte_diff(log: &mut Vec<String>, label: &str, computed: &[u8], expected: &[u8]) {
-    if computed != expected {
-        if let Some((i, a, b)) = first_diff(computed, expected) {
-            log.push(format!(
-                "  ✗ {label} first byte mismatch at offset {i}: computed=0x{a:02x}, expected=0x{b:02x}",
-            ));
-        }
-        if computed.len() != expected.len() {
-            log.push(format!(
-                "  ✗ {label} length mismatch: computed={} expected={}",
-                computed.len(), expected.len(),
-            ));
-        }
-    }
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 // FixedRng: a deterministic Rng impl that returns ACVP-supplied rnd bytes
@@ -103,17 +77,14 @@ impl TryRng for FixedRng {
     }
 
     fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Infallible> {
-        // Cycle the supplied bytes if a caller asks for more than were given;
-        // in practice ml-dsa's sign_mu_randomized requests exactly 32 bytes
-        // of rnd, matching the FixedRng buffer length. Cycling preserves the
-        // total-function shape without panicking on speculative reads.
+        // Read straight from the supplied buffer; zero-pad any tail beyond
+        // its length. In practice ml-dsa's sign_mu_randomized requests
+        // exactly 32 bytes of rnd, matching the FixedRng buffer length, so
+        // the zero-pad branch is unreachable — kept as a degenerate-but-
+        // defined fallback rather than panicking on speculative reads.
         for byte in dst.iter_mut() {
-            if self.buf.is_empty() {
-                *byte = 0;
-            } else {
-                *byte = self.buf[self.pos % self.buf.len()];
-                self.pos += 1;
-            }
+            *byte = self.buf.get(self.pos).copied().unwrap_or(0);
+            self.pos = self.pos.saturating_add(1);
         }
         Ok(())
     }

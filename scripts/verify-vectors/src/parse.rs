@@ -1102,7 +1102,13 @@ pub struct MlDsaKeyGenVector {
 
 #[allow(dead_code)] // parameter_set + pk surfaced for diagnostics; verifier
                     // dispatches by paramset at the run_mldsa level and
-                    // signs via sk, comparing the produced signature
+                    // signs via sk, comparing the produced signature.
+                    // corner_case is parsed for forward-compat: ACVP may
+                    // populate it with discriminator strings (e.g.
+                    // shortMaxNorm, highMaxNorm) in future revisions; the
+                    // verifier currently branches only on signature_interface,
+                    // pre_hash, and external_mu. TODO: dispatch on corner_case
+                    // when ACVP publishes corner-case-specific behavior.
 #[derive(Debug, Clone, Default)]
 pub struct MlDsaSigGenVector {
     pub tc_id:                u32,

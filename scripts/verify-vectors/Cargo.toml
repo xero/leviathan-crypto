@@ -75,6 +75,10 @@ rand_core        = { version = "=0.10.1", default-features = false }
 # ml-dsa uses for B32 / B64. ml-dsa exposes B32 publicly but B64 is
 # `pub(crate)`; we construct the equivalent `Array<u8, U64>` value from a
 # fixed [u8; 64] for the externalMu sigGen / sigVer paths.
+# Note: this dep is only present because of the B64 visibility restriction.
+# If a future ml-dsa release lifts that restriction (re-exports B64 or
+# accepts a `[u8; 64]` directly on sign_mu_*), this dep becomes redundant
+# and should be dropped at the next bump.
 hybrid-array     = { version = "=0.4.11", default-features = false }
 # RustCrypto sha2 / sha3 hash families: HashML-DSA pre-hash mode in
 # mldsa_siggen.ts / mldsa_sigver.ts requires hashing the message with
