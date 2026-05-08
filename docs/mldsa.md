@@ -1,0 +1,379 @@
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
+
+### ML-DSA (Dilithium): Post-Quantum Digital Signatures
+
+Post-quantum digital signatures via ML-DSA (FIPS 204), the NIST-standardized
+module-lattice signature scheme.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Parameter Sets](#parameter-sets)
+> - [Init](#init)
+> - [MlDsa API](#mldsa-api)
+> - [Validation Behavior](#validation-behavior)
+> - [Key & Signature Format](#key--signature-format)
+> - [Wipe Discipline](#wipe-discipline)
+> - [Error Reference](#error-reference)
+
+---
+
+## Overview
+
+ML-DSA (Module-Lattice-Based Digital Signature Algorithm) is a lattice-based
+signature scheme standardized by NIST in FIPS 204. It is the post-quantum
+counterpart to RSA and ECDSA: existential unforgeability under chosen-message
+attack (EUF-CMA) holds even against adversaries with quantum computers. The
+hardness assumption is Module-Learning-With-Errors (M-LWE).
+
+This module exposes three classes — `MlDsa44`, `MlDsa65`, and `MlDsa87` —
+covering the three FIPS 204 parameter sets. Phase-5 of the v3 release ships
+key generation, pure ML-DSA signing (hedged, deterministic, externally-
+randomised), and verification. HashML-DSA (FIPS 204 §5.4) lands in a
+subsequent phase.
+
+Verification against the full NIST ACVP corpora — 75 keyGen-FIPS204 vectors
+(25 per parameter set), 90 sigGen-FIPS204 external/pure tests, and 45
+sigVer-FIPS204 external/pure tests including known-fail cases — confirms
+byte-identical pk/sk/σ output and the SUF-CMA-critical malformed-input
+checks (FIPS 204 §D.3 / Algorithm 21).
+
+---
+
+## Parameter Sets
+
+| Class      | NIST Name | k | ℓ | η | τ  | λ   | γ₁     | γ₂        | ω  | pk B | sk B  | sig B | Security    |
+|------------|-----------|---|---|---|----|-----|--------|-----------|----|------|-------|-------|-------------|
+| `MlDsa44`  | ML-DSA-44 | 4 | 4 | 2 | 39 | 128 | 2¹⁷    | (q−1)/88  | 80 | 1312 | 2560  | 2420  | Category 2  |
+| `MlDsa65`  | ML-DSA-65 | 6 | 5 | 4 | 49 | 192 | 2¹⁹    | (q−1)/32  | 55 | 1952 | 4032  | 3309  | Category 3  |
+| `MlDsa87`  | ML-DSA-87 | 8 | 7 | 2 | 60 | 256 | 2¹⁹    | (q−1)/32  | 75 | 2592 | 4896  | 4627  | Category 5  |
+
+Use `MlDsa65` for general-purpose applications. Use `MlDsa44` only if you
+have strict size or performance constraints. Use `MlDsa87` for long-lived
+keys or high-assurance requirements.
+
+Sizes are byte-exact. Seed (ξ) is always 32 bytes regardless of parameter set.
+
+---
+
+## Init
+
+```typescript
+import { init }       from 'leviathan-crypto'
+import { mldsaWasm }  from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }   from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+```
+
+Both `mldsa` and `sha3` are required. The mldsa module handles polynomial
+arithmetic, NTT, encoding, sampling, and rounding. The sha3 module provides
+the Keccak sponge for SHAKE128 (matrix expansion) and SHAKE256 (noise
+expansion, key digest, and signing-time hashes).
+
+`'keccak'` is an alias for `'sha3'`; same WASM binary, same instance slot.
+
+For tree-shakeable imports the `leviathan-crypto/mldsa` subpath exports its
+own init function:
+
+```typescript
+import { mldsaInit } from 'leviathan-crypto/mldsa'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+
+await mldsaInit(mldsaWasm)
+```
+
+ML-DSA requires WebAssembly SIMD. `init()` throws a clear error on runtimes
+without SIMD support. Every major browser and runtime since 2021 supports it.
+
+---
+
+## MlDsa API
+
+All three classes share the same surface, defined by the `MlDsaBase` parent.
+Construction is parameter-less — the parameter set is fixed by the class.
+
+### Constructor
+
+```typescript
+new MlDsa44()
+new MlDsa65()
+new MlDsa87()
+```
+
+Throws if `init({ mldsa, sha3 })` has not been called. Cheap — runs a
+layout assertion on the WASM byte buffers and returns.
+
+### `keygen(): MlDsaKeyPair`
+
+Generate a new key pair using a fresh 32-byte seed from `crypto.getRandomValues`.
+Equivalent to calling `keygenDerand` with a random ξ; the local seed buffer is
+wiped on return.
+
+```typescript
+const dsa = new MlDsa65()
+const { verificationKey, signingKey } = dsa.keygen()
+// verificationKey: 1952-byte pk (FIPS 204 Algorithm 22 pkEncode)
+// signingKey:      4032-byte sk (FIPS 204 Algorithm 24 skEncode)
+dsa.dispose()
+```
+
+### `keygenDerand(xi: Uint8Array): MlDsaKeyPair`
+
+Deterministic key generation — FIPS 204 §6.1 Algorithm 6. Use this when you
+must derive a key from a known seed (testing, ACVP, key escrow, deterministic
+deployments). Throws `RangeError` if `xi.length !== 32`.
+
+```typescript
+const xi = new Uint8Array(32)
+crypto.getRandomValues(xi)
+
+const dsa = new MlDsa65()
+const { verificationKey, signingKey } = dsa.keygenDerand(xi)
+dsa.dispose()
+xi.fill(0)  // ξ is the master secret — wipe after use
+```
+
+### `sign(sk, M, ctx?): Uint8Array`
+
+Hedged signing — FIPS 204 §3.4 (recommended default). Produces a signature
+of `params.sigBytes` bytes. Each call sources a fresh 32-byte rnd from
+`crypto.getRandomValues`, mixes it into the per-signature ρ'', and wipes
+the local rnd buffer on return. Two `sign()` calls over the same `(sk, M)`
+return different bytes — both verify.
+
+```typescript
+const dsa = new MlDsa65()
+const { verificationKey, signingKey } = dsa.keygen()
+const sig = dsa.sign(signingKey, message)
+const ok  = dsa.verify(verificationKey, message, sig)   // true
+dsa.dispose()
+```
+
+Hedged signing is preferred over deterministic per FIPS 204 §3.4: hedged
+signatures remain unforgeable against fault attacks that bias the
+rejection-sampling stream, where deterministic signatures do not.
+
+`ctx` defaults to an empty Uint8Array. Caller-supplied ctx must be ≤ 255
+bytes per FIPS 204 §5.2 line 1; longer values throw `RangeError`. The
+signature binds (M, ctx) — verifying with a different ctx returns false.
+
+### `signDeterministic(sk, M, ctx?): Uint8Array`
+
+Deterministic signing — FIPS 204 §3.4. Sets rnd ← 0³² so two signatures
+over the same `(sk, M, ctx)` return identical bytes.
+
+```typescript
+const sig1 = dsa.signDeterministic(signingKey, message)
+const sig2 = dsa.signDeterministic(signingKey, message)
+// sig1 === sig2 byte-for-byte
+```
+
+⚠ Deterministic signatures are vulnerable to fault attacks per FIPS 204
+§3.4. Use only when no entropy source is available (embedded boot,
+hard reproducibility requirement) or when running CAVP / ACVP tests.
+Prefer `sign()` for production.
+
+### `signDerand(sk, M, ctx, rnd): Uint8Array`
+
+Externally-randomised signing — testing / CAVP API. Caller supplies a
+32-byte `rnd`; the library does not mix in additional entropy.
+
+```typescript
+const rnd = randomBytes(32)
+const sig = dsa.signDerand(signingKey, message, ctx, rnd)
+```
+
+⚠ Hard contract on the caller: `rnd` MUST come from an approved RBG
+(FIPS 204 §3.6.1) and MUST NOT be reused across signatures. Reuse leaks
+the signing key. The library does not enforce single-use; the caller
+owns this discipline.
+
+### `verify(vk, M, sig, ctx?): boolean`
+
+Pure ML-DSA verify — FIPS 204 §5.3 Algorithm 3 / §6.3 Algorithm 8.
+Returns `true` only if both the FIPS 204 norm bound (‖z‖∞ < γ₁ − β) holds
+and the constant-time comparison of c̃ to the recomputed c̃' succeeds.
+
+```typescript
+const ok = dsa.verify(verificationKey, message, sig, ctx)   // boolean
+```
+
+`verify` returns `false` on a wrong signature, throws `RangeError` on a
+caller-side contract violation. See [Validation Behavior](#validation-behavior)
+for the exact split.
+
+### `dispose(): void`
+
+Wipe all mldsa WASM scratch memory. Idempotent. Safe to call multiple times.
+Does not wipe sha3 scratch — every public op already does that under its own
+exclusivity guard.
+
+### Field: `params: MlDsaParams`
+
+Read-only parameter-set constants:
+
+```typescript
+interface MlDsaParams {
+    paramSet: 'ML-DSA-44' | 'ML-DSA-65' | 'ML-DSA-87'
+    k:        number   // matrix rows
+    l:        number   // matrix cols (ℓ)
+    eta:      number   // noise parameter (η)
+    tau:      number   // # of ±1 in challenge polynomial (τ)
+    lambda:   number   // collision strength in bits (λ)
+    gamma1:   number   // y coefficient range (mask)
+    gamma2:   number   // low-order rounding modulus
+    omega:    number   // max # of 1s in hint
+    beta:     number   // = τ · η
+    pkBytes:  number
+    skBytes:  number
+    sigBytes: number
+}
+```
+
+---
+
+## Validation Behavior
+
+ML-DSA distinguishes two failure classes — verification failures (binary,
+return false) versus caller-contract violations (throw RangeError). The
+split follows FIPS 204 §3.6.2 / §5.3 Algorithm 3.
+
+| Condition                                | `sign()` / variants     | `verify()`              |
+| ---------------------------------------- | ----------------------- | ----------------------- |
+| `sk` length mismatch                     | throw `RangeError`      | n/a                     |
+| `vk` length mismatch                     | n/a                     | return `false`          |
+| `σ` length mismatch                      | n/a                     | return `false`          |
+| `ctx.length > 255`                       | throw `RangeError`      | throw `RangeError`      |
+| `rnd.length !== 32` (signDerand only)    | throw `RangeError`      | n/a                     |
+| Malformed hint encoding (Alg 21 §D.3)    | n/a                     | return `false`          |
+| Wrong signature for `(vk, M, ctx)`       | n/a                     | return `false`          |
+| Norm bound `‖z‖∞ ≥ γ₁ − β`               | n/a                     | return `false`          |
+
+Why the asymmetry: wrong-length pk/σ are *structural* indicators that the
+input is not a valid ML-DSA signature — same verdict as a wrong signature.
+Per FIPS 204 §3.6.2, both conditions return false. Oversize ctx, by
+contrast, is a *caller* mistake (the caller built ctx, not an attacker)
+and throws so the bug surfaces immediately.
+
+The malformed-hint case is SUF-CMA-critical (FIPS 204 §D.3 — added in the
+final standard relative to the IPD draft). Algorithm 21 lines 4, 9, and
+17 each gate against a distinct forgery surface; all three are enforced.
+
+---
+
+## Key & Signature Format
+
+`verificationKey` (pk) — FIPS 204 Algorithm 22 (pkEncode):
+
+```
+pk = ρ(32) ‖ SimpleBitPack(t₁[0]) ‖ SimpleBitPack(t₁[1]) ‖ … ‖ SimpleBitPack(t₁[k−1])
+```
+
+Each packed t₁[i] is `32 · (bitlen(q−1) − d) = 32 · 10 = 320` bytes. Total:
+`32 + k · 320`.
+
+`signingKey` (sk) — FIPS 204 Algorithm 24 (skEncode):
+
+```
+sk = ρ(32) ‖ K(32) ‖ tr(64)
+   ‖ BitPack(s₁[i], η, η)         × ℓ      each = 32 · bitlen(2η)
+   ‖ BitPack(s₂[i], η, η)         × k
+   ‖ BitPack(t₀[i], 2^(d−1)−1, 2^(d−1)) × k each = 32 · d = 416
+```
+
+The signing key includes `tr = H(pk, 64)` precomputed so signing does not
+have to re-derive it. Treat the entire sk as private — compromise of any
+component (especially ρ′ derivable from ξ, or s₁ derivable from sk) recovers
+the full key.
+
+The 32-byte seed ξ is *not* part of the published sk. Storing ξ is sufficient
+to reconstruct the full key pair via `keygenDerand` — handle ξ with the same
+care as sk.
+
+`signature` (σ) — FIPS 204 Algorithm 26 (sigEncode):
+
+```
+σ = c̃(λ/4) ‖ BitPack(z[i], γ₁−1, γ₁) × ℓ ‖ HintBitPack(h, ω, k)
+```
+
+- `c̃` is the SHAKE256-derived signature commitment hash (32, 48, or 64
+  bytes for ML-DSA-44/65/87).
+- Each packed `z[i]` is `32 · (1 + bitlen(γ₁−1))` bytes — 576 (γ₁=2¹⁷)
+  or 640 (γ₁=2¹⁹).
+- `HintBitPack(h, ω, k)` is exactly `ω + k` bytes.
+
+Total signature size: `params.sigBytes` per parameter set.
+
+---
+
+## Wipe Discipline
+
+Every `keygenDerand` call wipes:
+
+- `SEED_OFFSET` — 128 bytes holding ρ ‖ ρ′ ‖ K (highest-severity residual:
+  ρ′ expands to s₁/s₂; K is the per-message signing randomness).
+- `TR_OFFSET`   — 64 bytes holding tr = H(pk, 64).
+- `SK_OFFSET`   — `params.skBytes` holding the encoded sk (already returned
+  to the caller; wipe shortens the in-WASM lifetime).
+- `POLYVEC_SLOT_0` — s₁ in time-domain (ℓ × 1024 B).
+- `POLYVEC_SLOT_1` — s₂ in time-domain (k × 1024 B).
+- `POLYVEC_SLOT_2` — t intermediate (k × 1024 B).
+- `POLYVEC_SLOT_4` — t₀ secret (k × 1024 B).
+- `POLYVEC_SLOT_5` — ŝ₁ in NTT/Montgomery form (ℓ × 1024 B).
+- `XOF_PRF_OFFSET` — 8 KiB SHAKE landing zone.
+
+Public regions intentionally left alone: the matrix Â (derived from ρ which
+is published in pk), the encoded pk, and t₁ (also published). The sha3
+module's STATE/INPUT/OUT regions are wiped before return.
+
+Every `sign` / `signDeterministic` / `signDerand` call wipes:
+
+- All 6 polyvec slots — ŝ₁ / ŝ₂ / t̂₀ in tomont form, plus per-iteration
+  intermediates: y, ⟨cs₁⟩, ⟨cs₂⟩, ⟨ct₀⟩, w, w − ⟨cs₂⟩, r₀, z, h.
+- All 8 poly slots — including signs scratch (8 B from c̃), the c
+  polynomial, and the polyvec_pointwise_acc_montgomery scratch in
+  POLY_SLOT_7 which carries a partial product across y_ntt.
+- `XOF_PRF_OFFSET` — last expandMask block (ρ''-derived) on rejected
+  iterations or sample_in_ball position bytes (c̃-derived) on accepted.
+- Defensive wipes on `SEED_OFFSET`, `TR_OFFSET`, `SK_OFFSET`,
+  `C_TILDE_OFFSET`, `MSG_REP_OFFSET` even though sign does not actively
+  write to them — closes any residue left by a prior op.
+- TS-side wipes on local μ, ρ'', c̃, w₁ byte-slice via try/finally so
+  they do not persist on the JS heap on early throw.
+
+`verify` wipes the corresponding 5-slot polyvec range, the 8-slot poly
+region, and the XOF buffer. Verify operates on public inputs (vk, σ, M,
+ctx all public), so the wipe is hygiene rather than secrecy — but the
+discipline matches sign so audits don't have to special-case verify.
+
+`dispose()` wipes the entire mutable mldsa region — call it when you are
+finished with the class.
+
+---
+
+## Error Reference
+
+| Error                                                                                         | Cause                                                                          |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `leviathan-crypto: call init({ mldsa: ... }) before using MlDsa classes`                      | Class constructor invoked before `init({ mldsa, sha3 })`.                      |
+| `leviathan-crypto: call init({ sha3: ... }) before using MlDsa classes`                       | Init included `mldsa` but not `sha3`.                                          |
+| `RangeError: xi seed must be 32 bytes (got N)`                                                | `keygenDerand(xi)` called with `xi.length !== 32`.                             |
+| `RangeError: leviathan-crypto: signing key must be {N} bytes for {paramSet}`                  | `sign` / variants given a wrong-length sk.                                     |
+| `RangeError: leviathan-crypto: ctx must be ≤ 255 bytes`                                       | `sign` or `verify` given a ctx longer than 255 bytes.                          |
+| `RangeError: leviathan-crypto: rnd must be 32 bytes`                                          | `signDerand` given a rnd of wrong length.                                      |
+| `leviathan-crypto: ML-DSA signing exceeded {N} rejection-sample iterations`                   | The rejection-sampling loop did not converge within the 1000-iteration bound. Indicates a malformed sk or extremely unlikely pathological seed; treat as a bug. |
+| `leviathan-crypto: another stateful instance is using the 'sha3' WASM module — call dispose()`| A live `SHAKE128` / `SHAKE256` holds the sha3 module; release it first.        |
+| `leviathan-crypto: mldsa MATRIX_SLOT too small for {paramSet} (needs N, have M)`              | Internal layout assertion. Indicates a build-time buffer-region misconfiguration. |
+
+`verify` does NOT throw on signature failure — it returns `false`. Wrong-
+length pk/σ also return `false` (FIPS 204 §3.6.2). See [Validation
+Behavior](#validation-behavior) for the full split.
+
+---
+
+## Cross-references
+
+- [Architecture](./architecture.md) — module layout and three-tier design.
+- [init.md](./init.md) — `init()` API and module-loader contract.
+- [asm_mldsa.md](./asm_mldsa.md) — low-level WASM module reference.
+- [kyber.md](./kyber.md) — sibling post-quantum module (KEM, not signatures).

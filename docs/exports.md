@@ -30,7 +30,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber'` |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa'` |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -206,6 +206,30 @@ Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
 
 > [!NOTE]
 > `ntt_scalar` and `invntt_scalar` are scalar NTT references exported for SIMD gate tests. They are not part of the public API.
+
+---
+
+## ML-DSA (Post-quantum signatures)
+
+Requires `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`.
+Subpath: `leviathan-crypto/mldsa`. See [mldsa.md](./mldsa.md).
+
+Phase 5 ships pure ML-DSA `keygen` / `keygenDerand` / `sign` /
+`signDeterministic` / `signDerand` / `verify`. HashML-DSA (FIPS 204 §5.4)
+is a separate phase.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
+| `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly — use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
+| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `dispose()`. |
+| `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
+| `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
+| `MlDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 204 pkEncode / skEncode). |
+| `MlDsaParams` | type | Parameter-set configuration (k, ℓ, η, τ, λ, γ₁, γ₂, ω, β, byte sizes). |
+| `MLDSA44` | const | Parameter set for ML-DSA-44. |
+| `MLDSA65` | const | Parameter set for ML-DSA-65. |
+| `MLDSA87` | const | Parameter set for ML-DSA-87. |
 
 ---
 
