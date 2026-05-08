@@ -34,6 +34,7 @@ use std::process::ExitCode;
 
 mod parse;
 mod primitives;
+mod byte_diff;
 mod xchacha;
 mod serpent;
 mod aes_gcm_siv;
@@ -42,6 +43,8 @@ mod aes;
 mod aes_cbc;
 mod aes_ctr;
 mod aes_gcm;
+mod mlkem;
+mod mldsa;
 
 const GREEN: &str = "\x1b[32m";
 const RED:   &str = "\x1b[31m";
@@ -75,6 +78,227 @@ fn print_section(label: &str) {
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("{label}");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ML-KEM (FIPS 203) dispatcher
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_mlkem(use_color: bool) -> bool {
+    let kg_path = vector_path("kyber_keygen.ts");
+    let ed_path = vector_path("kyber_encapdecap.ts");
+    print_section("ML-KEM — FIPS 203 (keygen + encap + decap + key validity)");
+
+    println!("Reading keygen vectors from   {}", kg_path.display());
+    println!("Reading encapDecap vectors from {}\n", ed_path.display());
+
+    let kg_src = match fs::read_to_string(&kg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", kg_path.display(), e))); return false; }
+    };
+    let ed_src = match fs::read_to_string(&ed_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", ed_path.display(), e))); return false; }
+    };
+
+    let kg_512  = parse::parse_mlkem_keygen_array(&kg_src,  "ml_kem_512_keygen");
+    let kg_768  = parse::parse_mlkem_keygen_array(&kg_src,  "ml_kem_768_keygen");
+    let kg_1024 = parse::parse_mlkem_keygen_array(&kg_src,  "ml_kem_1024_keygen");
+
+    let en_512  = parse::parse_mlkem_encap_array(&ed_src, "ml_kem_512_encap");
+    let en_768  = parse::parse_mlkem_encap_array(&ed_src, "ml_kem_768_encap");
+    let en_1024 = parse::parse_mlkem_encap_array(&ed_src, "ml_kem_1024_encap");
+
+    let de_512  = parse::parse_mlkem_decap_array(&ed_src, "ml_kem_512_decap_val");
+    let de_768  = parse::parse_mlkem_decap_array(&ed_src, "ml_kem_768_decap_val");
+    let de_1024 = parse::parse_mlkem_decap_array(&ed_src, "ml_kem_1024_decap_val");
+
+    let ekc_512  = parse::parse_mlkem_keycheck_array(&ed_src, "ml_kem_512_encap_key_check");
+    let ekc_768  = parse::parse_mlkem_keycheck_array(&ed_src, "ml_kem_768_encap_key_check");
+    let ekc_1024 = parse::parse_mlkem_keycheck_array(&ed_src, "ml_kem_1024_encap_key_check");
+
+    let dkc_512  = parse::parse_mlkem_keycheck_array(&ed_src, "ml_kem_512_decap_key_check");
+    let dkc_768  = parse::parse_mlkem_keycheck_array(&ed_src, "ml_kem_768_decap_key_check");
+    let dkc_1024 = parse::parse_mlkem_keycheck_array(&ed_src, "ml_kem_1024_decap_key_check");
+
+    println!(
+        "Parsed: keygen 512/768/1024 = {}/{}/{}, encap = {}/{}/{}, decap = {}/{}/{}, ekc = {}/{}/{}, dkc = {}/{}/{}\n",
+        kg_512.len(), kg_768.len(), kg_1024.len(),
+        en_512.len(), en_768.len(), en_1024.len(),
+        de_512.len(), de_768.len(), de_1024.len(),
+        ekc_512.len(), ekc_768.len(), ekc_1024.len(),
+        dkc_512.len(), dkc_768.len(), dkc_1024.len(),
+    );
+
+    // Empty-array guard: a successful parse always returns >0 vectors for
+    // every published export. A zero count means an export-name mismatch
+    // (or a corpus structure change ACVP didn't telegraph) and would
+    // silently pass the run otherwise.
+    let parsed_lens: [(&str, usize); 15] = [
+        ("ml_kem_512_keygen",       kg_512.len()),
+        ("ml_kem_768_keygen",       kg_768.len()),
+        ("ml_kem_1024_keygen",      kg_1024.len()),
+        ("ml_kem_512_encap",        en_512.len()),
+        ("ml_kem_768_encap",        en_768.len()),
+        ("ml_kem_1024_encap",       en_1024.len()),
+        ("ml_kem_512_decap_val",    de_512.len()),
+        ("ml_kem_768_decap_val",    de_768.len()),
+        ("ml_kem_1024_decap_val",   de_1024.len()),
+        ("ml_kem_512_encap_key_check",  ekc_512.len()),
+        ("ml_kem_768_encap_key_check",  ekc_768.len()),
+        ("ml_kem_1024_encap_key_check", ekc_1024.len()),
+        ("ml_kem_512_decap_key_check",  dkc_512.len()),
+        ("ml_kem_768_decap_key_check",  dkc_768.len()),
+        ("ml_kem_1024_decap_key_check", dkc_1024.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more ML-KEM arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+
+    let mut run = |label: &str, ok: bool, log: Vec<String>| {
+        if !ok {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        } else {
+            count_ok += 1;
+            // Compact mode: one ✓ line per ok result, no per-test header.
+            let _ = label; // label kept for future per-section summaries
+        }
+    };
+
+    for v in &kg_512  { let (ok, log) = mlkem::verify_keygen_512(v);  run("keygen-512", ok, log); }
+    for v in &kg_768  { let (ok, log) = mlkem::verify_keygen_768(v);  run("keygen-768", ok, log); }
+    for v in &kg_1024 { let (ok, log) = mlkem::verify_keygen_1024(v); run("keygen-1024", ok, log); }
+    for v in &en_512  { let (ok, log) = mlkem::verify_encap_512(v);   run("encap-512",  ok, log); }
+    for v in &en_768  { let (ok, log) = mlkem::verify_encap_768(v);   run("encap-768",  ok, log); }
+    for v in &en_1024 { let (ok, log) = mlkem::verify_encap_1024(v);  run("encap-1024", ok, log); }
+    for v in &de_512  { let (ok, log) = mlkem::verify_decap_512(v);   run("decap-512",  ok, log); }
+    for v in &de_768  { let (ok, log) = mlkem::verify_decap_768(v);   run("decap-768",  ok, log); }
+    for v in &de_1024 { let (ok, log) = mlkem::verify_decap_1024(v);  run("decap-1024", ok, log); }
+    for v in &ekc_512  { let (ok, log) = mlkem::verify_encap_keycheck_512(v);  run("ekc-512",  ok, log); }
+    for v in &ekc_768  { let (ok, log) = mlkem::verify_encap_keycheck_768(v);  run("ekc-768",  ok, log); }
+    for v in &ekc_1024 { let (ok, log) = mlkem::verify_encap_keycheck_1024(v); run("ekc-1024", ok, log); }
+    for v in &dkc_512  { let (ok, log) = mlkem::verify_decap_keycheck_512(v);  run("dkc-512",  ok, log); }
+    for v in &dkc_768  { let (ok, log) = mlkem::verify_decap_keycheck_768(v);  run("dkc-768",  ok, log); }
+    for v in &dkc_1024 { let (ok, log) = mlkem::verify_decap_keycheck_1024(v); run("dkc-1024", ok, log); }
+
+    println!(
+        "ML-KEM: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ML-DSA (FIPS 204) dispatcher — implementation in src/mldsa.rs
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_mldsa(use_color: bool) -> bool {
+    let kg_path = vector_path("mldsa_keygen.ts");
+    let sg_path = vector_path("mldsa_siggen.ts");
+    let sv_path = vector_path("mldsa_sigver.ts");
+    print_section("ML-DSA — FIPS 204 (keygen + sigGen + sigVer, incl. HashML-DSA)");
+
+    println!("Reading keygen vectors from   {}", kg_path.display());
+    println!("Reading sigGen vectors from   {}", sg_path.display());
+    println!("Reading sigVer vectors from   {}\n", sv_path.display());
+
+    let kg_src = match fs::read_to_string(&kg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", kg_path.display(), e))); return false; }
+    };
+    let sg_src = match fs::read_to_string(&sg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sg_path.display(), e))); return false; }
+    };
+    let sv_src = match fs::read_to_string(&sv_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sv_path.display(), e))); return false; }
+    };
+
+    let kg_44 = parse::parse_mldsa_keygen_array(&kg_src, "ml_dsa_44_keygen");
+    let kg_65 = parse::parse_mldsa_keygen_array(&kg_src, "ml_dsa_65_keygen");
+    let kg_87 = parse::parse_mldsa_keygen_array(&kg_src, "ml_dsa_87_keygen");
+
+    let sg_44 = parse::parse_mldsa_siggen_array(&sg_src, "ml_dsa_44_siggen");
+    let sg_65 = parse::parse_mldsa_siggen_array(&sg_src, "ml_dsa_65_siggen");
+    let sg_87 = parse::parse_mldsa_siggen_array(&sg_src, "ml_dsa_87_siggen");
+
+    let sv_44 = parse::parse_mldsa_sigver_array(&sv_src, "ml_dsa_44_sigver");
+    let sv_65 = parse::parse_mldsa_sigver_array(&sv_src, "ml_dsa_65_sigver");
+    let sv_87 = parse::parse_mldsa_sigver_array(&sv_src, "ml_dsa_87_sigver");
+
+    println!(
+        "Parsed: keygen 44/65/87 = {}/{}/{}, sigGen = {}/{}/{}, sigVer = {}/{}/{}\n",
+        kg_44.len(), kg_65.len(), kg_87.len(),
+        sg_44.len(), sg_65.len(), sg_87.len(),
+        sv_44.len(), sv_65.len(), sv_87.len(),
+    );
+
+    // Empty-array guard: same rationale as run_mlkem. A zero count for
+    // any published ACVP export means an export-name mismatch or corpus
+    // shape change, not a successful run.
+    let parsed_lens: [(&str, usize); 9] = [
+        ("ml_dsa_44_keygen", kg_44.len()),
+        ("ml_dsa_65_keygen", kg_65.len()),
+        ("ml_dsa_87_keygen", kg_87.len()),
+        ("ml_dsa_44_siggen", sg_44.len()),
+        ("ml_dsa_65_siggen", sg_65.len()),
+        ("ml_dsa_87_siggen", sg_87.len()),
+        ("ml_dsa_44_sigver", sv_44.len()),
+        ("ml_dsa_65_sigver", sv_65.len()),
+        ("ml_dsa_87_sigver", sv_87.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more ML-DSA arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+
+    let mut run = |ok: bool, log: Vec<String>| {
+        if !ok {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        } else {
+            count_ok += 1;
+        }
+    };
+
+    for v in &kg_44 { let (ok, log) = mldsa::verify_keygen_44(v); run(ok, log); }
+    for v in &kg_65 { let (ok, log) = mldsa::verify_keygen_65(v); run(ok, log); }
+    for v in &kg_87 { let (ok, log) = mldsa::verify_keygen_87(v); run(ok, log); }
+
+    for v in &sg_44 { let (ok, log) = mldsa::verify_siggen_44(v); run(ok, log); }
+    for v in &sg_65 { let (ok, log) = mldsa::verify_siggen_65(v); run(ok, log); }
+    for v in &sg_87 { let (ok, log) = mldsa::verify_siggen_87(v); run(ok, log); }
+
+    for v in &sv_44 { let (ok, log) = mldsa::verify_sigver_44(v); run(ok, log); }
+    for v in &sv_65 { let (ok, log) = mldsa::verify_sigver_65(v); run(ok, log); }
+    for v in &sv_87 { let (ok, log) = mldsa::verify_sigver_87(v); run(ok, log); }
+
+    println!(
+        "ML-DSA: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -395,6 +619,7 @@ fn run_aes_gcm(use_color: bool) -> bool {
 enum CipherSel {
     Xchacha, Serpent, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
+    Mlkem, Mldsa,
     All,
 }
 
@@ -411,8 +636,10 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "aes-cbc"     => Ok(CipherSel::AesCbc),
         "aes-ctr"     => Ok(CipherSel::AesCtr),
         "aes-gcm"     => Ok(CipherSel::AesGcm),
+        "mlkem"       => Ok(CipherSel::Mlkem),
+        "mldsa"       => Ok(CipherSel::Mldsa),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, all)")),
     }
 }
 
@@ -426,11 +653,11 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|all]");
     eprintln!("                       [--target seal|sealstream|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target is silently ignored for --cipher aes-gcm-siv, polyval, aes,");
-    eprintln!("      aes-cbc, aes-ctr, and aes-gcm (those corpora have no seal/sealstream split).");
+    eprintln!("      aes-cbc, aes-ctr, aes-gcm, mlkem, and mldsa (those corpora have no seal/sealstream split).");
 }
 
 fn main() -> ExitCode {
@@ -479,6 +706,8 @@ fn main() -> ExitCode {
     let want_aes_cbc     = matches!(cipher, CipherSel::AesCbc    | CipherSel::All);
     let want_aes_ctr     = matches!(cipher, CipherSel::AesCtr    | CipherSel::All);
     let want_aes_gcm     = matches!(cipher, CipherSel::AesGcm    | CipherSel::All);
+    let want_mlkem       = matches!(cipher, CipherSel::Mlkem     | CipherSel::All);
+    let want_mldsa       = matches!(cipher, CipherSel::Mldsa     | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
 
@@ -496,6 +725,8 @@ fn main() -> ExitCode {
     if want_aes_cbc     { if !run_aes_cbc(use_color)     { all_ok = false; } }
     if want_aes_ctr     { if !run_aes_ctr(use_color)     { all_ok = false; } }
     if want_aes_gcm     { if !run_aes_gcm(use_color)     { all_ok = false; } }
+    if want_mlkem       { if !run_mlkem(use_color)       { all_ok = false; } }
+    if want_mldsa       { if !run_mldsa(use_color)       { all_ok = false; } }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     if all_ok {

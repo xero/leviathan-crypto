@@ -119,7 +119,7 @@ fn parse_blocks(src: &str, type_name: &str) -> Vec<(String, String)> {
 // first single-quoted chunk after the field name.
 fn extract_string(body: &str, field: &str) -> String {
     let needle = format!("{}:", field);
-    let Some(start) = body.find(&needle) else { return String::new(); };
+    let Some(start) = find_field_offset(body, field) else { return String::new(); };
     let after = start + needle.len();
     let q1 = match body[after..].find('\'') {
         Some(i) => after + i,
@@ -132,11 +132,33 @@ fn extract_string(body: &str, field: &str) -> String {
     body[q1 + 1..q2].to_string()
 }
 
+// Identifier boundary: previous char must be start-of-input or a non-identifier
+// char so that a request for field "k" doesn't match the `k:` inside `ek:` /
+// `dk:`. The seal/sealstream parsers' fields don't collide with each other —
+// this is the surface where ML-KEM (`ek`, `dk`, `c`, `k`) and ML-DSA (`mu`,
+// `sig`) need it.
+fn find_field_offset(body: &str, field: &str) -> Option<usize> {
+    let needle = format!("{}:", field);
+    let mut cursor = 0usize;
+    while let Some(rel) = body[cursor..].find(&needle) {
+        let abs = cursor + rel;
+        let prev_ok = abs == 0 || {
+            let prev = body.as_bytes()[abs - 1];
+            !(prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$')
+        };
+        if prev_ok {
+            return Some(abs);
+        }
+        cursor = abs + 1;
+    }
+    None
+}
+
 // Extract a hex field (possibly multi-line, joined by `+`). Concatenates
 // all single-quoted chunks until the first `,` outside a quote.
 fn extract_hex(body: &str, field: &str) -> String {
     let needle = format!("{}:", field);
-    let Some(start) = body.find(&needle) else { return String::new(); };
+    let Some(start) = find_field_offset(body, field) else { return String::new(); };
     let after = start + needle.len();
 
     let mut out      = String::new();
@@ -161,7 +183,7 @@ fn extract_hex(body: &str, field: &str) -> String {
 // Extract an integer literal field (chunkSize). Returns None if absent.
 fn extract_int(body: &str, field: &str) -> Option<u32> {
     let needle = format!("{}:", field);
-    let start  = body.find(&needle)? + needle.len();
+    let start  = find_field_offset(body, field)? + needle.len();
     let mut digits = String::new();
     let mut seen_digit = false;
     for ch in body[start..].chars() {
@@ -180,7 +202,7 @@ fn extract_int(body: &str, field: &str) -> Option<u32> {
 // Extract a boolean field (framed). Returns None if absent.
 fn extract_bool(body: &str, field: &str) -> Option<bool> {
     let needle = format!("{}:", field);
-    let start  = body.find(&needle)? + needle.len();
+    let start  = find_field_offset(body, field)? + needle.len();
     let rest   = body[start..].trim_start();
     if rest.starts_with("true")  { return Some(true);  }
     if rest.starts_with("false") { return Some(false); }
@@ -956,4 +978,243 @@ fn extract_chunks(body: &str) -> Vec<ChunkVector> {
         }
     }
     chunks
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ML-KEM vectors (kyber_keygen.ts, kyber_encapdecap.ts).
+//
+// All ACVP records use single-line concatenated hex strings (no `+` joins),
+// so the existing `extract_hex` and `extract_int` helpers work directly on
+// each `{ ... }` body produced by `split_top_level_objects`.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct MlKemKeyGenVector {
+    pub tc_id: u32,
+    pub d:     Vec<u8>,
+    pub z:     Vec<u8>,
+    pub ek:    Vec<u8>,
+    pub dk:    Vec<u8>,
+}
+
+#[allow(dead_code)] // dk/ek surfaced for diagnostic logging; verifier
+                    // exercises ek (encap) or dk (decap) but not both
+#[derive(Debug, Clone, Default)]
+pub struct MlKemEncapVector {
+    pub tc_id: u32,
+    pub ek:    Vec<u8>,
+    pub dk:    Vec<u8>,
+    pub c:     Vec<u8>,
+    pub k:     Vec<u8>,
+    pub m:     Vec<u8>,
+}
+
+#[allow(dead_code)] // ek surfaced for diagnostic logging; verifier uses dk
+#[derive(Debug, Clone, Default)]
+pub struct MlKemDecapVector {
+    pub tc_id:  u32,
+    pub ek:     Vec<u8>,
+    pub dk:     Vec<u8>,
+    pub c:      Vec<u8>,
+    pub k:      Vec<u8>,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MlKemKeyCheckVector {
+    pub tc_id:       u32,
+    pub test_passed: bool,
+    pub ek:          Vec<u8>,
+    pub dk:          Vec<u8>,
+    #[allow(dead_code)]
+    pub reason:      String,
+}
+
+pub fn parse_mlkem_keygen_array(src: &str, export_name: &str) -> Vec<MlKemKeyGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlKemKeyGenVector {
+            tc_id: extract_int(&obj, "tcId").unwrap_or(0),
+            d:     hex::decode(extract_hex(&obj, "d")).unwrap_or_default(),
+            z:     hex::decode(extract_hex(&obj, "z")).unwrap_or_default(),
+            ek:    hex::decode(extract_hex(&obj, "ek")).unwrap_or_default(),
+            dk:    hex::decode(extract_hex(&obj, "dk")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_mlkem_encap_array(src: &str, export_name: &str) -> Vec<MlKemEncapVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlKemEncapVector {
+            tc_id: extract_int(&obj, "tcId").unwrap_or(0),
+            ek:    hex::decode(extract_hex(&obj, "ek")).unwrap_or_default(),
+            dk:    hex::decode(extract_hex(&obj, "dk")).unwrap_or_default(),
+            c:     hex::decode(extract_hex(&obj, "c")).unwrap_or_default(),
+            k:     hex::decode(extract_hex(&obj, "k")).unwrap_or_default(),
+            m:     hex::decode(extract_hex(&obj, "m")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_mlkem_decap_array(src: &str, export_name: &str) -> Vec<MlKemDecapVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlKemDecapVector {
+            tc_id:  extract_int(&obj, "tcId").unwrap_or(0),
+            ek:     hex::decode(extract_hex(&obj, "ek")).unwrap_or_default(),
+            dk:     hex::decode(extract_hex(&obj, "dk")).unwrap_or_default(),
+            c:      hex::decode(extract_hex(&obj, "c")).unwrap_or_default(),
+            k:      hex::decode(extract_hex(&obj, "k")).unwrap_or_default(),
+            reason: extract_string(&obj, "reason"),
+        })
+        .collect()
+}
+
+pub fn parse_mlkem_keycheck_array(src: &str, export_name: &str) -> Vec<MlKemKeyCheckVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlKemKeyCheckVector {
+            tc_id:       extract_int(&obj, "tcId").unwrap_or(0),
+            test_passed: extract_bool(&obj, "testPassed").unwrap_or(false),
+            ek:          hex::decode(extract_hex(&obj, "ek")).unwrap_or_default(),
+            dk:          hex::decode(extract_hex(&obj, "dk")).unwrap_or_default(),
+            reason:      extract_string(&obj, "reason"),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ML-DSA vectors (mldsa_keygen.ts, mldsa_siggen.ts, mldsa_sigver.ts).
+// ────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct MlDsaKeyGenVector {
+    pub tc_id: u32,
+    pub seed:  Vec<u8>,
+    pub pk:    Vec<u8>,
+    pub sk:    Vec<u8>,
+}
+
+#[allow(dead_code)] // parameter_set + pk surfaced for diagnostics; verifier
+                    // dispatches by paramset at the run_mldsa level and
+                    // signs via sk, comparing the produced signature.
+                    // corner_case is parsed for forward-compat: ACVP may
+                    // populate it with discriminator strings (e.g.
+                    // shortMaxNorm, highMaxNorm) in future revisions; the
+                    // verifier currently branches only on signature_interface,
+                    // pre_hash, and external_mu. TODO: dispatch on corner_case
+                    // when ACVP publishes corner-case-specific behavior.
+#[derive(Debug, Clone, Default)]
+pub struct MlDsaSigGenVector {
+    pub tc_id:                u32,
+    pub tg_id:                u32,
+    pub parameter_set:        String,
+    pub signature_interface:  String,
+    pub pre_hash:             String,
+    pub external_mu:          bool,
+    pub deterministic:        bool,
+    pub corner_case:          String,
+    pub hash_alg:             String,
+    pub pk:                   Vec<u8>,
+    pub sk:                   Vec<u8>,
+    pub message:              Option<Vec<u8>>,
+    pub mu:                   Option<Vec<u8>>,
+    pub context:              Option<Vec<u8>>,
+    pub rnd:                  Option<Vec<u8>>,
+    pub signature:            Vec<u8>,
+}
+
+#[allow(dead_code)] // parameter_set surfaced for diagnostics; verifier
+                    // dispatches by paramset at run_mldsa
+#[derive(Debug, Clone, Default)]
+pub struct MlDsaSigVerVector {
+    pub tc_id:                u32,
+    pub tg_id:                u32,
+    pub test_passed:          bool,
+    pub parameter_set:        String,
+    pub signature_interface:  String,
+    pub pre_hash:             String,
+    pub external_mu:          bool,
+    pub hash_alg:             String,
+    pub reason:               String,
+    pub pk:                   Vec<u8>,
+    pub signature:            Vec<u8>,
+    pub message:              Option<Vec<u8>>,
+    pub mu:                   Option<Vec<u8>>,
+    pub context:              Option<Vec<u8>>,
+}
+
+pub fn parse_mldsa_keygen_array(src: &str, export_name: &str) -> Vec<MlDsaKeyGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlDsaKeyGenVector {
+            tc_id: extract_int(&obj, "tcId").unwrap_or(0),
+            seed:  hex::decode(extract_hex(&obj, "seed")).unwrap_or_default(),
+            pk:    hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            sk:    hex::decode(extract_hex(&obj, "sk")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// Optional hex field: returns Some(bytes) iff the body contains `field:`,
+// else None. Distinct from `extract_hex` which collapses absence to "".
+fn extract_optional_hex(body: &str, field: &str) -> Option<Vec<u8>> {
+    if find_field_offset(body, field).is_none() {
+        return None;
+    }
+    Some(hex::decode(extract_hex(body, field)).unwrap_or_default())
+}
+
+pub fn parse_mldsa_siggen_array(src: &str, export_name: &str) -> Vec<MlDsaSigGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlDsaSigGenVector {
+            tc_id:               extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:               extract_int(&obj, "tgId").unwrap_or(0),
+            parameter_set:       extract_string(&obj, "parameterSet"),
+            signature_interface: extract_string(&obj, "signatureInterface"),
+            pre_hash:            extract_string(&obj, "preHash"),
+            external_mu:         extract_bool(&obj, "externalMu").unwrap_or(false),
+            deterministic:       extract_bool(&obj, "deterministic").unwrap_or(false),
+            corner_case:         extract_string(&obj, "cornerCase"),
+            hash_alg:            extract_string(&obj, "hashAlg"),
+            pk:                  hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            sk:                  hex::decode(extract_hex(&obj, "sk")).unwrap_or_default(),
+            message:             extract_optional_hex(&obj, "message"),
+            mu:                  extract_optional_hex(&obj, "mu"),
+            context:             extract_optional_hex(&obj, "context"),
+            rnd:                 extract_optional_hex(&obj, "rnd"),
+            signature:           hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_mldsa_sigver_array(src: &str, export_name: &str) -> Vec<MlDsaSigVerVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| MlDsaSigVerVector {
+            tc_id:               extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:               extract_int(&obj, "tgId").unwrap_or(0),
+            test_passed:         extract_bool(&obj, "testPassed").unwrap_or(false),
+            parameter_set:       extract_string(&obj, "parameterSet"),
+            signature_interface: extract_string(&obj, "signatureInterface"),
+            pre_hash:            extract_string(&obj, "preHash"),
+            external_mu:         extract_bool(&obj, "externalMu").unwrap_or(false),
+            hash_alg:            extract_string(&obj, "hashAlg"),
+            reason:              extract_string(&obj, "reason"),
+            pk:                  hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            signature:           hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
+            message:             extract_optional_hex(&obj, "message"),
+            mu:                  extract_optional_hex(&obj, "mu"),
+            context:             extract_optional_hex(&obj, "context"),
+        })
+        .collect()
 }
