@@ -219,7 +219,7 @@ function compress(blockOffset: i32): void {
 	store32be(SHA256_H_OFFSET, 28, load32be(SHA256_H_OFFSET, 28) + h)
 }
 
-// ── FIPS 180-4 §5.3.3: Initial hash value H(0) ──────────────────────────────
+// ── FIPS 180-4 §5.3.3: SHA-256 initial hash value H(0) ──────────────────────
 // H[i] = floor(sqrt(prime[i+1])) × 2^32  (first 8 primes starting from 2)
 
 const H0: i32 = 0x6a09e667
@@ -231,20 +231,49 @@ const H5: i32 = 0x9b05688c
 const H6: i32 = 0x1f83d9ab
 const H7: i32 = 0x5be0cd19
 
+// ── FIPS 180-4 §5.3.2: SHA-224 initial hash value H(0) ──────────────────────
+// Eight 32-bit words read directly from FIPS 180-4 §5.3.2.
+
+const SHA224_H0: i32 = 0xc1059ed8
+const SHA224_H1: i32 = 0x367cd507
+const SHA224_H2: i32 = 0x3070dd17
+const SHA224_H3: i32 = 0xf70e5939
+const SHA224_H4: i32 = 0xffc00b31
+const SHA224_H5: i32 = 0x68581511
+const SHA224_H6: i32 = 0x64f98fa7
+const SHA224_H7: i32 = 0xbefa4fa4
+
+// ── Internal: load IVs and reset streaming state ────────────────────────────
+
+function loadIVs256(
+	h0: i32, h1: i32, h2: i32, h3: i32,
+	h4: i32, h5: i32, h6: i32, h7: i32,
+): void {
+	store32be(SHA256_H_OFFSET,  0, h0)
+	store32be(SHA256_H_OFFSET,  4, h1)
+	store32be(SHA256_H_OFFSET,  8, h2)
+	store32be(SHA256_H_OFFSET, 12, h3)
+	store32be(SHA256_H_OFFSET, 16, h4)
+	store32be(SHA256_H_OFFSET, 20, h5)
+	store32be(SHA256_H_OFFSET, 24, h6)
+	store32be(SHA256_H_OFFSET, 28, h7)
+	store<i32>(SHA256_PARTIAL_OFFSET, 0)
+	store<i64>(SHA256_TOTAL_OFFSET,   0)
+}
+
 // ── Public API ──────────────────────────────────────────────────────────────
 
 // Initialize SHA-256 state. Must be called before sha256Update / sha256Final.
 export function sha256Init(): void {
-	store32be(SHA256_H_OFFSET,  0, H0)
-	store32be(SHA256_H_OFFSET,  4, H1)
-	store32be(SHA256_H_OFFSET,  8, H2)
-	store32be(SHA256_H_OFFSET, 12, H3)
-	store32be(SHA256_H_OFFSET, 16, H4)
-	store32be(SHA256_H_OFFSET, 20, H5)
-	store32be(SHA256_H_OFFSET, 24, H6)
-	store32be(SHA256_H_OFFSET, 28, H7)
-	store<i32>(SHA256_PARTIAL_OFFSET, 0)
-	store<i64>(SHA256_TOTAL_OFFSET, 0)
+	loadIVs256(H0, H1, H2, H3, H4, H5, H6, H7)
+}
+
+// Initialize SHA-224 state. SHA-224 shares all SHA-256 buffers and round logic
+// per FIPS 180-4 §6.3 — only the IVs differ. Output is the leftmost 28 bytes
+// of SHA256_OUT_OFFSET; the TS-side caller slices [0..28).
+export function sha224Init(): void {
+	loadIVs256(SHA224_H0, SHA224_H1, SHA224_H2, SHA224_H3,
+	           SHA224_H4, SHA224_H5, SHA224_H6, SHA224_H7)
 }
 
 // Hash len bytes from SHA256_INPUT_OFFSET into the running state.
@@ -319,4 +348,14 @@ export function sha256Hash(len: i32): void {
 	sha256Init()
 	sha256Update(len)
 	sha256Final()
+}
+
+// SHA-224 final: same padding as SHA-256 (the round function is identical
+// per FIPS 180-4 §6.3), output is the first 28 bytes of SHA256_OUT_OFFSET.
+// sha224Init() must have been called at the start.
+export function sha224Final(): void {
+	sha256Final()
+	// SHA256_OUT_OFFSET[0..27] is the SHA-224 digest (first 7 of 8 words).
+	// The trailing 4 bytes are derivable from the SHA-224 IV + message and
+	// are not secret — callers should read only [0..28).
 }

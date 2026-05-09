@@ -32,8 +32,11 @@ export {
 	getSha512TotalOffset,
 	getHmac512IpadOffset, getHmac512OpadOffset, getHmac512InnerOffset,
 } from './buffers'
-export { sha256Init, sha256Update, sha256Final, sha256Hash } from './sha256'
-export { sha512Init, sha384Init, sha512Update, sha512Final, sha384Final } from './sha512'
+export { sha256Init, sha256Update, sha256Final, sha256Hash,
+         sha224Init, sha224Final } from './sha256'
+export { sha512Init, sha384Init, sha512Update, sha512Final, sha384Final,
+         sha512_224Init, sha512_256Init,
+         sha512_224Final, sha512_256Final } from './sha512'
 export { hmac256Init, hmac256Update, hmac256Final } from './hmac'
 export { hmac512Init, hmac512Update, hmac512Final,
          hmac384Init, hmac384Update, hmac384Final } from './hmac512'

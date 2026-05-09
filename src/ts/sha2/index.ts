@@ -48,14 +48,20 @@ interface Sha2Exports {
 	getHmac512IpadOffset:  () => number;
 	getHmac512OpadOffset:  () => number;
 	getHmac512InnerOffset: () => number;
-	sha256Init:    () => void;
-	sha256Update:  (len: number) => void;
-	sha256Final:   () => void;
-	sha512Init:    () => void;
-	sha384Init:    () => void;
-	sha512Update:  (len: number) => void;
-	sha512Final:   () => void;
-	sha384Final:   () => void;
+	sha256Init:      () => void;
+	sha256Update:    (len: number) => void;
+	sha256Final:     () => void;
+	sha224Init:      () => void;
+	sha224Final:     () => void;
+	sha512Init:      () => void;
+	sha384Init:      () => void;
+	sha512_224Init:  () => void;
+	sha512_256Init:  () => void;
+	sha512Update:    (len: number) => void;
+	sha512Final:     () => void;
+	sha384Final:     () => void;
+	sha512_224Final: () => void;
+	sha512_256Final: () => void;
 	hmac256Init:   (keyLen: number) => void;
 	hmac256Update: (len: number) => void;
 	hmac256Final:  () => void;
@@ -146,6 +152,81 @@ export class SHA384 {
 		this.x.sha384Final();
 		const mem = new Uint8Array(this.x.memory.buffer);
 		return mem.slice(this.x.getSha512OutOffset(), this.x.getSha512OutOffset() + 48);
+	}
+
+	dispose(): void {
+		_assertNotOwned('sha2');
+		this.x.wipeBuffers();
+	}
+}
+
+// ── SHA224 ──────────────────────────────────────────────────────────────────
+// FIPS 180-4 §6.3 — SHA-256 round logic with the §5.3.2 IV; output is the
+// leftmost 224 bits (28 bytes) of the SHA-256 state.
+
+export class SHA224 {
+	private readonly x: Sha2Exports;
+	constructor() {
+		this.x = getExports();
+	}
+
+	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
+		this.x.sha224Init();
+		feedHash(this.x, msg, this.x.getSha256InputOffset(), 64, this.x.sha256Update);
+		this.x.sha224Final();
+		const mem = new Uint8Array(this.x.memory.buffer);
+		return mem.slice(this.x.getSha256OutOffset(), this.x.getSha256OutOffset() + 28);
+	}
+
+	dispose(): void {
+		_assertNotOwned('sha2');
+		this.x.wipeBuffers();
+	}
+}
+
+// ── SHA512_224 ──────────────────────────────────────────────────────────────
+// FIPS 180-4 §6.7.1 — SHA-512 round logic with the §5.3.6.1 IV; output is the
+// leftmost 224 bits (28 bytes) of the SHA-512 state.
+
+export class SHA512_224 {
+	private readonly x: Sha2Exports;
+	constructor() {
+		this.x = getExports();
+	}
+
+	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
+		this.x.sha512_224Init();
+		feedHash(this.x, msg, this.x.getSha512InputOffset(), 128, this.x.sha512Update);
+		this.x.sha512_224Final();
+		const mem = new Uint8Array(this.x.memory.buffer);
+		return mem.slice(this.x.getSha512OutOffset(), this.x.getSha512OutOffset() + 28);
+	}
+
+	dispose(): void {
+		_assertNotOwned('sha2');
+		this.x.wipeBuffers();
+	}
+}
+
+// ── SHA512_256 ──────────────────────────────────────────────────────────────
+// FIPS 180-4 §6.7.2 — SHA-512 round logic with the §5.3.6.2 IV; output is the
+// leftmost 256 bits (32 bytes) of the SHA-512 state.
+
+export class SHA512_256 {
+	private readonly x: Sha2Exports;
+	constructor() {
+		this.x = getExports();
+	}
+
+	hash(msg: Uint8Array): Uint8Array {
+		_assertNotOwned('sha2');
+		this.x.sha512_256Init();
+		feedHash(this.x, msg, this.x.getSha512InputOffset(), 128, this.x.sha512Update);
+		this.x.sha512_256Final();
+		const mem = new Uint8Array(this.x.memory.buffer);
+		return mem.slice(this.x.getSha512OutOffset(), this.x.getSha512OutOffset() + 32);
 	}
 
 	dispose(): void {

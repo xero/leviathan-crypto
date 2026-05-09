@@ -182,6 +182,215 @@ export const sha512Vectors: HashVector[] = [
 ];
 
 // ============================================================
+// SHA-224 — FIPS 180-4 §6.3 (SHA-256 round logic, §5.3.2 IV)
+// ============================================================
+
+/**
+ * SHA-224 test vectors. SHA-224 shares the SHA-256 round function and message
+ * schedule per FIPS 180-4 §6.3 — only the IV differs, and the output is
+ * truncated to 28 bytes. The "abc" digest is the NIST CSRC worked example
+ * (csrc.nist.gov "Examples with Intermediate Values" / SHA-224).
+ */
+export const sha224Vectors: HashVector[] = [
+	{
+		// Verified: echo -n "" | openssl dgst -sha224
+		description: 'empty message',
+		input: '',
+		inputText: '',
+		expected: 'd14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f',
+	},
+	{
+		// NIST CSRC "Examples with Intermediate Values" SHA-224 — "abc"
+		// Verified: printf 'abc' | openssl dgst -sha224
+		description: 'NIST worked example: "abc" (3 bytes)',
+		input: '616263',
+		inputText: 'abc',
+		expected: '23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7',
+	},
+	{
+		// FIPS 180-4 §B.2-style 448-bit (56-byte) message, SHA-224 IV
+		// Verified: python3 hashlib.sha224(msg).hexdigest()
+		description: '448-bit message (56 bytes, SHA-256 §B.2 input)',
+		input: '6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071',
+		inputText: 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',
+		expected: '75388b16512776cc5dba5da1fd890150b0c6455cb4f58b1952522525',
+	},
+	{
+		// 55 bytes — one byte short of SHA-256 padding boundary (55 + 1 + 8 = 64)
+		// Verified: python3 hashlib.sha224(b'a'*55).hexdigest()
+		description: 'boundary: 55 bytes (one short of padding boundary)',
+		input: '61'.repeat(55),
+		inputText: '"a" repeated 55 times',
+		expected: 'fb0bd626a70c28541dfa781bb5cc4d7d7f56622a58f01a0b1ddd646f',
+	},
+	{
+		// 56 bytes — at padding boundary, forces second block
+		// Verified: python3 hashlib.sha224(b'a'*56).hexdigest()
+		description: 'boundary: 56 bytes (at padding boundary — forces second block)',
+		input: '61'.repeat(56),
+		inputText: '"a" repeated 56 times',
+		expected: 'd40854fc9caf172067136f2e29e1380b14626bf6f0dd06779f820dcd',
+	},
+	{
+		// 64 bytes — one full SHA-256 block
+		// Verified: python3 hashlib.sha224(b'a'*64).hexdigest()
+		description: 'boundary: 64 bytes (one full block)',
+		input: '61'.repeat(64),
+		inputText: '"a" repeated 64 times',
+		expected: 'a88cd5cde6d6fe9136a4e58b49167461ea95d388ca2bdb7afdc3cbf4',
+	},
+	{
+		// Verified: printf 'The quick brown fox jumps over the lazy dog' | openssl dgst -sha224
+		description: 'pangram: "The quick brown fox..."',
+		input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67',
+		inputText: 'The quick brown fox jumps over the lazy dog',
+		expected: '730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525',
+	},
+];
+
+// ============================================================
+// SHA-512/224 — FIPS 180-4 §6.7.1 (SHA-512 round logic, §5.3.6.1 IV)
+// ============================================================
+
+/**
+ * SHA-512/224 test vectors. SHA-512/224 shares the SHA-512 round function and
+ * message schedule per FIPS 180-4 §6.7.1 — only the IV differs, and the
+ * output is truncated to 28 bytes. The "abc" digest is the NIST CSRC worked
+ * example (csrc.nist.gov "Examples with Intermediate Values" / SHA-512_224).
+ */
+export const sha512_224Vectors: HashVector[] = [
+	{
+		// Verified: echo -n "" | openssl dgst -sha512-224
+		description: 'empty message',
+		input: '',
+		inputText: '',
+		expected: '6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4',
+	},
+	{
+		// NIST CSRC "Examples with Intermediate Values" SHA-512_224 — "abc"
+		// Verified: printf 'abc' | openssl dgst -sha512-224
+		description: 'NIST worked example: "abc" (3 bytes)',
+		input: '616263',
+		inputText: 'abc',
+		expected: '4634270f707b6a54daae7530460842e20e37ed265ceee9a43e8924aa',
+	},
+	{
+		// FIPS 180-4 §C.2-style 896-bit (112-byte) message, SHA-512/224 IV
+		// Verified: python3 hashlib.new('sha512_224', msg).hexdigest()
+		description: '896-bit message (112 bytes, SHA-512 §C.2 input)',
+		input:
+			'61626364656667686263646566676869636465666768696a6465666768696a6b' +
+			'65666768696a6b6c666768696a6b6c6d6768696a6b6c6d6e68696a6b6c6d6e' +
+			'6f696a6b6c6d6e6f706a6b6c6d6e6f70716b6c6d6e6f7071726c6d6e6f7071' +
+			'72736d6e6f70717273746e6f707172737475',
+		inputText: 'abcdefghbcdefghi...nopqrstu (112 bytes)',
+		expected: '23fec5bb94d60b23308192640b0c453335d664734fe40e7268674af9',
+	},
+	{
+		// 111 bytes — one short of SHA-512 padding boundary (111 + 1 + 16 = 128)
+		// Verified: python3 hashlib.new('sha512_224', b'a'*111).hexdigest()
+		description: 'boundary: 111 bytes (one short of padding boundary)',
+		input: '61'.repeat(111),
+		inputText: '"a" repeated 111 times',
+		expected: '3ebe1b48e8c66acb9ae014db95b4bec93de7e9572bff41cf566bd7d0',
+	},
+	{
+		// 112 bytes — at padding boundary, forces second block
+		// Verified: python3 hashlib.new('sha512_224', b'a'*112).hexdigest()
+		description: 'boundary: 112 bytes (at padding boundary — forces second block)',
+		input: '61'.repeat(112),
+		inputText: '"a" repeated 112 times',
+		expected: '79b41fef2a0439d2705724a67615f7bcbcd2bf5664a7774b80818eb6',
+	},
+	{
+		// 128 bytes — one full SHA-512 block
+		// Verified: python3 hashlib.new('sha512_224', b'a'*128).hexdigest()
+		description: 'boundary: 128 bytes (one full block)',
+		input: '61'.repeat(128),
+		inputText: '"a" repeated 128 times',
+		expected: '261b94bcba554264b3b738e9e09e7dc68ac8e0b4c8517fe9bb7c3617',
+	},
+	{
+		// Verified: printf 'The quick brown fox jumps over the lazy dog' | openssl dgst -sha512-224
+		description: 'pangram: "The quick brown fox..."',
+		input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67',
+		inputText: 'The quick brown fox jumps over the lazy dog',
+		expected: '944cd2847fb54558d4775db0485a50003111c8e5daa63fe722c6aa37',
+	},
+];
+
+// ============================================================
+// SHA-512/256 — FIPS 180-4 §6.7.2 (SHA-512 round logic, §5.3.6.2 IV)
+// ============================================================
+
+/**
+ * SHA-512/256 test vectors. SHA-512/256 shares the SHA-512 round function and
+ * message schedule per FIPS 180-4 §6.7.2 — only the IV differs, and the
+ * output is truncated to 32 bytes. The "abc" digest is the NIST CSRC worked
+ * example (csrc.nist.gov "Examples with Intermediate Values" / SHA-512_256).
+ */
+export const sha512_256Vectors: HashVector[] = [
+	{
+		// Verified: echo -n "" | openssl dgst -sha512-256
+		description: 'empty message',
+		input: '',
+		inputText: '',
+		expected: 'c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a',
+	},
+	{
+		// NIST CSRC "Examples with Intermediate Values" SHA-512_256 — "abc"
+		// Verified: printf 'abc' | openssl dgst -sha512-256
+		description: 'NIST worked example: "abc" (3 bytes)',
+		input: '616263',
+		inputText: 'abc',
+		expected: '53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23',
+	},
+	{
+		// FIPS 180-4 §C.2-style 896-bit (112-byte) message, SHA-512/256 IV
+		// Verified: python3 hashlib.new('sha512_256', msg).hexdigest()
+		description: '896-bit message (112 bytes, SHA-512 §C.2 input)',
+		input:
+			'61626364656667686263646566676869636465666768696a6465666768696a6b' +
+			'65666768696a6b6c666768696a6b6c6d6768696a6b6c6d6e68696a6b6c6d6e' +
+			'6f696a6b6c6d6e6f706a6b6c6d6e6f70716b6c6d6e6f7071726c6d6e6f7071' +
+			'72736d6e6f70717273746e6f707172737475',
+		inputText: 'abcdefghbcdefghi...nopqrstu (112 bytes)',
+		expected: '3928e184fb8690f840da3988121d31be65cb9d3ef83ee6146feac861e19b563a',
+	},
+	{
+		// 111 bytes — one short of SHA-512 padding boundary
+		// Verified: python3 hashlib.new('sha512_256', b'a'*111).hexdigest()
+		description: 'boundary: 111 bytes (one short of padding boundary)',
+		input: '61'.repeat(111),
+		inputText: '"a" repeated 111 times',
+		expected: '0239e429f98d0ed61ee8e2a7c30afe98c1c3a80ce5dff62a107e9c538f7632ce',
+	},
+	{
+		// 112 bytes — at padding boundary, forces second block
+		// Verified: python3 hashlib.new('sha512_256', b'a'*112).hexdigest()
+		description: 'boundary: 112 bytes (at padding boundary — forces second block)',
+		input: '61'.repeat(112),
+		inputText: '"a" repeated 112 times',
+		expected: '9216b5303edb66504570bee90e48ea5beaa5e9fe9f760bbd3e0460559fc005f6',
+	},
+	{
+		// 128 bytes — one full SHA-512 block
+		// Verified: python3 hashlib.new('sha512_256', b'a'*128).hexdigest()
+		description: 'boundary: 128 bytes (one full block)',
+		input: '61'.repeat(128),
+		inputText: '"a" repeated 128 times',
+		expected: 'b88f97e274f9c1d49f181c8cbd01a9c74930ad055a46ac4499a1d601f1c80bf2',
+	},
+	{
+		// Verified: printf 'The quick brown fox jumps over the lazy dog' | openssl dgst -sha512-256
+		description: 'pangram: "The quick brown fox..."',
+		input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67',
+		inputText: 'The quick brown fox jumps over the lazy dog',
+		expected: 'dd9d67b371519c339ed8dbd25af90e976a1eeefd4ad3d889005e532fc5bef04d',
+	},
+];
+
+// ============================================================
 // SHA-384 — FIPS 180-4 Appendix D
 // ============================================================
 
@@ -460,6 +669,30 @@ export const sha384CrossCheck: CrossCheckVector[] = [
 	{ description: 'empty',  input: '',              expected: '38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b' },
 	{ description: '"abc"',  input: '616263',         expected: 'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7' },
 	{ description: 'fox',    input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: 'ca737f1014a48f4c0b6dd43cb177b0afd9e5169367544c494011e3317dbf9a509cb1e5dc1e85a941bbee3d7f2afbc9b1' },
+];
+
+// Verified: openssl dgst -sha224 / python3 hashlib.sha224
+export const sha224CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: 'd14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f' },
+	{ description: '"abc"',   input: '616263',         expected: '23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: '730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: '2559984fd15e055f0d84c346483508242f02653ab7956401e551511c' },
+];
+
+// Verified: openssl dgst -sha512-224 / python3 hashlib.new('sha512_224')
+export const sha512_224CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: '6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4' },
+	{ description: '"abc"',   input: '616263',         expected: '4634270f707b6a54daae7530460842e20e37ed265ceee9a43e8924aa' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: '944cd2847fb54558d4775db0485a50003111c8e5daa63fe722c6aa37' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: '230fd37b82564b0c3b19d2cf19f91b297a4aca0124b4b691ccee1870' },
+];
+
+// Verified: openssl dgst -sha512-256 / python3 hashlib.new('sha512_256')
+export const sha512_256CrossCheck: CrossCheckVector[] = [
+	{ description: 'empty',   input: '',              expected: 'c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a' },
+	{ description: '"abc"',   input: '616263',         expected: '53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23' },
+	{ description: 'fox',     input: '54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67', expected: 'dd9d67b371519c339ed8dbd25af90e976a1eeefd4ad3d889005e532fc5bef04d' },
+	{ description: '"a"×200', input: '61'.repeat(200), expected: '19b1e37317d7fd3d7651f397005e31f154ef4912d1345743d2d5889aaca28996' },
 ];
 
 // key: 0x42 × 32  msg: UTF-8 'leviathan cross-check message'

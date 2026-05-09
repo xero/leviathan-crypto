@@ -137,9 +137,12 @@ Subpath: `leviathan-crypto/sha2`. See [sha2.md](./sha2.md).
 | Export | Kind | Description |
 |--------|------|-------------|
 | `sha2Init` | function | Module-scoped init. `sha2Init(source: WasmSource)` loads only sha2. |
+| `SHA224` | class | SHA-224 hash (FIPS 180-4 §6.3, §5.3.2 IV). `hash(msg)` returns 28 bytes. |
 | `SHA256` | class | SHA-256 hash (FIPS 180-4). `hash(msg)` returns 32 bytes. |
 | `SHA384` | class | SHA-384 hash (FIPS 180-4). `hash(msg)` returns 48 bytes. |
 | `SHA512` | class | SHA-512 hash (FIPS 180-4). `hash(msg)` returns 64 bytes. |
+| `SHA512_224` | class | SHA-512/224 hash (FIPS 180-4 §6.7.1, §5.3.6.1 IV). `hash(msg)` returns 28 bytes. |
+| `SHA512_256` | class | SHA-512/256 hash (FIPS 180-4 §6.7.2, §5.3.6.2 IV). `hash(msg)` returns 32 bytes. |
 | `HMAC_SHA256` | class | HMAC-SHA256 (RFC 2104). `hash(key, msg)` returns 32 bytes. |
 | `HMAC_SHA384` | class | HMAC-SHA384 (RFC 2104). `hash(key, msg)` returns 48 bytes. |
 | `HMAC_SHA512` | class | HMAC-SHA512 (RFC 2104). `hash(key, msg)` returns 64 bytes. |

@@ -25,9 +25,9 @@ The module provides:
 
 | Algorithm   | Standard        | Digest Size | Block Size |
 |-------------|-----------------|-------------|------------|
-| SHA-256     | FIPS 180-4 S6.2 | 32 bytes    | 64 bytes   |
-| SHA-512     | FIPS 180-4 S6.4 | 64 bytes    | 128 bytes  |
-| SHA-384     | FIPS 180-4 S6.5 | 48 bytes    | 128 bytes  |
+| SHA-256     | FIPS 180-4 §6.2 | 32 bytes    | 64 bytes   |
+| SHA-512     | FIPS 180-4 §6.4 | 64 bytes    | 128 bytes  |
+| SHA-384     | FIPS 180-4 §6.5 | 48 bytes    | 128 bytes  |
 | HMAC-SHA256 | RFC 2104        | 32 bytes    | 64 bytes   |
 | HMAC-SHA512 | RFC 2104        | 64 bytes    | 128 bytes  |
 | HMAC-SHA384 | RFC 2104        | 48 bytes    | 128 bytes  |
@@ -95,7 +95,7 @@ sha256Init(): void
 ```
 
 Initialize SHA-256 state. Loads the eight initial hash values H0..H7
-(FIPS 180-4 S5.3.3) into `SHA256_H_OFFSET` and zeroes the partial block
+(FIPS 180-4 §5.3.3) into `SHA256_H_OFFSET` and zeroes the partial block
 length and total byte counter. Must be called before `sha256Update`.
 
 ```
@@ -113,7 +113,7 @@ full block is ready, the compression function runs.
 sha256Final(): void
 ```
 
-Apply FIPS 180-4 S5.1.1 padding (append `0x80`, zero-pad, append 64-bit
+Apply FIPS 180-4 §5.1.1 padding (append `0x80`, zero-pad, append 64-bit
 big-endian bit length), compress the final block(s), and write the
 32-byte digest to `SHA256_OUT_OFFSET`. If the padding does not fit in
 the current block (partial length > 55 after appending `0x80`), an
@@ -131,6 +131,28 @@ the 64-byte input staging buffer (`len` <= 64). Write input to
 
 ---
 
+### SHA-224
+
+```
+sha224Init(): void
+```
+
+Initialize SHA-224 state. Loads the eight initial hash values H0..H7
+(FIPS 180-4 §5.3.2) into `SHA256_H_OFFSET` and zeroes the partial block
+length and total byte counter. SHA-224 shares the SHA-256 round function
+and message schedule per FIPS 180-4 §6.3 — only the IVs differ. Use
+`sha256Update` for input.
+
+```
+sha224Final(): void
+```
+
+Calls `sha256Final()` internally. The 28-byte SHA-224 digest is the
+first 28 bytes of `SHA256_OUT_OFFSET` (the first 7 of 8 32-bit hash
+words). Read only bytes [0..27].
+
+---
+
 ### SHA-512
 
 ```
@@ -138,7 +160,7 @@ sha512Init(): void
 ```
 
 Initialize SHA-512 state. Loads the eight 64-bit initial hash values
-(FIPS 180-4 S5.3.5) into `SHA512_H_OFFSET` and zeroes the partial block
+(FIPS 180-4 §5.3.5) into `SHA512_H_OFFSET` and zeroes the partial block
 length and total byte counter.
 
 ```
@@ -146,7 +168,7 @@ sha384Init(): void
 ```
 
 Initialize SHA-384 state. Loads the SHA-384 initial hash values (FIPS
-180-4 S5.3.4) into `SHA512_H_OFFSET`. All SHA-512 buffers and
+180-4 §5.3.4) into `SHA512_H_OFFSET`. All SHA-512 buffers and
 compression logic are shared. Only the IVs differ. Call
 `sha384Final()` (not `sha512Final()`) to get the correct 48-byte output.
 
@@ -162,7 +184,7 @@ same update function and block buffer.
 sha512Final(): void
 ```
 
-Apply FIPS 180-4 S5.1.2 padding (append `0x80`, zero-pad, append
+Apply FIPS 180-4 §5.1.2 padding (append `0x80`, zero-pad, append
 128-bit big-endian bit length), compress the final block(s), and write
 the 64-byte digest to `SHA512_OUT_OFFSET`. The padding threshold is
 byte 112 (if partial > 112 after `0x80`, an extra block is compressed).
@@ -174,6 +196,38 @@ sha384Final(): void
 Calls `sha512Final()` internally. The 48-byte SHA-384 digest is the
 first 48 bytes of `SHA512_OUT_OFFSET` (the first 6 of 8 64-bit hash
 words). Read only bytes [0..47].
+
+```
+sha512_224Init(): void
+```
+
+Initialize SHA-512/224 state. Loads the eight 64-bit initial hash
+values (FIPS 180-4 §5.3.6.1) into `SHA512_H_OFFSET`. SHA-512/224 shares
+the SHA-512 round function and message schedule per FIPS 180-4 §6.7.1 —
+only the IVs differ. Use `sha512Update` for input.
+
+```
+sha512_224Final(): void
+```
+
+Calls `sha512Final()` internally. The 28-byte SHA-512/224 digest is the
+first 28 bytes of `SHA512_OUT_OFFSET`. Read only bytes [0..27].
+
+```
+sha512_256Init(): void
+```
+
+Initialize SHA-512/256 state. Loads the eight 64-bit initial hash
+values (FIPS 180-4 §5.3.6.2) into `SHA512_H_OFFSET`. SHA-512/256 shares
+the SHA-512 round function and message schedule per FIPS 180-4 §6.7.2 —
+only the IVs differ. Use `sha512Update` for input.
+
+```
+sha512_256Final(): void
+```
+
+Calls `sha512Final()` internally. The 32-byte SHA-512/256 digest is the
+first 32 bytes of `SHA512_OUT_OFFSET`. Read only bytes [0..31].
 
 ---
 
@@ -406,14 +460,14 @@ query buffer positions at runtime. Also exports `getModuleId()` (returns
 
 ---
 
-### sha256.ts: SHA-256 (FIPS 180-4 S6.2)
+### sha256.ts: SHA-256 (FIPS 180-4 §6.2)
 
 Implements the complete SHA-256 algorithm:
 
-- **Round constants** K[0..63] (FIPS 180-4 S4.2.2): 64 `i32` constants
+- **Round constants** K[0..63] (FIPS 180-4 §4.2.2): 64 `i32` constants
   derived from the cube roots of the first 64 primes. Accessed via an
   inlined `kAt(t)` switch table.
-- **Functions** (FIPS 180-4 S4.1.2): `Ch(x,y,z)`, `Maj(x,y,z)`,
+- **Functions** (FIPS 180-4 §4.1.2): `Ch(x,y,z)`, `Maj(x,y,z)`,
   big-sigma `bSig0`/`bSig1` (rotation amounts 2/13/22 and 6/11/25),
   small-sigma `sSig0`/`sSig1` (rotation amounts 7/18/SHR3 and
   17/19/SHR10). All `@inline`.
@@ -423,7 +477,7 @@ Implements the complete SHA-256 algorithm:
   Expands W[0..15] from the block, extends W[16..63] via sigma
   functions, runs 64 rounds, and adds the working variables back into
   the hash state.
-- **Initial hash values** H0..H7 (FIPS 180-4 S5.3.3): derived from the
+- **Initial hash values** H0..H7 (FIPS 180-4 §5.3.3): derived from the
   square roots of the first 8 primes.
 - **Streaming API**: `sha256Init` loads IVs and zeroes counters.
   `sha256Update` accumulates bytes in the block buffer and compresses
@@ -432,13 +486,13 @@ Implements the complete SHA-256 algorithm:
 
 ---
 
-### sha512.ts: SHA-512 and SHA-384 (FIPS 180-4 S6.4, S6.5)
+### sha512.ts: SHA-512 and SHA-384 (FIPS 180-4 §6.4, §6.5)
 
 Implements SHA-512 with SHA-384 as a variant:
 
-- **Round constants** K[0..79] (FIPS 180-4 S4.2.3): 80 `i64` constants derived
+- **Round constants** K[0..79] (FIPS 180-4 §4.2.3): 80 `i64` constants derived
   from the cube roots of the first 80 primes.
-- **Functions** (FIPS 180-4 S4.1.3): same structure as SHA-256 but with 64-bit
+- **Functions** (FIPS 180-4 §4.1.3): same structure as SHA-256 but with 64-bit
   operands and different rotation amounts. Sigma0(28/34/39), Sigma1(14/18/41),
   sigma0(1/8/SHR7), sigma1(19/61/SHR6). These are NOT the same as SHA-256
   rotation amounts. The source includes a warning about this.
@@ -451,7 +505,7 @@ Implements SHA-512 with SHA-384 as a variant:
 - **SHA-384 differences**: `sha384Init()` loads SHA-384 IVs. `sha384Final()`
   calls `sha512Final()`. You read only the first 48 bytes of the 64-byte
   output. There is no separate SHA-384 compression or update function.
-- **Padding** (FIPS 180-4 S5.1.2): 0x80 byte, zero-padding, 128-bit big-endian
+- **Padding** (FIPS 180-4 §5.1.2): 0x80 byte, zero-padding, 128-bit big-endian
   bit length at the end of the final block. The threshold is byte 112 (vs. 56
   for SHA-256) due to the 16-byte length field.
 
