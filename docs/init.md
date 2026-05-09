@@ -54,7 +54,7 @@ auditable.
 ### Types
 
 ```typescript
-type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber'
+type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa'
 ```
 
 The WASM module families. Each one backs a group of related classes.
@@ -71,8 +71,10 @@ The WASM module families. Each one backs a group of related classes.
 | `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
 | `'sha3'` / `'keccak'` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
-| `'kyber'` | `MlKem512`, `MlKem768`, `MlKem1024` (also requires `'sha3'`) — see [kyber.md](./kyber.md) |
-| `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024` — see [kyber.md](./kyber.md) |
+| `'kyber'` + `'sha3'` | `MlKem512`, `MlKem768`, `MlKem1024` — see [kyber.md](./kyber.md) |
+| `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite` (hybrid KEM+AEAD factory) — see [kyber.md](./kyber.md) |
+| `'mldsa'` + `'sha3'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash) — see [mldsa.md](./mldsa.md) |
+| `'mldsa'` + `'sha3'` + `'sha2'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash; sha2 only required when `ph` is `'SHA2-*'`) |
 
 ```typescript
 type WasmSource = string | URL | ArrayBuffer | Uint8Array
@@ -128,6 +130,7 @@ async function sha2Init(source: WasmSource): Promise<void>
 async function sha3Init(source: WasmSource): Promise<void>
 async function keccakInit(source: WasmSource): Promise<void>
 async function kyberInit(source: WasmSource): Promise<void>
+async function mldsaInit(source: WasmSource): Promise<void>
 ```
 
 Each function initializes only its own WASM module, keeping other modules out
@@ -149,6 +152,7 @@ ready-to-use `WasmSource`:
 | `leviathan-crypto/sha3/embedded` | `sha3Wasm` |
 | `leviathan-crypto/keccak/embedded` | `keccakWasm` |
 | `leviathan-crypto/kyber/embedded` | `kyberWasm` |
+| `leviathan-crypto/mldsa/embedded` | `mldsaWasm` |
 
 `keccakWasm` and `sha3Wasm` are the same gzip+base64 blob. Both point to `sha3.wasm`.
 
@@ -157,6 +161,21 @@ ready-to-use `WasmSource`:
 > (or `keccak`) to be initialized. The kyber module handles polynomial arithmetic.
 > The sha3 module provides the Keccak sponge operations used for key generation
 > and encapsulation.
+
+> [!NOTE]
+> `MlDsa44`, `MlDsa65`, and `MlDsa87` require both `mldsa` and `sha3` to be
+> initialized. The mldsa module handles polynomial arithmetic, NTT, and
+> rejection sampling. The sha3 module provides SHAKE128 (matrix expansion),
+> SHAKE256 (noise expansion, masking, message representative, SampleInBall),
+> and the SHA-3 fixed-output digests for HashML-DSA pre-hash.
+>
+> `sha2` is additionally required only when calling `signHash` /
+> `verifyHash` with a SHA-2 family pre-hash (`'SHA2-224'`, `'SHA2-256'`,
+> `'SHA2-384'`, `'SHA2-512'`, `'SHA2-512/224'`, `'SHA2-512/256'`).
+> Pure ML-DSA and HashML-DSA with SHA-3 or SHAKE pre-hashes work with just
+> `init({ mldsa, sha3 })`. Calling a SHA-2 pre-hash without sha2 initialized
+> throws a clear error rather than silently misbehaving. See
+> [mldsa.md](./mldsa.md).
 
 ---
 
@@ -175,28 +194,31 @@ both `init.ts` and the root barrel.
 
 ---
 
-#### getInstance()
+#### getInstance() `@internal`
 
 ```typescript
 function getInstance(mod: Module): WebAssembly.Instance
 ```
 
 Returns the cached WebAssembly instance for a module. Used internally by
-wrapper classes. You do not normally need to call this yourself.
+wrapper classes. **Not exported from the `leviathan-crypto` root barrel** —
+the wrapper classes consume it directly within the package. Documented here
+for completeness; consumers do not normally need to call it.
 
 Throws `'leviathan-crypto: call init({ <mod>: ... }) before using this class'`
 if the module has not been initialized.
 
 ---
 
-#### compileWasm()
+#### compileWasm() `@internal`
 
 ```typescript
 async function compileWasm(source: WasmSource): Promise<WebAssembly.Module>
 ```
 
 Compiles a `WasmSource` to a `WebAssembly.Module` without instantiating it.
-Used by pool infrastructure to send compiled modules to workers. See
+Used by pool infrastructure to send compiled modules to workers. **Not
+exported from the `leviathan-crypto` root barrel.** See
 [loader.md](./loader.md) for details.
 
 ---
