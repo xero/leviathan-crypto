@@ -214,22 +214,26 @@ Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
 
 ## ML-DSA (Post-quantum signatures)
 
-Requires `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`.
+Requires `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`. HashML-DSA with a
+SHA-2 family pre-hash additionally requires `init({ sha2: sha2Wasm })`;
+SHA-3 / SHAKE pre-hashes reuse the existing `sha3` module.
 Subpath: `leviathan-crypto/mldsa`. See [mldsa.md](./mldsa.md).
 
-Phase 5 ships pure ML-DSA `keygen` / `keygenDerand` / `sign` /
-`signDeterministic` / `signDerand` / `verify`. HashML-DSA (FIPS 204 §5.4)
-is a separate phase.
+ML-DSA classes ship pure-ML-DSA `keygen` / `keygenDerand` / `sign` /
+`signDeterministic` / `signDerand` / `verify` and the HashML-DSA pre-hash
+counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
+`verifyHash` (FIPS 204 §5.4 Algorithms 4 & 5).
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
 | `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly — use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
-| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `dispose()`. |
+| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `dispose()`. |
 | `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
 | `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
 | `MlDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 204 pkEncode / skEncode). |
 | `MlDsaParams` | type | Parameter-set configuration (k, ℓ, η, τ, λ, γ₁, γ₂, ω, β, byte sizes). |
+| `PreHashAlgorithm` | type | Tagged union of approved HashML-DSA pre-hash functions: `'SHA2-224'`, `'SHA2-256'`, `'SHA2-384'`, `'SHA2-512'`, `'SHA2-512/224'`, `'SHA2-512/256'`, `'SHA3-224'`, `'SHA3-256'`, `'SHA3-384'`, `'SHA3-512'`, `'SHAKE128'`, `'SHAKE256'`. SHAKE128 is fixed at 256-bit / SHAKE256 at 512-bit output per FIPS 204 §5.4.1. |
 | `MLDSA44` | const | Parameter set for ML-DSA-44. |
 | `MLDSA65` | const | Parameter set for ML-DSA-65. |
 | `MLDSA87` | const | Parameter set for ML-DSA-87. |

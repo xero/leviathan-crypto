@@ -433,6 +433,68 @@ assurance) for different security/size trade-offs.
 verifying with a different ctx returns false. Use ctx for protocol
 domain-separation (e.g. application label, key purpose).
 
+### HashML-DSA — pre-hash variant (FIPS 204 §5.4)
+
+The pre-hash variant signs `H(M)` with an explicit hash-function OID
+bound into `M'`. Use when you cannot stream `M` into a single buffer
+before signing, or a protocol identifier prescribes a specific digest.
+
+```typescript
+import { init, MlDsa65 } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
+
+// SHA-2 prehash → all three modules required.
+// SHA3-* / SHAKE prehash needs only mldsa + sha3.
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm })
+
+const dsa = new MlDsa65()
+const { signingKey, verificationKey } = dsa.keygen()
+
+const sig = dsa.signHash(signingKey, message, 'SHA2-256', ctx)
+const ok  = dsa.verifyHash(verificationKey, message, sig, 'SHA2-256', ctx)
+
+dsa.dispose()
+```
+
+`ph` is one of the 12 approved FIPS 204 §5.4.1 functions:
+`'SHA2-224' | 'SHA2-256' | 'SHA2-384' | 'SHA2-512' |
+'SHA2-512/224' | 'SHA2-512/256' | 'SHA3-224' | 'SHA3-256' | 'SHA3-384' |
+'SHA3-512' | 'SHAKE128' | 'SHAKE256'`. SHAKE128 produces 32 bytes,
+SHAKE256 produces 64 bytes (FIPS 204 §5.4.1).
+
+`signHash`, `signHashDeterministic`, `signHashDerand`, and `verifyHash`
+mirror the pure-ML-DSA shape with `ph` placed immediately after the
+message bytes (or signature, for verify). `ctx` trails as an optional
+parameter so the common case `dsa.signHash(sk, M, ph)` reads cleanly.
+Their hedged / deterministic / derand semantics are identical to `sign`
+/ `signDeterministic` / `signDerand`.
+
+> [!CAUTION]
+> **Pure-ML-DSA and HashML-DSA signatures are NOT interchangeable** even
+> on the same key. The M' construction binds a different domain-sep byte
+> (0x00 vs 0x01 — FIPS 204 §3.6.4) to prevent cross-protocol forgeries.
+>
+> ```typescript
+> const sig = dsa.sign(sk, M)              // pure
+> dsa.verifyHash(vk, M, sig, 'SHA2-256')   // ALWAYS false
+>
+> const sigH = dsa.signHash(sk, M, 'SHA2-256')
+> dsa.verify(vk, M, sigH)                  // ALWAYS false
+> ```
+>
+> Treat `sign` / `verify` and `signHash` / `verifyHash` as distinct
+> signature schemes that share a key format. Choose one per protocol and
+> stay consistent.
+
+> [!NOTE]
+> **`sha2` init is required only for the SHA-2 family pre-hashes.** Pure
+> ML-DSA usage and HashML-DSA with SHA3-* / SHAKE pre-hashes work with
+> just `init({ mldsa, sha3 })`. Calling `signHash` / `verifyHash` with a
+> SHA-2 algorithm without sha2 initialized throws a clear error rather
+> than silently mis-signing.
+
 ### Fortuna CSPRNG
 
 `Fortuna.create()` requires explicit `generator` and `hash` parameters. There are no defaults.

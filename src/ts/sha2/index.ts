@@ -26,53 +26,15 @@
 
 import { getInstance, initModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
+import type { Sha2Exports } from './types.js';
 
 export async function sha2Init(source: WasmSource): Promise<void> {
 	return initModule('sha2', source);
 }
 
 export type { WasmSource };
+export type { Sha2Exports };
 export { isInitialized } from '../init.js';
-
-interface Sha2Exports {
-	memory:              WebAssembly.Memory;
-	getSha256InputOffset:  () => number;
-	getSha256OutOffset:    () => number;
-	getSha256HOffset:      () => number;
-	getSha512InputOffset:  () => number;
-	getSha512OutOffset:    () => number;
-	getSha512HOffset:      () => number;
-	getHmac256IpadOffset:  () => number;
-	getHmac256OpadOffset:  () => number;
-	getHmac256InnerOffset: () => number;
-	getHmac512IpadOffset:  () => number;
-	getHmac512OpadOffset:  () => number;
-	getHmac512InnerOffset: () => number;
-	sha256Init:      () => void;
-	sha256Update:    (len: number) => void;
-	sha256Final:     () => void;
-	sha224Init:      () => void;
-	sha224Final:     () => void;
-	sha512Init:      () => void;
-	sha384Init:      () => void;
-	sha512_224Init:  () => void;
-	sha512_256Init:  () => void;
-	sha512Update:    (len: number) => void;
-	sha512Final:     () => void;
-	sha384Final:     () => void;
-	sha512_224Final: () => void;
-	sha512_256Final: () => void;
-	hmac256Init:   (keyLen: number) => void;
-	hmac256Update: (len: number) => void;
-	hmac256Final:  () => void;
-	hmac512Init:   (keyLen: number) => void;
-	hmac512Update: (len: number) => void;
-	hmac512Final:  () => void;
-	hmac384Init:   (keyLen: number) => void;
-	hmac384Update: (len: number) => void;
-	hmac384Final:  () => void;
-	wipeBuffers:   () => void;
-}
 
 function getExports(): Sha2Exports {
 	return getInstance('sha2').exports as unknown as Sha2Exports;

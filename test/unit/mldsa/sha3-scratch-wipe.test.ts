@@ -36,10 +36,12 @@ import { init, MlDsa44, MlDsa65, MlDsa87 } from '../../../src/ts/index.js';
 import { _resetForTesting, getInstance } from '../../../src/ts/init.js';
 import { mldsaWasm } from '../../../src/ts/mldsa/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 
 beforeAll(async () => {
 	_resetForTesting();
-	await init({ mldsa: mldsaWasm, sha3: sha3Wasm });
+	// sha2 is required for HashML-DSA SHA-2-prehash variants exercised below.
+	await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm });
 });
 
 // sha3 buffer layout — src/asm/sha3/buffers.ts
@@ -186,6 +188,65 @@ describe('sha3 scratch wiped after every public mldsa op', () => {
 		const msg = new Uint8Array([21, 22]);
 		const sig = dsa.sign(signingKey, msg);
 		dsa.verify(verificationKey, msg, sig);
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	// ── Phase-6: HashML-DSA cross-module wipes ──────────────────────────────
+	// SHA-3 and SHAKE prehash directly drive the sha3 module before
+	// mldsaSignInternal runs; sha3 STATE/INPUT/OUT must still be clean
+	// after the public op returns. SHA-2 prehash leaves sha3 untouched
+	// during the prehash phase, then mldsa drives sha3 normally.
+
+	it('MlDsa44.signHash(... SHA3-256) → sha3 zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.signHash(signingKey, new Uint8Array([1, 2, 3]), 'SHA3-256');
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.signHash(... SHAKE128) → sha3 zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.signHash(signingKey, new Uint8Array([4, 5, 6]), 'SHAKE128');
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.signHash(... SHAKE256) → sha3 zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.signHash(signingKey, new Uint8Array([7, 8, 9]), 'SHAKE256');
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.signHash(... SHA2-256) → sha3 zero', () => {
+		const dsa = new MlDsa44();
+		const { signingKey } = dsa.keygen();
+		dsa.signHash(signingKey, new Uint8Array([10, 11, 12]), 'SHA2-256');
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.verifyHash(... SHA3-512) success path → sha3 zero', () => {
+		const dsa = new MlDsa44();
+		const { verificationKey, signingKey } = dsa.keygen();
+		const msg = new Uint8Array([13, 14]);
+		const sig = dsa.signHash(signingKey, msg, 'SHA3-512');
+		expect(dsa.verifyHash(verificationKey, msg, sig, 'SHA3-512')).toBe(true);
+		expectSha3ScratchZero();
+		dsa.dispose();
+	});
+
+	it('MlDsa44.verifyHash(... SHA2-512) failure path → sha3 zero', () => {
+		const dsa = new MlDsa44();
+		const { verificationKey, signingKey } = dsa.keygen();
+		const msg = new Uint8Array([15, 16]);
+		const sig = dsa.signHash(signingKey, msg, 'SHA2-512');
+		sig[0] ^= 1;
+		expect(dsa.verifyHash(verificationKey, msg, sig, 'SHA2-512')).toBe(false);
 		expectSha3ScratchZero();
 		dsa.dispose();
 	});

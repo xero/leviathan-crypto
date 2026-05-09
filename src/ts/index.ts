@@ -87,7 +87,7 @@ export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from 
 export { aesInit, AES, AESCbc, AESCtr, AESGCM, AESGCMSIV, AESGenerator, AESGCMSIVCipher } from './aes/index.js';
 export { mldsaInit, MlDsa44, MlDsa65, MlDsa87, MlDsaBase, MLDSA44, MLDSA65, MLDSA87 } from './mldsa/index.js';
 export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
-export type { MlDsaKeyPair, MlDsaParams } from './mldsa/index.js';
+export type { MlDsaKeyPair, MlDsaParams, PreHashAlgorithm } from './mldsa/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';
 export { Fortuna } from './fortuna.js';

@@ -50,3 +50,25 @@ export function constructMPrime(domSep: number, ctx: Uint8Array, M: Uint8Array):
 	out.set(M, 2 + ctx.length);
 	return out;
 }
+
+/**
+ * Build the HashML-DSA M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID ‖ PH_M.
+ *
+ * FIPS 204 §5.4 / Algorithm 4 line 23 (sign) and Algorithm 5 line 18 (verify).
+ * The leading byte is 0x01 (vs 0x00 for pure ML-DSA) — domain separation
+ * across pure / pre-hash modes per FIPS 204 §3.6.4. Caller has already
+ * validated ctx.length ≤ 255.
+ */
+export function constructMPrimeHash(
+	ctx:  Uint8Array,
+	oid:  Uint8Array,
+	PH_M: Uint8Array,
+): Uint8Array {
+	const out = new Uint8Array(2 + ctx.length + oid.length + PH_M.length);
+	out[0] = 0x01;
+	out[1] = ctx.length & 0xFF;
+	out.set(ctx,  2);
+	out.set(oid,  2 + ctx.length);
+	out.set(PH_M, 2 + ctx.length + oid.length);
+	return out;
+}
