@@ -10,6 +10,7 @@ module-lattice signature scheme.
 > - [Parameter Sets](#parameter-sets)
 > - [Init](#init)
 > - [MlDsa API](#mldsa-api)
+> - [HashML-DSA (Pre-Hash Variant)](#hashml-dsa-pre-hash-variant)
 > - [Validation Behavior](#validation-behavior)
 > - [Key & Signature Format](#key--signature-format)
 > - [Wipe Discipline](#wipe-discipline)
@@ -26,10 +27,10 @@ attack (EUF-CMA) holds even against adversaries with quantum computers. The
 hardness assumption is Module-Learning-With-Errors (M-LWE).
 
 This module exposes three classes — `MlDsa44`, `MlDsa65`, and `MlDsa87` —
-covering the three FIPS 204 parameter sets. Phase-5 of the v3 release ships
-key generation, pure ML-DSA signing (hedged, deterministic, externally-
-randomised), and verification. HashML-DSA (FIPS 204 §5.4) lands in a
-subsequent phase.
+covering the three FIPS 204 parameter sets. Each class supports both pure
+ML-DSA (FIPS 204 §5.2 / §5.3) and HashML-DSA (FIPS 204 §5.4 — pre-hash
+variant) across the three signing modes (hedged / deterministic /
+externally-randomised) plus their HashML-DSA counterparts.
 
 Verification against the full NIST ACVP corpora — 75 keyGen-FIPS204 vectors
 (25 per parameter set), 90 sigGen-FIPS204 external/pure tests, and 45
@@ -202,11 +203,65 @@ const ok = dsa.verify(verificationKey, message, sig, ctx)   // boolean
 caller-side contract violation. See [Validation Behavior](#validation-behavior)
 for the exact split.
 
+### `signHash(sk, M, ph, ctx?): Uint8Array`
+
+Hedged HashML-DSA sign — FIPS 204 §5.4 Algorithm 4. Pre-hashes `M` with the
+caller-selected approved function `ph`, builds
+`M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID(ph) ‖ PH_M`, and drives ML-DSA.Sign_internal
+with a fresh 32-byte rnd (same hedged-vs-deterministic rationale as
+[`sign`](#signsk-m-ctx-uint8array)).
+
+```typescript
+import { MlDsa65 } from 'leviathan-crypto'
+
+const dsa = new MlDsa65()
+const { signingKey, verificationKey } = dsa.keygen()
+const sig = dsa.signHash(signingKey, message, 'SHA2-256')
+const ok  = dsa.verifyHash(verificationKey, message, sig, 'SHA2-256')
+dsa.dispose()
+```
+
+`ph` is required and immediately follows the bytes it operates on (`M`
+for sign, `sig` for verify). The 12 approved §5.4.1 choices have no
+cryptographic priority, so callers must select one explicitly — there is
+no default. `ctx` trails as an optional parameter so the common-case
+empty-ctx call reads cleanly. See
+[Pre-Hash Algorithms](#pre-hash-algorithms) for the full list and module
+dependencies.
+
+### `signHashDeterministic(sk, M, ph, ctx?): Uint8Array`
+
+Deterministic HashML-DSA sign — FIPS 204 §5.4 Algorithm 4 with `rnd ← 0³²`.
+Same fault-attack caveat as
+[`signDeterministic`](#signdeterministicsk-m-ctx-uint8array).
+
+### `signHashDerand(sk, M, ph, ctx, rnd): Uint8Array`
+
+Externally-randomised HashML-DSA sign — testing / CAVP API. Caller supplies
+the 32-byte rnd; same contract as
+[`signDerand`](#signderandsk-m-ctx-rnd-uint8array). Used to oracle ACVP
+HashML-DSA sigGen vectors with byte-identical output.
+
+### `verifyHash(vk, M, sig, ph, ctx?): boolean`
+
+HashML-DSA verify — FIPS 204 §5.4 Algorithm 5. Same return / throw posture
+as [`verify`](#verifyvk-m-sig-ctx-boolean): `false` on any signature
+failure (wrong sig, malformed hint, length mismatch on `vk` / `sig`),
+`RangeError` only on caller-side contract violations such as
+`ctx.length > 255` or unsupported `ph`.
+
+> [!CAUTION]
+> **Pure-ML-DSA and HashML-DSA signatures are not interchangeable** even
+> on the same key, because the M' construction binds a different
+> domain-sep byte (FIPS 204 §3.6.4). A signature produced by `sign` will
+> NOT verify under `verifyHash` and vice versa. Treat the two as
+> separate signature schemes that happen to share a key format.
+
 ### `dispose(): void`
 
 Wipe all mldsa WASM scratch memory. Idempotent. Safe to call multiple times.
-Does not wipe sha3 scratch — every public op already does that under its own
-exclusivity guard.
+Does not wipe sha3 / sha2 scratch — every public op already does that under
+its own exclusivity guard before returning.
 
 ### Field: `params: MlDsaParams`
 
@@ -232,6 +287,114 @@ interface MlDsaParams {
 
 ---
 
+## HashML-DSA (Pre-Hash Variant)
+
+HashML-DSA — FIPS 204 §5.4 — wraps the same ML-DSA Sign_internal /
+Verify_internal primitives pure ML-DSA uses, but pre-hashes the message
+with a caller-selected approved function and prefixes M' with the
+function's OID DER bytes plus a different domain-sep byte. The four
+public methods [`signHash`](#signhashsk-m-ph-ctx-uint8array),
+[`signHashDeterministic`](#signhashdeterministicsk-m-ph-ctx-uint8array),
+[`signHashDerand`](#signhashderandsk-m-ph-ctx-rnd-uint8array), and
+[`verifyHash`](#verifyhashvk-m-sig-ph-ctx-boolean) match the shape of
+their pure counterparts with `ph: PreHashAlgorithm` placed immediately
+after the message bytes (or signature, for verify).
+
+Use HashML-DSA when:
+
+- The caller cannot stream the full message into a single `Uint8Array`
+  before signing (a hash digest is constant-size).
+- A protocol identifier prescribes a specific pre-hash function (e.g.
+  X.509 CMS / S/MIME signature suites identifying the digest by OID).
+- A FIPS 140 boundary forces the digest computation into a different
+  cryptographic module from ML-DSA itself — FIPS 204 §5.4 explicitly
+  permits this.
+
+Use pure ML-DSA otherwise: it offers a larger collision-resistance margin
+than any pre-hash function except SHA-512 / SHAKE256, and elides one
+hashing pass.
+
+### Pre-Hash Algorithms
+
+The 12 approved pre-hash functions (FIPS 204 §5.4.1) and the OID DER
+trailing arc on the shared 2.16.840.1.101.3.4.2.x branch:
+
+| `PreHashAlgorithm`  | OID arc | Output bytes | Required init |
+| ------------------- | ------- | ------------ | ------------------------- |
+| `'SHA2-224'`        | .04     | 28           | `init({ mldsa, sha3, sha2 })` |
+| `'SHA2-256'`        | .01     | 32           | `init({ mldsa, sha3, sha2 })` |
+| `'SHA2-384'`        | .02     | 48           | `init({ mldsa, sha3, sha2 })` |
+| `'SHA2-512'`        | .03     | 64           | `init({ mldsa, sha3, sha2 })` |
+| `'SHA2-512/224'`    | .05     | 28           | `init({ mldsa, sha3, sha2 })` |
+| `'SHA2-512/256'`    | .06     | 32           | `init({ mldsa, sha3, sha2 })` |
+| `'SHA3-224'`        | .07     | 28           | `init({ mldsa, sha3 })` |
+| `'SHA3-256'`        | .08     | 32           | `init({ mldsa, sha3 })` |
+| `'SHA3-384'`        | .09     | 48           | `init({ mldsa, sha3 })` |
+| `'SHA3-512'`        | .0A     | 64           | `init({ mldsa, sha3 })` |
+| `'SHAKE128'`        | .0B     | 32 (256-bit) | `init({ mldsa, sha3 })` |
+| `'SHAKE256'`        | .0C     | 64 (512-bit) | `init({ mldsa, sha3 })` |
+
+The leviathan-crypto `init({ ... })` cache validates `sha2` only when
+the caller actually uses a SHA-2 family pre-hash. Pure ML-DSA usage and
+SHA3-* / SHAKE-prehash HashML-DSA usage need only `init({ mldsa, sha3 })`.
+
+OID DER prefix: every entry is the 11-byte sequence
+`06 09 60 86 48 01 65 03 04 02 NN` — the first 10 bytes are
+`OBJECT IDENTIFIER (length 9) ‖ joint-iso-itu-t.country.us.organization
+.gov.csor.nistalgorithm.hashalgs`, and `NN` is the per-algorithm trailing
+arc above. Source: FIPS 204 Algorithm 4 lines 12, 15, 18 (SHA-256 .01,
+SHA-512 .03, SHAKE128 .0B); the remaining nine arcs are the matching
+NIST CSOR registrations on the same OID branch.
+
+### Domain Separation
+
+HashML-DSA uses `domSep = 0x01` in M' (`M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID ‖
+PH_M`), distinct from pure ML-DSA's `domSep = 0x00`. This prevents a
+cross-protocol attack where a forgery in one mode could transfer to the
+other on the same key (FIPS 204 §3.6.4). The two modes are NOT
+interchangeable — `verify()` will return `false` on the output of
+`signHash()` and vice versa.
+
+`ctx` is bound into M' alongside the OID and PH_M, but the caller's
+message `M` is **only** seen by the pre-hash function — `ctx` is NOT
+hashed. Use `ctx` for protocol-level domain separation (e.g. application
+label, key purpose) and treat it as a public, attacker-known input.
+
+### Example
+
+```typescript
+import { init, MlDsa65, randomBytes } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
+
+// SHA-2 prehash → all three modules required
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm })
+
+const dsa = new MlDsa65()
+const { signingKey, verificationKey } = dsa.keygen()
+
+const M   = new TextEncoder().encode('protocol-bound payload')
+const ctx = new TextEncoder().encode('application/v1')
+
+// Hedged HashML-DSA over SHA-256
+const sig = dsa.signHash(signingKey, M, 'SHA2-256', ctx)
+
+const ok = dsa.verifyHash(verificationKey, M, sig, 'SHA2-256', ctx)
+// ok === true
+
+// Different ctx ⇒ verifyHash returns false (M' binds ctx).
+dsa.verifyHash(verificationKey, M, sig, 'SHA2-256')              // false
+// Different prehash ⇒ verifyHash returns false (M' binds OID).
+dsa.verifyHash(verificationKey, M, sig, 'SHA3-256', ctx)         // false
+// Pure verify on a HashML-DSA signature ⇒ false (M' binds 0x01 vs 0x00).
+dsa.verify(verificationKey, M, sig, ctx)                          // false
+
+dsa.dispose()
+```
+
+---
+
 ## Validation Behavior
 
 ML-DSA distinguishes two failure classes — verification failures (binary,
@@ -248,6 +411,8 @@ split follows FIPS 204 §3.6.2 / §5.3 Algorithm 3.
 | Malformed hint encoding (Alg 21 §D.3)    | n/a                     | return `false`          |
 | Wrong signature for `(vk, M, ctx)`       | n/a                     | return `false`          |
 | Norm bound `‖z‖∞ ≥ γ₁ − β`               | n/a                     | return `false`          |
+| Unsupported `ph` (signHash* / verifyHash)| throw `RangeError`      | throw `RangeError`      |
+| `sha2` not initialized + SHA-2 `ph`      | throw `Error`           | throw `Error`           |
 
 Why the asymmetry: wrong-length pk/σ are *structural* indicators that the
 input is not a valid ML-DSA signature — same verdict as a wrong signature.

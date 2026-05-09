@@ -32,17 +32,24 @@ import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init
 import type { WasmSource } from '../wasm-source.js';
 import { randomBytes, wipe } from '../utils.js';
 import type { MlDsaExports, Sha3Exports, MlDsaKeyPair } from './types.js';
+import type { Sha2Exports } from '../sha2/types.js';
 import { MlDsaParams, MLDSA44, MLDSA65, MLDSA87 } from './params.js';
 import { mldsaKeygenInternal } from './keygen.js';
 import { mldsaSignInternal } from './sign.js';
 import { mldsaVerifyInternal } from './verify.js';
-import { constructMPrime } from './format.js';
+import { constructMPrime, constructMPrimeHash } from './format.js';
 import {
 	validateContext,
 	validateSigningKey,
 	validateRnd,
 	validateMessage,
 } from './validate.js';
+import {
+	type PreHashAlgorithm,
+	algoNeedsSha2,
+	getOid,
+	preHashMessage,
+} from './hashvariant.js';
 
 export async function mldsaInit(source: WasmSource): Promise<void> {
 	return initModule('mldsa', source);
@@ -52,6 +59,7 @@ export type { WasmSource };
 export type { MlDsaKeyPair, MlDsaExports, Sha3Exports } from './types.js';
 export { MLDSA44, MLDSA65, MLDSA87 };
 export type { MlDsaParams };
+export type { PreHashAlgorithm } from './hashvariant.js';
 export { isInitialized };
 
 // ── Layout assertion ────────────────────────────────────────────────────────
@@ -101,6 +109,10 @@ export class MlDsaBase {
 
 	private get sx(): Sha3Exports {
 		return getInstance('sha3').exports as unknown as Sha3Exports;
+	}
+
+	private get sha2x(): Sha2Exports {
+		return getInstance('sha2').exports as unknown as Sha2Exports;
 	}
 
 	/**
@@ -231,6 +243,173 @@ export class MlDsaBase {
 			return mldsaVerifyInternal(this.mx, this.sx, this.params, vk, MPrime, sig);
 		} finally {
 			wipe(MPrime);
+		}
+	}
+
+	// ── HashML-DSA — FIPS 204 §5.4 (pre-hash variant) ──────────────────────
+	//
+	// HashML-DSA wraps the same Sign_internal / Verify_internal primitives
+	// pure ML-DSA uses, but pre-hashes M and builds M' with domain-sep byte
+	// 0x01 plus the hash function's OID DER bytes, so signatures produced
+	// by sign / signHash on the same key are NOT interchangeable. See
+	// FIPS 204 §3.6.4 for the cross-protocol attack rationale.
+	//
+	// `ph` is the LAST positional parameter on every HashML-DSA method.
+	// There is no sensible default — the spec lists 12 approved choices and
+	// none has cryptographic priority. Callers must select one explicitly.
+	//
+	// `init({ sha2: ... })` is required only when `ph` is a SHA-2 family
+	// algorithm. Using SHA3-* / SHAKE pre-hash needs no additional modules
+	// beyond the `mldsa` + `sha3` pair pure ML-DSA already requires.
+
+	private _assertHashPrereqs(ph: PreHashAlgorithm): void {
+		if (algoNeedsSha2(ph)) {
+			if (!isInitialized('sha2'))
+				throw new Error(
+					'leviathan-crypto: call init({ sha2: ... }) before HashML-DSA with SHA-2 pre-hash',
+				);
+			_assertNotOwned('sha2');
+		}
+	}
+
+	/**
+	 * Hedged HashML-DSA sign — FIPS 204 §5.4 Algorithm 4.
+	 *
+	 * Pre-hashes `M` with the chosen approved function `ph`, builds
+	 * M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID(ph) ‖ PH_M, then drives
+	 * ML-DSA.Sign_internal with a fresh 32-byte rnd (FIPS 204 §3.4
+	 * recommended default; see {@link sign} for the rationale).
+	 */
+	signHash(
+		sk:  Uint8Array,
+		M:   Uint8Array,
+		ph:  PreHashAlgorithm,
+		ctx: Uint8Array = new Uint8Array(0),
+	): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		this._assertHashPrereqs(ph);
+		validateSigningKey(sk, this.params);
+		validateMessage(M);
+		validateContext(ctx);
+		const oid    = getOid(ph);
+		const sha2x  = algoNeedsSha2(ph) ? this.sha2x : undefined;
+		const PH_M   = preHashMessage(this.sx, sha2x, ph, M);
+		const MPrime = constructMPrimeHash(ctx, oid, PH_M);
+		const rnd    = randomBytes(32);
+		try {
+			return mldsaSignInternal(this.mx, this.sx, this.params, sk, MPrime, rnd);
+		} finally {
+			wipe(rnd);
+			wipe(MPrime);
+			// PH_M is M-derived (M is public input) so leakage is benign,
+			// but discipline matters — wipe it on every path.
+			wipe(PH_M);
+			// SHA-2 module's INPUT/OUT/H regions held the last block of M
+			// and the digest. Wipe them so secret material from any prior
+			// sha2 op (e.g. an HMAC) plus this PH_M digest don't linger.
+			if (sha2x) sha2x.wipeBuffers();
+		}
+	}
+
+	/**
+	 * Deterministic HashML-DSA sign — FIPS 204 §5.4 Algorithm 4 with
+	 * rnd ← 0³². Same fault-attack caveat as {@link signDeterministic}.
+	 */
+	signHashDeterministic(
+		sk:  Uint8Array,
+		M:   Uint8Array,
+		ph:  PreHashAlgorithm,
+		ctx: Uint8Array = new Uint8Array(0),
+	): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		this._assertHashPrereqs(ph);
+		validateSigningKey(sk, this.params);
+		validateMessage(M);
+		validateContext(ctx);
+		const oid    = getOid(ph);
+		const sha2x  = algoNeedsSha2(ph) ? this.sha2x : undefined;
+		const PH_M   = preHashMessage(this.sx, sha2x, ph, M);
+		const MPrime = constructMPrimeHash(ctx, oid, PH_M);
+		const rnd    = new Uint8Array(32);   // already zeros
+		try {
+			return mldsaSignInternal(this.mx, this.sx, this.params, sk, MPrime, rnd);
+		} finally {
+			wipe(MPrime);
+			wipe(PH_M);
+			if (sha2x) sha2x.wipeBuffers();
+		}
+	}
+
+	/**
+	 * Externally-randomised HashML-DSA sign — testing / CAVP API. Caller
+	 * supplies the 32-byte rnd (same contract as {@link signDerand}). Used
+	 * to oracle ACVP HashML-DSA sigGen vectors with byte-identical output.
+	 */
+	signHashDerand(
+		sk:  Uint8Array,
+		M:   Uint8Array,
+		ph:  PreHashAlgorithm,
+		ctx: Uint8Array,
+		rnd: Uint8Array,
+	): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		this._assertHashPrereqs(ph);
+		validateSigningKey(sk, this.params);
+		validateMessage(M);
+		validateContext(ctx);
+		validateRnd(rnd);
+		const oid    = getOid(ph);
+		const sha2x  = algoNeedsSha2(ph) ? this.sha2x : undefined;
+		const PH_M   = preHashMessage(this.sx, sha2x, ph, M);
+		const MPrime = constructMPrimeHash(ctx, oid, PH_M);
+		try {
+			return mldsaSignInternal(this.mx, this.sx, this.params, sk, MPrime, rnd);
+		} finally {
+			wipe(MPrime);
+			wipe(PH_M);
+			if (sha2x) sha2x.wipeBuffers();
+		}
+	}
+
+	/**
+	 * HashML-DSA verify — FIPS 204 §5.4 Algorithm 5.
+	 *
+	 * Same return / throw posture as {@link verify}: returns boolean for
+	 * every signature outcome (including malformed-σ → false), throws
+	 * RangeError only on caller-side contract violations such as
+	 * `ctx.length > 255` or unsupported `ph`.
+	 */
+	verifyHash(
+		vk:  Uint8Array,
+		M:   Uint8Array,
+		sig: Uint8Array,
+		ph:  PreHashAlgorithm,
+		ctx: Uint8Array = new Uint8Array(0),
+	): boolean {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mldsa');
+		this._assertHashPrereqs(ph);
+		validateMessage(M);
+		// FIPS 204 §3.6.2 — wrong-length pk or σ is not a caller bug; it
+		// is a structural mismatch that cannot verify. Return false rather
+		// than throw, matching how Algorithm 5 returns false on length
+		// mismatch via Verify_internal's structural checks.
+		if (!(vk  instanceof Uint8Array) || vk.length  !== this.params.pkBytes)  return false;
+		if (!(sig instanceof Uint8Array) || sig.length !== this.params.sigBytes) return false;
+		validateContext(ctx);
+		const oid    = getOid(ph);
+		const sha2x  = algoNeedsSha2(ph) ? this.sha2x : undefined;
+		const PH_M   = preHashMessage(this.sx, sha2x, ph, M);
+		const MPrime = constructMPrimeHash(ctx, oid, PH_M);
+		try {
+			return mldsaVerifyInternal(this.mx, this.sx, this.params, vk, MPrime, sig);
+		} finally {
+			wipe(MPrime);
+			wipe(PH_M);
+			if (sha2x) sha2x.wipeBuffers();
 		}
 	}
 

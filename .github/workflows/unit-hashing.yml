@@ -20,8 +20,11 @@ jobs:
       - name: run hashing unit tests
         run: >
           bun vitest run --reporter=verbose --no-coverage
+          test/unit/sha2/sha224.test.ts
           test/unit/sha2/sha256.test.ts
           test/unit/sha2/sha512.test.ts
+          test/unit/sha2/sha512_224.test.ts
+          test/unit/sha2/sha512_256.test.ts
           test/unit/sha2/hmac.test.ts
           test/unit/sha2/hkdf.test.ts
           test/unit/sha3/sha3.test.ts

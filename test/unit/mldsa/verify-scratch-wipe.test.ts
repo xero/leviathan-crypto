@@ -35,10 +35,12 @@ import { init, MlDsa44, MlDsa65, MlDsa87 } from '../../../src/ts/index.js';
 import { _resetForTesting, getInstance } from '../../../src/ts/init.js';
 import { mldsaWasm } from '../../../src/ts/mldsa/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 
 beforeAll(async () => {
 	_resetForTesting();
-	await init({ mldsa: mldsaWasm, sha3: sha3Wasm });
+	// sha2 loaded so the HashML-DSA SHA-2 prehash branch is reachable.
+	await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm });
 });
 
 interface MldsaMem {
@@ -155,6 +157,26 @@ describe('mldsaVerifyInternal — scratch slots wiped after verify', () => {
 					dsa.dispose();
 				}
 			});
+		});
+	}
+
+	// HashML-DSA verify wraps Verify_internal — same wipe coverage applies.
+	// Spot-check across SHA-2 / SHA-3 / SHAKE prehashes.
+	for (const ph of ['SHA2-256', 'SHA3-512', 'SHAKE256'] as const) {
+		it(`verifyHash wipes scratch (ML-DSA-44, prehash=${ph})`, () => {
+			const dsa = new MlDsa44();
+			try {
+				const { verificationKey, signingKey } = dsa.keygen();
+				const msg = new Uint8Array([0xAB, 0xCD]);
+				const sig = dsa.signHash(signingKey, msg, ph);
+				expect(dsa.verifyHash(verificationKey, msg, sig, ph)).toBe(true);
+				const x = getExports();
+				const mem = new Uint8Array(x.memory.buffer);
+				expect(regionIsZero(mem, x.getPolyvecSlot0(), 5 * x.getPolyvecSlotSize())).toBe(true);
+				expect(regionIsZero(mem, x.getXofPrfOffset(), 8192)).toBe(true);
+			} finally {
+				dsa.dispose();
+			}
 		});
 	}
 });

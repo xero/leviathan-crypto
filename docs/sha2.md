@@ -2,7 +2,7 @@
 
 ### SHA-2 TypeScript API
 
-Cryptographic hashing and message authentication using SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, and HMAC-SHA512.
+Cryptographic hashing and message authentication using SHA-224, SHA-256, SHA-384, SHA-512, SHA-512/224, SHA-512/256, HMAC-SHA256, HMAC-SHA384, and HMAC-SHA512.
 
 > ### Table of Contents
 > - [Overview](#overview)
@@ -24,13 +24,19 @@ a "fingerprint" or "hash"). Even the smallest change to the input produces a
 completely different digest. This makes hash functions useful for verifying that
 data has not been tampered with.
 
-leviathan-crypto provides three SHA-2 variants:
+leviathan-crypto provides six SHA-2 variants:
 
 **SHA-256.** 32-byte (256-bit) digest. The most widely used variant. Use this unless you have a specific reason to choose another.
 
 **SHA-512.** 64-byte (512-bit) digest. Higher security margin. Faster than SHA-256 on 64-bit platforms.
 
 **SHA-384.** 48-byte (384-bit) digest. A truncated variant of SHA-512. Useful when you need a digest longer than 256 bits but shorter than 512 bits, or when a protocol specifies it (e.g. TLS cipher suites).
+
+**SHA-224.** 28-byte (224-bit) digest. SHA-256 round logic with the SHA-224 IV per FIPS 180-4 §6.3. Generally selected because a protocol specifies it (HashML-DSA pre-hash mode, legacy interop).
+
+**SHA-512/224.** 28-byte digest, SHA-512 round logic with the SHA-512/224 IV per FIPS 180-4 §6.7.1. Faster than SHA-224 on 64-bit platforms; used by HashML-DSA.
+
+**SHA-512/256.** 32-byte digest, SHA-512 round logic with the SHA-512/256 IV per FIPS 180-4 §6.7.2. Same output size as SHA-256 but immune to SHA-256 length-extension attacks; used by HashML-DSA.
 
 **HMAC** (Hash-based Message Authentication Code, [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104))
 combines a secret key with a hash function to produce a **tag** that proves both
@@ -217,6 +223,75 @@ class SHA384 {
 **`constructor()`** Creates a new SHA384 instance. Throws if not initialized.
 
 **`hash(msg: Uint8Array): Uint8Array`** Returns a 48-byte digest.
+
+**`dispose(): void`** Wipes all internal WASM buffers.
+
+---
+
+### SHA224
+
+Computes a SHA-224 hash (28-byte digest). SHA-224 is SHA-256 with the
+SHA-224 initial hash value per FIPS 180-4 §5.3.2; output is the leftmost
+224 bits per §6.3.
+
+```typescript
+class SHA224 {
+	constructor()
+	hash(msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** Creates a new SHA224 instance. Throws if not initialized.
+
+**`hash(msg: Uint8Array): Uint8Array`** Returns a 28-byte digest.
+
+**`dispose(): void`** Wipes all internal WASM buffers.
+
+---
+
+### SHA512_224
+
+Computes a SHA-512/224 hash (28-byte digest). SHA-512/224 is SHA-512 with
+the SHA-512/224 initial hash value per FIPS 180-4 §5.3.6.1; output is the
+leftmost 224 bits per §6.7.1. On 64-bit platforms this is faster than
+SHA-224.
+
+```typescript
+class SHA512_224 {
+	constructor()
+	hash(msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** Creates a new SHA512_224 instance. Throws if not initialized.
+
+**`hash(msg: Uint8Array): Uint8Array`** Returns a 28-byte digest.
+
+**`dispose(): void`** Wipes all internal WASM buffers.
+
+---
+
+### SHA512_256
+
+Computes a SHA-512/256 hash (32-byte digest). SHA-512/256 is SHA-512 with
+the SHA-512/256 initial hash value per FIPS 180-4 §5.3.6.2; output is the
+leftmost 256 bits per §6.7.2. Same output size as SHA-256 but immune to
+SHA-256 length-extension attacks because the trailing 256 bits of state
+are never released.
+
+```typescript
+class SHA512_256 {
+	constructor()
+	hash(msg: Uint8Array): Uint8Array
+	dispose(): void
+}
+```
+
+**`constructor()`** Creates a new SHA512_256 instance. Throws if not initialized.
+
+**`hash(msg: Uint8Array): Uint8Array`** Returns a 32-byte digest.
 
 **`dispose(): void`** Wipes all internal WASM buffers.
 

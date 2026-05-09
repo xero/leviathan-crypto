@@ -181,7 +181,7 @@ await serpentInit(serpentWasm)
 | `SealStream`, `OpenStream`, `XChaCha20Cipher` (when using XChaCha20Cipher) | `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })` |
 | `SealStreamPool` | depends on cipher: same modules as the cipher suite + `sha2` |
 | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | `init({ chacha20: chacha20Wasm })` |
-| `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })` |
+| `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })` — full FIPS 180-4 hash family (SHA-224/256/384/512 plus SHA-512/t variants required by HashML-DSA per FIPS 204 §5.4.1). |
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })` — `'keccak'` is an alias for `'sha3'` |
 | `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })` — both modules required |
 | `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })` — both modules required (post-quantum digital signatures, FIPS 204) |
@@ -432,6 +432,68 @@ assurance) for different security/size trade-offs.
 `ctx` defaults to an empty Uint8Array. The signature binds `(M, ctx)` —
 verifying with a different ctx returns false. Use ctx for protocol
 domain-separation (e.g. application label, key purpose).
+
+### HashML-DSA — pre-hash variant (FIPS 204 §5.4)
+
+The pre-hash variant signs `H(M)` with an explicit hash-function OID
+bound into `M'`. Use when you cannot stream `M` into a single buffer
+before signing, or a protocol identifier prescribes a specific digest.
+
+```typescript
+import { init, MlDsa65 } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
+
+// SHA-2 prehash → all three modules required.
+// SHA3-* / SHAKE prehash needs only mldsa + sha3.
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm })
+
+const dsa = new MlDsa65()
+const { signingKey, verificationKey } = dsa.keygen()
+
+const sig = dsa.signHash(signingKey, message, 'SHA2-256', ctx)
+const ok  = dsa.verifyHash(verificationKey, message, sig, 'SHA2-256', ctx)
+
+dsa.dispose()
+```
+
+`ph` is one of the 12 approved FIPS 204 §5.4.1 functions:
+`'SHA2-224' | 'SHA2-256' | 'SHA2-384' | 'SHA2-512' |
+'SHA2-512/224' | 'SHA2-512/256' | 'SHA3-224' | 'SHA3-256' | 'SHA3-384' |
+'SHA3-512' | 'SHAKE128' | 'SHAKE256'`. SHAKE128 produces 32 bytes,
+SHAKE256 produces 64 bytes (FIPS 204 §5.4.1).
+
+`signHash`, `signHashDeterministic`, `signHashDerand`, and `verifyHash`
+mirror the pure-ML-DSA shape with `ph` placed immediately after the
+message bytes (or signature, for verify). `ctx` trails as an optional
+parameter so the common case `dsa.signHash(sk, M, ph)` reads cleanly.
+Their hedged / deterministic / derand semantics are identical to `sign`
+/ `signDeterministic` / `signDerand`.
+
+> [!CAUTION]
+> **Pure-ML-DSA and HashML-DSA signatures are NOT interchangeable** even
+> on the same key. The M' construction binds a different domain-sep byte
+> (0x00 vs 0x01 — FIPS 204 §3.6.4) to prevent cross-protocol forgeries.
+>
+> ```typescript
+> const sig = dsa.sign(sk, M)              // pure
+> dsa.verifyHash(vk, M, sig, 'SHA2-256')   // ALWAYS false
+>
+> const sigH = dsa.signHash(sk, M, 'SHA2-256')
+> dsa.verify(vk, M, sigH)                  // ALWAYS false
+> ```
+>
+> Treat `sign` / `verify` and `signHash` / `verifyHash` as distinct
+> signature schemes that share a key format. Choose one per protocol and
+> stay consistent.
+
+> [!NOTE]
+> **`sha2` init is required only for the SHA-2 family pre-hashes.** Pure
+> ML-DSA usage and HashML-DSA with SHA3-* / SHAKE pre-hashes work with
+> just `init({ mldsa, sha3 })`. Calling `signHash` / `verifyHash` with a
+> SHA-2 algorithm without sha2 initialized throws a clear error rather
+> than silently mis-signing.
 
 ### Fortuna CSPRNG
 

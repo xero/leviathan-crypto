@@ -210,6 +210,9 @@ export function expandMask(
 			// Decodes to coefficients in [-(γ₁-1), γ₁] — Alg 34 / Alg 19.
 			mx.bit_unpack(yPvOff + r * 1024, xofPrfOff, gamma1 - 1, gamma1);
 		} finally {
+			// v held the SHAKE256(ρ'' ‖ idx) squeeze bytes — ρ''-derived,
+			// i.e. secret. These bytes become y for this iteration, so
+			// recovery would unmask the signing nonce on the rejected path.
 			wipe(v);
 		}
 	}

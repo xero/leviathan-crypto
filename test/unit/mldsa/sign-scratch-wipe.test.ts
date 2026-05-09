@@ -49,11 +49,14 @@ import { init, MlDsa44, MlDsa65, MlDsa87 } from '../../../src/ts/index.js';
 import { _resetForTesting, getInstance } from '../../../src/ts/init.js';
 import { mldsaWasm } from '../../../src/ts/mldsa/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import { MLDSA44, MLDSA65, MLDSA87 } from '../../../src/ts/mldsa/params.js';
 
 beforeAll(async () => {
 	_resetForTesting();
-	await init({ mldsa: mldsaWasm, sha3: sha3Wasm });
+	// sha2 is loaded so the HashML-DSA SHA-2 prehash branch is reachable
+	// from this scratch-wipe suite; pure-ML-DSA sign tests don't touch sha2.
+	await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm });
 });
 
 interface MldsaMem {
@@ -235,6 +238,58 @@ describe('mldsaSignInternal — scratch slots wiped after sign', () => {
 			const { signingKey } = dsa.keygen();
 			const rnd = new Uint8Array(32).fill(0x77);
 			dsa.signDerand(signingKey, new Uint8Array([7, 8]), new Uint8Array(0), rnd);
+			const x = getExports();
+			const mem = new Uint8Array(x.memory.buffer);
+			expect(regionIsZero(mem, x.getPolyvecSlot0(), 6 * x.getPolyvecSlotSize())).toBe(true);
+			expect(regionIsZero(mem, x.getXofPrfOffset(), 8192)).toBe(true);
+		} finally {
+			dsa.dispose();
+		}
+	});
+
+	// HashML-DSA wraps the same Sign_internal so the ml-dsa scratch wipe
+	// already covers signHash. The new variable in the prehash path is the
+	// sha2 / sha3 module residue: signHash drives those modules with PH_M's
+	// input/state, then mldsaSignInternal drives sha3 again. Confirm that
+	// the post-call mldsa scratch is still zeroed end-to-end.
+	for (const ph of ['SHA2-256', 'SHA3-512', 'SHAKE128'] as const) {
+		it(`signHash wipes scratch (ML-DSA-44, prehash=${ph})`, () => {
+			const dsa = new MlDsa44();
+			try {
+				const { signingKey } = dsa.keygen();
+				dsa.signHash(signingKey, new Uint8Array([0xAB, 0xCD]), ph);
+				const x = getExports();
+				const mem = new Uint8Array(x.memory.buffer);
+				expect(regionIsZero(mem, x.getPolyvecSlot0(), 6 * x.getPolyvecSlotSize())).toBe(true);
+				expect(regionIsZero(mem, x.getXofPrfOffset(), 8192)).toBe(true);
+				expect(regionIsZero(mem, x.getCTildeOffset(), 64)).toBe(true);
+				expect(regionIsZero(mem, x.getMsgRepOffset(), 64)).toBe(true);
+			} finally {
+				dsa.dispose();
+			}
+		});
+
+		it(`signHashDeterministic wipes scratch (ML-DSA-44, prehash=${ph})`, () => {
+			const dsa = new MlDsa44();
+			try {
+				const { signingKey } = dsa.keygen();
+				dsa.signHashDeterministic(signingKey, new Uint8Array([0x01]), ph);
+				const x = getExports();
+				const mem = new Uint8Array(x.memory.buffer);
+				expect(regionIsZero(mem, x.getPolyvecSlot0(), 6 * x.getPolyvecSlotSize())).toBe(true);
+				expect(regionIsZero(mem, x.getXofPrfOffset(), 8192)).toBe(true);
+			} finally {
+				dsa.dispose();
+			}
+		});
+	}
+
+	it('signHashDerand wipes scratch (ML-DSA-44, SHA2-512)', () => {
+		const dsa = new MlDsa44();
+		try {
+			const { signingKey } = dsa.keygen();
+			const rnd = new Uint8Array(32).fill(0x77);
+			dsa.signHashDerand(signingKey, new Uint8Array([7, 8]), 'SHA2-512', new Uint8Array(0), rnd);
 			const x = getExports();
 			const mem = new Uint8Array(x.memory.buffer);
 			expect(regionIsZero(mem, x.getPolyvecSlot0(), 6 * x.getPolyvecSlotSize())).toBe(true);

@@ -2,7 +2,7 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture design, comprising seven independent WASM modules unified by a misuse-resistant TypeScript API, which delivers Serpent's paranoia, ChaCha's elegance, and AES's ubiquity as a zero-dependency, tree-shakable, post-quantum library.
+Overview of Leviathan Crypto's architecture design, comprising eight independent WASM modules unified by a misuse-resistant TypeScript API, which delivers Serpent's paranoia, ChaCha's elegance, and AES's ubiquity as a zero-dependency, tree-shakable, post-quantum library.
 
 > ### Table of Contents
 >
@@ -10,7 +10,7 @@ Overview of Leviathan Crypto's architecture design, comprising seven independent
 > - [Scope](#scope)
 > - [Repository Structure](#repository-structure)
 > - [Architecture: TypeScript over WASM](#architecture-typescript-over-wasm)
-> - [Seven Independent WASM Modules](#seven-independent-wasm-modules)
+> - [Eight Independent WASM Modules](#eight-independent-wasm-modules)
 > - [init() API](#init-api)
 > - [Public API Classes](#public-api-classes)
 > - [Build Pipeline](#build-pipeline)
@@ -27,7 +27,7 @@ Overview of Leviathan Crypto's architecture design, comprising seven independent
 
 **JS is the problem, SIMD WASM is the solution.** JavaScript engines offer no formal constant-time guarantees. JIT compilers optimize based on runtime patterns, which leak secrets through cache access and instruction timing. By contrast, [WebAssembly](https://github.com/xero/leviathan-crypto/wiki/wasm) executes outside the JIT entirely, running compiled bytecode with linear memory you control. No speculative optimization, no value-dependent branches between source and execution.
 
-**WebAssembly is the correctness layer.** All algorithm logic lives in WASM. Seven AssemblyScript modules ([`serpent`](https://github.com/xero/leviathan-crypto/wiki/asm_serpent), [`chacha20`](https://github.com/xero/leviathan-crypto/wiki/asm_chacha), `aes`, [`sha2`](https://github.com/xero/leviathan-crypto/wiki/asm_sha2), [`sha3`](https://github.com/xero/leviathan-crypto/wiki/asm_sha3), [`kyber`](https://github.com/xero/leviathan-crypto/wiki/asm_kyber), and [`ct`](https://github.com/xero/leviathan-crypto/wiki/asm_ct)) compile independently to WASM with SIMD where it pays off. Each module is its own instance with its own linear memory. Within a module, stateful primitives share the instance, and a runtime exclusivity model keeps them from interfering with each other.
+**WebAssembly is the correctness layer.** All algorithm logic lives in WASM. Eight AssemblyScript modules ([`serpent`](https://github.com/xero/leviathan-crypto/wiki/asm_serpent), [`chacha20`](https://github.com/xero/leviathan-crypto/wiki/asm_chacha), `aes`, [`sha2`](https://github.com/xero/leviathan-crypto/wiki/asm_sha2), [`sha3`](https://github.com/xero/leviathan-crypto/wiki/asm_sha3), [`kyber`](https://github.com/xero/leviathan-crypto/wiki/asm_kyber), [`mldsa`](https://github.com/xero/leviathan-crypto/wiki/asm_mldsa), and [`ct`](https://github.com/xero/leviathan-crypto/wiki/asm_ct)) compile independently to WASM with SIMD where it pays off. Each module is its own instance with its own linear memory. Within a module, stateful primitives share the instance, and a runtime exclusivity model keeps them from interfering with each other.
 
 **TypeScript is the ergonomics layer.** The strongly-typed public API covers [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal), [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream), [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool), [`Fortuna`](https://github.com/xero/leviathan-crypto/wiki/fortuna), [`HKDF`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha256), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore), and others. The design is misuse-resistant by default. Authentication is verify-then-decrypt; key material wipes on dispose; validation runs before any crypto path; one-shot AEADs lock on first call. TypeScript never implements cryptographic algorithms. It orchestrates the WASM layer and enforces best practice through API shape, not convention.
 
@@ -379,9 +379,9 @@ Higher-level classes like `Seal`, `SealStream`, and `SealStreamPool` are pure Ty
 
 ---
 
-## Seven Independent WASM Modules
+## Eight Independent WASM Modules
 
-Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Six of the seven modules load through `init()`. The seventh, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
+Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Seven of the eight modules load through `init()`. The eighth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
 
 |Module|Binary|Primitives|
 |---|---|---|
@@ -391,6 +391,7 @@ Each primitive family compiles to its own `.wasm` binary with fully independent 
 |`sha2`|`sha2.wasm`|SHA-256, SHA-384, SHA-512, HMAC-SHA256, HMAC-SHA384, HMAC-SHA512|
 |`sha3`|`sha3.wasm`|SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256|
 |`kyber`|`kyber.wasm`|ML-KEM polynomial arithmetic: SIMD NTT/invNTT (v128 butterflies with scalar tail), basemul, Montgomery/Barrett, CBD, compress, CT verify/cmov|
+|`mldsa`|`mldsa.wasm`|ML-DSA polynomial arithmetic: SIMD NTT/invNTT for q=8380417 (v128 i32 butterflies), Montgomery/Barrett over q, rejection sampling (RejNTTPoly, RejBoundedPoly), Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint, HintBitPack/Unpack with the §D.3 SUF-CMA checks, SampleInBall|
 |`ct`|`ct.wasm`|SIMD constant-time byte comparison. Backs `constantTimeEqual` and `CT_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page.|
 
 **Size.** Consumers who only use Serpent don't load the SHA-3 binary.
@@ -417,6 +418,10 @@ Each module's buffer layout starts at offset 0 and is defined in its own `buffer
 
 [The TypeScript module](./kyber.md) exports `MlKem512`, `MlKem768`, and `MlKem1024`—KEM classes implementing the Fujisaki-Okamoto transform. All three require both `kyber` and `sha3` to be initialized; the sha3 module provides the Keccak sponge for matrix generation (SHAKE128), noise sampling (SHAKE256), and finalization (SHA3-256 for H, SHA3-512 for G).
 
+**`mldsa.wasm`** implements ML-DSA polynomial arithmetic per FIPS 204. It includes Montgomery and Barrett reduction over q = 8380417, an 8-layer SIMD NTT and inverse NTT with v128 i32 butterflies, basemul in T_q, rejection sampling for the public matrix Â (`rej_ntt_poly`) and the secret noise polynomials s₁/s₂ (`rej_bounded_poly`), Power2Round / Decompose / HighBits / LowBits with the parameter-set γ₂, MakeHint / UseHint, HintBitPack and HintBitUnpack with the three SUF-CMA-critical malformed-input checks from FIPS 204 §D.3 (Algorithm 21 lines 4, 9, 17), bit-pack/unpack at every required width, and SampleInBall in resumable form. Requires WebAssembly SIMD (`v128` instructions). Uses 4 memory pages (256 KB) with a matrix slot, eight polynomial vector slots, eight polynomial slots, and dedicated buffers for keys, signatures, and the SHAKE PRF stream. See: [ML-DSA WASM Reference](./asm_mldsa.md)
+
+[The TypeScript module](./mldsa.md) exports `MlDsa44`, `MlDsa65`, and `MlDsa87`—signature classes covering NIST security categories 2, 3, and 5. All three require both `mldsa` and `sha3` to be initialized; HashML-DSA with a SHA-2 family pre-hash additionally requires `sha2`. The sha3 module provides SHAKE128 (matrix expansion via ExpandA), SHAKE256 (noise expansion via ExpandS, masking expansion via ExpandMask, message representative μ, ρ'' derivation, and SampleInBall), and the SHA3-fixed digests for HashML-DSA pre-hash. The sha2 module covers SHA2-{224, 256, 384, 512, 512/224, 512/256} when HashML-DSA selects a SHA-2 pre-hash.
+
 **`ct.wasm`** implements constant-time byte array equality with a single SIMD-only primitive. The module exports `compare(aOff, bOff, len)`, which reads both arrays directly from caller-specified offsets in linear memory and returns 1 if all bytes match, 0 otherwise. Comparison is zero-copy: no internal staging buffers, no buffer slots, no `wipeBuffers` export. The implementation is structurally branch-free. A `v128.xor`/`v128.or` accumulator processes 16-byte blocks, a scalar tail handles any remainder, and the final zero-test is an arithmetic shift, not a conditional. Requires WebAssembly SIMD (`v128` instructions); if the runtime lacks SIMD or compilation fails, the first call throws a branded error. See: [Constant-Time WASM Reference](asm_ct.md)
 
 [The TypeScript module](./utils.md#constanttimeequal) exports `constantTimeEqual` and `CT_MAX_BYTES` from the root barrel. The wrapper instantiates the WASM synchronously on first call and caches it for subsequent calls. It writes both arrays into linear memory, calls `compare`, and zeroes both regions in a `finally` block before returning. `CT_MAX_BYTES` is 32 KB per side; the 64 KB page holds two equal-length inputs.
@@ -430,7 +435,7 @@ WASM instantiation is async. [`init()`](./init.md) is the initialization gate, c
 ### Signature
 
 ```typescript
-type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber'
+type Module = 'serpent' | 'chacha20' | 'aes' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa'
 
 type WasmSource =
   | string                  // gzip+base64 embedded blob
@@ -446,7 +451,7 @@ async function init(
 ): Promise<void>
 ```
 
-The loading strategy is inferred from the source type, so there is no need for a mode string. Each module also exports its own init function, such as `serpentInit(source)`, `chacha20Init(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, and `kyberInit(source)`, enabling tree-shakeable imports.
+The loading strategy is inferred from the source type, so there is no need for a mode string. Each module also exports its own init function, such as `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, and `mldsaInit(source)`, enabling tree-shakeable imports.
 
 > [!NOTE]
 > **`keccak` is an alias for `sha3`.** Both names are accepted by `init()`, `initModule()`, `getInstance()`, and `isInitialized()`. They share the same WASM binary and the same instance slot. The alias exists so Kyber/ML-KEM consumers can write `init({ keccak: keccakWasm })` using the semantically correct name for the underlying sponge primitive.
@@ -488,6 +493,8 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `sha3`                          | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`                                  |
 | `kyber` + `sha3`                | `MlKem512`, `MlKem768`, `MlKem1024`                                                                     |
 | `kyber` + `sha3` + inner cipher | `KyberSuite` (hybrid KEM+AEAD factory)                                                                  |
+| `mldsa` + `sha3`                | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash)                  |
+| `mldsa` + `sha3` + `sha2`       | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash)                               |
 | `sha2`                          | `ratchetInit`, `KDFChain`, `SkippedKeyStore`                                                            |
 | `kyber` + `sha3` + `sha2`       | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair`                                                  |
 | `stream`                        | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`                                                    |

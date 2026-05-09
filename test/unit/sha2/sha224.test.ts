@@ -1,0 +1,114 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+/**
+ * SHA-224 Known-Answer Tests — FIPS 180-4 §6.3
+ *
+ * Source: FIPS 180-4 (SHA Standard), §5.3.2 IV + §6.3 algorithm definition
+ * Files:  vectors/sha2.ts (sha224Vectors, sha224CrossCheck)
+ */
+import { describe, test, expect, beforeAll } from 'vitest';
+import { init, SHA224 } from '../../../src/ts/index.js';
+import { getInstance } from '../../../src/ts/init.js';
+import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
+import { sha224Vectors, sha224CrossCheck } from '../../vectors/sha2.js';
+
+function toHex(bytes: Uint8Array): string {
+	return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function fromHex(hex: string): Uint8Array {
+	const bytes = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	return bytes;
+}
+
+beforeAll(async () => {
+	await init({ sha2: sha2Wasm });
+});
+
+// GATE: SHA-224 empty message: FIPS 180-4 (boundary case)
+// Vector: sha2.ts[sha224Vectors[0]]
+describe('Gate — SHA-224 empty message', () => {
+	test('SHA-224("") matches FIPS 180-4 §6.3 / §5.3.2 IV', () => {
+		const h = new SHA224();
+		const digest = h.hash(new Uint8Array(0));
+		expect(toHex(digest)).toBe(sha224Vectors[0].expected);
+		h.dispose();
+	});
+});
+
+// ── SHA-224 ────────────────────────────────────────────────────────────────
+
+describe('SHA-224', () => {
+	for (const vec of sha224Vectors) {
+		test(vec.description, () => {
+			const h = new SHA224();
+			const digest = h.hash(fromHex(vec.input));
+			expect(toHex(digest)).toBe(vec.expected);
+			h.dispose();
+		});
+	}
+});
+
+// ── Streaming ──────────────────────────────────────────────────────────────
+
+describe('SHA-224 streaming', () => {
+	test('split 256-byte input across 4 chunks matches single-call', () => {
+		const input = new Uint8Array(256);
+		for (let i = 0; i < 256; i++) input[i] = i & 0xff;
+
+		const h = new SHA224();
+		const expected = toHex(h.hash(input));
+
+		const x = getInstance('sha2').exports as unknown as {
+			memory: WebAssembly.Memory;
+			getSha256InputOffset: () => number;
+			getSha256OutOffset: () => number;
+			sha224Init: () => void;
+			sha256Update: (len: number) => void;
+			sha224Final: () => void;
+		};
+		x.sha224Init();
+		for (let i = 0; i < 4; i++) {
+			const mem = new Uint8Array(x.memory.buffer);
+			mem.set(input.subarray(i * 64, (i + 1) * 64), x.getSha256InputOffset());
+			x.sha256Update(64);
+		}
+		x.sha224Final();
+		const mem = new Uint8Array(x.memory.buffer);
+		const result = toHex(mem.slice(x.getSha256OutOffset(), x.getSha256OutOffset() + 28));
+		expect(result).toBe(expected);
+		h.dispose();
+	});
+});
+
+// ── leviathan cross-check ───────────────────────────────────────────────────
+
+describe('leviathan cross-check', () => {
+	test('SHA-224 matches leviathan reference for 4 inputs', () => {
+		const h = new SHA224();
+		for (const vec of sha224CrossCheck) {
+			expect(toHex(h.hash(fromHex(vec.input))), vec.description).toBe(vec.expected);
+		}
+		h.dispose();
+	});
+});

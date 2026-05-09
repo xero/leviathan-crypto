@@ -65,10 +65,47 @@
   cross-verified at generation time against the underlying primitives
   (raw AES-GCM-SIV WASM ops; raw AES-256 ECB for the Fortuna generator).
 
+- **ML-DSA.** FIPS 204 Module-Lattice-Based Digital Signature Standard
+  is now a first-class peer to ML-KEM. Three classes — `MlDsa44`,
+  `MlDsa65`, `MlDsa87` (NIST security categories 2/3/5) — share one
+  `mldsa` WASM module with SIMD-required NTT. Pure ML-DSA exposes
+  `keygen` / `keygenDerand`, hedged `sign` (FIPS 204 §3.4 recommended
+  default), `signDeterministic`, `signDerand` (CAVP / externally-supplied
+  rnd), and `verify`. HashML-DSA (FIPS 204 §5.4) exposes `signHash` /
+  `signHashDeterministic` / `signHashDerand` / `verifyHash` with all
+  twelve approved pre-hash functions from §5.4.1: SHA2-{224, 256, 384,
+  512, 512/224, 512/256}, SHA3-{224, 256, 384, 512}, SHAKE128 (32-byte
+  output), and SHAKE256 (64-byte output). The pre-hash domain separator
+  byte (0x01 vs 0x00 for pure ML-DSA) plus the per-function OID DER
+  bytes from NIST CSOR enforce cross-protocol domain separation —
+  signatures from `signHash` cannot verify under `verify` on the same
+  key, closing the FIPS 204 §3.6.4 attack surface.
+
+  Initialize via `init({ mldsa: ..., sha3: ... })`; `init({ sha2: ... })`
+  is additionally required when the chosen pre-hash is in the SHA-2
+  family. Subpath exports: `leviathan-crypto/mldsa` and
+  `leviathan-crypto/mldsa/embedded`. The ACVP corpus (keyGen / sigGen /
+  sigVer / HashML-DSA across all three parameter sets, hedged plus
+  deterministic plus derand modes) is byte-identical to the published
+  vectors. Constant-time c̃ comparison on verify, deterministic and
+  hedged signing paths, and HintBitUnpack's three malformed-input
+  checks (FIPS 204 Algorithm 21 lines 4, 9, 17 — the SUF-CMA fix from
+  §D.3) are exercised by the gate tests in `test/unit/mldsa/`. Every
+  WASM region holding a secret or secret-derived intermediate is wiped
+  on the way out (success and failure paths).
+
+- **PQC verifier coverage.** The independent Rust verifier
+  (`scripts/verify-vectors`) now oracles the ML-DSA ACVP corpora
+  (keyGen, sigGen, sigVer, HashML-DSA) against a separate-lineage
+  `ml-dsa` crate, alongside the existing ML-KEM coverage. Both PQC
+  algorithms now have end-to-end cross-implementation verification on
+  every CI run.
+
 Migration: none. All additions; no breaking changes from the AES
-landing. The v2 → v3 migration items above (Serpent byte-order flip,
-ChaCha salamander defense) are the only breaking changes in this
-release; the cipher suite + generator add no migration burden.
+or ML-DSA landing. The v2 → v3 migration items above (Serpent
+byte-order flip, ChaCha salamander defense) are the only breaking
+changes in this release; the cipher suite, generator, and signature
+additions add no migration burden.
 
 ### Breaking Changes
 
