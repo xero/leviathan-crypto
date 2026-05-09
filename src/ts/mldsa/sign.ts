@@ -45,6 +45,15 @@
 //
 // XOF/PRF region carries ExpandMask SHAKE squeeze, w1Encode bytes, and
 // SampleInBall position bytes — all single-use within an iteration.
+//
+// CT POSTURE — rejection-sampling loop branches:
+//   The four reject conditions (‖z‖∞, ‖r₀‖∞, ‖⟨ct₀⟩‖∞, popcount(h)) are
+//   data-dependent on secret-derived intermediates. Each `continue` reveals
+//   that this iteration's candidate was out-of-bound, which is the same
+//   statistical signal already exposed by the SHAKE output stream changing
+//   per κ. The leak is the iteration count, not key bits. FIPS 204 §3.6.3
+//   endorses this trade-off; the Dilithium reference does the same. The
+//   constant-time-mandatory comparison (c̃ in verify) lives in verify.ts.
 
 import type { MlDsaExports, Sha3Exports } from './types.js';
 import type { MlDsaParams } from './params.js';
@@ -57,9 +66,24 @@ const D            = 13;
 const Q            = 8380417;
 const SHAKE256_RATE = 136;
 
-// Per FIPS 204 Appendix C the expected number of iterations is small (4–7
-// across parameter sets, with a stated minimum bound of 814). We bound at
-// 1000 to give ~20% headroom while still cutting off pathological inputs.
+// Per FIPS 204 Appendix C, expected iterations are 4–7 across parameter
+// sets (geometric distribution with success probability p ≈ 1/expected ≈
+// 0.20–0.26). Spec minimum bound for implementations that choose to
+// bound: 814.
+//
+// 1000 gives a nominal 20% headroom over the spec minimum, but the actual
+// safety margin is far larger: Pr[fail within 1000 iterations] = (1-p)^1000
+// ≈ 10⁻⁹⁴ to 10⁻¹³¹ across parameter sets — many orders of magnitude past
+// any cryptographic threshold (compare 2⁻¹²⁸ ≈ 10⁻³⁹). The bound exists
+// for liveness (deterministic failure on pathological inputs) rather than
+// as a probability tail-cut; liboqs and the pq-crystals reference make
+// the same engineering choice.
+//
+// Adversarial poisoning of the rejection-sampling rate would require
+// controlling ρ'' = H(K ‖ rnd ‖ μ). K is in sk (private), so an attacker
+// without the signing key cannot bias the iteration count regardless of
+// what they do with the message, ctx, or (in derand mode) caller-supplied
+// rnd. The natural per-iteration success probability holds.
 const MAX_SIGN_ITERATIONS = 1000;
 
 function bitlen(n: number): number {
@@ -227,10 +251,15 @@ export function mldsaSignInternal(
 			for (let r = 0; r < k; r++) {
 				mx.simple_bit_pack(xofOff + r * w1PolyBytes, slot4 + r * POLY_BYTES, w1Bitlen);
 			}
+			// w₁ from a rejected iteration is secret-derived (HighBits
+			// of NTT⁻¹(Â · NTT(y)); y came from ρ''). Wipe the prior
+			// slice before reslicing fresh bytes for this iteration.
 			if (w1Bytes) wipe(w1Bytes);
 			w1Bytes = mlMem.slice(xofOff, xofOff + w1TotalBytes);
 			const cTildeNew = shake256HashConcat(sx, [mu, w1Bytes], lambdaOver4);
 			cTilde.set(cTildeNew);
+			// cTildeNew is public-derivable (c̃ ships inside σ) but TS-side
+			// hygiene matches the rest of the per-iteration scratch.
 			wipe(cTildeNew);
 
 			// Line 15: c ← SampleInBall(c̃) at polySlot1 (time domain) ──
