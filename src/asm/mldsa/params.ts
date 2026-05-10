@@ -74,9 +74,10 @@ export const F_MONT: i32 = 16382;
  * |v·a / 2⁴³ − a/q| ≤ 0.5·2³¹ / 2⁴³ = 2⁻¹³, well below the 0.5 threshold
  * required for correct centered reduction (FIPS 204 §2.3 — mod± q).
  *
- * Derivation: 2⁴³ = 8796093022208; 8796093022208 / 8380417 = 1049602.875…;
+ * Derivation: 2⁴³ = 8796093022208; 8796093022208 / 8380417 = 1049600.875…; round() → 1049601
  * round() → 1049603. The shift k=43 was picked so that v·a stays within i64
  * for a ∈ [−2³¹, 2³¹) (worst case |v·a| < 2³¹·2²¹ = 2⁵²).
+ * Note: 1049603 is a chosen safe overestimate that still satisfies the error input bounds
  */
 export const BARRETT_V: i32     = 1049603;
 export const BARRETT_SHIFT: i32 = 43;

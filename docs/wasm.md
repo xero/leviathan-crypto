@@ -41,20 +41,32 @@ When a browser encounters a `.wasm` binary, it performs two steps:
 
 Once instantiated, calling a WASM function is similar to calling any JavaScript
 function: you pass arguments, it runs, and it returns a result. The key difference
-lies in how it runs. WASM execution is deterministic and not subject to the
-JIT compiler's speculative optimizations. Unlike JavaScript, the browser does not rewrite, inline,
-or de-optimize WASM code paths based on runtime profiling.
+lies in how it runs. WASM still goes through the runtime's WASM JIT (V8 uses
+Liftoff and TurboFan, SpiderMonkey uses Baseline and Cranelift, JavaScriptCore
+uses BBQ and OMG; there is no ahead-of-time path in mainstream engines today).
+What makes the lowering more predictable than equivalent JavaScript is the
+structure of the input. Typed bytecode has no hidden classes, structured control
+flow has no `eval` or computed gotos, and there is no polymorphism-driven
+specialization or deoptimization tied to runtime type guards. The JS-level
+timing oracles that motivate constant-time-coding discipline do not exist for
+WASM.
 
 ---
 
 ## The Case for WASM
 
 Leviathan performs all cryptographic computations in WASM because JavaScript
-engines offer no formal constant-time guarantees for arbitrary code. The JIT
-compiler can introduce timing variations that leak information about secret
-data; WASM execution avoids this class of problem.
+engines offer no formal constant-time guarantees for arbitrary code. The
+JS-level JIT can introduce timing variations through speculative type
+specialization, hidden-class transitions, and deoptimizations that leak
+information about secret-derived state. WASM removes that surface: typed
+bytecode and structured control flow give the JIT no opening to speculate
+against. The hardware below is still a real CPU with caches and speculative
+execution, so constant-time-at-the-algorithm-level discipline is what actually
+closes the timing surface; WASM is the deployment vehicle that lets that
+discipline survive into the browser.
 
-For architectural details and security rationale, see [architecture.md](./architecture.md).
+For architectural details and security rationale, see [architecture.md](./architecture.md) and [architectural-stance.md](./architectural-stance.md).
 
 **TLDR:** _TypeScript handles the API, and WASM handles the math._
 
@@ -84,7 +96,8 @@ Serpent classes (`Serpent`, `SerpentCtr`, `SerpentCbc`) share this instance.
 
 A `WebAssembly.Memory` is a contiguous block of bytes, essentially a
 `Uint8Array` that WASM functions can read and write, also known as **linear
-memory**. Each of our WASM modules gets its own memory (3 pages = 192 KB).
+memory**. Each of our WASM modules gets its own memory: most use 3 pages
+(192 KB); `aes` and `mldsa` use 4 pages (256 KB); `ct` uses 1 page (64 KB).
 
 The TypeScript layer communicates with WASM by writing inputs to specific offsets
 in this memory, calling a WASM function, and then reading the outputs from other
@@ -203,7 +216,8 @@ See [init.md](./init.md) for the full API.
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architectural-stance](./architectural-stance.md) | Architectural posture: defended threats, layer composition, and the framing constraint |
 | [init](./init.md) | `init()` API and WasmSource types |
 | [loader](./loader.md) | how WASM binaries are loaded and instantiated |
-| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher`, `XChaCha20Cipher`, or `AESGCMSIVCipher` |
 
