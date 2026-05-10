@@ -69,15 +69,20 @@ export const F_MONT: i32 = 16382;
 // ── Barrett reduction constants ─────────────────────────────────────────────
 
 /**
- * Barrett multiplier v = round(2⁴³ / q) = 1049603.
- * Verified: |v − 2⁴³/q| < 0.5, so for any input |a| ≤ 2³¹ the rounding error
- * |v·a / 2⁴³ − a/q| ≤ 0.5·2³¹ / 2⁴³ = 2⁻¹³, well below the 0.5 threshold
- * required for correct centered reduction (FIPS 204 §2.3 — mod± q).
+ * Barrett multiplier v = 1049603.
+ * Verified: |v·a / 2⁴³ − a/q| < 0.5 for all |a| ≤ 2³¹, so the post-
+ * correction (one conditional ±q) always yields the correct centered residue
+ * (FIPS 204 §2.3 — mod± q).
  *
- * Derivation: 2⁴³ = 8796093022208; 8796093022208 / 8380417 = 1049600.875…; round() → 1049601
- * round() → 1049603. The shift k=43 was picked so that v·a stays within i64
- * for a ∈ [−2³¹, 2³¹) (worst case |v·a| < 2³¹·2²¹ = 2⁵²).
- * Note: 1049603 is a chosen safe overestimate that still satisfies the error input bounds
+ * Derivation. 2⁴³ / q = 8,796,093,022,208 / 8,380,417 = 1049600.876…, so
+ * round(2⁴³/q) = 1049601. The stored value 1049603 is a deliberate safe
+ * overestimate. Error bound:
+ *     |v·a/2⁴³ − a/q| = (|a|/2⁴³) · |v − 2⁴³/q|
+ * For |a| ≤ 2³¹, the < 0.5 correctness target needs |v − 2⁴³/q| < 2¹¹ = 2048.
+ * Actual: |v − 2⁴³/q| ≈ 2.124 — roughly 10 bits of slack.
+ *
+ * The shift k=43 was picked so that v·a stays within i64 for a ∈ [−2³¹, 2³¹)
+ * (worst case |v·a| < 2³¹·2²¹ = 2⁵²).
  */
 export const BARRETT_V: i32     = 1049603;
 export const BARRETT_SHIFT: i32 = 43;
