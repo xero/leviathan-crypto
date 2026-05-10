@@ -27,6 +27,8 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 
 ## Unit Tests (Vitest)
 
+The `Gate` column reflects in-test gating: the simplest authoritative vector for a primitive must pass before any other tests in that family are written or run. `GATE` marks the primary gate; numbered values (`Gate 1`, `Gates 1–6`, `Gate 0/1/2/3/4/5/6/7`) indicate gates within multi-gate families. See [architecture.md#gate-discipline](./architecture.md#gate-discipline) for the design rationale.
+
 | File                                          | Description                                                                                                                                                                                                                                  | Vectors / Tests        | Gate                |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------- |
 | `init.test.ts`                                | `init()` API: error-before-init (serpent, sha3, keccak), unknown module rejection, embedded (single, multiple, all four modules), ArrayBuffer source, idempotent, partial init isolation, `keccak` alias (init, shared instance, cross-name, idempotent, both names, subpath init, embedded re-export), WASM `getModuleId()` exports (modules 0–3) | 18 tests               | —                   |

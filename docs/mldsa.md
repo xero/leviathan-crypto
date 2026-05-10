@@ -83,6 +83,12 @@ import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
 await mldsaInit(mldsaWasm)
 ```
 
+`mldsaInit(source)` initializes only the mldsa WASM binary. Note that
+ML-DSA classes additionally require `sha3` — both modules must be
+initialized before constructing any `MlDsa*` instance. HashML-DSA with a
+SHA-2 family pre-hash (`'SHA2-224'`, `'SHA2-256'`, etc.) additionally
+requires `sha2`.
+
 ML-DSA requires WebAssembly SIMD. `init()` throws a clear error on runtimes
 without SIMD support. Every major browser and runtime since 2021 supports it.
 

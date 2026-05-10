@@ -23,14 +23,17 @@ in WASM linear memory with static buffers—no heap allocation, no
 
 The module provides:
 
-| Algorithm   | Standard        | Digest Size | Block Size |
-|-------------|-----------------|-------------|------------|
-| SHA-256     | FIPS 180-4 §6.2 | 32 bytes    | 64 bytes   |
-| SHA-512     | FIPS 180-4 §6.4 | 64 bytes    | 128 bytes  |
-| SHA-384     | FIPS 180-4 §6.5 | 48 bytes    | 128 bytes  |
-| HMAC-SHA256 | RFC 2104        | 32 bytes    | 64 bytes   |
-| HMAC-SHA512 | RFC 2104        | 64 bytes    | 128 bytes  |
-| HMAC-SHA384 | RFC 2104        | 48 bytes    | 128 bytes  |
+| Algorithm       | Standard            | Digest Size | Block Size |
+|-----------------|---------------------|-------------|------------|
+| SHA-256         | FIPS 180-4 §6.2     | 32 bytes    | 64 bytes   |
+| SHA-224         | FIPS 180-4 §6.3     | 28 bytes    | 64 bytes   |
+| SHA-512         | FIPS 180-4 §6.4     | 64 bytes    | 128 bytes  |
+| SHA-384         | FIPS 180-4 §6.5     | 48 bytes    | 128 bytes  |
+| SHA-512/224     | FIPS 180-4 §6.7.1   | 28 bytes    | 128 bytes  |
+| SHA-512/256     | FIPS 180-4 §6.7.2   | 32 bytes    | 128 bytes  |
+| HMAC-SHA256     | RFC 2104            | 32 bytes    | 64 bytes   |
+| HMAC-SHA512     | RFC 2104            | 64 bytes    | 128 bytes  |
+| HMAC-SHA384     | RFC 2104            | 48 bytes    | 128 bytes  |
 
 SHA-384 is SHA-512 with different initial hash values and truncated output. It
 reuses the same buffers and compression logic; no separate implementation

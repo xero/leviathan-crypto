@@ -23,6 +23,7 @@ jobs:
     uses: ./.github/workflows/verify-vectors.yml
 
   build:
+    needs: [verify-vectors]
     uses: ./.github/workflows/build.yml
 
   lint:
@@ -90,6 +91,7 @@ jobs:
 
   suite-status:
     name: test-suite-status
+    if: always()
     needs:
       - verify-vectors
       - build
@@ -111,4 +113,9 @@ jobs:
       - unit-mldsa
     runs-on: ubuntu-latest
     steps:
+      - name: Check upstream results
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::One or more upstream jobs failed or were cancelled."
+          exit 1
       - run: echo "All required tests have passed."
