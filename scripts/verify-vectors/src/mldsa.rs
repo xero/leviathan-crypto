@@ -80,12 +80,17 @@ impl TryRng for FixedRng {
         // Read straight from the supplied buffer; zero-pad any tail beyond
         // its length. In practice ml-dsa's sign_mu_randomized requests
         // exactly 32 bytes of rnd, matching the FixedRng buffer length, so
-        // the zero-pad branch is unreachable — kept as a degenerate-but-
-        // defined fallback rather than panicking on speculative reads.
+        // the zero-pad branch is unreachable. Kept as a defined fallback
+        // for release builds; CI catches silent extension via debug_assert.
         for byte in dst.iter_mut() {
             *byte = self.buf.get(self.pos).copied().unwrap_or(0);
             self.pos = self.pos.saturating_add(1);
         }
+        debug_assert!(
+            self.pos <= self.buf.len(),
+            "FixedRng zero-extended past end of supplied buffer ({} > {})",
+            self.pos, self.buf.len(),
+        );
         Ok(())
     }
 }

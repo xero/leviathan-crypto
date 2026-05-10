@@ -30,6 +30,7 @@ import { describe, test, expect, beforeAll } from 'vitest';
 import {
 	init,
 	SHAKE128, SHAKE256, SHA3_256,
+	CSHAKE128, KMAC128, KMAC256, KMACXOF128, KMACXOF256,
 	ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305,
 	Serpent, SerpentCtr, SerpentCbc, SerpentCipher, Seal,
 	MlKem768, bytesToHex,
@@ -97,6 +98,42 @@ describe('exclusivity — sha3', () => {
 		a.dispose();
 		expect(() => a.dispose()).not.toThrow();
 		expect(_isModuleBusy('sha3')).toBe(false);
+	});
+
+	test('live KMAC128 blocks every other sha3 user', () => {
+		const a = new KMAC128(new Uint8Array([1, 2, 3, 4]), 32, enc('s'));
+		expect(() => new KMAC128(new Uint8Array([1, 2, 3, 4]), 32, enc('s'))).toThrow(/sha3/);
+		expect(() => new KMAC256(new Uint8Array([1, 2, 3, 4]), 32, enc('s'))).toThrow(/sha3/);
+		expect(() => new KMACXOF128(new Uint8Array([1, 2, 3, 4]), enc('s'))).toThrow(/sha3/);
+		expect(() => new SHAKE128()).toThrow(/sha3/);
+		expect(() => new CSHAKE128(enc('s'))).toThrow(/sha3/);
+		expect(() => new SHA3_256()).toThrow(/sha3/);
+		a.dispose();
+		// After dispose, every constructor succeeds.
+		const x = new KMAC128(new Uint8Array([1, 2, 3, 4]), 32, enc('s'));
+		x.dispose();
+		const y = new SHAKE128();
+		y.dispose();
+	});
+
+	test('live KMACXOF256 blocks every other sha3 user', () => {
+		const a = new KMACXOF256(new Uint8Array([1, 2, 3, 4]), enc('s'));
+		expect(() => new KMAC128(new Uint8Array([1, 2, 3, 4]), 32, enc('s'))).toThrow(/sha3/);
+		expect(() => new KMACXOF128(new Uint8Array([1, 2, 3, 4]), enc('s'))).toThrow(/sha3/);
+		expect(() => new SHAKE256()).toThrow(/sha3/);
+		expect(() => new CSHAKE128(enc('s'))).toThrow(/sha3/);
+		expect(() => new SHA3_256()).toThrow(/sha3/);
+		a.dispose();
+	});
+
+	test('live CSHAKE128 blocks every other sha3 user', () => {
+		const a = new CSHAKE128(enc('s'));
+		expect(() => new KMAC128(new Uint8Array([1, 2, 3, 4]), 32, enc('s'))).toThrow(/sha3/);
+		expect(() => new KMACXOF256(new Uint8Array([1, 2, 3, 4]), enc('s'))).toThrow(/sha3/);
+		expect(() => new SHAKE128()).toThrow(/sha3/);
+		expect(() => new CSHAKE128(enc('s'))).toThrow(/sha3/);
+		expect(() => new SHA3_256()).toThrow(/sha3/);
+		a.dispose();
 	});
 });
 

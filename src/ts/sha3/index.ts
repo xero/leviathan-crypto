@@ -45,6 +45,8 @@ interface Sha3Exports {
 	sha3_512Init:    () => void;
 	shake128Init:    () => void;
 	shake256Init:    () => void;
+	cshake128Init:   () => void;
+	cshake256Init:   () => void;
 	keccakAbsorb:    (len: number) => void;
 	sha3_224Final:   () => void;
 	sha3_256Final:   () => void;
@@ -374,3 +376,7 @@ export class SHAKE256 {
 // ── SHA3_256Hash ────────────────────────────────────────────────────────────
 
 export { SHA3_256Hash } from './hash.js';
+
+// ── cSHAKE / KMAC (SP 800-185) ──────────────────────────────────────────────
+
+export { CSHAKE128, CSHAKE256, KMAC128, KMAC256, KMACXOF128, KMACXOF256 } from './kmac.js';

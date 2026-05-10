@@ -182,7 +182,7 @@ await serpentInit(serpentWasm)
 | `SealStreamPool` | depends on cipher: same modules as the cipher suite + `sha2` |
 | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | `init({ chacha20: chacha20Wasm })` |
 | `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })` — full FIPS 180-4 hash family (SHA-224/256/384/512 plus SHA-512/t variants required by HashML-DSA per FIPS 204 §5.4.1). |
-| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })` — `'keccak'` is an alias for `'sha3'` |
+| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })` — `'keccak'` is an alias for `'sha3'`. The SP 800-185 family (cSHAKE, KMAC, KMACXOF) shares the SHA-3 WASM slot. |
 | `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })` — both modules required |
 | `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })` — both modules required (post-quantum digital signatures, FIPS 204) |
 | `Fortuna` | `init(...)` with one cipher module (`aes`, `serpent`, or `chacha20`) plus one hash module (`sha2` or `sha3`). All six combinations are valid. |
@@ -333,6 +333,56 @@ const out1 = xof.squeeze(32)   // first 32 bytes of output stream
 const out2 = xof.squeeze(32)   // next 32 bytes — contiguous XOF stream
 xof.dispose()
 ```
+
+### cSHAKE, KMAC, KMACXOF (SP 800-185)
+
+```typescript
+import { init, CSHAKE128, KMAC128, KMACXOF256 } from 'leviathan-crypto'
+import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
+
+await init({ sha3: sha3Wasm })
+
+// cSHAKE — customizable SHAKE with a caller-supplied domain string.
+// Empty customization throws (use SHAKE128 / SHAKE256 instead).
+const cs = new CSHAKE128(new TextEncoder().encode('Email Signature'))
+const digest = cs.hash(message, 32)
+cs.dispose()
+
+// KMAC — keyed Keccak MAC, fixed-output. outLen is bound at construction.
+const tag = (() => {
+    const m = new KMAC128(key, 32, new TextEncoder().encode('My Tag'))
+    try { return m.mac(message) } finally { m.dispose() }
+})()
+
+// Constant-time tag verification — throws AuthenticationError on mismatch,
+// returns true on success. Cipher discriminator: 'kmac128' / 'kmac256'.
+try {
+    KMAC128.verify(tag, key, message, new TextEncoder().encode('My Tag'))
+} catch (e) {
+    // wrong key, wrong message, or wrong customization
+}
+
+// KMACXOF — KMAC in XOF mode. Output length is caller-chosen per squeeze.
+const xof = new KMACXOF256(key, new TextEncoder().encode('My Tag'))
+xof.update(part1)
+xof.update(part2)
+const stream1 = xof.squeeze(64)
+const stream2 = xof.squeeze(64)   // continues the same XOF stream
+xof.dispose()
+```
+
+> [!CAUTION]
+> **cSHAKE hides the function-name input N.** Per SP 800-185 §3.4, users
+> "should not make up their own names" — non-standard N values risk collision
+> with future NIST-defined functions. The public CSHAKE128/256 classes pin
+> N to empty; the only customization channel exposed to users is S.
+>
+> **KMAC empty key rejected.** A keyless KMAC degenerates to cSHAKE; the
+> constructor throws and directs callers to CSHAKE128/256.
+>
+> **No static verify on KMACXOF.** The output length is caller-chosen per
+> call, so there is no canonical tag length. To verify a fixed-length XOF
+> tag, squeeze that many bytes and compare with `constantTimeEqual`.
 
 ### ML-KEM post-quantum key encapsulation
 
@@ -626,7 +676,7 @@ The complete API reference ships in `docs/` alongside this file:
 |------|----------|
 | `docs/serpent.md` | `SerpentCipher`, `Serpent`, `SerpentCtr`, `SerpentCbc` |
 | `docs/chacha20.md` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher` |
-| `docs/sha2.md` | `SHA256`, `SHA384`, `SHA512`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` |
+| `docs/sha2.md` | `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512`, `SHA256Hash` |
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `docs/aead.md` | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite` |
 | `docs/kyber.md` | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite` — ML-KEM (FIPS 203) API reference |

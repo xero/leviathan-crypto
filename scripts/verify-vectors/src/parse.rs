@@ -402,19 +402,29 @@ fn parse_polyval_hashes(src: &str) -> Vec<PolyvalHashVector> {
 // sealstream parsers.)
 // ────────────────────────────────────────────────────────────────────────────
 
+// Inside single-quoted strings, treat `\<next>` as a single escaped unit so
+// `\'` and `\\` do not toggle the quote state. kmac.ts customization fields
+// regularly contain `\'`; chacha20.ts uses it in a few RFC sample strings.
+// Outside quotes, `\` is treated as a normal byte (no .ts vector file uses
+// `\` outside a quote).
 fn find_matching_bracket(s: &str) -> Option<usize> {
     let mut depth = 1i32;
     let mut in_q  = false;
-    for (i, ch) in s.char_indices() {
-        match ch {
-            '\'' => in_q = !in_q,
-            '[' if !in_q => depth += 1,
-            ']' if !in_q => {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_q && b == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+        match b {
+            b'\'' => in_q = !in_q,
+            b'[' if !in_q => depth += 1,
+            b']' if !in_q => {
                 depth -= 1;
                 if depth == 0 { return Some(i); }
             }
             _ => {}
         }
+        i += 1;
     }
     None
 }
@@ -423,36 +433,46 @@ fn find_matching_brace(s: &str) -> Option<usize> {
     let mut depth = 0i32;
     let mut in_q  = false;
     let mut started = false;
-    for (i, ch) in s.char_indices() {
-        match ch {
-            '\'' => in_q = !in_q,
-            '{' if !in_q => { depth += 1; started = true; }
-            '}' if !in_q => {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_q && b == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+        match b {
+            b'\'' => in_q = !in_q,
+            b'{' if !in_q => { depth += 1; started = true; }
+            b'}' if !in_q => {
                 depth -= 1;
                 if started && depth == 0 { return Some(i); }
             }
             _ => {}
         }
+        i += 1;
     }
     None
 }
 
 // Split a top-level array body into individual `{ ... }` object bodies.
-// Honours nested braces and single-quoted strings. Comma-and-whitespace
+// Honours nested braces and single-quoted strings (with `\\` / `\'`
+// escapes treated as opaque inside the quote). Comma-and-whitespace
 // between objects is discarded.
 fn split_top_level_objects(body: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut depth = 0i32;
     let mut in_q  = false;
     let mut start = None::<usize>;
-    for (i, ch) in body.char_indices() {
-        match ch {
-            '\'' => in_q = !in_q,
-            '{' if !in_q => {
+    let bytes = body.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_q && b == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+        match b {
+            b'\'' => in_q = !in_q,
+            b'{' if !in_q => {
                 if depth == 0 { start = Some(i + 1); }
                 depth += 1;
             }
-            '}' if !in_q => {
+            b'}' if !in_q => {
                 depth -= 1;
                 if depth == 0 {
                     if let Some(s) = start.take() {
@@ -462,6 +482,7 @@ fn split_top_level_objects(body: &str) -> Vec<String> {
             }
             _ => {}
         }
+        i += 1;
     }
     out
 }
@@ -1215,6 +1236,200 @@ pub fn parse_mldsa_sigver_array(src: &str, export_name: &str) -> Vec<MlDsaSigVer
             message:             extract_optional_hex(&obj, "message"),
             mu:                  extract_optional_hex(&obj, "mu"),
             context:             extract_optional_hex(&obj, "context"),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// KMAC and cSHAKE vectors (kmac.ts).
+//
+// Four TS interfaces, four Rust structs. Sample vectors carry an ASCII
+// description and inputs as hex; ACVP vectors carry tcId/tgId + the
+// per-record xof/hexCustomization flags. All length fields are in bits,
+// and every pinned record is byte-aligned (the byte-alignment filter ran
+// at Phase 1; bit-level cases were dropped to match leviathan-crypto's
+// byte-oriented WASM API).
+//
+// Customization / function-name strings in KMAC ACVP records can contain
+// literal `'` chars escaped as `\'`. The seal/sealstream parser's
+// `extract_string` finds the first `'` without honoring escapes, which
+// truncates those values. `extract_string_escaped` below decodes the two
+// escape sequences the kmac.ts generator emits (`\'` and `\\`) and is
+// used in the KMAC parsers.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct CshakeSampleVector {
+    pub description:    String,
+    pub msg:            Vec<u8>,
+    pub msg_len_bits:   u32,
+    pub n:              String,
+    pub s:              String,
+    pub out_len_bits:   u32,
+    pub expected:       Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct KmacSampleVector {
+    pub description:    String,
+    pub key:            Vec<u8>,
+    pub key_len_bits:   u32,
+    pub msg:            Vec<u8>,
+    pub msg_len_bits:   u32,
+    pub s:              String,
+    pub out_len_bits:   u32,
+    pub expected:       Vec<u8>,
+}
+
+// tg_id is parsed for failure-log traceability (verifier surfaces it on
+// mismatch). The verifier dispatches per export name, not per tgId, so
+// the field is otherwise unused.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct CshakeAcvpVector {
+    pub tc_id:             u32,
+    pub tg_id:             u32,
+    pub hex_customization: bool,
+    pub msg:               Vec<u8>,
+    pub msg_len_bits:      u32,
+    pub function_name:     String,
+    pub customization:     String,
+    pub md:                Vec<u8>,
+    pub out_len_bits:      u32,
+}
+
+// Two split string/hex customization fields mirror the TS interface
+// `customization?` / `customizationHex?`. Exactly one is populated per
+// record (determined by hex_customization). test_passed is populated
+// only for MVT records; AFT records leave it None and the verifier
+// branches on test_type instead.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct KmacAcvpVector {
+    pub tc_id:              u32,
+    pub tg_id:              u32,
+    pub test_type:          String,   // "AFT" or "MVT"
+    pub xof:                bool,
+    pub hex_customization:  bool,
+    pub key:                Vec<u8>,
+    pub key_len_bits:       u32,
+    pub msg:                Vec<u8>,
+    pub msg_len_bits:       u32,
+    pub customization:      Option<String>,
+    pub customization_hex:  Option<Vec<u8>>,
+    pub mac:                Vec<u8>,
+    pub mac_len_bits:       u32,
+    pub test_passed:        Option<bool>,
+}
+
+// Escape-aware single-quoted string extractor. Handles `\'` and `\\`
+// (the two escapes the kmac.ts generator emits). Other backslash
+// sequences pass through unchanged — the corpus does not contain any.
+fn extract_string_escaped(body: &str, field: &str) -> String {
+    let needle = format!("{}:", field);
+    let Some(start) = find_field_offset(body, field) else { return String::new(); };
+    let after = start + needle.len();
+    let bytes = body.as_bytes();
+    // Locate the opening quote.
+    let mut i = after;
+    while i < bytes.len() && bytes[i] != b'\'' { i += 1; }
+    if i >= bytes.len() { return String::new(); }
+    i += 1;
+    let mut out = String::new();
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'\\' && i + 1 < bytes.len() {
+            let next = bytes[i + 1];
+            if next == b'\'' || next == b'\\' {
+                out.push(next as char);
+                i += 2;
+                continue;
+            }
+        }
+        if b == b'\'' { return out; }
+        out.push(b as char);
+        i += 1;
+    }
+    out
+}
+
+// Same shape as extract_string_escaped, but returns Option so an absent
+// field is distinguishable from an explicitly empty one.
+fn extract_optional_string_escaped(body: &str, field: &str) -> Option<String> {
+    if find_field_offset(body, field).is_none() { return None; }
+    Some(extract_string_escaped(body, field))
+}
+
+pub fn parse_cshake_sample_array(src: &str, export_name: &str) -> Vec<CshakeSampleVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| CshakeSampleVector {
+            description:  extract_string_escaped(&obj, "description"),
+            msg:          hex::decode(extract_hex(&obj, "msg")).unwrap_or_default(),
+            msg_len_bits: extract_int(&obj, "msgLenBits").unwrap_or(0),
+            n:            extract_string_escaped(&obj, "N"),
+            s:            extract_string_escaped(&obj, "S"),
+            out_len_bits: extract_int(&obj, "outLenBits").unwrap_or(0),
+            expected:     hex::decode(extract_hex(&obj, "expected")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_kmac_sample_array(src: &str, export_name: &str) -> Vec<KmacSampleVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| KmacSampleVector {
+            description:  extract_string_escaped(&obj, "description"),
+            key:          hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            key_len_bits: extract_int(&obj, "keyLenBits").unwrap_or(0),
+            msg:          hex::decode(extract_hex(&obj, "msg")).unwrap_or_default(),
+            msg_len_bits: extract_int(&obj, "msgLenBits").unwrap_or(0),
+            s:            extract_string_escaped(&obj, "S"),
+            out_len_bits: extract_int(&obj, "outLenBits").unwrap_or(0),
+            expected:     hex::decode(extract_hex(&obj, "expected")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_cshake_acvp_array(src: &str, export_name: &str) -> Vec<CshakeAcvpVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| CshakeAcvpVector {
+            tc_id:             extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:             extract_int(&obj, "tgId").unwrap_or(0),
+            hex_customization: extract_bool(&obj, "hexCustomization").unwrap_or(false),
+            msg:               hex::decode(extract_hex(&obj, "msg")).unwrap_or_default(),
+            msg_len_bits:      extract_int(&obj, "msgLenBits").unwrap_or(0),
+            function_name:     extract_string_escaped(&obj, "functionName"),
+            customization:     extract_string_escaped(&obj, "customization"),
+            md:                hex::decode(extract_hex(&obj, "md")).unwrap_or_default(),
+            out_len_bits:      extract_int(&obj, "outLenBits").unwrap_or(0),
+        })
+        .collect()
+}
+
+pub fn parse_kmac_acvp_array(src: &str, export_name: &str) -> Vec<KmacAcvpVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| KmacAcvpVector {
+            tc_id:              extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:              extract_int(&obj, "tgId").unwrap_or(0),
+            test_type:          extract_string_escaped(&obj, "testType"),
+            xof:                extract_bool(&obj, "xof").unwrap_or(false),
+            hex_customization:  extract_bool(&obj, "hexCustomization").unwrap_or(false),
+            key:                hex::decode(extract_hex(&obj, "key")).unwrap_or_default(),
+            key_len_bits:       extract_int(&obj, "keyLenBits").unwrap_or(0),
+            msg:                hex::decode(extract_hex(&obj, "msg")).unwrap_or_default(),
+            msg_len_bits:       extract_int(&obj, "msgLenBits").unwrap_or(0),
+            customization:      extract_optional_string_escaped(&obj, "customization"),
+            customization_hex:  extract_optional_hex(&obj, "customizationHex"),
+            mac:                hex::decode(extract_hex(&obj, "mac")).unwrap_or_default(),
+            mac_len_bits:       extract_int(&obj, "macLenBits").unwrap_or(0),
+            test_passed:        extract_bool(&obj, "testPassed"),
         })
         .collect()
 }
