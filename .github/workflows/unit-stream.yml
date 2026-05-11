@@ -6,7 +6,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: setup bun
@@ -15,27 +15,5 @@ jobs:
           bun-version: 'latest'
       - name: install dependencies
         run: bun i
-      - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run stream unit tests
-        run: >
-          bun vitest run --reporter=verbose --no-coverage
-          test/unit/stream/header.test.ts
-          test/unit/stream/sealstream.test.ts
-          test/unit/stream/sealstream_xchacha_kat.test.ts
-          test/unit/stream/sealstream_serpent_kat.test.ts
-          test/unit/stream/sealstream_aes_kat.test.ts
-          test/unit/stream/seal.test.ts
-          test/unit/stream/seal_xchacha_kat.test.ts
-          test/unit/stream/seal_serpent_kat.test.ts
-          test/unit/stream/seal_aes_kat.test.ts
-          test/unit/stream/xchacha20-cipher-suite.test.ts
-          test/unit/stream/serpent-cipher-suite.test.ts
-          test/unit/stream/aes-cipher-suite.test.ts
-          test/unit/stream/salamander-resistance.test.ts
-          test/unit/stream/pool.test.ts
-          test/unit/stream/pool-terminal-on-throw.test.ts
-          test/unit/stream/pool-byte-exact.test.ts
-          test/unit/stream/pool-wipe-handshake.test.ts
-          test/unit/stream/failed-state.test.ts
-          test/unit/stream/seek-forward-only.test.ts
+        run: bun scripts/test.ts unit:group stream

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 //                  ▄▄▄▄▄▄▄▄▄▄
 //           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
 //        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
@@ -27,9 +27,9 @@
 //
 // Runs after build:ts as part of the build chain.
 
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {mkdirSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
+import {resolve, dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -58,29 +58,33 @@ const INCLUDE = [
 // useless for agents in an installed package context
 const SVG_IMG = /<img[^>]+\.svg[^>]*>/g;
 
-if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true });
+export async function run(): Promise<void> {
+	if (!existsSync(OUT)) mkdirSync(OUT, {recursive: true});
 
-for (const file of INCLUDE) {
-	const src  = resolve(SRC, file);
-	const dest = resolve(OUT, file);
+	for (const file of INCLUDE) {
+		const src  = resolve(SRC, file);
+		const dest = resolve(OUT, file);
 
-	if (!existsSync(src)) {
-		process.stderr.write(`missing: docs/${file}\n`);
-		process.exit(1);
+		if (!existsSync(src)) {
+			process.stderr.write(`missing: docs/${file}\n`);
+			process.exit(1);
+		}
+
+		let content = readFileSync(src, 'utf8');
+
+		// strip SVG image lines from architecture.md
+		if (file === 'architecture.md') {
+			content = content
+				.split('\n')
+				.filter(line => !SVG_IMG.test(line))
+				.join('\n');
+		}
+
+		writeFileSync(dest, content, 'utf8');
+		process.stdout.write(`copied: docs/${file} → dist/docs/${file}\n`);
 	}
 
-	let content = readFileSync(src, 'utf8');
-
-	// strip SVG image lines from architecture.md
-	if (file === 'architecture.md') {
-		content = content
-			.split('\n')
-			.filter(line => !SVG_IMG.test(line))
-			.join('\n');
-	}
-
-	writeFileSync(dest, content, 'utf8');
-	process.stdout.write(`copied: docs/${file} → dist/docs/${file}\n`);
+	process.stdout.write(`done: ${INCLUDE.length} docs → dist/docs/\n`);
 }
 
-process.stdout.write(`done: ${INCLUDE.length} docs → dist/docs/\n`);
+if (import.meta.main) await run()
