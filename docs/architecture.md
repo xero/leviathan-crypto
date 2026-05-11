@@ -20,6 +20,9 @@ Overview of Leviathan Crypto's architecture, comprising eight independent WASM m
 > - [Correctness Contract](#correctness-contract)
 > - [Cryptanalytic margin](#cryptanalytic-margin)
 > - [Constant-time at the algorithm level](#constant-time-at-the-algorithm-level)
+>     - [Algorithm choice](#algorithm-choice)
+>     - [TS-layer routing](#ts-layer-routing)
+>     - [Documented exceptions](#documented-exceptions)
 > - [Implementation discipline](#implementation-discipline)
 >     - [Agentic development contracts](#agentic-development-contracts)
 > - [WebAssembly is the deployment vehicle](#webassembly-is-the-deployment-vehicle)
@@ -1285,9 +1288,27 @@ Implementation correctness is one axis; algorithmic strength is another. Each of
 
 ## Constant-time at the algorithm level
 
-**Each of these implementations is constant-time at the algorithm level.** The same code in C, Rust, or hand-typed assembly would have the same property. WebAssembly does not buy that; the implementation does. ML-KEM extends the same principle to post-quantum: the Fujisaki-Okamoto re-encryption uses dedicated `ct_verify` and `ct_cmov` primitives implemented in WASM that never pass through JavaScript.
+Three layers compose the library's constant-time posture: primitive algorithm choice, a single TypeScript routing point for secret-data equality, and a small set of named WASM-internal exceptions with published rationale.
 
-**The exception is the GHASH multiplier inside AES-GCM and AES-GCM-SIV's POLYVAL backend.** Both use a 256-byte 4-bit-windowed multiplication table indexed by secret-derived state. This is the same posture as BoringSSL, OpenSSL, and RustCrypto on hardware without PCLMULQDQ. WebAssembly does not currently expose carry-less multiply, so a fully table-free GHASH or POLYVAL is not implementable in this environment without unacceptable throughput cost. The library documents the leak surface, mitigates it with per-message authentication keys (the POLYVAL key in AES-GCM-SIV derives per nonce from the master, not fixed across the session), and recommends the AEAD `seal` family over the lower-level `AESGCM` primitive.
+### Algorithm choice
+
+**Every primitive is constant-time at the algorithm level.** The same code in C, Rust, or hand-typed assembly would have the same property. WebAssembly does not buy that; the implementation does. Serpent and AES use bitsliced Boolean-circuit S-boxes with no table lookups. ChaCha20's ARX construction (add, rotate, XOR) is branchless by construction. SHA-2 and SHA-3 round functions are pure arithmetic and pure bitwise permutation respectively. ML-KEM extends the same principle to post-quantum: the Fujisaki-Okamoto re-encryption uses dedicated `ct_verify` and `ct_cmov` primitives implemented in the Kyber WASM module that never pass through JavaScript.
+
+### TS-layer routing
+
+**Every secret-data equality check in TypeScript routes through `constantTimeEqual`** from `src/ts/utils.ts`. That function is a thin wrapper over a dedicated SIMD WASM module (`src/asm/ct/`) that does branch-free v128 XOR-accumulate. There is no JavaScript fallback — runtimes without SIMD support throw at init. The routing rule is library-wide: AEAD tag verification (AES-GCM, AES-GCM-SIV, ChaCha20-Poly1305, XChaCha20-Poly1305), HMAC verification (Serpent's Encrypt-then-MAC), seal-layer key commitment, ML-DSA's c̃ comparison, and ML-KEM's public-key hash check all use the central path. The policy is enforced by comments at every call site (e.g. "no tag compare lives inside the AES module itself — this is library-wide policy for atomic AEADs") so the rule stays visible at the point of enforcement.
+
+### Documented exceptions
+
+Three primitives branch on secret-derived intermediate values. Each is documented at the source with rationale tied to a published spec section.
+
+**GHASH / POLYVAL 4-bit-windowed multiply** — `src/asm/aes/gf128.ts`. The AES-GCM and AES-GCM-SIV authentication backends use a 256-byte 4-bit-windowed multiplication table indexed by secret-derived state. This is the same posture as BoringSSL, OpenSSL, and RustCrypto on hardware without PCLMULQDQ. WebAssembly does not currently expose carry-less multiply, so a fully table-free GHASH or POLYVAL is not implementable in this environment without unacceptable throughput cost. The library documents the leak surface, mitigates it with per-message authentication keys (the POLYVAL key in AES-GCM-SIV derives per nonce from the master, not fixed across the session), and recommends the AEAD `seal` family over the lower-level `AESGCM` primitive.
+
+**ML-DSA `decompose` special-case branch** — `src/asm/mldsa/rounding.ts`. FIPS 204 Algorithm 36 line 3 takes a special-case branch when `a − r0 = q − 1`. The leak is the same statistical signal an attacker already gets from the SHAKE-driven rejection-restart loop in Algorithm 7 signing — each restart changes the SHAKE output and the iteration count is observable through coarser timing channels regardless. Documented per FIPS 204 §3.6.3.
+
+**ML-DSA `poly_chknorm` early-exit** — `src/asm/mldsa/poly.ts`. The norm check (`‖z‖∞ < γ1 − β`, etc., per FIPS 204 §2.3) early-exits on the first coefficient that violates the bound. The leaked iteration count is the same signal already exposed by the rejection-restart pattern in signing — total signing time is observable regardless. Documented per FIPS 204 §2.3 and §3.6.3.
+
+Neither ML-DSA exception is key-revealing. Both reveal statistical patterns the attacker already gets through coarser timing channels intrinsic to the rejection-sampling design.
 
 ---
 
