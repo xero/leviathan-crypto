@@ -4,6 +4,9 @@
 
 Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 3450 tests.
 
+> [!TIP]
+> Looking for how to run the test suite locally? See [development.md](./development.md). This document describes what the suite contains; the development doc covers how to invoke it.
+
 > ### Table of Contents
 > - [Test Counts](#test-counts)
 > - [Unit Tests (Vitest)](#unit-tests-vitest)
@@ -335,6 +338,7 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 > ## Cross-References
 >
 > - [index](./README.md) — Project Documentation index
+> - [development](./development.md) — Day-to-day developer workflow: build, test, lint commands and the iteration loop
 > - [lexicon](./lexicon.md) — Glossary of cryptographic terms
 > - [architecture](./architecture.md) — architecture overview, module relationships, buffer layouts, and build pipeline
 > - [init](./init.md) — `init()` API, loading modes, subpath imports

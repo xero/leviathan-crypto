@@ -101,11 +101,48 @@
   algorithms now have end-to-end cross-implementation verification on
   every CI run.
 
+- **SP 800-185 cSHAKE and KMAC.** Six new classes built on top of the
+  existing `sha3` WASM module: `CSHAKE128`, `CSHAKE256`, `KMAC128`,
+  `KMAC256`, `KMACXOF128`, `KMACXOF256`. cSHAKE provides customizable
+  SHAKE output with a domain-separation string. KMAC is the Keccak-based
+  MAC, with `outLen` bound at construction so the `right_encode(L*8)`
+  suffix binds the output length into the MAC computation. KMACXOF
+  produces caller-driven output via `squeeze`. The four SP 800-185 §2.3
+  encoding helpers (`leftEncode`, `rightEncode`, `encodeString`,
+  `bytepad`) live in TypeScript and stream into the existing
+  `keccakAbsorb` path; two new AssemblyScript inits (`cshake128Init`,
+  `cshake256Init`) set the cSHAKE domain separation byte. The API is
+  byte-oriented end to end; no bit-level inputs are exposed. Subpath
+  exports: `leviathan-crypto/sha3` and `leviathan-crypto/sha3/embedded`.
+
+  KMAC fixed-output variants ship with a static `verify(tag, key, msg,
+  customization)` that recomputes the MAC and constant-time-compares
+  via `constantTimeEqual`. On mismatch it throws `AuthenticationError`
+  with discriminator `'kmac128'` or `'kmac256'`; on match it returns
+  `true`. KMACXOF variants intentionally have no static `verify` because
+  the output length is not canonical; squeeze the expected number of
+  bytes and use `constantTimeEqual` directly.
+
+  Customization is required at every call site: the cSHAKE classes
+  reject empty customization (the construction would collapse to plain
+  SHAKE) and point callers to `SHAKE128`/`SHAKE256` if that is what
+  they wanted. KMAC rejects empty keys for the same structural reason
+  and points to `CSHAKE128`/`CSHAKE256`. The vector corpus pins 24
+  records sourced from NIST SP 800-185 sample documents plus the NIST
+  ACVP byte-aligned subset; both are checked into
+  `test/vectors/kmac.ts` and tracked by `test/vectors/SHA256SUMS`.
+  The `scripts/verify-vectors` Rust crate uses `tiny-keccak` as an
+  independent oracle, and `test/unit/sha3/kmac.test.ts` runs the WASM
+  implementation against the same records. Two `@internal` test-only
+  helpers (`_cshake128Raw`, `_cshake256Raw`) exist solely so ACVP
+  records carrying NIST-reserved function names exercise the WASM
+  sponge end to end; they are not part of the public surface.
+
 Migration: none. All additions; no breaking changes from the AES
 or ML-DSA landing. The v2 → v3 migration items above (Serpent
 byte-order flip, ChaCha salamander defense) are the only breaking
-changes in this release; the cipher suite, generator, and signature
-additions add no migration burden.
+changes in this release; the cipher suite, generator, signature, and
+SP 800-185 additions add no migration burden.
 
 ### Breaking Changes
 

@@ -20,8 +20,13 @@ interface WasmExports {
 	decryptBlock(): void;
 	resetCounter(): void;
 	encryptChunk(len: number): void;
+	encryptChunk_simd(len: number): void;
 	decryptChunk(len: number): void;
 	setCounter(n: number): void;
+	// serpent CBC
+	getCbcIvOffset(): number;
+	cbcEncryptChunk(len: number): void;
+	cbcDecryptChunk_simd(len: number): void;
 	// chacha20
 	getChachaNonceOffset(): number;
 	getPolyKeyOffset(): number;
@@ -32,6 +37,7 @@ interface WasmExports {
 	chachaSetCounter(n: number): void;
 	chachaLoadKey(): void;
 	chachaEncryptChunk(len: number): void;
+	chachaEncryptChunk_simd(len: number): void;
 	chachaGenPolyKey(): void;
 	hchacha20(): void;
 	polyInit(): void;
@@ -127,3 +133,15 @@ declare function parseNessie(text: string): { key: string; pt: string; ct: strin
 
 // ── Serpent-KAT/IV/MonteCarlo specs (floppy-format byte reverser) ──
 declare function rev(b: Uint8Array): Uint8Array;
+
+// ── SIMD parity specs (chacha20_simd, serpent_simd_ctr) ───────────
+declare function setup(key: string, nonce: string, pt: Uint8Array): Promise<WasmExports>;
+declare function readCT(wasm: WasmExports, len: number): Uint8Array;
+
+// ── SIMD bench specs (chacha20_simd_bench, serpent_simd_bench) ────
+declare function runBench(chunkSize: number, warmup: number, trials: number): Promise<{
+	chunkSize: number;
+	scalarMBs: number;
+	simdMBs: number;
+	speedup: number;
+}>;

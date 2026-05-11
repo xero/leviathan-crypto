@@ -33,7 +33,7 @@ jobs:
         run: bun i
 
       - name: build
-        run: bun run build
+        run: bun scripts/build.ts
 
       - name: strip devDependencies from published manifest
         run: npm pkg delete devDependencies

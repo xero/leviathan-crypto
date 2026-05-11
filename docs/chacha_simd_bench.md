@@ -21,7 +21,7 @@ This is the same parallelism model used in Serpent CTR-4.
 
 - **Date:** 2026-03-27
 - **Hardware:** Apple Silicon (arm64)
-- **Bun version:** measured via `bun run test`
+- **Bun version:** measured via `bun check`
 - **Browsers:** Playwright; Chromium, Firefox, WebKit
 - **Benchmark:** `test/e2e/chacha20_simd_bench.spec.ts`
   - 50 warmup iterations, then 200–5000 timed trials per chunk size

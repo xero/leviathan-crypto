@@ -50,7 +50,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["scripts/*.ts"],
+    files: ["scripts/**/*.ts"],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -60,7 +60,7 @@ export default defineConfig([
   },
   {
     files: ["**/*.ts"],
-    ignores: ["scripts/*.ts"],
+    ignores: ["scripts/**/*.ts"],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {

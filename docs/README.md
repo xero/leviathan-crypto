@@ -17,6 +17,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Document | Description |
 |----------|-------------|
+| [development.md](./development.md) | Day-to-day developer workflow: build, test, lint commands and the iteration loop |
 | [examples.md](./examples.md) | Code examples for every primitive |
 | [cdn.md](./cdn.md) | Use leviathan-crypto directly from a CDN with no bundler |
 | [exports.md](./exports.md) | Complete export reference: every class, function, and type |
@@ -78,6 +79,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | Module | Description |
 |--------|-------------|
 | [sha3.md](./sha3.md) | TypeScript API: `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
+| [kmac.md](./kmac.md) | TypeScript API: `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` (SP 800-185) |
 | [asm_sha3.md](./asm_sha3.md) | WASM implementation: Keccak permutation (1600-bit state), sponge construction |
 
 ### Fortuna CSPRNG

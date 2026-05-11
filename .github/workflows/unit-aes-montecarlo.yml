@@ -6,7 +6,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: setup bun
@@ -15,10 +15,5 @@ jobs:
           bun-version: 'latest'
       - name: install dependencies
         run: bun i
-      - name: build wasm + embedded modules
-        run: bun run build:asm && bun run build:embed && bun run build:embed-workers
       - name: run aes monte carlo unit tests
-        run: >
-          bun vitest run --reporter=verbose --no-coverage
-          test/unit/aes/aes_mct.test.ts
-          test/unit/aes/aes_cbc_mct.test.ts
+        run: bun scripts/test.ts unit:group aes-mct

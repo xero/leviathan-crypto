@@ -16,10 +16,6 @@ jobs:
       - name: install dependencies
         run: bun i
       - name: full build
-        run: bun run build
-      - name: typecheck
-        run: bun tsc --noEmit
-      - name: lint ts
-        run: bun run lint
-      - name: lint asm
-        run: bun run lint:asm
+        run: bun scripts/build.ts
+      - name: lint (ts + asm + tsc x3)
+        run: bun scripts/lint.ts

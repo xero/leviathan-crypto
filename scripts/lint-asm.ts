@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 //                  ▄▄▄▄▄▄▄▄▄▄
 //           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
 //        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
@@ -20,61 +20,54 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// "Make yourself sad for no good reason" tests
+// The "Make yourself sad for no good reason" tests.
 // Lints all AssemblyScript modules with `asc --pedantic`.
-// Mirrors build-asm.js module table
+// Module table comes from scripts/lib/modules.ts.
 // Exits nonzero on any WARNING / ERROR / PEDANTIC diagnostic.
 
-import { spawnSync } from 'child_process'
-import { mkdtempSync, rmSync } from 'fs'
-import { tmpdir } from 'os'
-import { join } from 'path'
+import {spawnSync} from 'node:child_process'
+import {mkdtempSync, rmSync} from 'node:fs'
+import {tmpdir, cpus} from 'node:os'
+import {join} from 'node:path'
+import {ASM_MODULES, ASC_OPTS} from './lib/modules'
+import {runFanout} from './lib/parallel'
 
-const ASC_OPTS = '--runtime stub --noAssert --optimizeLevel 3 --shrinkLevel 1'
-
-const modules = [
-	{ name: 'ct',       entry: 'src/asm/ct/index.ts',       memory: '--initialMemory 1 --maximumMemory 1', extra: '--enable simd', noSourceMap: true },
-  { name: 'serpent',  entry: 'src/asm/serpent/index.ts',  memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
-  { name: 'chacha20', entry: 'src/asm/chacha20/index.ts', memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
-	{ name: 'aes',      entry: 'src/asm/aes/index.ts',      memory: '--initialMemory 4 --maximumMemory 4', extra: '--enable simd' },
-  { name: 'sha2',     entry: 'src/asm/sha2/index.ts',     memory: '--initialMemory 3 --maximumMemory 3' },
-  { name: 'sha3',     entry: 'src/asm/sha3/index.ts',     memory: '--initialMemory 3 --maximumMemory 3' },
-  { name: 'kyber',    entry: 'src/asm/kyber/index.ts',    memory: '--initialMemory 3 --maximumMemory 3', extra: '--enable simd' },
-  { name: 'mldsa',    entry: 'src/asm/mldsa/index.ts',    memory: '--initialMemory 4 --maximumMemory 4', extra: '--enable simd' },
-]
-
-// asc diagnostic prefixes at start of a stderr line
 const DIAG = /^(ERROR|WARNING|PEDANTIC)\b/m
 
-const tmp = mkdtempSync(join(tmpdir(), 'asc-lint-'))
-const fails = []
-
-for (const { name, entry, memory, extra = '' } of modules) {
-	const out = join(tmp, `${name}.wasm`)
-	const args = [
-		'asc', entry,
-		'-o', out,
-		'--config', 'none',
-		'--pedantic',
-		...ASC_OPTS.split(' '),
-		...memory.split(' '),
-		...(extra ? extra.split(' ') : []),
-	]
-	console.log(`→ lint ${name}`)
-	const res = spawnSync('npx', args, {
-		stdio: ['inherit', 'inherit', 'pipe'],
-		encoding: 'utf8',
-	})
-	if (res.stderr) process.stderr.write(res.stderr)
-	if (res.status !== 0 || DIAG.test(res.stderr || '')) {
-		fails.push(name)
+export async function run(): Promise<void> {
+	const tmp = mkdtempSync(join(tmpdir(), 'asc-lint-'))
+	const fails: string[] = []
+	const cpuCount = Math.max(1, cpus().length)
+	try {
+		await runFanout(ASM_MODULES.slice(), cpuCount, async ({name, entry, memory, simd}) => {
+			const out = join(tmp, `${name}.wasm`)
+			const args = [
+				'asc', entry,
+				'-o', out,
+				'--config', 'none',
+				'--pedantic',
+				...ASC_OPTS.split(' '),
+				...memory.split(' '),
+				...(simd ? ['--enable', 'simd'] : []),
+			]
+			console.log(`→ lint ${name}`)
+			const res = spawnSync('npx', args, {
+				stdio: ['inherit', 'inherit', 'pipe'],
+				encoding: 'utf8',
+			})
+			if (res.stderr) process.stderr.write(res.stderr)
+			if (res.status !== 0 || DIAG.test(res.stderr || '')) {
+				fails.push(name)
+			}
+		})
+	} finally {
+		rmSync(tmp, {recursive: true, force: true})
 	}
+	if (fails.length) {
+		console.error(`\n✗ wasm pedantic diagnostics in: ${fails.join(', ')}`)
+		process.exit(1)
+	}
+	console.log('\n✓ all wasm modules pass strict pedantic checks')
 }
 
-rmSync(tmp, { recursive: true, force: true })
-
-if (fails.length) {
-	console.error(`\n✗ pedantic diagnostics in: ${fails.join(', ')}`)
-	process.exit(1)
-}
-console.log('\n✓ all modules pass strict pedantic checks')
+if (import.meta.main) await run()

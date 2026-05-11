@@ -343,6 +343,31 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
 
 ---
 
+## SP 800-185 Extensions
+
+The `sha3` AssemblyScript module exports two additional init functions used by the cSHAKE and KMAC TypeScript classes documented in [kmac.md](./kmac.md):
+
+```typescript
+cshake128Init(): void   // rate=168, dsByte=cSHAKE
+cshake256Init(): void   // rate=136, dsByte=cSHAKE
+```
+
+Each shares its rate with the corresponding SHAKE variant. The only difference from SHAKE is the domain separation byte. Neither function absorbs any prefix material on its own; the cSHAKE prefix construction (the `bytepad(encode_string(N) || encode_string(S), rate)` block from SP 800-185 §3.3) is built in TypeScript and streamed into the sponge via `keccakAbsorb()`.
+
+### Domain separation byte
+
+The cSHAKE domain separation byte is derived from SP 800-185 §3.3. The sponge suffix is the two-bit string `00`, which precedes the FIPS 202 §B.2 `pad10*1` terminator. The encoded byte takes the low-order-bit-first form per FIPS 202 §B.1. The exact byte value is computed once in `cshake128Init` / `cshake256Init` and stored in the `dsByte` slot; reviewers validating the value should derive it from the spec rather than from the source.
+
+The cSHAKE domain byte is distinct from both the SHA-3 byte (`0x06`) and the SHAKE byte (`0x1f`), so a cSHAKE input and a SHAKE input over the same message produce independent output streams. This is the property that makes cSHAKE a customizable XOF in the first place.
+
+### Encoding helpers live in TypeScript
+
+The four SP 800-185 §2.3 encoding helpers (`leftEncode`, `rightEncode`, `encodeString`, `bytepad`) are implemented in TypeScript, not AssemblyScript. They are pure byte-framing routines, not cryptographic computation, and chunking their output through the existing `keccakAbsorb` path matches the precedent set by `src/ts/mldsa/sha3-helpers.ts` for the ML-DSA family. Keeping the encoding helpers out of WASM also keeps the AS surface minimal: the AS module is responsible for the sponge and the variant init parameters, nothing else.
+
+For the user-facing TypeScript classes built on these primitives (CSHAKE128/256, KMAC128/256, KMACXOF128/256), see [kmac.md](./kmac.md).
+
+---
+
 ## Cross-References
 
 | Document | Description |
@@ -350,6 +375,7 @@ TypeScript wrapper, but callers working directly with the WASM exports must obse
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
 | [sha3](./sha3.md) | TypeScript wrapper classes (SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256) |
+| [kmac](./kmac.md) | TypeScript wrapper classes for SP 800-185 (CSHAKE128/256, KMAC128/256, KMACXOF128/256) |
 | [asm_sha2](./asm_sha2.md) | alternative hash family (SHA-2/HMAC WASM module) |
 | [sha3_audit.md](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
 
