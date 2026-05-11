@@ -17,6 +17,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Document | Description |
 |----------|-------------|
+| [development.md](./development.md) | Day-to-day developer workflow: build, test, lint commands and the iteration loop |
 | [examples.md](./examples.md) | Code examples for every primitive |
 | [cdn.md](./cdn.md) | Use leviathan-crypto directly from a CDN with no bundler |
 | [exports.md](./exports.md) | Complete export reference: every class, function, and type |

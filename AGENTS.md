@@ -37,13 +37,15 @@ bun fix     # eslint autofix — run before marking any task done
 bun pin     # re-pin action SHAs — run after any workflow file change
 ```
 
-**Never run `bun build`, `bun run build`, `bun run test`, or `bun run test:all`
-directly.** `bun bake` and `bun check` include all required steps in the
-correct order with the correct timeout configuration. The raw `bun run`
-equivalents are missing steps, slower, or will timeout on the Monte Carlo or
-kyber poly arithmetic tests. `bun check` does a full build, runs unit and e2e
-tests. Always capture output to a log file and inspect from there, to avoid
-running it twice:
+**Never run `bun build` directly** — that invokes the Bun bundler, not the
+project build. Use the shorthand aliases (`bun bake` / `bun check` / `bun fix`
+/ `bun pin`) in agent sessions rather than the verbose `bun run build` /
+`bun run test` / `bun run lint` / `bun run pin-actions`. The shorthand and the
+verbose forms run identical dispatchers (`scripts/build.ts`, `scripts/check.ts`,
+`scripts/lint.ts`, `scripts/pin-actions.ts`) — favor the shorthand for terse,
+consistent invocations. `bun check` does a full build, then runs lint + unit
++ e2e in parallel. Always capture output to a log file and inspect from there,
+to avoid running it twice:
 `bun check 2>&1 | tee /tmp/check.log; grep -E "passed|failed|error" /tmp/check.log`
 The summary lines appear at the end. If failures are present, inspect with:
 `grep -A 10 "FAIL" /tmp/check.log`
@@ -52,11 +54,34 @@ The summary lines appear at the end. If failures are present, inspect with:
 `.github/workflows/*.yml` file must be followed by `bun pin` to re-pin action
 SHAs. Never skip this step.
 
-**`bun vitest run` in CI workflow files is correct and intentional.** The
-prohibition above applies to agent sessions only. The `.github/workflows/unit-*.yml`
-files explicitly invoke `bun vitest run` with named file lists — this is how CI
-runs unit tests in parallel. Do not replace these invocations with `bun check`
-when editing workflow files.
+**`bun scripts/test.ts unit:group <name>` in CI workflow files is correct
+and intentional.** Each `.github/workflows/unit-*.yml` invokes this command
+for its respective group; per-group file lists, build prerequisites, and
+timeouts live in `scripts/lib/test-groups.ts` as the single source of truth.
+Do not replace these invocations with `bun check` when editing workflow
+files, and do not edit workflow YAML to add or remove individual test paths
+— group composition belongs in `test-groups.ts` (see test-suite editing
+instructions below).
+
+### Running tests during iteration
+
+`bun check` is the umbrella. When iterating on a single test or one family,
+use the targeted shorthands to skip the full suite:
+
+```sh
+bun unit test/unit/aes/aes_kat.test.ts       # one unit test file
+bun e2e test/e2e/seal.spec.ts                # one e2e spec
+bun run test unit:group aes                  # one CI test group locally
+```
+
+`bun unit` and `bun e2e` forward extra arguments to vitest and playwright
+after running the necessary build prerequisites. `bun run test unit:group <name>`
+reads the file list and build dependencies from `scripts/lib/test-groups.ts`
+and runs the same composition as the corresponding `.github/workflows/unit-<name>.yml`
+job. See [docs/development.md](./docs/development.md) for the full developer workflow.
+
+Always run `bun check` before marking a task done. The targeted commands are
+for iteration speed, not for final verification.
 
 ---
 
@@ -245,19 +270,24 @@ Playwright discovers e2e specs automatically. No CI change is needed for e2e.
 
 For unit tests:
 
-- Read the existing workflow files to identify which `unit-*.yml` covers that
-  test family: `grep -l "test/unit/family" .github/workflows/unit-*.yml`
-- Add or remove the test file path from the `bun vitest run` invocation in
-  that workflow.
-- Run `bun pin` after any workflow file change. This is required — same rule
-  as any other workflow edit.
+- Open `scripts/lib/test-groups.ts` and find the `UNIT_GROUPS` entry whose
+  `name` matches the test family (e.g. `aes`, `mldsa`, `kyber`). To locate
+  the right group when unsure: `grep -l "test/unit/family" scripts/lib/test-groups.ts`.
+- Add or remove the test file path from that group's `files` array.
+- No workflow file edit is needed when adding a test to an existing group —
+  the corresponding `.github/workflows/unit-<family>.yml` already calls
+  `bun scripts/test.ts unit:group <name>`, which reads the file list from
+  `test-groups.ts` at run time.
 
 **Adding a new unit group.** If the new tests belong to a primitive family
-with no existing workflow (e.g. a new WASM module with its own test
-directory), create a new `unit-<family>.yml`. Read an existing workflow file
-first and match its structure exactly — job name format, timeout settings,
-step order, `bun i` precondition. Then wire it into `test-suite.yml` following
-the same pattern as the other unit jobs. Run `bun pin` when done.
+with no existing group, do both: (1) add a new `UNIT_GROUPS` entry to
+`scripts/lib/test-groups.ts` with `name`, `files`, `buildTargets`, and
+`timeoutMin`; (2) create a new `unit-<family>.yml` workflow. Read an existing
+workflow file first and match its structure exactly — job name format,
+timeout settings, step order, `bun i` precondition, and the
+`bun scripts/test.ts unit:group <name>` invocation. Then wire it into
+`test-suite.yml` following the same pattern as the other unit jobs. Run
+`bun pin` when done.
 
 ---
 

@@ -167,17 +167,21 @@ Source lives under `src/`, split between AssemblyScript primitives in `src/asm/`
 
 `scripts/` holds the build, codegen, and tooling scripts that produce `dist/` and the test-vector corpus, plus the independent Rust verifier crate. Four categories.
 
-**Build orchestration.** `build-asm.js` drives AssemblyScript compilation across the eight modules. `embed-wasm.ts` produces the gzip+base64 blob for each `.wasm`. `embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild. `copy-docs.ts` ships the consumer doc subset into `dist/`. See [Build Pipeline](#build-pipeline) for the full sequence.
+**Build orchestration.** Four top-level dispatchers front the package scripts: `build.ts` (the `bun bake` shorthand and the canonical `bun run build`), `test.ts` (`bun scripts/test.ts <unit|unit:group|e2e|e2e:install|all>`), `lint.ts` (`bun fix` and the canonical `bun run lint`), and `check.ts` (`bun check`, which runs a full build then lint + unit + e2e in parallel). They share a typed dependency DAG (`scripts/lib/build-graph.ts`), a parallel runner with per-task timing and colored output (`scripts/lib/parallel.ts`), the canonical eight-module list (`scripts/lib/modules.ts`), and the per-CI-group test composition (`scripts/lib/test-groups.ts`). Underneath the dispatchers, the step scripts do the actual work: `build-asm.ts` drives AssemblyScript compilation across the eight modules; `embed-wasm.ts` produces the gzip+base64 blob for each `.wasm`; `embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild; `copy-docs.ts` ships the consumer doc subset into `dist/`. See [Build Pipeline](#build-pipeline) for the full sequence.
 
 **Codegen.** `generate_simd.ts` produces `src/asm/serpent/serpent_simd.ts` from a template by translating S-box gate logic into v128 ops; the generator and its output are both committed and the output is never edited by hand. `gen-seal-vectors.ts`, `gen-sealstream-vectors.ts`, `gen-fortuna-vectors.ts`, and `gen-ratchet-vectors.ts` produce known-answer-test vectors for their respective primitives.
 
-**Tooling.** `gen-changelog.ts` generates `CHANGELOG` entries. `lint-asm.js` lints the AssemblyScript sources. `pin-actions.ts` pins every GitHub Action reference to a SHA, run via `bun pin` after workflow changes.
+**Tooling.** `gen-changelog.ts` generates `CHANGELOG` entries. `lint-asm.ts` lints the AssemblyScript sources via `asc --pedantic`. `pin-actions.ts` pins every GitHub Action reference to a SHA, run via `bun pin` after workflow changes.
 
 **Independent verifier.** `verify-vectors/` is a standalone Rust crate that re-runs every Tier 2 KAT against RustCrypto primitives. It builds with a pinned toolchain and pinned dependencies, runs in CI under `verify-vectors.yml`, and shares no code with the leviathan-crypto WASM stack. Provenance details and tier classification live in [vector_audit.md](./vector_audit.md).
 
 ```
 scripts/
-├── build-asm.js
+├── build.ts             ← dispatcher · bun bake [target]
+├── check.ts             ← dispatcher · bun check (build + lint + unit + e2e)
+├── lint.ts              ← dispatcher · bun fix · bun scripts/lint.ts [ts|asm|all]
+├── test.ts              ← dispatcher · bun scripts/test.ts [unit|unit:group <name>|e2e|e2e:install|all]
+├── build-asm.ts
 ├── copy-docs.ts
 ├── embed-wasm.ts
 ├── embed-workers.ts
@@ -187,8 +191,13 @@ scripts/
 ├── gen-seal-vectors.ts
 ├── gen-sealstream-vectors.ts
 ├── generate_simd.ts
-├── lint-asm.js
+├── lint-asm.ts
 ├── pin-actions.ts
+├── lib/                 ← shared DAG, parallel runner, module list, test groups
+│   ├── build-graph.ts
+│   ├── modules.ts
+│   ├── parallel.ts
+│   └── test-groups.ts
 └── verify-vectors/      ← independent Rust verifier (Cargo crate, pinned deps)
     ├── Cargo.lock
     ├── Cargo.toml
@@ -290,7 +299,7 @@ src/asm/
 
 **Shared utilities.** `shared/` holds primitives reused across cipher modules without belonging to any one of them. `pkcs7.ts` is the canonical PKCS#7 padding helper used by Serpent CBC and consumer code.
 
-**Build artifacts.** `ct-wasm.ts` and the `embedded/` directory hold auto-generated outputs that only exist after `bun run build`. Both are gitignored. `ct-wasm.ts` is the inline raw byte array of the ct WASM module. `embedded/` holds gzip+base64 blobs of each WASM binary (from `scripts/embed-wasm.ts`) and IIFE source strings for each pool worker (from `scripts/embed-workers.ts`).
+**Build artifacts.** `ct-wasm.ts` and the `embedded/` directory hold auto-generated outputs that only exist after `bun bake`. Both are gitignored. `ct-wasm.ts` is the inline raw byte array of the ct WASM module. `embedded/` holds gzip+base64 blobs of each WASM binary (from `scripts/embed-wasm.ts`) and IIFE source strings for each pool worker (from `scripts/embed-workers.ts`).
 
 ```
 src/ts/
@@ -438,7 +447,7 @@ test/
 
 ### Project files
 
-The repository root holds project documentation, package metadata, and tool configuration. Build artifacts that only exist after `bun run build` are listed at the end.
+The repository root holds project documentation, package metadata, and tool configuration. Build artifacts that only exist after `bun bake` are listed at the end.
 
 **Documentation.** `README.md` is the entry point. `SECURITY.md` covers the vulnerability disclosure policy. `AGENTS.md` is the agent contract that governs how AI agents work in the repo. `CHANGELOG` tracks release history and `LICENSE` is MIT. The `docs/` directory holds the full API reference, audits, benchmarks, and architecture notes (this file lives there).
 
@@ -446,7 +455,7 @@ The repository root holds project documentation, package metadata, and tool conf
 
 **Tool configs.** `asconfig.json` configures AssemblyScript compilation. `eslint.config.ts` is the active linter, run via `bun fix`. `playwright.config.ts` and `vitest.config.ts` configure the e2e and unit test runners. `tsconfig.json` is the base TypeScript config; `tsconfig.test.json` and `tsconfig.e2e.json` extend it for the test targets. `tslint.json` is a TSLint config (older format).
 
-**Build artifacts** (gitignored; only exist after `bun run build`). `build/` holds the raw `.wasm` outputs from AssemblyScript compilation. `dist/` is the published npm package contents (compiled JS, declarations, copied WASM, embedded blobs, doc subset).
+**Build artifacts** (gitignored; only exist after `bun bake`). `build/` holds the raw `.wasm` outputs from AssemblyScript compilation. `dist/` is the published npm package contents (compiled JS, declarations, copied WASM, embedded blobs, doc subset).
 
 ```
 .
@@ -650,13 +659,24 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/build-pipeline.svg" alt="Build Pipeline data flow diagram">
 
-1. `npm run build:asm`: AssemblyScript compiler reads each `src/asm/*/index.ts` for the eight modules, emits `build/*.wasm`
-2. `npm run build:embed`: `scripts/embed-wasm.ts` reads each `.wasm`, gzip compresses, base64 encodes, writes to `src/ts/embedded/*.ts` and per-module `src/ts/*/embedded.ts`
-3. `npm run build:embed-workers`: `scripts/embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild and writes the source to `src/ts/embedded/<cipher>-pool-worker.ts` as a string export
-4. `npm run build:ts`: TypeScript compiler emits `dist/`
-5. `cp build/*.wasm dist/`: WASM binaries copied for URL-based consumers
-6. At runtime (subpath): `serpentInit(serpentWasm)` → `initModule()` → `loadWasm(source)` → decode gzip+base64 → `WebAssembly.instantiate` → cache in `init.ts`
-7. At runtime (root): `init({ serpent: serpentWasm, sha2: sha2Wasm })` → dispatches to each module's init function via `Promise.all` → same path as step 6 per module
+The build is orchestrated by `scripts/build.ts`, invoked via `bun bake` (or the canonical alias `bun run build`). The dispatcher walks a typed dependency DAG defined in `scripts/lib/build-graph.ts`, so each target builds only its prerequisites. Run a single target with `bun bake <target>` (e.g. `bun bake asm`, `bun bake ts`); the default target is `all`.
+
+For the developer-facing workflow around these scripts (the iteration loop, single-file test invocation, when to use each shorthand), see [development.md](./development.md). This section documents what the pipeline does; the development doc covers how to use it day to day.
+
+**Build targets and order.**
+
+1. `asm`: AssemblyScript compiler reads each `src/asm/*/index.ts` for the eight modules, emits `build/*.wasm`.
+2. `embed`: `scripts/embed-wasm.ts` reads each `.wasm`, gzip compresses, base64 encodes, and writes to `src/ts/embedded/*.ts` and per-module `src/ts/*/embedded.ts`.
+3. `embed-workers`: `scripts/embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild and writes the source to `src/ts/embedded/<cipher>-pool-worker.ts` as a string export.
+4. `ts`: TypeScript compiler emits `dist/`.
+5. `wasm-copy`: `build/*.wasm` is copied into `dist/` for URL-based consumers.
+6. `claude-md`: `docs/CLAUDE_consumer.md` is copied to the repository root as `CLAUDE.md` for in-package agent guidance.
+7. `docs`: `scripts/copy-docs.ts` ships the consumer doc subset into `dist/`.
+
+**Runtime path (after build).**
+
+8. Subpath consumer: `serpentInit(serpentWasm)` → `initModule()` → `loadWasm(source)` → decode gzip+base64 → `WebAssembly.instantiate` → cache in `init.ts`.
+9. Root consumer: `init({ serpent: serpentWasm, sha2: sha2Wasm })` → dispatches to each module's init function via `Promise.all` → same path as step 8 per module.
 
 `src/ts/embedded/` is gitignored; these files are build artifacts. The WASM blobs (`<module>.ts`) derive from the AssemblyScript source in `src/asm/`. The pool-worker bundles (`<cipher>-pool-worker.ts`) derive from the worker source in `src/ts/<cipher>/pool-worker.ts`, bundled as a self-contained IIFE by `scripts/embed-workers.ts`.
 
@@ -1447,6 +1467,7 @@ The architectural defenses compose into protection against specific named attack
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | [index](./README.md)                              | Project documentation index                                                                            |
 | [architectural-stance](./architectural-stance.md) | Architectural posture: defended threats, layer composition, and the framing constraint                 |
+| [development](./development.md)                   | Day-to-day developer workflow: build, test, lint commands and the iteration loop                       |
 | [lexicon](./lexicon.md)                           | Glossary of cryptographic terms                                                                        |
 | [test-suite](./test-suite.md)                     | Testing methodology, vector corpus, and gate discipline                                                |
 | [vector_audit](./vector_audit.md)                 | Test-vector tier classification, verifier coverage, and provenance of pinned vectors                   |
