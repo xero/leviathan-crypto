@@ -37,6 +37,7 @@ mod primitives;
 mod byte_diff;
 mod xchacha;
 mod serpent;
+mod aes_seal;
 mod aes_gcm_siv;
 mod polyval;
 mod aes;
@@ -325,12 +326,23 @@ fn run_xchacha_seal(use_color: bool) -> bool {
     }
 
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &vectors {
         let (ok, log) = xchacha::verify_seal(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "XChaCha20 v3 seal: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -354,12 +366,23 @@ fn run_xchacha_sealstream(use_color: bool) -> bool {
     }
 
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &vectors {
         let (ok, log) = xchacha::verify_sealstream(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "XChaCha20 v3 sealstream: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -383,12 +406,23 @@ fn run_serpent_seal(use_color: bool) -> bool {
     }
 
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &vectors {
         let (ok, log) = serpent::verify_seal(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "Serpent v3 seal: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -412,12 +446,103 @@ fn run_serpent_sealstream(use_color: bool) -> bool {
     }
 
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &vectors {
         let (ok, log) = serpent::verify_sealstream(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "Serpent v3 sealstream: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+fn run_aes_seal(use_color: bool) -> bool {
+    let path = vector_path("seal_aes_v3.ts");
+    print_section("AES-GCM-SIV v3 — seal (single-chunk)");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e)));
+            return false;
+        }
+    };
+    let vectors = parse::parse_seal_file(&src, "SealAesV3Vector");
+    println!("Parsed {} vectors\n", vectors.len());
+    if vectors.is_empty() {
+        eprintln!("{}", colorize(use_color, RED, "✗ no vectors parsed"));
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+    for v in &vectors {
+        let (ok, log) = aes_seal::verify_seal(v);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
+    }
+    println!(
+        "AES-GCM-SIV v3 seal: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+fn run_aes_sealstream(use_color: bool) -> bool {
+    let path = vector_path("sealstream_aes_v3.ts");
+    print_section("AES-GCM-SIV v3 — sealstream (multi-chunk)");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e)));
+            return false;
+        }
+    };
+    let vectors = parse::parse_sealstream_file(&src, "SealStreamAesV3Vector");
+    println!("Parsed {} vectors\n", vectors.len());
+    if vectors.is_empty() {
+        eprintln!("{}", colorize(use_color, RED, "✗ no vectors parsed"));
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+    for v in &vectors {
+        let (ok, log) = aes_seal::verify_sealstream(v);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
+    }
+    println!(
+        "AES-GCM-SIV v3 sealstream: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -443,12 +568,23 @@ fn run_aes_gcm_siv(use_color: bool) -> bool {
     println!();
 
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in v128.iter().chain(v256.iter()).chain(vwrap.iter()) {
         let (ok, log) = aes_gcm_siv::verify_one(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "AES-GCM-SIV: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -486,12 +622,23 @@ fn run_polyval(use_color: bool) -> bool {
         return false;
     }
     println!("Verifying {} POLYVAL hash trace(s) end-to-end against RustCrypto's polyval crate:\n", hashes.len());
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &hashes {
         let (ok, log) = polyval::verify_one_hash(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "POLYVAL: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -519,8 +666,13 @@ fn run_aes(use_color: bool) -> bool {
         return false;
     }
     let (ok, log) = aes::verify(&av);
-    print_log(&log, use_color);
-    println!();
+    if !ok {
+        print_log(&log, use_color);
+        println!();
+        println!("AES (FIPS 197): 0 ok, 1 failed (out of 1 total)");
+    } else {
+        println!("AES (FIPS 197): 1 ok, 0 failed (out of 1 total)");
+    }
     ok
 }
 
@@ -540,18 +692,34 @@ fn run_aes_cbc(use_color: bool) -> bool {
         return false;
     }
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &enc {
         let (ok, log) = aes_cbc::verify_encrypt(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
     for v in &dec {
         let (ok, log) = aes_cbc::verify_decrypt(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "AES-CBC: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -571,18 +739,34 @@ fn run_aes_ctr(use_color: bool) -> bool {
         return false;
     }
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &enc {
         let (ok, log) = aes_ctr::verify_encrypt(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
     for v in &dec {
         let (ok, log) = aes_ctr::verify_decrypt(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "AES-CTR: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -602,12 +786,23 @@ fn run_aes_gcm(use_color: bool) -> bool {
         return false;
     }
     let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
     for v in &vectors {
         let (ok, log) = aes_gcm::verify_one(v);
-        print_log(&log, use_color);
-        println!();
-        if !ok { all_ok = false; }
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
     }
+    println!(
+        "AES-GCM: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
     all_ok
 }
 
@@ -617,7 +812,7 @@ fn run_aes_gcm(use_color: bool) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CipherSel {
-    Xchacha, Serpent, AesGcmSiv, Polyval,
+    Xchacha, Serpent, AesSeal, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
     Mlkem, Mldsa,
     All,
@@ -630,6 +825,7 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
     match s {
         "xchacha"     => Ok(CipherSel::Xchacha),
         "serpent"     => Ok(CipherSel::Serpent),
+        "aes-seal"    => Ok(CipherSel::AesSeal),
         "aes-gcm-siv" => Ok(CipherSel::AesGcmSiv),
         "polyval"     => Ok(CipherSel::Polyval),
         "aes"         => Ok(CipherSel::Aes),
@@ -639,7 +835,7 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "mlkem"       => Ok(CipherSel::Mlkem),
         "mldsa"       => Ok(CipherSel::Mldsa),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, all)")),
     }
 }
 
@@ -653,7 +849,7 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|all]");
     eprintln!("                       [--target seal|sealstream|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target is silently ignored for --cipher aes-gcm-siv, polyval, aes,");
@@ -700,6 +896,7 @@ fn main() -> ExitCode {
 
     let want_xchacha     = matches!(cipher, CipherSel::Xchacha   | CipherSel::All);
     let want_serpent     = matches!(cipher, CipherSel::Serpent   | CipherSel::All);
+    let want_aes_seal    = matches!(cipher, CipherSel::AesSeal   | CipherSel::All);
     let want_aes_gcm_siv = matches!(cipher, CipherSel::AesGcmSiv | CipherSel::All);
     let want_polyval     = matches!(cipher, CipherSel::Polyval   | CipherSel::All);
     let want_aes         = matches!(cipher, CipherSel::Aes       | CipherSel::All);
@@ -717,6 +914,8 @@ fn main() -> ExitCode {
     if want_xchacha && want_sealstream { if !run_xchacha_sealstream(use_color)  { all_ok = false; } }
     if want_serpent && want_seal       { if !run_serpent_seal(use_color)        { all_ok = false; } }
     if want_serpent && want_sealstream { if !run_serpent_sealstream(use_color)  { all_ok = false; } }
+    if want_aes_seal && want_seal       { if !run_aes_seal(use_color)       { all_ok = false; } }
+    if want_aes_seal && want_sealstream { if !run_aes_sealstream(use_color) { all_ok = false; } }
     // aes-gcm-siv, polyval, and the FIPS-197 / SP 800-38A / McGrew-Viega
     // ciphers are independent of --target.
     if want_aes_gcm_siv { if !run_aes_gcm_siv(use_color) { all_ok = false; } }

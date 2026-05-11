@@ -48,6 +48,12 @@ The verifier independently computes the 32-byte key commitment from HKDF bytes 3
 
 Both leviathan-crypto v3 and RustCrypto's `serpent` crate use NIST natural byte order at their public APIs. The verifier feeds keys, IVs, and plaintext blocks through unchanged; no byte-reversal dance applies at the block-cipher boundary. v2 used the AES-submission floppy byte order at its public API and required a reversal at this boundary; v3 removes that asymmetry.
 
+**AES-GCM-SIV v3 seal and sealstream.** Verified against:
+- HKDF-SHA-256 from RustCrypto's `hkdf` + `sha2` crates.
+- AES-256-GCM-SIV from RustCrypto's `aes-gcm-siv` crate, already pinned for the Tier 1 RFC 8452 target and reused here as the per-chunk AEAD for the Tier 2 seal wrapper.
+
+The structural shape mirrors XChaCha20 v3 byte for byte: same HKDF info-binding pattern with the 20-byte header concatenated to the info string, same 52-byte preamble (20-byte header plus 32-byte commitment), same 12-byte counter-nonce per chunk, same framed-mode `u32be` length prefix on the wire. The only difference is the AEAD primitive and the absence of an HChaCha20-equivalent subkey step; AES-GCM-SIV consumes the 32-byte HKDF output directly. The verifier independently recomputes the commitment from HKDF bytes 32..64, asserts byte-equality with the pinned preamble, encrypts each chunk with the derived key and counter nonce, and compares wire bytes for both unframed and framed shapes.
+
 **AES symmetric primitives.** Verified against:
 - AES block cipher (FIPS 197) from RustCrypto's `aes` crate, exercising all three key sizes (128, 192, 256) against the FIPS 197 known-answer vectors.
 - AES-CBC (NIST SP 800-38A) from RustCrypto's `cbc` crate.
@@ -90,56 +96,26 @@ Spelling out the limits of the audit is part of the audit.
 
 **Tier 3 vectors (ratchet, fortuna) are not covered.** No external reference exists to verify against; internal consistency tests in the unit suite cover the available correctness properties.
 
-**AES seal and sealstream Tier 2 vectors are not yet exercised.** `seal_aes_v3.ts` and `sealstream_aes_v3.ts` exist as pinned KATs and the AES-GCM-SIV primitive backing them is verified against RFC 8452, but the verifier does not yet have `run_aes_seal` / `run_aes_sealstream` paths that re-derive the seal wire format end to end the way XChaCha20 v3 and Serpent v3 are derived. Adding them follows the shape of the existing seal verifiers and is tracked as the next verifier extension.
-
 **KEM-wrapped seal blobs (Tier 4) are not covered as a single target.** The verifier independently covers the ML-KEM primitive against ACVP and covers symmetric Tier 2 wrappers, but it does not yet exercise KyberSuite-wrapped seal blobs end to end. Their two pieces are verified separately; their composition is not yet a single verifier target.
 
 ---
 
 ## Provenance of Pinned Vectors
 
-Tier 1 vector files in `test/vectors/`. Each row records the upstream source URL and the date the file was last fetched. The SHA-256 of every file is pinned in `test/vectors/SHA256SUMS`; the `verify-vectors.yml` workflow's `hashsums` job fails the build on any mismatch.
+The canonical inventory of every pinned vector file, Tier 1 and Tier 2 alike, lives in [`../test/vectors/README.md`](../test/vectors/README.md) and is mirrored in [`./test-suite.md`](./test-suite.md). SHA-256 pins for every file are recorded in [`../test/vectors/SHA256SUMS`](../test/vectors/SHA256SUMS), and the `hashsums` job in [`../.github/workflows/verify-vectors.yml`](../.github/workflows/verify-vectors.yml) fails the build on any mismatch.
 
-| File | Source | Last fetched |
-|---|---|---|
-| `serpent_ecb_vk.txt` | [AES submission floppy4](https://www.cl.cam.ac.uk/archive/rja14/serpent.html) | 2026-03-01 |
-| `serpent_ecb_vt.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_ecb_tbl.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_ecb_iv.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_ecb_e_m.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_ecb_d_m.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_cbc_e_m.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_cbc_d_m.txt` | AES submission floppy4 | 2026-03-01 |
-| `serpent_nessie-128.txt` | [NESSIE project](https://biham.cs.technion.ac.il/Reports/Serpent/) | 2026-03-01 |
-| `serpent_nessie-192.txt` | NESSIE project | 2026-03-01 |
-| `serpent_nessie-256.txt` | NESSIE project | 2026-03-01 |
-| `chacha20.ts` | [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) §2.2.1 | 2026-03-01 |
-| `aes.ts` | [FIPS 197 (Update 1, May 2023)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf) | 2026-04-01 |
-| `aes_cbc.ts` | [NIST SP 800-38A](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf) | 2026-04-01 |
-| `aes_ctr.ts` | NIST SP 800-38A | 2026-04-01 |
-| `aes_gcm.ts` | [NIST SP 800-38D](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf) + January 2004 GCM submission CAVP `.rsp` corpus | 2026-04-01 |
-| `aes_gcm_siv.ts` | [RFC 8452](https://www.rfc-editor.org/rfc/rfc8452.txt) | 2026-04-01 |
-| `polyval.ts` | RFC 8452 §3, §7, Appendix A | 2026-04-01 |
-| `kyber.ts` | NIST ACVP | 2026-03-01 |
-| `kyber_keygen.ts` | NIST ACVP | 2026-03-01 |
-| `kyber_encapdecap.ts` | NIST ACVP | 2026-03-01 |
-| `mldsa.ts` | NIST ACVP, vsId=42, FIPS 204 (barrel re-export) | 2026-04-01 |
-| `mldsa_keygen.ts` | [NIST ACVP-Server ML-DSA-keyGen-FIPS204](https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files/ML-DSA-keyGen-FIPS204), vsId=42 | 2026-04-01 |
-| `mldsa_siggen.ts` | [NIST ACVP-Server ML-DSA-sigGen-FIPS204](https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files/ML-DSA-sigGen-FIPS204), vsId=42 | 2026-04-01 |
-| `mldsa_sigver.ts` | [NIST ACVP-Server ML-DSA-sigVer-FIPS204](https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files/ML-DSA-sigVer-FIPS204), vsId=42 | 2026-04-01 |
-
-Tier 2 self-generated files. These are produced by the generator scripts and pinned as KATs. The Rust verifier re-derives every byte from primitives.
+The table below is the audit-doc-specific cut: the Tier 2 self-generated files the Rust verifier currently exercises end to end. They are produced by the generator scripts and pinned as KATs; the verifier re-derives every byte from primitives.
 
 | File | Generator | Verifier coverage |
 |---|---|---|
 | `seal_xchacha_v3.ts` | `scripts/gen-seal-vectors.ts --cipher xchacha` | full |
 | `seal_serpent_v3.ts` | `scripts/gen-seal-vectors.ts --cipher serpent` | full |
-| `seal_aes_v3.ts` | `scripts/gen-seal-vectors.ts --cipher aes` | not yet (primitive verified via `aes-gcm-siv` target; seal wrapper end-to-end pending) |
+| `seal_aes_v3.ts` | `scripts/gen-seal-vectors.ts --cipher aes` | full |
 | `sealstream_xchacha_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher xchacha` | full |
 | `sealstream_serpent_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher serpent` | full |
-| `sealstream_aes_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher aes` | not yet (same status as `seal_aes_v3.ts`) |
+| `sealstream_aes_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher aes` | full |
 
-If a Tier 1 file needs to be refreshed (upstream errata, format change), download the new file, replace the local copy, regenerate `SHA256SUMS`, update the "Last fetched" date in this table, and confirm the relevant unit-test job in `.github/workflows/` still passes.
+If a Tier 1 file needs to be refreshed (upstream errata, format change), download the new file, replace the local copy, regenerate `SHA256SUMS`, update the row in [`../test/vectors/README.md`](../test/vectors/README.md), and confirm the relevant unit-test job in `.github/workflows/` still passes.
 
 ---
 
@@ -151,7 +127,7 @@ The `verify-vectors.yml` workflow runs two jobs, sequenced.
 
 **Job 2: `rust-verify`.** Depends on `hashsums`. Builds the verifier crate at `scripts/verify-vectors/` with the pinned Rust toolchain (1.95.0) and the pinned dependency lockfile, then runs the verifier across ten cipher targets: `xchacha`, `serpent`, `aes-gcm-siv`, `polyval`, `aes`, `aes-cbc`, `aes-ctr`, `aes-gcm`, `mlkem`, and `mldsa`. Each target dispatches to its `--target` scope (`seal`, `sealstream`, `keygen`, `siggen`, `sigver`, or `all`, depending on the cipher). Caches `~/.cargo/registry` and `target/` between runs via `Swatinem/rust-cache`. Cold builds take roughly 60 seconds; cached runs complete in under 15.
 
-Both jobs are gated by `workflow_call` and triggered by the parent `test-suite.yml`. They run on every PR that touches `test/vectors/**`, `scripts/verify-vectors/**`, `scripts/gen-*-vectors.ts`, or the workflow file itself.
+Both jobs are gated by `workflow_call` and triggered by the parent `test-suite.yml`. They run on every PR.
 
 **Reading a green result.** Both jobs report `✓`. The verifier prints `✓ all vectors verified` as the final line.
 
@@ -161,9 +137,9 @@ Both jobs are gated by `workflow_call` and triggered by the parent `test-suite.y
 
 ## How to Add a New Cipher
 
-AES and ML-DSA both shipped following these recipes. AES landed as a Tier 1 family (block, CBC, CTR, GCM, GCM-SIV) plus POLYVAL, with five primitive verifier targets. ML-DSA landed as a Tier 1 ACVP target reading three vector files (`mldsa_keygen.ts`, `mldsa_siggen.ts`, `mldsa_sigver.ts`). The AES Tier 2 seal and sealstream wrappers are the next extension; the KAT files exist but the verifier path is not yet wired.
+AES and ML-DSA both shipped following these recipes. AES landed as a Tier 1 family (block, CBC, CTR, GCM, GCM-SIV) plus POLYVAL, with five primitive verifier targets. ML-DSA landed as a Tier 1 ACVP target reading three vector files (`mldsa_keygen.ts`, `mldsa_siggen.ts`, `mldsa_sigver.ts`). The AES Tier 2 seal and sealstream wrappers shipped on top of the existing `aes-gcm-siv` primitive target, reusing the pinned `aes-gcm-siv` crate as the per-chunk AEAD.
 
-For a new Tier 2 wrapper (the pending AES seal + sealstream, or any future cipher's seal wrapper):
+For a new Tier 2 wrapper (any future cipher's seal wrapper):
 
 1. Add the cipher's RustCrypto crate to `scripts/verify-vectors/Cargo.toml` with an exact-version pin, or reuse an already-pinned primitive crate.
 2. Create `scripts/verify-vectors/src/<cipher>_seal.rs` modeled after `xchacha.rs` or `serpent.rs`. The shape is fixed: a `derive_v<N>` function for HKDF key derivation, a `seal_chunk_<cipher>` helper that calls the per-chunk AEAD, a `check_preamble` for the per-cipher invariants (format byte, 32-byte commitment), and `verify_seal` plus `verify_sealstream` entry points.
@@ -178,7 +154,7 @@ For a new Tier 1 primitive (block cipher, mode, hash, MAC, KEM, signature scheme
 3. Add a `mod <primitive>;` and the `--cipher` CLI flag entry.
 4. Update the Tier 1 provenance table with the new file, source URL, and last-fetched date.
 
-Notes. RustCrypto's `aes` crate matches NIST CAVP byte-exactly with no convention conversion. The `ml-kem` and `ml-dsa` crates both ship as `0.x` pre-release versions; pin the exact version and audit the API surface on every major bump, especially `sign_internal` / `sign_mu_*` / `decapsulate_slice` and any FIPS 204 Appendix D domain-separation changes.
+Notes. RustCrypto's `aes` crate matches NIST CAVP byte-exactly with no convention conversion. For ciphers not in RustCrypto's `aes` crate, byte-order conventions vary. Check both implementations' public APIs and the spec they cite before assuming a one-to-one byte-level mapping. Serpent is the working example: RustCrypto's `serpent` crate uses NIST natural byte order at its public API, leviathan-crypto v3's `Serpent` API uses NIST natural byte order as well, and the verifier feeds keys, IVs, and plaintext blocks through unchanged at the block-cipher boundary. leviathan-crypto v2 used the AES-submission floppy byte order at its public API and required a byte-reversal at the block-cipher boundary; v3 removes that asymmetry. The `ml-kem` and `ml-dsa` crates both ship as `0.x` pre-release versions; pin the exact version and audit the API surface on every major bump, especially `sign_internal` / `sign_mu_*` / `decapsulate_slice` and any FIPS 204 Appendix D domain-separation changes.
 
 ---
 
