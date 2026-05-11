@@ -36,6 +36,7 @@ import {
 	init,
 	SHA256, SHA512, SHA384, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256,
 	SHA3_256, SHA3_512, SHA3_384, SHA3_224, SHAKE128,
+	KMAC128, KMAC256,
 	ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher,
 	Serpent, SerpentCtr,
 	Seal,
@@ -87,6 +88,34 @@ describe('atomic defense — sha3', () => {
 		shake.dispose();
 		expect(atomic.hash(new Uint8Array([1]))).toBeInstanceOf(Uint8Array);
 		atomic.dispose();
+	});
+
+	test('KMAC128.verify throws when SHAKE128 owns the module', () => {
+		const shake = new SHAKE128();
+		expect(() =>
+			KMAC128.verify(new Uint8Array(32), new Uint8Array([1, 2, 3, 4]),
+				new Uint8Array([0x61]), new Uint8Array(0))
+		).toThrow(/stateful instance is using/);
+		shake.dispose();
+		// After dispose, verify either returns true (correct tag) or throws
+		// AuthenticationError on mismatch — both are non-ownership errors.
+		expect(() =>
+			KMAC128.verify(new Uint8Array(32), new Uint8Array([1, 2, 3, 4]),
+				new Uint8Array([0x61]), new Uint8Array(0))
+		).not.toThrow(/stateful instance is using/);
+	});
+
+	test('KMAC256.verify throws when SHAKE128 owns the module', () => {
+		const shake = new SHAKE128();
+		expect(() =>
+			KMAC256.verify(new Uint8Array(64), new Uint8Array([1, 2, 3, 4]),
+				new Uint8Array([0x61]), new Uint8Array(0))
+		).toThrow(/stateful instance is using/);
+		shake.dispose();
+		expect(() =>
+			KMAC256.verify(new Uint8Array(64), new Uint8Array([1, 2, 3, 4]),
+				new Uint8Array([0x61]), new Uint8Array(0))
+		).not.toThrow(/stateful instance is using/);
 	});
 });
 

@@ -165,6 +165,12 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 | `SHA3_512` | class | SHA3-512 hash (FIPS 202). `hash(msg)` returns 64 bytes. |
 | `SHAKE128` | class | SHAKE128 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
 | `SHAKE256` | class | SHAKE256 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
+| `CSHAKE128` | class | cSHAKE128 customizable XOF (SP 800-185 §3). `new CSHAKE128(customization)`, `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. Throws if customization is empty (use SHAKE128 instead). |
+| `CSHAKE256` | class | cSHAKE256 customizable XOF (SP 800-185 §3). Same shape as CSHAKE128 with the 256-bit-strength rate. |
+| `KMAC128` | class | KMAC128 keyed Keccak MAC, fixed-output (SP 800-185 §4). `new KMAC128(key, outLen, customization)`, `update(chunk)`, `finalize()`, `mac(msg)`, static `verify(tag, key, msg, customization)` (throws `AuthenticationError('kmac128')` on mismatch). |
+| `KMAC256` | class | KMAC256 keyed Keccak MAC, fixed-output (SP 800-185 §4). Same shape as KMAC128 with `AuthenticationError('kmac256')` discriminator. |
+| `KMACXOF128` | class | KMAC128 in XOF mode (SP 800-185 §4.3.1). `new KMACXOF128(key, customization)`, `update(chunk)`, `squeeze(n)`, `mac(msg, outLen)`. No static `verify` — caller squeezes a fixed length and uses `constantTimeEqual`. |
+| `KMACXOF256` | class | KMAC256 in XOF mode (SP 800-185 §4.3.1). Same shape as KMACXOF128. |
 
 ---
 
@@ -184,6 +190,12 @@ Subpath: `leviathan-crypto/keccak`.
 | `SHA3_512` | class | Re-exported from `leviathan-crypto/sha3`. |
 | `SHAKE128` | class | Re-exported from `leviathan-crypto/sha3`. |
 | `SHAKE256` | class | Re-exported from `leviathan-crypto/sha3`. |
+| `CSHAKE128` | class | Re-exported from `leviathan-crypto/sha3`. |
+| `CSHAKE256` | class | Re-exported from `leviathan-crypto/sha3`. |
+| `KMAC128` | class | Re-exported from `leviathan-crypto/sha3`. |
+| `KMAC256` | class | Re-exported from `leviathan-crypto/sha3`. |
+| `KMACXOF128` | class | Re-exported from `leviathan-crypto/sha3`. |
+| `KMACXOF256` | class | Re-exported from `leviathan-crypto/sha3`. |
 
 ---
 

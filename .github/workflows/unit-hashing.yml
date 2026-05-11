@@ -29,3 +29,4 @@ jobs:
           test/unit/sha2/hkdf.test.ts
           test/unit/sha3/sha3.test.ts
           test/unit/sha3/shake_xof.test.ts
+          test/unit/sha3/kmac.test.ts

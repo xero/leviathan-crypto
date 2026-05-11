@@ -81,7 +81,7 @@ export { AuthenticationError } from './errors.js';
 export { serpentInit, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, SerpentGenerator } from './serpent/index.js';
 export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher, ChaCha20Generator } from './chacha20/index.js';
 export { sha2Init, SHA256, SHA224, SHA384, SHA512, SHA512_224, SHA512_256, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash } from './sha2/index.js';
-export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, SHA3_256Hash } from './sha3/index.js';
+export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256, SHA3_256Hash, CSHAKE128, CSHAKE256, KMAC128, KMAC256, KMACXOF128, KMACXOF256 } from './sha3/index.js';
 export { keccakInit } from './keccak/index.js';
 export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from './kyber/index.js';
 export { aesInit, AES, AESCbc, AESCtr, AESGCM, AESGCMSIV, AESGenerator, AESGCMSIVCipher } from './aes/index.js';

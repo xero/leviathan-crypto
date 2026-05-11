@@ -262,6 +262,11 @@ export function sha3_512Init(): void { keccakInit( 72, 0x06); }
 export function sha3_224Init(): void { keccakInit(144, 0x06); }
 export function shake128Init(): void { keccakInit(168, 0x1f); }
 export function shake256Init(): void { keccakInit(136, 0x1f); }
+// cSHAKE — SP 800-185 §3.3.
+// Sponge suffix "00" (two zero bits) precedes the FIPS 202 §B.2 pad10*1 rule;
+// in byte form with the low-order bit first this becomes 0x04.
+export function cshake128Init(): void { keccakInit(168, 0x04); }
+export function cshake256Init(): void { keccakInit(136, 0x04); }
 
 // Absorb len bytes from INPUT_OFFSET into the sponge
 export function keccakAbsorb(len: i32): void {

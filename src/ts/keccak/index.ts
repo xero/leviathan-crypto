@@ -35,3 +35,4 @@ export async function keccakInit(source: WasmSource): Promise<void> {
 export type { WasmSource };
 export { isInitialized } from '../init.js';
 export { SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256 } from '../sha3/index.js';
+export { CSHAKE128, CSHAKE256, KMAC128, KMAC256, KMACXOF128, KMACXOF256 } from '../sha3/index.js';

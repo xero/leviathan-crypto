@@ -33,6 +33,7 @@ export {
 export {
 	sha3_224Init, sha3_256Init, sha3_384Init, sha3_512Init,
 	shake128Init, shake256Init,
+	cshake128Init, cshake256Init,
 	keccakAbsorb, keccakFinal,
 	sha3_224Final, sha3_256Final, sha3_384Final, sha3_512Final,
 	shakeFinal,
