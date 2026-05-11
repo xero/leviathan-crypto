@@ -610,3 +610,10 @@ absorbs zero bytes and then squeezes.
 | [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
 | [sha3_audit.md](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
 
+---
+
+## See Also
+
+- [kmac.md](./kmac.md). SP 800-185 cSHAKE and KMAC classes built on this module: `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256`.
+- [asm_sha3.md](./asm_sha3.md). WASM internals for the SHA-3 module, including the SP 800-185 AS exports.
+

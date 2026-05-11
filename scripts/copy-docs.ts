@@ -45,6 +45,7 @@ const INCLUDE = [
 	'exports.md',
 	'fortuna.md',
 	'init.md',
+	'kmac.md',
 	'loader.md',
 	'serpent.md',
 	'sha2.md',
