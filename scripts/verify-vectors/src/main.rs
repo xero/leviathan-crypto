@@ -15,14 +15,25 @@
 //     - CBC chaining + PKCS#7 padding hand-rolled here
 //
 // Different language, different libraries, different person who wrote the
-// code, same bytes out. RustCrypto is a separate implementation lineage
-// from leviathan-crypto's WASM stack; if both verifiers agree, the wire
-// format is reproducible across two independent crypto stacks.
+// code, same bytes out. The verifier draws its primitives from several
+// independent Rust implementation lineages. Most are RustCrypto crates:
+// `aes`, `cbc`, `ctr`, `aes-gcm`, `aes-gcm-siv`, `chacha20poly1305`,
+// `serpent`, `hkdf`, `hmac`, `sha2`, `sha3`, `polyval`, `ml-kem`, and
+// `ml-dsa`. KMAC and cSHAKE (SP 800-185) use `tiny-keccak` instead,
+// because RustCrypto's `kmac` crate is a 0.0.0 placeholder at this
+// pinning and the `sha3` version we pin does not yet expose CShake.
+// tiny-keccak's Keccak[1600] permutation is a separate lineage from
+// RustCrypto's `sha3`, so the SP 800-185 corpus keeps the same
+// independence story as every other target. All of these lineages share
+// no source code, build system, or author with leviathan-crypto's WASM
+// stack; if a verifier and the WASM agree on a record's bytes, the wire
+// format is reproducible across independent crypto stacks.
 //
 // Usage:
 //   cargo run --release                                       # all ciphers, all targets
 //   cargo run --release -- --cipher xchacha                   # XChaCha20 v3 only (seal + sealstream)
 //   cargo run --release -- --cipher serpent --target seal     # Serpent v3 single-chunk only
+//   cargo run --release -- --cipher kmac                      # SP 800-185 KMAC and cSHAKE only
 //
 // Vector paths are computed relative to CARGO_MANIFEST_DIR.
 
@@ -38,6 +49,7 @@ mod byte_diff;
 mod xchacha;
 mod serpent;
 mod aes_seal;
+mod kmac;
 mod aes_gcm_siv;
 mod polyval;
 mod aes;
@@ -297,6 +309,104 @@ fn run_mldsa(use_color: bool) -> bool {
 
     println!(
         "ML-DSA: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// KMAC and cSHAKE (SP 800-185) dispatcher — implementation in src/kmac.rs
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_kmac(use_color: bool) -> bool {
+    let path = vector_path("kmac.ts");
+    print_section("KMAC and cSHAKE — SP 800-185 (NIST CSRC samples + ACVP-Server byte-aligned subset)");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e))); return false; }
+    };
+
+    let cs128_sa = parse::parse_cshake_sample_array(&src, "cshake128_appendix_a");
+    let cs128_av = parse::parse_cshake_acvp_array  (&src, "cshake128_acvp");
+    let cs256_sa = parse::parse_cshake_sample_array(&src, "cshake256_appendix_a");
+    let cs256_av = parse::parse_cshake_acvp_array  (&src, "cshake256_acvp");
+    let km128_sa = parse::parse_kmac_sample_array  (&src, "kmac128_appendix_a");
+    let km128_av = parse::parse_kmac_acvp_array    (&src, "kmac128_acvp");
+    let km256_sa = parse::parse_kmac_sample_array  (&src, "kmac256_appendix_a");
+    let km256_av = parse::parse_kmac_acvp_array    (&src, "kmac256_acvp");
+    let kx128_sa = parse::parse_kmac_sample_array  (&src, "kmacxof128_appendix_a");
+    let kx128_av = parse::parse_kmac_acvp_array    (&src, "kmacxof128_acvp");
+    let kx256_sa = parse::parse_kmac_sample_array  (&src, "kmacxof256_appendix_a");
+    let kx256_av = parse::parse_kmac_acvp_array    (&src, "kmacxof256_acvp");
+
+    println!(
+        "Parsed: cshake128 sample/acvp = {}/{}, cshake256 = {}/{}, kmac128 = {}/{}, kmac256 = {}/{}, kmacxof128 = {}/{}, kmacxof256 = {}/{}\n",
+        cs128_sa.len(), cs128_av.len(),
+        cs256_sa.len(), cs256_av.len(),
+        km128_sa.len(), km128_av.len(),
+        km256_sa.len(), km256_av.len(),
+        kx128_sa.len(), kx128_av.len(),
+        kx256_sa.len(), kx256_av.len(),
+    );
+
+    // Empty-array guard: the four sample exports each carry 2 (cshake128/256)
+    // or 3 (kmac128/256, kmacxof128/256) records and must never parse empty.
+    // The two acvp exports kmac256_acvp and kmacxof128_acvp are deliberately
+    // empty (Phase 1 byte-alignment filter dropped them all) and are excluded
+    // from this guard. cshake128_acvp, cshake256_acvp, kmac128_acvp, and
+    // kmacxof256_acvp all carry surviving records and must parse non-empty.
+    let nonempty_lens: [(&str, usize); 10] = [
+        ("cshake128_appendix_a",  cs128_sa.len()),
+        ("cshake128_acvp",        cs128_av.len()),
+        ("cshake256_appendix_a",  cs256_sa.len()),
+        ("cshake256_acvp",        cs256_av.len()),
+        ("kmac128_appendix_a",    km128_sa.len()),
+        ("kmac128_acvp",          km128_av.len()),
+        ("kmac256_appendix_a",    km256_sa.len()),
+        ("kmacxof128_appendix_a", kx128_sa.len()),
+        ("kmacxof256_appendix_a", kx256_sa.len()),
+        ("kmacxof256_acvp",       kx256_av.len()),
+    ];
+    if nonempty_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more non-empty KMAC arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &nonempty_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+
+    let mut run = |ok: bool, log: Vec<String>| {
+        if !ok {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        } else {
+            count_ok += 1;
+        }
+    };
+
+    for v in &cs128_sa { let (ok, log) = kmac::verify_cshake_sample("cshake128_appendix_a",  128, v); run(ok, log); }
+    for v in &cs128_av { let (ok, log) = kmac::verify_cshake_acvp  ("cshake128_acvp",        128, v); run(ok, log); }
+    for v in &cs256_sa { let (ok, log) = kmac::verify_cshake_sample("cshake256_appendix_a",  256, v); run(ok, log); }
+    for v in &cs256_av { let (ok, log) = kmac::verify_cshake_acvp  ("cshake256_acvp",        256, v); run(ok, log); }
+    for v in &km128_sa { let (ok, log) = kmac::verify_kmac_sample  ("kmac128_appendix_a",    128, false, v); run(ok, log); }
+    for v in &km128_av { let (ok, log) = kmac::verify_kmac_acvp    ("kmac128_acvp",          128, v); run(ok, log); }
+    for v in &km256_sa { let (ok, log) = kmac::verify_kmac_sample  ("kmac256_appendix_a",    256, false, v); run(ok, log); }
+    for v in &km256_av { let (ok, log) = kmac::verify_kmac_acvp    ("kmac256_acvp",          256, v); run(ok, log); }
+    for v in &kx128_sa { let (ok, log) = kmac::verify_kmac_sample  ("kmacxof128_appendix_a", 128, true,  v); run(ok, log); }
+    for v in &kx128_av { let (ok, log) = kmac::verify_kmac_acvp    ("kmacxof128_acvp",       128, v); run(ok, log); }
+    for v in &kx256_sa { let (ok, log) = kmac::verify_kmac_sample  ("kmacxof256_appendix_a", 256, true,  v); run(ok, log); }
+    for v in &kx256_av { let (ok, log) = kmac::verify_kmac_acvp    ("kmacxof256_acvp",       256, v); run(ok, log); }
+
+    println!(
+        "KMAC and cSHAKE: {} ok, {} failed (out of {} total)",
         count_ok, count_fail, count_ok + count_fail,
     );
     all_ok
@@ -814,7 +924,7 @@ fn run_aes_gcm(use_color: bool) -> bool {
 enum CipherSel {
     Xchacha, Serpent, AesSeal, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
-    Mlkem, Mldsa,
+    Mlkem, Mldsa, Kmac,
     All,
 }
 
@@ -834,8 +944,9 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "aes-gcm"     => Ok(CipherSel::AesGcm),
         "mlkem"       => Ok(CipherSel::Mlkem),
         "mldsa"       => Ok(CipherSel::Mldsa),
+        "kmac"        => Ok(CipherSel::Kmac),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, kmac, all)")),
     }
 }
 
@@ -849,11 +960,11 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|kmac|all]");
     eprintln!("                       [--target seal|sealstream|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target is silently ignored for --cipher aes-gcm-siv, polyval, aes,");
-    eprintln!("      aes-cbc, aes-ctr, aes-gcm, mlkem, and mldsa (those corpora have no seal/sealstream split).");
+    eprintln!("      aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, and kmac (those corpora have no seal/sealstream split).");
 }
 
 fn main() -> ExitCode {
@@ -905,6 +1016,7 @@ fn main() -> ExitCode {
     let want_aes_gcm     = matches!(cipher, CipherSel::AesGcm    | CipherSel::All);
     let want_mlkem       = matches!(cipher, CipherSel::Mlkem     | CipherSel::All);
     let want_mldsa       = matches!(cipher, CipherSel::Mldsa     | CipherSel::All);
+    let want_kmac        = matches!(cipher, CipherSel::Kmac      | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
 
@@ -926,6 +1038,7 @@ fn main() -> ExitCode {
     if want_aes_gcm     { if !run_aes_gcm(use_color)     { all_ok = false; } }
     if want_mlkem       { if !run_mlkem(use_color)       { all_ok = false; } }
     if want_mldsa       { if !run_mldsa(use_color)       { all_ok = false; } }
+    if want_kmac        { if !run_kmac(use_color)        { all_ok = false; } }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     if all_ok {

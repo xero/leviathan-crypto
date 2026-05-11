@@ -88,6 +88,16 @@ hybrid-array     = { version = "=0.4.11", default-features = false }
 # but the SHA-512/224 + SHA-512/256 variants live in this crate too;
 # `sha3` is added for the SHA-3 family + SHAKE.
 sha3             = { version = "=0.11.0", default-features = false }
+# tiny-keccak: oracle for kmac.ts (all six variants: cSHAKE128/256,
+# KMAC128/256, KMACXOF128/256). This is the only verifier dep outside
+# the RustCrypto family. The reason is crate availability, not
+# preference: RustCrypto's `kmac` crate is a 0.0.0 placeholder, and the
+# pinned `sha3 = "=0.11.0"` does not expose `CShake`. tiny-keccak
+# implements both KMAC and cSHAKE in one crate over its own
+# Keccak[1600] permutation — a separate lineage from RustCrypto's
+# `sha3`, which keeps the "independent of leviathan-crypto's WASM
+# stack" claim intact for the SP 800-185 corpus.
+tiny-keccak      = { version = "=2.0.2",  default-features = false, features = ["cshake", "kmac"] }
 # Hex codec used everywhere we surface bytes in logs (computed/expected
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.
