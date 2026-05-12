@@ -53,7 +53,7 @@ Audit of the `leviathan-crypto` WebAssembly ML-KEM implementation (AssemblyScrip
 
 ### 1.1 Parameters and Constants
 
-ML-KEM operates over the ring `Z_q` where `Q = 3329`. Since Q is prime, this is a true field—every nonzero element has a multiplicative inverse. FIPS 203 §3 specifies all the parameters. The core arithmetic relies on Montgomery reduction to avoid expensive division operations.
+ML-KEM operates over the ring `Z_q` where `Q = 3329`. Since Q is prime, this is a true field, every nonzero element has a multiplicative inverse. FIPS 203 §3 specifies all the parameters. The core arithmetic relies on Montgomery reduction to avoid expensive division operations.
 
 **Montgomery parameters:**
 
@@ -84,7 +84,7 @@ MontReduce(a):
   return u              // in range [-(Q-1), Q-1]
 ```
 
-The formula works because `t * Q` cancels the low 16 bits of `a`. After the arithmetic right shift, the upper 16 bits form the Montgomery-reduced result. The output lands in `[-(Q−1), Q−1]`—a centered range, not the standard `[0, Q−1]`. When a canonical representative is needed, callers apply Barrett reduction or subtract Q conditionally. Our implementation follows the spec exactly.
+The formula works because `t * Q` cancels the low 16 bits of `a`. After the arithmetic right shift, the upper 16 bits form the Montgomery-reduced result. The output lands in `[-(Q−1), Q−1]`, a centered range, not the standard `[0, Q−1]`. When a canonical representative is needed, callers apply Barrett reduction or subtract Q conditionally. Our implementation follows the spec exactly.
 
 ---
 
@@ -330,7 +330,7 @@ statically allocated at fixed offsets; no dynamic allocation is used.
 | XOF/PRF buffer | 31904 | 1024 | SHAKE squeeze output for rej_uniform / CBD |
 | Poly accumulator | 32928 | 512 | Internal scratch for polyvec_basemul_acc |
 
-Total mutable: 29344 bytes (4096–33440). End = 33440 < 192 KB (196608). No overflow.
+Total mutable: 29344 bytes (4096-33440). End = 33440 < 192 KB (196608). No overflow.
 `wipeBuffers()` zeroes all mutable regions (poly slots, polyvec slots, SEED, MSG, PK,
 SK, CT, CT_PRIME, XOF/PRF, accumulator). The zetas table at offset 0 is read-only;
 it is not wiped. Correct.
@@ -568,9 +568,9 @@ constant-time guarantee" posture for WASM:
   | `kemDecapsulate` | `SK_OFFSET` (`skCpaBytes`), `MSG_OFFSET` (m', 32 B), `POLY_SLOT_0` (K', 32 B), `POLY_SLOT_1` (K̄ + e₂ tail, 512 B), `POLY_SLOT_2` (v residual, 512 B), `POLY_SLOT_3` (m'-poly, 512 B), `POLYVEC_SLOT_1` (r, 2048 B), `POLYVEC_SLOT_2` (e₁, 2048 B), `POLYVEC_SLOT_3` (uncompressed u, 2048 B), `XOF_PRF_OFFSET` (1024 B) |
 
   The public key-validation helpers `checkEncapsulationKey` and
-  `checkDecapsulationKey` operate on public material only — they write
+  `checkDecapsulationKey` operate on public material only, they write
   `ek` (or a slice of `dk` that excludes `skCpa`) into `PK_OFFSET` and
-  decode into `POLYVEC_SLOT_0`, both public regions — and therefore
+  decode into `POLYVEC_SLOT_0`, both public regions, and therefore
   require no wipe.
 
   For the decap path the per-region detail (which bytes held what during
@@ -579,7 +579,7 @@ constant-time guarantee" posture for WASM:
 
   | Region | Size | Content wiped |
   |--------|------|---------------|
-  | `SK_OFFSET` | 768 / 1152 / 1536 | skCpa (CPA secret key, per parameter set — **highest severity residual**) |
+  | `SK_OFFSET` | 768 / 1152 / 1536 | skCpa (CPA secret key, per parameter set, **highest severity residual**) |
   | `MSG_OFFSET` | 32 | m' recovered by `indcpaDecrypt` |
   | `POLY_SLOT_0` | 32 | K' (final shared-secret candidate after `ct_cmov`) |
   | `POLY_SLOT_1` | 512 | K̄ implicit-rejection key (first 32B) + e₂ noise polynomial (full 512B) |
@@ -591,8 +591,8 @@ constant-time guarantee" posture for WASM:
   | `XOF_PRF_OFFSET` | 1024 | last PRF output block used by `poly_getnoise` |
 
   Across the three ops the wipe covers secret-key material (`SK_OFFSET`,
-  the full CPA secret key — written on keygen and on decap's
-  `indcpaDecrypt`), raw messages (`MSG_OFFSET` — written on encap as `m`
+  the full CPA secret key, written on keygen and on decap's
+  `indcpaDecrypt`), raw messages (`MSG_OFFSET`, written on encap as `m`
   and on decap as `m'`), per-message secret noise (r, e₁, e₂, K̄, ŝ, ê),
   derived ciphertext residuals (K', uncompressed u, v, m-poly), and the
   PRF output buffer.
@@ -601,13 +601,13 @@ constant-time guarantee" posture for WASM:
   is long-lived key material whose disclosure compromises every ciphertext
   under the corresponding `ek`, not just a single per-message noise trace.
   On keygen the foot-gun is the common "keygen once, encap many" pattern
-  — without the wipe, `skCpa` would sit in kyber WASM until the next op
+ , without the wipe, `skCpa` would sit in kyber WASM until the next op
   overwrote it (which never happens on pure-encap workloads) or
   `MlKem.dispose()` ran. On the encap path `MSG_OFFSET` is the
   highest-severity residual: reading `m` plus the public `ek` reproduces
   `K = G(m ‖ H(ek))[0..32]`. r, e₁, and e₂ (on decap, deterministic
   functions of r' which itself derives from m' via G + PRF) form one
-  per-message severity class — closing the whole window is the
+  per-message severity class, closing the whole window is the
   principled stance rather than a strict necessity. The uncompressed
   u in `POLYVEC_SLOT_3` is a separate leakage class: the public
   ciphertext ships `Compress_du(u)` (lossy for `du ∈ {10, 11}`), so
@@ -619,7 +619,7 @@ constant-time guarantee" posture for WASM:
   keygen path holds t̂ which is published as part of ek; `POLYVEC_SLOT_4`
   holds t̂ decoded from the public ek on the decap path; `CT_OFFSET` and
   `CT_PRIME_OFFSET` hold ciphertexts; `PK_OFFSET` holds ek) are
-  intentionally not wiped at the per-op boundary — they match values the
+  intentionally not wiped at the per-op boundary, they match values the
   attacker can already observe or compute from public state.
   Lifecycle-level wipe via `MlKem.dispose()` → `wipeBuffers()` still
   covers the entire layout. **After any of the three public KEM
@@ -633,9 +633,9 @@ constant-time guarantee" posture for WASM:
   `STATE` (200 B at offset 0, the 5×5 Keccak lane matrix), `INPUT`
   (168 B at offset 209, the absorb staging buffer sized for SHAKE128's
   168-byte rate), and `OUT` (168 B at offset 377, one squeeze block).
-  Across the four public-facing kyber paths — `kemKeypairDerand`,
+  Across the four public-facing kyber paths, `kemKeypairDerand`,
   `kemEncapsulateDerand`, `kemDecapsulate`, and `checkDecapsulationKey`
-  — the *last* sha3 call is always keyed on public material (`H(ek)`
+ , the *last* sha3 call is always keyed on public material (`H(ek)`
   in keygen and `checkDecapsulationKey`, the final `genMatrixRow`
   SHAKE128 keyed on public ρ inside `indcpaEncrypt` on the encap path
   and the decap FO re-encryption path), so the historical no-residue
@@ -647,7 +647,7 @@ constant-time guarantee" posture for WASM:
   paths now calls `sx.wipeBuffers()` explicitly before returning,
   under the `_assertNotOwned('sha3')` guard the enclosing `MlKemBase`
   method holds for the op's duration. After any kyber op that
-  executed sha3 work, `STATE`, `INPUT`, and `OUT` are all zero —
+  executed sha3 work, `STATE`, `INPUT`, and `OUT` are all zero,
   mechanically, not behaviorally. **One documented exception:
   `checkDecapsulationKey`'s length-gate early return (`dk.length !==
   params.dkBytes`) happens before any sha3 work runs, so the wipe

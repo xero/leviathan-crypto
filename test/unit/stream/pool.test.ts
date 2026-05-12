@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SealStreamPool tests — parallel batch encryption/decryption.
+ * SealStreamPool tests, parallel batch encryption/decryption.
  */
 import '@vitest/web-worker';
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -74,7 +74,7 @@ const configs: CipherTestConfig[] = [
 ];
 
 for (const cfg of configs) {
-	describe(`SealStreamPool — ${cfg.name}`, () => {
+	describe(`SealStreamPool, ${cfg.name}`, () => {
 		const key = randomBytes(cfg.keyLen);
 
 		// ── Round-trip ──────────────────────────────────────────────────
@@ -214,7 +214,7 @@ for (const cfg of configs) {
 				}, 60_000);
 
 				it('chunkSize: 65536, full chunks plus partial (5MB)', async () => {
-					// 80 × 65536 + 23587 = 5266467 bytes — covers all full-chunk
+					// 80 × 65536 + 23587 = 5266467 bytes, covers all full-chunk
 					// and partial-chunk paths at production chunk size.
 					const pool = await SealStreamPool.create(cfg.cipher, key, {
 						wasm: cfg.wasm, workers: 2, chunkSize: 65536,
@@ -258,7 +258,7 @@ for (const cfg of configs) {
 			}
 
 			if (cfg.name === 'XChaCha20') {
-				it('chunkSize: 65536, 131072 bytes (control — ChaCha20 is not padded)', async () => {
+				it('chunkSize: 65536, 131072 bytes (control, ChaCha20 is not padded)', async () => {
 					const pool = await SealStreamPool.create(cfg.cipher, key, {
 						wasm: cfg.wasm, workers: 1, chunkSize: 65536,
 					});
@@ -291,7 +291,7 @@ for (const cfg of configs) {
 		// ── Worker lifecycle ────────────────────────────────────────────
 
 		describe('lifecycle', () => {
-			it('double destroy — no throw', async () => {
+			it('double destroy, no throw', async () => {
 				const pool = await SealStreamPool.create(cfg.cipher, key, {
 					wasm: cfg.wasm, workers: 1, chunkSize: 1024,
 				});
@@ -376,7 +376,7 @@ for (const cfg of configs) {
 			const ct = await pool.seal(pt);
 			const dec = await pool.open(ct);
 			expect(dec).toEqual(pt);
-			// Destroy should send wipe to worker — no throw
+			// Destroy should send wipe to worker, no throw
 			pool.destroy();
 			expect(pool.dead).toBe(true);
 		});
@@ -464,7 +464,7 @@ describe('WASM loading', () => {
 
 // ── Header validation (C-1) ─────────────────────────────────────────────────
 
-describe('SealStreamPool.open() — header validation', () => {
+describe('SealStreamPool.open(), header validation', () => {
 	const xcKey = randomBytes(32);
 	const serpKey = randomBytes(32);
 
@@ -525,10 +525,10 @@ describe('SealStreamPool.open() — header validation', () => {
 
 // ── KEM rejection ───────────────────────────────────────────────────────────
 
-describe('SealStreamPool.create() — KEM rejection', () => {
+describe('SealStreamPool.create(), KEM rejection', () => {
 	it('rejects KEM-enabled cipher suite with clear error', async () => {
 		// A minimal CipherSuite stub with kemCtSize > 0 is sufficient to
-		// trigger the guard — no real KEM WASM needed.
+		// trigger the guard, no real KEM WASM needed.
 		const kemStub = { ...XChaCha20Cipher, kemCtSize: 1088 };
 		await expect(SealStreamPool.create(kemStub as CipherSuite, randomBytes(32), {
 			wasm: chacha20Wasm, workers: 1, chunkSize: 1024,
@@ -538,7 +538,7 @@ describe('SealStreamPool.create() — KEM rejection', () => {
 
 // ── Commitment verification (XChaCha20 v3 salamander mitigation) ────────────
 
-describe('SealStreamPool.open() — commitment verification', () => {
+describe('SealStreamPool.open(), commitment verification', () => {
 	it('rejects ciphertext with tampered commitment, fails fast with AuthenticationError', async () => {
 		const key = randomBytes(32);
 		const pool = await SealStreamPool.create(XChaCha20Cipher, key, {

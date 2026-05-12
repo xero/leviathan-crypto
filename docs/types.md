@@ -356,7 +356,7 @@ interface KemEncapResult {
   readonly nextRootKey:  Uint8Array  // 32 bytes
   readonly sendChainKey: Uint8Array  // 32 bytes
   readonly recvChainKey: Uint8Array  // 32 bytes
-  readonly kemCt:        Uint8Array  // ML-KEM ciphertext — transmit in-band
+  readonly kemCt:        Uint8Array  // ML-KEM ciphertext, transmit in-band
 }
 ```
 
@@ -376,8 +376,8 @@ interface KemDecapResult {
 interface RatchetMessageHeader {
   readonly epoch:   number        // sender's epoch at seal time; starts 0, increments on ratchet step
   readonly counter: number        // KDFChain.n at seal time (post-step value, first message = 1)
-  readonly pn?:     number        // previous chain length — present only on the first message of a new epoch
-  readonly kemCt?:  Uint8Array    // ML-KEM ciphertext — present only on the first message of a new epoch (encap side)
+  readonly pn?:     number        // previous chain length, present only on the first message of a new epoch
+  readonly kemCt?:  Uint8Array    // ML-KEM ciphertext, present only on the first message of a new epoch (encap side)
 }
 ```
 
@@ -389,9 +389,9 @@ Return type of `SkippedKeyStore.resolve()`.
 
 ```typescript
 interface ResolveHandle {
-  readonly key: Uint8Array  // 32-byte message key — throws after settlement
-  commit():   void          // wipe key and mark settled — call on successful decrypt
-  rollback(): void          // return key to store and mark settled — call on auth failure
+  readonly key: Uint8Array  // 32-byte message key, throws after settlement
+  commit():   void          // wipe key and mark settled, call on successful decrypt
+  rollback(): void          // return key to store and mark settled, call on auth failure
 }
 ```
 

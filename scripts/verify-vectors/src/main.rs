@@ -58,6 +58,8 @@ mod aes_ctr;
 mod aes_gcm;
 mod mlkem;
 mod mldsa;
+mod slhdsa;
+mod hybrid_pq;
 
 const GREEN: &str = "\x1b[32m";
 const RED:   &str = "\x1b[31m";
@@ -100,7 +102,7 @@ fn print_section(label: &str) {
 fn run_mlkem(use_color: bool) -> bool {
     let kg_path = vector_path("kyber_keygen.ts");
     let ed_path = vector_path("kyber_encapdecap.ts");
-    print_section("ML-KEM — FIPS 203 (keygen + encap + decap + key validity)");
+    print_section("ML-KEM, FIPS 203 (keygen + encap + decap + key validity)");
 
     println!("Reading keygen vectors from   {}", kg_path.display());
     println!("Reading encapDecap vectors from {}\n", ed_path.display());
@@ -213,14 +215,14 @@ fn run_mlkem(use_color: bool) -> bool {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// ML-DSA (FIPS 204) dispatcher — implementation in src/mldsa.rs
+// ML-DSA (FIPS 204) dispatcher, implementation in src/mldsa.rs
 // ────────────────────────────────────────────────────────────────────────────
 
 fn run_mldsa(use_color: bool) -> bool {
     let kg_path = vector_path("mldsa_keygen.ts");
     let sg_path = vector_path("mldsa_siggen.ts");
     let sv_path = vector_path("mldsa_sigver.ts");
-    print_section("ML-DSA — FIPS 204 (keygen + sigGen + sigVer, incl. HashML-DSA)");
+    print_section("ML-DSA, FIPS 204 (keygen + sigGen + sigVer, incl. HashML-DSA)");
 
     println!("Reading keygen vectors from   {}", kg_path.display());
     println!("Reading sigGen vectors from   {}", sg_path.display());
@@ -315,12 +317,161 @@ fn run_mldsa(use_color: bool) -> bool {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// KMAC and cSHAKE (SP 800-185) dispatcher — implementation in src/kmac.rs
+// SLH-DSA (FIPS 205) dispatcher, implementation in src/slhdsa.rs.
+// Phase 2 scope: SHAKE-fast variants only (128f / 192f / 256f).
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_slhdsa(use_color: bool) -> bool {
+    let kg_path = vector_path("slhdsa_keygen.ts");
+    let sg_path = vector_path("slhdsa_siggen.ts");
+    let sv_path = vector_path("slhdsa_sigver.ts");
+    print_section("SLH-DSA, FIPS 205 (keyGen + sigGen + sigVer, SHAKE-fast subset)");
+
+    println!("Reading keygen vectors from   {}", kg_path.display());
+    println!("Reading sigGen vectors from   {}", sg_path.display());
+    println!("Reading sigVer vectors from   {}\n", sv_path.display());
+
+    let kg_src = match fs::read_to_string(&kg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", kg_path.display(), e))); return false; }
+    };
+    let sg_src = match fs::read_to_string(&sg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sg_path.display(), e))); return false; }
+    };
+    let sv_src = match fs::read_to_string(&sv_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sv_path.display(), e))); return false; }
+    };
+
+    let kg_128f = parse::parse_slhdsa_keygen_array(&kg_src, "slh_dsa_128f_keygen");
+    let kg_192f = parse::parse_slhdsa_keygen_array(&kg_src, "slh_dsa_192f_keygen");
+    let kg_256f = parse::parse_slhdsa_keygen_array(&kg_src, "slh_dsa_256f_keygen");
+
+    let sg_128f = parse::parse_slhdsa_siggen_array(&sg_src, "slh_dsa_128f_siggen");
+    let sg_192f = parse::parse_slhdsa_siggen_array(&sg_src, "slh_dsa_192f_siggen");
+    let sg_256f = parse::parse_slhdsa_siggen_array(&sg_src, "slh_dsa_256f_siggen");
+
+    let sv_128f = parse::parse_slhdsa_sigver_array(&sv_src, "slh_dsa_128f_sigver");
+    let sv_192f = parse::parse_slhdsa_sigver_array(&sv_src, "slh_dsa_192f_sigver");
+    let sv_256f = parse::parse_slhdsa_sigver_array(&sv_src, "slh_dsa_256f_sigver");
+
+    println!(
+        "Parsed: keygen 128f/192f/256f = {}/{}/{}, sigGen = {}/{}/{}, sigVer = {}/{}/{}\n",
+        kg_128f.len(), kg_192f.len(), kg_256f.len(),
+        sg_128f.len(), sg_192f.len(), sg_256f.len(),
+        sv_128f.len(), sv_192f.len(), sv_256f.len(),
+    );
+
+    // Empty-array guard: a successful parse always returns >0 vectors for
+    // every curated export. A zero count means an export-name mismatch
+    // (or a corpus structure change) and would silently pass otherwise.
+    let parsed_lens: [(&str, usize); 9] = [
+        ("slh_dsa_128f_keygen", kg_128f.len()),
+        ("slh_dsa_192f_keygen", kg_192f.len()),
+        ("slh_dsa_256f_keygen", kg_256f.len()),
+        ("slh_dsa_128f_siggen", sg_128f.len()),
+        ("slh_dsa_192f_siggen", sg_192f.len()),
+        ("slh_dsa_256f_siggen", sg_256f.len()),
+        ("slh_dsa_128f_sigver", sv_128f.len()),
+        ("slh_dsa_192f_sigver", sv_192f.len()),
+        ("slh_dsa_256f_sigver", sv_256f.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more SLH-DSA arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+
+    let mut run = |ok: bool, log: Vec<String>| {
+        if !ok {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        } else {
+            count_ok += 1;
+        }
+    };
+
+    for v in &kg_128f { let (ok, log) = slhdsa::verify_keygen_128f(v); run(ok, log); }
+    for v in &kg_192f { let (ok, log) = slhdsa::verify_keygen_192f(v); run(ok, log); }
+    for v in &kg_256f { let (ok, log) = slhdsa::verify_keygen_256f(v); run(ok, log); }
+
+    for v in &sg_128f { let (ok, log) = slhdsa::verify_siggen_128f(v); run(ok, log); }
+    for v in &sg_192f { let (ok, log) = slhdsa::verify_siggen_192f(v); run(ok, log); }
+    for v in &sg_256f { let (ok, log) = slhdsa::verify_siggen_256f(v); run(ok, log); }
+
+    for v in &sv_128f { let (ok, log) = slhdsa::verify_sigver_128f(v); run(ok, log); }
+    for v in &sv_192f { let (ok, log) = slhdsa::verify_sigver_192f(v); run(ok, log); }
+    for v in &sv_256f { let (ok, log) = slhdsa::verify_sigver_256f(v); run(ok, log); }
+
+    println!(
+        "SLH-DSA: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PQ-only hybrid dispatcher (sign_hybrid_pq.ts), implementation in
+// src/hybrid_pq.rs. Three composite KAT vectors, one per format byte.
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_hybrid_pq(use_color: bool) -> bool {
+    let path = vector_path("sign_hybrid_pq.ts");
+    print_section("Hybrid PQ (sign_hybrid_pq.ts), composite ML-DSA || SLH-DSA verify");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e)));
+            return false;
+        }
+    };
+
+    let vectors = parse::parse_sign_hybrid_pq_array(&src, "signHybridPqVectors");
+    println!("Parsed {} vectors\n", vectors.len());
+    if vectors.is_empty() {
+        eprintln!("{}", colorize(use_color, RED, "✗ no vectors parsed"));
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+    for v in &vectors {
+        let (ok, log) = hybrid_pq::verify_vector(v);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
+    }
+    println!(
+        "Hybrid PQ: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// KMAC and cSHAKE (SP 800-185) dispatcher, implementation in src/kmac.rs
 // ────────────────────────────────────────────────────────────────────────────
 
 fn run_kmac(use_color: bool) -> bool {
     let path = vector_path("kmac.ts");
-    print_section("KMAC and cSHAKE — SP 800-185 (NIST CSRC samples + ACVP-Server byte-aligned subset)");
+    print_section("KMAC and cSHAKE, SP 800-185 (NIST CSRC samples + ACVP-Server byte-aligned subset)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -418,7 +569,7 @@ fn run_kmac(use_color: bool) -> bool {
 
 fn run_xchacha_seal(use_color: bool) -> bool {
     let path = vector_path("seal_xchacha_v3.ts");
-    print_section("XChaCha20 v3 — seal (single-chunk)");
+    print_section("XChaCha20 v3, seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -458,7 +609,7 @@ fn run_xchacha_seal(use_color: bool) -> bool {
 
 fn run_xchacha_sealstream(use_color: bool) -> bool {
     let path = vector_path("sealstream_xchacha_v3.ts");
-    print_section("XChaCha20 v3 — sealstream (multi-chunk)");
+    print_section("XChaCha20 v3, sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -498,7 +649,7 @@ fn run_xchacha_sealstream(use_color: bool) -> bool {
 
 fn run_serpent_seal(use_color: bool) -> bool {
     let path = vector_path("seal_serpent_v3.ts");
-    print_section("Serpent v3 — seal (single-chunk)");
+    print_section("Serpent v3, seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -538,7 +689,7 @@ fn run_serpent_seal(use_color: bool) -> bool {
 
 fn run_serpent_sealstream(use_color: bool) -> bool {
     let path = vector_path("sealstream_serpent_v3.ts");
-    print_section("Serpent v3 — sealstream (multi-chunk)");
+    print_section("Serpent v3, sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -578,7 +729,7 @@ fn run_serpent_sealstream(use_color: bool) -> bool {
 
 fn run_aes_seal(use_color: bool) -> bool {
     let path = vector_path("seal_aes_v3.ts");
-    print_section("AES-GCM-SIV v3 — seal (single-chunk)");
+    print_section("AES-GCM-SIV v3, seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -618,7 +769,7 @@ fn run_aes_seal(use_color: bool) -> bool {
 
 fn run_aes_sealstream(use_color: bool) -> bool {
     let path = vector_path("sealstream_aes_v3.ts");
-    print_section("AES-GCM-SIV v3 — sealstream (multi-chunk)");
+    print_section("AES-GCM-SIV v3, sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -658,7 +809,7 @@ fn run_aes_sealstream(use_color: bool) -> bool {
 
 fn run_aes_gcm_siv(use_color: bool) -> bool {
     let path = vector_path("aes_gcm_siv.ts");
-    print_section("AES-GCM-SIV — RFC 8452 Appendix C");
+    print_section("AES-GCM-SIV, RFC 8452 Appendix C");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -700,7 +851,7 @@ fn run_aes_gcm_siv(use_color: bool) -> bool {
 
 fn run_polyval(use_color: bool) -> bool {
     let path = vector_path("polyval.ts");
-    print_section("POLYVAL — RFC 8452 §7 + Appendix A");
+    print_section("POLYVAL, RFC 8452 §7 + Appendix A");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -758,7 +909,7 @@ fn run_polyval(use_color: bool) -> bool {
 
 fn run_aes(use_color: bool) -> bool {
     let path = vector_path("aes.ts");
-    print_section("AES — FIPS 197 (cipher example + key schedule + S-box + round trace)");
+    print_section("AES, FIPS 197 (cipher example + key schedule + S-box + round trace)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -788,7 +939,7 @@ fn run_aes(use_color: bool) -> bool {
 
 fn run_aes_cbc(use_color: bool) -> bool {
     let path = vector_path("aes_cbc.ts");
-    print_section("AES-CBC — SP 800-38A §F.2");
+    print_section("AES-CBC, SP 800-38A §F.2");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -835,7 +986,7 @@ fn run_aes_cbc(use_color: bool) -> bool {
 
 fn run_aes_ctr(use_color: bool) -> bool {
     let path = vector_path("aes_ctr.ts");
-    print_section("AES-CTR — SP 800-38A §F.5 (Ctr128BE / 128-bit BE counter)");
+    print_section("AES-CTR, SP 800-38A §F.5 (Ctr128BE / 128-bit BE counter)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -882,7 +1033,7 @@ fn run_aes_ctr(use_color: bool) -> bool {
 
 fn run_aes_gcm(use_color: bool) -> bool {
     let path = vector_path("aes_gcm.ts");
-    print_section("AES-GCM — McGrew-Viega Appendix B (18 vectors, mixed 96/64/480-bit IVs)");
+    print_section("AES-GCM, McGrew-Viega Appendix B (18 vectors, mixed 96/64/480-bit IVs)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -924,7 +1075,7 @@ fn run_aes_gcm(use_color: bool) -> bool {
 enum CipherSel {
     Xchacha, Serpent, AesSeal, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
-    Mlkem, Mldsa, Kmac,
+    Mlkem, Mldsa, Slhdsa, HybridPq, Kmac,
     All,
 }
 
@@ -944,9 +1095,11 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "aes-gcm"     => Ok(CipherSel::AesGcm),
         "mlkem"       => Ok(CipherSel::Mlkem),
         "mldsa"       => Ok(CipherSel::Mldsa),
+        "slhdsa"      => Ok(CipherSel::Slhdsa),
+        "hybrid-pq"   => Ok(CipherSel::HybridPq),
         "kmac"        => Ok(CipherSel::Kmac),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, kmac, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, all)")),
     }
 }
 
@@ -960,11 +1113,11 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|kmac|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|all]");
     eprintln!("                       [--target seal|sealstream|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target is silently ignored for --cipher aes-gcm-siv, polyval, aes,");
-    eprintln!("      aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, and kmac (those corpora have no seal/sealstream split).");
+    eprintln!("      aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, and kmac (those corpora have no seal/sealstream split).");
 }
 
 fn main() -> ExitCode {
@@ -1016,6 +1169,8 @@ fn main() -> ExitCode {
     let want_aes_gcm     = matches!(cipher, CipherSel::AesGcm    | CipherSel::All);
     let want_mlkem       = matches!(cipher, CipherSel::Mlkem     | CipherSel::All);
     let want_mldsa       = matches!(cipher, CipherSel::Mldsa     | CipherSel::All);
+    let want_slhdsa      = matches!(cipher, CipherSel::Slhdsa    | CipherSel::All);
+    let want_hybrid_pq   = matches!(cipher, CipherSel::HybridPq  | CipherSel::All);
     let want_kmac        = matches!(cipher, CipherSel::Kmac      | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
@@ -1038,6 +1193,8 @@ fn main() -> ExitCode {
     if want_aes_gcm     { if !run_aes_gcm(use_color)     { all_ok = false; } }
     if want_mlkem       { if !run_mlkem(use_color)       { all_ok = false; } }
     if want_mldsa       { if !run_mldsa(use_color)       { all_ok = false; } }
+    if want_slhdsa      { if !run_slhdsa(use_color)      { all_ok = false; } }
+    if want_hybrid_pq   { if !run_hybrid_pq(use_color)   { all_ok = false; } }
     if want_kmac        { if !run_kmac(use_color)        { all_ok = false; } }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

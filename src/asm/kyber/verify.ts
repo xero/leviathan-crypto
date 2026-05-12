@@ -21,8 +21,8 @@
 //
 // src/asm/kyber/verify.ts
 //
-// ML-KEM (Kyber) — constant-time byte comparison and conditional move.
-// FIPS 203 §6.3 — used in KEM Decapsulate to prevent decryption oracle attacks.
+// ML-KEM (Kyber), constant-time byte comparison and conditional move.
+// FIPS 203 §6.3, used in KEM Decapsulate to prevent decryption oracle attacks.
 // Reference: pq-crystals/kyber main ref/verify.c.
 //
 // Security note: no early return, no branch on secret-derived values.
@@ -31,7 +31,7 @@
 /**
  * Compare two byte arrays in constant time. FIPS 203 §6.3.
  * Returns 0 if equal, 1 if any byte differs.
- * XOR-accumulate with no early return — no branch on secret data.
+ * XOR-accumulate with no early return, no branch on secret data.
  * @param aOffset first byte array offset
  * @param bOffset second byte array offset
  * @param len     array length in bytes
@@ -47,7 +47,7 @@ export function ct_verify(aOffset: i32, bOffset: i32, len: i32): i32 {
 
 /**
  * Conditional move: if b==1, copy x to r; if b==0, no-op. FIPS 203 §6.3.
- * Mask-and-XOR pattern — no branch on b or data.
+ * Mask-and-XOR pattern, no branch on b or data.
  * @param rOffset destination byte array offset
  * @param xOffset source byte array offset
  * @param len     array length in bytes

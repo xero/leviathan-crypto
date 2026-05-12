@@ -29,9 +29,9 @@
 //   npx tsx scripts/gen-changelog.ts v1.2.3
 //
 // Output:
-//   stdout  — markdown changelog
-//   exit 1  — if breaking changes detected (for CI warning banner logic)
-//   exit 0  — clean release
+//   stdout , markdown changelog
+//   exit 1 , if breaking changes detected (for CI warning banner logic)
+//   exit 0 , clean release
 //
 // Commit footer conventions parsed:
 //   Closes/Fixes/Fix/Fixed/Close/Closed #NNN  = linked issue
@@ -204,7 +204,7 @@ lines.push('');
 lines.push('<details><summary>legend</summary>');
 lines.push('');
 for (const { symbol, label, key } of SECTIONS)
-	lines.push(`- ${symbol} **${label}** — \`${key === 'breaking' ? 'breaking change' : key}\``);
+	lines.push(`- ${symbol} **${label}.** \`${key === 'breaking' ? 'breaking change' : key}\``);
 lines.push('');
 lines.push('</details>');
 

@@ -22,7 +22,7 @@
 // src/ts/chacha20/index.ts
 //
 // Public API classes for the ChaCha20 WASM module.
-// Uses the init() module cache — call chacha20Init(source) before constructing.
+// Uses the init() module cache, call chacha20Init(source) before constructing.
 
 import { getInstance, initModule, _acquireModule, _releaseModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -35,7 +35,7 @@ export { AuthenticationError };
 /**
  * Load and initialise the ChaCha20 WASM module from `source`.
  * Must be called before constructing any ChaCha20 class.
- * @param source  WASM binary — gzip+base64 string, URL, ArrayBuffer, Uint8Array,
+ * @param source  WASM binary, gzip+base64 string, URL, ArrayBuffer, Uint8Array,
  *                pre-compiled WebAssembly.Module, Response, or Promise<Response>
  */
 export async function chacha20Init(source: WasmSource): Promise<void> {
@@ -72,7 +72,7 @@ export class ChaCha20 {
 	 * Load key and nonce into WASM state and set the block counter to 1.
 	 * Must be called before each message (RFC 8439 §2.4).
 	 * @param key    32 bytes
-	 * @param nonce  12 bytes — must be unique per (key, message)
+	 * @param nonce  12 bytes, must be unique per (key, message)
 	 */
 	beginEncrypt(key: Uint8Array, nonce: Uint8Array): void {
 		if (this._tok === undefined)
@@ -90,7 +90,7 @@ export class ChaCha20 {
 
 	/**
 	 * XOR `chunk` with the next keystream block(s). Counter advances automatically.
-	 * @param chunk  Plaintext chunk — must not exceed WASM CHUNK_SIZE
+	 * @param chunk  Plaintext chunk, must not exceed WASM CHUNK_SIZE
 	 * @returns      Ciphertext of the same length
 	 */
 	encryptChunk(chunk: Uint8Array): Uint8Array {
@@ -99,7 +99,7 @@ export class ChaCha20 {
 		const maxChunk = this.x.getChunkSize();
 		if (chunk.length > maxChunk)
 			throw new RangeError(
-				`chunk exceeds maximum size of ${maxChunk} bytes — split into smaller chunks`,
+				`chunk exceeds maximum size of ${maxChunk} bytes, split into smaller chunks`,
 			);
 		const mem   = new Uint8Array(this.x.memory.buffer);
 		const ptOff = this.x.getChunkPtOffset();
@@ -110,16 +110,16 @@ export class ChaCha20 {
 	}
 
 	/**
-	 * Alias for `beginEncrypt` — ChaCha20 is a stream cipher (symmetric).
+	 * Alias for `beginEncrypt`, ChaCha20 is a stream cipher (symmetric).
 	 * @param key    32 bytes
-	 * @param nonce  12 bytes — must match the value used to encrypt
+	 * @param nonce  12 bytes, must match the value used to encrypt
 	 */
 	beginDecrypt(key: Uint8Array, nonce: Uint8Array): void {
 		this.beginEncrypt(key, nonce);
 	}
 
 	/**
-	 * Alias for `encryptChunk` — ChaCha20 is a stream cipher (symmetric).
+	 * Alias for `encryptChunk`, ChaCha20 is a stream cipher (symmetric).
 	 * @param chunk  Ciphertext chunk
 	 * @returns      Plaintext of the same length
 	 */
@@ -158,7 +158,7 @@ export class Poly1305 {
 
 	/**
 	 * Compute a 16-byte Poly1305 MAC for `msg` using `key`.
-	 * @param key  32-byte one-time key — must not be reused across messages
+	 * @param key  32-byte one-time key, must not be reused across messages
 	 * @param msg  Message to authenticate
 	 * @returns    16-byte Poly1305 tag
 	 */
@@ -204,7 +204,7 @@ export class Poly1305 {
  * Single-use encrypt guard: `encrypt()` may only be called once per instance.
  * Create a new instance for each encryption to prevent nonce reuse.
  *
- * `decrypt()` uses constant-time tag comparison — XOR-accumulate pattern,
+ * `decrypt()` uses constant-time tag comparison, XOR-accumulate pattern,
  * no early return on mismatch. Plaintext is never returned on failure.
  */
 export class ChaCha20Poly1305 {
@@ -219,10 +219,10 @@ export class ChaCha20Poly1305 {
 	 * Encrypt and authenticate `plaintext` with ChaCha20-Poly1305 (RFC 8439 §2.8).
 	 *
 	 * **Single-use guard:** `encrypt()` may only be called once per instance.
-	 * Any throw — including validation errors — permanently locks this instance.
+	 * Any throw, including validation errors, permanently locks this instance.
 	 * Always create a new `ChaCha20Poly1305` per message.
 	 * @param key        32 bytes
-	 * @param nonce      12 bytes — must be unique per (key, message)
+	 * @param nonce      12 bytes, must be unique per (key, message)
 	 * @param plaintext  Data to encrypt
 	 * @param aad        Additional authenticated data (optional)
 	 * @returns          Ciphertext || 16-byte Poly1305 tag
@@ -239,7 +239,7 @@ export class ChaCha20Poly1305 {
 				+ 'Create a new instance for each encryption to prevent nonce reuse.',
 			);
 		// Strict single-use: lock FIRST, before anything else. Any subsequent
-		// throw — including validation errors — terminates the instance.
+		// throw, including validation errors, terminates the instance.
 		this._used = true;
 		_assertNotOwned('chacha20');
 		if (key.length !== 32)
@@ -261,7 +261,7 @@ export class ChaCha20Poly1305 {
 	 * Verify and decrypt a ChaCha20-Poly1305 ciphertext (RFC 8439 §2.8).
 	 * Throws `AuthenticationError` if the tag does not match.
 	 * @param key         32 bytes
-	 * @param nonce       12 bytes — must match the value used to encrypt
+	 * @param nonce       12 bytes, must match the value used to encrypt
 	 * @param ciphertext  Ciphertext || 16-byte tag (combined format from `encrypt`)
 	 * @param aad         Additional authenticated data (optional)
 	 * @returns           Plaintext
@@ -278,7 +278,7 @@ export class ChaCha20Poly1305 {
 		if (nonce.length !== 12)
 			throw new RangeError(`nonce must be 12 bytes (got ${nonce.length})`);
 		if (ciphertext.length < 16)
-			throw new RangeError(`ciphertext too short — must include 16-byte tag (got ${ciphertext.length})`);
+			throw new RangeError(`ciphertext too short, must include 16-byte tag (got ${ciphertext.length})`);
 		try {
 			const ct  = ciphertext.subarray(0, ciphertext.length - 16);
 			const tag = ciphertext.subarray(ciphertext.length - 16);
@@ -301,7 +301,7 @@ export class ChaCha20Poly1305 {
  * XChaCha20-Poly1305 AEAD (IETF draft-irtf-cfrg-xchacha).
  *
  * Recommended authenticated encryption primitive for most use cases.
- * Uses a 24-byte nonce — safe for random generation via crypto.getRandomValues.
+ * Uses a 24-byte nonce, safe for random generation via crypto.getRandomValues.
  *
  * Single-use encrypt guard: `encrypt()` may only be called once per instance.
  * Create a new instance for each encryption to prevent nonce reuse.
@@ -321,10 +321,10 @@ export class XChaCha20Poly1305 {
 	 * (draft-irtf-cfrg-xchacha). Recommended for general-purpose AEAD.
 	 *
 	 * **Single-use guard:** `encrypt()` may only be called once per instance.
-	 * Any throw — including validation errors — permanently locks this instance.
+	 * Any throw, including validation errors, permanently locks this instance.
 	 * Always create a new `XChaCha20Poly1305` per message to prevent nonce reuse.
 	 * @param key        32 bytes
-	 * @param nonce      24 bytes — safe to generate randomly via `randomBytes(24)`
+	 * @param nonce      24 bytes, safe to generate randomly via `randomBytes(24)`
 	 * @param plaintext  Data to encrypt
 	 * @param aad        Additional authenticated data (optional)
 	 * @returns          Ciphertext || 16-byte Poly1305 tag
@@ -341,7 +341,7 @@ export class XChaCha20Poly1305 {
 				+ 'Create a new instance for each encryption to prevent nonce reuse.',
 			);
 		// Strict single-use: lock FIRST, before anything else. Any subsequent
-		// throw — including validation errors — terminates the instance.
+		// throw, including validation errors, terminates the instance.
 		this._used = true;
 		_assertNotOwned('chacha20');
 		if (key.length !== 32)
@@ -359,7 +359,7 @@ export class XChaCha20Poly1305 {
 	 * Verify and decrypt an XChaCha20-Poly1305 ciphertext.
 	 * Throws `AuthenticationError` if the tag does not match.
 	 * @param key         32 bytes
-	 * @param nonce       24 bytes — must match the value used to encrypt
+	 * @param nonce       24 bytes, must match the value used to encrypt
 	 * @param ciphertext  Ciphertext || 16-byte tag (combined format from `encrypt`)
 	 * @param aad         Additional authenticated data (optional)
 	 * @returns           Plaintext
@@ -376,7 +376,7 @@ export class XChaCha20Poly1305 {
 		if (nonce.length !== 24)
 			throw new RangeError(`XChaCha20 nonce must be 24 bytes (got ${nonce.length})`);
 		if (ciphertext.length < 16)
-			throw new RangeError(`ciphertext too short — must include 16-byte tag (got ${ciphertext.length})`);
+			throw new RangeError(`ciphertext too short, must include 16-byte tag (got ${ciphertext.length})`);
 		try {
 			return xcDecrypt(this.x, key, nonce, ciphertext, aad);
 		} finally {

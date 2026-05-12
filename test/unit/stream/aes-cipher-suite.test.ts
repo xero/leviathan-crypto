@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * AES-GCM-SIV cipher-suite contract tests — per-cipher behaviors that
+ * AES-GCM-SIV cipher-suite contract tests, per-cipher behaviors that
  * vary in shape across ciphers (header binding, commitment field, native
  * key-committing properties).
  *
@@ -36,11 +36,11 @@
  * describes what is being verified, and the body asserts the relevant
  * property holds.
  *
- *   - 'deriveKeys' — commitment-or-no-commitment shape, plus header-
+ *   - 'deriveKeys', commitment-or-no-commitment shape, plus header-
  *     binding effect on derived keys (or absence thereof for Serpent).
- *   - 'Header binding' — header tamper effect on decrypt (failure for
+ *   - 'Header binding', header tamper effect on decrypt (failure for
  *     v3, no-effect for v2).
- *   - 'Commitment' — flipping a byte in the commitment region rejects
+ *   - 'Commitment', flipping a byte in the commitment region rejects
  *     on decrypt (v3 only; Serpent's describe block asserts the
  *     preamble has no commitment region).
  *   - Cipher-specific behaviors below the shared describe blocks.
@@ -70,7 +70,7 @@ describe('AES-GCM-SIV deriveKeys', () => {
 			expect(dk.commitment).toBeInstanceOf(Uint8Array);
 			expect(dk.commitment!.length).toBe(32);
 
-			// Independent backing — mutating bytes does not affect commitment.
+			// Independent backing, mutating bytes does not affect commitment.
 			const commitmentCopy = new Uint8Array(dk.commitment!);
 			dk.bytes.fill(0xff);
 			expect(Array.from(dk.commitment!)).toEqual(Array.from(commitmentCopy));
@@ -119,7 +119,7 @@ describe('AES-GCM-SIV header binding', () => {
 		const blob = Seal.encrypt(AESGCMSIVCipher, key, pt).slice();
 		// formatEnum + framed flag occupies header byte 0. Flip the FLAG_FRAMED
 		// bit (0x80). Tampering the header changes the HKDF info string, so
-		// deriveKeys returns a different commitment — fails at the commitment
+		// deriveKeys returns a different commitment, fails at the commitment
 		// check before AEAD touches anything.
 		blob[0] ^= 0x80;
 		let caught: Error | null = null;

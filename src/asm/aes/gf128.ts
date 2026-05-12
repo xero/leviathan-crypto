@@ -28,11 +28,11 @@
 // Storage convention (SP 800-38D §6.3): a 128-bit block x_0 x_1 ... x_127
 // represents the polynomial f(u) = x_0 + x_1·u + x_2·u^2 + … + x_127·u^127.
 // In our 16-byte storage:
-//   - bit 7 (MSB) of byte 0   = x_0   (u^0  coefficient — constant term)
+//   - bit 7 (MSB) of byte 0   = x_0   (u^0  coefficient, constant term)
 //   - bit 0 (LSB) of byte 0   = x_7   (u^7)
 //   - bit 7      of byte 1   = x_8
 //   - …
-//   - bit 0 (LSB) of byte 15 = x_127 (u^127 coefficient — highest power)
+//   - bit 0 (LSB) of byte 15 = x_127 (u^127 coefficient, highest power)
 //
 // The reduction polynomial bit-string R = `11100001 || 0^120` (representing
 // u^7 + u^2 + u + 1) is byte 0 = 0xE1, all others zero. The full degree-128
@@ -45,7 +45,7 @@
 // order's "MSB = lowest power").
 //
 // Constant-time note. M[k] is read with k = a nibble of the secret-derived
-// running state. On real CPUs this is NOT cache-line constant-time — the
+// running state. On real CPUs this is NOT cache-line constant-time, the
 // classic 4-bit-windowed GHASH side-channel surface is well documented.
 // This is the same approach BoringSSL/OpenSSL/RustCrypto ship for
 // pre-PCLMULQDQ paths. PCLMULQDQ is not available in WebAssembly SIMD,
@@ -68,7 +68,7 @@
 //
 // where ByteReverse reverses byte order in a 16-byte string. The
 // within-byte bit flip falls out for free from the differing GHASH /
-// POLYVAL bit-interpretation conventions — RFC 8452 §3: "the differing
+// POLYVAL bit-interpretation conventions, RFC 8452 §3: "the differing
 // interpretations of bit order takes care of reversing the bits within
 // each byte, and then reversing the bytes does the rest."
 //
@@ -82,8 +82,8 @@
 // `byteReverse16` and `mulXGhash` below are the two helpers required;
 // the existing GF(2^128) primitive does not change.
 //
-// Path (b) — a POLYVAL-native multiplier with reduction byte 0x87 in
-// LSB-first storage — was rejected: it would have added ~250 lines of
+// Path (b), a POLYVAL-native multiplier with reduction byte 0x87 in
+// LSB-first storage, was rejected: it would have added ~250 lines of
 // parallel multiplier and a second 256-byte table for no algorithmic
 // benefit on a runtime that lacks PCLMULQDQ.
 // ──────────────────────────────────────────────────────────────────────────

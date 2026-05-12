@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_mmt.test.ts
 //
-// Gate 6 — AESVS Multi-block Message Test for ECB. Three files
+// Gate 6, AESVS Multi-block Message Test for ECB. Three files
 // (aes_ECBMMT{128,192,256}.rsp), 20 vectors per direction per file. Each
 // vector is a multi-block PT/CT (1..10 blocks of 16 bytes); for ECB this
 // is just a sequence of independent block-encrypts under the same key.
@@ -43,7 +43,7 @@ for (const file of [
 	'aes_ECBMMT192.rsp',
 	'aes_ECBMMT256.rsp',
 ]) {
-	describe(`AES MMT (Gate 6) — CAVP ${file}`, () => {
+	describe(`AES MMT (Gate 6), CAVP ${file}`, () => {
 		const { encrypt, decrypt } = parseEcbMmtFile(file);
 
 		it('parses non-zero vectors in both directions', () => {

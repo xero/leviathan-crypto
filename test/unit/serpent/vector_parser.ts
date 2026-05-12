@@ -23,7 +23,7 @@
 //
 // Parsers for AES submission vector file formats.
 // Adapted from sources/leviathan/test/helpers/vectors.ts and
-// sources/leviathan/test/helpers/nessie.ts — same logic, different paths.
+// sources/leviathan/test/helpers/nessie.ts, same logic, different paths.
 
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -60,16 +60,16 @@ export interface KatVector {
   ct: string     // hex
 }
 
-// ── Parser: serpent_ecb_vt.txt — Variable Text KAT ──────────────────────────
+// ── Parser: serpent_ecb_vt.txt, Variable Text KAT ──────────────────────────
 /**
- * parseVt — parse floppy4/serpent_ecb_vt.txt (and serpent_ecb_tbl.txt, same format)
+ * parseVt, parse floppy4/serpent_ecb_vt.txt (and serpent_ecb_tbl.txt, same format)
  *
  * Format: AES submission variable-text KAT format
- *   KEYSIZE=<N>                — key size in bits (128, 192, or 256)
- *   KEY=<hex>                  — key value (shared for all I= entries in block)
- *   I=<n>                      — entry index
- *   PT=<hex>                   — plaintext
- *   CT=<hex>                   — expected ciphertext
+ *   KEYSIZE=<N>               , key size in bits (128, 192, or 256)
+ *   KEY=<hex>                 , key value (shared for all I= entries in block)
+ *   I=<n>                     , entry index
+ *   PT=<hex>                  , plaintext
+ *   CT=<hex>                  , expected ciphertext
  * Returns: Array of { keysize, key, pt, ct } (all hex strings, lowercase)
  */
 // Format: KEYSIZE=N  KEY=hex  (per-entry: I=n  PT=hex  CT=hex)
@@ -102,16 +102,16 @@ export function parseVt(text: string): KatVector[] {
 	return vectors;
 }
 
-// ── Parser: serpent_ecb_vk.txt — Variable Key KAT ───────────────────────────
+// ── Parser: serpent_ecb_vk.txt, Variable Key KAT ───────────────────────────
 /**
- * parseVk — parse floppy4/serpent_ecb_vk.txt
+ * parseVk, parse floppy4/serpent_ecb_vk.txt
  *
  * Format: AES submission variable-key KAT format
- *   KEYSIZE=<N>                — key size in bits
- *   PT=<hex>                   — plaintext (shared for all I= entries in block)
- *   I=<n>                      — entry index
- *   KEY=<hex>                  — key value
- *   CT=<hex>                   — expected ciphertext
+ *   KEYSIZE=<N>               , key size in bits
+ *   PT=<hex>                  , plaintext (shared for all I= entries in block)
+ *   I=<n>                     , entry index
+ *   KEY=<hex>                 , key value
+ *   CT=<hex>                  , expected ciphertext
  * Returns: Array of { keysize, key, pt, ct } (all hex strings, lowercase)
  */
 // Format: KEYSIZE=N  PT=hex  (per-entry: I=n  KEY=hex  CT=hex)
@@ -149,19 +149,19 @@ export const parseTblFile = (name: string) => parseVt(readVector(name));
 export const parseVtFile  = (name: string) => parseVt(readVector(name));
 export const parseVkFile  = (name: string) => parseVk(readVector(name));
 
-// ── Parser: serpent_ecb_iv.txt — Intermediate Values ────────────────────────
+// ── Parser: serpent_ecb_iv.txt, Intermediate Values ────────────────────────
 /**
- * parseIv — parse floppy4/serpent_ecb_iv.txt
+ * parseIv, parse floppy4/serpent_ecb_iv.txt
  *
  * Format: AES submission intermediate value format
- *   KEYSIZE=<N>                — begins a new key-size block
- *   KEY=<hex>                  — key value
- *   LONG_KEY=<hex>             — padded 256-bit key used by cipher
- *   SK[<i>]=<hex>              — bitslice subkey i (i = 0..32)
- *   SK^[<i>]=<hex>             — conventional subkey i (IP-permuted, not used)
- *   PT=<hex>                   — plaintext
- *   R[<i>]=<hex>               — round output i (bitslice representation)
- *   CT=<hex>                   — final ciphertext
+ *   KEYSIZE=<N>               , begins a new key-size block
+ *   KEY=<hex>                 , key value
+ *   LONG_KEY=<hex>            , padded 256-bit key used by cipher
+ *   SK[<i>]=<hex>             , bitslice subkey i (i = 0..32)
+ *   SK^[<i>]=<hex>            , conventional subkey i (IP-permuted, not used)
+ *   PT=<hex>                  , plaintext
+ *   R[<i>]=<hex>              , round output i (bitslice representation)
+ *   CT=<hex>                  , final ciphertext
  * Returns: Array of IvTestCase (one per key size)
  * Note: SK[i] in file is printed word-reversed (X3|X2|X1|X0).
  *       See serpent_iv.test.ts extractSubkeyHex() for the reversal.
@@ -227,14 +227,14 @@ export const parseIvFile = (name: string) => parseIv(readVector(name));
 
 // ── Parser: Monte Carlo ECB ─────────────────────────────────────────────────
 /**
- * parseMcEcbEncrypt / parseMcEcbDecrypt — parse floppy4/serpent_ecb_e_m.txt, serpent_ecb_d_m.txt
+ * parseMcEcbEncrypt / parseMcEcbDecrypt, parse floppy4/serpent_ecb_e_m.txt, serpent_ecb_d_m.txt
  *
  * Format: AES submission Monte Carlo ECB format
- *   KEYSIZE=<N>                — key size block (128, 192, or 256)
- *   I=<n>                      — outer iteration index (0..399 per key size)
- *   KEY=<hex>                  — starting key for this outer iteration
- *   PT=<hex>                   — starting plaintext (encrypt) or CT=<hex> (decrypt)
- *   CT=<hex>                   — expected final ciphertext after 10,000 inner ops
+ *   KEYSIZE=<N>               , key size block (128, 192, or 256)
+ *   I=<n>                     , outer iteration index (0..399 per key size)
+ *   KEY=<hex>                 , starting key for this outer iteration
+ *   PT=<hex>                  , starting plaintext (encrypt) or CT=<hex> (decrypt)
+ *   CT=<hex>                  , expected final ciphertext after 10,000 inner ops
  * Decrypt file (serpent_ecb_d_m.txt): CT appears before PT in each entry.
  * Returns: Array of { keysize, idx, key, pt, ct }
  */
@@ -286,15 +286,15 @@ export const parseMcEcbDecryptFile = (name: string) => parseMcEcbDecrypt(readVec
 
 // ── Parser: Monte Carlo CBC ─────────────────────────────────────────────────
 /**
- * parseMcCbcEncrypt / parseMcCbcDecrypt — parse floppy4/serpent_cbc_e_m.txt, serpent_cbc_d_m.txt
+ * parseMcCbcEncrypt / parseMcCbcDecrypt, parse floppy4/serpent_cbc_e_m.txt, serpent_cbc_d_m.txt
  *
- * Format: AES submission Monte Carlo CBC format — same as ECB but with an IV field:
- *   KEYSIZE=<N>                — key size block (128, 192, or 256)
- *   I=<n>                      — outer iteration index
- *   KEY=<hex>                  — starting key
- *   IV=<hex>                   — starting IV
- *   PT=<hex>                   — starting plaintext (encrypt) or CT=<hex> (decrypt)
- *   CT=<hex>                   — expected final ciphertext (encrypt)
+ * Format: AES submission Monte Carlo CBC format, same as ECB but with an IV field:
+ *   KEYSIZE=<N>               , key size block (128, 192, or 256)
+ *   I=<n>                     , outer iteration index
+ *   KEY=<hex>                 , starting key
+ *   IV=<hex>                  , starting IV
+ *   PT=<hex>                  , starting plaintext (encrypt) or CT=<hex> (decrypt)
+ *   CT=<hex>                  , expected final ciphertext (encrypt)
  * Decrypt file (serpent_cbc_d_m.txt): CT appears before PT.
  * Returns: Array of { keysize, idx, key, iv, pt, ct }
  */
@@ -350,16 +350,16 @@ export const parseMcCbcDecryptFile = (name: string) => parseMcCbcDecrypt(readVec
 
 // ── NESSIE parser ───────────────────────────────────────────────────────────
 /**
- * parseNessieVectors — parse NESSIE Serpent test vector files
+ * parseNessieVectors, parse NESSIE Serpent test vector files
  *
  * Format: NESSIE project format
- *   Set <N>, vector#  <i>:     — begins a vector entry
- *   key=<hex>                  — key (may span 2 lines for 256-bit keys)
- *   plain=<hex>                — plaintext
- *   cipher=<hex>               — ciphertext
- *   decrypted=<hex>            — round-trip plaintext (Sets 1-4, from decrypt)
- *   encrypted=<hex>            — round-trip ciphertext (Sets 5-8, from encrypt)
- *   Iterated N times=<hex>     — iterated output (ignored by parser)
+ *   Set <N>, vector#  <i>:    , begins a vector entry
+ *   key=<hex>                 , key (may span 2 lines for 256-bit keys)
+ *   plain=<hex>               , plaintext
+ *   cipher=<hex>              , ciphertext
+ *   decrypted=<hex>           , round-trip plaintext (Sets 1-4, from decrypt)
+ *   encrypted=<hex>           , round-trip ciphertext (Sets 5-8, from encrypt)
+ *   Iterated N times=<hex>    , iterated output (ignored by parser)
  * Note: 256-bit keys are split across two lines in the file. The parser
  *   handles this via the awaitingKeyLine2 state flag.
  * Returns: Array of NessieVector

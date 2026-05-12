@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_round.test.ts
 //
-// Gate 3 — single AES round vs FIPS 197 Appendix B intermediate states.
+// Gate 3, single AES round vs FIPS 197 Appendix B intermediate states.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';

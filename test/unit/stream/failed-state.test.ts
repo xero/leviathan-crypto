@@ -30,7 +30,7 @@
  *     NOT enter the failed state: keys are preserved, state stays 'ready',
  *     and the caller may retry with a corrected argument.
  *   - Subsequent method calls on a failed instance throw with 'failed' in
- *     the message — never "already finalized".
+ *     the message, never "already finalized".
  *   - dispose() on a failed instance is a no-op (keys already wiped).
  *   - OpenStream.seek() throws on a failed instance.
  */
@@ -94,7 +94,7 @@ function makeThrowingSealer(): CipherSuite {
 	return suite;
 }
 
-describe('SealStream — argument-validation errors are non-terminal', () => {
+describe('SealStream, argument-validation errors are non-terminal', () => {
 	it('oversize chunk throws without wiping keys or entering failed state', () => {
 		const key = randomBytes(32);
 		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });
@@ -105,7 +105,7 @@ describe('SealStream — argument-validation errors are non-terminal', () => {
 		expect(getState(sealer)).toBe('ready');
 		expect(isZero(keyView)).toBe(false);
 
-		// Stream is still usable — a correctly-sized retry succeeds.
+		// Stream is still usable, a correctly-sized retry succeeds.
 		const ct = sealer.push(new Uint8Array(500));
 		expect(ct).toBeInstanceOf(Uint8Array);
 		sealer.finalize(new Uint8Array(0));
@@ -127,7 +127,7 @@ describe('SealStream — argument-validation errors are non-terminal', () => {
 	});
 });
 
-describe('SealStream — crypto-path throws trigger failed state', () => {
+describe('SealStream, crypto-path throws trigger failed state', () => {
 	it('synthetic sealChunk throw wipes keys and sets state=failed', () => {
 		const key = randomBytes(32);
 		const mock = makeThrowingSealer();
@@ -178,7 +178,7 @@ describe('SealStream — crypto-path throws trigger failed state', () => {
 	});
 });
 
-describe('OpenStream — argument-validation errors are non-terminal', () => {
+describe('OpenStream, argument-validation errors are non-terminal', () => {
 	it('too-short chunk throws without wiping keys or entering failed state', () => {
 		const key = randomBytes(32);
 		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });
@@ -195,7 +195,7 @@ describe('OpenStream — argument-validation errors are non-terminal', () => {
 		expect(getState(opener)).toBe('ready');
 		expect(isZero(keyView)).toBe(false);
 
-		// Legitimate retry succeeds — stream was not failed by the validation throw.
+		// Legitimate retry succeeds, stream was not failed by the validation throw.
 		const pt1 = opener.pull(ct1);
 		expect(pt1).toBeInstanceOf(Uint8Array);
 		opener.finalize(ctFinal);
@@ -267,14 +267,14 @@ describe('OpenStream — argument-validation errors are non-terminal', () => {
 	});
 });
 
-describe('OpenStream — auth failure triggers failed state', () => {
+describe('OpenStream, auth failure triggers failed state', () => {
 	it('tampered chunk wipes keys, transitions to failed, further pull throws with "failed"', () => {
 		const key = randomBytes(32);
 		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });
 		const ct1 = sealer.push(randomBytes(100));
 		const ctFinal = sealer.finalize(new Uint8Array(0));
 
-		// Tamper with the first chunk — flip the last byte of the tag.
+		// Tamper with the first chunk, flip the last byte of the tag.
 		const tampered = new Uint8Array(ct1);
 		tampered[tampered.length - 1] ^= 0x01;
 
@@ -286,13 +286,13 @@ describe('OpenStream — auth failure triggers failed state', () => {
 		expect(getState(opener)).toBe('failed');
 		expect(isZero(keyView)).toBe(true);
 
-		// Re-use after failure — messages must say 'failed', not 'finalize'.
+		// Re-use after failure, messages must say 'failed', not 'finalize'.
 		expect(() => opener.pull(ctFinal)).toThrow(/failed/);
 		expect(() => opener.finalize(ctFinal)).toThrow(/failed/);
 	});
 });
 
-describe('SealStream / OpenStream — dispose() on failed is a no-op', () => {
+describe('SealStream / OpenStream, dispose() on failed is a no-op', () => {
 	it('SealStream.dispose() after failed does not throw and keys remain zero', () => {
 		const key = randomBytes(32);
 		const mock = makeThrowingSealer();
@@ -329,7 +329,7 @@ describe('SealStream / OpenStream — dispose() on failed is a no-op', () => {
 	});
 });
 
-describe('OpenStream.seek — throws on failed state', () => {
+describe('OpenStream.seek, throws on failed state', () => {
 	it('seek after failed throws with "failed"', () => {
 		const key = randomBytes(32);
 		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });

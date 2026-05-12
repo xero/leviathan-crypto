@@ -43,7 +43,7 @@ export function wipeBuffers(): void {
 	memory.fill(CHACHA_NONCE_OFFSET,  0, 12);    // 96-bit nonce
 	memory.fill(CHACHA_CTR_OFFSET,    0,  4);    // counter
 	memory.fill(CHACHA_BLOCK_OFFSET,  0, 64);    // keystream block
-	memory.fill(CHACHA_STATE_OFFSET,  0, 64);    // contains key copy (words 4–11)
+	memory.fill(CHACHA_STATE_OFFSET,  0, 64);    // contains key copy (words 4-11)
 
 	// Chunk buffers
 	memory.fill(CHUNK_PT_OFFSET,      0, CHUNK_SIZE);

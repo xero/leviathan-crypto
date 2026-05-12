@@ -21,7 +21,7 @@
 //
 // src/ts/ratchet/ratchet-keypair.ts
 //
-// RatchetKeypair — single-use ek/dk lifecycle for one KEM ratchet step.
+// RatchetKeypair, single-use ek/dk lifecycle for one KEM ratchet step.
 // Enforces the DR spec requirement that both parties rotate encapsulation
 // keys after each KEM ratchet step.
 
@@ -42,7 +42,7 @@ export class RatchetKeypair {
 	}
 
 	// Decapsulate using the stored dk. May only be called once per instance.
-	// Wipes the dk immediately after decap — the dk never leaves this class.
+	// Wipes the dk immediately after decap, the dk never leaves this class.
 	// The stored ek is passed as `ownEk` so both sides bind the identical
 	// (peerEk, kemCt) pair into the HKDF info string.
 	decap(kem: MlKemLike, rk: Uint8Array, kemCt: Uint8Array, context?: Uint8Array): KemDecapResult {

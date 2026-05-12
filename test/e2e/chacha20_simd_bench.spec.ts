@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// ChaCha20 SIMD 4-wide throughput benchmark — browser runtimes.
+// ChaCha20 SIMD 4-wide throughput benchmark, browser runtimes.
 // Measures scalar vs inter-block SIMD throughput (MB/s) after JIT warmup.
 // Primary purpose: document Firefox (SpiderMonkey) SIMD gain.
 import { test } from '@playwright/test';
@@ -84,21 +84,21 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(BENCH_SRC);
 });
 
-test('ChaCha20 SIMD throughput benchmark — 65536 bytes', async ({ page }) => {
+test('ChaCha20 SIMD throughput benchmark, 65536 bytes', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		return await runBench(65536, 50, 200);
 	});
 	console.log(`[SIMD bench] 65536B  scalar=${result.scalarMBs.toFixed(1)} MB/s  SIMD=${result.simdMBs.toFixed(1)} MB/s  speedup=${result.speedup.toFixed(2)}x`);
 });
 
-test('ChaCha20 SIMD throughput benchmark — 16384 bytes', async ({ page }) => {
+test('ChaCha20 SIMD throughput benchmark, 16384 bytes', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		return await runBench(16384, 50, 500);
 	});
 	console.log(`[SIMD bench] 16384B  scalar=${result.scalarMBs.toFixed(1)} MB/s  SIMD=${result.simdMBs.toFixed(1)} MB/s  speedup=${result.speedup.toFixed(2)}x`);
 });
 
-test('ChaCha20 SIMD throughput benchmark — 256 bytes', async ({ page }) => {
+test('ChaCha20 SIMD throughput benchmark, 256 bytes', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		return await runBench(256, 100, 5000);
 	});

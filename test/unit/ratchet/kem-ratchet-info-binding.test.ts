@@ -95,7 +95,7 @@ describe('kemRatchet info binding', () => {
 	test('2. wrong ownEk on decap → different nextRootKey', () => {
 		const kem = new MlKem512();
 
-		// Generate two distinct keypairs — same dk/kemCt transcript from party A,
+		// Generate two distinct keypairs, same dk/kemCt transcript from party A,
 		// but feed party B's ek as ownEk on the decap side.
 		const { encapsulationKey: ekA, decapsulationKey: dkA } = kem.keygen();
 		const { encapsulationKey: ekB } = kem.keygen();
@@ -103,11 +103,11 @@ describe('kemRatchet info binding', () => {
 
 		const alice = kemRatchetEncap(kem, rootKey, ekA);
 
-		// Correct: bind alice's target ek (ekA) — round-trip agrees.
+		// Correct: bind alice's target ek (ekA), round-trip agrees.
 		const bobOk = kemRatchetDecap(kem, rootKey, dkA, alice.kemCt, ekA);
 		expect(constantTimeEqual(alice.nextRootKey, bobOk.nextRootKey)).toBe(true);
 
-		// Wrong: bind a different ek (ekB) — info string differs, chain keys differ.
+		// Wrong: bind a different ek (ekB), info string differs, chain keys differ.
 		const bobWrong = kemRatchetDecap(kem, rootKey, dkA, alice.kemCt, ekB);
 		expect(constantTimeEqual(alice.nextRootKey, bobWrong.nextRootKey)).toBe(false);
 		expect(constantTimeEqual(bobOk.nextRootKey, bobWrong.nextRootKey)).toBe(false);
@@ -128,7 +128,7 @@ describe('kemRatchet info binding', () => {
 		tampered[0] ^= 0x01; // flip one bit
 
 		// ML-KEM's FO transform: a tampered ct produces an implicit-rejection
-		// shared secret derived from dk's z seed — guaranteed not to match
+		// shared secret derived from dk's z seed, guaranteed not to match
 		// Alice's sharedSecret. Result: different nextRootKey.
 		const bob = kemRatchetDecap(kem, rootKey, dk, tampered, ek);
 		expect(constantTimeEqual(alice.nextRootKey, bob.nextRootKey)).toBe(false);
@@ -138,7 +138,7 @@ describe('kemRatchet info binding', () => {
 		kem.dispose();
 	});
 
-	test('4. context is still honoured — match → agree, mismatch → differ', () => {
+	test('4. context is still honoured, match → agree, mismatch → differ', () => {
 		const kem = new MlKem512();
 		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
 		const rootKey = rk(0x40);

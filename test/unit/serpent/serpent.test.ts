@@ -36,10 +36,10 @@ beforeAll(async () => {
 
 // ── SerpentCbc/SerpentCtr constructor gate ──────────────────────────────────
 
-describe('SerpentCbc — dangerUnauthenticated gate', () => {
+describe('SerpentCbc, dangerUnauthenticated gate', () => {
 	it('new SerpentCbc() throws without dangerUnauthenticated flag', () => {
 		expect(() => new SerpentCbc()).toThrow(
-			'leviathan-crypto: SerpentCbc is unauthenticated — use Seal with SerpentCipher instead.'
+			'leviathan-crypto: SerpentCbc is unauthenticated, use Seal with SerpentCipher instead.'
 		);
 	});
 
@@ -50,10 +50,10 @@ describe('SerpentCbc — dangerUnauthenticated gate', () => {
 	});
 });
 
-describe('SerpentCtr — dangerUnauthenticated gate', () => {
+describe('SerpentCtr, dangerUnauthenticated gate', () => {
 	it('new SerpentCtr() throws without dangerUnauthenticated flag', () => {
 		expect(() => new SerpentCtr()).toThrow(
-			'leviathan-crypto: SerpentCtr is unauthenticated — use Seal with SerpentCipher instead.'
+			'leviathan-crypto: SerpentCtr is unauthenticated, use Seal with SerpentCipher instead.'
 		);
 	});
 

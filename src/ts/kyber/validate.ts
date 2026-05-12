@@ -21,7 +21,7 @@
 //
 // src/ts/kyber/validate.ts
 //
-// ML-KEM key validation — FIPS 203 §7.2 and §7.3.
+// ML-KEM key validation, FIPS 203 §7.2 and §7.3.
 
 import type { KyberExports, Sha3Exports } from './types.js';
 import type { KyberParams } from './params.js';
@@ -29,11 +29,11 @@ import { sha3_256Hash } from './indcpa.js';
 import { constantTimeEqual } from '../utils.js';
 
 /**
- * Encapsulation key check — FIPS 203 §7.2 (EncapsulationKeyCheck).
+ * Encapsulation key check, FIPS 203 §7.2 (EncapsulationKeyCheck).
  *
  * 1. Length gate: ek.length must equal params.ekBytes.
  * 2. Decode the polyvec portion via ByteDecode₁₂ (polyvec_frombytes). The
- *    decoded coefficients are raw 12-bit values in [0, 4095] — frombytes
+ *    decoded coefficients are raw 12-bit values in [0, 4095], frombytes
  *    does not reduce mod q.
  * 3. Modulus scan: every coefficient must satisfy c < Q = 3329.
  *
@@ -58,7 +58,7 @@ export function checkEncapsulationKey(
 }
 
 /**
- * Decapsulation key check — FIPS 203 §7.3 (DecapsulationKeyCheck).
+ * Decapsulation key check, FIPS 203 §7.3 (DecapsulationKeyCheck).
  *
  * 1. Length check: dk.length == params.dkBytes
  * 2. Extract embedded ek and H(ek), verify SHA3-256(ek) matches stored H

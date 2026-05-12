@@ -19,12 +19,12 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// Seal Serpent v2 KAT vectors — single-chunk STREAM construction.
+// Seal Serpent v2 KAT vectors, single-chunk STREAM construction.
 //
-// SELF-GENERATED — no external authority for these wire formats.
+// SELF-GENERATED, no external authority for these wire formats.
 // Serpent v3 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
 // authentication is collision-resistant under SHA-256, which is
-// key-committing — no separate commitment is needed in the preamble.
+// key-committing, no separate commitment is needed in the preamble.
 // Generated with fixed nonce seams, then independently verified against
 // the underlying primitives (HKDF-SHA-256, SerpentCbc, HMAC-SHA-256).
 // Vectors serve as regression trip-wires for Seal wire format stability.

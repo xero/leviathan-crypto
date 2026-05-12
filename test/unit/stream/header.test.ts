@@ -29,7 +29,7 @@ describe('readHeader()', () => {
 	it('rejects header with reserved bit 6 set (0x40)', () => {
 		// Manually construct a header byte with bit 6 set alongside a valid
 		// formatEnum. Without this check, 0x43 would silently parse as
-		// formatEnum=0x03 and pass cipher format checks for xchacha20 v3 —
+		// formatEnum=0x03 and pass cipher format checks for xchacha20 v3,
 		// a malformed wire format accepted silently.
 		const bad = new Uint8Array(valid);
 		bad[0] = 0x43; // xchacha20 v3 (0x03) | reserved bit 6 (0x40)

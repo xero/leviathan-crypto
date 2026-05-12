@@ -442,7 +442,7 @@ hkdf.dispose()
 ## SHA256Hash
 
 Stateless SHA-256 `HashFn` for Fortuna's accumulator and reseed slots. Plain
-`const` object — no instantiation, no `dispose()`.
+`const` object, no instantiation, no `dispose()`.
 
 Requires `init({ sha2: sha2Wasm })`. See [fortuna.md](./fortuna.md) for full
 usage with `Fortuna.create()`.
@@ -602,7 +602,7 @@ if (constantTimeEqual(tag, recomputed)) {
 hmac.dispose()
 ```
 
-### Example 5: HMAC verification — the right way
+### Example 5: HMAC verification, the right way
 
 The difference between these two approaches is the difference between a secure
 system and a broken one.

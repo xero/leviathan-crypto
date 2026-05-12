@@ -4,7 +4,7 @@
 // incremented as a 128-bit big-endian integer per SP 800-38A
 // Appendix B.1. The matching cipher type is `Ctr128BE`. Do NOT use
 // `Ctr64BE` (32-bit counter in the last 4 bytes of ICB, which is
-// the GCM/SIV convention) or `Ctr32BE` — both will fail these
+// the GCM/SIV convention) or `Ctr32BE`, both will fail these
 // vectors immediately on the very first block.
 
 use ctr::Ctr128BE;

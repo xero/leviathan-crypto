@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_ghash.test.ts
 //
-// Gate 12 — standalone GHASH validation. Walks each McGrew-Viega Appendix B
+// Gate 12, standalone GHASH validation. Walks each McGrew-Viega Appendix B
 // test case through GHASH directly (not through full AES-GCM), validating
 // the GF(2^128) multiply primitive against the published intermediate values
 // and the published tag.
@@ -90,7 +90,7 @@ function writeBytes(bytes: Uint8Array, off: number): void {
 
 /** Manually compute J0 in TS (independent witness for the WASM path).
  * 96-bit IV: J0 = IV || 0x00000001.
- * Other-length IV: J0 = GHASH_H(IV || 0^{s+64} || [|IV|]_64) — but we let
+ * Other-length IV: J0 = GHASH_H(IV || 0^{s+64} || [|IV|]_64), but we let
  * WASM compute that path via gcmStart and just read J0 back.
  */
 function expectedJ0For12ByteIv(iv: Uint8Array): Uint8Array {
@@ -101,7 +101,7 @@ function expectedJ0For12ByteIv(iv: Uint8Array): Uint8Array {
 	return j0;
 }
 
-describe('GHASH gate (Gate 12) — McGrew-Viega Appendix B', () => {
+describe('GHASH gate (Gate 12), McGrew-Viega Appendix B', () => {
 	for (const v of aesGcmVectors) {
 		// GATE: tag derivation via standalone GHASH primitive plus a single
 		// AES_ENC of J0. If the AES core is correct (Phases 1-3 verified),
@@ -114,7 +114,7 @@ describe('GHASH gate (Gate 12) — McGrew-Viega Appendix B', () => {
 				const aad = fromHex(v.aad);
 				const ct  = fromHex(v.ct);
 
-				// 1. Load key — derives H = AES_ENC(K, 0^128) inside loadKey.
+				// 1. Load key, derives H = AES_ENC(K, 0^128) inside loadKey.
 				writeBytes(key, x.getKeyOffset());
 				expect(x.loadKey(key.length)).toBe(0);
 

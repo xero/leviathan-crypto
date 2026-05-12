@@ -24,19 +24,19 @@
  *
  * Verifies that after `MlDsa*.keygenDerand(xi)` returns, every mldsa WASM
  * scratch region that held secret or secret-derived bytes during keygen
- * is zeroed. Highest-severity residual is SEED_OFFSET — it briefly held
+ * is zeroed. Highest-severity residual is SEED_OFFSET, it briefly held
  * ρ′ (which expands to s₁/s₂) and K (per-message signing randomness):
  * disclosure recovers the entire signing key. The polyvec slots that
  * held s₁, s₂, ŝ₁ (NTT/Montgomery copy), t (intermediate), and t₀
- * (low-bits of t — secret-component of sk) all get wiped too. The
+ * (low-bits of t, secret-component of sk) all get wiped too. The
  * XOF/PRF buffer holds the last SHAKE256 squeeze block, which after
  * ExpandS contains ρ′-derived bytes.
  *
  * Public regions intentionally NOT wiped: PK_OFFSET (encoded pk),
- * MATRIX_SLOT (Â — public, derived from ρ which is published in pk),
- * POLYVEC_SLOT_3 (t₁ — published in pk).
+ * MATRIX_SLOT (Â, public, derived from ρ which is published in pk),
+ * POLYVEC_SLOT_3 (t₁, published in pk).
  *
- * GATE: ML-DSA scratch-wipe — confirms no secret residue persists in
+ * GATE: ML-DSA scratch-wipe, confirms no secret residue persists in
  * mldsa linear memory after `keygenDerand` returns.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -75,8 +75,8 @@ function regionIsZero(mem: Uint8Array, off: number, len: number): boolean {
 
 const POLY_BYTES = 1024;
 
-describe('mldsaKeygenInternal — scratch slots wiped after keygenDerand', () => {
-	it('SEED_OFFSET zero (ρ ‖ ρ′ ‖ K — H output)', () => {
+describe('mldsaKeygenInternal, scratch slots wiped after keygenDerand', () => {
+	it('SEED_OFFSET zero (ρ ‖ ρ′ ‖ K, H output)', () => {
 		const dsa = new MlDsa44();
 		dsa.keygenDerand(new Uint8Array(32));
 		const x = getExports();
@@ -104,7 +104,7 @@ describe('mldsaKeygenInternal — scratch slots wiped after keygenDerand', () =>
 	});
 
 	// SK_OFFSET wipe size is parameter-set-dependent (skBytes). Running each
-	// parameter set verifies the per-set range zeroes correctly — catches a
+	// parameter set verifies the per-set range zeroes correctly, catches a
 	// regression where a hard-coded length passes for one set but leaves
 	// bytes resident on another.
 	describe('polyvec scratch wipes across parameter sets', () => {

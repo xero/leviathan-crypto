@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * XChaCha20-Poly1305 AEAD Known-Answer Tests (cross-browser) — draft-irtf-cfrg-xchacha
+ * XChaCha20-Poly1305 AEAD Known-Answer Tests (cross-browser), draft-irtf-cfrg-xchacha
  *
  * Source: draft-irtf-cfrg-xchacha (XChaCha20-Poly1305 IETF draft)
  * Files:  vectors/chacha20.ts (xchacha20Poly1305Vectors)
@@ -116,8 +116,8 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-// IETF draft §A.3.2 — XChaCha20-Poly1305 AEAD vector
-test('XChaCha20-Poly1305 draft §A.3.2 — AEAD vector', async ({ page }) => {
+// IETF draft §A.3.2, XChaCha20-Poly1305 AEAD vector
+test('XChaCha20-Poly1305 draft §A.3.2, AEAD vector', async ({ page }) => {
 	const v = xchacha20Poly1305Vectors[0];
 	const result = await page.evaluate(async (vec) => {
 		const wasm = await loadWasm();

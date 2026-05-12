@@ -11,7 +11,7 @@ leviathan-crypto is published to npm and mirrored on [unpkg](https://unpkg.com).
 > - [Import maps](#import-maps)
 
 > [!IMPORTANT]
-> **Version pinning.** The CDN examples below use unversioned URLs, which unpkg resolves to the latest published release. This is convenient for development and quick experimentation. For production, pin to a specific version (e.g. `@2.1.0`) so a future release can't change behaviour without warning. The SRI example below pins explicitly because the integrity hash is bytes-specific — never combine SRI with `@latest` or an unversioned URL.
+> **Version pinning.** The CDN examples below use unversioned URLs, which unpkg resolves to the latest published release. This is convenient for development and quick experimentation. For production, pin to a specific version (e.g. `@2.1.0`) so a future release can't change behaviour without warning. The SRI example below pins explicitly because the integrity hash is bytes-specific, never combine SRI with `@latest` or an unversioned URL.
 
 ---
 
@@ -97,7 +97,7 @@ before instantiation.
   import { sha2Wasm } from 'https://unpkg.com/leviathan-crypto@2.1.0/dist/sha2/embedded.js'
 
   const res = await fetch('https://unpkg.com/leviathan-crypto@2.1.0/dist/chacha20.wasm', {
-    // SRI requires version + hash to be paired — both update together.
+    // SRI requires version + hash to be paired, both update together.
     integrity: 'sha384-...'
   })
   const binary = new Uint8Array(await res.arrayBuffer())

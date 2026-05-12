@@ -89,6 +89,22 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-mldsa.yml
 
+  unit-sign:
+    needs: [build]
+    uses: ./.github/workflows/unit-sign.yml
+
+  unit-slhdsa:
+    needs: [build]
+    uses: ./.github/workflows/unit-slhdsa.yml
+
+  unit-slhdsa-acvp:
+    needs: [build]
+    uses: ./.github/workflows/unit-slhdsa-acvp.yml
+
+  unit-sign-hybrid:
+    needs: [build]
+    uses: ./.github/workflows/unit-sign-hybrid.yml
+
   suite-status:
     name: test-suite-status
     if: always()
@@ -111,6 +127,10 @@ jobs:
       - unit-aes-siv
       - unit-aes-mct
       - unit-mldsa
+      - unit-sign
+      - unit-slhdsa
+      - unit-slhdsa-acvp
+      - unit-sign-hybrid
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream results

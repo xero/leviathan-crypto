@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Monte Carlo CBC tests — Serpent AES submission
+ * Monte Carlo CBC tests, Serpent AES submission
  *
  * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
  * Files:  vectors/serpent_cbc_e_m.txt (encrypt, 1,200 outer × 10,000 inner)
@@ -92,7 +92,7 @@ function runCbcDecryptLoop(
 	return pt9999;
 }
 
-describe('CBC Monte Carlo — serpent_cbc_e_m.txt', () => {
+describe('CBC Monte Carlo, serpent_cbc_e_m.txt', () => {
 	const vectors = parseMcCbcEncryptFile('serpent_cbc_e_m.txt');
 
 	it('parses 1200 vectors (400 per key size)', () => {
@@ -111,7 +111,7 @@ describe('CBC Monte Carlo — serpent_cbc_e_m.txt', () => {
 	});
 });
 
-describe('CBC Monte Carlo — serpent_cbc_d_m.txt', () => {
+describe('CBC Monte Carlo, serpent_cbc_d_m.txt', () => {
 	const vectors = parseMcCbcDecryptFile('serpent_cbc_d_m.txt');
 
 	it('parses 1200 vectors (400 per key size)', () => {

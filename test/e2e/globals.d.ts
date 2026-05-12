@@ -1,6 +1,6 @@
 // Ambient declarations for globals injected into the browser context
 // via page.evaluate(INIT) in each e2e spec. These do not exist in
-// Node/Playwright runner scope — declared here so tsc does not emit
+// Node/Playwright runner scope, declared here so tsc does not emit
 // "Cannot find name" diagnostics inside page.evaluate() callbacks.
 
 // Superset of all WASM module exports used across e2e specs.

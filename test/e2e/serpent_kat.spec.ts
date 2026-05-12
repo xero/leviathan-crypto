@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Known-Answer Tests (KAT) — Serpent AES submission (cross-browser)
+ * Known-Answer Tests (KAT), Serpent AES submission (cross-browser)
  *
  * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
  * Files:  vectors/serpent_ecb_vt.txt (variable-text), vectors/serpent_ecb_vk.txt (variable-key)
@@ -75,7 +75,7 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-test('KAT variable-text — all 384 vectors', async ({ page }) => {
+test('KAT variable-text, all 384 vectors', async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
@@ -95,7 +95,7 @@ test('KAT variable-text — all 384 vectors', async ({ page }) => {
 	expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('KAT variable-key — all 576 vectors', async ({ page }) => {
+test('KAT variable-key, all 576 vectors', async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
@@ -115,7 +115,7 @@ test('KAT variable-key — all 576 vectors', async ({ page }) => {
 	expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('KAT decrypt — all 384 vt vectors', async ({ page }) => {
+test('KAT decrypt, all 384 vt vectors', async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];
@@ -135,7 +135,7 @@ test('KAT decrypt — all 384 vt vectors', async ({ page }) => {
 	expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('S-box table entry — all 1536 vectors', async ({ page }) => {
+test('S-box table entry, all 1536 vectors', async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];

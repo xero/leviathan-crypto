@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_sbox.test.ts
 //
-// Gate 2 — Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7 (= aesSboxTable).
+// Gate 2, Canright bitsliced S-box vs FIPS 197 §5.1.1 Figure 7 (= aesSboxTable).
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
@@ -59,7 +59,7 @@ describe('AES Canright S-box (Gate 2)', () => {
 			mem[pt] = b;
 			x.sboxRoundTrip();
 			const got = mem[ct];
-			expect(got, `S(${b.toString(16)}) — got 0x${got.toString(16)}, want 0x${aesSboxTable[b].toString(16)}`)
+			expect(got, `S(${b.toString(16)}), got 0x${got.toString(16)}, want 0x${aesSboxTable[b].toString(16)}`)
 				.toBe(aesSboxTable[b]);
 		}
 	});
@@ -69,7 +69,7 @@ describe('AES Boyar-Peralta scalar S-box (key-schedule path)', () => {
 	// GATE: for every byte 0x00..0xFF, the Boyar-Peralta scalar S-box
 	// (used by `keyExpansion` for SubWord) must produce aesSboxTable[b]
 	// for input b. Reference: SLP_AES_113 from Peralta's circuit-minimization
-	// page (cs.yale.edu/homes/peralta/CircuitStuff/SLP_AES_113.txt) —
+	// page (cs.yale.edu/homes/peralta/CircuitStuff/SLP_AES_113.txt),
 	// transcribed into `sboxWord` in src/asm/aes/aes.ts. Expected outputs
 	// come from FIPS 197 §5.1.1 Figure 7 via the same `aesSboxTable`
 	// constant used by Gate 2.
@@ -78,7 +78,7 @@ describe('AES Boyar-Peralta scalar S-box (key-schedule path)', () => {
 		// Exhaustive lane-independence: place input b at lane L (others zero)
 		// and verify every output lane independently. Output[L] must be S(b);
 		// the three other output lanes must be S(0) = 0x63. 1024 invocations,
-		// 4096 assertions — proves each of the four scalar circuits is correct
+		// 4096 assertions, proves each of the four scalar circuits is correct
 		// across the full 256-byte input space.
 		for (let lane = 0; lane < 4; lane++) {
 			const shift = lane * 8;

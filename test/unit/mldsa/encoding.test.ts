@@ -21,9 +21,9 @@
 //
 // test/unit/mldsa/encoding.test.ts
 //
-// GATE: ML-DSA bit-pack/unpack round-trips (FIPS 204 §7.1 Algs 16–19) plus
-// HintBitPack/HintBitUnpack (Algs 20–21) including the three SUF-CMA-critical
-// malformed-input checks (lines 4, 9, 17 of Alg 21 — see FIPS 204 §D.3).
+// GATE: ML-DSA bit-pack/unpack round-trips (FIPS 204 §7.1 Algs 16-19) plus
+// HintBitPack/HintBitUnpack (Algs 20-21) including the three SUF-CMA-critical
+// malformed-input checks (lines 4, 9, 17 of Alg 21, see FIPS 204 §D.3).
 //
 // Widths exercised match the union across all parameter sets: 3, 4, 6, 10,
 // 13, 18, 20.
@@ -45,7 +45,7 @@ function packLen(bitlen: number): number {
 
 // ── GATE: simple_bit_pack / simple_bit_unpack round-trip ───────────────────
 
-describe('Gate — simple_bit_pack / simple_bit_unpack (FIPS 204 Algs 16, 18)', () => {
+describe('Gate, simple_bit_pack / simple_bit_unpack (FIPS 204 Algs 16, 18)', () => {
 	const widths = [3, 4, 6, 10, 13, 18, 20];
 
 	for (const bitlen of widths) {
@@ -73,7 +73,7 @@ describe('Gate — simple_bit_pack / simple_bit_unpack (FIPS 204 Algs 16, 18)', 
 
 // ── GATE: bit_pack / bit_unpack round-trip ─────────────────────────────────
 
-describe('Gate — bit_pack / bit_unpack (FIPS 204 Algs 17, 19)', () => {
+describe('Gate, bit_pack / bit_unpack (FIPS 204 Algs 17, 19)', () => {
 	// (a, b) pairs cover: η=2 (3-bit), η=4 (4-bit), t0 (13-bit), z@γ₁=2¹⁷ (18-bit),
 	// z@γ₁=2¹⁹ (20-bit).
 	const ranges: { name: string; a: number; b: number }[] = [
@@ -107,7 +107,7 @@ describe('Gate — bit_pack / bit_unpack (FIPS 204 Algs 17, 19)', () => {
 
 // ── GATE: hint_bit_pack / hint_bit_unpack round-trip ───────────────────────
 
-describe('Gate — hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () => {
+describe('Gate, hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () => {
 	test('round-trip with k=4, ω=80, sparse hints', () => {
 		const w = getWasm();
 		const k = 4, omega = 80;
@@ -142,7 +142,7 @@ describe('Gate — hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () =
 
 	// ── Three SUF-CMA-critical malformed-input checks ──────────────────────
 
-	test('malformed input — y[ω+i] regresses below Index → -1 (Alg 21 line 4)', () => {
+	test('malformed input, y[ω+i] regresses below Index → -1 (Alg 21 line 4)', () => {
 		const w = getWasm();
 		const k = 2, omega = 4;
 		const HV  = w.getPolyvecSlot0();
@@ -157,7 +157,7 @@ describe('Gate — hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () =
 		expect(w.hint_bit_unpack(HV, BUF, k, omega)).toBe(-1);
 	});
 
-	test('malformed input — y[ω+i] > ω → -1 (Alg 21 line 4 upper bound)', () => {
+	test('malformed input, y[ω+i] > ω → -1 (Alg 21 line 4 upper bound)', () => {
 		const w = getWasm();
 		const k = 2, omega = 4;
 		const HV  = w.getPolyvecSlot0();
@@ -168,7 +168,7 @@ describe('Gate — hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () =
 		expect(w.hint_bit_unpack(HV, BUF, k, omega)).toBe(-1);
 	});
 
-	test('malformed input — non-strict ascending positions in same poly → -1 (Alg 21 line 9)', () => {
+	test('malformed input, non-strict ascending positions in same poly → -1 (Alg 21 line 9)', () => {
 		const w = getWasm();
 		const k = 1, omega = 4;
 		const HV  = w.getPolyvecSlot0();
@@ -187,7 +187,7 @@ describe('Gate — hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () =
 		expect(w.hint_bit_unpack(HV, BUF, k, omega)).toBe(-1);
 	});
 
-	test('malformed input — trailing nonzero byte in [Index, ω) → -1 (Alg 21 line 17)', () => {
+	test('malformed input, trailing nonzero byte in [Index, ω) → -1 (Alg 21 line 17)', () => {
 		const w = getWasm();
 		const k = 1, omega = 4;
 		const HV  = w.getPolyvecSlot0();
@@ -202,7 +202,7 @@ describe('Gate — hint_bit_pack / hint_bit_unpack (FIPS 204 Algs 20, 21)', () =
 		expect(w.hint_bit_unpack(HV, BUF, k, omega)).toBe(-1);
 	});
 
-	test('boundary — empty hint (no set bits anywhere) round-trips with all zeros', () => {
+	test('boundary, empty hint (no set bits anywhere) round-trips with all zeros', () => {
 		const w = getWasm();
 		const k = 4, omega = 75;
 		const HV  = w.getPolyvecSlot0();

@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SealStream / OpenStream — STREAM construction tests for both cipher suites.
+ * SealStream / OpenStream, STREAM construction tests for both cipher suites.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, randomBytes, AuthenticationError } from '../../../src/ts/index.js';
@@ -86,7 +86,7 @@ const suites: [string, CipherSuite, number][] = [
 ];
 
 for (const [name, cipher, keyLen] of suites) {
-	describe(`SealStream / OpenStream — ${name}`, () => {
+	describe(`SealStream / OpenStream, ${name}`, () => {
 		const key = randomBytes(keyLen);
 
 		// ── Round-trip ──────────────────────────────────────────────────
@@ -321,7 +321,7 @@ for (const [name, cipher, keyLen] of suites) {
 				const chunks = [randomBytes(200), randomBytes(300), randomBytes(100)];
 				const sealer = new SealStream(cipher, key, { chunkSize: 2048 });
 
-				// Seal side: write and read concurrently — sequential write-then-read
+				// Seal side: write and read concurrently, sequential write-then-read
 				// deadlocks because close() waits for flush, which backpressures on an
 				// unconsumed readable.
 				const sealTs = sealer.toTransformStream();
@@ -428,7 +428,7 @@ for (const [name, cipher, keyLen] of suites) {
 				expect(() => opener.pull(new Uint8Array(32))).toThrow();
 			});
 
-			it('last chunk gets TAG_FINAL — no extra empty chunk', async () => {
+			it('last chunk gets TAG_FINAL, no extra empty chunk', async () => {
 				const sealer = new SealStream(cipher, key, { chunkSize: 2048 });
 				const sealTs = sealer.toTransformStream();
 				const reader = sealTs.readable.getReader();
@@ -490,7 +490,7 @@ for (const [name, cipher, keyLen] of suites) {
 				const pt2 = randomBytes(200);
 				const { preamble: p1, encrypted: e1 } = sealAndCollect(cipher, key, [pt1]);
 				const { preamble: p2, encrypted: e2 } = sealAndCollect(cipher, key, [pt2]);
-				// Different nonces — preambles differ
+				// Different nonces, preambles differ
 				expect(p1).not.toEqual(p2);
 				// Both decrypt independently
 				expect(openAll(cipher, key, p1, e1)[0]).toEqual(pt1);
@@ -636,7 +636,7 @@ describe('OpenStream preamble chunkSize validation', () => {
 		out[17] = (chunkSize >> 16) & 0xff;
 		out[18] = (chunkSize >>  8) & 0xff;
 		out[19] =  chunkSize        & 0xff;
-		// commitment region (if any) stays zeros — we never reach the
+		// commitment region (if any) stays zeros, we never reach the
 		// commitment check because the chunkSize check fires first.
 		return out;
 	}
@@ -689,7 +689,7 @@ describe('CipherSuite contract', () => {
 	});
 
 	it('createPoolWorker returns a Worker (or throws in non-browser env)', () => {
-		// In Node.js test env, Worker is not defined — that's expected
+		// In Node.js test env, Worker is not defined, that's expected
 		// In a browser, createPoolWorker returns a real Worker
 		expect(() => XChaCha20Cipher.createPoolWorker()).toThrow();
 		expect(() => SerpentCipher.createPoolWorker()).toThrow();
@@ -766,7 +766,7 @@ describe('SerpentCipher specific', () => {
 
 // ── OpenStream commitment verification (XChaCha20 v3) ───────────────────────
 
-describe('OpenStream — commitment verification (XChaCha20 v3)', () => {
+describe('OpenStream, commitment verification (XChaCha20 v3)', () => {
 	it('flipping a byte in the commitment region throws AuthenticationError on construction', () => {
 		const key = randomBytes(32);
 		const sealer = new SealStream(XChaCha20Cipher, key, { chunkSize: 1024 });
@@ -785,7 +785,7 @@ describe('OpenStream — commitment verification (XChaCha20 v3)', () => {
 		const preamble = sealer.preamble.slice();
 		const ct = sealer.finalize(new Uint8Array(0));
 
-		// Untouched preamble — opener should construct, decrypt cleanly.
+		// Untouched preamble, opener should construct, decrypt cleanly.
 		const opener = new OpenStream(XChaCha20Cipher, key, preamble);
 		expect(opener.finalize(ct)).toEqual(new Uint8Array(0));
 	});

@@ -85,7 +85,7 @@ state. The state is secret-derived, so the table read is the classic
 - PCLMULQDQ-style carry-less multiply is not exposed to WebAssembly SIMD,
   so the table-free schoolbook alternative is too slow for production.
 - Callers concerned about side-channel leakage should prefer
-  `AESGCMSIVCipher` (which uses POLYVAL — same bridge through GHASH but
+  `AESGCMSIVCipher` (which uses POLYVAL, same bridge through GHASH but
   the per-message authentication key is derived from the master, not
   fixed).
 
@@ -164,7 +164,7 @@ function getMemoryPages(): i32
 
 `getModuleId()` returns `1` (the AES slot in the loader registry; serpent
 is `0`). `getMemoryPages()` returns the current WASM linear memory size
-in 64 KB pages — expected `4` for AES.
+in 64 KB pages, expected `4` for AES.
 
 ---
 
@@ -181,7 +181,7 @@ AES-256 extra-SubWord branch fires when `Nk > 6 && i mod Nk == 4`.
 Two parallel buffers are populated:
 
 - `ROUND_KEYS_BUFFER` holds the forward round keys, pre-transposed to
-  bitsliced form (Käsper-Schwabe §4.5 — each round key is 8 × v128 = 128
+  bitsliced form (Käsper-Schwabe §4.5, each round key is 8 × v128 = 128
   bytes so that AddRoundKey is 8 plain v128 XORs).
 - `INV_ROUND_KEYS_BUFFER` holds the EqInvCipher inverse round keys: round
   0 and round Nr are copies of the forward keys; rounds 1..Nr-1 have
@@ -213,7 +213,7 @@ Atomic single-block encrypt/decrypt. Reads from `BLOCK_PT_BUFFER`, writes
 to `BLOCK_CT_BUFFER` (encrypt) or vice versa (decrypt). FIPS 197 §5.1
 (Algorithm 1) and §5.3.5 (Equivalent Inverse Cipher). Internally
 broadcasts the single block across all 8 lanes of the bitsliced kernel
-and discards the redundant outputs — the 8-wide kernel is the only
+and discards the redundant outputs, the 8-wide kernel is the only
 implementation, the atomic exports are convenience wrappers.
 
 ```typescript
@@ -287,7 +287,7 @@ function resetCounter(): void
 function setCounter(hi: i64, lo: i64): void
 ```
 
-`resetCounter()` copies `NONCE_BUFFER` to `COUNTER_BUFFER` — the nonce is
+`resetCounter()` copies `NONCE_BUFFER` to `COUNTER_BUFFER`, the nonce is
 the initial 128-bit counter block. `setCounter(hi, lo)` writes the
 counter as two 64-bit big-endian halves; used by worker pools to position
 each worker at a non-overlapping range without going through `NONCE_BUFFER`.
@@ -300,7 +300,7 @@ function decryptChunk_simd(chunkLen: i32): i32
 ```
 
 CTR-encrypt/decrypt `chunkLen` bytes from `CHUNK_PT_BUFFER` to
-`CHUNK_CT_BUFFER`. CTR is symmetric — `decryptChunk` delegates to
+`CHUNK_CT_BUFFER`. CTR is symmetric, `decryptChunk` delegates to
 `encryptChunk` and `decryptChunk_simd` to `encryptChunk_simd`. The TS
 wrapper always calls the SIMD variant.
 
@@ -357,7 +357,7 @@ function gcmDecryptChunk(srcOff: i32, dstOff: i32, len: i32): i32
 ```
 
 GCTR-decrypt `len` bytes from `srcOff` to `dstOff`. Does not absorb into
-GHASH — that work was done by `gcmAbsorbCtChunk` during the verify pass.
+GHASH, that work was done by `gcmAbsorbCtChunk` during the verify pass.
 The counter must be re-initialized to `inc_32(J0)` first via
 `gcmResetCtrToJ0Plus1()`.
 
@@ -377,7 +377,7 @@ both u64 big-endian) into GHASH, XOR the result with `J0E`, and store
 the 128-bit tag at `TAG_OFFSET`. The TS layer reads the computed tag and
 routes the constant-time compare against the received tag through
 `constantTimeEqual` in `src/ts/utils.ts` (the dedicated `ct` WASM
-module). No AEAD compares tags inside its own module — library policy.
+module). No AEAD compares tags inside its own module, library policy.
 
 > [!NOTE]
 > Plaintext is bounded by SP 800-38D §5.2.1.1 at `2^36 - 32` bytes per
@@ -404,7 +404,7 @@ plus a zero-padded tail if needed). `ghashFinalize` absorbs the final
 length-encoding block constructed from `aadBits` and `ctBits` (each as
 u64 big-endian).
 
-The accumulator at `GHASH_ACC_BUFFER` is shared with POLYVAL — the two
+The accumulator at `GHASH_ACC_BUFFER` is shared with POLYVAL, the two
 modes are mutually exclusive at runtime.
 
 ---
@@ -489,7 +489,7 @@ CTR block from the provided tag (the TS layer writes it to
 `SIV_IC_OFFSET` first). SIV-CTR-decrypts `CHUNK_CT_BUFFER` →
 `CHUNK_PT_BUFFER`. Runs POLYVAL over the decrypted plaintext with the
 AAD and length block. Builds the EXPECTED tag at `TAG_OFFSET`. Does NOT
-compare — the TS layer reads the expected tag and routes the
+compare, the TS layer reads the expected tag and routes the
 constant-time compare through `constantTimeEqual`.
 
 ```typescript
@@ -627,7 +627,7 @@ register; `InvShiftRows` uses the inverse permutation.
 
 **MixColumns (§4.4 and Appendix A).** Forward MixColumns expressed via
 `rl32` / `rl64` byte rotations on the bitsliced state. InvMixColumns is
-expressed as bit equations directly — denser than forward, but applied
+expressed as bit equations directly, denser than forward, but applied
 once per round during decrypt.
 
 **Key schedule.** Unified across `Nk ∈ {4, 6, 8}` (FIPS 197 §5.2

@@ -119,7 +119,7 @@ describe('dispose guards', () => {
 		const enc   = kemRatchetEncap(kem, makeRk(), kp.ek);
 
 		expect(() => kp.decap(kem, badRk, enc.kemCt)).toThrow(RangeError);
-		// dispose() must not throw — dk was wiped in the finally block
+		// dispose() must not throw, dk was wiped in the finally block
 		expect(() => kp.dispose()).not.toThrow();
 		wipe(enc.nextRootKey); wipe(enc.sendChainKey); wipe(enc.recvChainKey);
 		kem.dispose();
@@ -151,7 +151,7 @@ describe('context round-trip', () => {
 		const ctxA = utf8ToBytes('context-a');
 		const ctxB = utf8ToBytes('context-b');
 
-		// Encap with ctxA, decap with ctxB — context mismatch → different keys
+		// Encap with ctxA, decap with ctxB, context mismatch → different keys
 		const kp  = new RatchetKeypair(kem);
 		const enc = kemRatchetEncap(kem, rk, kp.ek, ctxA);
 		const dec = kp.decap(kem, rk, enc.kemCt, ctxB);

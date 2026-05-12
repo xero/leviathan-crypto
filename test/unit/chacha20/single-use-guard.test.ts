@@ -25,7 +25,7 @@
  * Contract:
  *   - `_used = true` is set FIRST inside encrypt(), before any validation or
  *     WASM-touching code runs.
- *   - Any subsequent throw — validation, crypto path, anything — locks the
+ *   - Any subsequent throw, validation, crypto path, anything, locks the
  *     instance. A retry will always get the single-use guard error, never a
  *     fresh length-validation error.
  */
@@ -39,7 +39,7 @@ beforeAll(async () => {
 
 // ── ChaCha20Poly1305 ────────────────────────────────────────────────────────
 
-describe('ChaCha20Poly1305 — strict single-use guard', () => {
+describe('ChaCha20Poly1305, strict single-use guard', () => {
 	it('happy path: one encrypt succeeds, a second throws the single-use error', () => {
 		const aead  = new ChaCha20Poly1305();
 		const key   = crypto.getRandomValues(new Uint8Array(32));
@@ -56,7 +56,7 @@ describe('ChaCha20Poly1305 — strict single-use guard', () => {
 		aead.dispose();
 	});
 
-	it('crypto-path throw locks the instance — second encrypt is the single-use error, not a length error', () => {
+	it('crypto-path throw locks the instance, second encrypt is the single-use error, not a length error', () => {
 		const aead  = new ChaCha20Poly1305();
 		const key   = crypto.getRandomValues(new Uint8Array(32));
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
@@ -84,7 +84,7 @@ describe('ChaCha20Poly1305 — strict single-use guard', () => {
 		aead.dispose();
 	});
 
-	it('validation throw ALSO locks the instance — retry after bad key length still throws single-use', () => {
+	it('validation throw ALSO locks the instance, retry after bad key length still throws single-use', () => {
 		const aead  = new ChaCha20Poly1305();
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
 
@@ -138,7 +138,7 @@ describe('ChaCha20Poly1305 — strict single-use guard', () => {
 
 // ── XChaCha20Poly1305 ───────────────────────────────────────────────────────
 
-describe('XChaCha20Poly1305 — strict single-use guard', () => {
+describe('XChaCha20Poly1305, strict single-use guard', () => {
 	it('happy path: one encrypt succeeds, a second throws the single-use error', () => {
 		const aead  = new XChaCha20Poly1305();
 		const key   = crypto.getRandomValues(new Uint8Array(32));
@@ -155,7 +155,7 @@ describe('XChaCha20Poly1305 — strict single-use guard', () => {
 		aead.dispose();
 	});
 
-	it('crypto-path throw locks the instance — second encrypt is the single-use error, not a length error', () => {
+	it('crypto-path throw locks the instance, second encrypt is the single-use error, not a length error', () => {
 		const aead  = new XChaCha20Poly1305();
 		const key   = crypto.getRandomValues(new Uint8Array(32));
 		const nonce = crypto.getRandomValues(new Uint8Array(24));
@@ -181,7 +181,7 @@ describe('XChaCha20Poly1305 — strict single-use guard', () => {
 		aead.dispose();
 	});
 
-	it('validation throw ALSO locks the instance — retry after bad key length still throws single-use', () => {
+	it('validation throw ALSO locks the instance, retry after bad key length still throws single-use', () => {
 		const aead  = new XChaCha20Poly1305();
 		const nonce = crypto.getRandomValues(new Uint8Array(24));
 

@@ -32,7 +32,7 @@
  *
  * Without these wipes, secret-derived bytes (Fortuna's genKey, pool-hash
  * inputs, message-key derivations) persist in shared WASM linear memory for
- * the lifetime of the module — much longer than the operation itself.
+ * the lifetime of the module, much longer than the operation itself.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
@@ -57,7 +57,7 @@ function isZero(buf: Uint8Array): boolean {
 	return true;
 }
 
-describe('SerpentGenerator.generate — wipe-on-return', () => {
+describe('SerpentGenerator.generate, wipe-on-return', () => {
 	it('zeroes the key + block plaintext + block ciphertext WASM scratch after return', () => {
 		const x = getInstance('serpent').exports as unknown as {
 			memory:           WebAssembly.Memory;
@@ -78,7 +78,7 @@ describe('SerpentGenerator.generate — wipe-on-return', () => {
 	});
 });
 
-describe('ChaCha20Generator.generate — wipe-on-return', () => {
+describe('ChaCha20Generator.generate, wipe-on-return', () => {
 	it('zeroes the key + chunk plaintext/ciphertext WASM scratch after return', () => {
 		const x = getInstance('chacha20').exports as unknown as {
 			memory:            WebAssembly.Memory;
@@ -99,7 +99,7 @@ describe('ChaCha20Generator.generate — wipe-on-return', () => {
 	});
 });
 
-describe('AESGenerator.generate — wipe-on-return', () => {
+describe('AESGenerator.generate, wipe-on-return', () => {
 	it('zeroes the key + block plaintext + block ciphertext WASM scratch after return', () => {
 		const x = getInstance('aes').exports as unknown as {
 			memory:           WebAssembly.Memory;
@@ -120,7 +120,7 @@ describe('AESGenerator.generate — wipe-on-return', () => {
 	});
 });
 
-describe('SHA256Hash.digest — wipe-on-return', () => {
+describe('SHA256Hash.digest, wipe-on-return', () => {
 	it('zeroes the input + output WASM scratch after return', () => {
 		const x = getInstance('sha2').exports as unknown as {
 			memory:               WebAssembly.Memory;
@@ -138,7 +138,7 @@ describe('SHA256Hash.digest — wipe-on-return', () => {
 	});
 });
 
-describe('SHA3_256Hash.digest — wipe-on-return', () => {
+describe('SHA3_256Hash.digest, wipe-on-return', () => {
 	it('zeroes the input + output WASM scratch after return', () => {
 		const x = getInstance('sha3').exports as unknown as {
 			memory:         WebAssembly.Memory;

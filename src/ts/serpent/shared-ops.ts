@@ -23,8 +23,8 @@
 //
 // Pure-function primitives shared between the main-thread `SerpentCipher`
 // (cipher-suite.ts) and the `SealStreamPool` worker (pool-worker.ts). Both
-// call sites hold their own WASM exports — pool workers instantiate modules
-// locally, the main thread fetches via `getInstance()` — so every function
+// call sites hold their own WASM exports, pool workers instantiate modules
+// locally, the main thread fetches via `getInstance()`, so every function
 // here takes the sha2/serpent exports as parameters. No dependency on
 // `init.ts`, no module-level state, no instance wrappers.
 //
@@ -76,7 +76,7 @@ export interface SerpentOpsExports {
  *
  * Keys longer than 64 bytes are pre-hashed per RFC 2104 §3. The SHA-256
  * input buffer is fed in 64-byte chunks to match the WASM block size.
- * Does not call `_acquireModule` — callers must ensure no stateful instance
+ * Does not call `_acquireModule`, callers must ensure no stateful instance
  * owns the sha2 module before calling.
  * @param sx   sha2 WASM exports
  * @param key  HMAC key of any length
@@ -166,7 +166,7 @@ export function cbcEncryptChunk(
 		return new Uint8Array(kx.memory.buffer).slice(ctOff, ctOff + padded.length);
 	} catch (err) {
 		// Length-error or any other throw past loadKeyAndIv leaves key+iv staged.
-		// Wipe before re-throwing — the cipher-suite caller may not call dispose.
+		// Wipe before re-throwing, the cipher-suite caller may not call dispose.
 		kx.wipeBuffers();
 		throw err;
 	}
@@ -206,7 +206,7 @@ export function cbcDecryptChunk(
 		return pkcs7Strip(raw);
 	} catch (err) {
 		// Length-error, padding mismatch, or any other throw past loadKeyAndIv
-		// leaves key+iv staged. Wipe before re-throwing — bad PKCS7 padding is
+		// leaves key+iv staged. Wipe before re-throwing, bad PKCS7 padding is
 		// a Vaudenay-attack signal; per-chunk staged key+iv must not survive it.
 		kx.wipeBuffers();
 		throw err;

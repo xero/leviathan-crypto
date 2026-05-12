@@ -38,7 +38,7 @@ Audit of the `leviathan-crypto` WebAssembly HMAC-SHA256 implementation against R
 
 RFC 2104 specifies how to process keys of various lengths. Our implementation splits this across two layers:
 
-**TypeScript layer** (`src/ts/sha2/index.ts:169–186`, `HMAC_SHA256.hash`):
+**TypeScript layer** (`src/ts/sha2/index.ts:169-186`, `HMAC_SHA256.hash`):
 
 ```typescript
 let k = key;
@@ -52,7 +52,7 @@ mem.set(k, this.x.getSha256InputOffset());
 this.x.hmac256Init(k.length);
 ```
 
-**WASM layer** (`src/asm/sha2/hmac.ts:63–79`, `hmac256Init`):
+**WASM layer** (`src/asm/sha2/hmac.ts:63-79`, `hmac256Init`):
 
 ```
 for i = 0..keyLen-1:   ipad[i] = K[i] ^ 0x36;  opad[i] = K[i] ^ 0x5c
@@ -64,18 +64,18 @@ for i = keyLen..63:    ipad[i] = 0x36;           opad[i] = 0x5c
 | `len(K) > B` (> 64) | `K' = H(K)`, then zero-pad to B | TypeScript pre-hashes to 32 bytes via `sha256Init/Update/Final`, passes 32-byte result to `hmac256Init(32)` |
 | `len(K) < B` (< 64) | Zero-pad K to B bytes | `hmac256Init` loop: `keyLen..63` set to `0x00 ^ ipad = 0x36` and `0x00 ^ opad = 0x5c` |
 | `len(K) == B` (== 64) | Use as-is | `hmac256Init(64)`. Padding loop range `64..63` is empty, no modification. |
-| `len(K) == L` (== 32) | Zero-pad to B (not hashed, 32 < 64) | TypeScript: `32 > 64` is false, skip hashing. `hmac256Init(32)` pads bytes 32–63. |
+| `len(K) == L` (== 32) | Zero-pad to B (not hashed, 32 < 64) | TypeScript: `32 > 64` is false, skip hashing. `hmac256Init(32)` pads bytes 32-63. |
 
 The edge case of `len(K) == L` (32 bytes, the hash output length) is handled correctly: the key is shorter than B, so it is zero-padded without hashing. This matches RFC 2104 §3 precisely.
 
 > [!NOTE]
-> The long-key path (`len(K) > 64`) is handled entirely in TypeScript, not in WASM. The `hmac256Init` WASM function has a `keyLen ≤ 64` precondition. The `SHA256_INPUT_OFFSET` buffer is only 64 bytes. The TypeScript wrapper enforces this by pre-hashing long keys before calling the WASM layer. This is documented in `hmac.ts:47–49`.
+> The long-key path (`len(K) > 64`) is handled entirely in TypeScript, not in WASM. The `hmac256Init` WASM function has a `keyLen ≤ 64` precondition. The `SHA256_INPUT_OFFSET` buffer is only 64 bytes. The TypeScript wrapper enforces this by pre-hashing long keys before calling the WASM layer. This is documented in `hmac.ts:47-49`.
 
 ---
 
 ### 1.2 ipad and opad Constants
 
-The ipad and opad values are applied in `hmac256Init` (`hmac.ts:66–74`):
+The ipad and opad values are applied in `hmac256Init` (`hmac.ts:66-74`):
 
 | Constant | RFC 2104 §2 | Implementation |
 |----------|-------------|----------------|
@@ -84,7 +84,7 @@ The ipad and opad values are applied in `hmac256Init` (`hmac.ts:66–74`):
 
 The values `0x36` and `0x5c` are correct. They are applied across the full 64-byte (B) key block. Both loops together cover indices `0` through `63`, producing 64 bytes each for `HMAC256_IPAD_OFFSET` and `HMAC256_OPAD_OFFSET`.
 
-The pad-byte branch (`hmac.ts:72–73`) writes `0x36` and `0x5c` directly. This is equivalent to `0x00 ^ 0x36 = 0x36` and `0x00 ^ 0x5c = 0x5c`, since the zero-padded key bytes are 0x00. The optimization avoids an unnecessary XOR with zero.
+The pad-byte branch (`hmac.ts:72-73`) writes `0x36` and `0x5c` directly. This is equivalent to `0x00 ^ 0x36 = 0x36` and `0x00 ^ 0x5c = 0x5c`, since the zero-padded key bytes are 0x00. The optimization avoids an unnecessary XOR with zero.
 
 ---
 
@@ -92,18 +92,18 @@ The pad-byte branch (`hmac.ts:72–73`) writes `0x36` and `0x5c` directly. This 
 
 **Inner hash:** `H((K' ^ ipad) || message)`
 
-`hmac256Init` (`hmac.ts:76–78`):
+`hmac256Init` (`hmac.ts:76-78`):
 ```
 sha256Init()                                              // reset SHA-256 state
 memory.copy(SHA256_INPUT_OFFSET, HMAC256_IPAD_OFFSET, 64) // copy ipad key block
 sha256Update(64)                                           // process ipad block
 ```
 
-After `hmac256Init`, the SHA-256 state contains the intermediate hash of the 64-byte ipad block. The caller then feeds message data via `hmac256Update`, which passes through directly to `sha256Update` (`hmac.ts:83–85`).
+After `hmac256Init`, the SHA-256 state contains the intermediate hash of the 64-byte ipad block. The caller then feeds message data via `hmac256Update`, which passes through directly to `sha256Update` (`hmac.ts:83-85`).
 
 **Outer hash:** `H((K' ^ opad) || inner_hash)`
 
-`hmac256Final` (`hmac.ts:88–101`):
+`hmac256Final` (`hmac.ts:88-101`):
 ```
 sha256Final()                                                // finalize inner hash → SHA256_OUT_OFFSET
 memory.copy(HMAC256_INNER_OFFSET, SHA256_OUT_OFFSET, 32)     // save inner hash (32 bytes)
@@ -144,7 +144,7 @@ All test vectors are sourced from RFC 4231 §4. The implementation passes all ve
 
 TC6 is the most commonly broken edge case. It requires the key to be pre-hashed with SHA-256 before the HMAC construction. TC7 exercises the same long-key path _and_ a multi-block message simultaneously, making it the most comprehensive single vector. The TypeScript wrapper's `k.length > 64` guard (`index.ts:172`) correctly triggers SHA-256 pre-hashing, producing a 32-byte derived key that is then zero-padded to 64 bytes by `hmac256Init`.
 
-The test suite (`test/unit/sha2/hmac.test.ts`) runs all seven HMAC-SHA256 vectors plus a cross-check vector generated from the leviathan TypeScript reference implementation. Gate test 5 is HMAC-SHA256 TC1 (`hmac.test.ts:45–53`).
+The test suite (`test/unit/sha2/hmac.test.ts`) runs all seven HMAC-SHA256 vectors plus a cross-check vector generated from the leviathan TypeScript reference implementation. Gate test 5 is HMAC-SHA256 TC1 (`hmac.test.ts:45-53`).
 
 ---
 
@@ -159,7 +159,7 @@ The HMAC-SHA256 buffers reside in the SHA-2 WASM module's linear memory (`src/as
 | 524 | 64 | `HMAC256_OPAD_OFFSET` | `K' ^ opad`, outer key material |
 | 588 | 32 | `HMAC256_INNER_OFFSET` | Inner hash saved before outer pass |
 | 352 | 32 | `SHA256_OUT_OFFSET` | Final HMAC output (shared with SHA-256 digest output) |
-| 0 | 32 | `SHA256_H_OFFSET` | SHA-256 hash state H0–H7 (shared, overwritten per pass) |
+| 0 | 32 | `SHA256_H_OFFSET` | SHA-256 hash state H0-H7 (shared, overwritten per pass) |
 
 **No aliasing between inner and outer hash states:** The inner hash result is saved to `HMAC256_INNER_OFFSET` (offset 588) before `sha256Init()` resets `SHA256_H_OFFSET` (offset 0) for the outer pass. These buffers are 588 bytes apart with no overlap.
 
@@ -174,7 +174,7 @@ The HMAC-SHA256 buffers reside in the SHA-2 WASM module's linear memory (`src/as
 
 All buffers are contiguous and non-overlapping.
 
-**Key material wiping:** `wipeBuffers()` (`src/asm/sha2/index.ts:41–43`) performs `memory.fill(0, 0, 1976)`, which zeroes the entire SHA-2 module memory from offset 0 to 1975. This covers all HMAC buffers including:
+**Key material wiping:** `wipeBuffers()` (`src/asm/sha2/index.ts:41-43`) performs `memory.fill(0, 0, 1976)`, which zeroes the entire SHA-2 module memory from offset 0 to 1975. This covers all HMAC buffers including:
 - `HMAC256_IPAD_OFFSET` (K' ^ ipad, contains key-derived material)
 - `HMAC256_OPAD_OFFSET` (K' ^ opad, contains key-derived material)
 - `HMAC256_INNER_OFFSET` (inner hash, derived from key)
@@ -182,7 +182,7 @@ All buffers are contiguous and non-overlapping.
 - `SHA256_H_OFFSET` (hash state, contains key-dependent intermediate values)
 
 > [!NOTE]
-> The `wipeBuffers` implementation uses a single `memory.fill(0, 0, 1976)` call rather than individually zeroing each buffer. This is correct and sufficient. It zeroes the entire module memory, a superset of all sensitive buffers. There are no buffers that live outside the 0–1975 byte range.
+> The `wipeBuffers` implementation uses a single `memory.fill(0, 0, 1976)` call rather than individually zeroing each buffer. This is correct and sufficient. It zeroes the entire module memory, a superset of all sensitive buffers. There are no buffers that live outside the 0-1975 byte range.
 
 **Stack-allocated vs heap-allocated:** All buffers are static offsets in WASM linear memory. There is no heap allocation (`memory.grow()` is not used). No intermediate values are stored in local variables that could leak to WASM shadow stack. All accumulator state lives in the fixed-offset buffers.
 
@@ -190,13 +190,13 @@ All buffers are contiguous and non-overlapping.
 
 ### 1.6 TypeScript Wrapper Layer
 
-`HMAC_SHA256` (`src/ts/sha2/index.ts:163–191`):
+`HMAC_SHA256` (`src/ts/sha2/index.ts:163-191`):
 
 **`init()` gate:** The constructor calls `getExports()` → `getInstance('sha2')`, which throws if `init('sha2')` has not been called. No class silently auto-initializes.
 
 **Input validation:** The `hash(key, msg)` method accepts arbitrary-length `Uint8Array` inputs for both key and message. There is no minimum key length enforced. This is discussed in [§2.3](#23-key-size-recommendations). The long-key path (`k.length > 64`) is validated by the TypeScript guard.
 
-**Message feeding:** The `feedHash` helper (`index.ts:86–96`) writes message data to `SHA256_INPUT_OFFSET` in 64-byte chunks, calling `hmac256Update` for each chunk. The `Math.min(msg.length - pos, 64)` bound ensures no write exceeds the 64-byte staging buffer.
+**Message feeding:** The `feedHash` helper (`index.ts:86-96`) writes message data to `SHA256_INPUT_OFFSET` in 64-byte chunks, calling `hmac256Update` for each chunk. The `Math.min(msg.length - pos, 64)` bound ensures no write exceeds the 64-byte staging buffer.
 
 **Output:** `out.slice(...)` creates a copy of the 32 bytes at `SHA256_OUT_OFFSET`. The `.slice()` call returns an independent `Uint8Array`. The caller cannot observe subsequent WASM memory writes. The output is always exactly 32 bytes (HMAC-SHA256 output length L).
 
@@ -261,7 +261,7 @@ These bounds assume the key is uniformly random and at least L = 32 bytes.
 |-----------|---------------------|-------------------|
 | `< L` (< 32 bytes) | Security degrades below 128-bit forgery resistance | "The key for HMAC can be of any length. However, less than L bytes is strongly discouraged" (§3) |
 | `= L` (32 bytes) | Full 128-bit forgery resistance, 256-bit key recovery | Recommended minimum |
-| `> L, ≤ B` (33–64 bytes) | No additional security (key space is 256 bits regardless) | Acceptable. Zero-padded to B. |
+| `> L, ≤ B` (33-64 bytes) | No additional security (key space is 256 bits regardless) | Acceptable. Zero-padded to B. |
 | `> B` (> 64 bytes) | Effective key reduced to `H(K)` = 32 bytes | "Keys longer than B bytes are first hashed using H" (§3) |
 
 **API enforcement:** leviathan-crypto does **not** enforce a minimum key length at the API level. `HMAC_SHA256.hash()` accepts keys of any length including zero bytes. This is a deliberate design choice. The library is a low-level cryptographic primitive, and key length enforcement is the caller's responsibility.

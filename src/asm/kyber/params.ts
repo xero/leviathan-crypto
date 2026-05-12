@@ -21,8 +21,8 @@
 //
 // src/asm/kyber/params.ts
 //
-// ML-KEM (Kyber) module — mathematical constants.
-// FIPS 203 §4 — Module-Lattice-Based Key-Encapsulation Mechanism Standard.
+// ML-KEM (Kyber) module, mathematical constants.
+// FIPS 203 §4, Module-Lattice-Based Key-Encapsulation Mechanism Standard.
 
 // ── Ring parameters ─────────────────────────────────────────────────────────
 

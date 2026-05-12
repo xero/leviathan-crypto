@@ -27,7 +27,7 @@
  * exclusivity guarantee is enforced by explicit `_assertNotOwned('serpent')`
  * and `_assertNotOwned('sha2')` calls at the top of each method. A live
  * `SerpentCtr` / `SerpentCbc` / `SHAKE128` / etc. must block seal/open
- * with a loud throw — silent module sharing would clobber the owner's
+ * with a loud throw, silent module sharing would clobber the owner's
  * state. These tests lock in the guard so a future regression (removed
  * assertion) fails loudly.
  */
@@ -47,10 +47,10 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm });
 });
 
-// ── Seal.encrypt(SerpentCipher, ...) — guard preservation ───────────────────
+// ── Seal.encrypt(SerpentCipher, ...), guard preservation ───────────────────
 
-describe('exclusivity-preservation — Seal.encrypt(SerpentCipher)', () => {
-	it('live SerpentCtr blocks Seal.encrypt — throws mentioning serpent', () => {
+describe('exclusivity-preservation, Seal.encrypt(SerpentCipher)', () => {
+	it('live SerpentCtr blocks Seal.encrypt, throws mentioning serpent', () => {
 		const ctr = new SerpentCtr({ dangerUnauthenticated: true });
 		ctr.beginEncrypt(new Uint8Array(32), new Uint8Array(16));
 		const key = SerpentCipher.keygen();
@@ -62,7 +62,7 @@ describe('exclusivity-preservation — Seal.encrypt(SerpentCipher)', () => {
 		}
 	});
 
-	it('live SerpentCbc blocks Seal.encrypt — throws mentioning serpent', () => {
+	it('live SerpentCbc blocks Seal.encrypt, throws mentioning serpent', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		const key = SerpentCipher.keygen();
 		try {
@@ -99,10 +99,10 @@ describe('exclusivity-preservation — Seal.encrypt(SerpentCipher)', () => {
 	});
 });
 
-// ── SealStream.push — same guard preservation on the streaming path ─────────
+// ── SealStream.push, same guard preservation on the streaming path ─────────
 
-describe('exclusivity-preservation — SealStream.push(SerpentCipher)', () => {
-	it('live SerpentCtr blocks SealStream.push — throws mentioning serpent', () => {
+describe('exclusivity-preservation, SealStream.push(SerpentCipher)', () => {
+	it('live SerpentCtr blocks SealStream.push, throws mentioning serpent', () => {
 		const ctr = new SerpentCtr({ dangerUnauthenticated: true });
 		ctr.beginEncrypt(new Uint8Array(32), new Uint8Array(16));
 		const key = SerpentCipher.keygen();
@@ -114,7 +114,7 @@ describe('exclusivity-preservation — SealStream.push(SerpentCipher)', () => {
 		}
 	});
 
-	it('live SerpentCbc blocks SealStream.push — throws mentioning serpent', () => {
+	it('live SerpentCbc blocks SealStream.push, throws mentioning serpent', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		const key = SerpentCipher.keygen();
 		try {
@@ -141,8 +141,8 @@ describe('exclusivity-preservation — SealStream.push(SerpentCipher)', () => {
 
 // ── Seal.decrypt mirrors the guard on the opening side ──────────────────────
 
-describe('exclusivity-preservation — Seal.decrypt(SerpentCipher)', () => {
-	it('live SerpentCtr blocks Seal.decrypt — throws mentioning serpent', () => {
+describe('exclusivity-preservation, Seal.decrypt(SerpentCipher)', () => {
+	it('live SerpentCtr blocks Seal.decrypt, throws mentioning serpent', () => {
 		// Build a valid blob first, with no owner live.
 		const key = SerpentCipher.keygen();
 		const blob = Seal.encrypt(SerpentCipher, key, new Uint8Array([7, 7, 7]));

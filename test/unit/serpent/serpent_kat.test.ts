@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Known-Answer Tests (KAT) — Serpent AES submission
+ * Known-Answer Tests (KAT), Serpent AES submission
  *
  * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
  * Files:  vectors/serpent_ecb_vt.txt (variable-text, 384 vectors)
@@ -36,7 +36,7 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm });
 });
 
-describe('KAT — serpent_ecb_vt.txt variable-text (384 vectors)', () => {
+describe('KAT, serpent_ecb_vt.txt variable-text (384 vectors)', () => {
 	const vectors = parseVtFile('serpent_ecb_vt.txt');
 
 	it('parses 384 vectors', () => {
@@ -58,7 +58,7 @@ describe('KAT — serpent_ecb_vt.txt variable-text (384 vectors)', () => {
 	});
 });
 
-describe('KAT — serpent_ecb_vk.txt variable-key (576 vectors)', () => {
+describe('KAT, serpent_ecb_vk.txt variable-key (576 vectors)', () => {
 	const vectors = parseVkFile('serpent_ecb_vk.txt');
 
 	it('parses 576 vectors', () => {

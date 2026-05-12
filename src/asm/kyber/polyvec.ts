@@ -21,8 +21,8 @@
 //
 // src/asm/kyber/polyvec.ts
 //
-// ML-KEM (Kyber) — polyvec operations: serialization, compression, NTT, arithmetic.
-// FIPS 203 — operations on vectors of k polynomials.
+// ML-KEM (Kyber), polyvec operations: serialization, compression, NTT, arithmetic.
+// FIPS 203, operations on vectors of k polynomials.
 // Poly is 256×i16 = 512 bytes; polyvec is k×512 bytes.
 
 import { Q, POLY_BYTES,
@@ -41,7 +41,7 @@ import {
 // ── Serialization ───────────────────────────────────────────────────────────
 
 /**
- * Serialize vector of polynomials. FIPS 203 — k × ByteEncode_12.
+ * Serialize vector of polynomials. FIPS 203, k × ByteEncode_12.
  */
 export function polyvec_tobytes(rOffset: i32, pvOffset: i32, k: i32): void {
 	for (let i: i32 = 0; i < k; i++) {
@@ -50,7 +50,7 @@ export function polyvec_tobytes(rOffset: i32, pvOffset: i32, k: i32): void {
 }
 
 /**
- * Deserialize vector of polynomials. FIPS 203 — k × ByteDecode_12.
+ * Deserialize vector of polynomials. FIPS 203, k × ByteDecode_12.
  */
 export function polyvec_frombytes(pvOffset: i32, aOffset: i32, k: i32): void {
 	for (let i: i32 = 0; i < k; i++) {
@@ -61,7 +61,7 @@ export function polyvec_frombytes(pvOffset: i32, aOffset: i32, k: i32): void {
 // ── Compression ─────────────────────────────────────────────────────────────
 
 /**
- * Compress and serialize polyvec. FIPS 203 — k × Compress_du + ByteEncode_du.
+ * Compress and serialize polyvec. FIPS 203, k × Compress_du + ByteEncode_du.
  * du=10 → k×320 bytes; du=11 → k×352 bytes.
  * Uses 64-bit multiply for higher precision (pq-crystals/kyber ref/polyvec.c).
  */
@@ -138,7 +138,7 @@ export function polyvec_compress(rOffset: i32, pvOffset: i32, k: i32, du: i32): 
 }
 
 /**
- * Decompress polyvec. FIPS 203 — k × ByteDecode_du then Decompress_du.
+ * Decompress polyvec. FIPS 203, k × ByteDecode_du then Decompress_du.
  * du=10 → read k×320 bytes; du=11 → read k×352 bytes.
  */
 export function polyvec_decompress(pvOffset: i32, aOffset: i32, k: i32, du: i32): void {
@@ -223,7 +223,7 @@ export function polyvec_invntt(pvOffset: i32, k: i32): void {
 }
 
 /**
- * Apply Barrett reduction to all coefficients. FIPS 203 — Reduce.
+ * Apply Barrett reduction to all coefficients. FIPS 203, Reduce.
  */
 export function polyvec_reduce(pvOffset: i32, k: i32): void {
 	for (let i: i32 = 0; i < k; i++) {
@@ -232,7 +232,7 @@ export function polyvec_reduce(pvOffset: i32, k: i32): void {
 }
 
 /**
- * FIPS 203 §7.2 modulus check — scan the decoded polyvec and report whether
+ * FIPS 203 §7.2 modulus check, scan the decoded polyvec and report whether
  * every coefficient satisfies c < Q. Does not mutate pv.
  *
  * Input: pvOffset points at k polynomials written by polyvec_frombytes.
@@ -266,7 +266,7 @@ export function polyvec_add(rOffset: i32, aOffset: i32, bOffset: i32, k: i32): v
 
 /**
  * Inner product in NTT domain: r = Σ_{i=0}^{k-1} a[i]·b[i], then reduce.
- * FIPS 203 — used in MatMul and dot-product steps of IND-CPA.
+ * FIPS 203, used in MatMul and dot-product steps of IND-CPA.
  */
 export function polyvec_basemul_acc_montgomery(rOffset: i32, aOffset: i32, bOffset: i32, k: i32): void {
 	// pq-crystals/kyber ref/polyvec.c polyvec_basemul_acc_montgomery()

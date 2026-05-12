@@ -30,7 +30,7 @@ import type { WasmSource } from '../wasm-source.js';
 /**
  * Load and initialise the AES WASM module from `source`.
  * Must be called before constructing any AES class.
- * @param source  WASM binary — gzip+base64 string, URL, ArrayBuffer, Uint8Array,
+ * @param source  WASM binary, gzip+base64 string, URL, ArrayBuffer, Uint8Array,
  *                pre-compiled WebAssembly.Module, Response, or Promise<Response>
  */
 export async function aesInit(source: WasmSource): Promise<void> {
@@ -76,7 +76,7 @@ function getExports(): AesExports {
 // ── AES ─────────────────────────────────────────────────────────────────────
 
 /**
- * Low-level AES block cipher — raw ECB encrypt + decrypt.
+ * Low-level AES block cipher, raw ECB encrypt + decrypt.
  *
  * AES-128/192/256 supported. `loadKey` accepts 16, 24, or 32 byte keys;
  * Nr (10, 12, or 14) is derived and persisted in WASM memory between

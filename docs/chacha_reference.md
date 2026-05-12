@@ -26,7 +26,7 @@ ChaCha20 is a stream cipher designed by Daniel J. Bernstein (University of Illin
 
 Bernstein's stated design priorities for ChaCha20:
 
-**Software speed on constrained hardware.** AES requires either dedicated hardware (AES-NI) for competitive performance, or is slow and vulnerable on platforms without it. ChaCha20 uses only 32-bit addition, XOR, and rotation — operations that are uniformly fast across ARM, MIPS, embedded, and general-purpose CPUs.
+**Software speed on constrained hardware.** AES requires either dedicated hardware (AES-NI) for competitive performance, or is slow and vulnerable on platforms without it. ChaCha20 uses only 32-bit addition, XOR, and rotation, operations that are uniformly fast across ARM, MIPS, embedded, and general-purpose CPUs.
 
 **Timing side-channel resistance by construction.** The ARX (Add-Rotate-XOR) design contains no data-dependent memory accesses, no table lookups indexed by secret data, and no data-dependent branches. This is a structural property of the algorithm, not an implementation technique.
 
@@ -55,7 +55,7 @@ ChaCha20 is a variant of Salsa20 with improved diffusion per round. The key stru
 | Software performance (with HW accel) | Fast | Faster |
 | Nonce misuse consequence | Keystream reuse (plaintext recovery) | Keystream reuse + auth key leak |
 
-The critical asymmetry is in the nonce misuse row. GCM's polynomial authenticator uses the nonce to derive the authentication key (H). Nonce reuse under GCM exposes H, allowing tag forgery for all past and future messages under that key — a catastrophic failure mode beyond mere confidentiality loss. ChaCha20-Poly1305 generates a fresh one-time Poly1305 key per message using the cipher itself; nonce reuse still recovers plaintexts (bad), but does not break authentication globally.
+The critical asymmetry is in the nonce misuse row. GCM's polynomial authenticator uses the nonce to derive the authentication key (H). Nonce reuse under GCM exposes H, allowing tag forgery for all past and future messages under that key, a catastrophic failure mode beyond mere confidentiality loss. ChaCha20-Poly1305 generates a fresh one-time Poly1305 key per message using the cipher itself; nonce reuse still recovers plaintexts (bad), but does not break authentication globally.
 
 ---
 
@@ -79,18 +79,18 @@ The ChaCha20 state is a 4×4 matrix of 32-bit little-endian words, laid out as:
 
 ```
  0  1  2  3     "expa"  "nd 3"  "2-by"  "te k"      ← constants (row 0)
- 4  5  6  7     key[0]  key[1]  key[2]  key[3]       ← key words 0–3 (row 1)
- 8  9 10 11     key[4]  key[5]  key[6]  key[7]       ← key words 4–7 (row 2)
+ 4  5  6  7     key[0]  key[1]  key[2]  key[3]       ← key words 0-3 (row 1)
+ 8  9 10 11     key[4]  key[5]  key[6]  key[7]       ← key words 4-7 (row 2)
 12 13 14 15     counter nonce0  nonce1  nonce2        ← counter + nonce (row 3)
 ```
 
-The four constants are ASCII bytes of `"expand 32-byte k"` — the "nothing up my sleeve" string from Bernstein's original spec. As 32-bit little-endian words:
+The four constants are ASCII bytes of `"expand 32-byte k"`, the "nothing up my sleeve" string from Bernstein's original spec. As 32-bit little-endian words:
 
 ```
 0x61707865  0x3320646e  0x79622d32  0x6b206574
 ```
 
-The 256-bit key fills words 4–11 as eight 32-bit little-endian words. The 32-bit counter fills word 12 (initialized to 1 in AEAD mode). The 96-bit nonce fills words 13–15 as three 32-bit little-endian words.
+The 256-bit key fills words 4-11 as eight 32-bit little-endian words. The 32-bit counter fills word 12 (initialized to 1 in AEAD mode). The 96-bit nonce fills words 13-15 as three 32-bit little-endian words.
 
 ### 2.3 Quarter Round
 
@@ -111,7 +111,7 @@ All four rotation constants (16, 12, 8, 7) were chosen by Bernstein to maximize 
 
 The ChaCha20 block function applies 20 rounds to the 4×4 state, alternating between column rounds and diagonal rounds. Each round consists of four quarter rounds applied in parallel to four (a,b,c,d) groups.
 
-**Column round** — four vertical columns:
+**Column round.** four vertical columns:
 
 ```
 QR(0, 4,  8, 12)
@@ -120,7 +120,7 @@ QR(2, 6, 10, 14)
 QR(3, 7, 11, 15)
 ```
 
-**Diagonal round** — four diagonals (wrapping):
+**Diagonal round.** four diagonals (wrapping):
 
 ```
 QR(0, 5, 10, 15)
@@ -149,7 +149,7 @@ for each 64-byte block i (starting at counter = 1 in AEAD mode):
 
 For a final partial block, only the needed bytes of the keystream block are used; the remainder is discarded.
 
-Decryption is identical — XOR with the same keystream regenerated from the same (key, nonce, counter).
+Decryption is identical, XOR with the same keystream regenerated from the same (key, nonce, counter).
 
 ### 2.6 Poly1305
 
@@ -159,8 +159,8 @@ Poly1305 is a one-time MAC operating over GF(2¹³⁰ − 5). It takes a 32-byte
 
 The 32-byte one-time key is split into two 128-bit halves:
 
-- **r** (bytes 0–15): the polynomial key, clamped before use
-- **s** (bytes 16–31): the final addition constant
+- **r** (bytes 0-15): the polynomial key, clamped before use
+- **s** (bytes 16-31): the final addition constant
 
 **Clamping r:** certain bits of r are forced to zero before use, ensuring the key lies in a subgroup that prevents certain algebraic attacks. The clamping rule clears bits at specific positions via byte-level masks:
 
@@ -190,7 +190,7 @@ tag = (h + s) mod 2¹²⁸
 
 The final partial block (if the message length is not a multiple of 16) is padded on the right with zeros, and the `1` bit is set at position `8 * actual_len` rather than `8 * 16`. The `h + s` final step serializes `h` back to 128 bits by discarding the upper 2 bits.
 
-The prime 2¹³⁰ − 5 was chosen because it allows efficient arithmetic: modular reduction can be done using the identity `2¹³⁰ ≡ 5 (mod 2¹³⁰ − 5)`, so carrying out of the 130-bit accumulator multiplies the overflow by 5 and adds back into the lower 130 bits — a cheap operation.
+The prime 2¹³⁰ − 5 was chosen because it allows efficient arithmetic: modular reduction can be done using the identity `2¹³⁰ ≡ 5 (mod 2¹³⁰ − 5)`, so carrying out of the 130-bit accumulator multiplies the overflow by 5 and adds back into the lower 130 bits, a cheap operation.
 
 ### 2.7 Poly1305 Key Generation
 
@@ -251,9 +251,9 @@ Tag verification **must** be performed before decryption begins in implementatio
 
 ### 3.1 The Nonce Problem
 
-Standard ChaCha20-Poly1305 uses a 96-bit nonce. With random nonce generation and the birthday bound, a (key, nonce) collision becomes probable after approximately 2⁴⁸ messages — a real concern for high-volume or long-lived session keys. The typical mitigation is a monotonic counter nonce, but this requires stateful nonce management, which complicates distributed or stateless systems.
+Standard ChaCha20-Poly1305 uses a 96-bit nonce. With random nonce generation and the birthday bound, a (key, nonce) collision becomes probable after approximately 2⁴⁸ messages, a real concern for high-volume or long-lived session keys. The typical mitigation is a monotonic counter nonce, but this requires stateful nonce management, which complicates distributed or stateless systems.
 
-XChaCha20 solves this by extending the nonce to 192 bits. With a 192-bit random nonce, the birthday collision threshold rises to 2⁹⁶ messages (roughly 7.3 × 10²⁸) — effectively infinite for any practical purpose. Applications can generate nonces at random per message and discard all nonce state.
+XChaCha20 solves this by extending the nonce to 192 bits. With a 192-bit random nonce, the birthday collision threshold rises to 2⁹⁶ messages (roughly 7.3 × 10²⁸), effectively infinite for any practical purpose. Applications can generate nonces at random per message and discard all nonce state.
 
 ### 3.2 HChaCha20
 
@@ -275,7 +275,7 @@ The full 20-round ChaCha permutation is then applied. Rather than adding back th
 output = state[0..3] ‖ state[12..15]   (8 × 32-bit words = 256 bits)
 ```
 
-The selection of these specific indices (0–3 and 12–15) is not arbitrary — it mirrors the approach from HSalsa20, where the corresponding indices were chosen to make a security proof work. The proof (from the XSalsa20 paper, Bernstein 2011) shows that extracting output from a public computation at positions corresponding to the constants and nonce slots produces a PRF-secure subkey, given that the underlying permutation is secure. The same argument carries over directly to HChaCha20:
+The selection of these specific indices (0-3 and 12-15) is not arbitrary, it mirrors the approach from HSalsa20, where the corresponding indices were chosen to make a security proof work. The proof (from the XSalsa20 paper, Bernstein 2011) shows that extracting output from a public computation at positions corresponding to the constants and nonce slots produces a PRF-secure subkey, given that the underlying permutation is secure. The same argument carries over directly to HChaCha20:
 
 ```
 HSalsa20 output indices: 0, 5, 10, 15, 6, 7, 8, 9
@@ -292,14 +292,14 @@ The middle rows (state[4..11], the key material) are deliberately discarded from
 [12..15] first 128 bits (16 bytes) of the 192-bit XChaCha nonce
 ```
 
-No counter. The remaining 64 bits of the 192-bit nonce are not used here — they are passed directly to ChaCha20 as described in §3.3.
+No counter. The remaining 64 bits of the 192-bit nonce are not used here, they are passed directly to ChaCha20 as described in §3.3.
 
 ### 3.3 XChaCha20 Nonce Split
 
 The 192-bit XChaCha nonce is split:
 
-- **bytes 0–15** (128 bits) → HChaCha20 input nonce, used to derive the subkey
-- **bytes 16–23** (64 bits) → ChaCha20 nonce suffix, placed at bytes 4–11 of a zeroed 12-byte nonce:
+- **bytes 0-15** (128 bits) → HChaCha20 input nonce, used to derive the subkey
+- **bytes 16-23** (64 bits) → ChaCha20 nonce suffix, placed at bytes 4-11 of a zeroed 12-byte nonce:
 
 ```
 chacha20_nonce = 0x00000000 ‖ xchacha_nonce[16:24]
@@ -338,7 +338,7 @@ ChaCha20 uses exclusively three 32-bit operations:
 
 There are no S-boxes, no lookup tables, no data-dependent memory accesses, and no branches. Every operation executes unconditionally on register operands. The cipher has no notion of "lookup" at any level.
 
-This is a structural difference from block ciphers like AES or Serpent. AES's SubBytes step — even with AES-NI — requires a table operation in software fallback paths. Serpent's bitslice S-boxes eliminate this via boolean circuits, but at the cost of significant code complexity. ChaCha20 achieves timing-channel safety through the simplicity of the operations themselves.
+This is a structural difference from block ciphers like AES or Serpent. AES's SubBytes step, even with AES-NI, requires a table operation in software fallback paths. Serpent's bitslice S-boxes eliminate this via boolean circuits, but at the cost of significant code complexity. ChaCha20 achieves timing-channel safety through the simplicity of the operations themselves.
 
 ### 4.2 Side-Channel Properties
 
@@ -376,14 +376,14 @@ Stream ciphers do not have the block cipher structure that classical linear cryp
 
 ### 5.3 Differential-Linear Attacks (Best Known)
 
-**Best published result:** Shi et al. (2012) — 7-round distinguisher requiring 2²³ chosen plaintexts. Choudhuri and Maitra (2016) achieved marginal improvements on 7-round differential-linear attacks.
+**Best published result:** Shi et al. (2012), 7-round distinguisher requiring 2²³ chosen plaintexts. Choudhuri and Maitra (2016) achieved marginal improvements on 7-round differential-linear attacks.
 
 No distinguisher beyond 7 rounds of ChaCha20 is published as of this writing. Full 20-round ChaCha20 has a **13-round security margin** against the best known attack.
 
 | Attack | Rounds | Data | Practical? |
 |--------|--------|------|------------|
 | Differential-linear distinguisher (Shi 2012) | 7 | 2²³ CP | No |
-| Differential-linear key recovery (Choudhuri & Maitra 2016) | 7 | — | No |
+| Differential-linear key recovery (Choudhuri & Maitra 2016) | 7 | - | No |
 
 All results remain far from the full 20 rounds.
 
@@ -397,7 +397,7 @@ Rotational cryptanalysis (Khovratovich & Nikolić, 2010) attempts to exploit the
 
 **Applicability:** Implementation-specific; requires nonce reuse.
 
-The one-time nature of the Poly1305 key (fresh derivation per message) is the primary security assumption. If the Poly1305 key is ever reused — due to nonce reuse in the ChaCha20 key derivation step — two messages share the same (r, s), allowing an algebraic attack to recover r from the two tag/ciphertext pairs and then forge tags.
+The one-time nature of the Poly1305 key (fresh derivation per message) is the primary security assumption. If the Poly1305 key is ever reused, due to nonce reuse in the ChaCha20 key derivation step, two messages share the same (r, s), allowing an algebraic attack to recover r from the two tag/ciphertext pairs and then forge tags.
 
 The attack: given `tag₁ = h(m₁) * r + s` and `tag₂ = h(m₂) * r + s`, compute `tag₁ − tag₂ = (h(m₁) − h(m₂)) * r`, and solve for r. This directly recovers the polynomial key and enables universal forgery.
 
@@ -449,7 +449,7 @@ XChaCha20-Poly1305 security posture as of 2026:
 | Nonce misuse | Keystream reuse + MAC break | Mitigated by 192-bit nonce |
 | Side-channel (cache/branch) | None by construction | None at algorithm level |
 
-**Security margin:** The best published attacks reach 7 of 20 rounds — a 13-round margin. ChaCha20 has been deployed at enormous scale (TLS 1.3, WireGuard, Signal, Android full-disk encryption) with no known practical weaknesses in the full-round construction.
+**Security margin:** The best published attacks reach 7 of 20 rounds, a 13-round margin. ChaCha20 has been deployed at enormous scale (TLS 1.3, WireGuard, Signal, Android full-disk encryption) with no known practical weaknesses in the full-round construction.
 
 ---
 

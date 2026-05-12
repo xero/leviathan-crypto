@@ -40,6 +40,7 @@ export const ASM_MODULES: readonly AsmModule[] = [
 	{ name: 'sha3',     entry: 'src/asm/sha3/index.ts',     memory: '--initialMemory 3 --maximumMemory 3', simd: false, sourceMap: true },
 	{ name: 'kyber',    entry: 'src/asm/kyber/index.ts',    memory: '--initialMemory 3 --maximumMemory 3', simd: true,  sourceMap: true },
 	{ name: 'mldsa',    entry: 'src/asm/mldsa/index.ts',    memory: '--initialMemory 4 --maximumMemory 4', simd: true,  sourceMap: true },
+	{ name: 'slhdsa',   entry: 'src/asm/slhdsa/index.ts',   memory: '--initialMemory 2 --maximumMemory 2', simd: false, sourceMap: true },
 ] as const
 
 export const ASC_OPTS = '--runtime stub --noAssert --optimizeLevel 3 --shrinkLevel 1'

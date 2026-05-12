@@ -79,7 +79,7 @@ await kyberInit(kyberWasm)
 ```
 
 `kyberInit(source)` initializes only the kyber WASM binary. Note that
-ML-KEM classes additionally require `sha3` (or `keccak`) — both modules
+ML-KEM classes additionally require `sha3` (or `keccak`), both modules
 must be initialized before constructing any `MlKem*` instance.
 
 ---
@@ -101,8 +101,8 @@ Generates a fresh keypair using CSPRNG randomness.
 
 ```typescript
 const { encapsulationKey, decapsulationKey } = kem.keygen()
-// encapsulationKey: Uint8Array — share with senders
-// decapsulationKey: Uint8Array — keep secret, never transmit
+// encapsulationKey: Uint8Array, share with senders
+// decapsulationKey: Uint8Array, keep secret, never transmit
 ```
 
 The encapsulation key (`ek`) is the public key. Share it freely. The
@@ -120,8 +120,8 @@ Generates a shared secret and KEM ciphertext. The sender calls this.
 
 ```typescript
 const { ciphertext, sharedSecret } = kem.encapsulate(encapsulationKey)
-// ciphertext:   Uint8Array — send to recipient alongside your message
-// sharedSecret: Uint8Array (32 bytes) — derive session keys from this
+// ciphertext:   Uint8Array, send to recipient alongside your message
+// sharedSecret: Uint8Array (32 bytes), derive session keys from this
 ```
 
 The shared secret is 32 bytes. It is never transmitted. The sender and
@@ -171,7 +171,7 @@ AEAD layer.
 > handled by implicit rejection: the function returns a pseudorandom 32-byte
 > shared secret derived from the secret random value `z` and the ciphertext.
 > The caller cannot distinguish "valid ciphertext" from "tampered ciphertext"
-> by observing the return value — only downstream AEAD authentication will
+> by observing the return value, only downstream AEAD authentication will
 > fail in the tampered case.
 >
 > A caller whose threat model includes adversarially-supplied `dk` (for
@@ -179,7 +179,7 @@ AEAD layer.
 > with the boolean `checkDecapsulationKey(dk)` before calling `decapsulate`,
 > so the §7.3 outcome is captured in the same branch as other
 > input-validation failures. The library does not ship a strict-mode
-> decapsulate that routes §7.3 failure through the FO path — the standard
+> decapsulate that routes §7.3 failure through the FO path, the standard
 > does not specify one, and doing so would diverge from the reference
 > implementations.
 
@@ -202,7 +202,7 @@ Returns `true` if `dk` is a well-formed decapsulation key per FIPS 203 §7.3.
 Wipes the WASM memory buffers. Call when done with the instance. Every public
 kyber op (`keygen`, `encapsulate`, `decapsulate`, `checkDecapsulationKey`)
 already zeros sha3 scratch before returning, so sha3 linear memory carries no
-residue across an op boundary — `dispose()` handles the kyber module's own
+residue across an op boundary, `dispose()` handles the kyber module's own
 buffers.
 
 ### Key sizes by parameter set
@@ -217,7 +217,7 @@ buffers.
 ### MlKemLike
 
 Structural interface implemented by `MlKem512`, `MlKem768`, and `MlKem1024`.
-Used by `KyberSuite` and `RatchetKeypair.decap()` — pass any `MlKem*` instance
+Used by `KyberSuite` and `RatchetKeypair.decap()`, pass any `MlKem*` instance
 where a `MlKemLike` is expected.
 
 ```typescript
@@ -350,15 +350,15 @@ await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha
 const kem   = new MlKem768()
 const suite = KyberSuite(kem, XChaCha20Cipher)
 
-// keygen — once, on the recipient side
+// keygen, once, on the recipient side
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 // store dk securely; distribute ek to senders
 
-// sender — only needs ek
+// sender, only needs ek
 const message = new TextEncoder().encode('hello post-quantum world')
 const blob    = Seal.encrypt(suite, ek, message)
 
-// recipient — only needs dk
+// recipient, only needs dk
 const plaintext = Seal.decrypt(suite, dk, blob)
 console.log(new TextDecoder().decode(plaintext)) // 'hello post-quantum world'
 
@@ -381,7 +381,7 @@ kem.dispose()
 | `keygenDerand` with wrong-length `d` | `RangeError` | `d seed must be 32 bytes (got N)` |
 | `keygenDerand` with wrong-length `z` | `RangeError` | `z seed must be 32 bytes (got N)` |
 | `encapsulateDerand` with wrong-length `m` | `RangeError` | `randomness m must be 32 bytes (got N)` |
-| Another stateful instance holds `kyber` or `sha3` | `Error` | `leviathan-crypto: another stateful instance is using the '…' WASM module — call dispose() on it before constructing a new one` |
+| Another stateful instance holds `kyber` or `sha3` | `Error` | `leviathan-crypto: another stateful instance is using the '…' WASM module, call dispose() on it before constructing a new one` |
 | `Seal.decrypt` with ek instead of dk | `RangeError` | `key must be N bytes (got M)` (dk ≠ ek size) |
 | `KyberSuite` with unsupported k value | `Error` | `unsupported ML-KEM k=N` |
 

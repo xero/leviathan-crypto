@@ -22,7 +22,7 @@
 //
 // Copies consumer-relevant API docs into dist/docs/ for npm packaging.
 // Excludes internal/project docs (branding, audit, test-suite, etc).
-// Strips SVG <img> tags from architecture.md — they reference absolute
+// Strips SVG <img> tags from architecture.md, they reference absolute
 // GitHub URLs and are useless (and large) for agents working offline.
 //
 // Runs after build:ts as part of the build chain.

@@ -21,12 +21,12 @@
 //
 // src/asm/kyber/ntt_simd.ts
 //
-// ML-KEM (Kyber) — SIMD NTT and inverse NTT using WASM v128.
+// ML-KEM (Kyber), SIMD NTT and inverse NTT using WASM v128.
 // FIPS 203 Algorithms 9 and 10, vectorized.
 //
 // SIMD path: layers with len >= 8 process 8 butterflies per v128 op.
 // Scalar tail: layers with len < 8 (len = 4, 2) use fqmul/barrett_reduce
-//   from reduce.ts — the same code as the scalar ntt.ts implementation.
+//   from reduce.ts, the same code as the scalar ntt.ts implementation.
 //
 // CT posture: all coefficient processing is unconditional. No data-dependent
 // branching. The SIMD path has the same constant-time properties as scalar.
@@ -49,7 +49,7 @@ const _F:    i16 = 1441;    // invNTT scaling factor: mont²/128 mod q
 // where t = (i16)(prod * QINV).
 //
 // t is computed entirely in i16 arithmetic using i16x8.mul, which gives
-// (x*y) mod 2^16 by definition — no sign-extend tricks needed.
+// (x*y) mod 2^16 by definition, no sign-extend tricks needed.
 // By the ring Z/2^16Z: low16(a*b*QINV) = low16(a * low16(b*QINV)).
 // prod is computed via extmul (i32 exact product) for the final subtraction.
 @inline
@@ -99,11 +99,11 @@ export function barrett_reduce_8x(a: v128): v128 {
 }
 
 // ── ntt_simd ────────────────────────────────────────────────────────────────
-// In-place forward NTT. FIPS 203 Algorithm 9 — NTT.
+// In-place forward NTT. FIPS 203 Algorithm 9, NTT.
 // Input in standard order, output in bit-reversed order.
 //
-// SIMD layers: len = 128, 64, 32, 16, 8 — 8 butterflies per v128 iteration.
-// Scalar tail: len = 4, 2 — uses fqmul from reduce.ts.
+// SIMD layers: len = 128, 64, 32, 16, 8, 8 butterflies per v128 iteration.
+// Scalar tail: len = 4, 2, uses fqmul from reduce.ts.
 //
 // @param polyOffset byte offset of 256×i16 polynomial in WASM memory.
 export function ntt_simd(polyOffset: i32): void {
@@ -154,12 +154,12 @@ export function ntt_simd(polyOffset: i32): void {
 }
 
 // ── invntt_simd ─────────────────────────────────────────────────────────────
-// In-place inverse NTT. FIPS 203 Algorithm 10 — NTT⁻¹.
+// In-place inverse NTT. FIPS 203 Algorithm 10, NTT⁻¹.
 // Input in bit-reversed order, output in standard order.
 // Includes final multiplication by f = 1441 = mont²/128 (Montgomery factor).
 //
 // Scalar tail first: len = 2, 4.
-// SIMD layers: len = 8, 16, 32, 64, 128 — 8 butterflies per v128 iteration.
+// SIMD layers: len = 8, 16, 32, 64, 128, 8 butterflies per v128 iteration.
 //
 // @param polyOffset byte offset of 256×i16 polynomial in WASM memory.
 export function invntt_simd(polyOffset: i32): void {

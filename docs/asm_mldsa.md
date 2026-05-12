@@ -49,7 +49,7 @@ No `memory.grow()`, no heap allocation. Total memory: 4 pages (256 KiB).
 `poly_pointwise_montgomery` resolve to SIMD implementations (4-lane i32×4
 butterflies / lane-parallel arithmetic). Scalar variants are exported as
 `*_scalar` for cross-checks. Some kernels (`poly_freeze`, `poly_chknorm`,
-the encoding/sampling/rounding paths) remain scalar — see CT-posture
+the encoding/sampling/rounding paths) remain scalar, see CT-posture
 notes per file.
 
 **i32 coefficients.** ML-DSA's prime `q = 2²³ − 2¹³ + 1 = 8380417` does
@@ -70,13 +70,13 @@ Defined in `src/asm/mldsa/buffers.ts`. All offsets in bytes from base 0.
 ```
 Offset    Size      Region
 ─────────────────────────────────────────────────────────────────────
-0..4095   4096      AS data segment (zetas table — 256 × i32 = 1024 B)
-4096      8192      POLY_SLOTS    (8 × 1024 — POLY_SLOT_0..7 scratch polys)
+0..4095   4096      AS data segment (zetas table, 256 × i32 = 1024 B)
+4096      8192      POLY_SLOTS    (8 × 1024, POLY_SLOT_0..7 scratch polys)
 12288     65536     MATRIX_SLOT   (matrix Â, k×ℓ max = 8×8 polys × 1024)
-77824     65536     POLYVEC_SLOTS (8 × 8192 — POLYVEC_SLOT_0..7, k=8 max)
-143360    128       SEED_OFFSET   (ρ ‖ ρ′ ‖ K — H(ξ‖k‖ℓ, 128) lands here)
+77824     65536     POLYVEC_SLOTS (8 × 8192, POLYVEC_SLOT_0..7, k=8 max)
+143360    128       SEED_OFFSET   (ρ ‖ ρ′ ‖ K, H(ξ‖k‖ℓ, 128) lands here)
 143488    64        TR_OFFSET     (tr = H(pk, 64))
-143552    64        MSG_REP_OFFSET (μ — message representative)
+143552    64        MSG_REP_OFFSET (μ, message representative)
 143616    64        C_TILDE_OFFSET (signature commitment hash, ≤ λ/4)
 143680    64        (alignment / reserved)
 143744    2624      PK_OFFSET     (≥ 2592 for ML-DSA-87)
@@ -113,11 +113,11 @@ function getMemoryPages(): i32  // returns 4
 function wipeBuffers(): void
 ```
 
-`memory.fill(4096, 0, 160128)` — zeroes the entire mutable region in one
+`memory.fill(4096, 0, 160128)`, zeroes the entire mutable region in one
 pass. Covers all poly slots, the matrix slot, polyvec slots, byte buffers
 (seed/tr/μ/c̃/pk/sk/sig), and the XOF/PRF scratch.
 
-The `zetas` data segment (offsets 0–4095) is not wiped. It is a
+The `zetas` data segment (offsets 0-4095) is not wiped. It is a
 compile-time constant.
 
 The TypeScript wrapper calls `wipeBuffers()` in `MlDsaBase.dispose()`.
@@ -132,14 +132,14 @@ Per-op secret residue is also wiped at the end of each public method;
 |-------------------|------------------------------------------------------------------------------------------------------|
 | `buffers.ts`      | Static buffer offsets, `wipeBuffers`, module identity getters.                                       |
 | `params.ts`       | Ring-level constants: `Q`, `N`, `D`, `QINV`, `F_MONT`, `BARRETT_V`. (k/ℓ/η/τ/etc. are TS-side.)      |
-| `reduce.ts`       | `montgomery_reduce`, `barrett_reduce`, `fqmul` — FIPS 204 Algorithm 49 + §2.3.                       |
+| `reduce.ts`       | `montgomery_reduce`, `barrett_reduce`, `fqmul`, FIPS 204 Algorithm 49 + §2.3.                       |
 | `ntt.ts`          | Scalar NTT/INTT (FIPS 204 Algorithms 41/42), zetas table, `BitRev8`.                                 |
-| `ntt_simd.ts`     | SIMD NTT/INTT — 4-lane i32 butterflies. Public `ntt`/`invntt` resolve to SIMD.                       |
+| `ntt_simd.ts`     | SIMD NTT/INTT, 4-lane i32 butterflies. Public `ntt`/`invntt` resolve to SIMD.                       |
 | `poly.ts`         | Scalar `poly_add/sub/reduce/caddq/pointwise_montgomery`, `poly_freeze`, `poly_chknorm`, `poly_tomont`.|
 | `poly_simd.ts`    | SIMD-vectorised counterparts. Public `poly_add/sub/...` resolve to SIMD.                             |
 | `polyvec.ts`      | k-/ℓ-iterated polyvec wrappers + matrix-vector multiply + rounding wrappers + hint popcount.         |
 | `encoding.ts`     | `simple_bit_pack/unpack` (Alg 16/18), `bit_pack/unpack` (Alg 17/19), `hint_bit_pack/unpack` (Alg 20/21). |
-| `rounding.ts`     | `power2round`, `decompose`, `highbits`, `lowbits`, `make_hint`, `use_hint` (FIPS 204 Algs 35–40).    |
+| `rounding.ts`     | `power2round`, `decompose`, `highbits`, `lowbits`, `make_hint`, `use_hint` (FIPS 204 Algs 35-40).    |
 | `sampling.ts`     | `rej_ntt_poly` (Alg 30), `rej_bounded_poly` (Alg 31), `sample_in_ball` (Alg 29).                     |
 | `index.ts`        | Public exports re-exposed from the files above.                                                      |
 
@@ -241,7 +241,7 @@ function sample_in_ball(polyOff, signsOff, posBytesOff, posBytesLen, tau, startI
 All three are resumable: callers feed XOF blocks one at a time and
 accumulate `ctrStart` until N=256 coefficients are accepted (or τ for
 `sample_in_ball`). The loop body is data-dependent on the public XOF
-output stream — see CT-posture notes.
+output stream, see CT-posture notes.
 
 ---
 
@@ -256,14 +256,14 @@ operands, no comparisons against secret values. The SIMD paths use
 seed ρ; data-dependent branching here leaks nothing about secret values
 (the matrix Â is a public output of ExpandA). `rej_bounded_poly`
 operates on bytes from the secret seed ρ′, but the acceptance rate is
-uniform over each input byte regardless of seed value — the per-byte
+uniform over each input byte regardless of seed value, the per-byte
 branch leaks only public information about ρ′-derived bytes the SHAKE
 output happens to land on. The Dilithium reference makes the same
 trade-off; FIPS 204 §7.3 endorses it.
 
 **SampleInBall.** Branches on bytes derived from c̃, the signature
 commitment hash. c̃ is published in the signature and reconstructable by
-the verifier — branching here reveals only public information.
+the verifier, branching here reveals only public information.
 
 **Norm check.** `poly_chknorm` short-circuits on the first
 over-bound coefficient. The leak is the same observable rejection

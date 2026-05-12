@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA-512 and SHA-384 Known-Answer Tests — FIPS 180-4
+ * SHA-512 and SHA-384 Known-Answer Tests, FIPS 180-4
  *
  * Source: FIPS 180-4 §C.1 (SHA Standard)
  * Files:  vectors/sha2.ts (sha512Vectors, sha384Vectors, sha512CrossCheck, sha384CrossCheck)
@@ -47,7 +47,7 @@ beforeAll(async () => {
 
 // GATE: SHA-512 "abc": FIPS 180-4 §C.1
 // Vector: sha2.ts[sha512Vectors[1]]
-describe('Gate 4 — SHA-512 "abc"', () => {
+describe('Gate 4, SHA-512 "abc"', () => {
 	test('SHA-512("abc") matches FIPS 180-4 §C.1', () => {
 		const h = new SHA512();
 		const digest = h.hash(new Uint8Array([0x61, 0x62, 0x63]));

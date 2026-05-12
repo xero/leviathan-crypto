@@ -112,7 +112,7 @@ describe('OpenStream.seek forward-only', () => {
 		opener.pull(encrypted[2]);
 		opener.finalize(encrypted[3]);
 
-		// State is 'finalized' — state guard fires first regardless of direction.
+		// State is 'finalized', state guard fires first regardless of direction.
 		expect(() => opener.seek(100)).toThrow(/finalized/);
 		expect(() => opener.seek(0)).toThrow(/finalized/);
 	});
@@ -128,7 +128,7 @@ describe('OpenStream.seek forward-only', () => {
 		expect(() => opener.seek(Number.MAX_SAFE_INTEGER + 1)).toThrow(RangeError);
 		expect(() => opener.seek(Number.MAX_SAFE_INTEGER + 1)).toThrow(/MAX_SAFE_INTEGER/);
 
-		// Stream remains usable — counter was never mutated, keys never wiped.
+		// Stream remains usable, counter was never mutated, keys never wiped.
 		const pt = opener.pull(encrypted[0]);
 		expect(pt).toEqual(chunks[0]);
 		opener.dispose();

@@ -21,7 +21,7 @@
 //
 // src/asm/serpent/serpent_simd.ts
 //
-// AUTO-GENERATED — do not edit by hand.
+// AUTO-GENERATED, do not edit by hand.
 // To regenerate: bun scripts/generate_simd.ts > src/asm/serpent/serpent_simd.ts
 //
 // SIMD-accelerated Serpent-256 encrypt and decrypt (4 blocks per call).
@@ -32,7 +32,7 @@
 
 import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
-// v128 working register helpers — 5 × v128 at SIMD_WORK_OFFSET, 16-byte stride
+// v128 working register helpers, 5 × v128 at SIMD_WORK_OFFSET, 16-byte stride
 
 /**
  * Load v128 register i from SIMD_WORK_OFFSET. Each register holds 4 × i32 lanes.
@@ -54,7 +54,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 0 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -73,7 +73,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 1 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -92,7 +92,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 2 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -111,7 +111,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 3 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -131,7 +131,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 4 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -150,7 +150,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 5 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -169,7 +169,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 6 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -188,7 +188,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent S-box 7 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -209,7 +209,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 0 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -228,7 +228,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 1 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -247,7 +247,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 2 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -266,7 +266,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 3 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -285,7 +285,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 4 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -304,7 +304,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 5 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -324,7 +324,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 6 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -343,7 +343,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 
 /**
  * Serpent inverse S-box 7 applied to 4 parallel blocks via v128 registers.
- * Serpent AES submission §2.1, Appendix A — vectorised inverse over all 4 lanes.
+ * Serpent AES submission §2.1, Appendix A, vectorised inverse over all 4 lanes.
  * @internal
  * @param x0  v128 register index for input word 0
  * @param x1  v128 register index for input word 1
@@ -361,11 +361,11 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 	rset_v(x4, v128.xor(rget_v(x4), rget_v(x2)));
 }
 
-// ── Key XOR (v128) — splat scalar subkey to all 4 lanes ────────────────────
+// ── Key XOR (v128), splat scalar subkey to all 4 lanes ────────────────────
 
 /**
  * XOR v128 working registers a, b, c, d with subkey i (splatted to all 4 lanes).
- * Serpent AES submission §2.2 — K function, vectorised.
+ * Serpent AES submission §2.2, K function, vectorised.
  * @internal
  * @param a  v128 register index for word 0
  * @param b  v128 register index for word 1
@@ -383,8 +383,8 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 // ── Linear transform + key XOR (v128, encrypt) ─────────────────────────────
 
 /**
- * Apply the Serpent linear transform then XOR subkey i — vectorised over 4 lanes.
- * Serpent AES submission §2.2 — LT + K function. Rotation amounts: 13, 3, 1, 7, 5, 22.
+ * Apply the Serpent linear transform then XOR subkey i, vectorised over 4 lanes.
+ * Serpent AES submission §2.2, LT + K function. Rotation amounts: 13, 3, 1, 7, 5, 22.
  * @internal
  * @param a  v128 register index for rotl-13 / rotl-5 word
  * @param b  v128 register index for rotl-1 word
@@ -420,8 +420,8 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
 // ── Inverse linear transform + key XOR (v128, decrypt) ──────────────────────
 
 /**
- * XOR subkey i then apply the Serpent inverse linear transform — vectorised over 4 lanes.
- * Serpent AES submission §2.3 — K function + inverse LT. Rotation amounts: 27, 10, 31, 25, 19, 29.
+ * XOR subkey i then apply the Serpent inverse linear transform, vectorised over 4 lanes.
+ * Serpent AES submission §2.3, K function + inverse LT. Rotation amounts: 27, 10, 31, 25, 19, 29.
  * @internal
  * @param a  v128 register index for rotl-27 / rotl-19 word
  * @param b  v128 register index for rotl-31 word
@@ -461,7 +461,7 @@ import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'
  * Caller must interleave 4 plaintext blocks into SIMD_WORK_OFFSET before calling:
  * lane[k] of v128 register r[w] = word w of block k (k = 0..3).
  * Result is left in v128 registers [0..3] at SIMD_WORK_OFFSET for caller to deinterleave.
- * Serpent AES submission §2.2 — vectorised 32-round forward cipher.
+ * Serpent AES submission §2.2, vectorised 32-round forward cipher.
  * `loadKey()` must be called before this function.
  */
 export function encryptBlock_simd_4x(): void {
@@ -591,7 +591,7 @@ export function encryptBlock_simd_4x(): void {
 	sb6_v(0, 1, 3, 2, 4)
 	lk_v(3, 4, 1, 2, 0, 31)
 
-	// Round 31 (final — no linear transform)
+	// Round 31 (final, no linear transform)
 	sb7_v(3, 4, 1, 2, 0)
 
 	keyXor_v(0, 1, 2, 3, 32) // K(32)
@@ -602,9 +602,9 @@ export function encryptBlock_simd_4x(): void {
 /**
  * Decrypt 4 Serpent-256 blocks simultaneously using v128 SIMD registers.
  * Same interleaved input layout as `encryptBlock_simd_4x`.
- * Output lands in registers [4,1,3,2] (not [0,1,2,3]) — matches the scalar decrypt
+ * Output lands in registers [4,1,3,2] (not [0,1,2,3]), matches the scalar decrypt
  * slot ordering from `decryptBlock_unrolled`.
- * Serpent AES submission §2.3 — vectorised 32-round inverse cipher.
+ * Serpent AES submission §2.3, vectorised 32-round inverse cipher.
  * `loadKey()` must be called before this function.
  */
 export function decryptBlock_simd_4x(): void {
@@ -734,9 +734,9 @@ export function decryptBlock_simd_4x(): void {
 	si1_v(3, 1, 2, 0, 4)
 	kl_v(4, 1, 2, 0, 3, 1)
 
-	// Round 31 (final — no inverse linear transform)
+	// Round 31 (final, no inverse linear transform)
 	si0_v(4, 1, 2, 0, 3)
 
-	// K(0): final key XOR — slots (2,3,1,4), NOT (0,1,2,3)
+	// K(0): final key XOR, slots (2,3,1,4), NOT (0,1,2,3)
 	keyXor_v(2, 3, 1, 4, 0)
 }

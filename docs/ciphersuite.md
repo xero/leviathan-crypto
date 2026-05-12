@@ -82,15 +82,15 @@ await init({ aes: aesWasm, sha2: sha2Wasm })
 const key = AESGCMSIVCipher.keygen()  // 32 bytes
 ```
 
-`AESGCMSIVCipher` uses AES-256-GCM-SIV (RFC 8452) AEAD per chunk —
+`AESGCMSIVCipher` uses AES-256-GCM-SIV (RFC 8452) AEAD per chunk,
 nonce-misuse-resistant authenticated encryption with a 16-byte tag.
 HKDF-SHA-256 takes the 20-byte preamble header as part of its info
 string and emits 64 bytes: bytes 0..32 are the per-stream AES-GCM-SIV
-key (no subkey-derivation step — AES-GCM-SIV's nonce is 12 bytes,
+key (no subkey-derivation step, AES-GCM-SIV's nonce is 12 bytes,
 used directly per chunk; there is no HChaCha20 analog), bytes 32..64
 are a 32-byte key commitment that ends up in the preamble. The
 commitment is verified before any chunk is processed and closes the
-Invisible Salamanders attack surface — AES-GCM-SIV's POLYVAL-based MAC
+Invisible Salamanders attack surface, AES-GCM-SIV's POLYVAL-based MAC
 is not key-committing on its own (same posture as Poly1305).
 
 The cipher suite is AES-256 only. The standalone `AESGCMSIV` primitive
@@ -169,7 +169,7 @@ are plain `const` objects. You can implement your own by satisfying the interfac
 
 | Method                                       | Description                                                 |
 | -------------------------------------------- | ----------------------------------------------------------- |
-| `deriveKeys(masterKey, nonce, kemCt?)`       | HKDF key derivation. `kemCt` is the KEM ciphertext — present only for hybrid suites, absent for symmetric. Returns opaque `DerivedKeys`. |
+| `deriveKeys(masterKey, nonce, kemCt?)`       | HKDF key derivation. `kemCt` is the KEM ciphertext, present only for hybrid suites, absent for symmetric. Returns opaque `DerivedKeys`. |
 | `sealChunk(keys, counterNonce, chunk, aad?)` | Encrypt one chunk. Returns ciphertext with tag appended.    |
 | `openChunk(keys, counterNonce, chunk, aad?)` | Decrypt one chunk. Throws `AuthenticationError` on failure. |
 | `wipeKeys(keys)`                             | Zero all derived key material. Called after `finalize()`.   |
@@ -182,7 +182,7 @@ Your `formatEnum` must not conflict with the built-in values (`0x02`, `0x03`,
 `0x34`). Bit 6 of header byte 0 is reserved (`readHeader` rejects it); bit
 7 is `FLAG_FRAMED` and is set by the framing layer. The
 `hkdfInfo` string must be unique to your cipher to prevent key reuse across suites.
-`wipeKeys` must zero every byte of derived key material — the stream layer calls
+`wipeKeys` must zero every byte of derived key material, the stream layer calls
 it unconditionally after finalize.
 
 ---

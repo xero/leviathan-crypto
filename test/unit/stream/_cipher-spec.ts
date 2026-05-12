@@ -53,7 +53,7 @@ export interface CipherSpec {
 	formatName: string;
 	/** Pinned hkdfInfo string. */
 	hkdfInfo: string;
-	/** Pinned wasmModules array — the EXACT runtime module set the cipher needs.
+	/** Pinned wasmModules array, the EXACT runtime module set the cipher needs.
 	 *  Note: sha2 is a stream-layer dependency (HKDF), not declared per-cipher;
 	 *  Serpent is the exception because HMAC-SHA-256 is also a per-chunk dep. */
 	wasmModules: readonly string[];

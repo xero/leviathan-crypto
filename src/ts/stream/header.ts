@@ -25,7 +25,7 @@
 
 import { CHUNK_MAX, CHUNK_MIN, FLAG_FRAMED, HEADER_SIZE, TAG_DATA, TAG_FINAL } from './constants.js';
 
-// The 16-byte nonce is a HKDF salt — not a direct cipher nonce.
+// The 16-byte nonce is a HKDF salt, not a direct cipher nonce.
 // Both XChaCha20Cipher and SerpentCipher derive their actual key material
 // and nonces from this value via HKDF-SHA-256. The 16-byte size is chosen
 // to satisfy HChaCha20's 16-byte input requirement while also serving as a
@@ -63,7 +63,7 @@ export function readHeader(header: Uint8Array): {
 	const byte0 = header[0];
 	if (byte0 & 0x40)
 		throw new RangeError(
-			`header has reserved bit 6 set (byte0=0x${byte0.toString(16).padStart(2, '0')}) — unknown or malformed wire format`,
+			`header has reserved bit 6 set (byte0=0x${byte0.toString(16).padStart(2, '0')}), unknown or malformed wire format`,
 		);
 	return {
 		formatEnum: byte0 & 0x3f,
@@ -81,7 +81,7 @@ export function makeCounterNonce(counter: number, finalFlag: number): Uint8Array
 		throw new RangeError(`finalFlag must be TAG_DATA (0x00) or TAG_FINAL (0x01) (got 0x${finalFlag.toString(16).padStart(2, '0')})`);
 	const n = new Uint8Array(12);
 	// Write counter as 11-byte big-endian.
-	// JS safe integers fit in 53 bits — we only need the lower 53 bits.
+	// JS safe integers fit in 53 bits, we only need the lower 53 bits.
 	// Pack from the right (byte 10 down to byte 0).
 	let c = counter;
 	for (let i = 10; i >= 0; i--) {

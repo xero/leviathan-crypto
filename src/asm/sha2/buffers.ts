@@ -21,34 +21,34 @@
 //
 // src/asm/sha2/buffers.ts
 //
-// SHA-2 module — static linear-memory buffer layout
+// SHA-2 module, static linear-memory buffer layout
 // All offsets start at 0 (independent module memory).
 //
 // Layout (byte offsets):
 //
 //   SHA-256 buffers:
-//     SHA256_H_OFFSET:       0    (32 bytes — hash state H0..H7)
-//     SHA256_BLOCK_OFFSET:   32   (64 bytes — block accumulator)
-//     SHA256_W_OFFSET:       96   (256 bytes — message schedule W[0..63])
-//     SHA256_OUT_OFFSET:     352  (32 bytes — digest output)
-//     SHA256_INPUT_OFFSET:   384  (64 bytes — user input staging)
-//     SHA256_PARTIAL_OFFSET: 448  (4 bytes — u32 partial block len)
-//     SHA256_TOTAL_OFFSET:   452  (8 bytes — u64 total bytes hashed)
-//     HMAC256_IPAD_OFFSET:   460  (64 bytes — K' XOR ipad)
-//     HMAC256_OPAD_OFFSET:   524  (64 bytes — K' XOR opad)
-//     HMAC256_INNER_OFFSET:  588  (32 bytes — inner hash saved by hmacFinal)
+//     SHA256_H_OFFSET:       0    (32 bytes, hash state H0..H7)
+//     SHA256_BLOCK_OFFSET:   32   (64 bytes, block accumulator)
+//     SHA256_W_OFFSET:       96   (256 bytes, message schedule W[0..63])
+//     SHA256_OUT_OFFSET:     352  (32 bytes, digest output)
+//     SHA256_INPUT_OFFSET:   384  (64 bytes, user input staging)
+//     SHA256_PARTIAL_OFFSET: 448  (4 bytes, u32 partial block len)
+//     SHA256_TOTAL_OFFSET:   452  (8 bytes, u64 total bytes hashed)
+//     HMAC256_IPAD_OFFSET:   460  (64 bytes, K' XOR ipad)
+//     HMAC256_OPAD_OFFSET:   524  (64 bytes, K' XOR opad)
+//     HMAC256_INNER_OFFSET:  588  (32 bytes, inner hash saved by hmacFinal)
 //
 //   SHA-512 buffers (SHA-384 shares these):
-//     SHA512_H_OFFSET:       620  (64 bytes — hash state H0..H7)
-//     SHA512_BLOCK_OFFSET:   684  (128 bytes — block accumulator)
-//     SHA512_W_OFFSET:       812  (640 bytes — message schedule W[0..79])
-//     SHA512_OUT_OFFSET:     1452 (64 bytes — digest output)
-//     SHA512_INPUT_OFFSET:   1516 (128 bytes — user input staging)
-//     SHA512_PARTIAL_OFFSET: 1644 (4 bytes — u32 partial block len)
-//     SHA512_TOTAL_OFFSET:   1648 (8 bytes — u64 total bytes hashed)
-//     HMAC512_IPAD_OFFSET:   1656 (128 bytes — K' XOR ipad)
-//     HMAC512_OPAD_OFFSET:   1784 (128 bytes — K' XOR opad)
-//     HMAC512_INNER_OFFSET:  1912 (64 bytes — inner hash saved by hmacFinal)
+//     SHA512_H_OFFSET:       620  (64 bytes, hash state H0..H7)
+//     SHA512_BLOCK_OFFSET:   684  (128 bytes, block accumulator)
+//     SHA512_W_OFFSET:       812  (640 bytes, message schedule W[0..79])
+//     SHA512_OUT_OFFSET:     1452 (64 bytes, digest output)
+//     SHA512_INPUT_OFFSET:   1516 (128 bytes, user input staging)
+//     SHA512_PARTIAL_OFFSET: 1644 (4 bytes, u32 partial block len)
+//     SHA512_TOTAL_OFFSET:   1648 (8 bytes, u64 total bytes hashed)
+//     HMAC512_IPAD_OFFSET:   1656 (128 bytes, K' XOR ipad)
+//     HMAC512_OPAD_OFFSET:   1784 (128 bytes, K' XOR opad)
+//     HMAC512_INNER_OFFSET:  1912 (64 bytes, inner hash saved by hmacFinal)
 //     BUFFER_END:            HMAC512_INNER_OFFSET + 64 = end of the last buffer
 
 // ── SHA-256 buffer offsets ──────────────────────────────────────────────────

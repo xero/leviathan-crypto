@@ -26,7 +26,7 @@ const BASE = 'http://localhost:1337';
 const SHA3_256_ABC = sha3_256Vectors.find(v => v.inputText === 'abc')!.expected;
 
 // Realistic minimum-viable production CSP. `wasm-unsafe-eval` permits
-// WebAssembly.compile/instantiate but NOT `new Function`/`eval` —
+// WebAssembly.compile/instantiate but NOT `new Function`/`eval`,
 // see https://www.w3.org/TR/CSP3/#directive-script-src for the strict-CSP shape.
 const CSP = 'default-src \'self\'; script-src \'self\' \'wasm-unsafe-eval\'; object-src \'none\'';
 
@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test('under CSP — embedded string (gzip+base64)', async ({ page }) => {
+test('under CSP, embedded string (gzip+base64)', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		const { sha3Wasm } = await import(`${base}/dist/sha3/embedded.js`);
@@ -53,7 +53,7 @@ test('under CSP — embedded string (gzip+base64)', async ({ page }) => {
 	expect(digest).toBe(SHA3_256_ABC);
 });
 
-test('under CSP — URL', async ({ page }) => {
+test('under CSP, URL', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		(await import(`${base}/dist/init.js`))._resetForTesting();
@@ -66,7 +66,7 @@ test('under CSP — URL', async ({ page }) => {
 	expect(digest).toBe(SHA3_256_ABC);
 });
 
-test('under CSP — ArrayBuffer', async ({ page }) => {
+test('under CSP, ArrayBuffer', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		(await import(`${base}/dist/init.js`))._resetForTesting();
@@ -80,7 +80,7 @@ test('under CSP — ArrayBuffer', async ({ page }) => {
 	expect(digest).toBe(SHA3_256_ABC);
 });
 
-test('under CSP — Uint8Array', async ({ page }) => {
+test('under CSP, Uint8Array', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		(await import(`${base}/dist/init.js`))._resetForTesting();
@@ -94,7 +94,7 @@ test('under CSP — Uint8Array', async ({ page }) => {
 	expect(digest).toBe(SHA3_256_ABC);
 });
 
-test('under CSP — WebAssembly.Module', async ({ page }) => {
+test('under CSP, WebAssembly.Module', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		(await import(`${base}/dist/init.js`))._resetForTesting();
@@ -108,7 +108,7 @@ test('under CSP — WebAssembly.Module', async ({ page }) => {
 	expect(digest).toBe(SHA3_256_ABC);
 });
 
-test('under CSP — Response', async ({ page }) => {
+test('under CSP, Response', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		(await import(`${base}/dist/init.js`))._resetForTesting();
@@ -122,7 +122,7 @@ test('under CSP — Response', async ({ page }) => {
 	expect(digest).toBe(SHA3_256_ABC);
 });
 
-test('under CSP — Promise<Response>', async ({ page }) => {
+test('under CSP, Promise<Response>', async ({ page }) => {
 	const digest = await page.evaluate(async (base) => {
 		const lib = await import(`${base}/dist/index.js`);
 		(await import(`${base}/dist/init.js`))._resetForTesting();

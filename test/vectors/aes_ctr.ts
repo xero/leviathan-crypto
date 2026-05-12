@@ -3,10 +3,10 @@
 // AES-CTR mode test vectors.
 //
 // Sources:
-//   NIST SP 800-38A — Recommendation for Block Cipher Modes of Operation:
+//   NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation:
 //   Methods and Techniques (December 2001).
 //   @see https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf
-//   Sections covered: Appendix F.5 — CTR Example Vectors
+//   Sections covered: Appendix F.5, CTR Example Vectors
 //                       F.5.1 CTR-AES128.Encrypt   F.5.2 CTR-AES128.Decrypt
 //                       F.5.3 CTR-AES192.Encrypt   F.5.4 CTR-AES192.Decrypt
 //                       F.5.5 CTR-AES256.Encrypt   F.5.6 CTR-AES256.Decrypt
@@ -24,7 +24,7 @@
 // independently.
 //
 // All hex strings are lowercase, no separators.
-// Audit status: VERIFIED — per-vector citations in each export below.
+// Audit status: VERIFIED, per-vector citations in each export below.
 
 export interface CtrVector {
 	description:    string;
@@ -49,7 +49,7 @@ const SHARED_PT =
 const SHARED_IC = 'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff';
 
 // ============================================================
-// SP 800-38A §F.5 — CTR encryption
+// SP 800-38A §F.5, CTR encryption
 // ============================================================
 
 export const aesCtrEncryptVectors: CtrVector[] = [
@@ -89,7 +89,7 @@ export const aesCtrEncryptVectors: CtrVector[] = [
 ];
 
 // ============================================================
-// SP 800-38A §F.5 — CTR decryption
+// SP 800-38A §F.5, CTR decryption
 // ============================================================
 
 export const aesCtrDecryptVectors: CtrVector[] = [

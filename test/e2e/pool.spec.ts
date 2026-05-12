@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('SealStreamPool — e2e', () => {
+test.describe('SealStreamPool, e2e', () => {
 	test('XChaCha20 pool round-trip (2 workers)', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);
@@ -169,7 +169,7 @@ test.describe('SealStreamPool — e2e', () => {
 
 	// Tampering the ciphertext triggers a real worker-side auth failure;
 	// the pool must transition to terminal 'dead' state so a subsequent
-	// seal() throws — exercises real Worker error propagation that the
+	// seal() throws, exercises real Worker error propagation that the
 	// unit tests mock.
 	test('tampered ciphertext puts the pool in dead state', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
@@ -199,7 +199,7 @@ test.describe('SealStreamPool — e2e', () => {
 			} catch (e) {
 				sealErr = (e as Error).message;
 			}
-			pool.destroy(); // no-op on dead pool — must not throw
+			pool.destroy(); // no-op on dead pool, must not throw
 			return { openThrew: openErr.length > 0, sealMsg: sealErr };
 		}, BASE);
 		expect(result.openThrew).toBe(true);

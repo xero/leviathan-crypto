@@ -21,7 +21,7 @@
 //
 // src/asm/serpent/serpent.ts
 //
-// Serpent-256 block cipher — AssemblyScript port
+// Serpent-256 block cipher, AssemblyScript port
 // Reference: sources/leviathan/src/serpent.ts (TypeScript)
 // Spec: Serpent AES submission, Anderson/Biham/Knudsen 1998
 //
@@ -64,7 +64,7 @@ import {
 
 /**
  * Encryption-round slot-permutation constant for round n.
- * Serpent AES submission §2.4 — encodes S-box input/output slot indices.
+ * Serpent AES submission §2.4, encodes S-box input/output slot indices.
  * @internal
  * @param n  round index in {0..31}
  * @returns  packed constant; decode as (m%5, m%7, m%11, m%13, m%17)
@@ -88,7 +88,7 @@ function ec(n: i32): i32 {
 
 /**
  * Decryption-round slot-permutation constant for round n.
- * Serpent AES submission §2.4 — encodes inverse S-box input/output slot indices.
+ * Serpent AES submission §2.4, encodes inverse S-box input/output slot indices.
  * @internal
  * @param n  round index in {0..31}
  * @returns  packed constant; decode as (m%5, m%7, m%11, m%13, m%17)
@@ -112,7 +112,7 @@ function dc(n: i32): i32 {
 
 /**
  * Key-schedule slot-permutation constant for round n.
- * Serpent AES submission §2.5 — encodes S-box slot indices for key derivation.
+ * Serpent AES submission §2.5, encodes S-box slot indices for key derivation.
  * @internal
  * @param n  key-schedule step index in {0..33}
  * @returns  packed constant; decode as (m%5, m%7, m%11, m%13, m%17)
@@ -136,7 +136,7 @@ function kc(n: i32): i32 {
 }
 
 // ── S-boxes (encryption) ────────────────────────────────────────────────────
-// Boolean circuit implementations — constant-time, no table lookups.
+// Boolean circuit implementations, constant-time, no table lookups.
 // Each takes 5 slot indices (x0-x4) that index into the working registers.
 
 /**
@@ -484,7 +484,7 @@ function kc(n: i32): i32 {
 
 /**
  * XOR working registers a, b, c, d with subkey i.
- * Serpent AES submission §2.2 — K function.
+ * Serpent AES submission §2.2, K function.
  * @param a  slot index for word 0
  * @param b  slot index for word 1
  * @param c  slot index for word 2
@@ -502,7 +502,7 @@ function kc(n: i32): i32 {
 
 /**
  * Apply the Serpent linear transform then XOR subkey i into working registers.
- * Serpent AES submission §2.2 — LT followed by K function.
+ * Serpent AES submission §2.2, LT followed by K function.
  * @param a  slot for rotl-13 / rotl-5 word
  * @param b  slot for rotl-1 word
  * @param c  slot for rotl-3 / rotl-22 word
@@ -538,7 +538,7 @@ function kc(n: i32): i32 {
 
 /**
  * XOR subkey i into working registers then apply the Serpent inverse linear transform.
- * Serpent AES submission §2.3 — K function followed by inverse LT.
+ * Serpent AES submission §2.3, K function followed by inverse LT.
  * @param a  slot for rotl-27 / rotl-19 word
  * @param b  slot for rotl-31 word
  * @param c  slot for rotl-10 / rotl-29 word
@@ -628,7 +628,7 @@ function kc(n: i32): i32 {
 
 /**
  * Expand the key in KEY_BUFFER into 33 × 4 round subkeys in SUBKEY_BUFFER.
- * Serpent AES submission §2.5 — key schedule.
+ * Serpent AES submission §2.5, key schedule.
  * Reads keyLen bytes from KEY_BUFFER; valid lengths are 16, 24, and 32.
  * @param keyLen  key size in bytes (16, 24, or 32)
  * @returns       0 on success, -1 if keyLen is not 16, 24, or 32
@@ -664,7 +664,7 @@ export function loadKey(keyLen: i32): i32 {
 	rset(3, load<i32>(SUBKEY_OFFSET + 6 * 4))
 	rset(4, load<i32>(SUBKEY_OFFSET + 7 * 4))
 
-	// keyIt prekey expansion — fills key[0..131]
+	// keyIt prekey expansion, fills key[0..131]
 	// Mirrors the reference JS: while(keyIt(j++,..,i++), keyIt(j++,..,i++), i<132) { 3 more }
 	let ii: i32 = 0, jj: i32 = 0
 	while (true) {
@@ -697,7 +697,7 @@ export function loadKey(keyLen: i32): i32 {
 
 /**
  * Encrypt one 128-bit block. Reads BLOCK_PT_BUFFER, writes BLOCK_CT_BUFFER.
- * Serpent AES submission §2.2 — 32-round iterated block cipher.
+ * Serpent AES submission §2.2, 32-round iterated block cipher.
  * `loadKey()` must be called before this function.
  */
 export function encryptBlock(): void {
@@ -743,7 +743,7 @@ export function encryptBlock(): void {
 
 /**
  * Decrypt one 128-bit block. Reads BLOCK_CT_BUFFER, writes BLOCK_PT_BUFFER.
- * Serpent AES submission §2.3 — 32-round inverse cipher.
+ * Serpent AES submission §2.3, 32-round inverse cipher.
  * `loadKey()` must be called before this function.
  */
 export function decryptBlock(): void {
@@ -799,7 +799,7 @@ export function wipeBuffers(): void {
 	memory.fill(BLOCK_CT_OFFSET, 0, 16)
 	memory.fill(NONCE_OFFSET,    0, 16)
 	memory.fill(COUNTER_OFFSET,  0, 16)
-	memory.fill(SUBKEY_OFFSET,   0, 528)   // key material — must be zeroed
+	memory.fill(SUBKEY_OFFSET,   0, 528)   // key material, must be zeroed
 	memory.fill(WORK_OFFSET,     0, 20)    // working registers
 	memory.fill(CHUNK_PT_OFFSET, 0, CHUNK_SIZE)
 	memory.fill(CHUNK_CT_OFFSET, 0, CHUNK_SIZE)

@@ -9,7 +9,7 @@
 //
 // 3 groups (ML-DSA-44/65/87), 25 AFT tests each = 75 total.
 //
-// FIPS 204 §6.1 — ML-DSA.KeyGen_internal: deterministic from a 32-byte
+// FIPS 204 §6.1, ML-DSA.KeyGen_internal: deterministic from a 32-byte
 // seed (xi). Each test gives the seed and the expected (pk, sk) byte
 // encodings (FIPS 204 Algorithm 22 pkEncode / Algorithm 24 skEncode).
 

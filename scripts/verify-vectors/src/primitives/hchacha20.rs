@@ -1,10 +1,10 @@
-// HChaCha20 — RFC 8439 §2.3 ChaCha20 block function variant.
+// HChaCha20, RFC 8439 §2.3 ChaCha20 block function variant.
 // Inputs:  key (32 bytes), nonce (16 bytes)
 // Output:  subkey (32 bytes) = state words 0..3 ‖ 12..15 after 20 rounds,
 //          WITHOUT the final add-back-the-input step.
 //
 // Hand-rolled here because none of the RustCrypto crates expose HChaCha20
-// as a standalone primitive — it only surfaces inside XChaCha20Poly1305.
+// as a standalone primitive, it only surfaces inside XChaCha20Poly1305.
 // Leviathan-crypto exposes it because the STREAM construction needs the
 // subkey separately from any AEAD call. This is ~30 lines of arithmetic
 // against RFC 8439 §2.3 with zero external dependencies.

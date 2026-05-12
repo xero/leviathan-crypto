@@ -22,7 +22,7 @@
 // src/ts/kyber/params.ts
 //
 // ML-KEM (FIPS 203) parameter set configurations.
-// FIPS 203 Table 2 — Parameter sets for ML-KEM.
+// FIPS 203 Table 2, Parameter sets for ML-KEM.
 
 export interface KyberParams {
 	k: number          // matrix dimension

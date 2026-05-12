@@ -21,7 +21,7 @@
 //
 // src/asm/aes/polyval.ts
 //
-// POLYVAL absorber (RFC 8452 §3, Appendix A) — sibling of GHASH used by
+// POLYVAL absorber (RFC 8452 §3, Appendix A), sibling of GHASH used by
 // AES-GCM-SIV. Mirrors the API shape of `ghash.ts` (start / absorbBlock /
 // absorbWithLen / finalize).
 //
@@ -32,7 +32,7 @@
 //                                            ByteReverse(X_1..n)))
 //
 // `polyvalStart` byte-reverses the supplied authentication key, applies
-// `mulXGhash`, and feeds the result to `gf128InitTable` — from that point
+// `mulXGhash`, and feeds the result to `gf128InitTable`, from that point
 // on, the GF128 table multiplies by `mulX_GHASH(ByteReverse(H))` in
 // GHASH bit convention. Each `polyvalAbsorbBlock` byte-reverses the
 // input block before XOR-and-multiply. `polyvalFinalize` byte-reverses
@@ -67,12 +67,12 @@ import { gf128MulH, gf128InitTable, byteReverse16, mulXGhash } from './gf128'
  * (16 bytes, POLYVAL bit convention). Sets up the GF128 table to multiply
  * by `mulX_GHASH(ByteReverse(authKey))` and zeroes the accumulator.
  *
- * Reference: RFC 8452 Appendix A — the POLYVAL/GHASH bridge formula.
+ * Reference: RFC 8452 Appendix A, the POLYVAL/GHASH bridge formula.
  */
 export function polyvalStart(authKeyOff: i32): void {
 	// 1. ByteReverse(authKey) → GCM_SCRATCH (16-byte scratch).
 	byteReverse16(authKeyOff, GCM_SCRATCH_OFFSET);
-	// 2. mulX_GHASH on the reversed key, written to H_OFFSET — gf128InitTable
+	// 2. mulX_GHASH on the reversed key, written to H_OFFSET, gf128InitTable
 	//    reads H from H_OFFSET.
 	mulXGhash(GCM_SCRATCH_OFFSET, H_OFFSET);
 	// 3. Build the 4-bit windowed multiply table from the reflected H.
@@ -80,7 +80,7 @@ export function polyvalStart(authKeyOff: i32): void {
 	// 4. Reset the running accumulator to 0.
 	store<u64>(GHASH_ACC_OFFSET,     0);
 	store<u64>(GHASH_ACC_OFFSET + 8, 0);
-	// 5. Wipe scratch — it briefly held a derivative of the auth key.
+	// 5. Wipe scratch, it briefly held a derivative of the auth key.
 	store<u64>(GCM_SCRATCH_OFFSET,     0);
 	store<u64>(GCM_SCRATCH_OFFSET + 8, 0);
 }

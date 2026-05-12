@@ -21,7 +21,7 @@
 //
 // src/ts/serpent/serpent-cbc.ts
 //
-// SerpentCbc — Serpent-256 CBC + PKCS7, internal module.
+// SerpentCbc, Serpent-256 CBC + PKCS7, internal module.
 // Extracted to break the cipher-suite.ts ↔ index.ts circular dependency.
 // Import from here directly; index.ts re-exports for the public API surface.
 
@@ -74,7 +74,7 @@ export class SerpentCbc {
 	constructor(opts?: { dangerUnauthenticated: true }) {
 		if (!opts?.dangerUnauthenticated) {
 			throw new Error(
-				'leviathan-crypto: SerpentCbc is unauthenticated — use Seal with SerpentCipher instead. ' +
+				'leviathan-crypto: SerpentCbc is unauthenticated, use Seal with SerpentCipher instead. ' +
 				'To use SerpentCbc directly, pass { dangerUnauthenticated: true }.',
 			);
 		}
@@ -82,7 +82,7 @@ export class SerpentCbc {
 		this._tok = _acquireModule('serpent');
 	}
 
-	/** View over WASM linear memory. Rebind on every access — memory can be detached after grow. @internal */
+	/** View over WASM linear memory. Rebind on every access, memory can be detached after grow. @internal */
 	private get mem(): Uint8Array {
 		return new Uint8Array(this.x.memory.buffer);
 	}
@@ -91,8 +91,8 @@ export class SerpentCbc {
    * Encrypt plaintext with Serpent-256 CBC + PKCS7 padding.
    *
    * @param key       16, 24, or 32 bytes
-   * @param iv        16 bytes — must be random and unique per (key, message)
-   * @param plaintext any length — PKCS7 padding applied automatically
+   * @param iv        16 bytes, must be random and unique per (key, message)
+   * @param plaintext any length, PKCS7 padding applied automatically
    * @returns         ciphertext (length = ceil((plaintext.length + 1) / 16) * 16)
    */
 	encrypt(key: Uint8Array, iv: Uint8Array, plaintext: Uint8Array): Uint8Array {
@@ -121,8 +121,8 @@ export class SerpentCbc {
 	/**
    * Decrypt Serpent-256 CBC + PKCS7.
    *
-   * All failure modes — empty input, non-multiple-of-16 length, and any
-   * PKCS7 validation failure — throw the same generic `RangeError` with
+   * All failure modes, empty input, non-multiple-of-16 length, and any
+   * PKCS7 validation failure, throw the same generic `RangeError` with
    * message `'invalid ciphertext'`. Padding validation runs branch-free
    * over the last 16 bytes regardless of where the mismatch is, closing
    * the Vaudenay 2002 padding-oracle surface for callers using

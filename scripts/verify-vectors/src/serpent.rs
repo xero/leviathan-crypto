@@ -3,7 +3,7 @@
 //
 // Wire format:
 //
-//   preamble:  header(20) = 20 bytes (NO commitment — Serpent's HMAC-SHA-256
+//   preamble:  header(20) = 20 bytes (NO commitment, Serpent's HMAC-SHA-256
 //              tag is collision-resistant under SHA-256 and is therefore
 //              key-committing natively)
 //
@@ -23,9 +23,9 @@
 //              (only when header bit 7 is set; affects wire only, not crypto)
 //
 //   keys:      96-byte HKDF-SHA-256 output split as:
-//                enc_key = okm[0..32]   — Serpent-256 encryption
-//                mac_key = okm[32..64]  — HMAC-SHA-256 chunk authentication
-//                iv_key  = okm[64..96]  — per-chunk IV derivation via HMAC
+//                enc_key = okm[0..32]  , Serpent-256 encryption
+//                mac_key = okm[32..64] , HMAC-SHA-256 chunk authentication
+//                iv_key  = okm[64..96] , per-chunk IV derivation via HMAC
 //              info string is plain b'serpent-sealstream-v3' (no header bound).
 
 use hkdf::Hkdf;
@@ -90,7 +90,7 @@ fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
 // Encrypt one chunk: PKCS#7-pad, CBC-chain, HMAC-tag, return ct || tag.
 //
 // leviathan-crypto v3 uses NIST natural byte order at the public Serpent
-// API — matching RustCrypto's `serpent` crate, FIPS 197, and AB&K's NESSIE
+// API, matching RustCrypto's `serpent` crate, FIPS 197, and AB&K's NESSIE
 // submission. Keys and blocks pass through unmodified.
 fn seal_chunk_serpent(
     keys:        &DerivedV3,
@@ -249,7 +249,7 @@ pub fn verify_sealstream(v: &SealStreamVector) -> (bool, Vec<String>) {
                           |  (check.header[19] as u32);
     if header_chunk_size != v.chunk_size {
         log.push(format!(
-            "  ✗ {}: chunkSize mismatch — header says {}, vector field says {}",
+            "  ✗ {}: chunkSize mismatch, header says {}, vector field says {}",
             v.name, header_chunk_size, v.chunk_size,
         ));
         return (false, log);
@@ -258,7 +258,7 @@ pub fn verify_sealstream(v: &SealStreamVector) -> (bool, Vec<String>) {
     let header_framed = (check.header[0] & 0x80) != 0;
     if header_framed != v.framed {
         log.push(format!(
-            "  ✗ {}: framed flag mismatch — header says {}, vector says {}",
+            "  ✗ {}: framed flag mismatch, header says {}, vector says {}",
             v.name, header_framed, v.framed,
         ));
         return (false, log);

@@ -7,17 +7,17 @@
 //
 // The verifier reproduces ACVP's expected outputs byte-for-byte:
 //
-//   keyGen — `KeyGen::from_seed(xi)` returns a `SigningKey<P>`; the
+//   keyGen, `KeyGen::from_seed(xi)` returns a `SigningKey<P>`; the
 //            matching pk and expanded sk encodings (FIPS 204 Algorithms 22 +
 //            24) are compared to ACVP `pk` and `sk`.
 //
-//   sigGen — `ExpandedSigningKey::from_expanded(sk_bytes)` rehydrates the
+//   sigGen, `ExpandedSigningKey::from_expanded(sk_bytes)` rehydrates the
 //            key; we then build M' according to (signatureInterface,
 //            preHash, externalMu) per FIPS 204 §6.2 / §5.4 and call
 //            `sign_internal(&[Mp], &rnd)` (or `sign_mu_*` for externalMu).
 //            For deterministic=true, rnd is the all-zero 32-byte vector.
 //
-//   sigVer — `VerifyingKey::decode(pk_bytes)` plus `Signature::decode(...)`,
+//   sigVer, `VerifyingKey::decode(pk_bytes)` plus `Signature::decode(...)`,
 //            then `verify_internal(&Mp, &sig)` (or `verify_mu(mu, &sig)`).
 //            The bool is compared to ACVP `testPassed`.
 //
@@ -48,7 +48,7 @@ use crate::parse::{MlDsaKeyGenVector, MlDsaSigGenVector, MlDsaSigVerVector};
 // ────────────────────────────────────────────────────────────────────────────
 // FixedRng: a deterministic Rng impl that returns ACVP-supplied rnd bytes
 // for `sign_mu_randomized` (the only public API that lets the caller pick
-// rnd alongside an explicit µ — needed for hedged externalMu sigGen tests).
+// rnd alongside an explicit µ, needed for hedged externalMu sigGen tests).
 // All other paths feed `sign_internal` or `sign_mu_deterministic` directly.
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -401,7 +401,7 @@ macro_rules! mldsa_verifier {
     };
 }
 
-// Common sigVer outcome formatting — kept outside the macro so the help-text
+// Common sigVer outcome formatting, kept outside the macro so the help-text
 // does not need to expand into every parameter-set's verifier.
 fn finalize(log: &mut Vec<String>, computed: bool, expected: bool) -> (bool, Vec<String>) {
     if computed == expected {

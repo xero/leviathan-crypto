@@ -1,9 +1,9 @@
 // SHA-3 and SHAKE test vectors
 //
 // Sources:
-//   FIPS 202 — SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions
+//   FIPS 202, SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions
 //   @see https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
-//   Appendix A — SHA-3 examples
+//   Appendix A, SHA-3 examples
 //
 // All hex strings are lowercase, no separators.
 // Every expected value verified with Node.js crypto.createHash() / Python hashlib.
@@ -29,7 +29,7 @@ export interface ShakeVector {
 }
 
 // ============================================================
-// SHA3-256 — FIPS 202 (rate = 136 bytes)
+// SHA3-256, FIPS 202 (rate = 136 bytes)
 // ============================================================
 
 /** SHA3-256 test vectors from FIPS 202 + rate boundary cases. */
@@ -42,7 +42,7 @@ export const sha3_256Vectors: HashVector[] = [
 		expected: 'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a',
 	},
 	{
-		// FIPS 202 §A.1 — "abc"
+		// FIPS 202 §A.1, "abc"
 		// Verified: node crypto.createHash('sha3-256').update('abc').digest('hex')
 		description: 'FIPS 202 §A.1: "abc" (3 bytes)',
 		input: '616263',
@@ -50,7 +50,7 @@ export const sha3_256Vectors: HashVector[] = [
 		expected: '3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532',
 	},
 	{
-		// FIPS 202 §A.1 — 448-bit (56-byte) message
+		// FIPS 202 §A.1, 448-bit (56-byte) message
 		// Verified: node crypto.createHash('sha3-256').update(msg).digest('hex')
 		description: 'FIPS 202 §A.1: 448-bit message (56 bytes)',
 		input: '6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071',
@@ -58,7 +58,7 @@ export const sha3_256Vectors: HashVector[] = [
 		expected: '41c0dba2a9d6240849100376a8235e2c82e1b9998a999e21db32dd97496d3376',
 	},
 	{
-		// 135 bytes — one short of rate boundary (rate = 136)
+		// 135 bytes, one short of rate boundary (rate = 136)
 		// Verified: python3 hashlib.sha3_256(b'a'*135).hexdigest()
 		description: 'boundary: 135 bytes (one short of rate = 136)',
 		input: '61'.repeat(135),
@@ -66,7 +66,7 @@ export const sha3_256Vectors: HashVector[] = [
 		expected: '8094bb53c44cfb1e67b7c30447f9a1c33696d2463ecc1d9c92538913392843c9',
 	},
 	{
-		// 136 bytes — at rate boundary
+		// 136 bytes, at rate boundary
 		// Verified: python3 hashlib.sha3_256(b'a'*136).hexdigest()
 		description: 'boundary: 136 bytes (at rate boundary)',
 		input: '61'.repeat(136),
@@ -74,7 +74,7 @@ export const sha3_256Vectors: HashVector[] = [
 		expected: '3fc5559f14db8e453a0a3091edbd2bc25e11528d81c66fa570a4efdcc2695ee1',
 	},
 	{
-		// 137 bytes — one past rate boundary
+		// 137 bytes, one past rate boundary
 		// Verified: python3 hashlib.sha3_256(b'a'*137).hexdigest()
 		description: 'boundary: 137 bytes (one past rate boundary)',
 		input: '61'.repeat(137),
@@ -84,7 +84,7 @@ export const sha3_256Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA3-512 — FIPS 202 (rate = 72 bytes)
+// SHA3-512, FIPS 202 (rate = 72 bytes)
 // ============================================================
 
 /** SHA3-512 test vectors from FIPS 202 + rate boundary cases. */
@@ -99,7 +99,7 @@ export const sha3_512Vectors: HashVector[] = [
 			'15b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26',
 	},
 	{
-		// FIPS 202 §A.4 — "abc"
+		// FIPS 202 §A.4, "abc"
 		// Verified: node crypto.createHash('sha3-512').update('abc').digest('hex')
 		description: 'FIPS 202 §A.4: "abc" (3 bytes)',
 		input: '616263',
@@ -109,7 +109,7 @@ export const sha3_512Vectors: HashVector[] = [
 			'10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0',
 	},
 	{
-		// 71 bytes — one short of rate boundary (rate = 72)
+		// 71 bytes, one short of rate boundary (rate = 72)
 		// Verified: python3 hashlib.sha3_512(b'a'*71).hexdigest()
 		description: 'boundary: 71 bytes (one short of rate = 72)',
 		input: '61'.repeat(71),
@@ -119,7 +119,7 @@ export const sha3_512Vectors: HashVector[] = [
 			'db535a54d636856f4e0e1e982461cb9a7e8e57ff8895cff1619af9f0e486e28c',
 	},
 	{
-		// 72 bytes — at rate boundary
+		// 72 bytes, at rate boundary
 		// Verified: python3 hashlib.sha3_512(b'a'*72).hexdigest()
 		description: 'boundary: 72 bytes (at rate boundary)',
 		input: '61'.repeat(72),
@@ -129,7 +129,7 @@ export const sha3_512Vectors: HashVector[] = [
 			'cd86e81296852359bf2faddb5153c0a7445722987875e74287adac21adebe952',
 	},
 	{
-		// 73 bytes — one past rate boundary
+		// 73 bytes, one past rate boundary
 		// Verified: python3 hashlib.sha3_512(b'a'*73).hexdigest()
 		description: 'boundary: 73 bytes (one past rate boundary)',
 		input: '61'.repeat(73),
@@ -141,7 +141,7 @@ export const sha3_512Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA3-384 — FIPS 202 (rate = 104 bytes)
+// SHA3-384, FIPS 202 (rate = 104 bytes)
 // ============================================================
 
 /** SHA3-384 test vectors from FIPS 202 + rate boundary cases. */
@@ -155,7 +155,7 @@ export const sha3_384Vectors: HashVector[] = [
 			'0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004',
 	},
 	{
-		// FIPS 202 §A — "abc"
+		// FIPS 202 §A, "abc"
 		// Verified: node crypto.createHash('sha3-384').update('abc').digest('hex')
 		description: 'FIPS 202: "abc" (3 bytes)',
 		input: '616263',
@@ -164,7 +164,7 @@ export const sha3_384Vectors: HashVector[] = [
 			'ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25',
 	},
 	{
-		// 103 bytes — one short of rate boundary (rate = 104)
+		// 103 bytes, one short of rate boundary (rate = 104)
 		// Verified: python3 hashlib.sha3_384(b'a'*103).hexdigest()
 		description: 'boundary: 103 bytes (one short of rate = 104)',
 		input: '61'.repeat(103),
@@ -173,7 +173,7 @@ export const sha3_384Vectors: HashVector[] = [
 			'af61fb4fd1c6afe80857fcba888318a0a1426635b4509f09707e3787630bdb621655ffa54f5884088ccc000f81436414',
 	},
 	{
-		// 104 bytes — at rate boundary
+		// 104 bytes, at rate boundary
 		// Verified: python3 hashlib.sha3_384(b'a'*104).hexdigest()
 		description: 'boundary: 104 bytes (at rate boundary)',
 		input: '61'.repeat(104),
@@ -184,7 +184,7 @@ export const sha3_384Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA3-224 — FIPS 202 (rate = 144 bytes)
+// SHA3-224, FIPS 202 (rate = 144 bytes)
 // ============================================================
 
 /** SHA3-224 test vectors from FIPS 202 + rate boundary cases. */
@@ -197,7 +197,7 @@ export const sha3_224Vectors: HashVector[] = [
 		expected: '6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7',
 	},
 	{
-		// FIPS 202 §A — "abc"
+		// FIPS 202 §A, "abc"
 		// Verified: node crypto.createHash('sha3-224').update('abc').digest('hex')
 		description: 'FIPS 202: "abc" (3 bytes)',
 		input: '616263',
@@ -205,7 +205,7 @@ export const sha3_224Vectors: HashVector[] = [
 		expected: 'e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf',
 	},
 	{
-		// 143 bytes — one short of rate boundary (rate = 144)
+		// 143 bytes, one short of rate boundary (rate = 144)
 		// Verified: python3 hashlib.sha3_224(b'a'*143).hexdigest()
 		description: 'boundary: 143 bytes (one short of rate = 144)',
 		input: '61'.repeat(143),
@@ -213,7 +213,7 @@ export const sha3_224Vectors: HashVector[] = [
 		expected: '73b1b22b54f515f626a6abdde6af25cd4801dc6e9dc7fa3f77e1c122',
 	},
 	{
-		// 144 bytes — at rate boundary
+		// 144 bytes, at rate boundary
 		// Verified: python3 hashlib.sha3_224(b'a'*144).hexdigest()
 		description: 'boundary: 144 bytes (at rate boundary)',
 		input: '61'.repeat(144),
@@ -223,7 +223,7 @@ export const sha3_224Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHAKE128 — FIPS 202 (rate = 168 bytes)
+// SHAKE128, FIPS 202 (rate = 168 bytes)
 // ============================================================
 
 /** SHAKE128 test vectors from FIPS 202. */
@@ -255,7 +255,7 @@ export const shake128Vectors: ShakeVector[] = [
 			'3cb1eea988004b93103cfb0aeefd2a686e01fa4a58e8a3639ca8a1e3f9ae57e2',
 	},
 	{
-		// 167 bytes — one short of rate boundary (rate = 168)
+		// 167 bytes, one short of rate boundary (rate = 168)
 		// Verified: python3 hashlib.shake_128(b'a'*167).hexdigest(32)
 		description: 'boundary: 167 bytes (one short of rate = 168), 32-byte output',
 		input: '61'.repeat(167),
@@ -264,7 +264,7 @@ export const shake128Vectors: ShakeVector[] = [
 		expected: '4f5c6c53ae8190a8ff8a55b2125d28703052d10278570960c2066a905d916c34',
 	},
 	{
-		// 168 bytes — at rate boundary
+		// 168 bytes, at rate boundary
 		// Verified: python3 hashlib.shake_128(b'a'*168).hexdigest(32)
 		description: 'boundary: 168 bytes (at rate boundary), 32-byte output',
 		input: '61'.repeat(168),
@@ -343,7 +343,7 @@ export const shake128Vectors: ShakeVector[] = [
 ];
 
 // ============================================================
-// SHAKE256 — FIPS 202 (rate = 136 bytes)
+// SHAKE256, FIPS 202 (rate = 136 bytes)
 // ============================================================
 
 /** SHAKE256 test vectors from FIPS 202. */
@@ -367,7 +367,7 @@ export const shake256Vectors: ShakeVector[] = [
 			'd5a15bef186a5386c75744c0527e1faa9f8726e462a12a4feb06bd8801e751e4',
 	},
 	{
-		// 135 bytes — one short of rate boundary (rate = 136)
+		// 135 bytes, one short of rate boundary (rate = 136)
 		// Verified: python3 hashlib.shake_256(b'a'*135).hexdigest(32)
 		description: 'boundary: 135 bytes (one short of rate = 136), 32-byte output',
 		input: '61'.repeat(135),
@@ -376,7 +376,7 @@ export const shake256Vectors: ShakeVector[] = [
 		expected: '55b991ece1e567b6e7c2c714444dd201cd51f4f3832d08e1d26bebc63e07a3d7',
 	},
 	{
-		// 136 bytes — at rate boundary
+		// 136 bytes, at rate boundary
 		// Verified: python3 hashlib.shake_256(b'a'*136).hexdigest(32)
 		description: 'boundary: 136 bytes (at rate boundary), 32-byte output',
 		input: '61'.repeat(136),

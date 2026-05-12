@@ -21,7 +21,7 @@
 //
 // src/ts/aes/aes-gcm-siv.ts
 //
-// AESGCMSIV — AES-128/256 in GCM-SIV mode (RFC 8452), nonce-misuse-
+// AESGCMSIV, AES-128/256 in GCM-SIV mode (RFC 8452), nonce-misuse-
 // resistant authenticated encryption with a 128-bit tag. Atomic single-
 // shot AEAD bounded by CHUNK_PT_BUFFER (64 KiB plaintext cap).
 //
@@ -36,14 +36,14 @@
 // On authentication failure, `open()` calls the WASM `sivWipeOnFail`
 // helper before throwing, ensuring the decrypted-but-unauthenticated
 // plaintext at CHUNK_PT_OFFSET is zeroed before any TS code can read it.
-// (The CHUNK_PT staging is required by SIV's verify-after-decrypt flow —
+// (The CHUNK_PT staging is required by SIV's verify-after-decrypt flow,
 // the tag is a function of the plaintext.)
 
 import { getInstance, _acquireModule, _releaseModule } from '../init.js';
 import { constantTimeEqual, wipe } from '../utils.js';
 import { AuthenticationError } from '../errors.js';
 
-// RFC 8452 §6: K_LEN ∈ {16, 32} — AES-128-GCM-SIV or AES-256-GCM-SIV.
+// RFC 8452 §6: K_LEN ∈ {16, 32}, AES-128-GCM-SIV or AES-256-GCM-SIV.
 const KEY_LEN_128 = 16;
 const KEY_LEN_256 = 32;
 
@@ -90,7 +90,7 @@ function getExports(): AesGcmSivExports {
 /**
  * AES-128-GCM-SIV / AES-256-GCM-SIV (RFC 8452). Nonce-misuse-resistant
  * authenticated AEAD with a 128-bit tag. AES-192 keys are rejected
- * (RFC 8452 §6 — no AES-192-GCM-SIV variant exists).
+ * (RFC 8452 §6, no AES-192-GCM-SIV variant exists).
  *
  * Single-shot only: each `seal` / `open` call processes one complete
  * message bounded by 64 KiB of plaintext. Larger messages are out of
@@ -102,7 +102,7 @@ function getExports(): AesGcmSivExports {
  * returns the plaintext; throws `AuthenticationError('siv')` on any
  * verification failure.
  *
- * Atomic — does not hold exclusive access between calls. `dispose()`
+ * Atomic, does not hold exclusive access between calls. `dispose()`
  * wipes the stored key from the JS-side cache.
  */
 export class AESGCMSIV {
@@ -111,7 +111,7 @@ export class AESGCMSIV {
 
 	/**
 	 * @param key  16 bytes (AES-128-GCM-SIV) or 32 bytes (AES-256-GCM-SIV).
-	 *             24-byte keys are rejected — RFC 8452 §6 does not define
+	 *             24-byte keys are rejected, RFC 8452 §6 does not define
 	 *             an AES-192-GCM-SIV variant.
 	 */
 	constructor(key: Uint8Array) {
@@ -170,7 +170,7 @@ export class AESGCMSIV {
 	 * `../utils.js` (the dedicated `ct` WASM module). On mismatch the
 	 * WASM `sivWipeOnFail` helper zeroes the decrypted-but-
 	 * unauthenticated plaintext at CHUNK_PT_OFFSET before this method
-	 * throws — the bytes never become reachable from JS.
+	 * throws, the bytes never become reachable from JS.
 	 *
 	 * @throws AuthenticationError('siv') if the tag fails to verify, or
 	 *         if `sealed` is too short, or any input length violates the
@@ -197,7 +197,7 @@ export class AESGCMSIV {
 		try {
 			this._stage(x, nonce, aad);
 			this._mem(x).set(ct, x.getChunkCtOffset());
-			// Stage the provided tag at SIV_IC_OFFSET — sivOpen will
+			// Stage the provided tag at SIV_IC_OFFSET, sivOpen will
 			// read it from there as the input to the CTR initial counter.
 			this._mem(x).set(providedTag, x.getSivIcOffset());
 
@@ -211,7 +211,7 @@ export class AESGCMSIV {
 				x.getTagOffset(),
 				x.getTagOffset() + TAG_LEN,
 			);
-			// Defensive copy of providedTag for the constant-time compare —
+			// Defensive copy of providedTag for the constant-time compare,
 			// the input may be a view over a caller-controlled buffer.
 			const providedTagCopy = new Uint8Array(providedTag);
 
@@ -227,7 +227,7 @@ export class AESGCMSIV {
 				throw new AuthenticationError('siv');
 			}
 
-			// Match — read PT before wiping. pt is a JS-heap slice copy.
+			// Match, read PT before wiping. pt is a JS-heap slice copy.
 			const ptOff = x.getChunkPtOffset();
 			const pt = this._mem(x).slice(ptOff, ptOff + ctLen);
 			wipe(expectedTag);

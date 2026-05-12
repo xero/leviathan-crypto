@@ -1,11 +1,11 @@
-// ML-KEM (FIPS 203) ACVP test vectors — barrel re-export.
+// ML-KEM (FIPS 203) ACVP test vectors, barrel re-export.
 //
 // ACVP source:
 //   https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files/
 //   ML-KEM-keyGen-FIPS203/internalProjection.json   (vsId=42, 75 AFT vectors)
 //   ML-KEM-encapDecap-FIPS203/internalProjection.json (vsId=42, 165 vectors)
 //
-// Audit status: VERIFIED (NIST official — never modify values)
+// Audit status: VERIFIED (NIST official, never modify values)
 
 export type {
 	KeyGenVector as KyberKeyGenVector,

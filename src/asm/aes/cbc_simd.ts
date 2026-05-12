@@ -22,7 +22,7 @@
 // src/asm/aes/cbc_simd.ts
 //
 // SIMD-accelerated AES CBC decrypt: 8 blocks per `decryptBlock_8x` call.
-// CBC encrypt remains scalar (in cbc.ts) — the chaining
+// CBC encrypt remains scalar (in cbc.ts), the chaining
 // `C[i] = E_K(P[i] XOR C[i-1])` is sequential by definition and cannot
 // be parallelised. CBC decrypt is parallelisable: every plaintext
 // `P[i] = D_K(C[i]) XOR C[i-1]` depends only on already-known
@@ -65,7 +65,7 @@ import { decryptBlock, decryptBlock_8x } from './aes';
  */
 @inline function processBlockScalar(ctOffset: i32, ptOffset: i32): void {
 	// Copy CT into BLOCK_PT (decryptBlock reads CT from BLOCK_PT, writes
-	// PT to BLOCK_CT — see aes.ts decryptBlock buffer-naming note).
+	// PT to BLOCK_CT, see aes.ts decryptBlock buffer-naming note).
 	for (let j: i32 = 0; j < 16; j++)
 		store<u8>(BLOCK_PT_OFFSET + j, load<u8>(ctOffset + j));
 
@@ -112,7 +112,7 @@ export function cbcDecryptChunk_simd(len: i32): i32 {
 			v128.store(ptBase, v128.xor(pt, ch));
 		}
 		// Blocks 1..7: chaining input is the previous block's ciphertext,
-		// taken from the original CHUNK_CT_BUFFER (still intact — the
+		// taken from the original CHUNK_CT_BUFFER (still intact, the
 		// kernel wrote plaintexts into BLOCK_CT_8X, not CHUNK_CT).
 		for (let b: i32 = 1; b < 8; b++) {
 			const pt = v128.load(BLOCK_CT_8X_OFFSET + (b << 4));

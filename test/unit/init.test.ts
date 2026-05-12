@@ -34,30 +34,30 @@ beforeEach(() => {
 });
 
 describe('init()', () => {
-	test('error before init — serpent', () => {
+	test('error before init, serpent', () => {
 		expect(() => getInstance('serpent')).toThrow(
 			'leviathan-crypto: call init({ serpent: ... }) before using this class',
 		);
 	});
 
-	test('error before init — sha3', () => {
+	test('error before init, sha3', () => {
 		expect(() => getInstance('sha3')).toThrow(
 			'leviathan-crypto: call init({ sha3: ... }) before using this class',
 		);
 	});
 
 	test('unknown module key → throws Error', async () => {
-		// @ts-expect-error — testing runtime guard for invalid keys
+		// @ts-expect-error, testing runtime guard for invalid keys
 		await expect(init({ bogus: serpentWasm })).rejects.toThrow(/unknown module "bogus"/);
 	});
 
-	test('embedded mode — single module', async () => {
+	test('embedded mode, single module', async () => {
 		await init({ serpent: serpentWasm });
 		expect(isInitialized('serpent')).toBe(true);
 		expect(isInitialized('chacha20')).toBe(false);
 	});
 
-	test('embedded mode — multiple modules', async () => {
+	test('embedded mode, multiple modules', async () => {
 		await init({ serpent: serpentWasm, sha3: sha3Wasm });
 		expect(isInitialized('serpent')).toBe(true);
 		expect(isInitialized('sha3')).toBe(true);
@@ -65,7 +65,7 @@ describe('init()', () => {
 		expect(isInitialized('sha2')).toBe(false);
 	});
 
-	test('embedded mode — all four modules', async () => {
+	test('embedded mode, all four modules', async () => {
 		await init({ serpent: serpentWasm, chacha20: chacha20Wasm, sha2: sha2Wasm, sha3: sha3Wasm });
 		expect(isInitialized('serpent')).toBe(true);
 		expect(isInitialized('chacha20')).toBe(true);
@@ -73,7 +73,7 @@ describe('init()', () => {
 		expect(isInitialized('sha3')).toBe(true);
 	});
 
-	test('idempotent — second init is a no-op', async () => {
+	test('idempotent, second init is a no-op', async () => {
 		await init({ serpent: serpentWasm });
 		const inst1 = getInstance('serpent');
 		await init({ serpent: serpentWasm });
@@ -81,13 +81,13 @@ describe('init()', () => {
 		expect(inst1).toBe(inst2);
 	});
 
-	test('partial init — loading serpent does not make sha3 available', async () => {
+	test('partial init, loading serpent does not make sha3 available', async () => {
 		await init({ serpent: serpentWasm });
 		expect(isInitialized('serpent')).toBe(true);
 		expect(() => getInstance('sha3')).toThrow();
 	});
 
-	test('ArrayBuffer source — accepts raw WASM bytes', async () => {
+	test('ArrayBuffer source, accepts raw WASM bytes', async () => {
 		const { readFileSync } = await import('fs');
 		const { resolve, dirname } = await import('path');
 		const { fileURLToPath } = await import('url');
@@ -102,7 +102,7 @@ describe('init()', () => {
 
 	// ── keccak alias ─────────────────────────────────────────────────────────
 
-	test('error before init — keccak', () => {
+	test('error before init, keccak', () => {
 		expect(() => getInstance('keccak')).toThrow(
 			'leviathan-crypto: call init({ keccak: ... }) before using this class',
 		);
@@ -125,7 +125,7 @@ describe('init()', () => {
 		expect(getInstance('keccak')).toBe(getInstance('sha3'));
 	});
 
-	test('idempotent — sha3 then keccak is a no-op', async () => {
+	test('idempotent, sha3 then keccak is a no-op', async () => {
 		await init({ sha3: sha3Wasm });
 		const inst1 = getInstance('sha3');
 		await init({ keccak: sha3Wasm });

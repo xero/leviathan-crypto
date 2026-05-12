@@ -1,6 +1,6 @@
 // Independent verifier for POLYVAL vectors (RFC 8452 Appendix A
 // hash trace). Algebraic primitive vectors (§7 fieldOps, mulX
-// pairs) are read but not exercised — they are unit-test bisection
+// pairs) are read but not exercised, they are unit-test bisection
 // fixtures for 4b-impl, not verifier load. The SIV vectors
 // transitively cover POLYVAL multiplication, so the hash trace
 // alone is enough to confirm the transcription.
@@ -61,7 +61,7 @@ pub fn verify_one_hash(v: &PolyvalHashVector) -> (bool, Vec<String>) {
 }
 
 /// Algebraic / mulX vectors are kept for the WASM unit-test gate but the
-/// verifier does not exercise them — RustCrypto's `polyval` does not
+/// verifier does not exercise them, RustCrypto's `polyval` does not
 /// expose `dot()` or `mulX_GHASH` directly, and the SIV corpus already
 /// transitively covers POLYVAL multiplication. We still log them so
 /// reviewers can see the corpus is being read end-to-end.

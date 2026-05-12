@@ -21,7 +21,7 @@
 //
 // src/ts/utils.ts
 //
-// Pure TypeScript utilities — no init() dependency.
+// Pure TypeScript utilities, no init() dependency.
 // Ported from leviathan/src/base.ts (Convert namespace, Util namespace, constantTimeEqual).
 
 // ── Encoding ────────────────────────────────────────────────────────────────
@@ -30,9 +30,9 @@
 export const hexToBytes = (hex: string): Uint8Array => {
 	if (hex.startsWith('0x') || hex.startsWith('0X')) hex = hex.slice(2);
 	if (hex.length % 2)
-		throw new RangeError(`hexToBytes: odd-length string (${hex.length} chars) — input must be an even-length hex string`);
+		throw new RangeError(`hexToBytes: odd-length string (${hex.length} chars), input must be an even-length hex string`);
 	// parseInt('0g', 16) returns 0 (not NaN) because it stops at the first
-	// invalid char — silent wrong-answer. Reject non-hex chars up front.
+	// invalid char, silent wrong-answer. Reject non-hex chars up front.
 	if (hex.length > 0 && !/^[0-9a-fA-F]*$/.test(hex))
 		throw new RangeError('hexToBytes: input contains non-hex characters');
 	const bin = new Uint8Array(hex.length >>> 1);
@@ -109,7 +109,7 @@ export const base64ToBytes = (b64: string): Uint8Array => {
 	return bin;
 };
 
-/** Uint8Array to base64 string. Pass url=true for base64url (RFC 4648 §5 — no padding characters). */
+/** Uint8Array to base64 string. Pass url=true for base64url (RFC 4648 §5, no padding characters). */
 export const bytesToBase64 = (bytes: Uint8Array, url = false): string => {
 	if (typeof btoa !== 'undefined') {
 		const raw = btoa(String.fromCharCode.apply(null, Array.from(bytes)));
@@ -164,7 +164,7 @@ function _initCt(): void {
 	_ctInit = true;
 	if (!hasSIMD()) {
 		_ctInitError = new Error(
-			'leviathan-crypto: constantTimeEqual requires WebAssembly SIMD — '
+			'leviathan-crypto: constantTimeEqual requires WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 		throw _ctInitError;
@@ -191,7 +191,7 @@ function _initCt(): void {
 /**
  * Constant-time byte-array equality.
  * Runs entirely inside a WASM SIMD module (v128 XOR accumulate with
- * branch-free reduction). Throws on runtimes without SIMD support —
+ * branch-free reduction). Throws on runtimes without SIMD support,
  * no JS fallback. Length check is not constant-time (length is
  * non-secret in all protocols). Max input size: 32768 bytes per side.
  */
@@ -262,7 +262,7 @@ export const randomBytes = (n: number): Uint8Array => {
 	if (typeof globalThis.crypto === 'undefined'
 		|| typeof globalThis.crypto.getRandomValues !== 'function')
 		throw new Error(
-			'leviathan-crypto: crypto.getRandomValues is required — '
+			'leviathan-crypto: crypto.getRandomValues is required, '
 			+ 'this runtime does not expose the Web Crypto API',
 		);
 	const buf = new Uint8Array(n);
@@ -285,7 +285,7 @@ export function hasSIMD(): boolean {
 		_simd = false;
 		return _simd;
 	}
-	// Minimal WASM module using v128 — validates iff SIMD is supported
+	// Minimal WASM module using v128, validates iff SIMD is supported
 	try {
 		_simd = WebAssembly.validate(new Uint8Array([
 			0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,

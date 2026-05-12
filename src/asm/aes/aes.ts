@@ -21,7 +21,7 @@
 //
 // src/asm/aes/aes.ts
 //
-// AES-128/192/256 encrypt + decrypt — bitsliced over v128 (8 blocks parallel).
+// AES-128/192/256 encrypt + decrypt, bitsliced over v128 (8 blocks parallel).
 // Spec: NIST FIPS 197-upd1 (2023), §5.1, §5.2, §5.3.5, Appendix B.
 // Bitsliced layout, ShiftRows-as-shuffle, MixColumns formulas:
 //   Käsper-Schwabe 2009 (CHES) §4.1, §4.3, §4.4 + Appendix A.
@@ -33,7 +33,7 @@
 // key-schedule time so that AddRoundKey reuses the existing structure.
 //
 // All three key sizes share one parameterised key schedule (FIPS 197 §5.2
-// Algorithm 2, with the AES-256 extra-SubWord branch on lines 11–12) and
+// Algorithm 2, with the AES-256 extra-SubWord branch on lines 11-12) and
 // one parameterised round loop driven by an Nr value persisted in
 // NR_BUFFER between loadKey() and encryptBlock_8x()/decryptBlock_8x().
 
@@ -75,7 +75,7 @@ import { gf128InitTable } from './gf128'
 // plaintext byte at offset (j%4)*4 + j/4 within each block. The K-S layout
 // fuses a per-block 4×4 byte transpose ("row-by-row" reorder) with an 8×8
 // bit-matrix transpose at every byte position. The two factors operate on
-// orthogonal axes — byte position vs. bit-position-within-byte — so they
+// orthogonal axes, byte position vs. bit-position-within-byte, so they
 // commute, and the K-S transpose is its own inverse: transposeIn and
 // transposeOut share one implementation modulo source/destination offsets.
 //
@@ -83,11 +83,11 @@ import { gf128InitTable } from './gf128'
 // [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15] is self-inverse (it represents
 // the 4×4 transpose of an AES state square). The 8×8 bit-matrix transpose
 // uses three delta-swap stages with strides {4, 2, 1} and masks {0x0F, 0x33,
-// 0x55} (Hacker's Delight §7-2). 92 v128 operations total — replaces ~2050
+// 0x55} (Hacker's Delight §7-2). 92 v128 operations total, replaces ~2050
 // scalar bit-gathers from the prior implementation.
 
 @inline function transpose8x8(srcOffset: i32, dstOffset: i32): void {
-	// Step A — load 8 input registers and apply the per-register byte-shuffle.
+	// Step A, load 8 input registers and apply the per-register byte-shuffle.
 	// The shuffle is its own inverse, so the same indices serve transposeIn
 	// (FIPS column-major → K-S row-by-row) and transposeOut (the inverse).
 	let a0 = v128.shuffle<i8>(
@@ -123,19 +123,19 @@ import { gf128InitTable } from './gf128'
 		0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15,
 	);
 
-	// Step B — 8×8 bit-matrix transpose, replicated across all 16 byte
+	// Step B, 8×8 bit-matrix transpose, replicated across all 16 byte
 	// positions. After all three stages, M[b][k] = (bit-k of byte j of input
 	// register b after step A) ends up at (bit-b of byte j of output register
 	// k). Verification: standard delta-swap of an N×N bit-matrix where each
 	// stage flips bits whose row/column indices differ in the given bit
-	// position — three stages compose to a full row/column swap.
+	// position, three stages compose to a full row/column swap.
 	const M_0F = i8x16.splat(<i8>0x0F);
 	const M_33 = i8x16.splat(<i8>0x33);
 	const M_55 = i8x16.splat(<i8>0x55);
 
 	let t: v128;
 
-	// Stage 1 — stride 4, shift 4. Pairs (0,4) (1,5) (2,6) (3,7).
+	// Stage 1, stride 4, shift 4. Pairs (0,4) (1,5) (2,6) (3,7).
 	t  = v128.and(v128.xor(a4, i8x16.shr_u(a0, 4)), M_0F);
 	a4 = v128.xor(a4, t);
 	a0 = v128.xor(a0, i8x16.shl(t, 4));
@@ -149,7 +149,7 @@ import { gf128InitTable } from './gf128'
 	a7 = v128.xor(a7, t);
 	a3 = v128.xor(a3, i8x16.shl(t, 4));
 
-	// Stage 2 — stride 2, shift 2. Pairs (0,2) (1,3) (4,6) (5,7).
+	// Stage 2, stride 2, shift 2. Pairs (0,2) (1,3) (4,6) (5,7).
 	t  = v128.and(v128.xor(a2, i8x16.shr_u(a0, 2)), M_33);
 	a2 = v128.xor(a2, t);
 	a0 = v128.xor(a0, i8x16.shl(t, 2));
@@ -163,7 +163,7 @@ import { gf128InitTable } from './gf128'
 	a7 = v128.xor(a7, t);
 	a5 = v128.xor(a5, i8x16.shl(t, 2));
 
-	// Stage 3 — stride 1, shift 1. Pairs (0,1) (2,3) (4,5) (6,7).
+	// Stage 3, stride 1, shift 1. Pairs (0,1) (2,3) (4,5) (6,7).
 	t  = v128.and(v128.xor(a1, i8x16.shr_u(a0, 1)), M_55);
 	a1 = v128.xor(a1, t);
 	a0 = v128.xor(a0, i8x16.shl(t, 1));
@@ -177,7 +177,7 @@ import { gf128InitTable } from './gf128'
 	a7 = v128.xor(a7, t);
 	a6 = v128.xor(a6, i8x16.shl(t, 1));
 
-	// Step C — store transposed result.
+	// Step C, store transposed result.
 	v128.store(dstOffset +   0, a0);
 	v128.store(dstOffset +  16, a1);
 	v128.store(dstOffset +  32, a2);
@@ -193,7 +193,7 @@ function transposeIn(): void {
 	transpose8x8(BLOCK_PT_8X_OFFSET, BITSLICED_STATE_OFFSET);
 }
 
-/** Bitsliced state → 8-blocks output. Same kernel — the K-S transpose is its
+/** Bitsliced state → 8-blocks output. Same kernel, the K-S transpose is its
  *  own inverse (byte-shuffle and bit-transpose are involutions on orthogonal
  *  axes). */
 function transposeOut(): void {
@@ -213,12 +213,12 @@ function transposeOut(): void {
 // bitsliced state register state[k] still holds bit-k of byte-j across
 // 8 lanes; the single-block path populates lane 0 (bit 0 of each state[k]
 // byte) and leaves lanes 1..7 of each byte zero. The 8x kernel then runs
-// as before — its work on the dummy lanes is unchanged (it computes
+// as before, its work on the dummy lanes is unchanged (it computes
 // AES(0) seven times in parallel and we ignore the result), but we save
 // the input-side byte-fill and 4× the transpose op count.
 
 /**
- * Single-block transposeIn — read BLOCK_PT (16 bytes), produce a bitsliced
+ * Single-block transposeIn, read BLOCK_PT (16 bytes), produce a bitsliced
  * state where lane 0 of each state[k] byte holds block-0's bit-k and lanes
  * 1..7 are zero.
  *
@@ -245,7 +245,7 @@ function transposeOut(): void {
 }
 
 /**
- * Single-block transposeOut — read the bitsliced state, reconstruct block 0
+ * Single-block transposeOut, read the bitsliced state, reconstruct block 0
  * by extracting bit-0 of each state[k] byte and writing the result to
  * BLOCK_CT. Bits 1..7 of each state[k] byte hold AES(0) results for the
  * seven dummy lanes and are masked out.
@@ -253,7 +253,7 @@ function transposeOut(): void {
  * Steps (inverse of `transposeIn1`):
  *   1. For each k: take bit 0 of state[k] byte j, shift left by k, OR into
  *      the running accumulator.
- *   2. Apply the K-S §4.1 4×4 byte-shuffle (self-inverse — restores FIPS
+ *   2. Apply the K-S §4.1 4×4 byte-shuffle (self-inverse, restores FIPS
  *      column-major byte order) and store to BLOCK_CT.
  */
 @inline function transposeOut1(): void {
@@ -279,7 +279,7 @@ function transposeOut(): void {
 // §3, the shuffle indices are [0,1,2,3, 5,6,7,4, 10,11,8,9, 15,12,13,14].
 // InvShiftRows is the inverse permutation [0,1,2,3, 7,4,5,6, 10,11,8,9,
 // 13,14,15,12] (row 0 unchanged; row 1 right-by-1; row 2 self-inverse;
-// row 3 right-by-3) — FIPS 197 §5.3.1.
+// row 3 right-by-3), FIPS 197 §5.3.1.
 
 /**
  * Apply ShiftRows uniformly to all 8 bitsliced state registers.
@@ -331,7 +331,7 @@ function invShiftRows(): void {
  * Note on K-S' "rl32" notation: the K-S paper writes this as "rotate left by
  * 32 bits", but the operational meaning (per K-S §4.4) is to produce a
  * register where byte at row-major index p reads from row p/4+1's value at
- * column p%4 — i.e., shift the indices DOWN by 4. That's what this shuffle
+ * column p%4, i.e., shift the indices DOWN by 4. That's what this shuffle
  * implements. Verified against FIPS 197 §5.1.3 by single-bit input
  * cross-check during development.
  */
@@ -450,7 +450,7 @@ function invMixColumns(): void {
 	const d4 = rl32(c4); const d5 = rl32(c5); const d6 = rl32(c6); const d7 = rl32(c7);
 
 	// Each output bit-k slice is mul0E(a)[k] ⊕ mul0B(b)[k] ⊕ mul0D(c)[k] ⊕ mul09(d)[k].
-	// mul0E[k]: bit-k of (0x0E · x) — depends on bits as derived from mul02 expansion.
+	// mul0E[k]: bit-k of (0x0E · x), depends on bits as derived from mul02 expansion.
 	//   mul0E[0]: x_5 ⊕ x_6 ⊕ x_7
 	//   mul0E[1]: x_0 ⊕ x_5
 	//   mul0E[2]: x_0 ⊕ x_1 ⊕ x_6
@@ -591,7 +591,7 @@ function addInvRoundKey(roundIdx: i32): void {
 //
 // Single algorithm parameterised by `keyLen` ∈ {16, 24, 32}: derives Nk =
 // keyLen/4 ∈ {4, 6, 8} and Nr = Nk + 6 ∈ {10, 12, 14}. The AES-256-only
-// extra-SubWord branch (FIPS 197 §5.2 Algorithm 2 lines 11–12) fires only
+// extra-SubWord branch (FIPS 197 §5.2 Algorithm 2 lines 11-12) fires only
 // when both `Nk > 6` and `i mod Nk == 4`, i.e. for keyLen=32 at i ∈
 // {12, 20, 28, 36, 44, 52}. For keyLen ∈ {16, 24} the branch is unreachable
 // (the first conditional `i mod Nk == 0` precludes it for keyLen=24, and
@@ -615,7 +615,7 @@ function addInvRoundKey(roundIdx: i32): void {
 }
 
 /**
- * AES forward S-box on 4 packed bytes — Boyar-Peralta scalar circuit.
+ * AES forward S-box on 4 packed bytes, Boyar-Peralta scalar circuit.
  *
  * Reference: J. Boyar and R. Peralta, "A New Combinational Logic
  * Minimization Technique with Applications to Cryptology", NIST 2010
@@ -634,7 +634,7 @@ function addInvRoundKey(roundIdx: i32): void {
  * 4 bit-positions of 8 i32 SLP registers (U0..U7 in MSB-first AES bit
  * order: bit-7 of byte j → bit j of U0, bit-0 of byte j → bit j of U7).
  * Output S0..S7 unpack symmetrically. Bits ≥ 4 of the SLP registers are
- * not meaningful — XOR keeps them zero, but the four output XNOR gates
+ * not meaningful, XOR keeps them zero, but the four output XNOR gates
  * (S1, S2, S6, S7) leave bits 4..31 set; the unpack masks via `& 1` so
  * those high bits are inert.
  *
@@ -754,7 +754,7 @@ function sboxWord(w: u32): u32 {
 	const z17 = t41 & y8;
 
 	// Linear bottom layer (tc + S variables): 30 XOR/XNORs.
-	// `#` in the SLP is XNOR, written here as `~(a ^ b)` — the four output
+	// `#` in the SLP is XNOR, written here as `~(a ^ b)`, the four output
 	// XNORs absorb the AES affine constant 0x63.
 	const tc1  = z15 ^ z16;
 	const tc2  = z10 ^ tc1;
@@ -803,7 +803,7 @@ function sboxWord(w: u32): u32 {
 }
 
 /**
- * AES key expansion — parameterised on key length.
+ * AES key expansion, parameterised on key length.
  *
  * Reference: FIPS 197 §5.2 Algorithm 2 (the unified pseudocode). Reads
  * `keyLen` bytes at KEY_OFFSET; writes `(Nr+1)` byte-level round keys
@@ -812,25 +812,25 @@ function sboxWord(w: u32): u32 {
  * builds the EqInvCipher decrypt schedule into INV_ROUND_KEYS (FIPS 197
  * §5.3.5), and persists Nr to NR_BUFFER.
  *
- * @param keyLen  16, 24, or 32 — the AES key length in bytes.
+ * @param keyLen  16, 24, or 32, the AES key length in bytes.
  */
 function keyExpansion(keyLen: i32): void {
 	// Algorithm 2 parameters.
-	const Nk: i32 = keyLen >> 2;        // 4 / 6 / 8 — words in master key.
-	const Nr: i32 = Nk + 6;             // 10 / 12 / 14 — round count.
-	const totalWords: i32 = (Nr + 1) << 2;  // 44 / 52 / 60 — total schedule words.
+	const Nk: i32 = keyLen >> 2;        // 4 / 6 / 8, words in master key.
+	const Nr: i32 = Nk + 6;             // 10 / 12 / 14, round count.
+	const totalWords: i32 = (Nr + 1) << 2;  // 44 / 52 / 60, total schedule words.
 
 	// Byte-level scratch lives in its own 256-byte buffer (buffers.ts), sized
 	// for AES-256's 240-byte schedule. The earlier piggy-backing on the tail
-	// of ROUND_KEYS_BUFFER collided with rounds 11–13 once AES-256 lands; the
+	// of ROUND_KEYS_BUFFER collided with rounds 11-13 once AES-256 lands; the
 	// dedicated buffer eliminates that trap.
 	const SCRATCH = KEY_SCHEDULE_SCRATCH_OFFSET;
 
-	// Step 1 — copy the master key as the first Nk words.
+	// Step 1, copy the master key as the first Nk words.
 	memory.copy(SCRATCH, KEY_OFFSET, keyLen);
 
-	// Step 2 — derive remaining (totalWords - Nk) words. FIPS 197 §5.2
-	// Algorithm 2 lines 7–15:
+	// Step 2, derive remaining (totalWords - Nk) words. FIPS 197 §5.2
+	// Algorithm 2 lines 7-15:
 	//   for i in [Nk, 4*(Nr+1)):
 	//     temp = w[i-1]
 	//     if i mod Nk == 0:        temp = SubWord(RotWord(temp)) ⊕ Rcon[i/Nk]
@@ -857,7 +857,7 @@ function keyExpansion(keyLen: i32): void {
 			t2 = <u8>(subbed >> 16);
 			t3 = <u8>(subbed >> 24);
 		} else if (Nk > 6 && i % Nk == 4) {
-			// AES-256 only — extra SubWord, no RotWord, no Rcon.
+			// AES-256 only, extra SubWord, no RotWord, no Rcon.
 			const packed = (<u32>t0)
 				| ((<u32>t1) << 8)
 				| ((<u32>t2) << 16)
@@ -876,7 +876,7 @@ function keyExpansion(keyLen: i32): void {
 		store<u8>(SCRATCH + i * 4 + 3, load<u8>(SCRATCH + (i - Nk) * 4 + 3) ^ t3);
 	}
 
-	// Step 3 — bitslice each of the (Nr+1) round keys. For each round key,
+	// Step 3, bitslice each of the (Nr+1) round keys. For each round key,
 	// fill BLOCK_PT_8X with 8 copies of the 16-byte key, transpose, then copy
 	// bitsliced state to ROUND_KEYS_OFFSET + round*128.
 	for (let round: i32 = 0; round < Nr + 1; round++) {
@@ -890,7 +890,7 @@ function keyExpansion(keyLen: i32): void {
 		memory.copy(ROUND_KEYS_OFFSET + (round << 7), BITSLICED_STATE_OFFSET, 128);
 	}
 
-	// Step 4 — build EqInvCipher (decrypt) round keys at INV_ROUND_KEYS.
+	// Step 4, build EqInvCipher (decrypt) round keys at INV_ROUND_KEYS.
 	// FIPS 197 §5.3.5: K[0] and K[Nr] stay as the forward keys; K[1..Nr-1]
 	// are InvMixColumns-transformed so decrypt's per-round AddRoundKey reuses
 	// the encrypt structure unchanged. We populate INV_ROUND_KEYS in parallel
@@ -902,7 +902,7 @@ function keyExpansion(keyLen: i32): void {
 		memory.copy(INV_ROUND_KEYS_OFFSET + (r << 7), BITSLICED_STATE_OFFSET, 128);
 	}
 
-	// Step 5 — persist Nr; encrypt/decrypt read this at the top of each call.
+	// Step 5, persist Nr; encrypt/decrypt read this at the top of each call.
 	store<u8>(NR_OFFSET, <u8>Nr);
 
 	// Wipe the byte-level scratch and BLOCK_PT_8X (since they held key bytes).
@@ -971,7 +971,7 @@ export function encryptBlock_8x(): void {
 	}
 
 	// Final round Nr: SubBytes, ShiftRows, AddRoundKey (no MixColumns;
-	// FIPS 197 §5.1 Algorithm 1 lines 10–12).
+	// FIPS 197 §5.1 Algorithm 1 lines 10-12).
 	sboxBitsliced();
 	shiftRows();
 	addRoundKey(Nr);
@@ -986,7 +986,7 @@ export function encryptBlock_8x(): void {
  * state (lane 0 populated, lanes 1..7 zero), the standard 8x round kernel
  * runs, and `transposeOut1` reconstructs block 0 from the state and writes
  * BLOCK_CT. The 7 dummy lanes still pay AES work in the kernel (it's
- * inherently 8-wide), but BLOCK_PT_8X / BLOCK_CT_8X are never touched —
+ * inherently 8-wide), but BLOCK_PT_8X / BLOCK_CT_8X are never touched,
  * saves the prior 144 bytes of memory ops and ~⅔ of the transpose v128
  * count per call. Hot path for AES-GCM-SIV's `sivCtrXform`.
  *
@@ -1058,7 +1058,7 @@ export function decryptBlock_8x(): void {
  * AES decrypt a single block at BLOCK_PT_OFFSET (ciphertext input),
  * writing plaintext to BLOCK_CT_OFFSET.
  *
- * Direct single-block path mirroring `encryptBlock` — reads BLOCK_PT
+ * Direct single-block path mirroring `encryptBlock`, reads BLOCK_PT
  * (treated as ciphertext input here, matching the buffer-naming
  * convention where BLOCK_PT/CT are named for the encrypt direction) and
  * writes BLOCK_CT (plaintext output). Never touches BLOCK_PT_8X /
@@ -1122,7 +1122,7 @@ export function sboxRoundTrip(): void {
  * DEBUG-ONLY: used by aes_round.test.ts (Gate 3).
  * Apply one full AES round at index `roundIdx` to BLOCK_PT_8X, writing
  * BLOCK_CT_8X. The round is the inner-round form (SubBytes + ShiftRows +
- * MixColumns + AddRoundKey) — appropriate for round 1 verification against
+ * MixColumns + AddRoundKey), appropriate for round 1 verification against
  * FIPS 197 §B Round 1.
  */
 export function singleRound(roundIdx: i32): void {

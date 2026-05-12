@@ -21,12 +21,12 @@
 //
 // src/asm/mldsa/sampling.ts
 //
-// ML-DSA — rejection sampling kernels for ExpandA / ExpandS.
+// ML-DSA, rejection sampling kernels for ExpandA / ExpandS.
 // FIPS 204 §7.3 Algorithms 30 (RejNTTPoly) and 31 (RejBoundedPoly), plus
 // Algorithms 14 (CoeffFromThreeBytes) and 15 (CoeffFromHalfByte) used
 // per-byte inside the loops.
 //
-// CT POSTURE — REQUIRED READING:
+// CT POSTURE, REQUIRED READING:
 //
 //   • RejNTTPoly samples Â from the *public* seed ρ. Data-dependent branching
 //     here does not leak secret information; the matrix Â is a public output
@@ -37,7 +37,7 @@
 //     over each input byte regardless of seed value (each byte is uniformly
 //     distributed in [0, 256)). The number of iterations leaked through
 //     branching depends only on the public byte stream G/H produced by
-//     SHAKE — it is not a function of the secret seed contents in a way that
+//     SHAKE, it is not a function of the secret seed contents in a way that
 //     reveals the secret. The Dilithium reference implementation makes the
 //     same trade-off and FIPS 204 §7.3 endorses it. Documented here so
 //     reviewers do not "constant-time-ify" the loop, which would oversample
@@ -50,7 +50,7 @@
 
 import { Q, N } from './params';
 
-// ── rej_ntt_poly — FIPS 204 Algorithm 30 ────────────────────────────────────
+// ── rej_ntt_poly, FIPS 204 Algorithm 30 ────────────────────────────────────
 //
 // Inner sampling loop for RejNTTPoly. Each 3-byte group from the SHAKE128
 // stream is mapped to one candidate (FIPS 204 Algorithm 14
@@ -80,10 +80,10 @@ export function rej_ntt_poly(polyOff: i32, ctrStart: i32, bufOff: i32, bufLen: i
 	return ctr - ctrStart;
 }
 
-// ── rej_bounded_poly — FIPS 204 Algorithm 31 ────────────────────────────────
+// ── rej_bounded_poly, FIPS 204 Algorithm 31 ────────────────────────────────
 //
 // Inner sampling loop for RejBoundedPoly. Each input byte yields up to two
-// candidates via CoeffFromHalfByte (Alg 15) — the low and high nibbles.
+// candidates via CoeffFromHalfByte (Alg 15), the low and high nibbles.
 //
 // CoeffFromHalfByte:
 //   if η = 2 and b < 15  →  return 2 − (b mod 5)     ∈ {-2,-1,0,1,2}
@@ -127,25 +127,25 @@ export function rej_bounded_poly(polyOff: i32, ctrStart: i32, bufOff: i32, bufLe
 	return ctr - ctrStart;
 }
 
-// ── sample_in_ball — FIPS 204 Algorithm 29 ──────────────────────────────────
+// ── sample_in_ball, FIPS 204 Algorithm 29 ──────────────────────────────────
 //
-// CT posture: SampleInBall consumes c̃ (signature commitment hash) — derived
+// CT posture: SampleInBall consumes c̃ (signature commitment hash), derived
 // from H(μ || w₁Encode(w₁)). Both inputs to that hash are public:
 // μ is published in the message representative; w₁Encode(w₁) is reconstructable
 // from the signature itself (Verify_internal recomputes it). The final
 // signature includes c̃ in plaintext. Hence SampleInBall's data-dependent
 // branching reveals only public information. Documented per FIPS 204 §7.3.
 //
-// Resumable shape — the orchestration layer pre-squeezes one SHAKE block
+// Resumable shape, the orchestration layer pre-squeezes one SHAKE block
 // (typically 136 bytes for SHAKE256) and calls this kernel. If the buffer is
 // exhausted before all τ samples land, the kernel returns the last
 // not-yet-filled index `i`, and the caller squeezes another block and calls
 // again with that `i` as `startI`.
 //
-// First call contract — caller must:
+// First call contract, caller must:
 //   1. Zero `polyOff` (256 × i32 = 1024 bytes).
 //   2. Squeeze 8 bytes of the SHAKE stream into `signsOff`.
-//   3. Squeeze N bytes into `posBytesOff` (any N ≥ 0 — caller's choice).
+//   3. Squeeze N bytes into `posBytesOff` (any N ≥ 0, caller's choice).
 //   4. Call sample_in_ball(polyOff, signsOff, posBytesOff, N, tau, 256-tau).
 //
 // Subsequent calls:
@@ -153,8 +153,8 @@ export function rej_bounded_poly(polyOff: i32, ctrStart: i32, bufOff: i32, bufLe
 //   6. Call again with `startI` set to the previous return value.
 //
 // Returns:
-//   256       — success: all τ samples placed, full polynomial populated.
-//   value < 256 — buffer exhausted; resume with this value as startI.
+//   256      , success: all τ samples placed, full polynomial populated.
+//   value < 256, buffer exhausted; resume with this value as startI.
 export function sample_in_ball(
 	polyOff:    i32,
 	signsOff:   i32,

@@ -61,7 +61,7 @@ function regionIsZero(mem: Uint8Array, off: number, len: number): boolean {
 	return true;
 }
 
-describe('kemKeypairDerand — scratch slots wiped after keygen', () => {
+describe('kemKeypairDerand, scratch slots wiped after keygen', () => {
 	it('POLYVEC_SLOT_1 is zero after keygen (ŝ in NTT domain)', () => {
 		const kem = new MlKem768();
 		kem.keygen();

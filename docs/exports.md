@@ -9,12 +9,15 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [Serpent-256](#serpent-256)
 > - [AES](#aes)
 > - [Stream](#stream)
+> - [Sign](#sign)
 > - [Errors](#errors)
 > - [XChaCha20 / Poly1305](#xchacha20--poly1305)
 > - [SHA-2](#sha-2)
 > - [SHA-3](#sha-3)
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
+> - [ML-DSA (Post-quantum signatures)](#ml-dsa-post-quantum-signatures)
+> - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
 > - [Fortuna CSPRNG](#fortuna-csprng)
 > - [Ratchet (Sparse Post-Quantum Ratchet KDF)](#ratchet-sparse-post-quantum-ratchet-kdf)
 > - [Types](#types)
@@ -30,7 +33,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa'` |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa'` |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -71,13 +74,13 @@ Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD, with CBC and CTR mod
 | Export | Kind | Description |
 |--------|------|-------------|
 | `aesInit` | function | Module-scoped init. `aesInit(source: WasmSource)` loads only aes. |
-| `AES` | class | AES ECB block cipher. `loadKey(key)` (16, 24, or 32 byte keys), `encryptBlock(plaintext)`, `decryptBlock(ciphertext)` (FIPS 197 §5.3.5 Equivalent Inverse Cipher). Unauthenticated. Atomic — does not hold module exclusivity. |
-| `AESCbc` | class | AES CBC mode (SP 800-38A §6.2) with PKCS7 padding (RFC 5652 §6.3). `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. **Unauthenticated** — requires `{ dangerUnauthenticated: true }` opt-in; pair with HMAC (Encrypt-then-MAC) or use `Seal` with `SerpentCipher`/`XChaCha20Cipher` instead. SIMD CBC decrypt; scalar CBC encrypt (chaining is sequential by definition). Stateful — holds the AES module exclusively until `dispose()`. |
-| `AESCtr` | class | AES CTR mode (SP 800-38A §6.5). `loadKey(key)`, `setNonce(nonce)`, `encrypt(plaintext)` / `decrypt(ciphertext)`. Counter is 128-bit big-endian (SP 800-38A Appendix B.1, matches §F.5 worked examples). **Unauthenticated** — pair with HMAC or use an authenticated cipher instead. SIMD via the bitsliced 8-block kernel. Stateful — counter advances across calls; reset with `setNonce`. |
-| `AESGCM` | class | AES-GCM authenticated encryption (SP 800-38D §7). `seal(key, iv, aad, pt)` returns `ciphertext \|\| tag` (128-bit tag); `open(key, iv, aad, sealed)` verifies and returns plaintext, throws `RangeError('authentication failed')` on any verification failure. 12-byte (96-bit) IV is the recommended fast path; variable-length IVs trigger the GHASH-on-IV slow path per §7.1 step 2. AAD up to 64 KiB; PT up to 64 KiB per single call (chunked iteration internally for larger inputs). Tag length fixed at 128 bits. Stateful — holds the AES module exclusively until `dispose()`. |
-| `AESGCMSIV` | class | AES-GCM-SIV nonce-misuse-resistant authenticated encryption (RFC 8452). Constructor takes a 16-byte (AES-128) or 32-byte (AES-256) key — AES-192 is **not** supported (RFC 8452 §6 only defines AES-128/256 variants). `seal(nonce, plaintext, aad?)` returns `ciphertext \|\| tag`; `open(nonce, sealed, aad?)` returns plaintext, throws `AuthenticationError('siv')` on any verification failure. Nonce must be exactly 12 bytes. AAD ≤ 64 KiB; plaintext ≤ 64 KiB per call (single-shot only — larger messages will use a future streaming SIV variant). Tag verification routes through `constantTimeEqual` in the dedicated `ct` WASM module. Atomic. |
-| `AESGenerator` | const | `Generator` const for `Fortuna`. AES-256 ECB counter-mode PRF (Practical Cryptography §9.4 — the spec-canonical Fortuna generator). `keySize: 32`, `blockSize: 16`, `counterSize: 16`. Requires `init({ aes })`. Re-exported from the root barrel. |
-| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `KyberSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher` — closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
+| `AES` | class | AES ECB block cipher. `loadKey(key)` (16, 24, or 32 byte keys), `encryptBlock(plaintext)`, `decryptBlock(ciphertext)` (FIPS 197 §5.3.5 Equivalent Inverse Cipher). Unauthenticated. Atomic, does not hold module exclusivity. |
+| `AESCbc` | class | AES CBC mode (SP 800-38A §6.2) with PKCS7 padding (RFC 5652 §6.3). `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. **Unauthenticated.** requires `{ dangerUnauthenticated: true }` opt-in; pair with HMAC (Encrypt-then-MAC) or use `Seal` with `SerpentCipher`/`XChaCha20Cipher` instead. SIMD CBC decrypt; scalar CBC encrypt (chaining is sequential by definition). Stateful, holds the AES module exclusively until `dispose()`. |
+| `AESCtr` | class | AES CTR mode (SP 800-38A §6.5). `loadKey(key)`, `setNonce(nonce)`, `encrypt(plaintext)` / `decrypt(ciphertext)`. Counter is 128-bit big-endian (SP 800-38A Appendix B.1, matches §F.5 worked examples). **Unauthenticated.** pair with HMAC or use an authenticated cipher instead. SIMD via the bitsliced 8-block kernel. Stateful, counter advances across calls; reset with `setNonce`. |
+| `AESGCM` | class | AES-GCM authenticated encryption (SP 800-38D §7). `seal(key, iv, aad, pt)` returns `ciphertext \|\| tag` (128-bit tag); `open(key, iv, aad, sealed)` verifies and returns plaintext, throws `RangeError('authentication failed')` on any verification failure. 12-byte (96-bit) IV is the recommended fast path; variable-length IVs trigger the GHASH-on-IV slow path per §7.1 step 2. AAD up to 64 KiB; PT up to 64 KiB per single call (chunked iteration internally for larger inputs). Tag length fixed at 128 bits. Stateful, holds the AES module exclusively until `dispose()`. |
+| `AESGCMSIV` | class | AES-GCM-SIV nonce-misuse-resistant authenticated encryption (RFC 8452). Constructor takes a 16-byte (AES-128) or 32-byte (AES-256) key, AES-192 is **not** supported (RFC 8452 §6 only defines AES-128/256 variants). `seal(nonce, plaintext, aad?)` returns `ciphertext \|\| tag`; `open(nonce, sealed, aad?)` returns plaintext, throws `AuthenticationError('siv')` on any verification failure. Nonce must be exactly 12 bytes. AAD ≤ 64 KiB; plaintext ≤ 64 KiB per call (single-shot only, larger messages will use a future streaming SIV variant). Tag verification routes through `constantTimeEqual` in the dedicated `ct` WASM module. Atomic. |
+| `AESGenerator` | const | `Generator` const for `Fortuna`. AES-256 ECB counter-mode PRF (Practical Cryptography §9.4, the spec-canonical Fortuna generator). `keySize: 32`, `blockSize: 16`, `counterSize: 16`. Requires `init({ aes })`. Re-exported from the root barrel. |
+| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `KyberSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher`, closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
 
 ---
 
@@ -105,11 +108,43 @@ Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 
 ---
 
+## Sign
+
+Cipher-agnostic signature envelope and streaming layer over the v3 SignatureSuite abstraction.
+Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `Sign` | class (static) | One-shot signature envelope. `Sign.sign(suite, sk, msg, ctx)`, `Sign.verify(suite, pk, blob, ctx)`, `Sign.signDetached(suite, sk, msg, ctx)`, `Sign.verifyDetached(suite, pk, msg, sig, ctx)`, `Sign.peek(blob, suite)`. Never instantiated. |
+| `SignStream` | class | Streaming signature production over a `StreamableSignatureSuite`. `new SignStream(suite, sk, ctx)`, `update(chunk)`, `finalize()`, `dispose()`. `finalize()` returns wire bytes byte-identical to `Sign.sign` for the same inputs. |
+| `VerifyStream` | class | Streaming signature consumption over a `StreamableSignatureSuite`. `new VerifyStream(suite, pk, ctx)`, `update(chunk)`, `finalize()` returns verified payload or throws `SigningError`. Buffered payload chunks are wiped on auth failure. |
+| `SignatureSuite` | interface | Suite contract for all signature schemes. Fields: `formatEnum`, `formatName`, `ctxDomain`, `pkSize`, `skSize`, `sigSize`, `wasmModules`. Methods: `sign(sk, msg, ctx)`, `verify(pk, msg, sig, ctx)`, `keygen()`. |
+| `StreamableSignatureSuite` | interface | `SignatureSuite` extension for suites usable with `SignStream`/`VerifyStream`. Adds `prehashAlgorithm`, `prehashSize`, `signPrehashed(sk, digest, ctx)`, `verifyPrehashed(pk, digest, sig, ctx)`. |
+| `PrehashAlgorithm` | type | Union of the six prehash function identifiers used across the catalog: `'sha-256' \| 'sha-512' \| 'sha3-256' \| 'sha3-512' \| 'shake-128' \| 'shake-256'`. |
+| `MlDsa44Suite` | const | Pure ML-DSA-44 SignatureSuite. `formatEnum: 0x03`, `ctxDomain: 'mldsa44-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa65Suite` | const | Pure ML-DSA-65 SignatureSuite. `formatEnum: 0x04`, `ctxDomain: 'mldsa65-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa87Suite` | const | Pure ML-DSA-87 SignatureSuite. `formatEnum: 0x05`, `ctxDomain: 'mldsa87-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa44PreHashSuite` | const | ML-DSA-44 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x13`, `ctxDomain: 'mldsa44-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa65PreHashSuite` | const | ML-DSA-65 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x14`, `ctxDomain: 'mldsa65-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa87PreHashSuite` | const | ML-DSA-87 + SHA3-512 prehash StreamableSignatureSuite. `formatEnum: 0x15`, `ctxDomain: 'mldsa87-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `SlhDsa128fSuite` | const | Pure SLH-DSA-SHAKE-128f SignatureSuite. `formatEnum: 0x06`, `ctxDomain: 'slhdsa128f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa192fSuite` | const | Pure SLH-DSA-SHAKE-192f SignatureSuite. `formatEnum: 0x07`, `ctxDomain: 'slhdsa192f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa256fSuite` | const | Pure SLH-DSA-SHAKE-256f SignatureSuite. `formatEnum: 0x08`, `ctxDomain: 'slhdsa256f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa128fPreHashSuite` | const | SLH-DSA-SHAKE-128f + SHAKE128(32) prehash StreamableSignatureSuite. `formatEnum: 0x16`, `ctxDomain: 'slhdsa128f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `SlhDsa192fPreHashSuite` | const | SLH-DSA-SHAKE-192f + SHAKE256(64) prehash StreamableSignatureSuite. `formatEnum: 0x17`, `ctxDomain: 'slhdsa192f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `SlhDsa256fPreHashSuite` | const | SLH-DSA-SHAKE-256f + SHAKE256(64) prehash StreamableSignatureSuite. `formatEnum: 0x18`, `ctxDomain: 'slhdsa256f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `MlDsa44SlhDsa128fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-44 + SLH-DSA-128f (NIST cat-2 + cat-1). `formatEnum: 0x30`, `ctxDomain: 'mldsa44-slhdsa128f-envelope-v3'`. Composite `pk = pk_mldsa \|\| pk_slhdsa`, `sig = sig_mldsa \|\| sig_slhdsa`, ML-DSA-first, no length prefixes. Prehash SHAKE128(32). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa65SlhDsa192fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-65 + SLH-DSA-192f (cat-3 + cat-3). `formatEnum: 0x31`, `ctxDomain: 'mldsa65-slhdsa192f-envelope-v3'`. Prehash SHAKE256(64). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa87SlhDsa256fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-87 + SLH-DSA-256f (cat-5 + cat-5). `formatEnum: 0x32`, `ctxDomain: 'mldsa87-slhdsa256f-envelope-v3'`. Prehash SHAKE256(64). Requires `init({ mldsa, sha3, slhdsa })`. |
+
+---
+
 ## Errors
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
+| `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signaturesuite.md](./signaturesuite.md)). |
 
 ---
 
@@ -163,13 +198,17 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 | `SHA3_256` | class | SHA3-256 hash (FIPS 202). `hash(msg)` returns 32 bytes. |
 | `SHA3_384` | class | SHA3-384 hash (FIPS 202). `hash(msg)` returns 48 bytes. |
 | `SHA3_512` | class | SHA3-512 hash (FIPS 202). `hash(msg)` returns 64 bytes. |
+| `SHA3_256Stream` | class | Incremental SHA3-256. `update(chunk)`, `finalize()` returns 32 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
+| `SHA3_512Stream` | class | Incremental SHA3-512. `update(chunk)`, `finalize()` returns 64 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
 | `SHAKE128` | class | SHAKE128 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
 | `SHAKE256` | class | SHAKE256 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
+| `SHAKE128Stream` | class | Fixed-output streaming SHAKE128. `new SHAKE128Stream(outputLen)`, `update(chunk)`, `finalize()` returns exactly `outputLen` bytes and disposes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. Substrate for `createRunningHash('shake-128')` in the sign layer. |
+| `SHAKE256Stream` | class | Fixed-output streaming SHAKE256. Same shape as `SHAKE128Stream`. Substrate for `createRunningHash('shake-256')`. |
 | `CSHAKE128` | class | cSHAKE128 customizable XOF (SP 800-185 §3). `new CSHAKE128(customization)`, `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. Throws if customization is empty (use SHAKE128 instead). |
 | `CSHAKE256` | class | cSHAKE256 customizable XOF (SP 800-185 §3). Same shape as CSHAKE128 with the 256-bit-strength rate. |
 | `KMAC128` | class | KMAC128 keyed Keccak MAC, fixed-output (SP 800-185 §4). `new KMAC128(key, outLen, customization)`, `update(chunk)`, `finalize()`, `mac(msg)`, static `verify(tag, key, msg, customization)` (throws `AuthenticationError('kmac128')` on mismatch). |
 | `KMAC256` | class | KMAC256 keyed Keccak MAC, fixed-output (SP 800-185 §4). Same shape as KMAC128 with `AuthenticationError('kmac256')` discriminator. |
-| `KMACXOF128` | class | KMAC128 in XOF mode (SP 800-185 §4.3.1). `new KMACXOF128(key, customization)`, `update(chunk)`, `squeeze(n)`, `mac(msg, outLen)`. No static `verify` — caller squeezes a fixed length and uses `constantTimeEqual`. |
+| `KMACXOF128` | class | KMAC128 in XOF mode (SP 800-185 §4.3.1). `new KMACXOF128(key, customization)`, `update(chunk)`, `squeeze(n)`, `mac(msg, outLen)`. No static `verify`, caller squeezes a fixed length and uses `constantTimeEqual`. |
 | `KMACXOF256` | class | KMAC256 in XOF mode (SP 800-185 §4.3.1). Same shape as KMACXOF128. |
 
 ---
@@ -239,8 +278,8 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 | Export | Kind | Description |
 |--------|------|-------------|
 | `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
-| `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly — use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
-| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `dispose()`. |
+| `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly, use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
+| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `signHashPrehashed(sk, digest, ph, ctx?)`, `signHashPrehashedDeterministic(sk, digest, ph, ctx?)`, `signHashPrehashedDerand(sk, digest, ph, ctx, rnd)`, `verifyHashPrehashed(vk, digest, sig, ph, ctx?)`, `dispose()`. |
 | `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
 | `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
 | `MlDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 204 pkEncode / skEncode). |
@@ -252,6 +291,39 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 
 ---
 
+## SLH-DSA (Post-quantum signatures)
+
+Requires `init({ slhdsa: slhdsaWasm })`. HashSLH-DSA with a SHA-2 family
+pre-hash additionally requires `init({ sha2: sha2Wasm })`; HashSLH-DSA
+with a SHA-3 or SHAKE pre-hash additionally requires
+`init({ sha3: sha3Wasm })`. Pure-mode SLH-DSA needs neither, the slhdsa
+WASM module embeds its own Keccak permutation for the internal
+F / H / T_l / PRF / PRFmsg / Hmsg primitives.
+Subpath: `leviathan-crypto/slhdsa`. See [slhdsa.md](./slhdsa.md).
+
+SLH-DSA classes ship pure-SLH-DSA `keygen` / `keygenDerand` / `sign` /
+`signDeterministic` / `signDerand` / `verify` and the HashSLH-DSA
+pre-hash counterparts `signHash` / `signHashDeterministic` /
+`signHashDerand` / `verifyHash`, plus the caller-supplied-prehash
+variants `signHashPrehashed` / `signHashPrehashedDeterministic` /
+`signHashPrehashedDerand` / `verifyHashPrehashed` (FIPS 205 §10.2.2
+Algorithm 23 / §10.3 Algorithm 25).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `slhdsaInit` | function | Module-scoped init. `slhdsaInit(source: WasmSource)` loads only the slhdsa WASM. |
+| `SlhDsaBase` | class | Abstract base class for all SLH-DSA variants. Holds `params: SlhDsaParams`. Not normally instantiated directly, use `SlhDsa128f`, `SlhDsa192f`, or `SlhDsa256f`. |
+| `SlhDsa128f` | class | SLH-DSA-SHAKE-128f (n=16, h=66, d=22, h'=3, a=6, k=33, lg(w)=4; NIST category 1). pk 32 B, sk 64 B, sig 17088 B. Same method surface as `SlhDsa192f`. |
+| `SlhDsa192f` | class | SLH-DSA-SHAKE-192f (n=24, h=66, d=22, h'=3, a=8, k=33, lg(w)=4; NIST category 3). pk 48 B, sk 96 B, sig 35664 B. `keygen()`, `keygenDerand(seed)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, optRand, ctx?)`, `verify(pk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, optRand, ctx?)`, `verifyHash(pk, M, sig, ph, ctx?)`, `signHashPrehashed(sk, digest, ph, ctx?)`, `signHashPrehashedDeterministic(sk, digest, ph, ctx?)`, `signHashPrehashedDerand(sk, digest, ph, optRand, ctx?)`, `verifyHashPrehashed(pk, digest, sig, ph, ctx?)`, `dispose()`. |
+| `SlhDsa256f` | class | SLH-DSA-SHAKE-256f (n=32, h=68, d=17, h'=4, a=9, k=35, lg(w)=4; NIST category 5). pk 64 B, sk 128 B, sig 49856 B. Same API as `SlhDsa192f`. |
+| `SlhDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 205 pkEncode / skEncode). |
+| `SlhDsaParams` | type | Parameter-set configuration (n, h, d, h', a, k, lg(w), securityCategory, byte sizes, paramSet name, wasmSelector). |
+| `SLHDSA128F` | const | Parameter set for SLH-DSA-SHAKE-128f. |
+| `SLHDSA192F` | const | Parameter set for SLH-DSA-SHAKE-192f. |
+| `SLHDSA256F` | const | Parameter set for SLH-DSA-SHAKE-256f. |
+
+---
+
 ## Fortuna CSPRNG
 
 Takes a `Generator` and a `HashFn` at create time. Required `init()` modules depend on which pair you pass; valid combinations are listed in [fortuna.md](./fortuna.md).
@@ -259,7 +331,7 @@ Takes a `Generator` and a `HashFn` at create time. Required `init()` modules dep
 | Export | Kind | Description |
 |--------|------|-------------|
 | `Fortuna`            | class    | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create({ generator, hash })` static factory; `get(n)`, `addEntropy()`, `stop()`. |
-| `AESGenerator`       | const    | `Generator` const for `Fortuna`. AES-256 PRF in counter mode (Practical Cryptography §9.4 — the spec-canonical generator). Requires `init({ aes })`. Re-exported from `'leviathan-crypto/aes'`. |
+| `AESGenerator`       | const    | `Generator` const for `Fortuna`. AES-256 PRF in counter mode (Practical Cryptography §9.4, the spec-canonical generator). Requires `init({ aes })`. Re-exported from `'leviathan-crypto/aes'`. |
 | `SerpentGenerator`   | const    | `Generator` const for `Fortuna`. Serpent-256 PRF in counter mode. Requires `init({ serpent })`. Re-exported from `'leviathan-crypto/serpent'`. |
 | `ChaCha20Generator`  | const    | `Generator` const for `Fortuna`. ChaCha20 PRF with fixed zero nonce. Requires `init({ chacha20 })`. Re-exported from `'leviathan-crypto/chacha20'`. |
 | `SHA256Hash`         | const    | `HashFn` const for `Fortuna`. Stateless SHA-256. Requires `init({ sha2 })`. Re-exported from `'leviathan-crypto/sha2'`. |
@@ -277,19 +349,19 @@ Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `ratchetInit` | function | `ratchetInit(sk, context?)` — derives initial root key, send chain key, and receive chain key from a 32-byte shared secret (`KDF_SCKA_INIT`). Returns `RatchetInitResult`. |
+| `ratchetInit` | function | `ratchetInit(sk, context?)`, derives initial root key, send chain key, and receive chain key from a 32-byte shared secret (`KDF_SCKA_INIT`). Returns `RatchetInitResult`. |
 | `KDFChain` | class | Stateful symmetric ratchet chain (`KDF_SCKA_CK`). `new KDFChain(ck)`, `step()` → 32-byte message key, `stepWithCounter()` → `{ key, counter }`, `dispose()`. |
-| `SkippedKeyStore` | class | MKSKIPPED cache for a single `KDFChain` (DR spec §3.2/§3.5). `new SkippedKeyStore({ maxCacheSize?, maxSkipPerResolve? })`. `resolve(chain, counter)` → `ResolveHandle` — call `handle.commit()` on successful decrypt, `handle.rollback()` on auth failure. `advanceToBoundary(chain, pn)`, `size`, `wipeAll()`. Requires `sha2`. |
+| `SkippedKeyStore` | class | MKSKIPPED cache for a single `KDFChain` (DR spec §3.2/§3.5). `new SkippedKeyStore({ maxCacheSize?, maxSkipPerResolve? })`. `resolve(chain, counter)` → `ResolveHandle`, call `handle.commit()` on successful decrypt, `handle.rollback()` on auth failure. `advanceToBoundary(chain, pn)`, `size`, `wipeAll()`. Requires `sha2`. |
 | `RatchetKeypair` | class | Single-use ek/dk lifecycle for one KEM ratchet step. `new RatchetKeypair(kem)`, `readonly ek`, `decap(kem, rk, kemCt, context?)`, `dispose()`. Requires `sha2`, `kyber`, `sha3`. |
-| `kemRatchetEncap` | function | `kemRatchetEncap(kem, rk, peerEk, context?)` — encapsulation side of a KEM ratchet step (`KDF_SCKA_RK`). Returns `KemEncapResult` including `kemCt` to transmit to peer. |
-| `kemRatchetDecap` | function | `kemRatchetDecap(kem, rk, dk, kemCt, ownEk, context?)` — decapsulation side of a KEM ratchet step. `ownEk` is the local party's encapsulation key, bound into the HKDF info string alongside `peerEk` and `kemCt` as defense-in-depth on top of the KEM FO transform. Returns `KemDecapResult` with chain key slots swapped to match Bob's perspective. |
-| `ratchetReady` | function | `ratchetReady(): boolean` — returns `true` if `sha2` has been initialized. |
-| `RatchetInitResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }` — all 32-byte `Uint8Array` fields. |
-| `KemEncapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey, kemCt }` — three 32-byte keys plus the ML-KEM ciphertext. |
-| `KemDecapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }` — all 32-byte `Uint8Array` fields. Slots are swapped relative to the encap side. |
-| `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }` — canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
+| `kemRatchetEncap` | function | `kemRatchetEncap(kem, rk, peerEk, context?)`, encapsulation side of a KEM ratchet step (`KDF_SCKA_RK`). Returns `KemEncapResult` including `kemCt` to transmit to peer. |
+| `kemRatchetDecap` | function | `kemRatchetDecap(kem, rk, dk, kemCt, ownEk, context?)`, decapsulation side of a KEM ratchet step. `ownEk` is the local party's encapsulation key, bound into the HKDF info string alongside `peerEk` and `kemCt` as defense-in-depth on top of the KEM FO transform. Returns `KemDecapResult` with chain key slots swapped to match Bob's perspective. |
+| `ratchetReady` | function | `ratchetReady(): boolean`, returns `true` if `sha2` has been initialized. |
+| `RatchetInitResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }`, all 32-byte `Uint8Array` fields. |
+| `KemEncapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey, kemCt }`, three 32-byte keys plus the ML-KEM ciphertext. |
+| `KemDecapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }`, all 32-byte `Uint8Array` fields. Slots are swapped relative to the encap side. |
+| `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }`, canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
 | `MlKemLike` | interface | Structural interface satisfied by `MlKem512`, `MlKem768`, `MlKem1024`. Used as the `kem` parameter type for `kemRatchetEncap`/`kemRatchetDecap`/`RatchetKeypair`. |
-| `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key` — 32-byte message key (throws after settlement). `commit()` — wipes key, marks settled (call on successful decrypt). `rollback()` — returns key to store, marks settled (call on auth failure). Double-settle throws. |
+| `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key`, 32-byte message key (throws after settlement). `commit()`, wipes key, marks settled (call on successful decrypt). `rollback()`, returns key to store, marks settled (call on auth failure). Double-settle throws. |
 
 ---
 

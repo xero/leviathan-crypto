@@ -21,19 +21,19 @@
 //
 // src/asm/kyber/reduce.ts
 //
-// ML-KEM (Kyber) — modular arithmetic: Montgomery and Barrett reduction.
+// ML-KEM (Kyber), modular arithmetic: Montgomery and Barrett reduction.
 // FIPS 203 §4.5 (implicitly) and pq-crystals/kyber ref/reduce.c.
 
 import { Q, QINV, BARRETT_V, BARRETT_SHIFT } from './params';
 
 /**
  * Montgomery reduction.
- * FIPS 203 §4.5 — given a ∈ {-q·2^15, ..., q·2^15 - 1},
+ * FIPS 203 §4.5, given a ∈ {-q·2^15, ..., q·2^15 - 1},
  * returns a·R^{-1} mod q where R = 2^16, result in {-(q-1), ..., q-1}.
  */
 @inline
 export function montgomery_reduce(a: i32): i16 {
-	// t = (i16)(a * QINV) — keep only low 16 bits (mod 2^16)
+	// t = (i16)(a * QINV), keep only low 16 bits (mod 2^16)
 	const t: i16 = <i16>(<i32><i16>a * QINV);
 	// result = (a - t*q) >> 16
 	return <i16>((a - t * Q) >> 16);

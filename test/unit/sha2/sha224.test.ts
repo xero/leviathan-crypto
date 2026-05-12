@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA-224 Known-Answer Tests — FIPS 180-4 §6.3
+ * SHA-224 Known-Answer Tests, FIPS 180-4 §6.3
  *
  * Source: FIPS 180-4 (SHA Standard), §5.3.2 IV + §6.3 algorithm definition
  * Files:  vectors/sha2.ts (sha224Vectors, sha224CrossCheck)
@@ -47,7 +47,7 @@ beforeAll(async () => {
 
 // GATE: SHA-224 empty message: FIPS 180-4 (boundary case)
 // Vector: sha2.ts[sha224Vectors[0]]
-describe('Gate — SHA-224 empty message', () => {
+describe('Gate, SHA-224 empty message', () => {
 	test('SHA-224("") matches FIPS 180-4 §6.3 / §5.3.2 IV', () => {
 		const h = new SHA224();
 		const digest = h.hash(new Uint8Array(0));

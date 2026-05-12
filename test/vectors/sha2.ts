@@ -1,13 +1,13 @@
 // SHA-2 and HMAC-SHA2 test vectors
 //
 // Sources:
-//   FIPS 180-4 — Secure Hash Standard (SHS), August 2015
+//   FIPS 180-4, Secure Hash Standard (SHS), August 2015
 //   @see https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-//   Appendix B — SHA-256 examples (B.1, B.2, B.3)
-//   Appendix C — SHA-512 examples (C.1, C.2, C.3)
-//   Appendix D — SHA-384 examples (D.1, D.2, D.3)
+//   Appendix B, SHA-256 examples (B.1, B.2, B.3)
+//   Appendix C, SHA-512 examples (C.1, C.2, C.3)
+//   Appendix D, SHA-384 examples (D.1, D.2, D.3)
 //
-//   RFC 4231 — Identifiers and Test Vectors for HMAC-SHA-224/256/384/512
+//   RFC 4231, Identifiers and Test Vectors for HMAC-SHA-224/256/384/512
 //   @see https://www.rfc-editor.org/rfc/rfc4231
 //   Sections covered: §4.2 (TC1), §4.3 (TC2), §4.7 (TC6)
 //
@@ -45,7 +45,7 @@ export interface HkdfVector {
 }
 
 // ============================================================
-// SHA-256 — FIPS 180-4 Appendix B
+// SHA-256, FIPS 180-4 Appendix B
 // ============================================================
 
 /** SHA-256 test vectors from FIPS 180-4 + boundary cases. */
@@ -58,21 +58,21 @@ export const sha256Vectors: HashVector[] = [
 		expected: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
 	},
 	{
-		// FIPS 180-4 Appendix B.1 — "abc" (24-bit message)
+		// FIPS 180-4 Appendix B.1, "abc" (24-bit message)
 		description: 'FIPS 180-4 §B.1: "abc" (3 bytes)',
 		input: '616263',
 		inputText: 'abc',
 		expected: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
 	},
 	{
-		// FIPS 180-4 Appendix B.2 — 448-bit (56-byte) message
+		// FIPS 180-4 Appendix B.2, 448-bit (56-byte) message
 		description: 'FIPS 180-4 §B.2: 448-bit message (56 bytes)',
 		input: '6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071',
 		inputText: 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',
 		expected: '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1',
 	},
 	{
-		// FIPS 180-4 Appendix B.3 — "a" × 1,000,000
+		// FIPS 180-4 Appendix B.3, "a" × 1,000,000
 		// Verified: python3 hashlib.sha256(b'a'*1000000).hexdigest()
 		description: 'FIPS 180-4 §B.3: "a" × 1,000,000',
 		input: '61'.repeat(1000000),
@@ -80,7 +80,7 @@ export const sha256Vectors: HashVector[] = [
 		expected: 'cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0',
 	},
 	{
-		// 55 bytes — one byte short of padding boundary (55 + 1 + 8 = 64)
+		// 55 bytes, one byte short of padding boundary (55 + 1 + 8 = 64)
 		// Verified: python3 hashlib.sha256(b'a'*55).hexdigest()
 		description: 'boundary: 55 bytes (one short of padding boundary)',
 		input: '61'.repeat(55),
@@ -88,15 +88,15 @@ export const sha256Vectors: HashVector[] = [
 		expected: '9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318',
 	},
 	{
-		// 56 bytes — at padding boundary, forces second block
+		// 56 bytes, at padding boundary, forces second block
 		// Verified: python3 hashlib.sha256(b'a'*56).hexdigest()
-		description: 'boundary: 56 bytes (at padding boundary — forces second block)',
+		description: 'boundary: 56 bytes (at padding boundary, forces second block)',
 		input: '61'.repeat(56),
 		inputText: '"a" repeated 56 times',
 		expected: 'b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a',
 	},
 	{
-		// 64 bytes — one full SHA-256 block
+		// 64 bytes, one full SHA-256 block
 		// Verified: python3 hashlib.sha256(b'a'*64).hexdigest()
 		description: 'boundary: 64 bytes (one full block)',
 		input: '61'.repeat(64),
@@ -106,7 +106,7 @@ export const sha256Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA-512 — FIPS 180-4 Appendix C
+// SHA-512, FIPS 180-4 Appendix C
 // ============================================================
 
 /** SHA-512 test vectors from FIPS 180-4 + boundary cases. */
@@ -121,7 +121,7 @@ export const sha512Vectors: HashVector[] = [
 			'47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e',
 	},
 	{
-		// FIPS 180-4 Appendix C.1 — "abc"
+		// FIPS 180-4 Appendix C.1, "abc"
 		description: 'FIPS 180-4 §C.1: "abc" (3 bytes)',
 		input: '616263',
 		inputText: 'abc',
@@ -130,7 +130,7 @@ export const sha512Vectors: HashVector[] = [
 			'2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f',
 	},
 	{
-		// FIPS 180-4 Appendix C.2 — 896-bit (112-byte) message
+		// FIPS 180-4 Appendix C.2, 896-bit (112-byte) message
 		description: 'FIPS 180-4 §C.2: 896-bit message (112 bytes)',
 		input:
 			'61626364656667686263646566676869636465666768696a6465666768696a6b' +
@@ -143,7 +143,7 @@ export const sha512Vectors: HashVector[] = [
 			'501d289e4900f7e4331b99dec4b5433ac7d329eeb6dd26545e96e55b874be909',
 	},
 	{
-		// FIPS 180-4 Appendix C.3 — "a" × 1,000,000
+		// FIPS 180-4 Appendix C.3, "a" × 1,000,000
 		// Verified: python3 hashlib.sha512(b'a'*1000000).hexdigest()
 		description: 'FIPS 180-4 §C.3: "a" × 1,000,000',
 		input: '61'.repeat(1000000),
@@ -153,7 +153,7 @@ export const sha512Vectors: HashVector[] = [
 			'de0ff244877ea60a4cb0432ce577c31beb009c5c2c49aa2e4eadb217ad8cc09b',
 	},
 	{
-		// 111 bytes — one short of SHA-512 padding boundary (111 + 1 + 16 = 128)
+		// 111 bytes, one short of SHA-512 padding boundary (111 + 1 + 16 = 128)
 		// Verified: python3 hashlib.sha512(b'a'*111).hexdigest()
 		description: 'boundary: 111 bytes (one short of padding boundary)',
 		input: '61'.repeat(111),
@@ -162,16 +162,16 @@ export const sha512Vectors: HashVector[] = [
 			'fa9121c7b32b9e01733d034cfc78cbf67f926c7ed83e82200ef86818196921760b4beff48404df811b953828274461673c68d04e297b0eb7b2b4d60fc6b566a2',
 	},
 	{
-		// 112 bytes — at padding boundary, forces second block
+		// 112 bytes, at padding boundary, forces second block
 		// Verified: python3 hashlib.sha512(b'a'*112).hexdigest()
-		description: 'boundary: 112 bytes (at padding boundary — forces second block)',
+		description: 'boundary: 112 bytes (at padding boundary, forces second block)',
 		input: '61'.repeat(112),
 		inputText: '"a" repeated 112 times',
 		expected:
 			'c01d080efd492776a1c43bd23dd99d0a2e626d481e16782e75d54c2503b5dc32bd05f0f1ba33e568b88fd2d970929b719ecbb152f58f130a407c8830604b70ca',
 	},
 	{
-		// 128 bytes — one full SHA-512 block
+		// 128 bytes, one full SHA-512 block
 		// Verified: python3 hashlib.sha512(b'a'*128).hexdigest()
 		description: 'boundary: 128 bytes (one full block)',
 		input: '61'.repeat(128),
@@ -182,12 +182,12 @@ export const sha512Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA-224 — FIPS 180-4 §6.3 (SHA-256 round logic, §5.3.2 IV)
+// SHA-224, FIPS 180-4 §6.3 (SHA-256 round logic, §5.3.2 IV)
 // ============================================================
 
 /**
  * SHA-224 test vectors. SHA-224 shares the SHA-256 round function and message
- * schedule per FIPS 180-4 §6.3 — only the IV differs, and the output is
+ * schedule per FIPS 180-4 §6.3, only the IV differs, and the output is
  * truncated to 28 bytes. The "abc" digest is the NIST CSRC worked example
  * (csrc.nist.gov "Examples with Intermediate Values" / SHA-224).
  */
@@ -200,7 +200,7 @@ export const sha224Vectors: HashVector[] = [
 		expected: 'd14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f',
 	},
 	{
-		// NIST CSRC "Examples with Intermediate Values" SHA-224 — "abc"
+		// NIST CSRC "Examples with Intermediate Values" SHA-224, "abc"
 		// Verified: printf 'abc' | openssl dgst -sha224
 		description: 'NIST worked example: "abc" (3 bytes)',
 		input: '616263',
@@ -216,7 +216,7 @@ export const sha224Vectors: HashVector[] = [
 		expected: '75388b16512776cc5dba5da1fd890150b0c6455cb4f58b1952522525',
 	},
 	{
-		// 55 bytes — one byte short of SHA-256 padding boundary (55 + 1 + 8 = 64)
+		// 55 bytes, one byte short of SHA-256 padding boundary (55 + 1 + 8 = 64)
 		// Verified: python3 hashlib.sha224(b'a'*55).hexdigest()
 		description: 'boundary: 55 bytes (one short of padding boundary)',
 		input: '61'.repeat(55),
@@ -224,15 +224,15 @@ export const sha224Vectors: HashVector[] = [
 		expected: 'fb0bd626a70c28541dfa781bb5cc4d7d7f56622a58f01a0b1ddd646f',
 	},
 	{
-		// 56 bytes — at padding boundary, forces second block
+		// 56 bytes, at padding boundary, forces second block
 		// Verified: python3 hashlib.sha224(b'a'*56).hexdigest()
-		description: 'boundary: 56 bytes (at padding boundary — forces second block)',
+		description: 'boundary: 56 bytes (at padding boundary, forces second block)',
 		input: '61'.repeat(56),
 		inputText: '"a" repeated 56 times',
 		expected: 'd40854fc9caf172067136f2e29e1380b14626bf6f0dd06779f820dcd',
 	},
 	{
-		// 64 bytes — one full SHA-256 block
+		// 64 bytes, one full SHA-256 block
 		// Verified: python3 hashlib.sha224(b'a'*64).hexdigest()
 		description: 'boundary: 64 bytes (one full block)',
 		input: '61'.repeat(64),
@@ -249,12 +249,12 @@ export const sha224Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA-512/224 — FIPS 180-4 §6.7.1 (SHA-512 round logic, §5.3.6.1 IV)
+// SHA-512/224, FIPS 180-4 §6.7.1 (SHA-512 round logic, §5.3.6.1 IV)
 // ============================================================
 
 /**
  * SHA-512/224 test vectors. SHA-512/224 shares the SHA-512 round function and
- * message schedule per FIPS 180-4 §6.7.1 — only the IV differs, and the
+ * message schedule per FIPS 180-4 §6.7.1, only the IV differs, and the
  * output is truncated to 28 bytes. The "abc" digest is the NIST CSRC worked
  * example (csrc.nist.gov "Examples with Intermediate Values" / SHA-512_224).
  */
@@ -267,7 +267,7 @@ export const sha512_224Vectors: HashVector[] = [
 		expected: '6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4',
 	},
 	{
-		// NIST CSRC "Examples with Intermediate Values" SHA-512_224 — "abc"
+		// NIST CSRC "Examples with Intermediate Values" SHA-512_224, "abc"
 		// Verified: printf 'abc' | openssl dgst -sha512-224
 		description: 'NIST worked example: "abc" (3 bytes)',
 		input: '616263',
@@ -287,7 +287,7 @@ export const sha512_224Vectors: HashVector[] = [
 		expected: '23fec5bb94d60b23308192640b0c453335d664734fe40e7268674af9',
 	},
 	{
-		// 111 bytes — one short of SHA-512 padding boundary (111 + 1 + 16 = 128)
+		// 111 bytes, one short of SHA-512 padding boundary (111 + 1 + 16 = 128)
 		// Verified: python3 hashlib.new('sha512_224', b'a'*111).hexdigest()
 		description: 'boundary: 111 bytes (one short of padding boundary)',
 		input: '61'.repeat(111),
@@ -295,15 +295,15 @@ export const sha512_224Vectors: HashVector[] = [
 		expected: '3ebe1b48e8c66acb9ae014db95b4bec93de7e9572bff41cf566bd7d0',
 	},
 	{
-		// 112 bytes — at padding boundary, forces second block
+		// 112 bytes, at padding boundary, forces second block
 		// Verified: python3 hashlib.new('sha512_224', b'a'*112).hexdigest()
-		description: 'boundary: 112 bytes (at padding boundary — forces second block)',
+		description: 'boundary: 112 bytes (at padding boundary, forces second block)',
 		input: '61'.repeat(112),
 		inputText: '"a" repeated 112 times',
 		expected: '79b41fef2a0439d2705724a67615f7bcbcd2bf5664a7774b80818eb6',
 	},
 	{
-		// 128 bytes — one full SHA-512 block
+		// 128 bytes, one full SHA-512 block
 		// Verified: python3 hashlib.new('sha512_224', b'a'*128).hexdigest()
 		description: 'boundary: 128 bytes (one full block)',
 		input: '61'.repeat(128),
@@ -320,12 +320,12 @@ export const sha512_224Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA-512/256 — FIPS 180-4 §6.7.2 (SHA-512 round logic, §5.3.6.2 IV)
+// SHA-512/256, FIPS 180-4 §6.7.2 (SHA-512 round logic, §5.3.6.2 IV)
 // ============================================================
 
 /**
  * SHA-512/256 test vectors. SHA-512/256 shares the SHA-512 round function and
- * message schedule per FIPS 180-4 §6.7.2 — only the IV differs, and the
+ * message schedule per FIPS 180-4 §6.7.2, only the IV differs, and the
  * output is truncated to 32 bytes. The "abc" digest is the NIST CSRC worked
  * example (csrc.nist.gov "Examples with Intermediate Values" / SHA-512_256).
  */
@@ -338,7 +338,7 @@ export const sha512_256Vectors: HashVector[] = [
 		expected: 'c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a',
 	},
 	{
-		// NIST CSRC "Examples with Intermediate Values" SHA-512_256 — "abc"
+		// NIST CSRC "Examples with Intermediate Values" SHA-512_256, "abc"
 		// Verified: printf 'abc' | openssl dgst -sha512-256
 		description: 'NIST worked example: "abc" (3 bytes)',
 		input: '616263',
@@ -358,7 +358,7 @@ export const sha512_256Vectors: HashVector[] = [
 		expected: '3928e184fb8690f840da3988121d31be65cb9d3ef83ee6146feac861e19b563a',
 	},
 	{
-		// 111 bytes — one short of SHA-512 padding boundary
+		// 111 bytes, one short of SHA-512 padding boundary
 		// Verified: python3 hashlib.new('sha512_256', b'a'*111).hexdigest()
 		description: 'boundary: 111 bytes (one short of padding boundary)',
 		input: '61'.repeat(111),
@@ -366,15 +366,15 @@ export const sha512_256Vectors: HashVector[] = [
 		expected: '0239e429f98d0ed61ee8e2a7c30afe98c1c3a80ce5dff62a107e9c538f7632ce',
 	},
 	{
-		// 112 bytes — at padding boundary, forces second block
+		// 112 bytes, at padding boundary, forces second block
 		// Verified: python3 hashlib.new('sha512_256', b'a'*112).hexdigest()
-		description: 'boundary: 112 bytes (at padding boundary — forces second block)',
+		description: 'boundary: 112 bytes (at padding boundary, forces second block)',
 		input: '61'.repeat(112),
 		inputText: '"a" repeated 112 times',
 		expected: '9216b5303edb66504570bee90e48ea5beaa5e9fe9f760bbd3e0460559fc005f6',
 	},
 	{
-		// 128 bytes — one full SHA-512 block
+		// 128 bytes, one full SHA-512 block
 		// Verified: python3 hashlib.new('sha512_256', b'a'*128).hexdigest()
 		description: 'boundary: 128 bytes (one full block)',
 		input: '61'.repeat(128),
@@ -391,7 +391,7 @@ export const sha512_256Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// SHA-384 — FIPS 180-4 Appendix D
+// SHA-384, FIPS 180-4 Appendix D
 // ============================================================
 
 /** SHA-384 test vectors from FIPS 180-4. */
@@ -405,7 +405,7 @@ export const sha384Vectors: HashVector[] = [
 			'38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b',
 	},
 	{
-		// FIPS 180-4 Appendix D.1 — "abc"
+		// FIPS 180-4 Appendix D.1, "abc"
 		description: 'FIPS 180-4 §D.1: "abc" (3 bytes)',
 		input: '616263',
 		inputText: 'abc',
@@ -413,7 +413,7 @@ export const sha384Vectors: HashVector[] = [
 			'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7',
 	},
 	{
-		// FIPS 180-4 Appendix D.2 — 896-bit (112-byte) message
+		// FIPS 180-4 Appendix D.2, 896-bit (112-byte) message
 		description: 'FIPS 180-4 §D.2: 896-bit message (112 bytes)',
 		input:
 			'61626364656667686263646566676869636465666768696a6465666768696a6b' +
@@ -427,13 +427,13 @@ export const sha384Vectors: HashVector[] = [
 ];
 
 // ============================================================
-// HMAC-SHA256 — RFC 4231
+// HMAC-SHA256, RFC 4231
 // ============================================================
 
 /** HMAC-SHA256 test vectors from RFC 4231. */
 export const hmacSha256Vectors: HmacVector[] = [
 	{
-		// RFC 4231 §4.2 (TC1) — 20-byte key
+		// RFC 4231 §4.2 (TC1), 20-byte key
 		// Verified: python3 hmac.new(key, b'Hi There', hashlib.sha256).hexdigest()
 		description: 'RFC 4231 §4.2 (TC1): 20-byte key, "Hi There"',
 		key: '0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b',
@@ -442,7 +442,7 @@ export const hmacSha256Vectors: HmacVector[] = [
 		expected: 'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7',
 	},
 	{
-		// RFC 4231 §4.3 (TC2) — "Jefe" key
+		// RFC 4231 §4.3 (TC2), "Jefe" key
 		// Verified: python3 hmac.new(b'Jefe', msg, hashlib.sha256).hexdigest()
 		description: 'RFC 4231 §4.3 (TC2): "Jefe" key',
 		key: '4a656665',
@@ -451,7 +451,7 @@ export const hmacSha256Vectors: HmacVector[] = [
 		expected: '5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843',
 	},
 	{
-		// RFC 4231 §4.7 (TC6) — 131-byte key (exceeds 64-byte SHA-256 block size)
+		// RFC 4231 §4.7 (TC6), 131-byte key (exceeds 64-byte SHA-256 block size)
 		// Key must be pre-hashed with SHA-256 per RFC 2104 §3
 		// Verified: python3 hmac.new(b'\xaa'*131, msg, hashlib.sha256).hexdigest()
 		description: 'RFC 4231 §4.7 (TC6): 131-byte key (exceeds block size, key pre-hashed)',
@@ -463,7 +463,7 @@ export const hmacSha256Vectors: HmacVector[] = [
 ];
 
 // ============================================================
-// HMAC-SHA512 — RFC 4231
+// HMAC-SHA512, RFC 4231
 // ============================================================
 
 /** HMAC-SHA512 test vectors from RFC 4231. */
@@ -491,7 +491,7 @@ export const hmacSha512Vectors: HmacVector[] = [
 			'9758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737',
 	},
 	{
-		// RFC 4231 §4.7 (TC6) — 131-byte key (exceeds 128-byte HMAC-SHA512 block size)
+		// RFC 4231 §4.7 (TC6), 131-byte key (exceeds 128-byte HMAC-SHA512 block size)
 		// Key must be pre-hashed with SHA-512 per RFC 2104 §3
 		// Verified: python3 hmac.new(b'\xaa'*131, msg, hashlib.sha512).hexdigest()
 		description: 'RFC 4231 §4.7 (TC6): 131-byte key (exceeds block size, key pre-hashed)',
@@ -505,7 +505,7 @@ export const hmacSha512Vectors: HmacVector[] = [
 ];
 
 // ============================================================
-// HMAC-SHA384 — RFC 4231
+// HMAC-SHA384, RFC 4231
 // ============================================================
 
 /** HMAC-SHA384 test vectors from RFC 4231. */
@@ -531,7 +531,7 @@ export const hmacSha384Vectors: HmacVector[] = [
 			'af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec3736322445e8e2240ca5e69e2c78b3239ecfab21649',
 	},
 	{
-		// RFC 4231 §4.7 (TC6) — 131-byte key (exceeds 128-byte HMAC-SHA384 block size)
+		// RFC 4231 §4.7 (TC6), 131-byte key (exceeds 128-byte HMAC-SHA384 block size)
 		// Key must be pre-hashed with SHA-384 per RFC 2104 §3
 		// Verified: python3 hmac.new(b'\xaa'*131, msg, hashlib.sha384).hexdigest()
 		description: 'RFC 4231 §4.7 (TC6): 131-byte key (exceeds block size, key pre-hashed)',
@@ -544,7 +544,7 @@ export const hmacSha384Vectors: HmacVector[] = [
 ];
 
 // ============================================================
-// HKDF-SHA256 — RFC 5869 Appendix A
+// HKDF-SHA256, RFC 5869 Appendix A
 // ============================================================
 
 /** HKDF-SHA256 test vectors from RFC 5869 Appendix A. */
@@ -577,7 +577,7 @@ export const hkdfSha256Vectors: HkdfVector[] = [
 			'cc30c58179ec3e87c14c01d5c1f3434f1d87',
 	},
 	{
-		// RFC 5869 Appendix A.3 — no salt, no info
+		// RFC 5869 Appendix A.3, no salt, no info
 		description: 'RFC 5869 §A.3: no salt, no info',
 		ikm: '0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b',
 		salt: '',
@@ -589,10 +589,10 @@ export const hkdfSha256Vectors: HkdfVector[] = [
 ];
 
 // ============================================================
-// HKDF-SHA512 — verified against Node.js crypto.hkdfSync
+// HKDF-SHA512, verified against Node.js crypto.hkdfSync
 // ============================================================
 
-/** HKDF-SHA512 test vectors. Same inputs as RFC 5869 A.1–A.3, SHA-512 output. */
+/** HKDF-SHA512 test vectors. Same inputs as RFC 5869 A.1-A.3, SHA-512 output. */
 export const hkdfSha512Vectors: HkdfVector[] = [
 	{
 		// Verified: node -e "require('crypto').hkdfSync('sha512', ...)"

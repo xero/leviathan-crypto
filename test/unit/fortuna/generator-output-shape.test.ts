@@ -47,7 +47,7 @@ beforeAll(async () => {
 // just-before-block, multi-block, large.
 const SIZES = [0, 1, 15, 16, 17, 30, 31, 32, 33, 64, 100, 256, 1024];
 
-describe('SerpentGenerator output shape — exact-size buffer, no extra keystream', () => {
+describe('SerpentGenerator output shape, exact-size buffer, no extra keystream', () => {
 	const key = new Uint8Array(32).fill(0xab);
 	const counter = new Uint8Array(16).fill(0xcd);
 
@@ -61,7 +61,7 @@ describe('SerpentGenerator output shape — exact-size buffer, no extra keystrea
 	}
 });
 
-describe('ChaCha20Generator output shape — exact-size buffer, no extra keystream', () => {
+describe('ChaCha20Generator output shape, exact-size buffer, no extra keystream', () => {
 	const key = new Uint8Array(32).fill(0xab);
 	const counter = new Uint8Array(4).fill(0xcd);
 
@@ -75,7 +75,7 @@ describe('ChaCha20Generator output shape — exact-size buffer, no extra keystre
 	}
 });
 
-describe('AESGenerator output shape — exact-size buffer, no extra keystream', () => {
+describe('AESGenerator output shape, exact-size buffer, no extra keystream', () => {
 	const key = new Uint8Array(32).fill(0xab);
 	const counter = new Uint8Array(16).fill(0xcd);
 

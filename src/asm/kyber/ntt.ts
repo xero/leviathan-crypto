@@ -21,7 +21,7 @@
 //
 // src/asm/kyber/ntt.ts
 //
-// ML-KEM (Kyber) — Number-Theoretic Transform (NTT) and inverse NTT.
+// ML-KEM (Kyber), Number-Theoretic Transform (NTT) and inverse NTT.
 // FIPS 203 Algorithms 9 and 10.
 // Zeta table: ω=17 primitive 256th root of unity in Z_3329, bit-reversed,
 // Montgomery domain. Source: pq-crystals/kyber main branch ref/ntt.c.
@@ -31,7 +31,7 @@ import { fqmul, barrett_reduce } from './reduce';
 // ── Zetas table ─────────────────────────────────────────────────────────────
 // 128 twiddle factors. Each entry zetas[i] = MONT * 17^{BitRev7(i)} mod q,
 // centered to [-(q-1)/2, (q-1)/2].
-// Source: pq-crystals/kyber main ref/ntt.c — must be verified by Gate 3 test.
+// Source: pq-crystals/kyber main ref/ntt.c, must be verified by Gate 3 test.
 const zetas: StaticArray<i16> = [
 	-1044,  -758,  -359, -1517,  1493,  1422,   287,   202,
 	 -171,   622,  1577,   182,   962, -1202, -1474,  1468,
@@ -53,7 +53,7 @@ const zetas: StaticArray<i16> = [
 
 // In AssemblyScript, changetype<i32>(arr) returns the data pointer directly.
 // The runtime header (mmInfo+gcInfo+gcInfo2+rtId+rtSize) sits at ptr-20 (before the data).
-// So the data offset is 0 — changetype<i32>(zetas) IS the start of the i16 elements.
+// So the data offset is 0, changetype<i32>(zetas) IS the start of the i16 elements.
 const AS_HEADER_SIZE: i32 = 0;
 
 /**
@@ -75,7 +75,7 @@ export function getZeta(i: i32): i16 {
 // ── NTT ─────────────────────────────────────────────────────────────────────
 
 /**
- * In-place forward NTT. FIPS 203 Algorithm 9 — NTT.
+ * In-place forward NTT. FIPS 203 Algorithm 9, NTT.
  * Input in standard order, output in bit-reversed order.
  * @param polyOffset byte offset of 256×i16 polynomial in WASM memory.
  */
@@ -100,7 +100,7 @@ export function ntt(polyOffset: i32): void {
 }
 
 /**
- * In-place inverse NTT. FIPS 203 Algorithm 10 — NTT^{-1}.
+ * In-place inverse NTT. FIPS 203 Algorithm 10, NTT^{-1}.
  * Input in bit-reversed order, output in standard order.
  * Includes multiplication by Montgomery factor f = 1441 = mont²/128.
  * @param polyOffset byte offset of 256×i16 polynomial in WASM memory.

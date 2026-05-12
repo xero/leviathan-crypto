@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Serpent cipher-suite contract tests — per-cipher behaviors that vary
+ * Serpent cipher-suite contract tests, per-cipher behaviors that vary
  * in shape across ciphers (header binding, commitment field, native
  * key-committing properties).
  *
@@ -36,11 +36,11 @@
  * describes what is being verified, and the body asserts the relevant
  * property holds.
  *
- *   - 'deriveKeys' — commitment-or-no-commitment shape, plus header-
+ *   - 'deriveKeys', commitment-or-no-commitment shape, plus header-
  *     binding effect on derived keys (or absence thereof for Serpent).
- *   - 'Header binding' — header tamper effect on decrypt (failure for
+ *   - 'Header binding', header tamper effect on decrypt (failure for
  *     v3, no-effect for v2).
- *   - 'Commitment' — flipping a byte in the commitment region rejects
+ *   - 'Commitment', flipping a byte in the commitment region rejects
  *     on decrypt (v3 only; Serpent's describe block asserts the
  *     preamble has no commitment region).
  *   - Cipher-specific behaviors below the shared describe blocks.
@@ -120,7 +120,7 @@ describe('Serpent header binding', () => {
 	// tampered post-encryption, modulo structurally-validated fields."
 	//
 	// Note: byte 0 (formatEnum/framed) IS structurally validated by
-	// OpenStream — flipping cipher nibble triggers format-mismatch, flipping
+	// OpenStream, flipping cipher nibble triggers format-mismatch, flipping
 	// FLAG_FRAMED makes the decoder strip a length prefix that isn't there.
 	// So we tamper bytes that are NOT structurally validated (chunkSize) and
 	// nonce (which DOES feed deriveKeys via HKDF salt → HMAC fails).
@@ -129,7 +129,7 @@ describe('Serpent header binding', () => {
 		// Serpent does not bind chunkSize into deriveKeys, and Seal.encrypt
 		// chooses chunkSize = max(pt.length, CHUNK_MIN=1024). For pt.length=64
 		// the original chunkSize is 1024 (bytes 17..19 = 0x00 0x04 0x00).
-		// Flipping byte 18 from 0x04 to 0x05 raises chunkSize to 1280 — still
+		// Flipping byte 18 from 0x04 to 0x05 raises chunkSize to 1280, still
 		// in [CHUNK_MIN, CHUNK_MAX], and the wire chunk fits inside the
 		// expanded maxWireChunk. The HMAC was computed over the actual
 		// ciphertext (not the header), so the tag still verifies.

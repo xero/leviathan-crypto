@@ -30,12 +30,12 @@
 // last ciphertext block thereafter). Updated in-place after each chunk.
 //
 // Caller sets up:
-//   KEY_BUFFER[0..32]        — key (via existing loadKey export)
-//   CHUNK_PT_OFFSET[0..len]  — plaintext (for cbcEncryptChunk)
-//   CHUNK_CT_OFFSET[0..len]  — ciphertext (for cbcDecryptChunk)
-//   CBC_IV_OFFSET[0..16]     — IV (caller writes before first chunk)
+//   KEY_BUFFER[0..32]       , key (via existing loadKey export)
+//   CHUNK_PT_OFFSET[0..len] , plaintext (for cbcEncryptChunk)
+//   CHUNK_CT_OFFSET[0..len] , ciphertext (for cbcDecryptChunk)
+//   CBC_IV_OFFSET[0..16]    , IV (caller writes before first chunk)
 //
-// PKCS7 padding is applied by the TypeScript wrapper — not here.
+// PKCS7 padding is applied by the TypeScript wrapper, not here.
 // Both functions require len to be a positive multiple of 16.
 
 import {
@@ -101,7 +101,7 @@ export function cbcDecryptChunk(len: i32): i32 {
 		decryptBlock();
 
 		// XOR with chaining block to get plaintext; update chaining block from CHUNK_CT_OFFSET
-		// (CHUNK_CT_OFFSET[i..] is still the original CT — decryptBlock does not touch it)
+		// (CHUNK_CT_OFFSET[i..] is still the original CT, decryptBlock does not touch it)
 		for (let j: i32 = 0; j < 16; j++) {
 			store<u8>(CHUNK_PT_OFFSET + i + j,
 				load<u8>(BLOCK_PT_OFFSET + j) ^ load<u8>(CBC_IV_OFFSET + j));

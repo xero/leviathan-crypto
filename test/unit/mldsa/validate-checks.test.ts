@@ -25,7 +25,7 @@
  * Covers FIPS 204 §3.6.2 length checks (vk / sk / σ), §5.2/§5.3 line 1
  * ctx length cap, and §D.3 / Algorithm 21 hint malformed-input checks
  * (lines 4, 9, 17). Each malformed-hint case exercises ONE of the three
- * checks individually — skipping any one is SUF-CMA-fatal.
+ * checks individually, skipping any one is SUF-CMA-fatal.
  *
  * Splits behavior across:
  *   - sign:    wrong-length sk / oversize ctx → throw RangeError.
@@ -33,7 +33,7 @@
  *              oversize ctx                   → throw RangeError.
  *              hint encoding violates Alg 21  → return false.
  *
- * GATE: ML-DSA validation discipline — every length/structural check
+ * GATE: ML-DSA validation discipline, every length/structural check
  * required by FIPS 204 fires correctly.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -52,7 +52,7 @@ const KGEN = new Uint8Array(32);
 
 // ── Length attacks on sk / vk / σ ───────────────────────────────────────────
 
-describe('sign — wrong-length sk throws RangeError', () => {
+describe('sign, wrong-length sk throws RangeError', () => {
 	it('sk too short', () => {
 		const dsa = new MlDsa44();
 		try {
@@ -74,7 +74,7 @@ describe('sign — wrong-length sk throws RangeError', () => {
 	});
 });
 
-describe('verify — wrong-length pk / σ returns false (FIPS 204 §3.6.2)', () => {
+describe('verify, wrong-length pk / σ returns false (FIPS 204 §3.6.2)', () => {
 	it('pk too short → false (no throw)', () => {
 		const dsa = new MlDsa44();
 		try {
@@ -196,7 +196,7 @@ describe('ctx > 255 bytes throws RangeError', () => {
 
 // ── Empty-ctx default round-trip ────────────────────────────────────────────
 
-describe('empty ctx default — sign + verify with no ctx argument', () => {
+describe('empty ctx default, sign + verify with no ctx argument', () => {
 	it('uses the empty Uint8Array default', () => {
 		const dsa = new MlDsa65();
 		try {
@@ -212,7 +212,7 @@ describe('empty ctx default — sign + verify with no ctx argument', () => {
 
 // ── signDerand rnd validation ───────────────────────────────────────────────
 
-describe('signDerand — wrong-length rnd throws RangeError', () => {
+describe('signDerand, wrong-length rnd throws RangeError', () => {
 	it('rnd too short', () => {
 		const dsa = new MlDsa44();
 		try {
@@ -242,10 +242,10 @@ describe('signDerand — wrong-length rnd throws RangeError', () => {
 // region of σ → (4) verify must return false.
 //
 // Hint region in σ: starts at λ/4 + ℓ * 32 * c. For ML-DSA-44:
-//   sig = 32 (c̃) ‖ 4*32*18 = 2304 (z) ‖ 80+4 = 84 (h) — total 2420.
+//   sig = 32 (c̃) ‖ 4*32*18 = 2304 (z) ‖ 80+4 = 84 (h), total 2420.
 //   Hint starts at byte 32 + 2304 = 2336; layout: y[0..ω) positions, y[ω..ω+k) cumulative.
 
-describe('HintBitUnpack — three malformed-input checks (Alg 21 §D.3)', () => {
+describe('HintBitUnpack, three malformed-input checks (Alg 21 §D.3)', () => {
 	const params = MLDSA44;
 	const HINT_OFFSET = (params.lambda >>> 2) + params.l * 32 * (1 + 17);  // c=18 for γ₁=2¹⁷
 	const OMEGA = params.omega;
@@ -261,7 +261,7 @@ describe('HintBitUnpack — three malformed-input checks (Alg 21 §D.3)', () => 
 		return { dsa, vk: verificationKey, sk: signingKey, sig, msg };
 	}
 
-	it('Check 1 — y[ω+i] > ω → verify false', () => {
+	it('Check 1, y[ω+i] > ω → verify false', () => {
 		// Alg 21 line 4: y[ω+i] must be in [Index, ω].
 		// Set the FIRST cumulative-count byte to ω+1; fails the upper bound.
 		const { dsa, vk, sig, msg } = buildValidSig();
@@ -274,7 +274,7 @@ describe('HintBitUnpack — three malformed-input checks (Alg 21 §D.3)', () => 
 		}
 	});
 
-	it('Check 2 — non-monotonic positions → verify false', () => {
+	it('Check 2, non-monotonic positions → verify false', () => {
 		// Alg 21 line 9: positions inside one polynomial must strictly ascend.
 		// Find a valid signature with at least two positions in some polynomial,
 		// then duplicate the first byte over the second to violate strict-ascent.
@@ -300,7 +300,7 @@ describe('HintBitUnpack — three malformed-input checks (Alg 21 §D.3)', () => 
 			}
 			if (!found) {
 				// In the off-chance every polynomial in this signature has < 2
-				// positions, retry by varying the message only — sk stays fixed
+				// positions, retry by varying the message only, sk stays fixed
 				// so verify(vk, ...) tests the malformed-hint check, not a key
 				// mismatch. Different (μ, ρ'') from a different M produce
 				// different hint shapes until we land one with ≥ 2 set bits.
@@ -332,7 +332,7 @@ describe('HintBitUnpack — three malformed-input checks (Alg 21 §D.3)', () => 
 		}
 	});
 
-	it('Check 3 — nonzero trailing byte in [Index, ω) → verify false', () => {
+	it('Check 3, nonzero trailing byte in [Index, ω) → verify false', () => {
 		// Alg 21 line 17: bytes y[Index..ω-1] must be zero where Index =
 		// total positions used. Set the last byte before the cumulative-count
 		// region to nonzero; if Index < ω this triggers check 3.
@@ -340,7 +340,7 @@ describe('HintBitUnpack — three malformed-input checks (Alg 21 §D.3)', () => 
 		try {
 			const totalPositions = sig[HINT_OFFSET + OMEGA + K - 1]; // last cumulative
 			if (totalPositions >= OMEGA) {
-				// All ω bytes consumed — synthesize a different message that
+				// All ω bytes consumed, synthesize a different message that
 				// produces a non-saturated hint. ML-DSA hints are typically much
 				// less than ω in practice, so keygen + sign will normally land
 				// us here on the first try.

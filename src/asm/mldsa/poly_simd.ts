@@ -21,7 +21,7 @@
 //
 // src/asm/mldsa/poly_simd.ts
 //
-// ML-DSA — SIMD polynomial arithmetic using WASM v128 with i32x4 lanes.
+// ML-DSA, SIMD polynomial arithmetic using WASM v128 with i32x4 lanes.
 // FIPS 204 §7.6 (AddNTT, MultiplyNTT) plus the supporting reduce / caddq.
 //
 // 256 × i32 polynomials decompose into 64 v128 iterations of 4 coefficients.
@@ -31,7 +31,7 @@
 import { Q } from './params';
 import { fqmul_4x, barrett_reduce_4x } from './ntt_simd';
 
-// ── poly_add_simd — coefficient-wise add, 4 lanes per step ──────────────────
+// ── poly_add_simd, coefficient-wise add, 4 lanes per step ──────────────────
 export function poly_add_simd(rOff: i32, aOff: i32, bOff: i32): void {
 	for (let i: i32 = 0; i < 64; i++) {
 		const off: i32 = i * 16;
@@ -40,7 +40,7 @@ export function poly_add_simd(rOff: i32, aOff: i32, bOff: i32): void {
 	}
 }
 
-// ── poly_sub_simd — coefficient-wise sub ────────────────────────────────────
+// ── poly_sub_simd, coefficient-wise sub ────────────────────────────────────
 export function poly_sub_simd(rOff: i32, aOff: i32, bOff: i32): void {
 	for (let i: i32 = 0; i < 64; i++) {
 		const off: i32 = i * 16;
@@ -49,7 +49,7 @@ export function poly_sub_simd(rOff: i32, aOff: i32, bOff: i32): void {
 	}
 }
 
-// ── poly_reduce_simd — Barrett (centered) reduction lane-wise ───────────────
+// ── poly_reduce_simd, Barrett (centered) reduction lane-wise ───────────────
 export function poly_reduce_simd(polyOff: i32): void {
 	for (let i: i32 = 0; i < 64; i++) {
 		const ptr: i32 = polyOff + i * 16;
@@ -57,7 +57,7 @@ export function poly_reduce_simd(polyOff: i32): void {
 	}
 }
 
-// ── poly_caddq_simd — branch-free conditional add q ─────────────────────────
+// ── poly_caddq_simd, branch-free conditional add q ─────────────────────────
 // (a >> 31) sprays the sign bit; AND with q yields q for a<0, 0 otherwise.
 export function poly_caddq_simd(polyOff: i32): void {
 	const q_v: v128 = i32x4.splat(Q);
@@ -69,7 +69,7 @@ export function poly_caddq_simd(polyOff: i32): void {
 	}
 }
 
-// ── poly_pointwise_montgomery_simd — FIPS 204 Algorithm 45, vectorised ──────
+// ── poly_pointwise_montgomery_simd, FIPS 204 Algorithm 45, vectorised ──────
 // c[i] = MontgomeryReduce(a[i]·b[i]); 4 lanes per v128 step.
 export function poly_pointwise_montgomery_simd(rOff: i32, aOff: i32, bOff: i32): void {
 	for (let i: i32 = 0; i < 64; i++) {

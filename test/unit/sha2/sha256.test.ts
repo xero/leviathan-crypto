@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA-256 Known-Answer Tests — FIPS 180-4
+ * SHA-256 Known-Answer Tests, FIPS 180-4
  *
  * Source: FIPS 180-4 (SHA Standard)
  * Files:  vectors/sha2.ts (sha256Vectors, sha256CrossCheck)
@@ -47,7 +47,7 @@ beforeAll(async () => {
 
 // GATE: SHA-256 empty message: FIPS 180-4 (boundary case)
 // Vector: sha2.ts[sha256Vectors[0]]
-describe('Gate 3 — SHA-256 empty message', () => {
+describe('Gate 3, SHA-256 empty message', () => {
 	test('SHA-256("") matches FIPS 180-4', () => {
 		const h = new SHA256();
 		const digest = h.hash(new Uint8Array(0));

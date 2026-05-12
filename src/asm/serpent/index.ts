@@ -21,7 +21,7 @@
 //
 // src/asm/serpent/index.ts
 //
-// Serpent-256 WASM module — public exports.
+// Serpent-256 WASM module, public exports.
 // Spec: Serpent AES submission, Anderson/Biham/Knudsen 1998.
 
 // ── Buffer layout (buffers.ts) ──────────────────────────────────────────────
@@ -73,6 +73,6 @@ export { encryptBlock_simd_4x, decryptBlock_simd_4x } from './serpent_simd';
 export { encryptChunk_simd, decryptChunk_simd } from './ctr_simd';
 
 // ── SIMD CBC decrypt (cbc_simd.ts) ──────────────────────────────────────────
-// CBC encrypt stays scalar — sequential dependency is not parallelizable.
+// CBC encrypt stays scalar, sequential dependency is not parallelizable.
 
 export { cbcDecryptChunk_simd } from './cbc_simd';

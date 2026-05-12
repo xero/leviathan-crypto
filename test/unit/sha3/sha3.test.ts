@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA3-224/256/384/512, SHAKE128, SHAKE256 Known-Answer Tests — FIPS 202
+ * SHA3-224/256/384/512, SHAKE128, SHAKE256 Known-Answer Tests, FIPS 202
  *
  * Source: FIPS 202 (SHA-3 Standard)
  * Files:  vectors/sha3.ts (sha3_*Vectors, shake*Vectors, cross-check vectors)
@@ -52,7 +52,7 @@ beforeAll(async () => {
 
 // GATE: SHA3-256 empty message: FIPS 202 §A.1
 // Vector: sha3.ts[sha3_256Vectors[0]]
-describe('Gate 7 — SHA3-256 empty message', () => {
+describe('Gate 7, SHA3-256 empty message', () => {
 	test('SHA3-256("") matches FIPS 202', () => {
 		const h = new SHA3_256();
 		const digest = h.hash(new Uint8Array(0));

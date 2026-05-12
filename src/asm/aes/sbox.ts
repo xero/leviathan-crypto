@@ -114,7 +114,7 @@ import {
 	a0: v128, a1: v128, a2: v128, a3: v128,
 	b0: v128, b1: v128, b2: v128, b3: v128,
 ): void {
-	// (Γ₁ ⊕ Γ₀) for both operands — pair sums in GF(2²).
+	// (Γ₁ ⊕ Γ₀) for both operands, pair sums in GF(2²).
 	const sa0 = v128.xor(a0, a2);
 	const sa1 = v128.xor(a1, a3);
 	const sb0 = v128.xor(b0, b2);
@@ -123,14 +123,14 @@ import {
 	const ep   = v128.xor(v128.and(sa0, sb1), v128.and(sa1, sb0));
 	const phi0 = v128.xor(v128.and(sa1, sb1), ep);
 	const phi1 = v128.xor(v128.and(sa0, sb0), ep);
-	// F = N ⊗ φ = (φ₁, φ₀ ⊕ φ₁)  — Canright eq 8.
+	// F = N ⊗ φ = (φ₁, φ₀ ⊕ φ₁) , Canright eq 8.
 	const F0 = phi1;
 	const F1 = v128.xor(phi0, phi1);
-	// Γ₁·Δ₁ — gf4_mul(a₀_high pair, b₀_high pair).
+	// Γ₁·Δ₁, gf4_mul(a₀_high pair, b₀_high pair).
 	const eh = v128.xor(v128.and(a0, b1), v128.and(a1, b0));
 	const ah0 = v128.xor(v128.and(a1, b1), eh);
 	const ah1 = v128.xor(v128.and(a0, b0), eh);
-	// Γ₀·Δ₀ — gf4_mul(a₀_low pair, b₀_low pair).
+	// Γ₀·Δ₀, gf4_mul(a₀_low pair, b₀_low pair).
 	const el = v128.xor(v128.and(a2, b3), v128.and(a3, b2));
 	const al0 = v128.xor(v128.and(a3, b3), el);
 	const al1 = v128.xor(v128.and(a2, b2), el);
@@ -157,11 +157,11 @@ import {
 	// sum = Γ₁ ⊕ Γ₀ = (a0⊕a2, a1⊕a3) in GF(2²).
 	const s0 = v128.xor(a0, a2);
 	const s1 = v128.xor(a1, a3);
-	// sum² = swap(sum) — gf4_sq is just (W²-coord, W-coord) ↔ (W-coord, W²-coord).
+	// sum² = swap(sum), gf4_sq is just (W²-coord, W-coord) ↔ (W-coord, W²-coord).
 	// sum² placed at out+0 (Z⁴-coord W² lane), out+1 (Z⁴-coord W lane).
 	cset(out + 0, s1);
 	cset(out + 1, s0);
-	// (N ⊗ Γ₀) = (a3, a2 ⊕ a3) — gf4_scale_N(a2, a3) per Canright eq 8.
+	// (N ⊗ Γ₀) = (a3, a2 ⊕ a3), gf4_scale_N(a2, a3) per Canright eq 8.
 	// Then square via swap ⇒ ((a2⊕a3), a3).
 	cset(out + 2, v128.xor(a2, a3));
 	cset(out + 3, a3);
@@ -171,7 +171,7 @@ import {
 
 /**
  * GF(2⁸) inversion via tower decomposition. Self-inverse: this kernel is
- * shared by both `sboxBitsliced` and `invSboxBitsliced` — only the front
+ * shared by both `sboxBitsliced` and `invSboxBitsliced`, only the front
  * (X⁻¹ vs X⁻¹·M⁻¹) and back (M·X vs X) basis-change matrices differ.
  *
  * Input: 8 v128 in tower-basis representation (γ₁ = high 4 = (t7,t6,t5,t4),
@@ -180,7 +180,7 @@ import {
  * Output: 8 v128 in tower basis written to scratch slots 28..35
  * (slot 28 = u₇ … slot 35 = u₀).
  *
- * Reference: Canright 2005 §2.1 — γ⁻¹ = δ₁Y¹⁶ + δ₀Y where δ₁ = θ⁻¹·γ₀
+ * Reference: Canright 2005 §2.1, γ⁻¹ = δ₁Y¹⁶ + δ₀Y where δ₁ = θ⁻¹·γ₀
  * and δ₀ = θ⁻¹·γ₁ (note the swap), with θ = γ₁γ₀ ⊕ ν·(γ₁⊕γ₀)² in GF(2⁴).
  */
 @inline function gf256InvKernel(
@@ -191,10 +191,10 @@ import {
 	// t5,t4 = γ₁_Γ₀ ; t3,t2 = γ₀_Γ₁ ; t1,t0 = γ₀_Γ₀.
 	// So γ₁ = (t7, t6, t5, t4) and γ₀ = (t3, t2, t1, t0).
 
-	// Step 2a: γ₁γ₀ — GF(2⁴) multiply. Slots 8..11.
+	// Step 2a: γ₁γ₀, GF(2⁴) multiply. Slots 8..11.
 	gf16_mul_to(8, t7, t6, t5, t4, t3, t2, t1, t0);
 
-	// Step 2b: ν · (γ₁⊕γ₀)² — Canright eq 7. Slots 16..19.
+	// Step 2b: ν · (γ₁⊕γ₀)², Canright eq 7. Slots 16..19.
 	gf16_sq_scale_nu_to(
 		16,
 		v128.xor(t7, t3),
@@ -203,7 +203,7 @@ import {
 		v128.xor(t4, t0),
 	);
 
-	// Step 2c: θ = γ₁γ₀ ⊕ ν·(γ₁⊕γ₀)² — Canright eq 5 with τ = 1.
+	// Step 2c: θ = γ₁γ₀ ⊕ ν·(γ₁⊕γ₀)², Canright eq 5 with τ = 1.
 	const th0 = v128.xor(cget(8),  cget(16));
 	const th1 = v128.xor(cget(9),  cget(17));
 	const th2 = v128.xor(cget(10), cget(18));
@@ -267,7 +267,7 @@ export function sboxBitsliced(): void {
 	const s6 = bget(6);
 	const s7 = bget(7);
 
-	// ── Step 1: X⁻¹ — standard basis → tower normal basis ──────────────
+	// ── Step 1: X⁻¹, standard basis → tower normal basis ──────────────
 	// Reference: design notes §6.2. X⁻¹ derived by Gaussian elimination
 	// over GF(2) on the columns of X, where X column i = (Y_(i₂)·Z_(i₁)·W_(i₀))
 	// in standard polynomial basis.
@@ -281,7 +281,7 @@ export function sboxBitsliced(): void {
 	const t6 = v128.xor(v128.xor(s0, s4), v128.xor(s5, s6));
 	const t7 = v128.xor(v128.xor(v128.xor(s0, s1), s2), v128.xor(v128.xor(s5, s6), s7));
 
-	// ── Step 2: GF(2⁸) inversion kernel — writes u₇..u₀ to slots 28..35.
+	// ── Step 2: GF(2⁸) inversion kernel, writes u₇..u₀ to slots 28..35.
 	gf256InvKernel(t0, t1, t2, t3, t4, t5, t6, t7);
 
 	// Subfield output u (8 bits, high-to-low): u[7..4] = δ₁ ; u[3..0] = δ₀.
@@ -329,7 +329,7 @@ export function sboxBitsliced(): void {
  * from post-affine to pre-affine):
  *   1. Apply A_inv = X⁻¹·M⁻¹  (combined inverse-affine + standard→tower).
  *   2. XOR pre-affine constant c_inv = X⁻¹·M⁻¹·b = 0x7E (bits {1..6}).
- *   3. Compute γ⁻¹ in GF(2⁸) — same kernel as forward (self-inverse).
+ *   3. Compute γ⁻¹ in GF(2⁸), same kernel as forward (self-inverse).
  *   4. Apply X (tower → standard basis). No final XOR.
  *
  * The A_inv matrix and c_inv constant are derived by Gaussian elimination
@@ -362,7 +362,7 @@ export function invSboxBitsliced(): void {
 	const t6 = v128.xor(v128.xor(v128.xor(v128.xor(s0, s1), s4), s6), allOnes);
 	const t7 = v128.xor(s4, s7);
 
-	// ── Step 2: GF(2⁸) inversion kernel — writes u₇..u₀ to slots 28..35.
+	// ── Step 2: GF(2⁸) inversion kernel, writes u₇..u₀ to slots 28..35.
 	gf256InvKernel(t0, t1, t2, t3, t4, t5, t6, t7);
 
 	const u7 = cget(28);
@@ -374,7 +374,7 @@ export function invSboxBitsliced(): void {
 	const u1 = cget(34);
 	const u0 = cget(35);
 
-	// ── Step 3: X — tower normal basis → standard basis. No final XOR. ─
+	// ── Step 3: X, tower normal basis → standard basis. No final XOR. ─
 	// Output bit p (standard) = XOR over subfield bits q where X[p][q]=1.
 	// out[0] = u[2]
 	bset(0, u2);

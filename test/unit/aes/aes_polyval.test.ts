@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_polyval.test.ts
 //
-// Gate 15 — standalone POLYVAL primitive validation. Walks the RFC 8452
+// Gate 15, standalone POLYVAL primitive validation. Walks the RFC 8452
 // Appendix A worked example through the WASM POLYVAL absorber directly
 // (not via AES-GCM-SIV), the §3 mulX_GHASH examples through the
 // `mulXGhash` helper, and the §7 field-operation algebra trace through
@@ -30,7 +30,7 @@
 // Path-(a) reflection-wrapper note: the per-block scratch is a byte-
 // reversed copy of the input that is XORed into the GHASH-bit-convention
 // accumulator. The §7 `dot` and `product` primitives are not directly
-// exposed by path (a) — they are exercised transitively by the full
+// exposed by path (a), they are exercised transitively by the full
 // POLYVAL hash trace. We assert the §7 `sum` field as a XOR sanity
 // check and leave `product`/`dot` for the verifier to cover.
 
@@ -69,8 +69,8 @@ const x = (): AesPolyvalExports =>
 const mem = (): Uint8Array =>
 	new Uint8Array(x().memory.buffer);
 
-describe('POLYVAL gate (Gate 15) — RFC 8452 §3, §7, Appendix A', () => {
-	describe('15a — Appendix A POLYVAL(H, X_1, X_2) hash trace', () => {
+describe('POLYVAL gate (Gate 15), RFC 8452 §3, §7, Appendix A', () => {
+	describe('15a, Appendix A POLYVAL(H, X_1, X_2) hash trace', () => {
 		for (const v of polyvalHashVectors) {
 			// GATE: full POLYVAL hash trace from RFC 8452 Appendix A. If this
 			// fails, the bridge math (path (a) byte-reverse + mulX_GHASH on H,
@@ -103,7 +103,7 @@ describe('POLYVAL gate (Gate 15) — RFC 8452 §3, §7, Appendix A', () => {
 		}
 	});
 
-	describe('15b — Appendix A mulX_GHASH primitive', () => {
+	describe('15b, Appendix A mulX_GHASH primitive', () => {
 		for (const v of polyvalMulXVectors) {
 			it(v.description, () => {
 				try {
@@ -120,8 +120,8 @@ describe('POLYVAL gate (Gate 15) — RFC 8452 §3, §7, Appendix A', () => {
 		}
 	});
 
-	describe('15c — §7 field-ops algebra (XOR sanity check)', () => {
-		// `product` and `dot` are not directly testable via path (a) — they
+	describe('15c, §7 field-ops algebra (XOR sanity check)', () => {
+		// `product` and `dot` are not directly testable via path (a), they
 		// are transitively exercised by the §3/Appendix A hash trace and by
 		// every AES-GCM-SIV vector. The only field operation path (a)
 		// exposes naturally is XOR, used internally in absorption.
@@ -134,7 +134,7 @@ describe('POLYVAL gate (Gate 15) — RFC 8452 §3, §7, Appendix A', () => {
 		});
 	});
 
-	describe('15d — byteReverse16 helper', () => {
+	describe('15d, byteReverse16 helper', () => {
 		it('reverses byte order of a 16-byte block', () => {
 			try {
 				const w = x();

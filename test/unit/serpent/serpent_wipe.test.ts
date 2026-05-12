@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Buffer wipe correctness — leviathan-crypto Serpent module
+ * Buffer wipe correctness, leviathan-crypto Serpent module
  *
  * Verifies that wipeBuffers() zeroes all buffer regions in the Serpent
  * module's linear memory. No key material persists after dispose().

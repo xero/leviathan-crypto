@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
+test.describe('SealStreamPool, Serpent large-chunk e2e', () => {
 
 	// 256 KB (4 full chunks at chunkSize=65536)
 	test('seal → open roundtrip at chunkSize: 65536, 256 KB (4 full chunks)', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
 		expect(result).toBe(true);
 	});
 
-	// 5 MB — compare SHA-256 hashes to avoid byte-for-byte comparison overhead
+	// 5 MB, compare SHA-256 hashes to avoid byte-for-byte comparison overhead
 	test('seal → open roundtrip at chunkSize: 65536, 5 MB (hash comparison)', async ({ page }) => {
 		test.setTimeout(120_000);
 		const result = await page.evaluate(async (base) => {
@@ -66,7 +66,7 @@ test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
 			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 
-			// Deterministic pseudorandom plaintext — LCG seeded at 0xdeadbeef
+			// Deterministic pseudorandom plaintext, LCG seeded at 0xdeadbeef
 			const N = 80 * 65536 + 23587; // 5266467 bytes
 			const pt = new Uint8Array(N);
 			let s = 0xdeadbeef >>> 0;
@@ -107,7 +107,7 @@ test.describe('SealStreamPool — Serpent large-chunk e2e', () => {
 			(await import(`${base}/dist/init.js`))._resetForTesting();
 			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm });
 
-			// 3 × 65536 = 196608 bytes — counter-byte pattern (0x00..0xFF repeating)
+			// 3 × 65536 = 196608 bytes, counter-byte pattern (0x00..0xFF repeating)
 			const N = 3 * 65536;
 			const pt = new Uint8Array(N);
 			for (let i = 0; i < N; i++) pt[i] = i & 0xff;

@@ -105,7 +105,7 @@ describe('loader thenable dispatch', () => {
 		// loop or removing the cap) fails loudly here.
 		const bogus = {} as unknown as WasmSource;
 		await expect(compileWasm(bogus, 4)).rejects.toThrow(/thenable nesting too deep/);
-		// Any input at depth > 3 trips the guard — thenables included.
+		// Any input at depth > 3 trips the guard, thenables included.
 		const thenable = Promise.resolve(makeResponse()) as unknown as WasmSource;
 		await expect(compileWasm(thenable, 4)).rejects.toThrow(/thenable nesting too deep \(max 3\)/);
 	});

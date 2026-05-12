@@ -21,7 +21,7 @@
 //
 // src/ts/mldsa/verify.ts
 //
-// FIPS 204 §6.3 Algorithm 8 — ML-DSA.Verify_internal.
+// FIPS 204 §6.3 Algorithm 8, ML-DSA.Verify_internal.
 //
 // Verify is a pure boolean predicate: returns true iff the signature
 // passes the FIPS 204 norm check (‖z‖∞ < γ₁ − β) AND the constant-time
@@ -31,7 +31,7 @@
 // is binary.
 //
 // SUF-CMA-critical preconditions enforced here:
-//   1. Length check on pk and σ — caller (verify() in index.ts) returns
+//   1. Length check on pk and σ, caller (verify() in index.ts) returns
 //      false on mismatch BEFORE invoking this internal function, per
 //      FIPS 204 §3.6.2.
 //   2. HintBitUnpack-malformed → false (FIPS 204 §D.3 / Algorithm 21
@@ -45,7 +45,7 @@
 //   POLYVEC_SLOT_2   h (hint polyvec; alive through use_hint)
 //   POLYVEC_SLOT_3   Â · ẑ → w'_approx → w'₁ (in place via use_hint aliasing)
 //   POLYVEC_SLOT_4   ĉ · t̂₁·2^d intermediate
-//   POLY_SLOT_0      signs (8 bytes — sample_in_ball signsOff)
+//   POLY_SLOT_0      signs (8 bytes, sample_in_ball signsOff)
 //   POLY_SLOT_1      c → ĉ
 //   POLY_SLOT_7      reserved scratch for polyvec_pointwise_acc_montgomery
 
@@ -54,6 +54,8 @@ import type { MlDsaParams } from './params.js';
 import { constantTimeEqual, wipe } from '../utils.js';
 import { sha3Absorb, shake256Hash, shake256HashConcat } from './sha3-helpers.js';
 import { expandA } from './expand.js';
+import { type PreHashAlgorithm, getOid } from './hashvariant.js';
+import { constructMPrimeHash } from './format.js';
 
 const POLY_BYTES    = 1024;
 const D             = 13;
@@ -69,16 +71,16 @@ function bitlen(n: number): number {
 }
 
 /**
- * ML-DSA.Verify_internal — FIPS 204 Algorithm 8.
+ * ML-DSA.Verify_internal, FIPS 204 Algorithm 8.
  *
  * Inputs (all caller-validated for length by the public verify() method):
- *   vk     — encoded verification key (pkBytes)
- *   MPrime — domain-separated message bytes
- *   sig    — encoded signature (sigBytes)
+ *   vk    , encoded verification key (pkBytes)
+ *   MPrime, domain-separated message bytes
+ *   sig   , encoded signature (sigBytes)
  *
  * Returns: boolean.
- *   true  — signature authenticates the message under vk.
- *   false — wrong sig, malformed hint encoding, or norm check failure.
+ *   true , signature authenticates the message under vk.
+ *   false, wrong sig, malformed hint encoding, or norm check failure.
  */
 export function mldsaVerifyInternal(
 	mx: MlDsaExports,
@@ -115,7 +117,7 @@ export function mldsaVerifyInternal(
 	const sha3Mem  = new Uint8Array(sx.memory.buffer);
 	const sha3OutOff = sx.getOutOffset();
 
-	// TS-side sensitive buffers — wipe in finally even though MPrime, c̃,
+	// TS-side sensitive buffers, wipe in finally even though MPrime, c̃,
 	// μ are public-derivable (vk, sig, M are public). Keep the surface
 	// uniform with sign so future audits don't have to special-case verify.
 	let mu:        Uint8Array | undefined;
@@ -142,7 +144,7 @@ export function mldsaVerifyInternal(
 			mx.bit_unpack(slot1 + r * POLY_BYTES, xofOff, gamma1 - 1, gamma1);
 			off += zPolyBytes;
 		}
-		// HintBitUnpack — FIPS 204 Algorithm 21. Returns -1 on any of the
+		// HintBitUnpack, FIPS 204 Algorithm 21. Returns -1 on any of the
 		// three malformed-input checks (lines 4, 9, 17). Propagate as
 		// false: this is the SUF-CMA fix from FIPS 204 §D.3.
 		mlMem.set(sig.subarray(off, off + omega + k), xofOff);
@@ -183,11 +185,11 @@ export function mldsaVerifyInternal(
 		for (let i = 0; i < k * 256; i++) t1View[i] <<= t1ScalarShift;
 		mx.polyvec_ntt(slot0, k);
 		mx.polyvec_tomont(slot0, k);
-		// (c) ĉ ← NTT(c) — single polynomial in place.
+		// (c) ĉ ← NTT(c), single polynomial in place.
 		mx.ntt(polySlot1);
 		// (d) Â · ẑ → slot3 (regular form in NTT domain)
 		mx.polyvec_matrix_pointwise_montgomery(slot3, matOff, slot1, k, l);
-		// (e) ĉ · t̂₁·2^d → slot4 — TS-side per-poly loop; ĉ regular, t̂₁·2^d
+		// (e) ĉ · t̂₁·2^d → slot4, TS-side per-poly loop; ĉ regular, t̂₁·2^d
 		//     tomont so the kernel's R⁻¹ leaves the result regular.
 		for (let r = 0; r < k; r++) {
 			mx.poly_pointwise_montgomery(
@@ -215,7 +217,7 @@ export function mldsaVerifyInternal(
 
 		// ── Step (Alg 8 line 11) return ‖z‖∞ < γ₁ − β AND c̃ = c̃' ───────
 		// The sigDecode bit_unpack output is in centered residues
-		// [-(γ₁-1), γ₁] — chknorm consumes that form directly without
+		// [-(γ₁-1), γ₁], chknorm consumes that form directly without
 		// polyvec_reduce. We must check norm AFTER the NTT path because
 		// our slot1 holds NTT-domain ẑ now. Re-decode z into a fresh slot
 		// for the norm check.
@@ -233,7 +235,7 @@ export function mldsaVerifyInternal(
 		// Constant-time comparison via the SIMD ct WASM module. We
 		// evaluate normFail and the c̃ comparison both before returning,
 		// so that an attacker who can observe timing cannot distinguish
-		// "norm failed" from "c̃ mismatch" — both run to completion before
+		// "norm failed" from "c̃ mismatch", both run to completion before
 		// the boolean reduction. (The c̃ != c̃' branch is taken regardless
 		// of normFail; both signals are public-input-derived so this is
 		// not a CT requirement, but it preserves the symmetry.)
@@ -242,7 +244,7 @@ export function mldsaVerifyInternal(
 	} catch {
 		// FIPS 204 verify is a pure predicate. Any unexpected exception
 		// (out-of-memory, kernel argument errors) is treated as "did not
-		// authenticate" — never propagate. The SUF-CMA risk of swallowing
+		// authenticate", never propagate. The SUF-CMA risk of swallowing
 		// is bounded by validate*.ts callers: the ones that throw on
 		// caller contract violations (oversize ctx) run BEFORE this
 		// function executes.
@@ -255,7 +257,7 @@ export function mldsaVerifyInternal(
 		if (cTildeNew) wipe(cTildeNew);
 		if (w1Bytes)   wipe(w1Bytes);
 
-		// Wipe WASM scratch — verify operates on public inputs (vk, sig,
+		// Wipe WASM scratch, verify operates on public inputs (vk, sig,
 		// M, ctx all public; t₁, ẑ, w'_approx, h all public-derivable),
 		// but the discipline mirrors sign for review consistency. Cheap.
 		mlMem.fill(0, mx.getPolyvecSlotBase(), mx.getPolyvecSlotBase() + 5 * mx.getPolyvecSlotSize());
@@ -265,5 +267,36 @@ export function mldsaVerifyInternal(
 		// SHA3 module: wipe state across op boundary, same convention as
 		// keygen / sign. Holds vk (public), tr (public), μ (public-derivable).
 		sx.wipeBuffers();
+	}
+}
+
+/**
+ * HashML-DSA verify, post-prehash. FIPS 204 §5.4 Algorithm 5 lines 17-19.
+ * Builds M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID(algo) ‖ prehash and drives
+ * Verify_internal.
+ *
+ * Same return / throw posture as `mldsaVerifyInternal`: returns a pure
+ * boolean for every signature outcome. Caller (in index.ts) is expected
+ * to have already filtered wrong-length vk / sig / digest with the
+ * appropriate verdict (false) before calling this helper.
+ *
+ * The caller owns `prehash`; this helper never wipes it.
+ */
+export function verifyWithPrehash(
+	mx:      MlDsaExports,
+	sx:      Sha3Exports,
+	params:  MlDsaParams,
+	vk:      Uint8Array,
+	prehash: Uint8Array,
+	sig:     Uint8Array,
+	algo:    PreHashAlgorithm,
+	ctx:     Uint8Array,
+): boolean {
+	const oid    = getOid(algo);
+	const MPrime = constructMPrimeHash(ctx, oid, prehash);
+	try {
+		return mldsaVerifyInternal(mx, sx, params, vk, MPrime, sig);
+	} finally {
+		wipe(MPrime);
 	}
 }

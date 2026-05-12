@@ -23,7 +23,7 @@
 //
 // AESGenerator coverage. The test reconstructs the expected keystream
 // independently using the raw AES WASM exports (loadKey + encryptBlock)
-// — this is the cross-check pattern that proves AESGenerator does not
+// , this is the cross-check pattern that proves AESGenerator does not
 // silently diverge from the AES-256 ECB primitive.
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -77,7 +77,7 @@ function expected(key: Uint8Array, counter: Uint8Array, n: number): Uint8Array {
 	}
 }
 
-describe('AESGenerator — keystream cross-check vs raw AES', () => {
+describe('AESGenerator, keystream cross-check vs raw AES', () => {
 	const key = new Uint8Array(32);
 	for (let i = 0; i < 32; i++) key[i] = (i * 7 + 1) & 0xff;
 	const counter = new Uint8Array(16);
@@ -98,7 +98,7 @@ describe('AESGenerator — keystream cross-check vs raw AES', () => {
 	}
 });
 
-describe('AESGenerator — counter increment carry', () => {
+describe('AESGenerator, counter increment carry', () => {
 	it('rolls a byte from 0xff to 0x00 and carries to the next', () => {
 		const key = new Uint8Array(32).fill(0x99);
 		// Counter low byte at 0xfe so the second block flips it to 0xff and
@@ -112,7 +112,7 @@ describe('AESGenerator — counter increment carry', () => {
 	});
 });
 
-describe('AESGenerator — argument validation', () => {
+describe('AESGenerator, argument validation', () => {
 	const key32 = new Uint8Array(32);
 	const counter16 = new Uint8Array(16);
 
@@ -143,7 +143,7 @@ describe('AESGenerator — argument validation', () => {
 	});
 });
 
-describe('AESGenerator — non-mutation of caller buffers', () => {
+describe('AESGenerator, non-mutation of caller buffers', () => {
 	it('does not mutate the caller-provided counter', () => {
 		const key = new Uint8Array(32).fill(0x77);
 		const counter = new Uint8Array(16).fill(0xaa);

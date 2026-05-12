@@ -7,9 +7,9 @@ Audit of the `leviathan-crypto` ratchet KDF module (TypeScript composition over 
 > ### Table of Contents
 > - [Overview](#overview)
 > - [KDF Constructions](#kdf-constructions)
->   - [KDF_SCKA_INIT — `ratchetInit`](#kdf_scka_init--ratchetinit)
->   - [KDF_SCKA_CK — `KDFChain.step`](#kdf_scka_ck--kdfchainstep)
->   - [KDF_SCKA_RK — `kemRatchetEncap` / `kemRatchetDecap`](#kdf_scka_rk--kemratchetencap--kemratchetdecap)
+>   - [KDF_SCKA_INIT, `ratchetInit`](#kdf_scka_init--ratchetinit)
+>   - [KDF_SCKA_CK, `KDFChain.step`](#kdf_scka_ck--kdfchainstep)
+>   - [KDF_SCKA_RK, `kemRatchetEncap` / `kemRatchetDecap`](#kdf_scka_rk--kemratchetencap--kemratchetdecap)
 > - [Counter Encoding (`KDF_SCKA_CK`)](#counter-encoding-kdf_scka_ck)
 > - [Wipe Coverage](#wipe-coverage)
 > - [Atomicity](#atomicity)
@@ -65,7 +65,7 @@ surrounding session) also remains a caller concern. See
 
 ## KDF Constructions
 
-### KDF_SCKA_INIT — `ratchetInit`
+### KDF_SCKA_INIT, `ratchetInit`
 
 (`src/ts/ratchet/root-kdf.ts`, `kdfRoot` helper)
 
@@ -76,7 +76,7 @@ Derives the initial root key, send chain key, and receive chain key from a
 
 | Parameter | Value |
 |-----------|-------|
-| IKM | `sk` — 32-byte shared secret |
+| IKM | `sk`, 32-byte shared secret |
 | salt | 32 zero bytes (new Uint8Array(32)) |
 | info | `'leviathan-ratchet-v1 Chain Start'` (32 bytes UTF-8) [‖ context if provided] |
 | L | 96 bytes |
@@ -98,7 +98,7 @@ Derives the initial root key, send chain key, and receive chain key from a
 
 (`'leviathan-ratchet-v1 Chain Start'`, 32 bytes)
 
-**Implementation (`kdfRoot` helper, `root-kdf.ts:44–59`):**
+**Implementation (`kdfRoot` helper, `root-kdf.ts:44-59`):**
 
 The shared helper `kdfRoot(secret, salt, info)` performs all three root KDF
 operations. `ratchetInit` passes `salt = new Uint8Array(32)` (32 zero bytes,
@@ -111,7 +111,7 @@ arrive at a consistent initial state. The library does not enforce this.
 
 ---
 
-### KDF_SCKA_CK — `KDFChain.step`
+### KDF_SCKA_CK, `KDFChain.step`
 
 (`src/ts/ratchet/kdf-chain.ts`, `KDFChain.step()`)
 
@@ -123,7 +123,7 @@ key plus a message key.
 
 | Parameter | Value |
 |-----------|-------|
-| IKM | `_ck` — current 32-byte chain key |
+| IKM | `_ck`, current 32-byte chain key |
 | salt | 32 zero bytes (module-level `ZERO_SALT` constant) |
 | info | `'leviathan-ratchet-v1 Chain Step'` (31 bytes UTF-8) ‖ `N` (8 bytes big-endian uint64) |
 | L | 64 bytes |
@@ -153,7 +153,7 @@ material.
 
 ---
 
-### KDF_SCKA_RK — `kemRatchetEncap` / `kemRatchetDecap`
+### KDF_SCKA_RK, `kemRatchetEncap` / `kemRatchetDecap`
 
 (`src/ts/ratchet/root-kdf.ts`, `kemRatchetEncap` + `kemRatchetDecap`)
 
@@ -165,8 +165,8 @@ secret via HKDF-SHA-256.
 
 | Parameter | Value |
 |-----------|-------|
-| IKM | `sharedSecret` — shared secret from ML-KEM encaps/decaps (32 bytes) |
-| salt | `rk` — current 32-byte root key |
+| IKM | `sharedSecret`, shared secret from ML-KEM encaps/decaps (32 bytes) |
+| salt | `rk`, current 32-byte root key |
 | info | `'leviathan-ratchet-v1 Chain Add Epoch'` (36 bytes UTF-8) [‖ context if provided] |
 | L | 96 bytes |
 
@@ -207,7 +207,7 @@ relies on the KEM's one-wayness).
 
 ## Counter Encoding (`KDF_SCKA_CK`)
 
-(`src/ts/ratchet/kdf-chain.ts:57–60`)
+(`src/ts/ratchet/kdf-chain.ts:57-60`)
 
 ```typescript
 const ctrBuf = new Uint8Array(8);
@@ -327,16 +327,16 @@ The ratchet module provides KDF primitives, single-use KEM keypair handling
 and are not implemented here:
 
 - **Session state machine.** Tracking which ratchet step is current, deciding when an epoch transition should happen, and coordinating the send/receive state machines for both parties are protocol-layer responsibilities. The library exposes the building blocks (`KDFChain`, `kemRatchetEncap`/`Decap`, `SkippedKeyStore.advanceToBoundary`) but does not drive them.
-- **Wire encoding of the header.** The library exports `RatchetMessageHeader` as a TypeScript interface (`{ epoch, counter, pn?, kemCt? }`) so applications and the library agree on the shape of header metadata. It does **not** provide a serializer or parser — turning a `RatchetMessageHeader` into bytes for transmission, and parsing received bytes back into the interface, is the application's responsibility (and depends on the surrounding wire format).
+- **Wire encoding of the header.** The library exports `RatchetMessageHeader` as a TypeScript interface (`{ epoch, counter, pn?, kemCt? }`) so applications and the library agree on the shape of header metadata. It does **not** provide a serializer or parser, turning a `RatchetMessageHeader` into bytes for transmission, and parsing received bytes back into the interface, is the application's responsibility (and depends on the surrounding wire format).
 - **Header encryption.** The Double Ratchet spec describes optional header encryption to conceal ratchet state from observers. This library provides no header encryption.
-- **Skipped-key policy and persistence.** The library provides in-memory skipped message key storage via `SkippedKeyStore` — including the transactional `ResolveHandle` API (`commit`/`rollback`), which mitigates the delete-on-retrieval DoS where an adversary injects a garbage ciphertext to consume a specific counter's key before the legitimate message arrives, and the split budgets (`maxCacheSize`, `maxSkipPerResolve`) which bound memory and per-message HKDF work independently. Applications remain responsible for higher-level policy such as retention windows beyond `maxCacheSize`, persistence across restarts, and replay handling at the session layer. Header encryption (which would conceal counter metadata from on-path observers and remove the "specific counter" pivot entirely) remains unimplemented and is a protocol-layer concern.
-- **Epoch transition policy.** Deciding when to perform a KEM ratchet step (i.e., when to call `kemRatchetEncap` and when to transmit a new encapsulation key) is a protocol-layer policy decision. The receive-side *mechanics* of a transition — stepping the previous-epoch receive chain up to `pn` so late-arriving old-epoch messages can still decrypt — are supported via `SkippedKeyStore.advanceToBoundary(chain, pn)`, with the same `maxSkipPerResolve` budget enforced so a malicious `pn` can't force unbounded HKDF work. The library does not, however, drive the decision to call `advanceToBoundary` or to step the root key; both remain session-layer concerns.
+- **Skipped-key policy and persistence.** The library provides in-memory skipped message key storage via `SkippedKeyStore`, including the transactional `ResolveHandle` API (`commit`/`rollback`), which mitigates the delete-on-retrieval DoS where an adversary injects a garbage ciphertext to consume a specific counter's key before the legitimate message arrives, and the split budgets (`maxCacheSize`, `maxSkipPerResolve`) which bound memory and per-message HKDF work independently. Applications remain responsible for higher-level policy such as retention windows beyond `maxCacheSize`, persistence across restarts, and replay handling at the session layer. Header encryption (which would conceal counter metadata from on-path observers and remove the "specific counter" pivot entirely) remains unimplemented and is a protocol-layer concern.
+- **Epoch transition policy.** Deciding when to perform a KEM ratchet step (i.e., when to call `kemRatchetEncap` and when to transmit a new encapsulation key) is a protocol-layer policy decision. The receive-side *mechanics* of a transition, stepping the previous-epoch receive chain up to `pn` so late-arriving old-epoch messages can still decrypt, are supported via `SkippedKeyStore.advanceToBoundary(chain, pn)`, with the same `maxSkipPerResolve` budget enforced so a malicious `pn` can't force unbounded HKDF work. The library does not, however, drive the decision to call `advanceToBoundary` or to step the root key; both remain session-layer concerns.
 
 ---
 
 ## Findings
 
-**F-01 — Direction slot alignment in `kemRatchetDecap`**
+**F-01, Direction slot alignment in `kemRatchetDecap`**
 
 **Status:** Resolved.
 
@@ -363,14 +363,14 @@ verifies this property.
 
 ---
 
-**F-02 — `RatchetKeypair.decap` does not wipe `_dk` on throw**
+**F-02, `RatchetKeypair.decap` does not wipe `_dk` on throw**
 
 **Status:** Resolved.
 
 **Description:** In the original implementation, `decap()` set `this._used =
 true` then called `kemRatchetDecap(kem, rk, this._dk, kemCt, context)`
 sequentially, followed by `wipe(this._dk)`. If `kemRatchetDecap` threw (e.g.
-from the `rk` length guard — `RangeError: rk must be 32 bytes`), the wipe was
+from the `rk` length guard, `RangeError: rk must be 32 bytes`), the wipe was
 never reached. Because `_used` was already `true`, subsequent calls to
 `dispose()` also skipped the wipe via the `if (!this._used)` guard. The
 decapsulation key leaked in memory for the lifetime of the instance.
@@ -386,13 +386,13 @@ try {
 }
 ```
 
-The `finally` block fires unconditionally — on return and on throw — ensuring
+The `finally` block fires unconditionally, on return and on throw, ensuring
 `_dk` is always zeroed. A regression test (`'dk wiped even when decap throws
 (bad rk length)'`) covers the throw path.
 
 ---
 
-**F-03 — Bilateral exchange example wiped `nextRootKey` before it could be used**
+**F-03, Bilateral exchange example wiped `nextRootKey` before it could be used**
 
 **Status:** Resolved.
 

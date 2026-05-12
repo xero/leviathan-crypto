@@ -21,7 +21,7 @@
 //
 // src/asm/aes/index.ts
 //
-// AES WASM module — public exports.
+// AES WASM module, public exports.
 // Supports AES-128/192/256 encrypt + decrypt; raw block cipher only.
 
 // ── Buffer layout (buffers.ts) ──────────────────────────────────────────────

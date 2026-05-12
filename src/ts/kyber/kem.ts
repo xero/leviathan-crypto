@@ -21,7 +21,7 @@
 //
 // src/ts/kyber/kem.ts
 //
-// ML-KEM KEM layer — Fujisaki-Okamoto transform.
+// ML-KEM KEM layer, Fujisaki-Okamoto transform.
 // FIPS 203 Algorithms 15, 16, 17 (ML-KEM internal).
 
 import type { KyberExports, Sha3Exports, KyberKeyPair, KyberEncapsulation } from './types.js';
@@ -55,7 +55,7 @@ export function kemKeypairDerand(
 	// keygen noise. After kemKeypairDerand returns, no secret or secret-
 	// derived data persists in kyber linear memory until the next kyber op
 	// or MlKem.dispose(). SK_OFFSET holds skCpa packed via polyvec_tobytes
-	// — same severity class as the decap-side SK_OFFSET residual (R-028):
+	// , same severity class as the decap-side SK_OFFSET residual (R-028):
 	// long-lived key material whose disclosure compromises every ciphertext
 	// under the corresponding ek. POLYVEC_SLOT_1/2 hold ŝ and ê in NTT
 	// domain. XOF_PRF_OFFSET holds the last PRF output block. POLYVEC_SLOT_3
@@ -118,14 +118,14 @@ export function kemEncapsulateDerand(
 		// Wipe kyber WASM scratch regions that held m / r / e₁ / e₂ / u / v /
 		// m-poly / PRF output. After kemEncapsulateDerand returns, no secret
 		// or secret-derived data persists in kyber linear memory until the
-		// next kyber op or MlKem.dispose(). MSG_OFFSET holds raw m —
+		// next kyber op or MlKem.dispose(). MSG_OFFSET holds raw m,
 		// reproducing the shared secret K = G(m ‖ H(ek))[0..32] only needs m
 		// plus the public ek, so this is the highest-severity encap residual.
 		// POLYVEC_SLOT_1/2/3 hold r, e₁, and uncompressed u (u compression is
-		// lossy for du ∈ {10,11} — uncompressed u reveals low-order bits the
+		// lossy for du ∈ {10,11}, uncompressed u reveals low-order bits the
 		// public ciphertext hides). POLY_SLOT_1/2/3 hold e₂ (full 512B), v,
 		// and the m-polynomial. XOF_PRF_OFFSET holds the last PRF block.
-		// PK_OFFSET, CT_OFFSET, POLYVEC_SLOT_0/4 are public — skipped.
+		// PK_OFFSET, CT_OFFSET, POLYVEC_SLOT_0/4 are public, skipped.
 		const kyberMem = new Uint8Array(kx.memory.buffer);
 		kyberMem.fill(0, kx.getMsgOffset(),     kx.getMsgOffset()    + 32);
 		kyberMem.fill(0, kx.getPolyvecSlot1(),  kx.getPolyvecSlot1() + 2048);
@@ -150,7 +150,7 @@ export function kemEncapsulateDerand(
  * ML-KEM.Decaps_internal (FIPS 203 Algorithm 17).
  *
  * Constant-time: uses ct_verify and ct_cmov from kyber WASM.
- * MUST NOT branch on secret data in JS — all comparison via WASM primitives.
+ * MUST NOT branch on secret data in JS, all comparison via WASM primitives.
  */
 export function kemDecapsulate(
 	kx: KyberExports,
@@ -194,7 +194,7 @@ export function kemDecapsulate(
 		jInput.set(c, 32);
 		kBar = shake256Hash(sx, jInput, 32);
 
-		// Re-encrypt c' = K-PKE.Encrypt(ek, m', r') — indcpaEncrypt handles its own prfInput wipe
+		// Re-encrypt c' = K-PKE.Encrypt(ek, m', r'), indcpaEncrypt handles its own prfInput wipe
 		cPrime = indcpaEncrypt(kx, sx, params, ek, mPrime, rPrime);
 
 		// Constant-time comparison and conditional select via kyber WASM
@@ -223,7 +223,7 @@ export function kemDecapsulate(
 		// Wipe kyber WASM scratch regions that held the CPA secret key (skCpa),
 		// m' / K' / K̄ / e₂ / r / e₁ / u, and the PRF output buffer. Without
 		// this, residual secret and secret-derived bytes persist in linear
-		// memory until the next kyber op or MlKem.dispose() — a window during
+		// memory until the next kyber op or MlKem.dispose(), a window during
 		// which any other code with a handle to the kyber exports could read
 		// them. skCpa is the highest-severity residual: it compromises every
 		// ciphertext under the corresponding ek, not just this message.
@@ -236,7 +236,7 @@ export function kemDecapsulate(
 		kyberMem.fill(0, kx.getPolyvecSlot2(),  kx.getPolyvecSlot2() + 2048);  // e₁ (noise polyvec for u)
 		kyberMem.fill(0, kx.getPolyvecSlot3(),  kx.getPolyvecSlot3() + 2048);  // uncompressed u polyvec from FO re-encryption
 		kyberMem.fill(0, kx.getXofPrfOffset(),  kx.getXofPrfOffset() + 1024);  // last PRF output block
-		kyberMem.fill(0, kx.getSkOffset(),      kx.getSkOffset() + skCpaBytes); // CPA secret key (long-lived — highest severity residual)
+		kyberMem.fill(0, kx.getSkOffset(),      kx.getSkOffset() + skCpaBytes); // CPA secret key (long-lived, highest severity residual)
 
 		sx.wipeBuffers();
 

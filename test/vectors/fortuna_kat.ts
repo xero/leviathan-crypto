@@ -23,7 +23,7 @@
 //
 // Fortuna pluggable-primitive KAT vectors.
 //
-// SELF-GENERATED — no external authority for these wire formats. Generated with
+// SELF-GENERATED, no external authority for these wire formats. Generated with
 // a deterministic entropy seed and msPerReseed: 0, then independently verified
 // against the underlying primitives. Vectors serve as regression trip-wires for
 // Fortuna's pluggable-primitive output stability.

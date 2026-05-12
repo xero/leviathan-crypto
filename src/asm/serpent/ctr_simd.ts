@@ -67,7 +67,7 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	const c0 = COUNTER_OFFSET
 
 	// Helper: read 4 bytes from counter at offset o as Serpent-internal word
-	// (NIST natural byte order — little-endian load):
+	// (NIST natural byte order, little-endian load):
 	// w(o) = byte[o] | (byte[o+1]<<8) | (byte[o+2]<<16) | (byte[o+3]<<24)
 
 	// We need 4 counter values: ctr+0, ctr+1, ctr+2, ctr+3
@@ -159,19 +159,19 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	const r2 = v128.load(SIMD_WORK_OFFSET + 2 * 16)
 	const r3 = v128.load(SIMD_WORK_OFFSET + 3 * 16)
 
-	// Block 0 — lane 0
+	// Block 0, lane 0
 	xorKeystreamBlock(ptOff, ctOff,
 		i32x4.extract_lane(r0, 0), i32x4.extract_lane(r1, 0),
 		i32x4.extract_lane(r2, 0), i32x4.extract_lane(r3, 0))
-	// Block 1 — lane 1
+	// Block 1, lane 1
 	xorKeystreamBlock(ptOff + 16, ctOff + 16,
 		i32x4.extract_lane(r0, 1), i32x4.extract_lane(r1, 1),
 		i32x4.extract_lane(r2, 1), i32x4.extract_lane(r3, 1))
-	// Block 2 — lane 2
+	// Block 2, lane 2
 	xorKeystreamBlock(ptOff + 32, ctOff + 32,
 		i32x4.extract_lane(r0, 2), i32x4.extract_lane(r1, 2),
 		i32x4.extract_lane(r2, 2), i32x4.extract_lane(r3, 2))
-	// Block 3 — lane 3
+	// Block 3, lane 3
 	xorKeystreamBlock(ptOff + 48, ctOff + 48,
 		i32x4.extract_lane(r0, 3), i32x4.extract_lane(r1, 3),
 		i32x4.extract_lane(r2, 3), i32x4.extract_lane(r3, 3))
@@ -204,7 +204,7 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 /**
  * Encrypt chunkLen bytes using SIMD-accelerated Serpent CTR mode.
  * Processes 4 blocks (64 bytes) per SIMD iteration; scalar tail handles remainder.
- * CTR mode is symmetric — encryption and decryption are identical operations.
+ * CTR mode is symmetric, encryption and decryption are identical operations.
  * Counter must be initialised before calling.
  * @param chunkLen  number of bytes to encrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
@@ -239,7 +239,7 @@ export function encryptChunk_simd(chunkLen: i32): i32 {
 
 /**
  * Decrypt chunkLen bytes using SIMD-accelerated Serpent CTR mode.
- * Identical to `encryptChunk_simd` — CTR mode is symmetric.
+ * Identical to `encryptChunk_simd`, CTR mode is symmetric.
  * @param chunkLen  number of bytes to decrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
  */

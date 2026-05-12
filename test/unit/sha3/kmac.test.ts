@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// cSHAKE128/256, KMAC128/256, KMACXOF128/256 — Known-Answer Tests.
+// cSHAKE128/256, KMAC128/256, KMACXOF128/256, Known-Answer Tests.
 //
 // Source: NIST SP 800-185 sample documents + NIST ACVP byte-aligned subset.
 // Vectors: test/vectors/kmac.ts (24 records, byte-oriented, pinned in
@@ -71,12 +71,12 @@ beforeAll(async () => {
 	await init({ sha3: sha3Wasm });
 });
 
-// GATE: cSHAKE128 SP 800-185 Appendix A sample #1 — the structural
+// GATE: cSHAKE128 SP 800-185 Appendix A sample #1, the structural
 // prerequisite for every other test in this file. If this fails, the encoding
 // helpers (left_encode / right_encode / encode_string / bytepad), the cSHAKE
 // prefix construction, or the AS-side cshake128Init domain byte is wrong.
 // Vector: test/vectors/kmac.ts → cshake128_appendix_a[0]
-describe('Gate 8 — cSHAKE128 SP 800-185 sample #1', () => {
+describe('Gate 8, cSHAKE128 SP 800-185 sample #1', () => {
 	test('cSHAKE128(msg=0001..03, N="", S="Email Signature", L=256) matches SP 800-185 §A', () => {
 		const vec = cshake128_appendix_a[0];
 		const c = new CSHAKE128(fromAscii(vec.S));
@@ -86,7 +86,7 @@ describe('Gate 8 — cSHAKE128 SP 800-185 sample #1', () => {
 	});
 });
 
-// ── vector file invariants — corpus shape ──────────────────────────────────
+// ── vector file invariants, corpus shape ──────────────────────────────────
 //
 // Two ACVP slots are empty by design after the byte-alignment filter and the
 // xof/non-xof routing: KMAC-256 ACVP records that were byte-aligned all had
@@ -109,9 +109,9 @@ describe('vector file invariants', () => {
 	});
 });
 
-// ── CSHAKE128 — SP 800-185 samples ──────────────────────────────────────────
+// ── CSHAKE128, SP 800-185 samples ──────────────────────────────────────────
 
-describe('CSHAKE128 — SP 800-185 samples', () => {
+describe('CSHAKE128, SP 800-185 samples', () => {
 	for (const vec of cshake128_appendix_a) {
 		test(vec.description, () => {
 			const c = new CSHAKE128(fromAscii(vec.S));
@@ -125,13 +125,13 @@ describe('CSHAKE128 — SP 800-185 samples', () => {
 	}
 });
 
-// ── CSHAKE128 — ACVP byte-aligned ───────────────────────────────────────────
-// ACVP records carry NIST-reserved function names ("KMAC", "TupleHash", …) —
+// ── CSHAKE128, ACVP byte-aligned ───────────────────────────────────────────
+// ACVP records carry NIST-reserved function names ("KMAC", "TupleHash", …),
 // the public CSHAKE128 class hides N per SP 800-185 §3.4. Reach into the
 // internal _cshake128Raw helper so the byte-aligned subset is still validated
 // against the WASM sponge end-to-end.
 
-describe('CSHAKE128 — ACVP byte-aligned', () => {
+describe('CSHAKE128, ACVP byte-aligned', () => {
 	for (const vec of cshake128_acvp) {
 		test(`AFT tcId ${vec.tcId}`, () => {
 			const out = _cshake128Raw(
@@ -145,9 +145,9 @@ describe('CSHAKE128 — ACVP byte-aligned', () => {
 	}
 });
 
-// ── CSHAKE256 — SP 800-185 samples ──────────────────────────────────────────
+// ── CSHAKE256, SP 800-185 samples ──────────────────────────────────────────
 
-describe('CSHAKE256 — SP 800-185 samples', () => {
+describe('CSHAKE256, SP 800-185 samples', () => {
 	for (const vec of cshake256_appendix_a) {
 		test(vec.description, () => {
 			const c = new CSHAKE256(fromAscii(vec.S));
@@ -161,9 +161,9 @@ describe('CSHAKE256 — SP 800-185 samples', () => {
 	}
 });
 
-// ── CSHAKE256 — ACVP byte-aligned ───────────────────────────────────────────
+// ── CSHAKE256, ACVP byte-aligned ───────────────────────────────────────────
 
-describe('CSHAKE256 — ACVP byte-aligned', () => {
+describe('CSHAKE256, ACVP byte-aligned', () => {
 	for (const vec of cshake256_acvp) {
 		test(`AFT tcId ${vec.tcId}`, () => {
 			const out = _cshake256Raw(
@@ -177,9 +177,9 @@ describe('CSHAKE256 — ACVP byte-aligned', () => {
 	}
 });
 
-// ── KMAC128 — SP 800-185 samples ────────────────────────────────────────────
+// ── KMAC128, SP 800-185 samples ────────────────────────────────────────────
 
-describe('KMAC128 — SP 800-185 samples', () => {
+describe('KMAC128, SP 800-185 samples', () => {
 	for (const vec of kmac128_appendix_a) {
 		test(vec.description, () => {
 			const m = new KMAC128(fromHex(vec.key), vec.outLenBits / 8, fromAscii(vec.S));
@@ -193,9 +193,9 @@ describe('KMAC128 — SP 800-185 samples', () => {
 	}
 });
 
-// ── KMAC128 — ACVP byte-aligned ─────────────────────────────────────────────
+// ── KMAC128, ACVP byte-aligned ─────────────────────────────────────────────
 
-describe('KMAC128 — ACVP byte-aligned', () => {
+describe('KMAC128, ACVP byte-aligned', () => {
 	for (const vec of kmac128_acvp) {
 		test(`${vec.testType} tcId ${vec.tcId}`, () => {
 			const key = fromHex(vec.key);
@@ -222,9 +222,9 @@ describe('KMAC128 — ACVP byte-aligned', () => {
 	}
 });
 
-// ── KMAC256 — SP 800-185 samples ────────────────────────────────────────────
+// ── KMAC256, SP 800-185 samples ────────────────────────────────────────────
 
-describe('KMAC256 — SP 800-185 samples', () => {
+describe('KMAC256, SP 800-185 samples', () => {
 	for (const vec of kmac256_appendix_a) {
 		test(vec.description, () => {
 			const m = new KMAC256(fromHex(vec.key), vec.outLenBits / 8, fromAscii(vec.S));
@@ -238,13 +238,13 @@ describe('KMAC256 — SP 800-185 samples', () => {
 	}
 });
 
-// ── KMAC256 — ACVP byte-aligned ─────────────────────────────────────────────
+// ── KMAC256, ACVP byte-aligned ─────────────────────────────────────────────
 // Empty by design (see invariants block above). The conditional describe
 // materializes automatically if a future ACVP refresh wires records in;
 // the invariant test then breaks first, forcing review.
 
 if (kmac256_acvp.length > 0) {
-	describe('KMAC256 — ACVP byte-aligned', () => {
+	describe('KMAC256, ACVP byte-aligned', () => {
 		for (const vec of kmac256_acvp) {
 			test(`${vec.testType} tcId ${vec.tcId}`, () => {
 				const m = new KMAC256(fromHex(vec.key), vec.macLenBits / 8, acvpCustomization(vec));
@@ -259,9 +259,9 @@ if (kmac256_acvp.length > 0) {
 	});
 }
 
-// ── KMACXOF128 — SP 800-185 samples ─────────────────────────────────────────
+// ── KMACXOF128, SP 800-185 samples ─────────────────────────────────────────
 
-describe('KMACXOF128 — SP 800-185 samples', () => {
+describe('KMACXOF128, SP 800-185 samples', () => {
 	for (const vec of kmacxof128_appendix_a) {
 		test(vec.description, () => {
 			const m = new KMACXOF128(fromHex(vec.key), fromAscii(vec.S));
@@ -275,13 +275,13 @@ describe('KMACXOF128 — SP 800-185 samples', () => {
 	}
 });
 
-// ── KMACXOF128 — ACVP byte-aligned ──────────────────────────────────────────
+// ── KMACXOF128, ACVP byte-aligned ──────────────────────────────────────────
 // Empty by design (see invariants block above). The conditional describe
 // materializes automatically if a future ACVP refresh wires records in;
 // the invariant test then breaks first, forcing review.
 
 if (kmacxof128_acvp.length > 0) {
-	describe('KMACXOF128 — ACVP byte-aligned', () => {
+	describe('KMACXOF128, ACVP byte-aligned', () => {
 		for (const vec of kmacxof128_acvp) {
 			test(`${vec.testType} tcId ${vec.tcId}`, () => {
 				const m = new KMACXOF128(fromHex(vec.key), acvpCustomization(vec));
@@ -296,9 +296,9 @@ if (kmacxof128_acvp.length > 0) {
 	});
 }
 
-// ── KMACXOF256 — SP 800-185 samples ─────────────────────────────────────────
+// ── KMACXOF256, SP 800-185 samples ─────────────────────────────────────────
 
-describe('KMACXOF256 — SP 800-185 samples', () => {
+describe('KMACXOF256, SP 800-185 samples', () => {
 	for (const vec of kmacxof256_appendix_a) {
 		test(vec.description, () => {
 			const m = new KMACXOF256(fromHex(vec.key), fromAscii(vec.S));
@@ -312,9 +312,9 @@ describe('KMACXOF256 — SP 800-185 samples', () => {
 	}
 });
 
-// ── KMACXOF256 — ACVP byte-aligned ──────────────────────────────────────────
+// ── KMACXOF256, ACVP byte-aligned ──────────────────────────────────────────
 
-describe('KMACXOF256 — ACVP byte-aligned', () => {
+describe('KMACXOF256, ACVP byte-aligned', () => {
 	for (const vec of kmacxof256_acvp) {
 		test(`${vec.testType} tcId ${vec.tcId}`, () => {
 			const key = fromHex(vec.key);

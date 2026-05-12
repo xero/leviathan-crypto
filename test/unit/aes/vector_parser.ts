@@ -26,9 +26,9 @@
 // three test types share the same record structure (COUNT / KEY /
 // PLAINTEXT / CIPHERTEXT, blank-line separated, [ENCRYPT] / [DECRYPT]
 // section markers); only the byte lengths differ.
-//   • KAT — single-block PT/CT (16 bytes).
-//   • MMT — variable-length PT/CT (1..10 blocks of 16 bytes).
-//   • MCT — single-block PT/CT, 100 chains per direction; each row is
+//   • KAT, single-block PT/CT (16 bytes).
+//   • MMT, variable-length PT/CT (1..10 blocks of 16 bytes).
+//   • MCT, single-block PT/CT, 100 chains per direction; each row is
 //          one chain's seed (cipher-derived per AESAVS §6.4.1).
 
 import { readFileSync } from 'fs';
@@ -105,7 +105,7 @@ export function parseEcbKatFile(filename: string): {
 		case 'KEY':        cur.key   = val.toLowerCase(); break;
 		case 'PLAINTEXT':  cur.pt    = val.toLowerCase(); break;
 		case 'CIPHERTEXT': cur.ct    = val.toLowerCase(); break;
-		default: break;  // unrecognized field — ignore.
+		default: break;  // unrecognized field, ignore.
 		}
 	}
 	flush();
@@ -138,7 +138,7 @@ export function parseEcbMctFile(filename: string): {
 	return parseEcbKatFile(filename);
 }
 
-// ── CBC parsers (KAT, MMT, MCT — same record format with an extra IV) ──────
+// ── CBC parsers (KAT, MMT, MCT, same record format with an extra IV) ──────
 
 /** One row from a CAVP CBC `.rsp` ENCRYPT or DECRYPT section. */
 export interface CbcKatVector {
@@ -341,7 +341,7 @@ export function parseGcmvsEncrypt(filename: string): GcmvsEncryptVector[] {
 
 /**
  * Parse a GCMVS decrypt `.rsp` file. Same record structure as the encrypt
- * parser, but a record may end with `FAIL` instead of a `PT = ...` line —
+ * parser, but a record may end with `FAIL` instead of a `PT = ...` line,
  * those vectors are negative tests where `open` must throw.
  *
  * Detection rule: when the next non-empty line after the last data field

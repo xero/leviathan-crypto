@@ -11,23 +11,23 @@
 // the vector transcription is correct.
 //
 // FIPS 203 split:
-//   §6.1 ML-KEM.KeyGen_internal   — `from_seed(d || z)` returns dk; the
+//   §6.1 ML-KEM.KeyGen_internal  , `from_seed(d || z)` returns dk; the
 //                                    matching ek lives at `dk.encapsulation_key()`.
 //                                    ACVP supplies d and z (32 B each); the
 //                                    crate's seed is d concat z (matches
 //                                    `to_seed()`'s `d.concat(z)` layout).
-//   §6.2 ML-KEM.Encaps_internal   — `EncapsulationKey::encapsulate_deterministic(m)`
+//   §6.2 ML-KEM.Encaps_internal  , `EncapsulationKey::encapsulate_deterministic(m)`
 //                                    reproduces ACVP's expected (c, k) given
 //                                    the published 32-byte message m.
-//   §6.3 ML-KEM.Decaps_internal   — `Decapsulate::decapsulate_slice(c)` reproduces
+//   §6.3 ML-KEM.Decaps_internal  , `Decapsulate::decapsulate_slice(c)` reproduces
 //                                    the expected k. For "modified ciphertext"
 //                                    tcIds the FO transform's implicit-rejection
 //                                    branch returns a pseudorandom secret; the
 //                                    published k field is that pseudorandom value.
-//   §7.2 encap-key validity       — `EncapsulationKey::new` natively performs
+//   §7.2 encap-key validity      , `EncapsulationKey::new` natively performs
 //                                    the §7.2 modulus round-trip check and
 //                                    returns Err on failure.
-//   §7.3 decap-key validity       — the deprecated `from_expanded` performs
+//   §7.3 decap-key validity      , the deprecated `from_expanded` performs
 //                                    both §7.2 (on the embedded ek_pke) and
 //                                    §7.3 (H(ek) integrity tag); we use it
 //                                    behind `#[allow(deprecated)]` since

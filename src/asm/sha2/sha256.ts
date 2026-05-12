@@ -21,17 +21,17 @@
 //
 // src/asm/sha2/sha256.ts
 //
-// SHA-256 — FIPS 180-4
+// SHA-256, FIPS 180-4
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 //
-// All state lives in fixed linear-memory buffers — no heap allocation.
+// All state lives in fixed linear-memory buffers, no heap allocation.
 // Buffer layout: see src/asm/sha2/buffers.ts
 //
 // Streaming API:
-//   sha256Init()           — initialize H0..H7 + clear partial / total-bytes state
-//   sha256Update(len: i32) — hash len bytes from SHA256_INPUT_OFFSET (len ≤ 64)
-//   sha256Final()          — FIPS §5.1.1 padding + final compress → SHA256_OUT_OFFSET
-//   sha256Hash(len: i32)   — sha256Init + sha256Update(len) + sha256Final (len ≤ 64)
+//   sha256Init()          , initialize H0..H7 + clear partial / total-bytes state
+//   sha256Update(len: i32), hash len bytes from SHA256_INPUT_OFFSET (len ≤ 64)
+//   sha256Final()         , FIPS §5.1.1 padding + final compress → SHA256_OUT_OFFSET
+//   sha256Hash(len: i32)  , sha256Init + sha256Update(len) + sha256Final (len ≤ 64)
 //
 // SHA256_INPUT_OFFSET is 64 bytes. For inputs longer than 64 bytes the caller
 // must loop, writing ≤ 64 bytes per iteration and calling sha256Update() each time.
@@ -52,7 +52,7 @@ import {
 //
 // K[54] = 0x5b9cca4f
 // NOTE: dist/sha256.js in the leviathan source was observed to carry 0xe34d799b
-// for K[54] — that value is WRONG. 0x5b9cca4f is correct per FIPS 180-4 §4.2.2.
+// for K[54], that value is WRONG. 0x5b9cca4f is correct per FIPS 180-4 §4.2.2.
 // See sources/leviathan/docs/SHA256_AUDIT.md for the full forensic record.
 
 const K0:  i32 = 0x428a2f98
@@ -109,7 +109,7 @@ const K50: i32 = 0x2748774c
 const K51: i32 = 0x34b0bcb5
 const K52: i32 = 0x391c0cb3
 const K53: i32 = 0x4ed8aa4a
-const K54: i32 = 0x5b9cca4f  // AUDIT: 0xe34d799b in dist/sha256.js is WRONG — SHA256_AUDIT.md
+const K54: i32 = 0x5b9cca4f  // AUDIT: 0xe34d799b in dist/sha256.js is WRONG, SHA256_AUDIT.md
 const K55: i32 = 0x682e6ff3
 const K56: i32 = 0x748f82ee
 const K57: i32 = 0x78a5636f
@@ -269,7 +269,7 @@ export function sha256Init(): void {
 }
 
 // Initialize SHA-224 state. SHA-224 shares all SHA-256 buffers and round logic
-// per FIPS 180-4 §6.3 — only the IVs differ. Output is the leftmost 28 bytes
+// per FIPS 180-4 §6.3, only the IVs differ. Output is the leftmost 28 bytes
 // of SHA256_OUT_OFFSET; the TS-side caller slices [0..28).
 export function sha224Init(): void {
 	loadIVs256(SHA224_H0, SHA224_H1, SHA224_H2, SHA224_H3,
@@ -357,5 +357,5 @@ export function sha224Final(): void {
 	sha256Final()
 	// SHA256_OUT_OFFSET[0..27] is the SHA-224 digest (first 7 of 8 words).
 	// The trailing 4 bytes are derivable from the SHA-224 IV + message and
-	// are not secret — callers should read only [0..28).
+	// are not secret, callers should read only [0..28).
 }

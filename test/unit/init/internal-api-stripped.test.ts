@@ -31,9 +31,9 @@
  *   (a) `stripInternal` being dropped from tsconfig
  *   (b) the `@internal` tag being lost on `_resetForTesting`
  *   (c) a new internal export being added without the tag
- *   (d) the root barrel `src/ts/index.ts` re-exporting an internal by name —
+ *   (d) the root barrel `src/ts/index.ts` re-exporting an internal by name,
  *       a re-export declaration carries no JSDoc, so `stripInternal` does
- *       not apply at the barrel. This bypasses (a)–(c) and leaks the
+ *       not apply at the barrel. This bypasses (a)-(c) and leaks the
  *       symbol into `dist/index.d.ts` and `dist/index.js`.
  *
  * It also guards the v2.1.1 removal of the five `_<module>Ready` probes. They
@@ -68,7 +68,7 @@ const INTERNAL_SYMBOLS = [
 
 // Fortuna `@internal` test-only accessors. These live on the class, not in the
 // init module, so `stripInternal: true` only drops them from `.d.ts`. The
-// runtime method bodies remain in `dist/index.js` — that is expected. We only
+// runtime method bodies remain in `dist/index.js`, that is expected. We only
 // guard the type surface here.
 const FORTUNA_INTERNAL_SYMBOLS = [
 	'_createDeterministicForTesting',
@@ -91,14 +91,14 @@ const REMOVED_READY_PROBES: { module: string; symbol: string }[] = [
 	{ module: 'kyber',    symbol: '_kyberReady'   },
 ];
 
-// In CI, dist/ artifacts must exist — otherwise this regression guard silently
+// In CI, dist/ artifacts must exist, otherwise this regression guard silently
 // no-ops and stripInternal regressions ship undetected. Locally, skip gracefully
 // for sessions that haven't run `bun run build:ts` yet.
 function requireFile(path: string): string {
 	if (!existsSync(path)) {
 		if (process.env.CI)
 			throw new Error(
-				`${path} missing in CI — the workflow must run 'bun run build:ts' before this test.`,
+				`${path} missing in CI, the workflow must run 'bun run build:ts' before this test.`,
 			);
 		return '';
 	}
@@ -180,7 +180,7 @@ describe('removed `_<module>Ready` probes are absent from each submodule (v2.1.1
 			if (!dts) return;
 			expect(
 				dts,
-				`${symbol} re-emitted in dist/${module}/index.d.ts — it was removed in v2.1.1; use isInitialized('${module}') instead.`,
+				`${symbol} re-emitted in dist/${module}/index.d.ts, it was removed in v2.1.1; use isInitialized('${module}') instead.`,
 			).not.toContain(symbol);
 		});
 
@@ -190,7 +190,7 @@ describe('removed `_<module>Ready` probes are absent from each submodule (v2.1.1
 			if (!js) return;
 			expect(
 				js,
-				`${symbol} re-emitted in dist/${module}/index.js — it was removed in v2.1.1.`,
+				`${symbol} re-emitted in dist/${module}/index.js, it was removed in v2.1.1.`,
 			).not.toContain(symbol);
 		});
 	}

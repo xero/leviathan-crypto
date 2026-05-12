@@ -21,7 +21,7 @@
 //
 // src/asm/kyber/poly_simd.ts
 //
-// ML-KEM (Kyber) — SIMD polynomial arithmetic using WASM v128.
+// ML-KEM (Kyber), SIMD polynomial arithmetic using WASM v128.
 // FIPS 203 §4 polynomial operations: add, sub, reduce, NTT wrappers.
 //
 // All operations process 256 × i16 coefficients in 32 v128 iterations
@@ -31,7 +31,7 @@ import { barrett_reduce_8x, ntt_simd, invntt_simd } from './ntt_simd';
 
 // ── poly_add_simd ───────────────────────────────────────────────────────────
 // Pointwise addition of two polynomials. 32 v128 iterations.
-// No modular reduction — same semantics as scalar poly_add.
+// No modular reduction, same semantics as scalar poly_add.
 export function poly_add_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
 	for (let i: i32 = 0; i < 32; i++) {
 		const off: i32 = i * 16;
@@ -42,7 +42,7 @@ export function poly_add_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
 
 // ── poly_sub_simd ───────────────────────────────────────────────────────────
 // Pointwise subtraction of two polynomials. 32 v128 iterations.
-// No modular reduction — same semantics as scalar poly_sub.
+// No modular reduction, same semantics as scalar poly_sub.
 export function poly_sub_simd(rOffset: i32, aOffset: i32, bOffset: i32): void {
 	for (let i: i32 = 0; i < 32; i++) {
 		const off: i32 = i * 16;

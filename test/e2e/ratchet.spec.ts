@@ -27,8 +27,8 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('SPQR ratchet — e2e (MlKem768 + SerpentCipher + Seal)', () => {
-	// T1 — Same-realm two-party 10-message round-trip. Validates the full
+test.describe('SPQR ratchet, e2e (MlKem768 + SerpentCipher + Seal)', () => {
+	// T1, Same-realm two-party 10-message round-trip. Validates the full
 	// KEM-ratchet → KDFChain → Seal pipeline under real-browser SIMD.
 	test('same-realm two-party 10-message round-trip', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
@@ -49,7 +49,7 @@ test.describe('SPQR ratchet — e2e (MlKem768 + SerpentCipher + Seal)', () => {
 
 			const aliceEpoch = lib.kemRatchetEncap(kem, alice.nextRootKey, bobEk);
 			// kemRatchetDecap signature: (kem, rk, dk, kemCt, ownEk, context?)
-			// ownEk is Bob's own encapsulation key — both sides must bind the
+			// ownEk is Bob's own encapsulation key, both sides must bind the
 			// identical (peerEk, kemCt) pair into the HKDF info string.
 			const bobEpoch = lib.kemRatchetDecap(kem, bob.nextRootKey, bobDk, aliceEpoch.kemCt, bobEk);
 
@@ -83,7 +83,7 @@ test.describe('SPQR ratchet — e2e (MlKem768 + SerpentCipher + Seal)', () => {
 		expect(result).toBe(true);
 	});
 
-	// T2 — Out-of-order delivery via SkippedKeyStore. Alice sends 5
+	// T2, Out-of-order delivery via SkippedKeyStore. Alice sends 5
 	// messages with counters 1..5; Bob receives them as [1, 3, 2, 5, 4].
 	// This exercises in-order, skip-ahead, and past-retrieve paths.
 	test('out-of-order delivery via SkippedKeyStore', async ({ page }) => {
@@ -150,7 +150,7 @@ test.describe('SPQR ratchet — e2e (MlKem768 + SerpentCipher + Seal)', () => {
 		expect(result.storeSize).toBe(0);
 	});
 
-	// T3 — Tamper + rollback preserves the key for legitimate retry.
+	// T3, Tamper + rollback preserves the key for legitimate retry.
 	// Exercises the DoS-mitigation path documented in
 	// docs/ratchet.md: rollback() returns the key to the store under the
 	// same counter so a later legitimate delivery can still decrypt.
@@ -184,7 +184,7 @@ test.describe('SPQR ratchet — e2e (MlKem768 + SerpentCipher + Seal)', () => {
 			const tampered = ct.slice();
 			tampered[tampered.length - 5] ^= 0xff;
 
-			// First attempt — in-order resolve (chain.n = 0 → 1, key wrapped).
+			// First attempt, in-order resolve (chain.n = 0 → 1, key wrapped).
 			const h1 = bobStore.resolve(bobRecv, counter);
 			let firstThrew = false;
 			try {
@@ -195,7 +195,7 @@ test.describe('SPQR ratchet — e2e (MlKem768 + SerpentCipher + Seal)', () => {
 			}
 			const sizeAfterRollback = bobStore.size;
 
-			// Legitimate retry — past-path (counter <= chain.n), pulls key
+			// Legitimate retry, past-path (counter <= chain.n), pulls key
 			// back out of the store.
 			const h2 = bobStore.resolve(bobRecv, counter);
 			const dec = lib.Seal.decrypt(lib.SerpentCipher, h2.key, ct) as Uint8Array;

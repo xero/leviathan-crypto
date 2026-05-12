@@ -21,7 +21,7 @@
 //
 // src/asm/sha3/buffers.ts
 //
-// SHA-3 module — static buffer layout.
+// SHA-3 module, static buffer layout.
 // Independent linear memory starting at offset 0.
 //
 // Total: 545 bytes < 3 × 64KB = 196608.
@@ -31,8 +31,8 @@
 // 200        4      KECCAK_RATE (u32 rate in bytes, variant-specific)
 // 204        4      KECCAK_ABSORBED (u32 bytes absorbed into current block)
 // 208        1      KECCAK_DSBYTE (u8 domain separation byte)
-// 209      168      KECCAK_INPUT (input staging — max rate = SHAKE128 at 168)
-// 377      168      KECCAK_OUT (output buffer — one SHAKE128 squeeze block)
+// 209      168      KECCAK_INPUT (input staging, max rate = SHAKE128 at 168)
+// 377      168      KECCAK_OUT (output buffer, one SHAKE128 squeeze block)
 // 545               END (< 196608 = 3 × 64KB ✓)
 
 export const STATE_OFFSET:    i32 = 0;    // 200 bytes

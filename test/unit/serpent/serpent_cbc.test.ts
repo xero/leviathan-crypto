@@ -53,7 +53,7 @@ afterEach(() => {
 
 // ── PKCS7 padding output length ───────────────────────────────────────────
 
-describe('SerpentCbc — PKCS7 padding lengths', () => {
+describe('SerpentCbc, PKCS7 padding lengths', () => {
 	const key = new Uint8Array(32).fill(0x01);
 	const iv  = new Uint8Array(16).fill(0x02);
 
@@ -85,7 +85,7 @@ describe('SerpentCbc — PKCS7 padding lengths', () => {
 
 // ── Round-trip tests ──────────────────────────────────────────────────────
 
-describe('SerpentCbc — round-trips', () => {
+describe('SerpentCbc, round-trips', () => {
 	const key = new Uint8Array(32);
 	for (let i = 0; i < 32; i++) key[i] = i;
 	const iv = new Uint8Array(16);
@@ -134,7 +134,7 @@ describe('SerpentCbc — round-trips', () => {
 
 // ── Invalid padding rejection ─────────────────────────────────────────────
 
-describe('SerpentCbc — invalid PKCS7 padding rejection', () => {
+describe('SerpentCbc, invalid PKCS7 padding rejection', () => {
 	const key = new Uint8Array(32).fill(0x33);
 	const iv  = new Uint8Array(16).fill(0x44);
 
@@ -161,7 +161,7 @@ describe('SerpentCbc — invalid PKCS7 padding rejection', () => {
 
 // ── IV sensitivity ────────────────────────────────────────────────────────
 
-describe('SerpentCbc — IV sensitivity', () => {
+describe('SerpentCbc, IV sensitivity', () => {
 	const key = new Uint8Array(32).fill(0x77);
 	const pt  = new Uint8Array(32).fill(0x88);
 	const iv1 = new Uint8Array(16).fill(0x11);
@@ -211,7 +211,7 @@ describe('SerpentCbc — IV sensitivity', () => {
 
 // ── WASM chunk boundary ───────────────────────────────────────────────────
 
-describe('SerpentCbc — WASM chunk boundary', () => {
+describe('SerpentCbc, WASM chunk boundary', () => {
 	const key = new Uint8Array(32).fill(0x55);
 	const iv  = new Uint8Array(16).fill(0xAA);
 
@@ -237,7 +237,7 @@ describe('SerpentCbc — WASM chunk boundary', () => {
 		for (let i = 0; i < cs; i++) m[wasm.getChunkPtOffset() + i] = i & 0xFF;
 		const ret = wasm.cbcEncryptChunk(cs);
 		expect(ret).toBe(cs);
-		// Real ciphertext — not all zeros, not plaintext
+		// Real ciphertext, not all zeros, not plaintext
 		const ct0 = m.slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
 		expect(ct0.some(b => b !== 0)).toBe(true);
 		expect(ct0.every((b, i) => b === (i & 0xFF))).toBe(false);
@@ -253,7 +253,7 @@ describe('SerpentCbc — WASM chunk boundary', () => {
 		const ctBefore = m.slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
 		const ret = wasm.cbcEncryptChunk(cs + 1);
 		expect(ret).toBe(-1);
-		// Guard must return early — CHUNK_CT must be unchanged
+		// Guard must return early, CHUNK_CT must be unchanged
 		const ctAfter = new Uint8Array(wasm.memory.buffer).slice(wasm.getChunkCtOffset(), wasm.getChunkCtOffset() + 16);
 		expect(Array.from(ctAfter)).toEqual(Array.from(ctBefore));
 	});
@@ -283,7 +283,7 @@ describe('SerpentCbc — WASM chunk boundary', () => {
 		// CHUNK_PT_OFFSET(624) overflowed 16 bytes (66160..66175) into CHUNK_CT[0:16]
 		// with 0x10*16. cbcEncryptChunk(65552) returned -1 (rejected), leaving the
 		// overflow bytes in place as the "ciphertext". After fix: CHUNK_SIZE=65552,
-		// CHUNK_CT_OFFSET=66176 — no overlap; the call succeeds with real ciphertext.
+		// CHUNK_CT_OFFSET=66176, no overlap; the call succeeds with real ciphertext.
 		const wasm = setupWasm();
 		const cs = wasm.getChunkSize();
 		const m = new Uint8Array(wasm.memory.buffer);
@@ -300,7 +300,7 @@ describe('SerpentCbc — WASM chunk boundary', () => {
 
 // ── RangeError for invalid key/IV sizes ──────────────────────────────────
 
-describe('SerpentCbc — parameter validation', () => {
+describe('SerpentCbc, parameter validation', () => {
 	const key = new Uint8Array(32).fill(0x01);
 	const iv  = new Uint8Array(16).fill(0x02);
 	const pt  = new Uint8Array(16).fill(0x03);

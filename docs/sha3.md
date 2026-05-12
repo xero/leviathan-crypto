@@ -52,11 +52,11 @@ secret. SHA-3's sponge construction makes this impossible.
 - **Length extension immunity.** Unlike SHA-2, the SHA-3 sponge construction does
   not leak enough internal state for length extension attacks. Computing
   `SHA3(secret + message)` does not let an attacker forge `SHA3(secret + message + extra)`.
-  That said, **HMAC is still the correct way to build a MAC** — do not use raw
+  That said, **HMAC is still the correct way to build a MAC.** do not use raw
   `SHA3(key + message)` as a MAC construction, even though it is not vulnerable to
   length extension. HMAC provides a formally proven security reduction.
 
-- **SHAKE output is unbounded.** SHAKE128 and SHAKE256 are full XOFs — output
+- **SHAKE output is unbounded.** SHAKE128 and SHAKE256 are full XOFs, output
   length is unbounded. Request any number of bytes via `hash()`, or drive the
   sponge directly with `absorb()` / `squeeze()`. The only constraint is
   `outputLength >= 1`.
@@ -111,7 +111,7 @@ import { keccakInit, SHAKE256, SHA3_256 } from 'leviathan-crypto/keccak'
 import { keccakWasm } from 'leviathan-crypto/keccak/embedded'
 
 await keccakInit(keccakWasm)
-// isInitialized('sha3') === true — same slot
+// isInitialized('sha3') === true, same slot
 ```
 
 Use the `keccak` subpath when the consuming context (such as ML-KEM) makes the
@@ -206,7 +206,7 @@ class SHA3_512 {
 
 ### SHAKE128
 
-Extendable-output function (XOF). Produces **variable-length** output — any
+Extendable-output function (XOF). Produces **variable-length** output, any
 number of bytes you request. 128-bit security level.
 
 > [!CAUTION]
@@ -230,7 +230,7 @@ class SHAKE128 {
 |--------|-------------|
 | `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
 | `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
-| `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous — `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
+| `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous, `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
 | `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. Does not release the sha3 exclusivity token. |
 | `dispose()` | Zero all WASM state and the TS-side block buffer, release the sha3 exclusivity token. Idempotent. |
 
@@ -244,7 +244,7 @@ construct a new instance if you need to continue.
 
 ### SHAKE256
 
-Extendable-output function (XOF). Produces **variable-length** output — any
+Extendable-output function (XOF). Produces **variable-length** output, any
 number of bytes you request. 256-bit security level.
 
 > [!CAUTION]
@@ -268,7 +268,7 @@ class SHAKE256 {
 |--------|-------------|
 | `hash(msg, outputLength)` | One-shot: reset, absorb, squeeze. Safe on a dirty instance. |
 | `absorb(msg)` | Feed data into the sponge. Chainable. Throws if called after `squeeze()`. |
-| `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous — `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
+| `squeeze(n)` | Pull `n` bytes of XOF output. Output is contiguous, `squeeze(a)` followed by `squeeze(b)` yields bytes `[0, a)` and `[a, a+b)` of the XOF stream. |
 | `reset()` | Return to a fresh, zeroed state. Chainable. Safe at any point. Does not release the sha3 exclusivity token. |
 | `dispose()` | Zero all WASM state and the TS-side block buffer, release the sha3 exclusivity token. Idempotent. |
 
@@ -282,8 +282,8 @@ construct a new instance if you need to continue.
 
 ## Incremental XOF API (`absorb` / `squeeze` / `reset`)
 
-For use cases where you need to pull output in multiple steps — key derivation,
-mask generation, protocol-specific domain separation — the SHAKE classes expose
+For use cases where you need to pull output in multiple steps, key derivation,
+mask generation, protocol-specific domain separation, the SHAKE classes expose
 a streaming interface alongside the one-shot `hash()`.
 
 ### State machine
@@ -295,9 +295,9 @@ a streaming interface alongside the one-shot `hash()`.
 | squeezing   | `squeeze()`, `hash()`, `reset()` |
 
 Calling `absorb()` while squeezing throws:
-`"SHAKE128: cannot absorb after squeeze — call reset() first"`
+`"SHAKE128: cannot absorb after squeeze, call reset() first"`
 
-`hash()` always resets before running — safe to call on a dirty instance.
+`hash()` always resets before running, safe to call on a dirty instance.
 
 ### Example
 
@@ -323,7 +323,7 @@ xof.dispose()
 ## SHA3_256Hash
 
 Stateless SHA3-256 `HashFn` for Fortuna's accumulator and reseed slots. Plain
-`const` object — no instantiation, no `dispose()`.
+`const` object, no instantiation, no `dispose()`.
 
 Requires `init({ sha3: sha3Wasm })` (or the `keccak` alias). See
 [fortuna.md](./fortuna.md) for full usage with `Fortuna.create()`.
@@ -582,10 +582,10 @@ RangeError: outputLength must be >= 1 (got 0)
 ### SHAKE absorb after squeeze
 
 Calling `absorb()` after `squeeze()` has been called throws an `Error`. The sponge
-has been padded and finalized — further absorption is not meaningful.
+has been padded and finalized, further absorption is not meaningful.
 
 ```
-Error: SHAKE128: cannot absorb after squeeze — call reset() first
+Error: SHAKE128: cannot absorb after squeeze, call reset() first
 ```
 
 **Fix:** Call `reset()` to return the instance to a fresh state before absorbing

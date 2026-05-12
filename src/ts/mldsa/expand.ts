@@ -21,7 +21,7 @@
 //
 // src/ts/mldsa/expand.ts
 //
-// FIPS 204 Algorithms 32 (ExpandA), 33 (ExpandS), 34 (ExpandMask) —
+// FIPS 204 Algorithms 32 (ExpandA), 33 (ExpandS), 34 (ExpandMask),
 // pseudorandom expansion of seeds into the matrix Â (public), the noise
 // polyvecs s₁/s₂ (secret, time domain), and the masking polyvec y (per
 // signing iteration, time domain).
@@ -39,7 +39,7 @@ import { shake128Squeezer, shake256Squeezer, shake256HashConcat } from './sha3-h
 const POLY_BYTES = 1024;  // 256 × i32
 
 /**
- * ExpandA — FIPS 204 Algorithm 32.
+ * ExpandA, FIPS 204 Algorithm 32.
  *
  * For (i, j) ∈ [0, k) × [0, ℓ):
  *   s ← ρ ‖ IntegerToBytes(j, 1) ‖ IntegerToBytes(i, 1)
@@ -83,12 +83,12 @@ export function expandA(
 }
 
 /**
- * ExpandS — FIPS 204 Algorithm 33.
+ * ExpandS, FIPS 204 Algorithm 33.
  *
  * For r ∈ [0, ℓ): s₁[r] ← RejBoundedPoly(SHAKE256(ρ' ‖ IntegerToBytes(r, 2)))
  * For r ∈ [0, k): s₂[r] ← RejBoundedPoly(SHAKE256(ρ' ‖ IntegerToBytes(r+ℓ, 2)))
  *
- * Note the index is 2 bytes (little-endian per FIPS 204 §7.1 Alg 11) — kyber
+ * Note the index is 2 bytes (little-endian per FIPS 204 §7.1 Alg 11), kyber
  * uses 1 byte because k ≤ 4, but ML-DSA's max index is k+ℓ-1 = 14 (still
  * ≤ 255 in practice but the spec mandates 2 bytes).
  *
@@ -146,7 +146,7 @@ export function expandS(
 	}
 }
 
-// Bitlen helper — bitlen(n) for n > 0 is floor(log2(n)) + 1, used to size
+// Bitlen helper, bitlen(n) for n > 0 is floor(log2(n)) + 1, used to size
 // the BitUnpack output width inside ExpandMask. Identical to the helper in
 // keygen.ts; keeping a private copy here avoids cross-importing the keygen
 // module just for one tiny utility.
@@ -159,7 +159,7 @@ function bitlen(n: number): number {
 }
 
 /**
- * ExpandMask — FIPS 204 Algorithm 34.
+ * ExpandMask, FIPS 204 Algorithm 34.
  *
  * For r ∈ [0, ℓ):
  *   v ← SHAKE256(ρ'' ‖ IntegerToBytes(κ + r, 2),  32·c)
@@ -202,15 +202,15 @@ export function expandMask(
 		idxBytes[1] = (n >>> 8) & 0xFF;
 
 		// SHAKE256(ρ'' ‖ idx, 32·c). For γ₁ ≤ 2¹⁹ the output never exceeds
-		// 640 bytes — well within the 8192-byte XOF region.
+		// 640 bytes, well within the 8192-byte XOF region.
 		const v = shake256HashConcat(sx, [rhoPrimePrime, idxBytes], polyBytesV);
 		try {
 			mlMem.set(v, xofPrfOff);
 			// bit_unpack(a=γ₁-1, b=γ₁): bitlen(a+b) = bitlen(2γ₁-1) = c.
-			// Decodes to coefficients in [-(γ₁-1), γ₁] — Alg 34 / Alg 19.
+			// Decodes to coefficients in [-(γ₁-1), γ₁], Alg 34 / Alg 19.
 			mx.bit_unpack(yPvOff + r * 1024, xofPrfOff, gamma1 - 1, gamma1);
 		} finally {
-			// v held the SHAKE256(ρ'' ‖ idx) squeeze bytes — ρ''-derived,
+			// v held the SHAKE256(ρ'' ‖ idx) squeeze bytes, ρ''-derived,
 			// i.e. secret. These bytes become y for this iteration, so
 			// recovery would unmask the signing nonce on the rejected path.
 			wipe(v);

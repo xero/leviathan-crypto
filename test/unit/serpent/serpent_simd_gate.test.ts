@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SIMD gate test — encryptBlock_simd_4x must produce byte-identical output
+ * SIMD gate test, encryptBlock_simd_4x must produce byte-identical output
  * to 4 sequential scalar encryptBlock calls.
  *
  * GATE: must pass before any SIMD CTR or benchmark work.
@@ -73,7 +73,7 @@ function wordsToBlock(w0: number, w1: number, w2: number, w3: number): Uint8Arra
 	return out;
 }
 
-// 4 test blocks — distinct values to exercise all register slots
+// 4 test blocks, distinct values to exercise all register slots
 const TEST_BLOCKS: Uint8Array[] = [
 	new Uint8Array([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
 	                0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]),
@@ -97,7 +97,7 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm });
 });
 
-describe('SIMD gate — encryptBlock_simd_4x vs scalar encryptBlock', () => {
+describe('SIMD gate, encryptBlock_simd_4x vs scalar encryptBlock', () => {
 	// GATE: Serpent SIMD 4-wide ECB: byte-identical to scalar
 	it('4 blocks: SIMD output matches scalar output byte-for-byte', () => {
 		const wasm = getWasm();

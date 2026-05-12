@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * NESSIE test vectors — serpent_nessie-128
+ * NESSIE test vectors, serpent_nessie-128
  *
  * Source: NESSIE project evaluation, 2000-2003
  * File:   vectors/serpent_nessie-128.txt

@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('KyberSuite — e2e (MlKem768 + XChaCha20)', () => {
+test.describe('KyberSuite, e2e (MlKem768 + XChaCha20)', () => {
 	test('Seal one-shot round-trip (encrypt with ek, decrypt with dk)', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);

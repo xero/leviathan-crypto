@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * ChaCha20 4-wide inter-block SIMD — gate test
+ * ChaCha20 4-wide inter-block SIMD, gate test
  *
  * The gate uses the RFC 8439 §2.4.2 key and nonce, matching the scalar
  * implementation's known-answer tests elsewhere in the suite. Here we only
@@ -68,7 +68,7 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm });
 });
 
-describe('ChaCha20 4-wide SIMD gate — scalar vs chachaEncryptChunk_simd', () => {
+describe('ChaCha20 4-wide SIMD gate, scalar vs chachaEncryptChunk_simd', () => {
 
 	function setup(wasm: ChachaSIMDExports, pt: Uint8Array): void {
 		const mem = new Uint8Array(wasm.memory.buffer);

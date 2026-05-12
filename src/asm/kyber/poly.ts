@@ -21,7 +21,7 @@
 //
 // src/asm/kyber/poly.ts
 //
-// ML-KEM (Kyber) — polynomial operations: serialization, compression, arithmetic.
+// ML-KEM (Kyber), polynomial operations: serialization, compression, arithmetic.
 // FIPS 203 §4 (ByteEncode/ByteDecode, Compress/Decompress, NTT operations).
 
 import { Q, POLY_BYTES, HALF_Q,
@@ -175,13 +175,13 @@ export function poly_decompress(polyOffset: i32, aOffset: i32, dv: i32): void {
 /**
  * Convert 32-byte message to polynomial (1-bit Decompress).
  * FIPS 203 ByteDecode_1 then Decompress_1.
- * Each bit maps to 0 or ⌈q/2⌉ = 1665. Constant-time — no branch on secret bit.
+ * Each bit maps to 0 or ⌈q/2⌉ = 1665. Constant-time, no branch on secret bit.
  */
 export function poly_frommsg(polyOffset: i32, msgOffset: i32): void {
 	for (let i: i32 = 0; i < 32; i++) {
 		const b: u8 = load<u8>(msgOffset + i);
 		for (let j: i32 = 0; j < 8; j++) {
-			// mask = 0xFFFF if bit==1, else 0x0000 — constant-time
+			// mask = 0xFFFF if bit==1, else 0x0000, constant-time
 			const mask: i16 = <i16>(-( (<i32>b >> j) & 1 ));
 			store<i16>(polyOffset + (8*i + j)*2, mask & <i16>HALF_Q);
 		}
@@ -191,7 +191,7 @@ export function poly_frommsg(polyOffset: i32, msgOffset: i32): void {
 /**
  * Convert polynomial to 32-byte message (1-bit Compress).
  * FIPS 203 Compress_1 then ByteEncode_1.
- * Uses division-free multiply-shift — no branch on coefficient.
+ * Uses division-free multiply-shift, no branch on coefficient.
  */
 export function poly_tomsg(msgOffset: i32, polyOffset: i32): void {
 	for (let i: i32 = 0; i < 32; i++) {

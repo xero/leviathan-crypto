@@ -18,7 +18,7 @@ This low-level reference details the constant-time byte array equality source an
 
 This module implements constant-time byte array comparison as a standalone WASM binary compiled from a single AssemblyScript source file. It is the backend for `constantTimeEqual` in `utils.ts`.
 
-The module is deliberately minimal. It exports one function and the linear memory it operates on. It has no named buffer slots, no module ID, no `wipeBuffers` — nothing beyond the comparison primitive itself.
+The module is deliberately minimal. It exports one function and the linear memory it operates on. It has no named buffer slots, no module ID, no `wipeBuffers`, nothing beyond the comparison primitive itself.
 
 Key properties:
 
@@ -104,7 +104,7 @@ The TypeScript wrapper uses this convention:
 
 Both arrays are placed adjacently starting at offset 0. `compare` is called with `aOff = 0`, `bOff = a.length`, `len = a.length`. After the call, the wrapper zeroes bytes 0 through `a.length * 2`.
 
-The maximum supported input length per side is `CT_MAX_BYTES = 32768` — half the page. In practice the largest comparison in this library is a 32-byte HMAC-SHA-256 tag.
+The maximum supported input length per side is `CT_MAX_BYTES = 32768`, half the page. In practice the largest comparison in this library is a 32-byte HMAC-SHA-256 tag.
 
 > [!NOTE]
 > Because `compare` takes arbitrary offsets, any caller with direct access to the WASM memory can pass different offsets and compare data already resident in linear memory at any position, with no copy at all. The TypeScript wrapper always uses offset 0 as a convenience, but the WASM function places no constraint on where the data lives.
@@ -119,11 +119,11 @@ The module is a single AssemblyScript file (`src/asm/ct/index.ts`) compiled to a
 
 The comparison runs in three stages.
 
-**Stage 1 — SIMD accumulation.** For each aligned 16-byte block, the loop computes `acc = v128.or(acc, v128.xor(a_block, b_block))`. The accumulator starts as `i8x16.splat(0)`. After all full blocks, any byte difference anywhere in the input sets one or more bits in `acc`. The loop iterates exactly `⌊len / 16⌋` times with no data-dependent branching.
+**Stage 1, SIMD accumulation.** For each aligned 16-byte block, the loop computes `acc = v128.or(acc, v128.xor(a_block, b_block))`. The accumulator starts as `i8x16.splat(0)`. After all full blocks, any byte difference anywhere in the input sets one or more bits in `acc`. The loop iterates exactly `⌊len / 16⌋` times with no data-dependent branching.
 
-**Stage 2 — Scalar tail.** The remaining `len mod 16` bytes (0 to 15) are processed byte-by-byte: `diff |= load<u8>(aOff + i) ^ load<u8>(bOff + i)`. These accumulate into a 64-bit `diff` integer.
+**Stage 2, Scalar tail.** The remaining `len mod 16` bytes (0 to 15) are processed byte-by-byte: `diff |= load<u8>(aOff + i) ^ load<u8>(bOff + i)`. These accumulate into a 64-bit `diff` integer.
 
-**Stage 3 — Reduction and zero-test.** The v128 accumulator is reduced to a scalar by extracting both i64x2 lanes and OR-ing them into `diff`:
+**Stage 3, Reduction and zero-test.** The v128 accumulator is reduced to a scalar by extracting both i64x2 lanes and OR-ing them into `diff`:
 ```
 diff |= i64x2.extract_lane(acc, 0) | i64x2.extract_lane(acc, 1)
 ```
@@ -159,9 +159,9 @@ The WASM function itself has no error returns. Out-of-bounds memory access traps
 |---|---|
 | `a.length !== b.length` | Returns false before touching WASM. Length check is not constant-time. |
 | `a.length > CT_MAX_BYTES` | Throws `RangeError` before touching WASM. |
-| SIMD unavailable at init time | Throws `Error: leviathan-crypto: constantTimeEqual requires WebAssembly SIMD — this runtime does not support it`. Cached; subsequent calls re-throw. |
+| SIMD unavailable at init time | Throws `Error: leviathan-crypto: constantTimeEqual requires WebAssembly SIMD, this runtime does not support it`. Cached; subsequent calls re-throw. |
 | WASM compile or instantiate throws | Throws `Error: leviathan-crypto: ct WASM module failed to instantiate: <cause>`. Cached; subsequent calls re-throw. |
-| WASM memory access out of bounds | Would trap — prevented by the fixed layout enforced in `constantTimeEqual`. |
+| WASM memory access out of bounds | Would trap, prevented by the fixed layout enforced in `constantTimeEqual`. |
 
 ---
 

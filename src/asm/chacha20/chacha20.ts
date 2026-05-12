@@ -21,18 +21,18 @@
 //
 // src/asm/chacha/chacha20.ts
 //
-// ChaCha20 stream cipher — AssemblyScript implementation
+// ChaCha20 stream cipher, AssemblyScript implementation
 // Standard: RFC 8439, May 2018
 // URL: https://www.rfc-editor.org/rfc/rfc8439
 //
 // State layout (RFC 8439 §2.2):
-//   words  0– 3: constants "expa" "nd 3" "2-by" "te k"  (0x61707865 etc.)
-//   words  4–11: key (256 bits = 8 words, little-endian)
+//   words  0- 3: constants "expa" "nd 3" "2-by" "te k"  (0x61707865 etc.)
+//   words  4-11: key (256 bits = 8 words, little-endian)
 //   word  12:    counter (u32, starts at 1 for encryption per RFC §2.3)
-//   words 13–15: nonce (96 bits = 3 words, little-endian)
+//   words 13-15: nonce (96 bits = 3 words, little-endian)
 //
 // Endianness: ChaCha20 uses little-endian throughout. load<u32> / store<u32>
-// in WASM are native little-endian — no byte-swapping needed.
+// in WASM are native little-endian, no byte-swapping needed.
 // Rotation: ChaCha20 uses LEFT rotation (rotl).
 
 import {
@@ -117,13 +117,13 @@ function block(): void {
 export function chachaLoadKey(): void {
 	const s = CHACHA_STATE_OFFSET
 
-	// words 0–3: constants (RFC §2.2)
+	// words 0-3: constants (RFC §2.2)
 	store<u32>(s +  0, C0)
 	store<u32>(s +  4, C1)
 	store<u32>(s +  8, C2)
 	store<u32>(s + 12, C3)
 
-	// words 4–11: key (8 × u32, loaded LE from KEY_OFFSET)
+	// words 4-11: key (8 × u32, loaded LE from KEY_OFFSET)
 	for (let i = 0; i < 8; i++) {
 		store<u32>(s + 16 + i * 4, load<u32>(KEY_OFFSET + i * 4))
 	}
@@ -131,7 +131,7 @@ export function chachaLoadKey(): void {
 	// word 12: counter
 	store<u32>(s + 48, load<u32>(CHACHA_CTR_OFFSET))
 
-	// words 13–15: nonce (3 × u32, loaded LE from CHACHA_NONCE_OFFSET)
+	// words 13-15: nonce (3 × u32, loaded LE from CHACHA_NONCE_OFFSET)
 	for (let i = 0; i < 3; i++) {
 		store<u32>(s + 52 + i * 4, load<u32>(CHACHA_NONCE_OFFSET + i * 4))
 	}
@@ -198,13 +198,13 @@ export function hchacha20(): void {
 	for (let i = 0; i < 8; i++)
 		store<u32>(s + 16 + i * 4, load<u32>(KEY_OFFSET + i * 4))
 
-	// words 12–15: first 16 bytes of XChaCha20 nonce
+	// words 12-15: first 16 bytes of XChaCha20 nonce
 	for (let i = 0; i < 4; i++)
 		store<u32>(s + 48 + i * 4, load<u32>(XCHACHA_NONCE_OFFSET + i * 4))
 
 	for (let i = 0; i < 10; i++) doubleRound(s)
 
-	// Output words 0–3 and 12–15 — NO add-back
+	// Output words 0-3 and 12-15, NO add-back
 	const out = XCHACHA_SUBKEY_OFFSET
 	for (let i = 0; i < 4; i++)
 		store<u32>(out + i * 4,       load<u32>(s + i * 4))

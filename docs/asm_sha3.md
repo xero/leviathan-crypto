@@ -61,7 +61,7 @@ constant-time by construction.
 
 **SHAKE output cap.** `shakeFinal()` performs a single squeeze block. SHAKE128
 output is capped at 168 bytes and SHAKE256 at 136 bytes per call. For longer
-output use `shakePad()` + `shakeSqueezeBlock()` in a loop — see the Multi-block
+output use `shakePad()` + `shakeSqueezeBlock()` in a loop, see the Multi-block
 squeeze section below.
 
 **`wipeBuffers()`.** Zeroes all 545 bytes of module state: the 200-byte Keccak lane
@@ -157,7 +157,7 @@ shakeSqueezeBlock(): void
 ```
 
 Low-level primitives for squeezing more than one block of SHAKE output. Call
-`shakePad()` once after absorbing all input — it applies the domain separation
+`shakePad()` once after absorbing all input, it applies the domain separation
 byte, the pad10\*1 terminator, and runs Keccak-f. Then call `shakeSqueezeBlock()`
 once per block needed: each call copies `rate` bytes from the Keccak state into
 `OUT_OFFSET` and runs Keccak-f to advance the state for the next block.

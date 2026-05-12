@@ -21,7 +21,7 @@
 //
 // test/unit/mldsa/reduce.test.ts
 //
-// GATE: ML-DSA reduction primitives — Montgomery (FIPS 204 Algorithm 49) and
+// GATE: ML-DSA reduction primitives, Montgomery (FIPS 204 Algorithm 49) and
 // centered Barrett (FIPS 204 §2.3 mod± q). Validates the WASM exports against
 // the spec definitions over hand-verified inputs and a randomised batch.
 
@@ -38,11 +38,11 @@ beforeAll(async () => {
 
 // GATE: ML-DSA reduction primitives
 
-describe('Gate — Montgomery reduction (FIPS 204 Algorithm 49)', () => {
+describe('Gate, Montgomery reduction (FIPS 204 Algorithm 49)', () => {
 	// Spec: r ≡ a · 2⁻³² (mod q), |r| < 2q.
 	// Computed independently as BigInt: r* = (a · 2⁻³²) mod± q with |r*| ≤ q/2.
 	// The WASM result r differs from r* by at most one q (slack permitted by spec),
-	// so the gate checks r ≡ r* (mod q) — i.e. (r − r*) is a multiple of q.
+	// so the gate checks r ≡ r* (mod q), i.e. (r − r*) is a multiple of q.
 
 	function expectMontgomery(a: bigint): void {
 		const r = getWasm().montgomery_reduce(a);
@@ -82,7 +82,7 @@ describe('Gate — Montgomery reduction (FIPS 204 Algorithm 49)', () => {
 		expectMontgomery(-((1n << 31n) * BigInt(Q) - 1n));
 	});
 
-	test('100 random i64 inputs — congruence and bound', () => {
+	test('100 random i64 inputs, congruence and bound', () => {
 		const rand = prng(0x4D444D54);  // 'MDMT'
 		for (let i = 0; i < 100; i++) {
 			// Sample |a| ≤ 2³¹ · q (worst case allowed by FIPS 204 Appendix A)
@@ -95,7 +95,7 @@ describe('Gate — Montgomery reduction (FIPS 204 Algorithm 49)', () => {
 	});
 });
 
-describe('Gate — Barrett reduction (FIPS 204 §2.3 — mod± q)', () => {
+describe('Gate, Barrett reduction (FIPS 204 §2.3, mod± q)', () => {
 	// Spec: r ≡ a (mod q) with r ∈ [-(q-1)/2, (q-1)/2].
 	function expectBarrett(a: number): void {
 		const r = getWasm().barrett_reduce(a);
@@ -139,7 +139,7 @@ describe('Gate — Barrett reduction (FIPS 204 §2.3 — mod± q)', () => {
 	});
 });
 
-describe('Gate — fqmul = montgomery_reduce(a · b)', () => {
+describe('Gate, fqmul = montgomery_reduce(a · b)', () => {
 	test('fqmul matches montgomery_reduce on the i64 product', () => {
 		const w = getWasm();
 		const rand = prng(0x46514D4C);  // 'FQML'

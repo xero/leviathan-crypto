@@ -20,9 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * ChaCha20-Poly1305 AEAD Known-Answer Tests (cross-browser) — RFC 8439
+ * ChaCha20-Poly1305 AEAD Known-Answer Tests (cross-browser), RFC 8439
  *
- * Source: RFC 8439 — ChaCha20 and Poly1305 for IETF Protocols, §2.8.2
+ * Source: RFC 8439, ChaCha20 and Poly1305 for IETF Protocols, §2.8.2
  * Files:  vectors/chacha20.ts (chacha20Poly1305Vectors)
  */
 import { test, expect } from '@playwright/test';
@@ -75,7 +75,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // RFC 8439 §2.8.2 sunscreen vector
-test('ChaCha20-Poly1305 RFC 8439 §2.8.2 — sunscreen AEAD', async ({ page }) => {
+test('ChaCha20-Poly1305 RFC 8439 §2.8.2, sunscreen AEAD', async ({ page }) => {
 	const v = chacha20Poly1305Vectors[0];
 	const result = await page.evaluate(async (vec) => {
 		const wasm = await loadWasm();

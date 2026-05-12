@@ -39,7 +39,7 @@ beforeAll(async () => {
 
 // ── Happy-path commit ───────────────────────────────────────────────────────
 
-describe('happy path — commit', () => {
+describe('happy path, commit', () => {
 	test('in-order commit: chain advances; key matches reference; store stays empty', () => {
 		const ck    = new Uint8Array(32);
 		const store = new SkippedKeyStore();
@@ -204,7 +204,7 @@ describe('key lifecycle', () => {
 		chain.dispose();
 	});
 
-	test('rollback transfers ownership — the stored buffer is the same reference', () => {
+	test('rollback transfers ownership, the stored buffer is the same reference', () => {
 		const store = new SkippedKeyStore();
 		const chain = new KDFChain(new Uint8Array(32));
 		const h = store.resolve(chain, 1);
@@ -235,7 +235,7 @@ describe('key lifecycle', () => {
 
 		// Trigger an eviction of counter 1 via skip-ahead that exceeds capacity.
 		// Current chain.n = 4, size = 3 (counters 1, 2, 3).
-		// resolve(chain, 8): stores 4, 5, 6, 7 into cache — each insertion
+		// resolve(chain, 8): stores 4, 5, 6, 7 into cache, each insertion
 		// evicts the oldest (1, then 2, then 3, then 4). buf1 is the one held
 		// for counter 1 and should be zeroed by the first eviction.
 		store.resolve(chain, 8).commit();
@@ -295,7 +295,7 @@ describe('budgets', () => {
 		chain.dispose();
 	});
 
-	test('O(1) eviction — 100 evictions on pre-populated 1000-entry store', () => {
+	test('O(1) eviction, 100 evictions on pre-populated 1000-entry store', () => {
 		// Seed with 1000 entries by constructing with a large cache and advancing.
 		const store = new SkippedKeyStore({ maxCacheSize: 1000, maxSkipPerResolve: 1000 });
 		const chain = new KDFChain(new Uint8Array(32));
@@ -304,7 +304,7 @@ describe('budgets', () => {
 
 		// Rebind store's cache to a small size by migrating into a new store.
 		// Easier: use the existing store and do 100 additional past-resolves
-		// followed by rollbacks — this exercises the insertion order. But the
+		// followed by rollbacks, this exercises the insertion order. But the
 		// real O(1) check is that evictions run in constant time regardless
 		// of pre-population.
 		// Measure: 100 evictions via a capped store full of 1000 pre-seeded keys.
@@ -328,7 +328,7 @@ describe('budgets', () => {
 		const ms = t1 - t0;
 		if (ms > 200) {
 
-			console.warn(`[SkippedKeyStore] 100 evictions took ${ms.toFixed(2)}ms — expected <200ms for O(1)`);
+			console.warn(`[SkippedKeyStore] 100 evictions took ${ms.toFixed(2)}ms, expected <200ms for O(1)`);
 		}
 		expect(ms).toBeLessThan(500); // very loose upper bound for CI variance
 
@@ -346,7 +346,7 @@ describe('rollback + legitimate delivery', () => {
 		const store = new SkippedKeyStore();
 		const chain = new KDFChain(new Uint8Array(32));
 
-		// Skip-ahead to 5 and commit — stores counters 1..4.
+		// Skip-ahead to 5 and commit, stores counters 1..4.
 		store.resolve(chain, 5).commit();
 
 		// Simulate attacker-forged message 3: resolve, "auth fails", rollback.
@@ -354,7 +354,7 @@ describe('rollback + legitimate delivery', () => {
 		const badKeyCopy = toHex(hBad.key);
 		hBad.rollback();
 
-		// Legitimate message 3 arrives later — same key material returned.
+		// Legitimate message 3 arrives later, same key material returned.
 		const hGood = store.resolve(chain, 3);
 		expect(toHex(hGood.key)).toBe(badKeyCopy);
 		hGood.commit();
@@ -384,7 +384,7 @@ describe('wipeAll', () => {
 		// Skip-ahead commits counters 1..4 into the store.
 		store.resolve(chain, 5).commit();
 		// Rollback of counter 5 adds a fifth entry.
-		// But that resolve would now be past-path from chain.n=5 — skip this
+		// But that resolve would now be past-path from chain.n=5, skip this
 		// and instead rollback a past-path retrieval.
 		const h3 = store.resolve(chain, 3);
 		const buf3 = h3.key;
@@ -420,7 +420,7 @@ describe('resolve() argument validation', () => {
 			expect(() => store.resolve(chain, c)).toThrow(RangeError);
 			expect(() => store.resolve(chain, c)).toThrow(/invalid counter/);
 		}
-		// Validation runs before any state mutation — chain.n stays at 0.
+		// Validation runs before any state mutation, chain.n stays at 0.
 		expect(chain.n).toBe(0);
 
 		chain.dispose();

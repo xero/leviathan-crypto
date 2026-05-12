@@ -21,7 +21,7 @@
 //
 // src/ts/kyber/indcpa.ts
 //
-// ML-KEM IND-CPA PKE scheme — FIPS 203 Algorithms 12, 13, 14 (K-PKE).
+// ML-KEM IND-CPA PKE scheme, FIPS 203 Algorithms 12, 13, 14 (K-PKE).
 // Orchestrates kyber WASM (polynomial math) and sha3 WASM (Keccak sponge).
 
 import type { KyberExports, Sha3Exports } from './types.js';
@@ -92,7 +92,7 @@ export function shake256Hash(sx: Sha3Exports, msg: Uint8Array, n: number): Uint8
  * Generate row `rowI` of matrix Â (or Â^T) into polyvec slot `pvecSlot`.
  *
  * FIPS 203 Algorithm 6 (SampleNTT): each entry Â[i][j] = XOF(ρ, j, i).
- * The matrix entries are already in NTT domain by construction — no separate
+ * The matrix entries are already in NTT domain by construction, no separate
  * NTT call is needed after rej_uniform.
  *
  * transposed=false (keygen):  XOF input = ρ || j || i  → Â[i][j]
@@ -235,13 +235,13 @@ function noisePoly(
 // ── IND-CPA functions ───────────────────────────────────────────────────────
 
 /**
- * K-PKE.KeyGen (FIPS 203 Algorithm 12) — deterministic.
+ * K-PKE.KeyGen (FIPS 203 Algorithm 12), deterministic.
  *
  * Slot map:
- *   pvec0 — current row of Â (overwritten per row)
- *   pvec1 — ŝ (noise, persistent through dot products)
- *   pvec2 — ê (noise)
- *   pvec3 — t̂ = Â·ŝ + ê (output)
+ *   pvec0, current row of Â (overwritten per row)
+ *   pvec1, ŝ (noise, persistent through dot products)
+ *   pvec2, ê (noise)
+ *   pvec3, t̂ = Â·ŝ + ê (output)
  */
 export function indcpaKeypairDerand(
 	kx: KyberExports,
@@ -306,17 +306,17 @@ export function indcpaKeypairDerand(
 }
 
 /**
- * K-PKE.Encrypt (FIPS 203 Algorithm 13) — deterministic.
+ * K-PKE.Encrypt (FIPS 203 Algorithm 13), deterministic.
  *
  * Slot map:
- *   pvec0 — current row of Â^T (transposed, overwritten per row)
- *   pvec1 — r̂ = NTT(r)
- *   pvec2 — e₁ (noise)
- *   pvec3 — u = invNTT(Â^T · r̂) + e₁
- *   pvec4 — t̂ (unpacked from ek)
- *   poly1  — e₂ (noise)
- *   poly2  — v = invNTT(t̂^T · r̂) + e₂ + msg
- *   poly3  — message polynomial
+ *   pvec0, current row of Â^T (transposed, overwritten per row)
+ *   pvec1, r̂ = NTT(r)
+ *   pvec2, e₁ (noise)
+ *   pvec3, u = invNTT(Â^T · r̂) + e₁
+ *   pvec4, t̂ (unpacked from ek)
+ *   poly1 , e₂ (noise)
+ *   poly2 , v = invNTT(t̂^T · r̂) + e₂ + msg
+ *   poly3 , message polynomial
  */
 export function indcpaEncrypt(
 	kx: KyberExports,
@@ -341,7 +341,7 @@ export function indcpaEncrypt(
 	const ctOff = kx.getCtOffset();
 	const msgOff = kx.getMsgOffset();
 
-	// Step 1: Unpack ek — t̂ → pvec4, ρ from ek tail
+	// Step 1: Unpack ek, t̂ → pvec4, ρ from ek tail
 	kyberMem.set(ek, pkOff);
 	kx.polyvec_frombytes(pvec4, pkOff, k);
 	const rho = ek.slice(k * 384, k * 384 + 32);
@@ -381,7 +381,7 @@ export function indcpaEncrypt(
 	kx.poly_add(poly2, poly2, poly3);
 	kx.poly_reduce(poly2);
 
-	// Step 16: pack ciphertext — Compress_du(u) || Compress_dv(v)
+	// Step 16: pack ciphertext, Compress_du(u) || Compress_dv(v)
 	const pvecCompBytes = k * du * 32;
 	kx.polyvec_compress(ctOff, pvec3, k, du);
 	kx.poly_compress(ctOff + pvecCompBytes, poly2, dv);
@@ -393,11 +393,11 @@ export function indcpaEncrypt(
  * K-PKE.Decrypt (FIPS 203 Algorithm 14).
  *
  * Slot map:
- *   pvec0 — û (decompressed from ct)
- *   pvec1 — ŝ (from sk)
- *   poly0  — v (decompressed from ct)
- *   poly1  — w = invNTT(ŝ^T · NTT(û))
- *   poly2  — m' = v - w
+ *   pvec0, û (decompressed from ct)
+ *   pvec1, ŝ (from sk)
+ *   poly0 , v (decompressed from ct)
+ *   poly1 , w = invNTT(ŝ^T · NTT(û))
+ *   poly2 , m' = v - w
  */
 export function indcpaDecrypt(
 	kx: KyberExports,

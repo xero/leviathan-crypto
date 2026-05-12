@@ -46,7 +46,7 @@ Cryptographic audit of the `leviathan-crypto` WebAssembly SHA-2 implementation (
 
 ### 1.1 Rotation and Shift Operations
 
-**SHA-256** (`sha256.ts:149–152`): We use AssemblyScript's built-in `rotr<i32>()`, which compiles directly to the WASM `i32.rotr` instruction—a single CPU instruction on all modern architectures. No manual shift-or patterns.
+**SHA-256** (`sha256.ts:149-152`): We use AssemblyScript's built-in `rotr<i32>()`, which compiles directly to the WASM `i32.rotr` instruction, a single CPU instruction on all modern architectures. No manual shift-or patterns.
 
 - `rotr<i32>(x, n)`: right rotation. Equivalent to `(x >>> n) | (x << (32 - n))`.
 - `x >>> n`: logical (unsigned) right shift (WASM `i32.shr_u`).
@@ -61,7 +61,7 @@ Cryptographic audit of the `leviathan-crypto` WebAssembly SHA-2 implementation (
 
 ### 1.2 Logical Functions (Ch, Maj, Sigma, sigma)
 
-**SHA-256 functions** (`sha256.ts:147–152`):
+**SHA-256 functions** (`sha256.ts:147-152`):
 
 | Function | FIPS 180-4 §4.1.2 | Implementation | Match |
 |----------|-------------------|----------------|-------|
@@ -72,7 +72,7 @@ Cryptographic audit of the `leviathan-crypto` WebAssembly SHA-2 implementation (
 | sigma0(x) | `ROTR^7(x) ^ ROTR^18(x) ^ SHR^3(x)` | `rotr<i32>(x, 7) ^ rotr<i32>(x, 18) ^ (x >>> 3)` | Exact |
 | sigma1(x) | `ROTR^17(x) ^ ROTR^19(x) ^ SHR^10(x)` | `rotr<i32>(x, 17) ^ rotr<i32>(x, 19) ^ (x >>> 10)` | Exact |
 
-**SHA-512 functions** (`sha512.ts:175–184`):
+**SHA-512 functions** (`sha512.ts:175-184`):
 
 | Function | FIPS 180-4 §4.1.3 | Implementation | Match |
 |----------|-------------------|----------------|-------|
@@ -83,7 +83,7 @@ Cryptographic audit of the `leviathan-crypto` WebAssembly SHA-2 implementation (
 | sigma0_512(x) | `ROTR^1(x) ^ ROTR^8(x) ^ SHR^7(x)` | `rotr64(x, 1) ^ rotr64(x, 8) ^ (x >>> 7)` | Exact |
 | sigma1_512(x) | `ROTR^19(x) ^ ROTR^61(x) ^ SHR^6(x)` | `rotr64(x, 19) ^ rotr64(x, 61) ^ (x >>> 6)` | Exact |
 
-All rotation amounts are correct. SHA-256 and SHA-512 use different rotation constants—a detail that's easy to miss when copying between implementations. We define separate function sets for each variant. The code includes a prominent warning (`sha512.ts:170`): "DO NOT copy from SHA-256. The rotation constants are different."
+All rotation amounts are correct. SHA-256 and SHA-512 use different rotation constants, a detail that's easy to miss when copying between implementations. We define separate function sets for each variant. The code includes a prominent warning (`sha512.ts:170`): "DO NOT copy from SHA-256. The rotation constants are different."
 
 > [!NOTE]
 > All six SHA-256 functions and all six SHA-512 functions are marked `@inline`.
@@ -96,7 +96,7 @@ All rotation amounts are correct. SHA-256 and SHA-512 use different rotation con
 
 #### SHA-256 Round Constants K[0..63]
 
-All 64 SHA-256 K constants (`sha256.ts:58–121`) were independently verified by computing `floor(frac(cbrt(prime[t])) * 2^32)` for the first 64 primes using Python floating-point arithmetic. Every value matches FIPS 180-4 §4.2.2 exactly.
+All 64 SHA-256 K constants (`sha256.ts:58-121`) were independently verified by computing `floor(frac(cbrt(prime[t])) * 2^32)` for the first 64 primes using Python floating-point arithmetic. Every value matches FIPS 180-4 §4.2.2 exactly.
 
 Spot check (first 8):
 
@@ -114,11 +114,11 @@ Spot check (first 8):
 > incorrect value. The WASM implementation has the correct value `0x5b9cca4f`.
 > See `leviathan/docs/SHA256_AUDIT.md` for the forensic record.
 
-The `kAt()` function (`sha256.ts:124–143`) returns constants via a switch statement with a `default: return K63` fallback. This is correct. The compression loop calls `kAt(t)` for `t = 0..63`, and the default case handles `t = 63`.
+The `kAt()` function (`sha256.ts:124-143`) returns constants via a switch statement with a `default: return K63` fallback. This is correct. The compression loop calls `kAt(t)` for `t = 0..63`, and the default case handles `t = 63`.
 
 #### SHA-512 Round Constants K[0..79]
 
-All 80 SHA-512 K constants (`sha512.ts:57–136`) were independently verified by computing `floor(frac(cbrt(prime[t])) * 2^64)` using Python `Decimal` with 50-digit precision. Every value matches FIPS 180-4 §4.2.3 exactly.
+All 80 SHA-512 K constants (`sha512.ts:57-136`) were independently verified by computing `floor(frac(cbrt(prime[t])) * 2^64)` using Python `Decimal` with 50-digit precision. Every value matches FIPS 180-4 §4.2.3 exactly.
 
 Spot check:
 
@@ -128,11 +128,11 @@ Spot check:
 | K54 | `0x5b9cca4f7763e373` | `0x5b9cca4f7763e373` | Yes |
 | K79 | `0x6c44198c4a475817` | `0x6c44198c4a475817` | Yes |
 
-The `kAt512()` function (`sha512.ts:139–162`) mirrors the SHA-256 pattern with `default: return K79`.
+The `kAt512()` function (`sha512.ts:139-162`) mirrors the SHA-256 pattern with `default: return K79`.
 
 #### SHA-256 Initial Hash Values
 
-All 8 SHA-256 IVs (`sha256.ts:225–232`) match FIPS 180-4 §5.3.3 exactly:
+All 8 SHA-256 IVs (`sha256.ts:225-232`) match FIPS 180-4 §5.3.3 exactly:
 
 | | FIPS 180-4 | Implementation | Match |
 |---|-----------|----------------|-------|
@@ -149,7 +149,7 @@ Verified by computing `floor(frac(sqrt(prime[i])) * 2^32)` for primes 2, 3, 5, 7
 
 #### SHA-512 Initial Hash Values
 
-All 8 SHA-512 IVs (`sha512.ts:265–272`) match FIPS 180-4 §5.3.5 exactly:
+All 8 SHA-512 IVs (`sha512.ts:265-272`) match FIPS 180-4 §5.3.5 exactly:
 
 | | FIPS 180-4 | Implementation | Match |
 |---|-----------|----------------|-------|
@@ -166,7 +166,7 @@ Verified by computing `floor(frac(sqrt(prime[i])) * 2^64)` with 50-digit Decimal
 
 #### SHA-384 Initial Hash Values
 
-All 8 SHA-384 IVs (`sha512.ts:275–282`) match FIPS 180-4 §5.3.4 exactly:
+All 8 SHA-384 IVs (`sha512.ts:275-282`) match FIPS 180-4 §5.3.4 exactly:
 
 | | FIPS 180-4 | Implementation | Match |
 |---|-----------|----------------|-------|
@@ -198,7 +198,7 @@ These are the **second (low) 32 bits** of the SHA-384 IVs, verified independentl
 
 ### 1.4 Padding
 
-**SHA-256 padding** (`sha256.ts:282–312`, `sha256Final()`):
+**SHA-256 padding** (`sha256.ts:282-312`, `sha256Final()`):
 
 | Step | FIPS 180-4 §5.1.1 | Implementation | Match |
 |------|-------------------|----------------|-------|
@@ -211,7 +211,7 @@ The two-block threshold is correct: after appending 0x80, if `partial > 56`, the
 
 The `totalBytes` counter is stored as `i64` (`SHA256_TOTAL_OFFSET`, 8 bytes), supporting messages up to 2^64 bytes. The bit-length is computed as `totalBytes << 3` (i64 shift), then split into high and low 32-bit words for big-endian storage. This correctly handles messages longer than 2^32 bytes.
 
-**SHA-512 padding** (`sha512.ts:349–381`, `sha512Final()`):
+**SHA-512 padding** (`sha512.ts:349-381`, `sha512Final()`):
 
 | Step | FIPS 180-4 §5.1.2 | Implementation | Match |
 |------|-------------------|----------------|-------|
@@ -232,7 +232,7 @@ The 128-bit length field is split into two 64-bit words: `bitsHi` captures the t
 
 ### 1.5 Message Schedule
 
-**SHA-256** (`sha256.ts:182–191`):
+**SHA-256** (`sha256.ts:182-191`):
 
 ```
 for t = 0 to 15:   W[t] = load32be(blockOffset, t*4)
@@ -243,7 +243,7 @@ This matches FIPS 180-4 §6.2.2 exactly. The schedule words are loaded as big-en
 
 The schedule is stored in `SHA256_W_OFFSET` (256 bytes = 64 × 4 bytes) using big-endian encoding via `store32be()`/`load32be()`. This is consistent. Every access to the schedule goes through the same big-endian helpers.
 
-**SHA-512** (`sha512.ts:222–231`):
+**SHA-512** (`sha512.ts:222-231`):
 
 ```
 for t = 0 to 15:   W[t] = load64be(SHA512_BLOCK_OFFSET, t*8)
@@ -256,17 +256,17 @@ Matches FIPS 180-4 §6.4.2 exactly. Uses 64-bit operations, 80 rounds, and `load
 
 ### 1.6 Compression Function
 
-**SHA-256** (`sha256.ts:180–219`):
+**SHA-256** (`sha256.ts:180-219`):
 
-The compression function implements FIPS 180-4 §6.2.2 steps 2–4:
+The compression function implements FIPS 180-4 §6.2.2 steps 2-4:
 
-Step 2: initialize working variables (`sha256.ts:194–201`):
+Step 2: initialize working variables (`sha256.ts:194-201`):
 ```
 a,b,c,d,e,f,g,h = load32be(SHA256_H_OFFSET, 0..28)
 ```
 All 8 state words loaded from H buffer in big-endian format. Correct.
 
-Step 3: 64 rounds (`sha256.ts:204–209`):
+Step 3: 64 rounds (`sha256.ts:204-209`):
 
 | Spec | Implementation | Match |
 |------|----------------|-------|
@@ -277,13 +277,13 @@ Step 3: 64 rounds (`sha256.ts:204–209`):
 
 The 8-variable rotation is identical to the spec. The round count is hardcoded to 64 (`for (let t = 0; t < 64; t++)`).
 
-Step 4: add-back (`sha256.ts:212–219`):
+Step 4: add-back (`sha256.ts:212-219`):
 ```
 H[i] = H[i] + working_variable  (for i = 0..7)
 ```
 Each state word is loaded from `SHA256_H_OFFSET`, added to the corresponding working variable, and stored back. Addition is mod 2^32 by i32 arithmetic. Correct.
 
-**SHA-512** (`sha512.ts:220–260`):
+**SHA-512** (`sha512.ts:220-260`):
 
 Structurally identical to SHA-256, with the following differences:
 
@@ -299,7 +299,7 @@ All verified to match FIPS 180-4 §6.4. The round count of 80 is hardcoded.
 
 ### 1.7 Truncated Variants (SHA-224, SHA-384)
 
-**SHA-384** (`sha512.ts:386–391`):
+**SHA-384** (`sha512.ts:386-391`):
 
 `sha384Final()` simply calls `sha512Final()`. The SHA-384 digest is the first 48 bytes (6 of 8 64-bit words) at `SHA512_OUT_OFFSET`. The TypeScript wrapper (`src/ts/sha2/index.ts:153`) reads only the first 48 bytes:
 
@@ -309,7 +309,7 @@ return mem.slice(this.x.getSha512OutOffset(), this.x.getSha512OutOffset() + 48);
 
 This is correct: SHA-384 uses the same compression as SHA-512, with different IVs (verified in §1.3) and truncated output. The truncation happens **after** the full compression completes. No early truncation.
 
-The `sha384Init()` function (`sha512.ts:312–315`) loads SHA-384-specific IVs via `loadIVs()`. These IVs are **distinct** from SHA-512's IVs, independently verified in §1.3.
+The `sha384Init()` function (`sha512.ts:312-315`) loads SHA-384-specific IVs via `loadIVs()`. These IVs are **distinct** from SHA-512's IVs, independently verified in §1.3.
 
 **SHA-224**: Not implemented. The codebase provides SHA-256, SHA-384, and SHA-512 only. This is a design choice, not a deficiency; SHA-224 is rarely needed in modern applications.
 
@@ -352,7 +352,7 @@ Total: **1976 bytes**. No gaps, no overlaps. All buffers are contiguous and tigh
 
 - `load32be`: loads 4 bytes, shifts into MSB-first order. Correct.
 - `store32be`: extracts bytes via `>>> 24/16/8/0`, masks with `& 0xff`. Correct.
-- `store64be` (`sha512.ts:202–212`): uses arithmetic right shift (`>>`) instead of logical (`>>>`), but casts to `u8`. The low 8 bits are identical regardless of sign extension. Functionally correct.
+- `store64be` (`sha512.ts:202-212`): uses arithmetic right shift (`>>`) instead of logical (`>>>`), but casts to `u8`. The low 8 bits are identical regardless of sign extension. Functionally correct.
 
 **`wipeBuffers()`** (`index.ts:42`): `memory.fill(0, 0, 1976)`. Zeros the entire 1976-byte buffer region. This covers all hash state, schedule, HMAC key material, ipad/opad, and intermediate values. Correct and complete.
 
@@ -364,7 +364,7 @@ The TypeScript classes in `src/ts/sha2/index.ts` provide the public API.
 
 **init() gate:** Every class constructor calls `getExports()` → `getInstance('sha2')`, which throws if the `sha2` module has not been loaded via `init(['sha2'])`. No class can be used before initialization. Correct.
 
-**Input handling: `feedHash()`** (`index.ts:86–96`):
+**Input handling: `feedHash()`** (`index.ts:86-96`):
 
 ```typescript
 function feedHash(x, msg, inputOff, chunkSize, updateFn) {
@@ -385,11 +385,11 @@ This correctly chunks arbitrarily-large messages into `chunkSize`-byte segments 
 
 **dispose():** Every class calls `this.x.wipeBuffers()`, which zeros all 1976 bytes of SHA-2 module memory. Correct.
 
-**SHA256 class** (`index.ts:100–117`): Calls `sha256Init()`, feeds via `feedHash(..., 64, sha256Update)`, calls `sha256Final()`, returns 32 bytes from `SHA256_OUT_OFFSET`. Correct.
+**SHA256 class** (`index.ts:100-117`): Calls `sha256Init()`, feeds via `feedHash(..., 64, sha256Update)`, calls `sha256Final()`, returns 32 bytes from `SHA256_OUT_OFFSET`. Correct.
 
-**SHA512 class** (`index.ts:121–138`): Same pattern with 128-byte chunks, returns 64 bytes. Correct.
+**SHA512 class** (`index.ts:121-138`): Same pattern with 128-byte chunks, returns 64 bytes. Correct.
 
-**SHA384 class** (`index.ts:140–159`): Uses `sha384Init()`, feeds via `sha512Update` (SHA-384 shares SHA-512 buffers), calls `sha384Final()`, returns **48 bytes**. Correct. This is the truncated output per FIPS 180-4 §6.5.
+**SHA384 class** (`index.ts:140-159`): Uses `sha384Init()`, feeds via `sha512Update` (SHA-384 shares SHA-512 buffers), calls `sha384Final()`, returns **48 bytes**. Correct. This is the truncated output per FIPS 180-4 §6.5.
 
 ---
 
@@ -403,24 +403,24 @@ The implementation follows RFC 2104 exactly:
 HMAC(K, m) = H((K' XOR opad) || H((K' XOR ipad) || m))
 ```
 
-`hmac256Init(keyLen)` (`hmac.ts:63–79`):
+`hmac256Init(keyLen)` (`hmac.ts:63-79`):
 1. Reads key from `SHA256_INPUT_OFFSET[0..keyLen-1]`
 2. XORs each key byte with `0x36` → `HMAC256_IPAD_OFFSET`, with `0x5c` → `HMAC256_OPAD_OFFSET`
 3. Zero-pads: remaining bytes get `0x36` / `0x5c` (equivalent to `0x00 XOR ipad/opad`)
 4. Calls `sha256Init()` + feeds the 64-byte ipad block to start the inner hash
 
-`hmac256Final()` (`hmac.ts:88–101`):
+`hmac256Final()` (`hmac.ts:88-101`):
 1. Finalizes inner hash → `SHA256_OUT_OFFSET`
 2. Saves inner hash to `HMAC256_INNER_OFFSET` (prevents overwrite by step 3)
 3. Starts outer hash: `sha256Init()` + feeds 64-byte opad block
 4. Feeds 32-byte inner hash
 5. Finalizes → `SHA256_OUT_OFFSET` contains the 32-byte HMAC tag
 
-**HMAC-SHA512** (`hmac512.ts:71–109`): Same structure with 128-byte block size, SHA-512 hash, 64-byte inner hash. Correct.
+**HMAC-SHA512** (`hmac512.ts:71-109`): Same structure with 128-byte block size, SHA-512 hash, 64-byte inner hash. Correct.
 
-**HMAC-SHA384** (`hmac512.ts:119–156`): Uses SHA-384 init/final (distinct IVs), but 128-byte block size (same as SHA-512). Inner hash is **48 bytes**. The implementation copies only 48 bytes at `hmac384Final()` step 2 (`memory.copy(HMAC512_INNER_OFFSET, SHA512_OUT_OFFSET, 48)`). The outer hash feeds this 48-byte value. Output is 48 bytes. Correct per RFC 2104 with SHA-384.
+**HMAC-SHA384** (`hmac512.ts:119-156`): Uses SHA-384 init/final (distinct IVs), but 128-byte block size (same as SHA-512). Inner hash is **48 bytes**. The implementation copies only 48 bytes at `hmac384Final()` step 2 (`memory.copy(HMAC512_INNER_OFFSET, SHA512_OUT_OFFSET, 48)`). The outer hash feeds this 48-byte value. Output is 48 bytes. Correct per RFC 2104 with SHA-384.
 
-**Long key handling (TypeScript layer):** The `HMAC_SHA256` class (`index.ts:169–186`) pre-hashes keys > 64 bytes via `sha256Init`/`feedHash`/`sha256Final` before calling `hmac256Init(32)`. RFC 2104 §3: "If the length of K > B, then first hash K using H and then use the resulting L-byte string." Correct. `HMAC_SHA512` uses the 128-byte threshold with SHA-512 pre-hash. `HMAC_SHA384` uses the 128-byte threshold with SHA-384 pre-hash. All correct.
+**Long key handling (TypeScript layer):** The `HMAC_SHA256` class (`index.ts:169-186`) pre-hashes keys > 64 bytes via `sha256Init`/`feedHash`/`sha256Final` before calling `hmac256Init(32)`. RFC 2104 §3: "If the length of K > B, then first hash K using H and then use the resulting L-byte string." Correct. `HMAC_SHA512` uses the 128-byte threshold with SHA-512 pre-hash. `HMAC_SHA384` uses the 128-byte threshold with SHA-384 pre-hash. All correct.
 
 ---
 
@@ -428,12 +428,12 @@ HMAC(K, m) = H((K' XOR opad) || H((K' XOR ipad) || m))
 
 Both HKDF classes (`hkdf.ts`) implement RFC 5869 as pure TypeScript composition over the HMAC classes.
 
-**HKDF-SHA256** (`hkdf.ts:31–75`):
+**HKDF-SHA256** (`hkdf.ts:31-75`):
 
 - **Extract** (§2.2): `PRK = HMAC-SHA256(salt, IKM)`. If salt is null or empty, defaults to `new Uint8Array(32)` (32 zero bytes). Correct. RFC 5869 §2.1: "if not provided, [salt] is set to a string of HashLen zeros."
 - **Expand** (§2.3): Iterates `T(i) = HMAC-SHA256(PRK, T(i-1) || info || i)` for `i = 1..N`, where `N = ceil(L/32)`. Validates PRK is 32 bytes, length is 1..255*32. Correct.
 
-**HKDF-SHA512** (`hkdf.ts:79–123`): Same structure with 64-byte hash length, 64-byte default salt, PRK must be 64 bytes, max length 255*64. Correct.
+**HKDF-SHA512** (`hkdf.ts:79-123`): Same structure with 64-byte hash length, 64-byte default salt, PRK must be 64 bytes, max length 255*64. Correct.
 
 Both classes delegate to the already-verified HMAC implementations. No cryptographic computation occurs in the HKDF TypeScript code. Only concatenation and loop control.
 
@@ -472,7 +472,7 @@ SHA-2 uses only add, rotate, XOR, AND, OR, and NOT operations. **No table lookup
 
 **WASM execution model:** As noted in the [Serpent audit](./serpent_audit.md#21-side-channel-analysis), WASM integer operations (`i32.and`, `i32.xor`, `i32.rotr`, `i64.add`, etc.) have fixed-width semantics compiled ahead-of-time. JIT speculative optimizations do not apply to WASM. The uniform, branch-free compression loop provides constant-time properties that are as strong as a browser execution environment can offer.
 
-**No data-dependent branches in the compression loop:** The SHA-256 compression (`sha256.ts:204–209`) runs exactly 64 iterations unconditionally. The SHA-512 compression (`sha512.ts:244–249`) runs exactly 80 iterations. No iteration is skipped or short-circuited based on data values.
+**No data-dependent branches in the compression loop:** The SHA-256 compression (`sha256.ts:204-209`) runs exactly 64 iterations unconditionally. The SHA-512 compression (`sha512.ts:244-249`) runs exactly 80 iterations. No iteration is skipped or short-circuited based on data values.
 
 > [!NOTE]
 > SHA-2 is not used for key material directly in leviathan-crypto. It serves as

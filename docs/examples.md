@@ -61,10 +61,10 @@ await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha
 const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 
-// sender — encrypts with the public key
+// sender, encrypts with the public key
 const blob = Seal.encrypt(suite, ek, plaintext)
 
-// recipient — decrypts with the private key
+// recipient, decrypts with the private key
 const pt = Seal.decrypt(suite, dk, blob)
 ```
 
@@ -159,13 +159,13 @@ await init({ kyber: kyberWasm, sha3: sha3Wasm })
 
 const kem = new MlKem768()
 
-// keygen — once, store securely
+// keygen, once, store securely
 const { encapsulationKey, decapsulationKey } = kem.keygen()
 
-// sender — has only encapsulationKey
+// sender, has only encapsulationKey
 const { ciphertext, sharedSecret: senderSecret } = kem.encapsulate(encapsulationKey)
 
-// recipient — has decapsulationKey
+// recipient, has decapsulationKey
 const recipientSecret = kem.decapsulate(decapsulationKey, ciphertext)
 
 // senderSecret and recipientSecret are identical 32-byte values
@@ -209,7 +209,7 @@ const ekValid = kem.checkEncapsulationKey(encapsulationKey)
 const dkValid = kem.checkDecapsulationKey(decapsulationKey)
 
 if (!ekValid || !dkValid) {
-  throw new Error('Key validation failed — key may be corrupted')
+  throw new Error('Key validation failed, key may be corrupted')
 }
 
 kem.dispose()
@@ -225,7 +225,7 @@ layout, see the [usage example](./ratchet.md#usage-example) and
 [bilateral chain exchange](./ratchet.md#bilateral-chain-exchange)
 sections of the ratchet guide.
 
-**`ratchetInit(sharedSecret, context?)`** — derive the initial root key
+**`ratchetInit(sharedSecret, context?)`.** derive the initial root key
 and both chain keys from a shared secret established out of band.
 
 ```typescript
@@ -238,7 +238,7 @@ await init({ sha2: sha2Wasm })
 const { rootKey, sendChainKey, recvChainKey } = ratchetInit(sharedSecret)
 ```
 
-**`KDFChain`** — stateful per-message KDF. Each `step()` advances the
+**`KDFChain`.** stateful per-message KDF. Each `step()` advances the
 chain and returns a single-use 32-byte message key. `stepWithCounter()`
 returns the key and the post-step counter atomically.
 
@@ -254,7 +254,7 @@ const { key: msgKey2, counter } = chain.stepWithCounter()  // counter 2
 chain.dispose()
 ```
 
-**`kemRatchetEncap` / `kemRatchetDecap`** — advance the root key with a
+**`kemRatchetEncap` / `kemRatchetDecap`.** advance the root key with a
 fresh ML-KEM encapsulation. Both sides arrive at the same pair of chain
 keys; Alice's send chain is Bob's receive chain and vice versa.
 
@@ -289,7 +289,7 @@ console.log(constantTimeEqual(alice.recvChainKey, bob.sendChainKey))  // => true
 kem.dispose()
 ```
 
-**`SkippedKeyStore`** — caches message keys for out-of-order delivery.
+**`SkippedKeyStore`.** caches message keys for out-of-order delivery.
 `resolve()` returns a `ResolveHandle`; settle with `commit()` on
 successful decrypt (wipes the key) or `rollback()` on auth failure
 (preserves the key for a legitimate retry at the same counter).
@@ -302,15 +302,15 @@ const store = new SkippedKeyStore({ maxCacheSize: 100, maxSkipPerResolve: 50 })
 const handle = store.resolve(chain, incomingCounter)
 try {
   const plaintext = Seal.decrypt(cipher, handle.key, ciphertext)
-  handle.commit()        // success — key is wiped
+  handle.commit()        // success, key is wiped
   return plaintext
 } catch (e) {
-  handle.rollback()      // auth failed — key returns to the store
+  handle.rollback()      // auth failed, key returns to the store
   throw e
 }
 ```
 
-**`RatchetKeypair`** — single-use ek/dk wrapper for the decap side. The
+**`RatchetKeypair`.** single-use ek/dk wrapper for the decap side. The
 dk is wiped automatically after the one permitted `decap` call.
 
 ```typescript

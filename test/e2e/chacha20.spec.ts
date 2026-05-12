@@ -20,9 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * ChaCha20 Known-Answer Tests (cross-browser) — RFC 8439
+ * ChaCha20 Known-Answer Tests (cross-browser), RFC 8439
  *
- * Source: RFC 8439 — ChaCha20 and Poly1305 for IETF Protocols, §2.4.2
+ * Source: RFC 8439, ChaCha20 and Poly1305 for IETF Protocols, §2.4.2
  * Files:  vectors/chacha20.ts (chacha20EncryptionVectors)
  */
 import { test, expect } from '@playwright/test';
@@ -46,8 +46,8 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-// RFC 8439 §2.4.2 — encryption vector (114 bytes)
-test('ChaCha20 RFC 8439 §2.4.2 — 114-byte encryption', async ({ page }) => {
+// RFC 8439 §2.4.2, encryption vector (114 bytes)
+test('ChaCha20 RFC 8439 §2.4.2, 114-byte encryption', async ({ page }) => {
 	const v = chacha20EncryptionVectors[0];
 	const result: string = await page.evaluate(async (vec) => {
 		const wasm = await loadWasm();

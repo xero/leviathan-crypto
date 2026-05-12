@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_gcm_siv_seal.test.ts
 //
-// Gate 16 — AES-GCM-SIV seal direction. Walks every RFC 8452 Appendix C
+// Gate 16, AES-GCM-SIV seal direction. Walks every RFC 8452 Appendix C
 // vector through the encrypt path and asserts:
 //   16a derive_keys outputs match RFC's recordAuthKey/recordEncKey
 //   16b POLYVAL input construction (test-harness sanity check)
@@ -102,8 +102,8 @@ const allVectorsWithWrap: AesGcmSivVector[] = [
 	...aesGcmSivCounterWrapVectors,
 ];
 
-describe('AES-GCM-SIV seal gate (Gate 16) — RFC 8452 Appendix C', () => {
-	describe('16a — derive_keys (RFC 8452 §4)', () => {
+describe('AES-GCM-SIV seal gate (Gate 16), RFC 8452 Appendix C', () => {
+	describe('16a, derive_keys (RFC 8452 §4)', () => {
 		// One-vector-per-keysize subset; gate 16e exercises this path
 		// transitively for all 50 vectors.
 		const subset: AesGcmSivVector[] = [
@@ -135,7 +135,7 @@ describe('AES-GCM-SIV seal gate (Gate 16) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('16b — POLYVAL input construction (test-harness sanity)', () => {
+	describe('16b, POLYVAL input construction (test-harness sanity)', () => {
 		// Subset: one per keysize, plus a few with non-trivial AAD/PT to
 		// exercise both pad paths.
 		const subset: AesGcmSivVector[] = [
@@ -154,7 +154,7 @@ describe('AES-GCM-SIV seal gate (Gate 16) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('16c — POLYVAL hash output vs RFC polyvalResult', () => {
+	describe('16c, POLYVAL hash output vs RFC polyvalResult', () => {
 		// Whitebox: drive the WASM POLYVAL absorber on the byte string
 		// constructed by `buildPolyvalInput`, using the vector's
 		// `recordAuthKey` directly. Isolates POLYVAL from key derivation
@@ -192,7 +192,7 @@ describe('AES-GCM-SIV seal gate (Gate 16) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('16d — encrypted tag at TAG_OFFSET vs RFC tag', () => {
+	describe('16d, encrypted tag at TAG_OFFSET vs RFC tag', () => {
 		// Drive `sivSeal` in full and verify TAG_OFFSET holds `vector.tag`.
 		// Bisects 16e: if 16d passes but 16e fails, the bug is in
 		// `sivCtrXform`; if 16d fails too, the bug is upstream of CTR.
@@ -223,7 +223,7 @@ describe('AES-GCM-SIV seal gate (Gate 16) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('16e — full seal output (all 50 RFC vectors)', () => {
+	describe('16e, full seal output (all 50 RFC vectors)', () => {
 		for (const v of allVectors) {
 			// GATE: end-to-end AES-GCM-SIV seal. CT‖tag must byte-equal
 			// the RFC-published `result`.
@@ -243,7 +243,7 @@ describe('AES-GCM-SIV seal gate (Gate 16) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('16f — counter-wrap vectors (RFC 8452 Appendix C.3)', () => {
+	describe('16f, counter-wrap vectors (RFC 8452 Appendix C.3)', () => {
 		// Counter wrap is silent at 2^32 blocks per RFC 8452 §4. The two
 		// Appendix C.3 vectors deliberately push past wrap; they must
 		// seal correctly with no error.

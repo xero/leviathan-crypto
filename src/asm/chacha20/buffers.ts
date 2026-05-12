@@ -21,7 +21,7 @@
 //
 // src/asm/chacha/buffers.ts
 //
-// ChaCha20 module — static buffer layout.
+// ChaCha20 module, static buffer layout.
 // Independent linear memory starting at offset 0.
 //
 // Total: 131824 bytes < 3 × 64KB = 196608 (64784 bytes spare).

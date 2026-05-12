@@ -20,9 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * HMAC-SHA-256 and HMAC-SHA-512 Known-Answer Tests (cross-browser) — RFC 4231
+ * HMAC-SHA-256 and HMAC-SHA-512 Known-Answer Tests (cross-browser), RFC 4231
  *
- * Source: RFC 4231 — HMAC-SHA Identifiers and Test Vectors
+ * Source: RFC 4231, HMAC-SHA Identifiers and Test Vectors
  * Files:  vectors/sha2.ts (hmacSha256Vectors, hmacSha512Vectors)
  */
 import { test, expect } from '@playwright/test';
@@ -55,7 +55,7 @@ test.beforeEach(async ({ page }) => {
 
 // ── Gate 5: HMAC-SHA256 TC1 ────────────────────────────────────────────────
 
-test('Gate 5 — HMAC-SHA256 TC1', async ({ page }) => {
+test('Gate 5, HMAC-SHA256 TC1', async ({ page }) => {
 	const vec = hmacSha256Vectors[0];
 	const result = await page.evaluate(async (v) => {
 		const wasm = await loadWasm();
@@ -77,8 +77,8 @@ test('Gate 5 — HMAC-SHA256 TC1', async ({ page }) => {
 
 // ── Gate 6: HMAC-SHA512 TC6 (131-byte key) ────────────────────────────────
 
-test('Gate 6 — HMAC-SHA512 TC6 (key > block size)', async ({ page }) => {
-	const vec = hmacSha512Vectors[2]; // TC6 — 131-byte key
+test('Gate 6, HMAC-SHA512 TC6 (key > block size)', async ({ page }) => {
+	const vec = hmacSha512Vectors[2]; // TC6, 131-byte key
 	const result = await page.evaluate(async (v) => {
 		const wasm = await loadWasm();
 		const key = fromHex(v.key);

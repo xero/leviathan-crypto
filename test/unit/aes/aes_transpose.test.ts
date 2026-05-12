@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_transpose.test.ts
 //
-// Gate 1 — bit transposition round-trip.
+// Gate 1, bit transposition round-trip.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
@@ -97,7 +97,7 @@ describe('AES bit transposition (Gate 1)', () => {
 		expect(Array.from(output)).toEqual(Array.from(input));
 	});
 
-	// Hardening — single bit set in an otherwise-zero buffer. Catches
+	// Hardening, single bit set in an otherwise-zero buffer. Catches
 	// off-by-one swaps in the bit-matrix transpose that the trivially-symmetric
 	// cases above (all zeros, all 0xFF) would let through.
 	it('round-trip identity: single bit set at block 4 byte 9 bit 3', () => {
@@ -111,7 +111,7 @@ describe('AES bit transposition (Gate 1)', () => {
 		expect(Array.from(output)).toEqual(Array.from(input));
 	});
 
-	// Hardening — asymmetric pattern. Each byte = (block_index << 4) | byte_index,
+	// Hardening, asymmetric pattern. Each byte = (block_index << 4) | byte_index,
 	// so any wrong block-permutation or byte-permutation would surface as a
 	// nibble swap rather than an aliased identity.
 	it('round-trip identity: asymmetric (block << 4) | byte pattern', () => {

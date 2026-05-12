@@ -136,7 +136,7 @@ Both jobs are gated by `workflow_call` and triggered by the parent `test-suite.y
 
 **Reading a green result.** Both jobs report `✓`. The verifier prints `✓ all vectors verified` as the final line.
 
-**Reading a red result.** If `hashsums` fails, a vector file was modified in the working copy without regenerating `SHA256SUMS`. Either revert the change or run `cd test/vectors && sha256sum *.ts *.txt > SHA256SUMS` and commit. If `rust-verify` fails, the bytes the verifier computed do not match the pinned KATs. This is a real signal — either the generator script changed (review the diff), the vector file was edited by hand (forbidden by `AGENTS.md`), or the underlying primitive has shifted in a way that breaks reproducibility. Investigate before merging.
+**Reading a red result.** If `hashsums` fails, a vector file was modified in the working copy without regenerating `SHA256SUMS`. Either revert the change or run `cd test/vectors && sha256sum *.ts *.txt > SHA256SUMS` and commit. If `rust-verify` fails, the bytes the verifier computed do not match the pinned KATs. This is a real signal, either the generator script changed (review the diff), the vector file was edited by hand (forbidden by `AGENTS.md`), or the underlying primitive has shifted in a way that breaks reproducibility. Investigate before merging.
 
 ---
 

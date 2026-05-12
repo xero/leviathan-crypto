@@ -41,7 +41,7 @@ beforeAll(async () => {
 
 // GATE: ML-DSA SIMD NTT == scalar NTT for 100 random polys
 
-describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
+describe('Gate 1, SIMD NTT matches scalar NTT', () => {
 
 	test('ntt (SIMD) == ntt_scalar for zero polynomial', () => {
 		const w = getWasm();
@@ -133,7 +133,7 @@ describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
 
 // GATE: ML-DSA NTT round-trip identity
 
-describe('Gate 2 — NTT round-trip recovers input', () => {
+describe('Gate 2, NTT round-trip recovers input', () => {
 
 	test('invntt(ntt(p)) ≡ p (mod q) for 100 random polynomials', () => {
 		const w = getWasm();
@@ -178,11 +178,11 @@ describe('Gate 2 — NTT round-trip recovers input', () => {
 	});
 });
 
-// Smoke check — Appendix B / §2.5 sanity:
+// Smoke check, Appendix B / §2.5 sanity:
 //   - zetas[128] (Montgomery form) corresponds to ζ¹ = 1753 in regular form.
 //   - BitRev8(128) = 1, BitRev8(1) = 128.
 
-describe('Sanity — zetas table & BitRev8', () => {
+describe('Sanity, zetas table & BitRev8', () => {
 	test('BitRev8 fixed points', () => {
 		const w = getWasm();
 		expect(w.BitRev8(0)).toBe(0);
@@ -210,7 +210,7 @@ describe('Sanity — zetas table & BitRev8', () => {
 	// ζ=1753 + BitRev₈ in BigInt and compared byte-for-byte.
 	//
 	// The round-trip identity (Gate 2) only proves the forward/inverse pair
-	// is internally consistent — it would pass for any internally-consistent
+	// is internally consistent, it would pass for any internally-consistent
 	// table, including a corrupted one. This test is the only one that
 	// catches a corrupted table before phase-4 ACVP keygen vectors run.
 	test('zetas[k] = ζ^BitRev₈(k) · 2³² mod q (centered) for k ∈ [1, 256)', () => {
@@ -220,7 +220,7 @@ describe('Sanity — zetas table & BitRev8', () => {
 		const R    = 1n << 32n;
 		const halfQ = qBig / 2n;  // (q-1)/2 since q is odd
 
-		// Local BitRev8 — kept independent of the WASM export so a bug in
+		// Local BitRev8, kept independent of the WASM export so a bug in
 		// either table or BitRev8 surfaces here rather than masking each
 		// other.
 		const bitRev8 = (m: number): number => {

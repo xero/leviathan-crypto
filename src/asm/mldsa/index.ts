@@ -21,8 +21,8 @@
 //
 // src/asm/mldsa/index.ts
 //
-// ML-DSA WASM module — public exports.
-// FIPS 204 — Module-Lattice-Based Digital Signature Standard.
+// ML-DSA WASM module, public exports.
+// FIPS 204, Module-Lattice-Based Digital Signature Standard.
 //
 // Phase-3 surface: phase-2 reduce/NTT primitives plus the polynomial layer
 // (poly + polyvec arithmetic, bit-pack/unpack encoding, rounding kernels,

@@ -42,7 +42,7 @@ export const shake128MultiSqueezeVectors: MultiSqueezeVector[] = [
 	{
 		// Slices of: shake128Vectors 'SHAKE128 empty → 200 bytes (multi-block)'
 		// squeeze(100) ends at byte 100 (inside block 1); squeeze(100) crosses
-		// the block boundary at byte 168 — primary rate-crossing test.
+		// the block boundary at byte 168, primary rate-crossing test.
 		description: 'MS-2: empty, squeeze(100) + squeeze(100) crosses rate boundary at byte 168',
 		input: '',
 		squeezes: [100, 100],
@@ -59,7 +59,7 @@ export const shake128MultiSqueezeVectors: MultiSqueezeVector[] = [
 	},
 	{
 		// Slices of: shake128Vectors 'SHAKE128 "abc" → 200 bytes (multi-block)'
-		// Input is "abc" — verifies rate-crossing is input-agnostic.
+		// Input is "abc", verifies rate-crossing is input-agnostic.
 		description: 'MS-2b: "abc", squeeze(100) + squeeze(100) crosses rate boundary',
 		input: '616263',
 		squeezes: [100, 100],
@@ -77,7 +77,7 @@ export const shake128MultiSqueezeVectors: MultiSqueezeVector[] = [
 	{
 		// Slices of: shake128Vectors 'SHAKE128 empty → 336 bytes (exactly 2× rate blocks)'
 		// Each squeeze() produces exactly one full rate block.
-		description: 'MS-3: empty, squeeze(168) + squeeze(168) — two full rate blocks',
+		description: 'MS-3: empty, squeeze(168) + squeeze(168), two full rate blocks',
 		input: '',
 		squeezes: [168, 168],
 		expectedChunks: [
@@ -98,7 +98,7 @@ export const shake128MultiSqueezeVectors: MultiSqueezeVector[] = [
 	{
 		// Slices of: shake128Vectors 'SHAKE128 empty → 200 bytes (multi-block)'
 		// Three squeeze calls summing to 200 bytes; chunk[1] crosses the rate boundary.
-		description: 'MS-5: empty, squeeze(64) + squeeze(100) + squeeze(36) — three segments',
+		description: 'MS-5: empty, squeeze(64) + squeeze(100) + squeeze(36), three segments',
 		input: '',
 		squeezes: [64, 100, 36],
 		expectedChunks: [

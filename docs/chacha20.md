@@ -447,7 +447,7 @@ Wipes all key material and intermediate state from WASM memory.
 
 ChaCha20 block-function PRF for Fortuna's generator slot (RFC 8439 §2.3).
 Uses a fixed zero nonce; Fortuna's counter is the only varying input.
-Implements the `Generator` interface. Plain `const` object — no instantiation,
+Implements the `Generator` interface. Plain `const` object, no instantiation,
 no `dispose()`.
 
 Requires `init({ chacha20: chacha20Wasm })`. See [fortuna.md](./fortuna.md)
@@ -755,10 +755,10 @@ cipher.dispose()
 | `ChaCha20` nonce is not 12 bytes | `RangeError` | `ChaCha20 nonce must be 12 bytes (got N)` |
 | `ChaCha20Poly1305` nonce is not 12 bytes | `RangeError` | `nonce must be 12 bytes (got N)` |
 | `XChaCha20Poly1305` nonce is not 24 bytes | `RangeError` | `XChaCha20 nonce must be 24 bytes (got N)` |
-| `ChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short — must include 16-byte tag (got N)` |
-| `XChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short — must include 16-byte tag (got N)` |
+| `ChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short, must include 16-byte tag (got N)` |
+| `XChaCha20Poly1305` ciphertext shorter than 16 bytes | `RangeError` | `ciphertext too short, must include 16-byte tag (got N)` |
 | `ChaCha20Poly1305.encrypt()` called a second time | `Error` | Single-use encrypt guard. Create a new instance for each encryption. |
-| Chunk or plaintext exceeds WASM buffer size | `RangeError` | `plaintext exceeds N bytes — split into smaller chunks` / `chunk exceeds maximum size of N bytes — split into smaller chunks` |
+| Chunk or plaintext exceeds WASM buffer size | `RangeError` | `plaintext exceeds N bytes, split into smaller chunks` / `chunk exceeds maximum size of N bytes, split into smaller chunks` |
 | Authentication tag does not match on decrypt | `Error` | `ChaCha20Poly1305: authentication failed` |
 | Empty plaintext | | Allowed. Encrypting zero bytes produces just a 16-byte tag (AEAD) or zero bytes (raw ChaCha20). |
 | `ChaCha20Generator.generate()` key ≠ 32 bytes | `RangeError` | `ChaCha20Generator: key must be 32 bytes (got N)` |

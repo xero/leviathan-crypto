@@ -2,7 +2,7 @@
 // Source: https://raw.githubusercontent.com/usnistgov/ACVP-Server/master/gen-val/json-files/ML-KEM-encapDecap-FIPS203/internalProjection.json
 // vsId=42, algorithm=ML-KEM, mode=encapDecap, revision=FIPS203, isSample=true
 // 12 groups: 3 AFT encapsulation (25 each), 3 VAL decapsulation (10 each),
-//            6 VAL keyCheck — decapsulationKeyCheck + encapsulationKeyCheck (10 each) = 165 total
+//            6 VAL keyCheck, decapsulationKeyCheck + encapsulationKeyCheck (10 each) = 165 total
 
 export interface EncapVector {
   tcId: number;

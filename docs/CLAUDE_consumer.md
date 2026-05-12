@@ -1,4 +1,4 @@
-# leviathan-crypto — AI Assistant Guide
+# leviathan-crypto: AI Assistant Guide
 
 > [!NOTE]
 > This file ships with the package to help AI assistants use this library correctly. Full API documentation is in the `docs/` directory alongside this file.
@@ -33,7 +33,7 @@ algorithms itself.
 > [!CAUTION]
 > Stateful classes (`SHAKE128`, `SHAKE256`, `ChaCha20`, `SerpentCtr`,
 > `SerpentCbc`) hold exclusive access to their WASM module for their entire
-> lifetime. Construct, use, `dispose()` — in that order. Attempting to
+> lifetime. Construct, use, `dispose()`, in that order. Attempting to
 > construct a second stateful instance on the same module throws. Atomic
 > one-shot classes (`SHA256`, `SHA3_*`, `HMAC_*`, `Poly1305`, AEAD classes)
 > also throw if the module is held by a stateful class. Pool workers are
@@ -46,13 +46,13 @@ instances from silently clobbering each other's state:
 ```typescript
 const a = new SHAKE128()
 a.absorb(msg1)
-const b = new SHAKE128()   // throws — a still owns the 'sha3' module
+const b = new SHAKE128()   // throws, a still owns the 'sha3' module
 a.squeeze(32)
 a.dispose()                // release
 const c = new SHAKE128()   // ok
 ```
 
-The same applies across class boundaries on the same module — e.g. a live
+The same applies across class boundaries on the same module, e.g. a live
 `SerpentCbc` blocks `new SerpentCtr()`, `new Serpent()`, and
 `Seal.encrypt(SerpentCipher, ...)` until `dispose()`. Always wrap stateful
 use in `try { ... } finally { x.dispose() }`.
@@ -105,7 +105,7 @@ try {
 
 ---
 
-## Critical: `decrypt()` throws on authentication failure — never returns null
+## Critical: `decrypt()` throws on authentication failure, never returns null
 
 All AEAD `decrypt()` methods throw if authentication fails. Do not check for a
 null return; catch the exception.
@@ -125,7 +125,7 @@ try {
 `isInitialized(mod)` is the canonical readiness probe. Pass any module name
 (`'serpent'`, `'chacha20'`, `'sha2'`, `'sha3'`, `'keccak'`, `'kyber'`,
 `'mldsa'`) and get back a boolean. Useful for tests, diagnostic gates, and
-lazy-loading flows. It is a diagnostic indicator, not a control mechanism —
+lazy-loading flows. It is a diagnostic indicator, not a control mechanism,
 for normal flows just call `init()` and let it short-circuit on
 already-loaded modules.
 
@@ -163,7 +163,7 @@ Each init function takes a single `WasmSource` argument. Use the module's
 | `leviathan-crypto/mldsa` | `mldsaInit(source)` | `leviathan-crypto/mldsa/embedded` → `mldsaWasm` |
 
 ```typescript
-// Tree-shakeable — loads only serpent WASM
+// Tree-shakeable, loads only serpent WASM
 import { serpentInit, Serpent } from 'leviathan-crypto/serpent'
 import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
 await serpentInit(serpentWasm)
@@ -176,15 +176,18 @@ await serpentInit(serpentWasm)
 | Classes | Required modules |
 |---------|-----------------|
 | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher` | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
-| `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator` | `init({ aes: aesWasm })` — AES-128/192/256 (AESGCMSIV is AES-128/256 only — RFC 8452 §6 does not define AES-192-GCM-SIV). `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5); `AESGCM` is authenticated AEAD (SP 800-38D §7) with a 128-bit tag; `AESGCMSIV` is nonce-misuse-resistant authenticated AEAD (RFC 8452) with a 128-bit tag, single-shot, plaintext capped at 64 KiB per call; `AESGenerator` is an AES-256 ECB counter-mode PRF for the `Fortuna` generator slot (Practical Cryptography §9.4 — the spec-canonical Fortuna generator). `AESCbc` and `AESCtr` are unauthenticated — pair with HMAC or use `Seal` / `AESGCM` / `AESGCMSIV` instead. |
+| `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator` | `init({ aes: aesWasm })`, AES-128/192/256 (AESGCMSIV is AES-128/256 only, RFC 8452 §6 does not define AES-192-GCM-SIV). `AES` is the raw block cipher; `AESCbc` is CBC + PKCS7 (requires `{ dangerUnauthenticated: true }` opt-in); `AESCtr` is CTR mode with 128-bit big-endian counter (SP 800-38A §F.5); `AESGCM` is authenticated AEAD (SP 800-38D §7) with a 128-bit tag; `AESGCMSIV` is nonce-misuse-resistant authenticated AEAD (RFC 8452) with a 128-bit tag, single-shot, plaintext capped at 64 KiB per call; `AESGenerator` is an AES-256 ECB counter-mode PRF for the `Fortuna` generator slot (Practical Cryptography §9.4, the spec-canonical Fortuna generator). `AESCbc` and `AESCtr` are unauthenticated, pair with HMAC or use `Seal` / `AESGCM` / `AESGCMSIV` instead. |
 | `SealStream`, `OpenStream`, `SerpentCipher` (when using SerpentCipher) | `init({ serpent: serpentWasm, sha2: sha2Wasm })` |
 | `SealStream`, `OpenStream`, `XChaCha20Cipher` (when using XChaCha20Cipher) | `init({ chacha20: chacha20Wasm, sha2: sha2Wasm })` |
 | `SealStreamPool` | depends on cipher: same modules as the cipher suite + `sha2` |
 | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` | `init({ chacha20: chacha20Wasm })` |
-| `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })` — full FIPS 180-4 hash family (SHA-224/256/384/512 plus SHA-512/t variants required by HashML-DSA per FIPS 204 §5.4.1). |
-| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })` — `'keccak'` is an alias for `'sha3'`. The SP 800-185 family (cSHAKE, KMAC, KMACXOF) shares the SHA-3 WASM slot. |
-| `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })` — both modules required |
-| `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })` — both modules required (post-quantum digital signatures, FIPS 204) |
+| `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512` | `init({ sha2: sha2Wasm })`, full FIPS 180-4 hash family (SHA-224/256/384/512 plus SHA-512/t variants required by HashML-DSA per FIPS 204 §5.4.1). |
+| `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })`, `'keccak'` is an alias for `'sha3'`. The SP 800-185 family (cSHAKE, KMAC, KMACXOF) shares the SHA-3 WASM slot. |
+| `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })`, both modules required |
+| `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`, both modules required (post-quantum digital signatures, FIPS 204) |
+| `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f` | `init({ slhdsa: slhdsaWasm })` for pure SLH-DSA; HashSLH-DSA with SHA-2 pre-hash additionally needs `sha2`; with SHA-3 / SHAKE pre-hash additionally needs `sha3` (FIPS 205, stateless hash-based signatures). The slhdsa WASM module embeds its own Keccak permutation, so pure-mode use never touches `sha3`. |
+| `Sign`, `SignStream`, `VerifyStream`, the six `MlDsa*Suite` / `MlDsa*PreHashSuite` consts, the six `SlhDsa*Suite` / `SlhDsa*PreHashSuite` consts, and the three `MlDsa*SlhDsa*Suite` PQ-only hybrid consts | `init(...)` modules depend on the suite. ML-DSA suites need `mldsa + sha3`; SLH-DSA pure suites need `slhdsa`; SLH-DSA prehash suites need `slhdsa + sha3` (for the running SHAKE digest); PQ-only hybrid suites need `mldsa + sha3 + slhdsa`. The sign envelope and stream layers are SignatureSuite-driven and inherit the suite's `wasmModules` declaration. |
+| `SHA3_256Stream`, `SHA3_512Stream`, `SHAKE128Stream`, `SHAKE256Stream` | `init({ sha3: sha3Wasm })`, incremental fixed-output SHA-3 / SHAKE over `update` / `finalize`; required substrate for `SignStream` over prehash suites. |
 | `Fortuna` | `init(...)` with one cipher module (`aes`, `serpent`, or `chacha20`) plus one hash module (`sha2` or `sha3`). All six combinations are valid. |
 | `KDFChain`, `ratchetInit`, `ratchetReady`, `SkippedKeyStore` | `init({ sha2: sha2Wasm })` |
 | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })` |
@@ -220,7 +223,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 const key    = randomBytes(32)
 const sealer = new SealStream(SerpentCipher, key)
-const preamble = sealer.preamble        // 20 bytes — send first
+const preamble = sealer.preamble        // 20 bytes, send first
 const ct0      = sealer.push(chunk0)
 const ct1      = sealer.push(chunk1)
 const ctLast   = sealer.finalize(lastChunk)
@@ -262,7 +265,7 @@ Note: `encrypt()` returns ciphertext with the 16-byte Poly1305 tag appended.
 
 > [!CAUTION]
 > **Strict single-use on `encrypt()`.** `ChaCha20Poly1305.encrypt()` and
-> `XChaCha20Poly1305.encrypt()` are terminal on **any** throw — including
+> `XChaCha20Poly1305.encrypt()` are terminal on **any** throw, including
 > `RangeError` on key/nonce length. A retry on the same instance always
 > raises the single-use guard, never a fresh length error. Always allocate
 > a new AEAD per message. This tightens the 2.0-beta semantics where
@@ -298,7 +301,7 @@ Note: `encrypt()` returns ciphertext with the 16-byte Poly1305 tag appended.
 >
 > **Loader accepts any `PromiseLike<WasmSource>`.** `Promise<Response>`,
 > `Promise<ArrayBuffer>`, `Promise<Uint8Array>`, and `Promise<string>`
-> (gzip+base64 blob) all work — the loader resolves the thenable and
+> (gzip+base64 blob) all work, the loader resolves the thenable and
 > re-dispatches by the resolved runtime type. Nesting is capped at depth
 > 3; deeper chains throw `TypeError: thenable nesting too deep (max 3)`.
 
@@ -319,7 +322,7 @@ const tag = mac.hash(key, data)
 mac.dispose()
 ```
 
-### SHAKE (XOF — variable-length output)
+### SHAKE (XOF, variable-length output)
 
 ```typescript
 import { init, SHAKE128 } from 'leviathan-crypto'
@@ -330,7 +333,7 @@ await init({ sha3: sha3Wasm })
 const xof = new SHAKE128()
 xof.absorb(data)
 const out1 = xof.squeeze(32)   // first 32 bytes of output stream
-const out2 = xof.squeeze(32)   // next 32 bytes — contiguous XOF stream
+const out2 = xof.squeeze(32)   // next 32 bytes, contiguous XOF stream
 xof.dispose()
 ```
 
@@ -342,19 +345,19 @@ import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
 await init({ sha3: sha3Wasm })
 
-// cSHAKE — customizable SHAKE with a caller-supplied domain string.
+// cSHAKE, customizable SHAKE with a caller-supplied domain string.
 // Empty customization throws (use SHAKE128 / SHAKE256 instead).
 const cs = new CSHAKE128(new TextEncoder().encode('Email Signature'))
 const digest = cs.hash(message, 32)
 cs.dispose()
 
-// KMAC — keyed Keccak MAC, fixed-output. outLen is bound at construction.
+// KMAC, keyed Keccak MAC, fixed-output. outLen is bound at construction.
 const tag = (() => {
     const m = new KMAC128(key, 32, new TextEncoder().encode('My Tag'))
     try { return m.mac(message) } finally { m.dispose() }
 })()
 
-// Constant-time tag verification — throws AuthenticationError on mismatch,
+// Constant-time tag verification, throws AuthenticationError on mismatch,
 // returns true on success. Cipher discriminator: 'kmac128' / 'kmac256'.
 try {
     KMAC128.verify(tag, key, message, new TextEncoder().encode('My Tag'))
@@ -362,7 +365,7 @@ try {
     // wrong key, wrong message, or wrong customization
 }
 
-// KMACXOF — KMAC in XOF mode. Output length is caller-chosen per squeeze.
+// KMACXOF, KMAC in XOF mode. Output length is caller-chosen per squeeze.
 const xof = new KMACXOF256(key, new TextEncoder().encode('My Tag'))
 xof.update(part1)
 xof.update(part2)
@@ -373,7 +376,7 @@ xof.dispose()
 
 > [!CAUTION]
 > **cSHAKE hides the function-name input N.** Per SP 800-185 §3.4, users
-> "should not make up their own names" — non-standard N values risk collision
+> "should not make up their own names", non-standard N values risk collision
 > with future NIST-defined functions. The public CSHAKE128/256 classes pin
 > N to empty; the only customization channel exposed to users is S.
 >
@@ -396,10 +399,10 @@ await init({ kyber: kyberWasm, sha3: sha3Wasm })
 const kem = new MlKem768()
 const { encapsulationKey, decapsulationKey } = kem.keygen()
 
-// Encapsulation (sender — public encapsulationKey only)
+// Encapsulation (sender, public encapsulationKey only)
 const { ciphertext, sharedSecret: senderSecret } = kem.encapsulate(encapsulationKey)
 
-// Decapsulation (recipient — private decapsulationKey)
+// Decapsulation (recipient, private decapsulationKey)
 const recipientSecret = kem.decapsulate(decapsulationKey, ciphertext)
 
 // senderSecret === recipientSecret (32 bytes)
@@ -430,18 +433,18 @@ await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
 const dsa = new MlDsa65()
 const { verificationKey, signingKey } = dsa.keygen()
 
-// Hedged signing — recommended default per FIPS 204 §3.4.
+// Hedged signing, recommended default per FIPS 204 §3.4.
 const sig = dsa.sign(signingKey, message)
 const ok  = dsa.verify(verificationKey, message, sig)   // boolean
 
-// verificationKey: pk — Algorithm 22 (pkEncode), 1952 bytes for ML-DSA-65
-// signingKey:      sk — Algorithm 24 (skEncode), 4032 bytes for ML-DSA-65
-// sig:             σ  — Algorithm 26 (sigEncode), 3309 bytes for ML-DSA-65
+// verificationKey: pk, Algorithm 22 (pkEncode), 1952 bytes for ML-DSA-65
+// signingKey:      sk, Algorithm 24 (skEncode), 4032 bytes for ML-DSA-65
+// sig:             σ , Algorithm 26 (sigEncode), 3309 bytes for ML-DSA-65
 
 dsa.dispose()
 ```
 
-`keygenDerand(xi)` is the deterministic variant — pass a 32-byte seed and
+`keygenDerand(xi)` is the deterministic variant, pass a 32-byte seed and
 get the same `(pk, sk)` every time. `keygen()` is `randomBytes(32)` plus
 `keygenDerand`.
 
@@ -451,39 +454,39 @@ assurance) for different security/size trade-offs.
 
 **Three signing modes:**
 
-- `sign(sk, M, ctx?)` — **hedged** (default). Generates a fresh 32-byte
+- `sign(sk, M, ctx?)`, **hedged** (default). Generates a fresh 32-byte
   rnd internally; two signatures over the same `(sk, M)` differ. Hedged
   is preferred over deterministic per FIPS 204 §3.4 because hedged
   signatures remain unforgeable under fault attacks that bias the
   rejection-sampling stream.
-- `signDeterministic(sk, M, ctx?)` — sets rnd ← 0³² for byte-reproducible
-  signatures. **Vulnerable to fault attacks** per FIPS 204 §3.4 — use
+- `signDeterministic(sk, M, ctx?)`, sets rnd ← 0³² for byte-reproducible
+  signatures. **Vulnerable to fault attacks** per FIPS 204 §3.4, use
   only when no entropy source is available.
-- `signDerand(sk, M, ctx, rnd)` — testing / CAVP API. Caller supplies the
+- `signDerand(sk, M, ctx, rnd)`, testing / CAVP API. Caller supplies the
   32-byte rnd. **Caller MUST source rnd from an approved RBG and MUST
-  NOT reuse it across signatures** — reuse leaks the signing key.
+  NOT reuse it across signatures**, reuse leaks the signing key.
 
 > [!CAUTION]
-> **`verify` returns boolean — it does NOT throw on bad signatures.**
+> **`verify` returns boolean, it does NOT throw on bad signatures.**
 > Caller must not branch on whether `verify` "completed without throwing"
-> — it always completes (modulo OOM). Only contract violations (`ctx.length
+>, it always completes (modulo OOM). Only contract violations (`ctx.length
 > > 255`) throw `RangeError`. Wrong-length pk/σ return `false` per FIPS
-> 204 §3.6.2 — same verdict as a wrong signature. Malformed hint encodings
+> 204 §3.6.2, same verdict as a wrong signature. Malformed hint encodings
 > (per FIPS 204 §D.3 / Algorithm 21 lines 4, 9, 17) also return `false`.
 >
 > ```typescript
 > // CORRECT
 > if (!dsa.verify(vk, M, sig, ctx)) throw new Error('signature invalid')
 >
-> // WRONG — verify never throws on bad sig, the catch is dead code.
+> // WRONG, verify never throws on bad sig, the catch is dead code.
 > try { dsa.verify(vk, M, sig, ctx) } catch { /* unreachable for bad sigs */ }
 > ```
 
-`ctx` defaults to an empty Uint8Array. The signature binds `(M, ctx)` —
+`ctx` defaults to an empty Uint8Array. The signature binds `(M, ctx)`,
 verifying with a different ctx returns false. Use ctx for protocol
 domain-separation (e.g. application label, key purpose).
 
-### HashML-DSA — pre-hash variant (FIPS 204 §5.4)
+### HashML-DSA, pre-hash variant (FIPS 204 §5.4)
 
 The pre-hash variant signs `H(M)` with an explicit hash-function OID
 bound into `M'`. Use when you cannot stream `M` into a single buffer
@@ -524,7 +527,7 @@ Their hedged / deterministic / derand semantics are identical to `sign`
 > [!CAUTION]
 > **Pure-ML-DSA and HashML-DSA signatures are NOT interchangeable** even
 > on the same key. The M' construction binds a different domain-sep byte
-> (0x00 vs 0x01 — FIPS 204 §3.6.4) to prevent cross-protocol forgeries.
+> (0x00 vs 0x01, FIPS 204 §3.6.4) to prevent cross-protocol forgeries.
 >
 > ```typescript
 > const sig = dsa.sign(sk, M)              // pure
@@ -545,6 +548,188 @@ Their hedged / deterministic / derand semantics are identical to `sign`
 > SHA-2 algorithm without sha2 initialized throws a clear error rather
 > than silently mis-signing.
 
+### Signature envelope and streaming (Sign / SignStream / VerifyStream)
+
+The v3 sign module wraps every signature scheme in a `SignatureSuite`
+object, parallel to how `CipherSuite` wraps cipher families. `Sign` is
+the single-shot envelope; `SignStream` / `VerifyStream` are the
+streaming counterparts. The wire bytes are identical regardless of
+which production path the sender chooses.
+
+```typescript
+import { init, Sign, MlDsa65Suite } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+
+const { pk, sk } = MlDsa65Suite.keygen()
+const msg = new TextEncoder().encode('release manifest v1.2.3')
+const ctx = new TextEncoder().encode('app:my-app:v1')
+
+const blob    = Sign.sign(MlDsa65Suite, sk, msg, ctx)
+const payload = Sign.verify(MlDsa65Suite, pk, blob, ctx)   // returns msg, throws on failure
+```
+
+Streaming (prehash suites only):
+
+```typescript
+import { init, SignStream, VerifyStream, MlDsa65PreHashSuite, concat } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+
+const { pk, sk } = MlDsa65PreHashSuite.keygen()
+const ctx = new TextEncoder().encode('app:my-app:v1')
+
+// Producer: emit preamble first, stream chunks, then append sig from finalize.
+const signer = new SignStream(MlDsa65PreHashSuite, sk, ctx)
+let wire: Uint8Array
+try {
+    signer.update(chunk0)
+    signer.update(chunk1)
+    const sig = signer.finalize()
+    wire = concat(signer.preamble, chunk0, chunk1, sig)
+} finally {
+    signer.dispose()
+}
+
+// Consumer: feed the wire bytes in any number of update() calls; VerifyStream
+// is byte-stream tolerant and parses header, payload, and sig incrementally.
+const verifier = new VerifyStream(MlDsa65PreHashSuite, pk, ctx)
+try {
+    verifier.update(wire)
+    const payload = verifier.finalize()
+} finally {
+    verifier.dispose()
+}
+```
+
+Locked semantics for the v3 sign layer:
+
+- **`ctx` is required, never optional.** Pass `new Uint8Array()` for the empty case; the suite layer does not default it.
+- **Cross-suite domain separation is automatic.** Each suite ships a built-in `ctxDomain` string. A sig produced by `MlDsa65Suite` cannot accidentally verify under `MlDsa65PreHashSuite` even with identical inputs.
+- **Hedged signing by default.** ML-DSA suites route to FIPS 204 §3.4 hedged signing; deterministic and externally-randomized variants are not exposed on the suite, use the underlying `MlDsa*` class for those.
+- **`Sign.verify` returns the payload, throws on failure.** Catch `SigningError` (with the relevant `discriminator`), do not check for nulls. `Sign.verifyDetached` returns boolean for the raw-signature variant.
+- **`SignStream` holds the sha3 module exclusively** from construction until `finalize()` or `dispose()`. Wrap in `try` / `finally` and dispose unconditionally.
+- **Only `StreamableSignatureSuite` suites work with `SignStream` / `VerifyStream`.** Pure-mode suites (`MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`, `SlhDsa128fSuite`, `SlhDsa192fSuite`, `SlhDsa256fSuite`) are a TypeScript compile error when passed to a stream constructor; use `Sign.sign` for those. Prehash and PQ-only hybrid suites implement `StreamableSignatureSuite` and stream cleanly.
+
+### SLH-DSA post-quantum digital signatures (FIPS 205)
+
+SLH-DSA is the second post-quantum signature scheme shipped by the
+library, parallel to ML-DSA but built on hash functions only (no
+algebraic structure). Pick SLH-DSA when you want maximum conservatism
+on quantum cryptanalysis assumptions and can absorb larger signatures
+(~17-49 KB versus ML-DSA's 2.4-4.6 KB).
+
+```typescript
+import { init, SlhDsa128f } from 'leviathan-crypto'
+import { slhdsaWasm } from 'leviathan-crypto/slhdsa/embedded'
+
+await init({ slhdsa: slhdsaWasm })
+
+const dsa = new SlhDsa128f()
+const { verificationKey, signingKey } = dsa.keygen()
+
+// Hedged signing, recommended default per FIPS 205 §3.4.
+const sig = dsa.sign(signingKey, message)
+const ok  = dsa.verify(verificationKey, message, sig)   // boolean
+
+dsa.dispose()
+```
+
+Three parameter sets: `SlhDsa128f` (NIST category 1, 17088-byte sig),
+`SlhDsa192f` (category 3, 35664-byte sig), `SlhDsa256f` (category 5,
+49856-byte sig). Each ships the SHAKE-family fast variant; the `s`
+small-signature variants are not shipped.
+
+**Three signing modes** (same shape as ML-DSA):
+
+- `sign(sk, M, ctx?)`, **hedged** (default). Generates a fresh n-byte
+  opt_rand per call; two signatures over the same `(sk, M)` differ.
+- `signDeterministic(sk, M, ctx?)`, sets opt_rand ← PK.seed per
+  FIPS 205 §3.4. **Vulnerable to fault attacks**.
+- `signDerand(sk, M, optRand, ctx?)`, testing / CAVP API. Caller
+  supplies the n-byte opt_rand. MUST NOT be reused across signatures.
+
+> [!CAUTION]
+> **`verify` returns boolean and does NOT throw on bad signatures**
+> (same posture as ML-DSA). Wrong-length pk / σ return `false`; only
+> contract violations (`ctx.length > 255`, unsupported `ph`, category
+> mismatch on prehash) throw.
+
+### HashSLH-DSA, pre-hash variant (FIPS 205 §10.2.2)
+
+```typescript
+const sig = dsa.signHash(signingKey, message, 'SHAKE128')
+const ok  = dsa.verifyHash(verificationKey, message, sig, 'SHAKE128')
+```
+
+`ph` is one of the FIPS 205 §10.2.2 approved functions:
+`'SHA2-224' | 'SHA2-256' | 'SHA2-384' | 'SHA2-512' |
+'SHA2-512/224' | 'SHA2-512/256' | 'SHA3-224' | 'SHA3-256' | 'SHA3-384' |
+'SHA3-512' | 'SHAKE128' | 'SHAKE256'`.
+
+> [!CAUTION]
+> **FIPS 205 §10.2.2 category restriction.** `SHA2-256` and `SHAKE128`
+> prehash are only valid for category-1 keys (`SlhDsa128f`). The library
+> enforces this at the public surface and throws `RangeError` if a
+> category-3 or category-5 key is paired with `SHA2-256` / `SHAKE128`.
+
+The caller-supplied-prehash variants (`signHashPrehashed`,
+`signHashPrehashedDeterministic`, `signHashPrehashedDerand`,
+`verifyHashPrehashed`) accept the digest directly when `M` is not
+buffered in one place. Wrong-size digest is a sign-side contract
+violation (`SigningError('sig-malformed-input')`) and a verify-side
+structural verdict (returns `false`).
+
+> [!CAUTION]
+> **Pure SLH-DSA and HashSLH-DSA signatures are NOT interchangeable**
+> even on the same key. Different domain-sep byte (0x00 vs 0x01) in M'.
+> Choose one per protocol and stay consistent.
+
+### PQ-only hybrid signatures (ML-DSA + SLH-DSA composite)
+
+Three exported suite consts compose ML-DSA and SLH-DSA at matching
+security categories: `MlDsa44SlhDsa128fSuite` (cat-2 + cat-1, format
+byte 0x30), `MlDsa65SlhDsa192fSuite` (cat-3 + cat-3, 0x31),
+`MlDsa87SlhDsa256fSuite` (cat-5 + cat-5, 0x32). Use a hybrid when you
+want signature validity to survive the catastrophic break of one of
+the two underlying schemes.
+
+```typescript
+import { init, Sign, SignStream, VerifyStream, MlDsa65SlhDsa192fSuite, concat } from 'leviathan-crypto'
+import { mldsaWasm }  from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }   from 'leviathan-crypto/sha3/embedded'
+import { slhdsaWasm } from 'leviathan-crypto/slhdsa/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm, slhdsa: slhdsaWasm })
+
+const { pk, sk } = MlDsa65SlhDsa192fSuite.keygen()
+// pk = pk_mldsa || pk_slhdsa (composite, sizes catalog-known, no length prefixes)
+// sk = sk_mldsa || sk_slhdsa
+
+const ctx  = new TextEncoder().encode('app:my-app:v1')
+const blob = Sign.sign(MlDsa65SlhDsa192fSuite, sk, msg, ctx)
+const out  = Sign.verify(MlDsa65SlhDsa192fSuite, pk, blob, ctx)
+```
+
+Hybrid suites are **prehash-only** (the SHAKE digest is computed once
+and fed to both halves), so they must go through `SignStream` /
+`VerifyStream` for streaming or `Sign.sign` for single-shot. The
+underlying `Sign` envelope wraps the composite signature transparently;
+on the wire the signature is `sig_mldsa || sig_slhdsa` with no length
+prefix.
+
+> [!CAUTION]
+> **`verifyPrehashed` always runs both sub-verifies.** No early return
+> on the first half's boolean. Both halves must validate; one valid +
+> one invalid is rejected. Cross-suite forgery is blocked at the
+> ctxDomain layer: a standalone `MlDsa65Suite` sig placed as the
+> ML-DSA half of `MlDsa65SlhDsa192fSuite` is rejected because the
+> envelope ctxDomain differs.
+
 ### Fortuna CSPRNG
 
 `Fortuna.create()` requires explicit `generator` and `hash` parameters. There are no defaults.
@@ -562,7 +747,7 @@ const bytes   = fortuna.get(32)
 fortuna.stop()
 ```
 
-Substitute `AESGenerator` (Practical Cryptography §9.4 — the spec-canonical generator) or `SerpentGenerator` for `ChaCha20Generator`, or `SHA3_256Hash` for `SHA256Hash`, to use other primitive combinations. Match the `init()` modules to whichever pair you pick.
+Substitute `AESGenerator` (Practical Cryptography §9.4, the spec-canonical generator) or `SerpentGenerator` for `ChaCha20Generator`, or `SHA3_256Hash` for `SHA256Hash`, to use other primitive combinations. Match the `init()` modules to whichever pair you pick.
 
 ### Sparse Post-Quantum Ratchet (KDF layer only)
 
@@ -584,7 +769,7 @@ const bob   = ratchetInit(sharedSecret)
 // Alice performs a KEM ratchet step; kemCt goes in the message header
 const aliceEpoch = kemRatchetEncap(kem, alice.nextRootKey, bobEk)
 
-// Bob decapsulates after receiving kemCt. Pass bobEk as ownEk — both sides
+// Bob decapsulates after receiving kemCt. Pass bobEk as ownEk, both sides
 // bind (peerEk, kemCt, context) into HKDF info with u32be length prefixes.
 const bobEpoch = kemRatchetDecap(kem, bob.nextRootKey, bobDk, aliceEpoch.kemCt, bobEk)
 
@@ -599,10 +784,10 @@ kem.dispose()
 
 Additional ratchet exports:
 
-- `SkippedKeyStore` — MKSKIPPED cache (DR spec §3.2/§3.5). `resolve(chain, counter)` returns a `ResolveHandle` — call `handle.commit()` on successful decrypt (wipes the key) and `handle.rollback()` on auth failure (returns the key to the store so a later legitimate delivery at the same counter can still decrypt). Double-settle throws; accessing `handle.key` after settling throws. Split budgets: `maxCacheSize` (default 100) bounds memory, `maxSkipPerResolve` (default 50) bounds per-message HKDF work. Legacy `{ ceiling: N }` still accepted — sets both. `advanceToBoundary(chain, pn)` for epoch transitions; `wipeAll()` on teardown. Requires `sha2`. **Breaking change from 1.x and 2.0-beta:** `resolve` used to return a raw key with delete-on-retrieval semantics.
-- `RatchetKeypair` — single-use ek/dk wrapper; `new RatchetKeypair(kem)` generates a keypair, `decap(kem, rk, kemCt)` decapsulates exactly once then wipes the dk, `dispose()` is idempotent. Requires `sha2`, `kyber`, `sha3`.
-- `RatchetMessageHeader` — interface `{ epoch, counter, pn?, kemCt? }`; `pn` and `kemCt` present only on the first message of a new epoch.
-- `KDFChain.stepWithCounter()` — returns `{ key, counter }` atomically; eliminates the separate `.n` read after `step()`.
+- `SkippedKeyStore`, MKSKIPPED cache (DR spec §3.2/§3.5). `resolve(chain, counter)` returns a `ResolveHandle`, call `handle.commit()` on successful decrypt (wipes the key) and `handle.rollback()` on auth failure (returns the key to the store so a later legitimate delivery at the same counter can still decrypt). Double-settle throws; accessing `handle.key` after settling throws. Split budgets: `maxCacheSize` (default 100) bounds memory, `maxSkipPerResolve` (default 50) bounds per-message HKDF work. Legacy `{ ceiling: N }` still accepted, sets both. `advanceToBoundary(chain, pn)` for epoch transitions; `wipeAll()` on teardown. Requires `sha2`. **Breaking change from 1.x and 2.0-beta:** `resolve` used to return a raw key with delete-on-retrieval semantics.
+- `RatchetKeypair`, single-use ek/dk wrapper; `new RatchetKeypair(kem)` generates a keypair, `decap(kem, rk, kemCt)` decapsulates exactly once then wipes the dk, `dispose()` is idempotent. Requires `sha2`, `kyber`, `sha3`.
+- `RatchetMessageHeader`, interface `{ epoch, counter, pn?, kemCt? }`; `pn` and `kemCt` present only on the first message of a new epoch.
+- `KDFChain.stepWithCounter()`, returns `{ key, counter }` atomically; eliminates the separate `.n` read after `step()`.
 
 Idiomatic `resolve` usage:
 
@@ -642,7 +827,7 @@ mismatch) and validates the trailing 16 bytes branch-free. This closes the
 Vaudenay 2002 padding-oracle surface on `{ dangerUnauthenticated: true }` callers,
 but it is **not a substitute for authentication**. Power users must still apply
 Encrypt-then-MAC with `HMAC_SHA256` and verify the tag with `constantTimeEqual`
-before calling `decrypt()` — the CT-safe padding check only prevents one class
+before calling `decrypt()`, the CT-safe padding check only prevents one class
 of leakage, not forgery.
 
 ---
@@ -652,11 +837,11 @@ of leakage, not forgery.
 ```typescript
 import { hexToBytes, bytesToHex, randomBytes, constantTimeEqual, wipe, hasSIMD } from 'leviathan-crypto'
 
-// available immediately — no await init() needed
+// available immediately, no await init() needed
 const key  = randomBytes(32)
 const hex  = bytesToHex(key)
 const back = hexToBytes(hex)
-const safe = constantTimeEqual(a, b)   // constant-time equality (branch-free SIMD tail, no post-loop conditional on secret bits) — never use ===
+const safe = constantTimeEqual(a, b)   // constant-time equality (branch-free SIMD tail, no post-loop conditional on secret bits), never use ===
 wipe(key)                               // zero a Uint8Array in place
 ```
 
@@ -679,8 +864,10 @@ The complete API reference ships in `docs/` alongside this file:
 | `docs/sha2.md` | `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA384`, `HMAC_SHA512`, `HKDF_SHA256`, `HKDF_SHA512`, `SHA256Hash` |
 | `docs/sha3.md` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `docs/aead.md` | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite` |
-| `docs/kyber.md` | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite` — ML-KEM (FIPS 203) API reference |
-| `docs/mldsa.md` | `MlDsa44`, `MlDsa65`, `MlDsa87` — ML-DSA (FIPS 204) digital-signature API reference |
+| `docs/kyber.md` | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`, ML-KEM (FIPS 203) API reference |
+| `docs/mldsa.md` | `MlDsa44`, `MlDsa65`, `MlDsa87`, ML-DSA (FIPS 204) digital-signature API reference |
+| `docs/slhdsa.md` | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`, SLH-DSA (FIPS 205) stateless hash-based digital-signature API reference |
+| `docs/signaturesuite.md` | `Sign`, `SignStream`, `VerifyStream`, the `SignatureSuite` catalog (ML-DSA, SLH-DSA, PQ-only hybrid suites), wire format, ctxDomain construction rules, error discriminator table |
 | `docs/fortuna.md` | `Fortuna` CSPRNG |
 | `docs/init.md` | `init()` API, loading modes, subpath imports |
 | `docs/utils.md` | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes` |

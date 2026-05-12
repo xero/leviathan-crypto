@@ -21,7 +21,7 @@
 //
 // test/unit/loader/wasm_source.test.ts
 //
-// WasmSource loader tests — all seven source types, invalid inputs, and double-init.
+// WasmSource loader tests, all seven source types, invalid inputs, and double-init.
 // Uses the sha3 module (smallest WASM) for all tests.
 // Every valid-source test crosses the WASM boundary: hash a known input and
 // assert the digest matches the FIPS 202 SHA3-256("abc") vector.
@@ -40,7 +40,7 @@ function toHex(bytes: Uint8Array): string {
 	return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// FIPS 202 §A.1 — SHA3-256 of UTF-8 "abc"
+// FIPS 202 §A.1, SHA3-256 of UTF-8 "abc"
 const SHA3_256_ABC = '3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532';
 
 /**
@@ -64,7 +64,7 @@ async function runCryptoCheck(source: WasmSource): Promise<void> {
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
-// Raw WASM bytes — loaded once, reused across tests
+// Raw WASM bytes, loaded once, reused across tests
 let wasmArrayBuf: ArrayBuffer;
 let server: import('http').Server;
 let sha3Url: URL;
@@ -79,7 +79,7 @@ beforeAll(async () => {
 	wasmArrayBuf = nodeBuf.buffer.slice(nodeBuf.byteOffset, nodeBuf.byteOffset + nodeBuf.byteLength) as ArrayBuffer;
 
 	// Spin up a minimal HTTP server for the URL source type test.
-	// Port 0 lets the OS assign a free port — avoids CI conflicts.
+	// Port 0 lets the OS assign a free port, avoids CI conflicts.
 	// WebAssembly.instantiateStreaming requires HTTP with Content-Type: application/wasm.
 	const wasmBytes = new Uint8Array(wasmArrayBuf);
 	server = http.createServer((_, res) => {
@@ -101,7 +101,7 @@ beforeEach(() => {
 
 // ── Valid source types ──────────────────────────────────────────────────────
 
-describe('WasmSource — valid types', () => {
+describe('WasmSource, valid types', () => {
 	test('string (gzip+base64 embedded blob)', async () => {
 		await runCryptoCheck(sha3Wasm);
 	});
@@ -142,7 +142,7 @@ describe('WasmSource — valid types', () => {
 
 // ── Invalid inputs ──────────────────────────────────────────────────────────
 
-describe('WasmSource — invalid inputs', () => {
+describe('WasmSource, invalid inputs', () => {
 	test('null throws TypeError', async () => {
 		await expect(
 			loadWasm(null as unknown as WasmSource),
@@ -158,7 +158,7 @@ describe('WasmSource — invalid inputs', () => {
 	test('empty string throws TypeError', async () => {
 		await expect(
 			loadWasm('' as WasmSource),
-		).rejects.toThrow(/leviathan-crypto: invalid WasmSource — empty string/);
+		).rejects.toThrow(/leviathan-crypto: invalid WasmSource, empty string/);
 	});
 
 	test('corrupt base64 string throws', async () => {
@@ -176,7 +176,7 @@ describe('WasmSource — invalid inputs', () => {
 
 // ── Double-init (idempotency) ───────────────────────────────────────────────
 
-describe('WasmSource — double init', () => {
+describe('WasmSource, double init', () => {
 	test('second init with same source is a no-op', async () => {
 		await sha3Init(sha3Wasm);
 		const inst1 = getInstance('sha3');
@@ -188,7 +188,7 @@ describe('WasmSource — double init', () => {
 	test('second init with different source type is a no-op', async () => {
 		await sha3Init(sha3Wasm); // string source
 		const inst1 = getInstance('sha3');
-		await sha3Init(wasmArrayBuf); // ArrayBuffer source — should be ignored
+		await sha3Init(wasmArrayBuf); // ArrayBuffer source, should be ignored
 		const inst2 = getInstance('sha3');
 		expect(inst1).toBe(inst2);
 	});

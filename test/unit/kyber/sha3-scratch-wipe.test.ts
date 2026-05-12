@@ -29,7 +29,7 @@
  * module's STATE (200 B @ 0), INPUT (168 B @ 209), and OUT (168 B @ 377)
  * are all zero.
  *
- * Historically the no-residue claim was behavioral — it relied on "the
+ * Historically the no-residue claim was behavioral, it relied on "the
  * last sha3 call in every kyber public path happens to be keyed on
  * public material." A future reordering or new post-hash step could
  * silently break that invariant. The explicit wipe makes the invariant
@@ -53,7 +53,7 @@ beforeAll(async () => {
 	await init({ kyber: kyberWasm, sha3: sha3Wasm });
 });
 
-// sha3 buffer layout — src/asm/sha3/buffers.ts
+// sha3 buffer layout, src/asm/sha3/buffers.ts
 const SHA3_STATE_OFFSET = 0;
 const SHA3_STATE_LEN    = 200;
 const SHA3_INPUT_OFFSET = 209;
@@ -140,12 +140,12 @@ describe('sha3 scratch wiped after every public kyber op', () => {
 	});
 });
 
-describe('checkDecapsulationKey — length-gate early return does NOT reach the sha3 wipe', () => {
+describe('checkDecapsulationKey, length-gate early return does NOT reach the sha3 wipe', () => {
 	it('length-mismatched dk returns before any sha3 work; pre-existing sha3 bytes persist', () => {
 		// Pre-populate sha3 scratch with a recognizable non-zero pattern,
 		// verify it's there, then call checkDecapsulationKey with a dk whose
 		// length is wrong. The function must return at the length gate before
-		// any sha3 hashing — so the wipe does not fire and the pattern stays.
+		// any sha3 hashing, so the wipe does not fire and the pattern stays.
 		const kem = new MlKem512();
 		dirtySha3Scratch();
 		expectSha3ScratchDirty();
@@ -178,7 +178,7 @@ describe('checkDecapsulationKey — length-gate early return does NOT reach the 
 	});
 });
 
-describe('sha3 scratch wipe — belt-and-suspenders across parameter sets', () => {
+describe('sha3 scratch wipe, belt-and-suspenders across parameter sets', () => {
 	// The sha3 scratch region is parameter-set-independent, so one pass at
 	// each larger set for keygen + encap + decap gives us confidence that
 	// the wipes fire identically regardless of which kyber params drove

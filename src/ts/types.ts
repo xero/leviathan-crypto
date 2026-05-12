@@ -22,7 +22,7 @@
 // src/ts/types.ts
 //
 // Primitive interfaces for leviathan-crypto.
-// No init() dependency — available at import time.
+// No init() dependency, available at import time.
 
 export interface Hash {
 	hash(msg: Uint8Array): Uint8Array;
@@ -48,7 +48,7 @@ export interface Streamcipher {
 
 export interface AEAD {
 	encrypt(msg: Uint8Array, aad?: Uint8Array): Uint8Array;
-	/** Decrypt and authenticate. Throws `Error` on authentication failure — never returns null. */
+	/** Decrypt and authenticate. Throws `Error` on authentication failure, never returns null. */
 	decrypt(ciphertext: Uint8Array, aad?: Uint8Array): Uint8Array;
 	dispose(): void;
 }
@@ -61,7 +61,7 @@ export interface AEAD {
 export interface Generator {
 	readonly keySize: number;       // bytes
 	readonly blockSize: number;     // bytes per cipher block
-	readonly counterSize: number;   // bytes — Fortuna allocates genCnt of this size
+	readonly counterSize: number;   // bytes, Fortuna allocates genCnt of this size
 	readonly wasmModules: readonly string[];
 	generate(key: Uint8Array, counter: Uint8Array, n: number): Uint8Array;
 }

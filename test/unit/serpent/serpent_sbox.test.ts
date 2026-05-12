@@ -20,12 +20,12 @@
 //                           ▀█████▀▀
 //
 /**
- * S-box table entry tests — Serpent AES submission
+ * S-box table entry tests, Serpent AES submission
  *
  * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
  * File:   vectors/serpent_ecb_tbl.txt (1,536 vectors)
  *
- * GATE 1 — must pass before any other Serpent tests.
+ * GATE 1, must pass before any other Serpent tests.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
@@ -37,7 +37,7 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm });
 });
 
-describe('S-box table entry tests — serpent_ecb_tbl.txt (Gate 1)', () => {
+describe('S-box table entry tests, serpent_ecb_tbl.txt (Gate 1)', () => {
 	const vectors = parseTblFile('serpent_ecb_tbl.txt');
 
 	it('parses 1536 vectors', () => {

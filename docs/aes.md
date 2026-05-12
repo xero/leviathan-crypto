@@ -92,7 +92,7 @@ AES-256-GCM-SIV.
 
 The same restriction applies to the internal `sivAeadEncrypt` /
 `sivAeadDecrypt` helpers in `src/ts/aes/ops.ts` and to the AES pool
-worker — both fix the key length at 32 bytes. A 16-byte key reaches
+worker, both fix the key length at 32 bytes. A 16-byte key reaches
 those paths only by misuse and throws
 `RangeError('AES-GCM-SIV: key must be 32 bytes (got 16)')`. Reach for
 the `AESGCMSIV` class directly (not the cipher suite) when AES-128 is
@@ -316,7 +316,7 @@ instance currently owns it. Throws if `{ dangerUnauthenticated: true }`
 is not passed:
 
 ```
-leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. To use AESCtr directly, pass { dangerUnauthenticated: true }.
+leviathan-crypto: AESCtr is unauthenticated, use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. To use AESCtr directly, pass { dangerUnauthenticated: true }.
 ```
 
 The opt-in matches `AESCbc` and `SerpentCtr`, putting CTR/CBC on equal
@@ -405,7 +405,7 @@ not been called. Throws if `{ dangerUnauthenticated: true }` is not
 passed:
 
 ```
-leviathan-crypto: AESCbc is unauthenticated — use Seal with SerpentCipher or XChaCha20Cipher instead. To use AESCbc directly, pass { dangerUnauthenticated: true }.
+leviathan-crypto: AESCbc is unauthenticated, use Seal with SerpentCipher or XChaCha20Cipher instead. To use AESCbc directly, pass { dangerUnauthenticated: true }.
 ```
 
 ---
@@ -453,7 +453,7 @@ disposal, `encrypt` and `decrypt` throw `AESCbc: instance has been disposed`.
 
 ---
 
-#### Security — direct use of `AESCbc`
+#### Security, direct use of `AESCbc`
 
 `AESCbc` is unauthenticated. If you use it directly via
 `{ dangerUnauthenticated: true }`, you are responsible for:
@@ -594,7 +594,7 @@ Returns ciphertext concatenated with the 128-bit tag.
 Authenticated decryption. Tag verification routes through
 `constantTimeEqual` from the dedicated `ct` WASM module. On tag mismatch,
 the WASM `sivWipeOnFail` helper zeroes the decrypted-but-unauthenticated
-plaintext at `CHUNK_PT_OFFSET` before this method throws — the bytes
+plaintext at `CHUNK_PT_OFFSET` before this method throws, the bytes
 never become reachable from JS.
 
 Throws `AuthenticationError('siv')` on tag mismatch, on too-short
@@ -796,8 +796,8 @@ try {
 | Condition | Error type | Message |
 |-----------|-----------|---------|
 | `init({ aes: ... })` not called before constructing any AES class | `Error` | `leviathan-crypto: call init({ aes: ... }) before using this class` |
-| `AESCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: AESCbc is unauthenticated — use Seal with SerpentCipher or XChaCha20Cipher instead. To use AESCbc directly, pass { dangerUnauthenticated: true }.` |
-| `AESCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. To use AESCtr directly, pass { dangerUnauthenticated: true }.` |
+| `AESCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: AESCbc is unauthenticated, use Seal with SerpentCipher or XChaCha20Cipher instead. To use AESCbc directly, pass { dangerUnauthenticated: true }.` |
+| `AESCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: AESCtr is unauthenticated, use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. To use AESCtr directly, pass { dangerUnauthenticated: true }.` |
 | Key not 16, 24, or 32 bytes (`AES.loadKey`) | `RangeError` | `AES.loadKey: key must be 16, 24, or 32 bytes (got N)` |
 | Key not 16, 24, or 32 bytes (`AESCbc`/`AESCtr`/`AESGCM`) | `RangeError` | `AES key must be 16, 24, or 32 bytes (got N)` |
 | Key not 16 or 32 bytes (`AESGCMSIV`) | `RangeError` | `AESGCMSIV key must be 16 or 32 bytes (got N); AES-192-GCM-SIV is not defined by RFC 8452` |

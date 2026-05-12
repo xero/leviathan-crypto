@@ -144,7 +144,7 @@ bun unit test/unit/stream/seal.test.ts
 
 > ## Cross-References
 >
-> - [index](./README.md) — Project documentation index
-> - [architecture](./architecture.md) — Repository structure, module relationships, and build pipeline internals
-> - [test-suite](./test-suite.md) — Test corpus structure, vector provenance, and gate discipline
-> - [Agent Instructions](../AGENTS.md) — Contract for AI-assisted development on this repository
+> - [index](./README.md), Project documentation index
+> - [architecture](./architecture.md), Repository structure, module relationships, and build pipeline internals
+> - [test-suite](./test-suite.md), Test corpus structure, vector provenance, and gate discipline
+> - [Agent Instructions](../AGENTS.md), Contract for AI-assisted development on this repository

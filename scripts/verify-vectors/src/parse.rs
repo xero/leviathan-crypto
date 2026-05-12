@@ -1,9 +1,9 @@
 // TS vector file parser. Handles two shapes:
 //
-//   SealXChachaV3Vector       — single-chunk seal blob, flat fields
-//   SealStreamXChachaV3Vector — multi-chunk sealstream, with nested chunks array
-//   SealSerpentV3Vector       — single-chunk seal blob, flat fields (Serpent)
-//   SealStreamSerpentV3Vector — multi-chunk sealstream, with nested chunks array
+//   SealXChachaV3Vector      , single-chunk seal blob, flat fields
+//   SealStreamXChachaV3Vector, multi-chunk sealstream, with nested chunks array
+//   SealSerpentV3Vector      , single-chunk seal blob, flat fields (Serpent)
+//   SealStreamSerpentV3Vector, multi-chunk sealstream, with nested chunks array
 //
 // This parser only handles output produced by scripts/gen-seal-vectors.ts and
 // scripts/gen-sealstream-vectors.ts. Hand-edited vector files are not
@@ -134,7 +134,7 @@ fn extract_string(body: &str, field: &str) -> String {
 
 // Identifier boundary: previous char must be start-of-input or a non-identifier
 // char so that a request for field "k" doesn't match the `k:` inside `ek:` /
-// `dk:`. The seal/sealstream parsers' fields don't collide with each other —
+// `dk:`. The seal/sealstream parsers' fields don't collide with each other,
 // this is the surface where ML-KEM (`ek`, `dk`, `c`, `k`) and ML-DSA (`mu`,
 // `sig`) need it.
 fn find_field_offset(body: &str, field: &str) -> Option<usize> {
@@ -294,7 +294,7 @@ fn parse_siv_array(src: &str, export_name: &str) -> Vec<AesGcmSivVector> {
 
 // PolyvalFieldOpsVector and PolyvalMulXVector are unit-test-only
 // fixtures for Phase 4b-impl. The verifier reads them so the corpus is
-// fully traversed end-to-end, but does not exercise them — RustCrypto's
+// fully traversed end-to-end, but does not exercise them, RustCrypto's
 // `polyval` crate does not expose dot() / mulX_GHASH directly, and the
 // SIV vectors in aes_gcm_siv.ts transitively cover POLYVAL
 // multiplication. The non-description fields are therefore intentionally
@@ -690,7 +690,7 @@ fn parse_uint8_array_literal(src: &str, export_name: &str) -> Option<Vec<u8>> {
     let len      = find_matching_bracket(&src[lbracket..])?;
     let body     = &src[lbracket..lbracket + len];
 
-    // Strip `//` line comments — aes.ts annotates each S-box row with
+    // Strip `//` line comments, aes.ts annotates each S-box row with
     // `// row 0xN_:` headers, and a comment-leading comma-segment would
     // otherwise eat the first byte of the following row.
     let stripped: String = body.lines()
@@ -1241,6 +1241,186 @@ pub fn parse_mldsa_sigver_array(src: &str, export_name: &str) -> Vec<MlDsaSigVer
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// SLH-DSA vectors (slhdsa_keygen.ts, slhdsa_siggen.ts, slhdsa_sigver.ts).
+//
+// Phase 2 scope: SHAKE-fast variants (128f / 192f / 256f) only. preHash
+// records carry the original message + hashAlg; the verifier hashes them
+// in-band and builds HashSLH-DSA M' per FIPS 205 §10.2 before calling
+// slh_sign_internal / slh_verify_internal on the slh-dsa crate.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct SlhDsaKeyGenVector {
+    pub tc_id:   u32,
+    pub sk_seed: Vec<u8>,
+    pub sk_prf:  Vec<u8>,
+    pub pk_seed: Vec<u8>,
+    pub pk:      Vec<u8>,
+    pub sk:      Vec<u8>,
+}
+
+#[allow(dead_code)] // parameter_set + signature_interface surfaced for
+                    // diagnostics; the verifier dispatches by param set
+                    // via the function name (verify_siggen_128f etc.)
+                    // and branches on pre_hash + deterministic.
+#[derive(Debug, Clone, Default)]
+pub struct SlhDsaSigGenVector {
+    pub tc_id:                 u32,
+    pub tg_id:                 u32,
+    pub parameter_set:         String,
+    pub signature_interface:   String,
+    pub pre_hash:              String,
+    pub deterministic:         bool,
+    pub hash_alg:              String,
+    pub sk:                    Vec<u8>,
+    pub pk:                    Vec<u8>,
+    pub message:               Vec<u8>,
+    pub context:               Vec<u8>,
+    pub additional_randomness: Option<Vec<u8>>,
+    pub signature:             Vec<u8>,
+}
+
+#[allow(dead_code)] // parameter_set + signature_interface surfaced for
+                    // diagnostics; verifier dispatches by param set via
+                    // the function name.
+#[derive(Debug, Clone, Default)]
+pub struct SlhDsaSigVerVector {
+    pub tc_id:               u32,
+    pub tg_id:               u32,
+    pub test_passed:         bool,
+    pub parameter_set:       String,
+    pub signature_interface: String,
+    pub pre_hash:            String,
+    pub hash_alg:            String,
+    pub reason:              String,
+    pub pk:                  Vec<u8>,
+    pub signature:           Vec<u8>,
+    pub message:             Vec<u8>,
+    pub context:             Vec<u8>,
+}
+
+pub fn parse_slhdsa_keygen_array(src: &str, export_name: &str) -> Vec<SlhDsaKeyGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| SlhDsaKeyGenVector {
+            tc_id:   extract_int(&obj, "tcId").unwrap_or(0),
+            sk_seed: hex::decode(extract_hex(&obj, "skSeed")).unwrap_or_default(),
+            sk_prf:  hex::decode(extract_hex(&obj, "skPrf")).unwrap_or_default(),
+            pk_seed: hex::decode(extract_hex(&obj, "pkSeed")).unwrap_or_default(),
+            pk:      hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            sk:      hex::decode(extract_hex(&obj, "sk")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_slhdsa_siggen_array(src: &str, export_name: &str) -> Vec<SlhDsaSigGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| SlhDsaSigGenVector {
+            tc_id:                 extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:                 extract_int(&obj, "tgId").unwrap_or(0),
+            parameter_set:         extract_string(&obj, "parameterSet"),
+            signature_interface:   extract_string(&obj, "signatureInterface"),
+            pre_hash:              extract_string(&obj, "preHash"),
+            deterministic:         extract_bool(&obj, "deterministic").unwrap_or(false),
+            hash_alg:              extract_string(&obj, "hashAlg"),
+            sk:                    hex::decode(extract_hex(&obj, "sk")).unwrap_or_default(),
+            pk:                    hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            message:               hex::decode(extract_hex(&obj, "message")).unwrap_or_default(),
+            context:               hex::decode(extract_hex(&obj, "context")).unwrap_or_default(),
+            additional_randomness: extract_optional_hex(&obj, "additionalRandomness"),
+            signature:             hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_slhdsa_sigver_array(src: &str, export_name: &str) -> Vec<SlhDsaSigVerVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| SlhDsaSigVerVector {
+            tc_id:               extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:               extract_int(&obj, "tgId").unwrap_or(0),
+            test_passed:         extract_bool(&obj, "testPassed").unwrap_or(false),
+            parameter_set:       extract_string(&obj, "parameterSet"),
+            signature_interface: extract_string(&obj, "signatureInterface"),
+            pre_hash:            extract_string(&obj, "preHash"),
+            hash_alg:            extract_string(&obj, "hashAlg"),
+            reason:              extract_string(&obj, "reason"),
+            pk:                  hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            signature:           hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
+            message:             hex::decode(extract_hex(&obj, "message")).unwrap_or_default(),
+            context:             hex::decode(extract_hex(&obj, "context")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Hybrid PQ vectors (sign_hybrid_pq.ts).
+//
+// Self-generated composite KAT vectors for the three PQ-only hybrids
+// (0x30 / 0x31 / 0x32). The wire format is leviathan-defined, as documented
+// in docs/signaturesuite.md: pk = pk_mldsa || pk_slhdsa, sig = sig_mldsa ||
+// sig_slhdsa. Sizes are catalog-known per hybrid.
+// ────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct SignHybridPqVector {
+    pub id:                String,
+    pub description:       String,
+    pub format_enum:       u32,
+    pub prehash_algorithm: String,
+    // Seeds are parsed for completeness (the vectors file ships them so
+    // both halves' keygenDerand can be reproduced) but the verifier reads
+    // pk/sk directly without re-running keygen, so these fields are
+    // read-but-not-exercised here.
+    #[allow(dead_code)]
+    pub mldsa_seed:        Vec<u8>,
+    #[allow(dead_code)]
+    pub slhdsa_seed:       Vec<u8>,
+    pub pk:                Vec<u8>,
+    pub sk:                Vec<u8>,
+    pub msg:               Vec<u8>,
+    pub ctx:               Vec<u8>,
+    pub blob:              Vec<u8>,
+}
+
+// Extract a hex integer literal field (formatEnum: 0x30,). Returns None
+// if absent or unparseable.
+fn extract_hex_int(body: &str, field: &str) -> Option<u32> {
+    let needle = format!("{}:", field);
+    let start = find_field_offset(body, field)? + needle.len();
+    let rest  = body[start..].trim_start();
+    if let Some(stripped) = rest.strip_prefix("0x") {
+        let end = stripped.find(|c: char| !c.is_ascii_hexdigit()).unwrap_or(stripped.len());
+        return u32::from_str_radix(&stripped[..end], 16).ok();
+    }
+    None
+}
+
+pub fn parse_sign_hybrid_pq_array(src: &str, export_name: &str) -> Vec<SignHybridPqVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| SignHybridPqVector {
+            id:                extract_string(&obj, "id"),
+            description:       extract_string(&obj, "description"),
+            format_enum:       extract_hex_int(&obj, "formatEnum").unwrap_or(0),
+            prehash_algorithm: extract_string(&obj, "prehashAlgorithm"),
+            mldsa_seed:        hex::decode(extract_hex(&obj, "mldsaSeedHex")).unwrap_or_default(),
+            slhdsa_seed:       hex::decode(extract_hex(&obj, "slhdsaSeedHex")).unwrap_or_default(),
+            pk:                hex::decode(extract_hex(&obj, "pkHex")).unwrap_or_default(),
+            sk:                hex::decode(extract_hex(&obj, "skHex")).unwrap_or_default(),
+            msg:               hex::decode(extract_hex(&obj, "msgHex")).unwrap_or_default(),
+            ctx:               hex::decode(extract_hex(&obj, "ctxHex")).unwrap_or_default(),
+            blob:              hex::decode(extract_hex(&obj, "blobHex")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // KMAC and cSHAKE vectors (kmac.ts).
 //
 // Four TS interfaces, four Rust structs. Sample vectors carry an ASCII
@@ -1324,7 +1504,7 @@ pub struct KmacAcvpVector {
 
 // Escape-aware single-quoted string extractor. Handles `\'` and `\\`
 // (the two escapes the kmac.ts generator emits). Other backslash
-// sequences pass through unchanged — the corpus does not contain any.
+// sequences pass through unchanged, the corpus does not contain any.
 fn extract_string_escaped(body: &str, field: &str) -> String {
     let needle = format!("{}:", field);
     let Some(start) = find_field_offset(body, field) else { return String::new(); };

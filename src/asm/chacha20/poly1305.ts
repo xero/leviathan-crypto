@@ -21,12 +21,12 @@
 //
 // src/asm/chacha/poly1305.ts
 //
-// Poly1305 MAC — AssemblyScript implementation
+// Poly1305 MAC, AssemblyScript implementation
 // Standard: RFC 8439 §2.5
 // URL: https://www.rfc-editor.org/rfc/rfc8439
 //
 // State representation: 5 × u64 limbs (26 bits each) stored in linear memory.
-// No module-level globals — wipeBuffers() uses memory.fill() to zero all state.
+// No module-level globals, wipeBuffers() uses memory.fill() to zero all state.
 
 import {
 	POLY_KEY_OFFSET, POLY_MSG_OFFSET,

@@ -25,11 +25,11 @@ The ratchet module implements the KDF layer of the Sparse Post-Quantum Ratchet
 protocol. It provides three constructions from Double Ratchet [spec §5 + §7.2](https://signal.org/docs/specifications/doubleratchet/),
 all built on HKDF-SHA-256:
 
-- **`KDF_SCKA_INIT`** (`ratchetInit`) — derives the initial root key, send chain
+- **`KDF_SCKA_INIT`** (`ratchetInit`), derives the initial root key, send chain
   key, and receive chain key from a shared secret established out-of-band.
-- **`KDF_SCKA_CK`** (`KDFChain.step()`) — advances a symmetric chain key and
+- **`KDF_SCKA_CK`** (`KDFChain.step()`), advances a symmetric chain key and
   derives a per-message key. Stateful, forward-secret.
-- **`KDF_SCKA_RK`** (`kemRatchetEncap` / `kemRatchetDecap`) — advances the root
+- **`KDF_SCKA_RK`** (`kemRatchetEncap` / `kemRatchetDecap`), advances the root
   key using a fresh ML-KEM encapsulation. Provides post-quantum ratchet step
   security.
 
@@ -74,17 +74,17 @@ destructuring rename so the field names are already correct from the decap
 side's perspective. Callers must not swap the fields themselves.
 
 ```typescript
-// Alice — encapsulation side
+// Alice, encapsulation side
 const alice = kemRatchetEncap(kem, rootKey, bob.encapsulationKey)
 // alice.sendChainKey: chain key Alice uses to encrypt messages to Bob
 // alice.recvChainKey: chain key Alice uses to decrypt messages from Bob
 
-// Bob — decapsulation side
+// Bob, decapsulation side
 // ownEk: Bob's encapsulation key (= the peerEk Alice encapsulated against).
 // Bound into HKDF info so the chain-key trio on both sides matches.
 const bobRaw = kemRatchetDecap(kem, rootKey, dk, alice.kemCt, bob.encapsulationKey)
-// bobRaw.sendChainKey corresponds to okm[64:96] — Bob's send direction
-// bobRaw.recvChainKey corresponds to okm[32:64] — Bob's receive direction
+// bobRaw.sendChainKey corresponds to okm[64:96], Bob's send direction
+// bobRaw.recvChainKey corresponds to okm[32:64], Bob's receive direction
 // The library swaps the slots in kemRatchetDecap so the field names
 // are already correct from Bob's perspective:
 //   bobRaw.sendChainKey === alice.recvChainKey  ✓
@@ -100,7 +100,7 @@ from the same HKDF output but from different offset windows.
 
 The `kemCt` field returned by `kemRatchetEncap` **must be transmitted to the peer
 in the message header**. The peer cannot call `kemRatchetDecap` without it. A
-ratchet step is causally tied to message delivery — it is not instantaneous like
+ratchet step is causally tied to message delivery, it is not instantaneous like
 a Diffie-Hellman exchange. Bob can only advance after receiving Alice's `kemCt`.
 
 Both parties must rotate encapsulation keys after each KEM ratchet step so the
@@ -243,11 +243,11 @@ store.resolve(chain: KDFChain, counter: number): ResolveHandle
 ```
 
 Resolves a message key for the given counter using the provided chain. Returns
-a `ResolveHandle` — **not a raw key**. The caller reads `handle.key` for
+a `ResolveHandle`, **not a raw key**. The caller reads `handle.key` for
 decryption, then settles via `handle.commit()` on success or
 `handle.rollback()` on failure. Double-settle throws. Accessing `.key` after
 settling throws. A `FinalizationRegistry` wipes the key as a best-effort
-safety net if the handle is GC'd unsettled — but this is not a substitute for
+safety net if the handle is GC'd unsettled, but this is not a substitute for
 explicit `commit()`/`rollback()` (GC is non-deterministic).
 
 Three delivery paths:
@@ -295,7 +295,7 @@ decrypted because its key is gone.
 With the handle pattern, the receiver rolls back on auth failure. The key
 returns to the store. The legitimate message decrypts fine.
 
-This does not defend against an adversary that can drop messages outright —
+This does not defend against an adversary that can drop messages outright,
 that is generic DoS, outside the library's remit. It does defend against the
 more surgical "consume this specific counter's key" attack.
 
@@ -317,7 +317,7 @@ try {
 
 `commit()` and `rollback()` do measurably different amounts of work. `commit`
 zeros a 32-byte key buffer and consumes the handle. `rollback` may evict an
-oldest entry and always inserts into the skipped-key map — a strictly heavier
+oldest entry and always inserts into the skipped-key map, a strictly heavier
 code path than a single buffer wipe, even on the non-eviction branch. The
 idiomatic decrypt pattern calls exactly one of the two depending on whether
 the cipher returned plaintext or threw, so a network-layer observer timing the
@@ -414,7 +414,7 @@ keypair.decap(
 ```
 
 Decapsulates using the stored dk. The dk is wiped immediately after decap
-returns — it never leaves the instance. May only be called once; throws on a
+returns, it never leaves the instance. May only be called once; throws on a
 second call.
 
 | Parameter | Type | Description |
@@ -426,7 +426,7 @@ second call.
 
 #### `keypair.dispose()`
 
-Wipes the dk if not already wiped by `decap`. Idempotent — safe to call
+Wipes the dk if not already wiped by `decap`. Idempotent, safe to call
 multiple times or after `decap`.
 
 ---
@@ -459,7 +459,7 @@ Returns `KemEncapResult`:
 | `nextRootKey` | `Uint8Array` (32 bytes) | New root key for the next epoch |
 | `sendChainKey` | `Uint8Array` (32 bytes) | Alice's send chain key for this epoch |
 | `recvChainKey` | `Uint8Array` (32 bytes) | Alice's receive chain key for this epoch |
-| `kemCt` | `Uint8Array` | ML-KEM ciphertext — transmit to peer in message header |
+| `kemCt` | `Uint8Array` | ML-KEM ciphertext, transmit to peer in message header |
 
 ---
 
@@ -484,7 +484,7 @@ perspective.
 > [!IMPORTANT]
 > **Breaking change from 1.x:** `kemRatchetDecap` gains a required `ownEk`
 > parameter (5th positional arg, before `context`). Pass the local party's
-> own encapsulation key — the same public key the encap side targeted as
+> own encapsulation key, the same public key the encap side targeted as
 > `peerEk`. Both sides must bind the identical `(peerEk, kemCt)` pair into
 > the HKDF info string; without `ownEk` the decap derivation would diverge
 > from the encap side. `RatchetKeypair.decap` threads its stored `ek`
@@ -504,7 +504,7 @@ perspective.
 
 ```
 INFO_ROOT
-  || u32be(|ek|)   || ek       // peerEk on encap, ownEk on decap — same bytes
+  || u32be(|ek|)   || ek       // peerEk on encap, ownEk on decap, same bytes
   || u32be(|ct|)   || kemCt
   || u32be(|ctx|)  || context  // empty length when context omitted
 ```
@@ -540,8 +540,8 @@ checks.
 interface RatchetMessageHeader {
   readonly epoch:   number        // sender's epoch at seal time; starts 0, increments on ratchet step
   readonly counter: number        // KDFChain.n at seal time (post-step value, first message = 1)
-  readonly pn?:     number        // previous chain length — present only on the first message of a new epoch
-  readonly kemCt?:  Uint8Array    // ML-KEM ciphertext — present only on the first message of a new epoch (encap side)
+  readonly pn?:     number        // previous chain length, present only on the first message of a new epoch
+  readonly kemCt?:  Uint8Array    // ML-KEM ciphertext, present only on the first message of a new epoch (encap side)
 }
 ```
 
@@ -553,7 +553,7 @@ correct message key.
 |-------|---------|-----------|
 | `epoch` | always | Sender's epoch counter; starts at 0 and increments on each KEM ratchet step |
 | `counter` | always | `KDFChain.n` after the step that produced this message's key (first message in an epoch = 1) |
-| `pn` | first message of a new epoch only | Previous chain length — `chain.n` just before the ratchet step; used by the recipient to call `advanceToBoundary` on the old chain |
+| `pn` | first message of a new epoch only | Previous chain length, `chain.n` just before the ratchet step; used by the recipient to call `advanceToBoundary` on the old chain |
 | `kemCt` | first message of a new epoch only (encap side) | KEM ciphertext from `kemRatchetEncap`; the recipient calls `kemRatchetDecap` with this to advance the root key |
 
 `pn` and `kemCt` are absent on every message except the first one of a new
@@ -581,7 +581,7 @@ const { encapsulationKey: bobEk, decapsulationKey: bobDk } = kem.keygen()
 
 // 4. Both parties derive initial keys from a shared secret (e.g. from a
 //    prior handshake or pre-shared key)
-const sharedSecret = new Uint8Array(32)  // from handshake — 32 bytes
+const sharedSecret = new Uint8Array(32)  // from handshake, 32 bytes
 const alice = ratchetInit(sharedSecret)
 const bob   = ratchetInit(sharedSecret)
 // alice.nextRootKey === bob.nextRootKey
@@ -592,7 +592,7 @@ const bob   = ratchetInit(sharedSecret)
 const aliceEpoch = kemRatchetEncap(kem, alice.nextRootKey, bobEk)
 // aliceEpoch.kemCt is included in Alice's message header to Bob
 
-// 6. Bob decapsulates after receiving kemCt — passes bobEk as ownEk so both
+// 6. Bob decapsulates after receiving kemCt, passes bobEk as ownEk so both
 //    sides bind the same (peerEk, kemCt) tuple into HKDF info.
 const bobEpoch = kemRatchetDecap(kem, bob.nextRootKey, bobDk, aliceEpoch.kemCt, bobEk)
 // bobEpoch.nextRootKey === aliceEpoch.nextRootKey
@@ -619,7 +619,7 @@ See [docs/ratchet_audit.md](./ratchet_audit.md) for the full security and wipe a
 ## Bilateral chain exchange
 
 `kemRatchetEncap` returns both `sendChainKey` and `recvChainKey`. In a
-two-party exchange, both fields are used — neither is wasted. The pattern
+two-party exchange, both fields are used, neither is wasted. The pattern
 below demonstrates a full bilateral epoch step between Alice (encap side)
 and Bob (decap side).
 
@@ -648,7 +648,7 @@ const rk = new Uint8Array(32) // from ratchetInit in practice
 const alice = kemRatchetEncap(kem, rk, bobKp.ek)
 // alice.sendChainKey: Alice uses this to encrypt her chain seed to Bob
 // alice.recvChainKey: Alice uses this to decrypt Bob's chain seed response
-// alice.nextRootKey:  store this — it is the rk for the next epoch
+// alice.nextRootKey:  store this, it is the rk for the next epoch
 
 const nextRk    = alice.nextRootKey  // keep for next kemRatchetEncap call
 const aliceSend = new KDFChain(alice.sendChainKey)
@@ -675,7 +675,7 @@ const { key: aliceKey1 } = aliceSend.stepWithCounter()
 const { key: bobKey1 }   = bobRecv.stepWithCounter()
 // aliceKey1 deepEquals bobKey1 ✓  (alice sends, bob receives)
 
-// Session end — wipe all remaining key material
+// Session end, wipe all remaining key material
 wipe(aliceKey1); wipe(bobKey1)
 wipe(nextRk); wipe(bobNextRk)
 aliceSend.dispose(); aliceRecv.dispose()
@@ -708,8 +708,8 @@ const epochResults = recipients.map(r =>
   kemRatchetEncap(kem, rk, r.ek),
 )
 
-// Each epochResult has its own kemCt — send epochResults[i].kemCt to recipient i.
-// All recipients' nextRootKey values are DIFFERENT — each call uses fresh randomness.
+// Each epochResult has its own kemCt, send epochResults[i].kemCt to recipient i.
+// All recipients' nextRootKey values are DIFFERENT, each call uses fresh randomness.
 // If shared-root semantics are needed, derive a common root from a side-channel.
 
 for (const result of epochResults) {
@@ -733,7 +733,7 @@ for (let i = 0; i < recipients.length; i++) {
   // Use r.sendChainKey to encrypt sharedChainSeed for recipient i.
   // Transmit (encrypted sharedChainSeed, r.kemCt) to recipient i.
   wipe(r.sendChainKey)
-  // r.recvChainKey is unused in broadcast — wipe it
+  // r.recvChainKey is unused in broadcast, wipe it
   wipe(r.recvChainKey)
   wipe(r.nextRootKey)
 }

@@ -37,11 +37,11 @@ pub fn verify_one(v: &AesGcmVector) -> (bool, Vec<String>) {
         (16, 12) => encrypt::<AesGcm<Aes128, U12>>(&v.key, &v.iv, payload),
         (24, 12) => encrypt::<AesGcm<Aes192, U12>>(&v.key, &v.iv, payload),
         (32, 12) => encrypt::<AesGcm<Aes256, U12>>(&v.key, &v.iv, payload),
-        // 64-bit IVs (test cases 5, 11, 17 — exercise GHASH-on-IV)
+        // 64-bit IVs (test cases 5, 11, 17, exercise GHASH-on-IV)
         (16, 8)  => encrypt::<AesGcm<Aes128, U8>>(&v.key, &v.iv, payload),
         (24, 8)  => encrypt::<AesGcm<Aes192, U8>>(&v.key, &v.iv, payload),
         (32, 8)  => encrypt::<AesGcm<Aes256, U8>>(&v.key, &v.iv, payload),
-        // 480-bit IVs (test cases 6, 12, 18 — exercise GHASH-on-IV)
+        // 480-bit IVs (test cases 6, 12, 18, exercise GHASH-on-IV)
         (16, 60) => encrypt::<AesGcm<Aes128, U60>>(&v.key, &v.iv, payload),
         (24, 60) => encrypt::<AesGcm<Aes192, U60>>(&v.key, &v.iv, payload),
         (32, 60) => encrypt::<AesGcm<Aes256, U60>>(&v.key, &v.iv, payload),

@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_cbc_mmt.test.ts
 //
-// Gate 9 — AES CBC Multi-block Message Test against the three NIST CAVP
+// Gate 9, AES CBC Multi-block Message Test against the three NIST CAVP
 // AESVS MMT files (one per key size). Vectors are 1..10 blocks long
 // (16, 32, 48, ..., 160 bytes). Same per-record format as the KAT
 // files; the only structural difference is multi-block PT/CT.
@@ -86,7 +86,7 @@ function rawCbcDecrypt(v: CbcKatVector): string {
 }
 
 for (const file of ['aes_CBCMMT128.rsp', 'aes_CBCMMT192.rsp', 'aes_CBCMMT256.rsp']) {
-	describe(`AES CBC MMT (Gate 9) — CAVP ${file}`, () => {
+	describe(`AES CBC MMT (Gate 9), CAVP ${file}`, () => {
 		const { encrypt, decrypt } = parseCbcMmtFile(file);
 
 		it('parses non-zero vectors (encrypt + decrypt)', () => {

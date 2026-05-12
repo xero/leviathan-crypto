@@ -22,7 +22,7 @@
 // src/ts/mldsa/hashvariant.ts
 //
 // HashML-DSA pre-hash dispatcher and OID DER table.
-// FIPS 204 §5.4 / §5.4.1 — Algorithm 4 (HashML-DSA.Sign) and Algorithm 5
+// FIPS 204 §5.4 / §5.4.1, Algorithm 4 (HashML-DSA.Sign) and Algorithm 5
 // (HashML-DSA.Verify) build M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID ‖ PH_M, where
 //   • PH_M = H_PH(M) for the caller-selected approved pre-hash function PH
 //   • OID  = the DER encoding of PH's NIST CSOR object identifier
@@ -44,7 +44,7 @@ import type { Sha3Exports } from './types.js';
 import type { Sha2Exports } from '../sha2/types.js';
 import { sha3Absorb } from './sha3-helpers.js';
 
-/** FIPS 204 §5.4.1 — approved pre-hash functions. Names follow the spec
+/** FIPS 204 §5.4.1, approved pre-hash functions. Names follow the spec
  *  spelling (no hyphens between SHAKE and the digit). The SHAKE entries
  *  are XOFs with fixed output lengths set by FIPS 204 §5.4.1:
  *  SHAKE128 → 256-bit (32-byte) output, SHAKE256 → 512-bit (64-byte). */
@@ -62,7 +62,7 @@ export type PreHashAlgorithm =
 	| 'SHAKE128'
 	| 'SHAKE256';
 
-// ── OID DER table — FIPS 204 §5.4.1 ─────────────────────────────────────────
+// ── OID DER table, FIPS 204 §5.4.1 ─────────────────────────────────────────
 // Shared 10-byte DER prefix: tag 0x06 (OBJECT IDENTIFIER), length 0x09,
 // then the encoded ancestor arcs 2.16.840.1.101.3.4.2:
 //   2.16   → 0x60 0x86 0x48                  (joint-iso-itu-t.country)
@@ -82,29 +82,29 @@ function oid(arc: number): Uint8Array {
 	return out;
 }
 
-// id-sha224 — 2.16.840.1.101.3.4.2.4
+// id-sha224, 2.16.840.1.101.3.4.2.4
 const OID_SHA2_224     = oid(0x04);
-// id-sha256 — 2.16.840.1.101.3.4.2.1 (FIPS 204 §5.4.1 Algorithm 4 line 12)
+// id-sha256, 2.16.840.1.101.3.4.2.1 (FIPS 204 §5.4.1 Algorithm 4 line 12)
 const OID_SHA2_256     = oid(0x01);
-// id-sha384 — 2.16.840.1.101.3.4.2.2
+// id-sha384, 2.16.840.1.101.3.4.2.2
 const OID_SHA2_384     = oid(0x02);
-// id-sha512 — 2.16.840.1.101.3.4.2.3 (FIPS 204 §5.4.1 Algorithm 4 line 15)
+// id-sha512, 2.16.840.1.101.3.4.2.3 (FIPS 204 §5.4.1 Algorithm 4 line 15)
 const OID_SHA2_512     = oid(0x03);
-// id-sha512-224 — 2.16.840.1.101.3.4.2.5
+// id-sha512-224, 2.16.840.1.101.3.4.2.5
 const OID_SHA2_512_224 = oid(0x05);
-// id-sha512-256 — 2.16.840.1.101.3.4.2.6
+// id-sha512-256, 2.16.840.1.101.3.4.2.6
 const OID_SHA2_512_256 = oid(0x06);
-// id-sha3-224 — 2.16.840.1.101.3.4.2.7
+// id-sha3-224, 2.16.840.1.101.3.4.2.7
 const OID_SHA3_224     = oid(0x07);
-// id-sha3-256 — 2.16.840.1.101.3.4.2.8
+// id-sha3-256, 2.16.840.1.101.3.4.2.8
 const OID_SHA3_256     = oid(0x08);
-// id-sha3-384 — 2.16.840.1.101.3.4.2.9
+// id-sha3-384, 2.16.840.1.101.3.4.2.9
 const OID_SHA3_384     = oid(0x09);
-// id-sha3-512 — 2.16.840.1.101.3.4.2.10
+// id-sha3-512, 2.16.840.1.101.3.4.2.10
 const OID_SHA3_512     = oid(0x0A);
-// id-shake128 — 2.16.840.1.101.3.4.2.11 (FIPS 204 §5.4.1 Algorithm 4 line 18)
+// id-shake128, 2.16.840.1.101.3.4.2.11 (FIPS 204 §5.4.1 Algorithm 4 line 18)
 const OID_SHAKE128     = oid(0x0B);
-// id-shake256 — 2.16.840.1.101.3.4.2.12
+// id-shake256, 2.16.840.1.101.3.4.2.12
 const OID_SHAKE256     = oid(0x0C);
 
 const OID_TABLE: Readonly<Record<PreHashAlgorithm, Uint8Array>> = Object.freeze({
@@ -130,6 +130,31 @@ export function getOid(algo: PreHashAlgorithm): Uint8Array {
 	if (!tab)
 		throw new RangeError(`leviathan-crypto: unsupported HashML-DSA pre-hash algorithm '${algo as string}'`);
 	return tab.slice();
+}
+
+/** FIPS 204 §5.4.1 PH_M byte length for `algo`. SHAKE128 / SHAKE256 are
+ *  XOFs but the spec fixes their HashML-DSA output to 32 / 64 bytes
+ *  respectively; the SHA-3 and SHA-2 entries return their natural digest
+ *  size. Used by `validateDigest` to bound the caller-supplied prehash. */
+export function digestSize(algo: PreHashAlgorithm): number {
+	switch (algo) {
+	case 'SHA2-224':     return 28;
+	case 'SHA2-256':     return 32;
+	case 'SHA2-384':     return 48;
+	case 'SHA2-512':     return 64;
+	case 'SHA2-512/224': return 28;
+	case 'SHA2-512/256': return 32;
+	case 'SHA3-224':     return 28;
+	case 'SHA3-256':     return 32;
+	case 'SHA3-384':     return 48;
+	case 'SHA3-512':     return 64;
+	case 'SHAKE128':     return 32;
+	case 'SHAKE256':     return 64;
+	default: {
+		const exhaustive: never = algo;
+		throw new RangeError(`leviathan-crypto: unsupported HashML-DSA pre-hash algorithm '${exhaustive as string}'`);
+	}
+	}
 }
 
 /** True iff `algo` is one of the SHA-2 family pre-hashes (and therefore
@@ -208,7 +233,7 @@ function sha3HashFixed(
 	return mem.slice(off, off + outLen);
 }
 
-// ── SHAKE driver — fixed output length per FIPS 204 §5.4.1 ──────────────────
+// ── SHAKE driver, fixed output length per FIPS 204 §5.4.1 ──────────────────
 
 function shakeHashFixed(
 	sx: Sha3Exports,
@@ -234,7 +259,7 @@ function shakeHashFixed(
 }
 
 /**
- * Pre-hash dispatcher — applies the FIPS 204 §5.4.1 hash function `algo`
+ * Pre-hash dispatcher, applies the FIPS 204 §5.4.1 hash function `algo`
  * to message `M` and returns PH_M (the bytes that go into M' alongside
  * the OID).
  *
@@ -250,7 +275,7 @@ export function preHashMessage(
 	algo: PreHashAlgorithm,
 	M: Uint8Array,
 ): Uint8Array {
-	// SHA-3 / SHAKE branches don't touch sha2x — handle them first so
+	// SHA-3 / SHAKE branches don't touch sha2x, handle them first so
 	// the SHA-2 cases below operate on a narrowed non-undefined sha2x.
 	switch (algo) {
 	case 'SHA3-224':
@@ -262,10 +287,10 @@ export function preHashMessage(
 	case 'SHA3-512':
 		return sha3HashFixed(sx, M, sx.sha3_512Init, sx.sha3_512Final, 64);
 	case 'SHAKE128':
-		// FIPS 204 §5.4.1 — SHAKE128 fixed at 256-bit / 32-byte output.
+		// FIPS 204 §5.4.1, SHAKE128 fixed at 256-bit / 32-byte output.
 		return shakeHashFixed(sx, M, sx.shake128Init, 168, 32);
 	case 'SHAKE256':
-		// FIPS 204 §5.4.1 — SHAKE256 fixed at 512-bit / 64-byte output.
+		// FIPS 204 §5.4.1, SHAKE256 fixed at 512-bit / 64-byte output.
 		return shakeHashFixed(sx, M, sx.shake256Init, 136, 64);
 	}
 	if (sha2x === undefined)

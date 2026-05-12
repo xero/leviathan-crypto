@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-/** WASM exports for the sha2 module — full FIPS 180-4 surface plus
+/** WASM exports for the sha2 module, full FIPS 180-4 surface plus
  *  HMAC variants. Importable from cross-module wrappers (e.g. mldsa's
  *  HashML-DSA pre-hash dispatcher) that need to drive sha2 directly
  *  without going through the public class API. */

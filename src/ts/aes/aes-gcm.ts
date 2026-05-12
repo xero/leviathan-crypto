@@ -21,7 +21,7 @@
 //
 // src/ts/aes/aes-gcm.ts
 //
-// AESGCM — AES-128/192/256 in GCM mode (NIST SP 800-38D §7), atomic
+// AESGCM, AES-128/192/256 in GCM mode (NIST SP 800-38D §7), atomic
 // authenticated AEAD. Tag length is fixed at 128 bits.
 
 import { getInstance, _acquireModule, _releaseModule } from '../init.js';
@@ -85,7 +85,7 @@ function getExports(): AesGcmExports {
  * `seal(key, iv, aad, pt)` returns `ciphertext || tag` (length pt.length + 16).
  * `open(key, iv, aad, sealed)` verifies the tag and returns the plaintext;
  * throws `RangeError('authentication failed')` on any verification failure
- * (the same generic error as a tag mismatch — no detail leak).
+ * (the same generic error as a tag mismatch, no detail leak).
  *
  * Holds exclusive access to the `aes` WASM module from construction until
  * `dispose()`. Constructing a second AES-using class while this instance is
@@ -100,7 +100,7 @@ export class AESGCM {
 		this._tok = _acquireModule('aes');
 	}
 
-	/** View over WASM linear memory. Rebind every access — memory can be detached. @internal */
+	/** View over WASM linear memory. Rebind every access, memory can be detached. @internal */
 	private get mem(): Uint8Array {
 		return new Uint8Array(this.x.memory.buffer);
 	}
@@ -126,7 +126,7 @@ export class AESGCM {
 		// Once we touch WASM state, wipe on every exit path. The output and
 		// tag are already in the JS-heap result by the time we hit the
 		// `finally`, so plaintext / round keys / GHASH state never outlive
-		// this call inside WASM memory — even if the caller forgets
+		// this call inside WASM memory, even if the caller forgets
 		// `dispose()`.
 		try {
 			this._loadKey(key);
@@ -175,7 +175,7 @@ export class AESGCM {
 	 * @throws RangeError('authentication failed') if the tag fails to
 	 *         verify, or if the sealed input is too short, or any input
 	 *         length violates the spec. The same generic error covers all
-	 *         failure modes — no detail is leaked about which check failed.
+	 *         failure modes, no detail is leaked about which check failed.
 	 */
 	open(key: Uint8Array, iv: Uint8Array, aad: Uint8Array, sealed: Uint8Array): Uint8Array {
 		if (this._tok === undefined)
@@ -192,7 +192,7 @@ export class AESGCM {
 
 		// Once we touch WASM state, wipe on every exit path. The plaintext
 		// is already in the JS-heap output slice by the time we hit the
-		// `finally`, so it never outlives this call inside WASM memory —
+		// `finally`, so it never outlives this call inside WASM memory,
 		// even if the caller forgets `dispose()`. Auth-failure paths get
 		// the same wipe for free; we no longer need inline wipes before
 		// each throw.
@@ -216,11 +216,11 @@ export class AESGCM {
 
 			// Compute tag → TAG_OFFSET, then constant-time compare with sealed[ctLen..].
 			this.x.gcmFinalize();
-			// Slice the computed tag out of WASM memory (defensive copy — the
+			// Slice the computed tag out of WASM memory (defensive copy, the
 			// WASM memory view can be reattached on grow). Compare via the
 			// dedicated `ct` WASM module exposed as `constantTimeEqual` in
 			// `../utils.js`. No tag compare lives inside the AES module
-			// itself — this is library-wide policy for atomic AEADs.
+			// itself, this is library-wide policy for atomic AEADs.
 			const tagOff = this.x.getTagOffset();
 			const expectedTag = this.mem.slice(tagOff, tagOff + 16);
 			const providedTag = sealed.slice(ctLen, ctLen + 16);

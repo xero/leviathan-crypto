@@ -24,7 +24,7 @@ Audit of the `leviathan-crypto` HKDF-SHA256 TypeScript implementation (pure comp
 | Conducted: | Week of 2026-03-25 |
 | Target: | `leviathan-crypto` TypeScript implementation (pure composition over HMAC) |
 | Spec: | RFC 5869 (HMAC-based Key Derivation Function, May 2010) |
-| Test vectors: | RFC 5869, Appendix A (Test Cases 1–3) |
+| Test vectors: | RFC 5869, Appendix A (Test Cases 1-3) |
 
 ---
 
@@ -41,7 +41,7 @@ Audit of the `leviathan-crypto` HKDF-SHA256 TypeScript implementation (pure comp
 
 ### 1.1 Extract Phase
 
-RFC 5869 §2.1 defines the extract step as a single HMAC call: `PRK = HMAC-Hash(salt, IKM)`. Salt becomes the HMAC key, and the input key material becomes the message. Here's our implementation (`hkdf.ts:38–42`):
+RFC 5869 §2.1 defines the extract step as a single HMAC call: `PRK = HMAC-Hash(salt, IKM)`. Salt becomes the HMAC key, and the input key material becomes the message. Here's our implementation (`hkdf.ts:38-42`):
 
 ```typescript
 extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array {
@@ -79,7 +79,7 @@ T(N) = HMAC-Hash(PRK, T(N-1) || info || 0xN)
 OKM = T(1) || T(2) || ... || T(N), truncated to L bytes
 ```
 
-Here's how we implement it (`hkdf.ts:44–63`):
+Here's how we implement it (`hkdf.ts:44-63`):
 
 ```typescript
 expand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array {
@@ -132,7 +132,7 @@ The implementation exposes both individual phases and a combined one-shot:
 | `expand(prk, info, length)` | Expand only. PRK must be 32 bytes. |
 | `derive(ikm, salt, info, length)` | Combined: `expand(extract(salt, ikm), info, length)` |
 
-The `derive()` method (`hkdf.ts:67–69`) always calls Extract before Expand:
+The `derive()` method (`hkdf.ts:67-69`) always calls Extract before Expand:
 
 ```typescript
 derive(ikm, salt, info, length) {
@@ -227,7 +227,7 @@ HKDF is pure TypeScript with no WASM buffers. All intermediate values live in Ja
 
 ### 1.6 TypeScript Wrapper Layer
 
-The HKDF_SHA256 class builds on HMAC_SHA256. Its constructor instantiates HMAC_SHA256, which calls `getExports()` → `getInstance('sha2')`. This call throws immediately if `init(['sha2'])` hasn't been called first. The HKDF class therefore cannot be instantiated before the library is initialized—a compile-time safety feature.
+The HKDF_SHA256 class builds on HMAC_SHA256. Its constructor instantiates HMAC_SHA256, which calls `getExports()` → `getInstance('sha2')`. This call throws immediately if `init(['sha2'])` hasn't been called first. The HKDF class therefore cannot be instantiated before the library is initialized, a compile-time safety feature.
 
 **Input validation:**
 
@@ -295,7 +295,7 @@ Test Case 3 specifically validates the null-salt path (32 zero bytes default) an
 
 Krawczyk's HKDF security proof ("Cryptographic Extraction and Key Derivation: The HKDF Scheme", 2010) splits into two independent guarantees. Extract takes potentially non-uniform input key material and produces a pseudorandom PRK, leveraging salt entropy (or the HMAC-Hash structure alone if salt is absent). Expand then uses the uniform PRK as a PRF key, generating computationally independent output blocks.
 
-In the stream layer, input key material often isn't uniform—passwords derived via scrypt or Argon2id, raw keyfiles, and other sources all violate uniformity assumptions. The Extract step costs just one HMAC call and provides defense-in-depth: it conditions the raw material before expansion. The implementation always calls Extract (via `derive()`), never skipping it. This is the correct approach.
+In the stream layer, input key material often isn't uniform, passwords derived via scrypt or Argon2id, raw keyfiles, and other sources all violate uniformity assumptions. The Extract step costs just one HMAC call and provides defense-in-depth: it conditions the raw material before expansion. The implementation always calls Extract (via `derive()`), never skipping it. This is the correct approach.
 
 ---
 

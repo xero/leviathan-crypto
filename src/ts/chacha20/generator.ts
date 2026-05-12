@@ -21,7 +21,7 @@
 //
 // src/ts/chacha20/generator.ts
 //
-// RFC 8439 §2.3 — ChaCha20 block function as PRF
+// RFC 8439 §2.3, ChaCha20 block function as PRF
 // ChaCha20 counter-mode PRF for Fortuna's generator slot.
 //
 // Counter is treated as a 32-bit LE integer. Fortuna's 4-byte genCnt provides
@@ -36,9 +36,9 @@ import type { ChaChaExports } from './types.js';
  *
  * The 32-bit counter is read from `counter` as a little-endian u32. Each call
  * to `generate()` encrypts zero blocks to produce keystream output (RFC 8439 §2.3).
- * The nonce is fixed to zero — Fortuna's counter is the only varying input.
+ * The nonce is fixed to zero, Fortuna's counter is the only varying input.
  *
- * Pass to `Fortuna.create({ generator: ChaCha20Generator, ... })` — do not
+ * Pass to `Fortuna.create({ generator: ChaCha20Generator, ... })`, do not
  * call `generate()` directly outside of Fortuna.
  */
 export const ChaCha20Generator: Generator = {
@@ -68,7 +68,7 @@ export const ChaCha20Generator: Generator = {
 		const mem = new Uint8Array(x.memory.buffer);
 		try {
 			mem.set(key, x.getKeyOffset());
-			// Fixed zero nonce — Fortuna's counter is the only varying input
+			// Fixed zero nonce, Fortuna's counter is the only varying input
 			mem.fill(0, x.getChachaNonceOffset(), x.getChachaNonceOffset() + 12);
 			x.chachaSetCounter(c);
 			x.chachaLoadKey();

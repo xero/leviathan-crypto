@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Seal — cipher-agnostic stream contract tests, parameterized over
+ * Seal, cipher-agnostic stream contract tests, parameterized over
  * `_cipher-spec.ts`. Per-cipher behaviors that vary in shape (header
  * binding, commitment field, native key-committing properties) live in
  * test/unit/stream/<cipher>-cipher-suite.test.ts.
@@ -132,7 +132,7 @@ describe('Seal round-trips', () => {
 // Boundary-size regression test: every cipher must round-trip across the
 // full range of plaintext sizes Seal supports, from empty (0) through
 // the per-chunk WASM cap (65535). Catches regressions where a cipher
-// mishandles edge sizes — empty input, single byte, exact block size,
+// mishandles edge sizes, empty input, single byte, exact block size,
 // or sizes near the chunk boundary.
 
 describe('Seal round-trips across plaintext sizes', () => {
@@ -194,7 +194,7 @@ describe('Seal blob is OpenStream-compatible', () => {
 	}
 });
 
-// ── Seal error handling — input validation ──────────────────────────────────
+// ── Seal error handling, input validation ──────────────────────────────────
 
 describe('Seal error handling', () => {
 	for (const spec of CIPHER_SPECS) {
@@ -218,7 +218,7 @@ describe('Seal error handling', () => {
 	}
 });
 
-// ── Seal failure modes — discriminator-asserted ─────────────────────────────
+// ── Seal failure modes, discriminator-asserted ─────────────────────────────
 
 describe('Seal failure modes', () => {
 	for (const spec of CIPHER_SPECS) {

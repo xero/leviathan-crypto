@@ -22,7 +22,7 @@
 // src/asm/serpent/cbc_simd.ts
 //
 // SIMD-accelerated Serpent CBC decrypt: 4 blocks decrypted simultaneously.
-// CBC encrypt stays scalar (sequential dependency — not parallelizable).
+// CBC encrypt stays scalar (sequential dependency, not parallelizable).
 //
 // After decryptBlock_simd_4x(), output registers are [2,3,1,4]:
 //   r[2] → bytes 0..3, r[3] → bytes 4..7, r[1] → bytes 8..11, r[4] → bytes 12..15
@@ -176,7 +176,7 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 		i32x4.extract_lane(r2, 3), i32x4.extract_lane(r3, 3),
 		i32x4.extract_lane(r1, 3), i32x4.extract_lane(r4, 3))
 
-	// Update chaining block to CT[n+3] — the last ciphertext in this group
+	// Update chaining block to CT[n+3], the last ciphertext in this group
 	memory.copy(CBC_IV_OFFSET, ctBase + 48, 16)
 }
 
@@ -206,7 +206,7 @@ import { decryptBlock_unrolled as decryptBlock } from './serpent_unrolled'
 /**
  * Decrypt chunkLen bytes from CHUNK_CT_BUFFER to CHUNK_PT_BUFFER using SIMD-accelerated
  * Serpent CBC mode. Processes 4 blocks (64 bytes) per SIMD iteration; scalar tail handles
- * any remainder. CBC encrypt stays scalar (sequential dependency — not parallelizable).
+ * any remainder. CBC encrypt stays scalar (sequential dependency, not parallelizable).
  * PKCS7 unpadding must be performed by the caller after this function returns.
  * @param chunkLen  number of bytes to decrypt; must be a positive multiple of 16
  * @returns         chunkLen on success, -1 if chunkLen is invalid
