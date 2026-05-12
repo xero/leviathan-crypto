@@ -131,7 +131,7 @@ offset of `SIMD_WORK_BUFFER`. Five v128 working registers used by the SIMD
 S-box circuits. Only present when the binary is built with `--enable simd`.
 
 ```typescript function getChunkSize(): i32       // 65552 ``` Returns the
-maximum chunk size in bytes (65552 — 65536 + 16 bytes PKCS7 maximum overhead).
+maximum chunk size in bytes (65552, 65536 + 16 bytes PKCS7 maximum overhead).
 
 ```typescript
 function getMemoryPages(): i32
@@ -278,7 +278,7 @@ function encryptChunk_simd(chunkLen: i32): i32
 ```
 CTR-encrypts `chunkLen` bytes using 4-wide SIMD where possible. Processes
 four 16-byte blocks per iteration via `encryptBlock_simd_4x`, falling back
-to the scalar `encryptBlock_unrolled` path for the remaining 1–3 blocks.
+to the scalar `encryptBlock_unrolled` path for the remaining 1-3 blocks.
 Same parameters and return values as `encryptChunk`.
 
 ```typescript
@@ -292,7 +292,7 @@ function cbcDecryptChunk_simd(len: i32): i32
 CBC-decrypts `len` bytes using 4-wide SIMD where possible. Loads four
 ciphertext blocks into `SIMD_WORK_BUFFER`, runs `decryptBlock_simd_4x`,
 then XORs each plaintext block with its chaining value. Falls back to the
-scalar path for the trailing 1–3 blocks. Same parameters and return values
+scalar path for the trailing 1-3 blocks. Same parameters and return values
 as `cbcDecryptChunk`.
 
 > [!NOTE]
@@ -454,7 +454,7 @@ generate keystream blocks.
 Auto-generated (via `scripts/generate_simd.ts`). Contains fully-unrolled 4-wide
 SIMD implementations of all 8 forward and 8 inverse S-boxes as v128 Boolean
 circuits, plus the `encryptBlock_simd_4x` and `decryptBlock_simd_4x` entry
-points. Each S-box gate (`sb0_v`–`sb7_v`, `si0_v`–`si7_v`) mirrors its scalar
+points. Each S-box gate (`sb0_v`-`sb7_v`, `si0_v`-`si7_v`) mirrors its scalar
 counterpart exactly but operates on 4 × i32 lanes simultaneously. No lane
 shuffles, no cross-lane dependencies.
 
@@ -469,7 +469,7 @@ SIMD CTR mode. `loadCounters4x()` reads four successive counter values and
 interleaves their words into `SIMD_WORK_BUFFER` (one v128 per word position,
 each lane holding the corresponding word from a different counter). After
 `encryptBlock_simd_4x`, the keystream words are extracted lane-by-lane and
-XORed with plaintext. The scalar tail (0–3 remaining blocks) is handled by
+XORed with plaintext. The scalar tail (0-3 remaining blocks) is handled by
 `encryptBlock_unrolled` from `serpent_unrolled.ts`.
 
 ---

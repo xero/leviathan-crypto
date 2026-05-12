@@ -24,7 +24,7 @@
 // Gate-based tests for the kyber WASM module. FIPS 203 ML-KEM polynomial
 // arithmetic: reduce, NTT, serialization, compression, sampling, constant-time.
 //
-// Gates must pass in order — each gate is a prerequisite for the next.
+// Gates must pass in order, each gate is a prerequisite for the next.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import {
@@ -45,7 +45,7 @@ beforeAll(async () => {
 
 // GATE: ML-KEM polynomial instantiation: module loads, memory is 3 pages
 
-describe('Gate 1 — instantiation and buffer layout', () => {
+describe('Gate 1, instantiation and buffer layout', () => {
 	test('module loads and memory is 3 pages', () => {
 		const w = getWasm();
 		expect(w.memory).toBeDefined();
@@ -138,7 +138,7 @@ describe('Gate 1 — instantiation and buffer layout', () => {
 
 // GATE: ML-KEM polynomial arithmetic: Montgomery/Barrett reduce, fqmul, zetas
 
-describe('Gate 2 — modular arithmetic', () => {
+describe('Gate 2, modular arithmetic', () => {
 	test('QINV satisfies q * QINV ≡ 1 mod 2^16', () => {
 		// QINV = -3327; q * QINV = 3329 * (-3327) ≡ 1 (mod 2^16)
 		expect((Q * QINV) & 0xFFFF).toBe(1);
@@ -181,7 +181,7 @@ describe('Gate 2 — modular arithmetic', () => {
 			// montgomery_reduce(a * R) = a * R * R^{-1} mod q = a mod q
 			// result should be a mod q (centered in [-(q-1), q-1])
 			const expected = a % Q;
-			// The output is in {-(q-1), ..., q-1} — could be negative if > q/2.
+			// The output is in {-(q-1), ..., q-1}, could be negative if > q/2.
 			// Since a < 50 < q, it won't be negative. Just check modular equivalence.
 			expect(((result - expected) % Q + Q) % Q).toBe(0);
 		}
@@ -249,7 +249,7 @@ describe('Gate 2 — modular arithmetic', () => {
 
 // GATE: ML-KEM NTT: FIPS 203 forward/inverse NTT roundtrip
 
-describe('Gate 3 — NTT zetas and transforms', () => {
+describe('Gate 3, NTT zetas and transforms', () => {
 	// BitRev7: reverse the low 7 bits of i
 	function bitRev7(i: number): number {
 		let r = 0;
@@ -378,7 +378,7 @@ describe('Gate 3 — NTT zetas and transforms', () => {
 
 // GATE: ML-KEM serialization and compression: FIPS 203 encode/decode/compress
 
-describe('Gate 4 — serialization and compression', () => {
+describe('Gate 4, serialization and compression', () => {
 	const POLY_BYTES = 384;
 
 	test('poly_tobytes produces exactly 384 bytes', () => {
@@ -405,7 +405,7 @@ describe('Gate 4 — serialization and compression', () => {
 
 		for (let trial = 0; trial < 20; trial++) {
 			const original = randPoly(Q, rand);
-			// Reduce to [0, q) — tobytes expects non-negative coefficients, handles
+			// Reduce to [0, q), tobytes expects non-negative coefficients, handles
 			// negative via +q adjustment, so all values mod q in [0,q) are fine.
 			writePoly(original, s0);
 			w.poly_tobytes(outOff, s0);
@@ -605,7 +605,7 @@ describe('Gate 4 — serialization and compression', () => {
 
 // GATE: ML-KEM sampling: rejection sampling and CBD bounds
 
-describe('Gate 5 — CBD and rejection sampling', () => {
+describe('Gate 5, CBD and rejection sampling', () => {
 	test('cbd2 (poly_getnoise eta=2): all coefficients in [-2, 2]', () => {
 		const w = getWasm();
 		const rand = prng(0xCBD2_0001);
@@ -627,7 +627,7 @@ describe('Gate 5 — CBD and rejection sampling', () => {
 	// FIPS 203 §4.2.2 spec: cbd2 reads exactly 128 bytes and writes exactly 256
 	// coefficients (N/8 = 32 outer iterations × 8 coeffs/iter). The three tests
 	// below pin those guarantees so a future off-by-2× regression (i<64) cannot
-	// survive a test run — the existing range-only test cannot detect it because
+	// survive a test run, the existing range-only test cannot detect it because
 	// a-b ∈ [-2,2] holds structurally regardless of how many iterations run.
 
 	test('cbd2 (eta=2): output is independent of input bytes 128..255', () => {
@@ -672,7 +672,7 @@ describe('Gate 5 — CBD and rejection sampling', () => {
 		for (let i = 0; i < 512; i++) expect(after[i]).toBe(0xA5);
 	});
 
-	test('cbd2 (eta=2): KAT — matches FIPS 203 Algorithm 7 reference for fixed input', () => {
+	test('cbd2 (eta=2): KAT, matches FIPS 203 Algorithm 7 reference for fixed input', () => {
 		// Inline FIPS 203 §4.2.2 / pq-crystals/kyber ref/cbd.c reference.
 		// Mirrors the AS implementation but with the spec-correct N/8 = 32 bound.
 		const refCbd2 = (b: Uint8Array): number[] => {
@@ -787,7 +787,7 @@ describe('Gate 5 — CBD and rejection sampling', () => {
 
 // GATE: ML-KEM constant-time operations: CT verify and cmov
 
-describe('Gate 6 — constant-time compare and cmov', () => {
+describe('Gate 6, constant-time compare and cmov', () => {
 	test('ct_verify returns 0 for identical arrays', () => {
 		const w = getWasm();
 		const rand = prng(0xC7E1_0001);
@@ -836,7 +836,7 @@ describe('Gate 6 — constant-time compare and cmov', () => {
 
 	test('ct_verify on length 0 returns 0', () => {
 		const w = getWasm();
-		// Zero-length comparison — vacuously equal
+		// Zero-length comparison, vacuously equal
 		expect(w.ct_verify(w.getMsgOffset(), w.getSeedOffset(), 0)).toBe(0);
 	});
 

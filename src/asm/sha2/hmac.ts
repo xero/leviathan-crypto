@@ -21,27 +21,27 @@
 //
 // src/asm/sha2/hmac.ts
 //
-// HMAC-SHA256 — RFC 2104
+// HMAC-SHA256, RFC 2104
 // https://www.rfc-editor.org/rfc/rfc2104
 //
 // HMAC(K, m) = H((K' ⊕ opad) || H((K' ⊕ ipad) || m))
 // where K' = K padded to 64 bytes with zeros (or H(K) if len(K) > 64).
 //
 // Buffer layout (buffers.ts):
-//   SHA256_INPUT_OFFSET   (384, 64 bytes) — key staging for hmac256Init;
+//   SHA256_INPUT_OFFSET   (384, 64 bytes), key staging for hmac256Init;
 //                                           message staging for hmac256Update
-//   HMAC256_IPAD_OFFSET   (460, 64 bytes) — K' XOR 0x36 (ipad key material)
-//   HMAC256_OPAD_OFFSET   (524, 64 bytes) — K' XOR 0x5C (opad key material)
-//   HMAC256_INNER_OFFSET  (588, 32 bytes) — inner hash saved by hmac256Final
-//   SHA256_OUT_OFFSET     (352, 32 bytes) — final HMAC output
+//   HMAC256_IPAD_OFFSET   (460, 64 bytes), K' XOR 0x36 (ipad key material)
+//   HMAC256_OPAD_OFFSET   (524, 64 bytes), K' XOR 0x5C (opad key material)
+//   HMAC256_INNER_OFFSET  (588, 32 bytes), inner hash saved by hmac256Final
+//   SHA256_OUT_OFFSET     (352, 32 bytes), final HMAC output
 //
 // Streaming API:
-//   hmac256Init(keyLen)   — write key (≤ 64 bytes) to SHA256_INPUT_OFFSET before calling.
+//   hmac256Init(keyLen)  , write key (≤ 64 bytes) to SHA256_INPUT_OFFSET before calling.
 //                           Builds ipad/opad, starts inner SHA-256 with the ipad block.
 //                           SHA256_INPUT_OFFSET is free for message data after this returns.
-//   hmac256Update(len)    — write message chunk (≤ 64 bytes) to SHA256_INPUT_OFFSET, then call.
+//   hmac256Update(len)   , write message chunk (≤ 64 bytes) to SHA256_INPUT_OFFSET, then call.
 //                           Passes through to the running inner SHA-256 state.
-//   hmac256Final()        — finalize inner hash, run outer hash, write HMAC to SHA256_OUT_OFFSET.
+//   hmac256Final()       , finalize inner hash, run outer hash, write HMAC to SHA256_OUT_OFFSET.
 //
 // Keys longer than 64 bytes:
 //   RFC 2104 §3 requires H(K) when len(K) > B. Since SHA256_INPUT_OFFSET is 64 bytes,
@@ -62,7 +62,7 @@ import { sha256Init, sha256Update, sha256Final } from './sha256'
 // After this call SHA256_INPUT_OFFSET is free for message data.
 export function hmac256Init(keyLen: i32): void {
 	// RFC 2104 §3: K' = K padded to block size (64 bytes) with zeros.
-	// Single 64-iteration pass with branchless masking — work per iteration
+	// Single 64-iteration pass with branchless masking, work per iteration
 	// is constant, so total time does not depend on keyLen.
 	for (let i: i32 = 0; i < 64; i++) {
 		// mask = 0xFF when i < keyLen, 0x00 when i >= keyLen
@@ -90,7 +90,7 @@ export function hmac256Final(): void {
 	sha256Final()
 	// Step 2: save inner hash before sha256Init() clears SHA256_H_OFFSET
 	memory.copy(HMAC256_INNER_OFFSET, SHA256_OUT_OFFSET, 32)
-	// Step 3: outer hash — H((K' ⊕ opad) || inner_hash)
+	// Step 3: outer hash, H((K' ⊕ opad) || inner_hash)
 	sha256Init()
 	memory.copy(SHA256_INPUT_OFFSET, HMAC256_OPAD_OFFSET, 64)
 	sha256Update(64)

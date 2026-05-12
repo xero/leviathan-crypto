@@ -28,7 +28,7 @@
  *
  * `cipher` is the cipher name passed by the call site (e.g. `'serpent'`,
  * `'chacha20-poly1305'`, `'xchacha20-poly1305'`). The class appends
- * `': authentication failed'` — do not include that text in the cipher name.
+ * `': authentication failed'`, do not include that text in the cipher name.
  */
 export class AuthenticationError extends Error {
 	constructor(cipher: string) {

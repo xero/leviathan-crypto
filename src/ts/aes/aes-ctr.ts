@@ -21,7 +21,7 @@
 //
 // src/ts/aes/aes-ctr.ts
 //
-// AESCtr — AES-128/192/256 in CTR mode, stateful TS wrapper.
+// AESCtr, AES-128/192/256 in CTR mode, stateful TS wrapper.
 // SP 800-38A §6.5 (mode), Appendix B.1 (counter increment).
 // Counter direction: 128-bit big-endian, matching the SP 800-38A §F.5
 // worked examples and the canonical AES CTR convention. Configured in
@@ -60,12 +60,12 @@ function getExports(): AesCtrExports {
  * `AESGCMSIVCipher` / `SerpentCipher` / `XChaCha20Cipher`) instead.
  *
  * The constructor requires `{ dangerUnauthenticated: true }` so callers
- * cannot reach the unauthenticated path by accident — same gate as
+ * cannot reach the unauthenticated path by accident, same gate as
  * `AESCbc` and `SerpentCtr`.
  *
  * The counter is 128-bit big-endian (SP 800-38A Appendix B.1 / §F.5).
  *
- * Stateful — the counter advances across `encrypt`/`decrypt` calls. Reset
+ * Stateful, the counter advances across `encrypt`/`decrypt` calls. Reset
  * with `setNonce()` before each new message. Holds exclusive access to the
  * `aes` WASM module from construction until `dispose()`.
  */
@@ -76,7 +76,7 @@ export class AESCtr {
 	constructor(opts?: { dangerUnauthenticated: true }) {
 		if (!opts?.dangerUnauthenticated) {
 			throw new Error(
-				'leviathan-crypto: AESCtr is unauthenticated — use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. ' +
+				'leviathan-crypto: AESCtr is unauthenticated, use Seal with AESGCMSIVCipher, SerpentCipher, or XChaCha20Cipher instead. ' +
 				'To use AESCtr directly, pass { dangerUnauthenticated: true }.',
 			);
 		}
@@ -84,7 +84,7 @@ export class AESCtr {
 		this._tok = _acquireModule('aes');
 	}
 
-	/** View over WASM linear memory. Rebind on every access — memory can be detached after grow. @internal */
+	/** View over WASM linear memory. Rebind on every access, memory can be detached after grow. @internal */
 	private get mem(): Uint8Array {
 		return new Uint8Array(this.x.memory.buffer);
 	}
@@ -110,7 +110,7 @@ export class AESCtr {
 	 * Set the 128-bit initial counter block (the full IC, not a separate
 	 * nonce/counter split). Resets the working counter so subsequent
 	 * encrypt/decrypt calls start at this value.
-	 * @param nonce  16 bytes — must be unique per (key, message)
+	 * @param nonce  16 bytes, must be unique per (key, message)
 	 */
 	setNonce(nonce: Uint8Array): void {
 		if (this._tok === undefined)
@@ -149,7 +149,7 @@ export class AESCtr {
 		return output;
 	}
 
-	/** Alias for `encrypt` — CTR mode is symmetric. */
+	/** Alias for `encrypt`, CTR mode is symmetric. */
 	decrypt(ciphertext: Uint8Array): Uint8Array {
 		return this.encrypt(ciphertext);
 	}

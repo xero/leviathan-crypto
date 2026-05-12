@@ -22,7 +22,7 @@
 // test/unit/mldsa/helpers.ts
 //
 // WASM test helpers for the mldsa module. Loads build/mldsa.wasm directly
-// (no init() system — mldsa WASM has its own memory, not imported).
+// (no init() system, mldsa WASM has its own memory, not imported).
 //
 // Mirrors the kyber test harness shape with i32-coefficient polynomials
 // (256 × 4 bytes = 1024 B per poly) instead of kyber's i16 (512 B per poly).
@@ -147,7 +147,7 @@ export async function loadMldsa(): Promise<MldsaExports> {
 }
 
 export function getWasm(): MldsaExports {
-	if (!_instance) throw new Error('mldsa WASM not loaded — call loadMldsa() in beforeAll');
+	if (!_instance) throw new Error('mldsa WASM not loaded, call loadMldsa() in beforeAll');
 	return _instance;
 }
 

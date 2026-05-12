@@ -32,17 +32,17 @@ All cryptography runs in WASM. The TypeScript layer writes inputs to linear memo
 
 ## Security Notes
 
-**Constant-time by construction.** ChaCha20 uses only ARX operations (add, rotate, XOR). No lookups, no secret-dependent branches, no variable-time arithmetic. This design is why TLS 1.3 adopted ChaCha20 as its non-AES cipher—it's inherently resistant to cache-timing side channels.
+**Constant-time by construction.** ChaCha20 uses only ARX operations (add, rotate, XOR). No lookups, no secret-dependent branches, no variable-time arithmetic. This design is why TLS 1.3 adopted ChaCha20 as its non-AES cipher, it's inherently resistant to cache-timing side channels.
 
 **Poly1305 accumulator arithmetic.** Poly1305 uses radix-2^26 limbs stored in u64 words. Schoolbook multiplication over five limbs with reduction modulo p = 2^130 - 5. The u64 intermediate products avoid overflow without needing multi-precision carries. The final reduction in `polyFinal` uses constant-time conditional select (mask-and-OR) to choose between h and h - p, avoiding branches on secret values.
 
 **Nonce reuse is catastrophic.** Reusing a (key, nonce) pair with standard ChaCha20 (96-bit nonce) leaks the XOR of two plaintexts and completely breaks Poly1305 authentication. With random 96-bit nonces, collision occurs after approximately 2^48 messages under the same key. If you require random nonces, use XChaCha20-Poly1305 instead.
 
-**XChaCha20 extends nonce to 192 bits.** HChaCha20 derives a per-message subkey from the first 128 bits of a 192-bit nonce, then ChaCha20 encrypts with the remaining 64 bits (zero-padded to 96 bits). The 192-bit nonce space allows random generation safely for up to 2^96 messages—effectively unlimited.
+**XChaCha20 extends nonce to 192 bits.** HChaCha20 derives a per-message subkey from the first 128 bits of a 192-bit nonce, then ChaCha20 encrypts with the remaining 64 bits (zero-padded to 96 bits). The 192-bit nonce space allows random generation safely for up to 2^96 messages, effectively unlimited.
 
 **`wipeBuffers()` zeroes all buffer regions.** Every buffer in the module (keys, nonces, counters, keystream blocks, the ChaCha20 state which contains a key copy in words 4-11, Poly1305 internal state h, r, 5*r, s, chunk buffers, and XChaCha20 subkey material) gets overwritten with zeros. The TypeScript `dispose()` method must call this unconditionally. Key material and intermediate state must not persist in WASM memory after an operation completes.
 
-**Bare ChaCha20 is unauthenticated.** The functions `chachaEncryptChunk` and `chachaDecryptChunk` provide confidentiality only. Without Poly1305 authentication, ciphertext is malleable—an attacker can flip plaintext bits by flipping ciphertext bits. Always use ChaCha20-Poly1305 AEAD or pair bare ChaCha20 with HMAC in an Encrypt-then-MAC construction.
+**Bare ChaCha20 is unauthenticated.** The functions `chachaEncryptChunk` and `chachaDecryptChunk` provide confidentiality only. Without Poly1305 authentication, ciphertext is malleable, an attacker can flip plaintext bits by flipping ciphertext bits. Always use ChaCha20-Poly1305 AEAD or pair bare ChaCha20 with HMAC in an Encrypt-then-MAC construction.
 
 **See [ChaCha20-Poly1305 implementation audit](./chacha_audit.md) for algorithm correctness verifications.**
 
@@ -394,8 +394,8 @@ giving 4× useful work per instruction.
 **`block4x(ctr: u32)`.** Core SIMD routine. Operates entirely in 16 v128 locals (enabling JIT register allocation). Reconstructs initial-state for the add-back step from `CHACHA_STATE_OFFSET` memory + the `ctr` parameter, avoiding the need to save 16 additional v128 locals.
 
 > **Note on negative result:** A prior attempt at intra-block SIMD (processing
-> one block via v128 with shuffles) measured 0.60–0.72× scalar across 4 attempts.
-> Root causes: (a) no native `i32x4.rotl` — each rotation costs 3 v128 ops vs 1
+> one block via v128 with shuffles) measured 0.60-0.72× scalar across 4 attempts.
+> Root causes: (a) no native `i32x4.rotl`, each rotation costs 3 v128 ops vs 1
 > scalar (640 rotations per block = 3× instruction count), (b) 6 shuffles per
 > double round for the diagonal, (c) V8/JSC already register-promotes
 > fixed-address loads for the scalar path. See `docs/chacha_simd_bench.md` for

@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_cbc.test.ts
 //
-// Gate 8 — AES CBC KAT against the twelve NIST CAVP AESVS files
+// Gate 8, AES CBC KAT against the twelve NIST CAVP AESVS files
 // (4 file types × 3 key sizes). Encrypt and decrypt directions, all
 // three key sizes (AES-128/192/256). The KAT vectors are raw block-
 // level CBC operations (no padding); we exercise the WASM module
@@ -61,10 +61,10 @@ beforeAll(async () => {
 
 // ── Constructor gate ────────────────────────────────────────────────────────
 
-describe('AESCbc — dangerUnauthenticated gate', () => {
+describe('AESCbc, dangerUnauthenticated gate', () => {
 	it('new AESCbc() throws without dangerUnauthenticated flag', () => {
 		expect(() => new AESCbc()).toThrow(
-			'leviathan-crypto: AESCbc is unauthenticated — use Seal with SerpentCipher or XChaCha20Cipher instead.',
+			'leviathan-crypto: AESCbc is unauthenticated, use Seal with SerpentCipher or XChaCha20Cipher instead.',
 		);
 	});
 
@@ -117,7 +117,7 @@ const CBC_KAT_FILES = [
 ];
 
 for (const file of CBC_KAT_FILES) {
-	describe(`AES CBC KAT (Gate 8) — CAVP ${file}`, () => {
+	describe(`AES CBC KAT (Gate 8), CAVP ${file}`, () => {
 		const { encrypt, decrypt } = parseCbcKatFile(file);
 
 		it('parses non-zero vectors (encrypt + decrypt)', () => {
@@ -125,7 +125,7 @@ for (const file of CBC_KAT_FILES) {
 			expect(decrypt.length).toBeGreaterThan(0);
 		});
 
-		// GATE: full-corpus encrypt KAT — single-block raw CBC against CAVP.
+		// GATE: full-corpus encrypt KAT, single-block raw CBC against CAVP.
 		it(`all ${encrypt.length} encrypt vectors pass`, () => {
 			for (const v of encrypt) {
 				expect(

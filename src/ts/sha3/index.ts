@@ -22,7 +22,7 @@
 // src/ts/sha3/index.ts
 //
 // Public API classes for the SHA-3 WASM module.
-// Uses the init() module cache — call sha3Init(source) before constructing.
+// Uses the init() module cache, call sha3Init(source) before constructing.
 
 import { getInstance, initModule, _acquireModule, _releaseModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -170,7 +170,7 @@ export class SHA3_224 {
 // ── SHAKE128 ────────────────────────────────────────────────────────────────
 
 /**
- * SHAKE128 XOF — extendable output, multi-squeeze capable.
+ * SHAKE128 XOF, extendable output, multi-squeeze capable.
  *
  * Holds exclusive access to the `sha3` WASM module from construction until
  * `dispose()`. Constructing a second SHAKE128/SHAKE256 or any other sha3
@@ -211,7 +211,7 @@ export class SHAKE128 {
 			throw new Error('SHAKE128: instance has been disposed');
 		if (this._squeezing)
 			throw new Error(
-				'SHAKE128: cannot absorb after squeeze — call reset() first'
+				'SHAKE128: cannot absorb after squeeze, call reset() first'
 			);
 		absorb(this.x, msg);
 		return this;
@@ -273,7 +273,7 @@ export class SHAKE128 {
 // ── SHAKE256 ────────────────────────────────────────────────────────────────
 
 /**
- * SHAKE256 XOF — extendable output, multi-squeeze capable.
+ * SHAKE256 XOF, extendable output, multi-squeeze capable.
  *
  * Holds exclusive access to the `sha3` WASM module from construction until
  * `dispose()`. Constructing a second SHAKE128/SHAKE256 or any other sha3
@@ -314,7 +314,7 @@ export class SHAKE256 {
 			throw new Error('SHAKE256: instance has been disposed');
 		if (this._squeezing)
 			throw new Error(
-				'SHAKE256: cannot absorb after squeeze — call reset() first'
+				'SHAKE256: cannot absorb after squeeze, call reset() first'
 			);
 		absorb(this.x, msg);
 		return this;

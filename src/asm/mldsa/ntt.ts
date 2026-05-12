@@ -21,7 +21,7 @@
 //
 // src/asm/mldsa/ntt.ts
 //
-// ML-DSA — Number-Theoretic Transform (NTT) and inverse NTT.
+// ML-DSA, Number-Theoretic Transform (NTT) and inverse NTT.
 // FIPS 204 Algorithms 41 (NTT), 42 (NTT⁻¹), 43 (BitRev₈).
 //
 // Algorithm 41 is Cooley-Tukey forward; Algorithm 42 is Gentleman-Sande
@@ -43,7 +43,7 @@ import { fqmul, barrett_reduce } from './reduce';
 //     equals 1753¹²⁸ mod q = 4808194 (FIPS 204 Appendix B row 1 col 2).
 //
 // The Montgomery form is verified at runtime by the NTT round-trip gate test
-// (test/unit/mldsa/ntt_simd_gate.test.ts) — invntt(ntt(p)) == p coefficient-wise.
+// (test/unit/mldsa/ntt_simd_gate.test.ts), invntt(ntt(p)) == p coefficient-wise.
 const zetas: StaticArray<i32> = [
 	        0,     25847,  -2608894,   -518909,    237124,   -777960,   -876248,    466468,
 	  1826347,   2353451,   -359251,  -2091905,   3119733,  -2884855,   3111497,   2680103,
@@ -106,14 +106,14 @@ export function BitRev8(m: i32): i32 {
 	return r;
 }
 
-// ── NTT (forward) — FIPS 204 Algorithm 41 ───────────────────────────────────
+// ── NTT (forward), FIPS 204 Algorithm 41 ───────────────────────────────────
 //
 // In-place Cooley-Tukey forward NTT.
 // Input  (in WASM memory at polyOffset): w ∈ R_q in standard order (256 × i32).
 // Output (in place):                     ŵ ∈ T_q with elements in regular form.
 //
 // Each butterfly multiplies by zetas[m] (Montgomery form) via fqmul, which
-// internally applies MontgomeryReduce to cancel the 2³² factor — the
+// internally applies MontgomeryReduce to cancel the 2³² factor, the
 // coefficient stream therefore stays in regular (non-Montgomery) form
 // throughout. The output of fqmul has magnitude < 2q (FIPS 204 Appendix A);
 // the cumulative add/sub stages keep coefficients well within i32 range
@@ -139,10 +139,10 @@ export function ntt(polyOffset: i32): void {
 	}
 }
 
-// ── NTT⁻¹ (inverse) — FIPS 204 Algorithm 42 ─────────────────────────────────
+// ── NTT⁻¹ (inverse), FIPS 204 Algorithm 42 ─────────────────────────────────
 //
 // In-place Gentleman-Sande inverse NTT, followed by the canonical
-// 256⁻¹ multiplication (Algorithm 42 lines 21–24, with f = 8347681).
+// 256⁻¹ multiplication (Algorithm 42 lines 21-24, with f = 8347681).
 //
 // f is stored pre-multiplied by 2³² (params.ts F_MONT) so that the closing
 // fqmul applies the scalar in regular form, consistent with the rest of the

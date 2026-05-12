@@ -86,7 +86,7 @@ describe('Fortuna', () => {
 		expect(after).toBeGreaterThan(before);
 	});
 
-	test('stop() disposes instance — all methods throw after stop()', async () => {
+	test('stop() disposes instance, all methods throw after stop()', async () => {
 		fortuna = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: 0 });
 		const first = fortuna.get(32);
 		expect(first).toBeInstanceOf(Uint8Array);
@@ -99,7 +99,7 @@ describe('Fortuna', () => {
 		expect(() => fortuna.stop()).toThrow('Fortuna instance has been disposed');
 	});
 
-	test('msPerReseed option works — Fortuna.create({ msPerReseed: 0 }) allows immediate reseeds', async () => {
+	test('msPerReseed option works, Fortuna.create({ msPerReseed: 0 }) allows immediate reseeds', async () => {
 		fortuna = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: 0 });
 		// With msPerReseed: 0, reseed should trigger on first get()
 		const result = fortuna.get(32);
@@ -116,7 +116,7 @@ describe('Fortuna', () => {
 		fortuna.get(16);
 		const keyAfter = new Uint8Array(fortuna._getGenKey());
 
-		// Key must differ — key replacement is mandatory (spec §9.4)
+		// Key must differ, key replacement is mandatory (spec §9.4)
 		expect(keyBefore).not.toEqual(keyAfter);
 	});
 
@@ -135,7 +135,7 @@ describe('Fortuna', () => {
 	test('Fortuna.stop() is exception-safe when SerpentCtr holds the serpent module', async () => {
 		fortuna = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash });
 		const ctr = new SerpentCtr({ dangerUnauthenticated: true });
-		// stop() will throw because wipeBuffers on serpent throws — but disposed must be set,
+		// stop() will throw because wipeBuffers on serpent throws, but disposed must be set,
 		// key material wiped, and subsequent calls must refuse to run regardless.
 		expect(() => fortuna.stop()).toThrow(/stateful instance is using/);
 		expect(() => fortuna.get(32)).toThrow('Fortuna instance has been disposed');

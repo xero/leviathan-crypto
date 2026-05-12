@@ -47,7 +47,7 @@ function isZero(b: Uint8Array): boolean {
 	return true;
 }
 
-describe('Fortuna — wipe before reassign', () => {
+describe('Fortuna, wipe before reassign', () => {
 	let fortuna: Fortuna | undefined;
 
 	afterEach(() => {
@@ -59,7 +59,7 @@ describe('Fortuna — wipe before reassign', () => {
 
 	it('pseudoRandomData: prior genKey bytes are wiped before key replacement', async () => {
 		fortuna = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: 0 });
-		// Force initial reseed by calling get() — post-create state has genKey set.
+		// Force initial reseed by calling get(), post-create state has genKey set.
 		fortuna.get(16);
 
 		// Capture the LIVE view of genKey (not a copy). After the next get(), the
@@ -82,18 +82,18 @@ describe('Fortuna — wipe before reassign', () => {
 		const oldKeyView = fortuna._getGenKey();
 		fortuna.addEntropy(new Uint8Array(64));
 		fortuna.get(16); // this triggers reseed -> key replacement inside
-		// Either pseudoRandomData OR reseed replaced the key — either way the
+		// Either pseudoRandomData OR reseed replaced the key, either way the
 		// prior buffer must be wiped.
 		expect(isZero(oldKeyView)).toBe(true);
 	});
 
 	it('addRandomEvent: prior pool-hash chain bytes are wiped before replacement', async () => {
 		fortuna = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: 0 });
-		// Add some entropy — this calls addRandomEvent, writing a non-zero chain
+		// Add some entropy, this calls addRandomEvent, writing a non-zero chain
 		// into pool[x]. Capture the live view.
 		fortuna.addEntropy(new Uint8Array(32).fill(0x42));
 		const poolHash = fortuna._getPoolHash();
-		// Find a non-zero pool — robin.rnd increments between calls, so at least one has data.
+		// Find a non-zero pool, robin.rnd increments between calls, so at least one has data.
 		let touchedIdx = -1;
 		for (let i = 0; i < poolHash.length; i++) {
 			if (!isZero(poolHash[i])) {
@@ -141,7 +141,7 @@ describe('Fortuna — wipe before reassign', () => {
 	});
 });
 
-describe('Fortuna — stop() wipe and dispose discipline', () => {
+describe('Fortuna, stop() wipe and dispose discipline', () => {
 	it('stop() zeroes genKey, genCnt, and every pool-hash chain', async () => {
 		const f = await Fortuna.create({ generator: SerpentGenerator, hash: SHA256Hash, msPerReseed: 0 });
 		f.get(16); // warm up state so key/counter/pools hold non-zero bytes

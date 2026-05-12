@@ -16,9 +16,9 @@ let subkey: Uint8Array | undefined;
  * Message handler for the XChaCha20 pool worker.
  *
  * Accepts three message types:
- * - `'init'`  — instantiate the chacha20 WASM module and store the derived subkey
- * - `'wipe'`  — zero subkey and WASM buffers, then post `{ type: 'wiped' }`
- * - `{ op: 'seal' | 'open', ... }` — encrypt or decrypt one chunk
+ * - `'init'` , instantiate the chacha20 WASM module and store the derived subkey
+ * - `'wipe'` , zero subkey and WASM buffers, then post `{ type: 'wiped' }`
+ * - `{ op: 'seal' | 'open', ... }`, encrypt or decrypt one chunk
  *
  * Replies with `{ type: 'result', id, data }` on success or
  * `{ type: 'error', id, message, isAuthError }` on failure.

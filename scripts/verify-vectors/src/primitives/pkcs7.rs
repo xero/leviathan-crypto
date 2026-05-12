@@ -5,7 +5,7 @@
 //
 // "Always" includes the case where the input is already aligned: a full
 // block of 16 padding bytes (each equal to 0x10) is appended. This is
-// what keeps unpad unambiguous — every padded ciphertext has a non-empty
+// what keeps unpad unambiguous, every padded ciphertext has a non-empty
 // padding tail.
 
 const BLOCK_SIZE: usize = 16;

@@ -95,7 +95,7 @@ export function resetCounter(): void {
 
 /**
  * Encrypt chunkLen bytes from CHUNK_PT_BUFFER to CHUNK_CT_BUFFER using Serpent CTR mode.
- * CTR mode is symmetric — encryption and decryption are identical operations.
+ * CTR mode is symmetric, encryption and decryption are identical operations.
  * Counter must be initialised via `resetCounter()` or `setCounter()` before calling.
  * @param chunkLen  number of bytes to encrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
@@ -118,7 +118,7 @@ export function encryptChunk(chunkLen: i32): i32 {
 
 /**
  * Decrypt chunkLen bytes from CHUNK_CT_BUFFER to CHUNK_PT_BUFFER using Serpent CTR mode.
- * Identical to `encryptChunk` — CTR mode is symmetric.
+ * Identical to `encryptChunk`, CTR mode is symmetric.
  * @param chunkLen  number of bytes to decrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
  */

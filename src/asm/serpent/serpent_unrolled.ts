@@ -21,7 +21,7 @@
 //
 // src/asm/serpent/serpent_unrolled.ts
 //
-// AUTO-GENERATED — do not edit by hand.
+// AUTO-GENERATED, do not edit by hand.
 // To regenerate: bun bench/generate_unrolled.ts > assembly/serpent_unrolled.ts
 //
 // Fully unrolled Serpent-256 encrypt and decrypt.
@@ -42,7 +42,7 @@ import {
 	lk, kl, keyXor,
 } from './serpent'
 
-// Working register helpers — identical to those in serpent.ts.
+// Working register helpers, identical to those in serpent.ts.
 // With all slot indices hardcoded (compile-time constants), every
 // rget/rset call resolves to a fixed address in linear memory,
 // enabling TurboFan alias analysis and CPU register promotion.
@@ -205,7 +205,7 @@ export function encryptBlock_unrolled(): void {
 	sb6(0, 1, 3, 2, 4)
 	lk(3, 4, 1, 2, 0, 31)
 
-	// Round 31 (final — no linear transform):
+	// Round 31 (final, no linear transform):
 	sb7(3, 4, 1, 2, 0)
 
 	keyXor(0, 1, 2, 3, 32) // K(32)
@@ -365,10 +365,10 @@ export function decryptBlock_unrolled(): void {
 	si1(3, 1, 2, 0, 4)
 	kl(4, 1, 2, 0, 3, 1)
 
-	// Round 31 (final — no inverse linear transform):
+	// Round 31 (final, no inverse linear transform):
 	si0(4, 1, 2, 0, 3)
 
-	// K(0): final key XOR uses slots (2,3,1,4) — CRITICAL: not (0,1,2,3)
+	// K(0): final key XOR uses slots (2,3,1,4), CRITICAL: not (0,1,2,3)
 	keyXor(2, 3, 1, 4, 0) // K(0)
 
 	// Store plaintext little-endian, natural slot order. The final keyXor

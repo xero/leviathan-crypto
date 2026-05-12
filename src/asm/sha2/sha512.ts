@@ -21,7 +21,7 @@
 //
 // src/asm/sha2/sha512.ts
 //
-// SHA-512 and SHA-384 — AssemblyScript implementation
+// SHA-512 and SHA-384, AssemblyScript implementation
 // Standard: FIPS 180-4, "Secure Hash Standard", August 2015
 // URL: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 // Sections: §4.1.3 (functions), §4.2.3 (constants), §5.3.5/5.3.4 (IVs),
@@ -33,11 +33,11 @@
 //   2. Output: SHA-512 returns 64 bytes; SHA-384 returns first 48 bytes
 //
 // Streaming API:
-//   sha512Init()          — initialize SHA-512 IVs + clear partial/total state
-//   sha384Init()          — initialize SHA-384 IVs + clear partial/total state
-//   sha512Update(len)     — process len bytes from SHA512_INPUT_OFFSET (len ≤ 128)
-//   sha512Final()         — pad, compress, write 64-byte digest to SHA512_OUT_OFFSET
-//   sha384Final()         — pad, compress, write first 48 bytes to SHA512_OUT_OFFSET
+//   sha512Init()         , initialize SHA-512 IVs + clear partial/total state
+//   sha384Init()         , initialize SHA-384 IVs + clear partial/total state
+//   sha512Update(len)    , process len bytes from SHA512_INPUT_OFFSET (len ≤ 128)
+//   sha512Final()        , pad, compress, write 64-byte digest to SHA512_OUT_OFFSET
+//   sha384Final()        , pad, compress, write first 48 bytes to SHA512_OUT_OFFSET
 //
 // HMAC-SHA512/HMAC-SHA384 are in src/asm/sha2/hmac512.ts.
 
@@ -163,11 +163,11 @@ function kAt512(t: i32): i64 {
 
 // ── FIPS 180-4 §4.1.3: SHA-512 functions ────────────────────────────────────
 //
-// Rotation amounts (SHA-512 — DIFFERENT from SHA-256):
+// Rotation amounts (SHA-512, DIFFERENT from SHA-256):
 //   Σ0(28, 34, 39)   Σ1(14, 18, 41)
 //   σ0( 1,  8, SHR7) σ1(19, 61, SHR6)
 //
-// DO NOT copy from SHA-256 — the rotation constants are different.
+// DO NOT copy from SHA-256, the rotation constants are different.
 
 @inline function rotr64(x: i64, n: i64): i64 { return (x >>> n) | (x << (64 - n)) }
 
@@ -336,7 +336,7 @@ export function sha384Init(): void {
 	        SHA384_H4, SHA384_H5, SHA384_H6, SHA384_H7)
 }
 
-// Initialize SHA-512/224 state per FIPS 180-4 §6.7.1 — SHA-512 round logic
+// Initialize SHA-512/224 state per FIPS 180-4 §6.7.1, SHA-512 round logic
 // with the §5.3.6.1 IV. Output is the leftmost 28 bytes of SHA512_OUT_OFFSET
 // (TS-side caller slices [0..28)).
 export function sha512_224Init(): void {
@@ -344,7 +344,7 @@ export function sha512_224Init(): void {
 	        SHA512_224_H4, SHA512_224_H5, SHA512_224_H6, SHA512_224_H7)
 }
 
-// Initialize SHA-512/256 state per FIPS 180-4 §6.7.2 — SHA-512 round logic
+// Initialize SHA-512/256 state per FIPS 180-4 §6.7.2, SHA-512 round logic
 // with the §5.3.6.2 IV. Output is the leftmost 32 bytes of SHA512_OUT_OFFSET
 // (TS-side caller slices [0..32)).
 export function sha512_256Init(): void {
@@ -424,18 +424,18 @@ export function sha512Final(): void {
 export function sha384Final(): void {
 	sha512Final()
 	// SHA512_OUT_OFFSET[0..47] is the SHA-384 digest (first 6 of 8 words).
-	// SHA512_OUT_OFFSET[48..63] contains the remaining two words — callers
+	// SHA512_OUT_OFFSET[48..63] contains the remaining two words, callers
 	// should read only [0..47]. No additional work needed here.
 }
 
-// SHA-512/224 final: same padding as SHA-512 (FIPS 180-4 §6.7.1 — round logic
+// SHA-512/224 final: same padding as SHA-512 (FIPS 180-4 §6.7.1, round logic
 // is identical), output is the first 28 bytes of SHA512_OUT_OFFSET.
 // sha512_224Init() must have been called at the start.
 export function sha512_224Final(): void {
 	sha512Final()
 }
 
-// SHA-512/256 final: same padding as SHA-512 (FIPS 180-4 §6.7.2 — round logic
+// SHA-512/256 final: same padding as SHA-512 (FIPS 180-4 §6.7.2, round logic
 // is identical), output is the first 32 bytes of SHA512_OUT_OFFSET.
 // sha512_256Init() must have been called at the start.
 export function sha512_256Final(): void {

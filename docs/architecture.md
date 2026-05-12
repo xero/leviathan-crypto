@@ -809,11 +809,11 @@ buffers.ts
 
 reduce.ts
   <- ntt.ts                (fqmul, barrett_reduce)
-  <- ntt_simd.ts           (fqmul, barrett_reduce — scalar tail)
+  <- ntt_simd.ts           (fqmul, barrett_reduce, scalar tail)
   <- poly.ts               (montgomery_reduce, barrett_reduce, fqmul)
 
 ntt.ts
-  <- ntt_simd.ts           (getZetasOffset — zetas table pointer)
+  <- ntt_simd.ts           (getZetasOffset, zetas table pointer)
   <- poly.ts               (ntt, invntt, basemul, getZeta)
 
 ntt_simd.ts
@@ -863,7 +863,7 @@ rounding.ts
   <- (Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint, HintBitPack/Unpack with §D.3 checks)
 
 sampling.ts
-  <- (rej_ntt_poly, rej_bounded_poly, SampleInBall — all consume SHAKE PRF output written into XOF_PRF_OFFSET by host)
+  <- (rej_ntt_poly, rej_bounded_poly, SampleInBall, all consume SHAKE PRF output written into XOF_PRF_OFFSET by host)
 
 encoding.ts
   <- (bit-pack/unpack at every required width: encodeS₁/encodeS₂, encodeT₀/encodeT₁, encodeZ, encodeSig)
@@ -972,8 +972,8 @@ All MlDsa classes also call sha3 WASM via `expand.ts` and `sha3-helpers.ts`: SHA
 | `XChaCha20Cipher` | `ChaCha20Poly1305` (via `ops.ts`) + `HKDF_SHA256`                                                                                       |
 | `AESGCMSIVCipher` | `AESGCMSIV` (via `ops.ts`) + `HKDF_SHA256`                                                                                              |
 | `Seal`            | `SealStream` + `OpenStream` (degenerate single-chunk case)                                                                              |
-| `SealStream`      | `CipherSuite` (generic — caller provides cipher)                                                                                        |
-| `OpenStream`      | `CipherSuite` (generic — caller provides cipher)                                                                                        |
+| `SealStream`      | `CipherSuite` (generic, caller provides cipher)                                                                                        |
+| `OpenStream`      | `CipherSuite` (generic, caller provides cipher)                                                                                        |
 | `SealStreamPool`  | `CipherSuite` + `compileWasm()` + Web Workers                                                                                           |
 | `HKDF_SHA256`     | `HMAC_SHA256` (extract + expand per RFC 5869)                                                                                           |
 | `HKDF_SHA512`     | `HMAC_SHA512` (extract + expand per RFC 5869)                                                                                           |
@@ -995,7 +995,7 @@ All MlDsa classes also call sha3 WASM via `expand.ts` and `sha3-helpers.ts`: SHA
 | `MlKem512`, `MlKem768`, `MlKem1024` → `kyber` + `sha3`            | Kyber module handles polynomial arithmetic; sha3 provides SHAKE128/256, SHA3-256/512 for G/H/J/matrix gen.                                                                                                  |
 | `MlDsa44`, `MlDsa65`, `MlDsa87` → `mldsa` + `sha3`                | ML-DSA module handles polynomial arithmetic, rounding, and packing; sha3 provides SHAKE128 (ExpandA), SHAKE256 (ExpandS, ExpandMask, μ, ρ'', SampleInBall), and SHA3-fixed digests for HashML-DSA pre-hash. |
 | `MlDsa*` (HashML-DSA, SHA-2 pre-hash) → `mldsa` + `sha3` + `sha2` | `sha2` module covers the SHA2-{224, 256, 384, 512, 512/224, 512/256} pre-hash variants from §5.4.1.                                                                                                         |
-| `HKDF_SHA256`, `HKDF_SHA512` → `sha2`                             | Pure TS composition — extract and expand steps per RFC 5869.                                                                                                                                                |
+| `HKDF_SHA256`, `HKDF_SHA512` → `sha2`                             | Pure TS composition, extract and expand steps per RFC 5869.                                                                                                                                                |
 | All other classes                                                 | Each depends on exactly **one** WASM module.                                                                                                                                                                |
 
 ---
@@ -1006,7 +1006,7 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 
 | Source              | Exports                                                                                                                                                                                                                                                    |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _(barrel itself)_   | `init` (dispatching function — calls per-module init functions via `Promise.all`)                                                                                                                                                                          |
+| _(barrel itself)_   | `init` (dispatching function, calls per-module init functions via `Promise.all`)                                                                                                                                                                          |
 | `init.ts`           | `Module`, `WasmSource`, `isInitialized`                                                                                                                                                                                                                    |
 | `errors.ts`         | `AuthenticationError`                                                                                                                                                                                                                                      |
 | `serpent/index.ts`  | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher`, `SerpentGenerator`                                                                                                                                                                                 |
@@ -1092,17 +1092,17 @@ Source: `src/asm/serpent/buffers.ts`
 
 | Offset | Size  | Name                                                                                        |
 | ------ | ----- | ------------------------------------------------------------------------------------------- |
-| 0      | 32    | `KEY_BUFFER` — key input (padded to 32 bytes for all key sizes)                             |
-| 32     | 16    | `BLOCK_PT_BUFFER` — single block plaintext                                                  |
-| 48     | 16    | `BLOCK_CT_BUFFER` — single block ciphertext                                                 |
-| 64     | 16    | `NONCE_BUFFER` — CTR mode nonce                                                             |
-| 80     | 16    | `COUNTER_BUFFER` — 128-bit little-endian counter                                            |
-| 96     | 528   | `SUBKEY_BUFFER` — key schedule output (33 rounds × 4 × 4 bytes)                             |
-| 624    | 65552 | `CHUNK_PT_BUFFER` — streaming plaintext (CTR/CBC); +16 from 65536 to fit PKCS7 max overhead |
-| 66176  | 65552 | `CHUNK_CT_BUFFER` — streaming ciphertext (CTR/CBC)                                          |
-| 131728 | 20    | `WORK_BUFFER` — 5 × i32 scratch registers (key schedule + S-box/LT rounds)                  |
-| 131748 | 16    | `CBC_IV_BUFFER` — CBC initialization vector / chaining value                                |
-| 131856 | —     | END                                                                                         |
+| 0      | 32    | `KEY_BUFFER`, key input (padded to 32 bytes for all key sizes)                             |
+| 32     | 16    | `BLOCK_PT_BUFFER`, single block plaintext                                                  |
+| 48     | 16    | `BLOCK_CT_BUFFER`, single block ciphertext                                                 |
+| 64     | 16    | `NONCE_BUFFER`, CTR mode nonce                                                             |
+| 80     | 16    | `COUNTER_BUFFER`, 128-bit little-endian counter                                            |
+| 96     | 528   | `SUBKEY_BUFFER`, key schedule output (33 rounds × 4 × 4 bytes)                             |
+| 624    | 65552 | `CHUNK_PT_BUFFER`, streaming plaintext (CTR/CBC); +16 from 65536 to fit PKCS7 max overhead |
+| 66176  | 65552 | `CHUNK_CT_BUFFER`, streaming ciphertext (CTR/CBC)                                          |
+| 131728 | 20    | `WORK_BUFFER`, 5 × i32 scratch registers (key schedule + S-box/LT rounds)                  |
+| 131748 | 16    | `CBC_IV_BUFFER`, CBC initialization vector / chaining value                                |
+| 131856 | -     | END                                                                                         |
 
 `wipeBuffers()` zeroes all 10 buffers (key, block pt/ct, nonce, counter, subkeys, work, chunk pt/ct, CBC IV).
 
@@ -1112,27 +1112,27 @@ Source: `src/asm/chacha20/buffers.ts`
 
 | Offset | Size  | Name                                                                    |
 | ------ | ----- | ----------------------------------------------------------------------- |
-| 0      | 32    | `KEY_BUFFER` — ChaCha20 256-bit key                                     |
-| 32     | 12    | `CHACHA_NONCE_BUFFER` — 96-bit nonce (3 × u32, LE)                      |
-| 44     | 4     | `CHACHA_CTR_BUFFER` — u32 block counter                                 |
-| 48     | 64    | `CHACHA_BLOCK_BUFFER` — 64-byte keystream block output                  |
-| 112    | 64    | `CHACHA_STATE_BUFFER` — 16 × u32 initial state                          |
-| 176    | 65536 | `CHUNK_PT_BUFFER` — streaming plaintext                                 |
-| 65712  | 65536 | `CHUNK_CT_BUFFER` — streaming ciphertext                                |
-| 131248 | 32    | `POLY_KEY_BUFFER` — one-time key r‖s                                    |
-| 131280 | 64    | `POLY_MSG_BUFFER` — message staging (≤ 64 bytes per polyUpdate)         |
-| 131344 | 16    | `POLY_BUF_BUFFER` — partial block accumulator                           |
-| 131360 | 4     | `POLY_BUF_LEN_BUFFER` — u32 bytes in partial block                      |
-| 131364 | 16    | `POLY_TAG_BUFFER` — 16-byte output MAC tag                              |
-| 131380 | 40    | `POLY_H_BUFFER` — accumulator h: 5 × u64                                |
-| 131420 | 40    | `POLY_R_BUFFER` — clamped r: 5 × u64                                    |
-| 131460 | 32    | `POLY_RS_BUFFER` — precomputed 5×r[1..4]: 4 × u64                       |
-| 131492 | 16    | `POLY_S_BUFFER` — s pad: 4 × u32                                        |
-| 131508 | 24    | `XCHACHA_NONCE_BUFFER` — full 24-byte XChaCha20 nonce                   |
-| 131532 | 32    | `XCHACHA_SUBKEY_BUFFER` — HChaCha20 output (key material)               |
+| 0      | 32    | `KEY_BUFFER`, ChaCha20 256-bit key                                     |
+| 32     | 12    | `CHACHA_NONCE_BUFFER`, 96-bit nonce (3 × u32, LE)                      |
+| 44     | 4     | `CHACHA_CTR_BUFFER`, u32 block counter                                 |
+| 48     | 64    | `CHACHA_BLOCK_BUFFER`, 64-byte keystream block output                  |
+| 112    | 64    | `CHACHA_STATE_BUFFER`, 16 × u32 initial state                          |
+| 176    | 65536 | `CHUNK_PT_BUFFER`, streaming plaintext                                 |
+| 65712  | 65536 | `CHUNK_CT_BUFFER`, streaming ciphertext                                |
+| 131248 | 32    | `POLY_KEY_BUFFER`, one-time key r‖s                                    |
+| 131280 | 64    | `POLY_MSG_BUFFER`, message staging (≤ 64 bytes per polyUpdate)         |
+| 131344 | 16    | `POLY_BUF_BUFFER`, partial block accumulator                           |
+| 131360 | 4     | `POLY_BUF_LEN_BUFFER`, u32 bytes in partial block                      |
+| 131364 | 16    | `POLY_TAG_BUFFER`, 16-byte output MAC tag                              |
+| 131380 | 40    | `POLY_H_BUFFER`, accumulator h: 5 × u64                                |
+| 131420 | 40    | `POLY_R_BUFFER`, clamped r: 5 × u64                                    |
+| 131460 | 32    | `POLY_RS_BUFFER`, precomputed 5×r[1..4]: 4 × u64                       |
+| 131492 | 16    | `POLY_S_BUFFER`, s pad: 4 × u32                                        |
+| 131508 | 24    | `XCHACHA_NONCE_BUFFER`, full 24-byte XChaCha20 nonce                   |
+| 131532 | 32    | `XCHACHA_SUBKEY_BUFFER`, HChaCha20 output (key material)               |
 | 131564 | 4     | _(padding for 16-byte SIMD alignment)_                                  |
-| 131568 | 256   | `CHACHA_SIMD_WORK_BUFFER` — 4-wide inter-block keystream (4 × 64 bytes) |
-| 131824 | —     | END                                                                     |
+| 131568 | 256   | `CHACHA_SIMD_WORK_BUFFER`, 4-wide inter-block keystream (4 × 64 bytes) |
+| 131824 | -     | END                                                                     |
 
 `wipeBuffers()` zeroes all 15 buffer regions (key, chacha nonce/ctr/block/state, chunk pt/ct, poly key/msg/buf/tag/h/r/rs/s, xchacha nonce/subkey, SIMD work).
 
@@ -1142,36 +1142,36 @@ Source: `src/asm/aes/buffers.ts`
 
 | Offset | Size  | Name                                                                                                                                               |
 | ------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0      | 32    | `KEY_BUFFER` — AES key (sized for AES-256)                                                                                                         |
-| 32     | 16    | `BLOCK_PT_BUFFER` — atomic 1-block plaintext input                                                                                                 |
-| 48     | 16    | `BLOCK_CT_BUFFER` — atomic 1-block ciphertext output                                                                                               |
-| 64     | 128   | `BLOCK_PT_8X_BUFFER` — 8 parallel plaintext blocks                                                                                                 |
-| 192    | 128   | `BLOCK_CT_8X_BUFFER` — 8 parallel ciphertext blocks                                                                                                |
-| 320    | 1920  | `ROUND_KEYS_BUFFER` — bitsliced forward (encrypt) round keys (15 rounds × 8 × 16 bytes; AES-128 uses 1408, AES-192 uses 1664, AES-256 uses 1920)   |
-| 2240   | 128   | `BITSLICED_STATE_BUFFER` — 8 × v128 AES state in Käsper-Schwabe layout                                                                             |
-| 2368   | 1024  | `CANRIGHT_SCRATCH_BUFFER` — ≈64 v128 scratch slots for the tower-field S-box                                                                       |
-| 3392   | 256   | `KEY_SCHEDULE_SCRATCH_BUFFER` — byte-level round-key scratch during keyExpansion (240 bytes for AES-256, padded to 256 for v128 alignment)         |
-| 3648   | 1920  | `INV_ROUND_KEYS_BUFFER` — EqInvCipher form decrypt round keys (rounds 1..Nr-1 are InvMixColumns(K[r]); rounds 0 and Nr are copies of forward keys) |
-| 5568   | 65536 | `CHUNK_PT_BUFFER` — CTR/CBC stream input                                                                                                           |
-| 71104  | 65536 | `CHUNK_CT_BUFFER` — CTR/CBC stream output                                                                                                          |
-| 136640 | 1     | `NR_BUFFER` — u8 round count (10/12/14), written by keyExpansion, read by encrypt/decrypt                                                          |
-| 136656 | 16    | `NONCE_BUFFER` — CTR initial counter value                                                                                                         |
-| 136672 | 16    | `COUNTER_BUFFER` — CTR working counter (128-bit LE)                                                                                                |
-| 136688 | 16    | `CBC_IV_BUFFER` — CBC chaining block (IV first chunk, last CT block thereafter)                                                                    |
-| 136704 | 16    | `H_BUFFER` — GCM hash subkey H = AES_ENC(K, 0¹²⁸), derived once per loadKey                                                                        |
-| 136720 | 16    | `J0_BUFFER` — GCM pre-counter block, set per seal/open call                                                                                        |
-| 136736 | 16    | `GHASH_ACC_BUFFER` — GHASH running accumulator (also POLYVAL accumulator during AES-GCM-SIV; GHASH and POLYVAL are mutually exclusive at runtime)  |
-| 136752 | 16    | `TAG_BUFFER` — computed-tag scratch on seal, comparison target on open                                                                             |
-| 136768 | 16    | `J0E_BUFFER` — E(K, J0) pad (XORed with S to form the GCM tag)                                                                                     |
-| 136784 | 16    | `GCM_LENS_BUFFER` — running GCM length state (AAD bit-length u64 BE in [0..7], PT/CT bit-length so far u64 BE in [8..15])                          |
-| 136800 | 16    | `GCM_SCRATCH_BUFFER` — zero-padded partial-block scratch for GHASH absorption tail                                                                 |
-| 136816 | 16    | `GCM_CB_BUFFER` — GCTR working counter (high 96 bits fixed from J0, low 32 bits 32-bit BE incrementing)                                            |
-| 136832 | 256   | `GF128_TABLE_BUFFER` — 16 entries × 16 bytes, 4-bit windowed multiply table computed from H once per loadKey                                       |
-| 137088 | 65536 | `AAD_BUFFER` — GCM additional authenticated data (single-shot caller writes AAD here before gcmStart)                                              |
-| 202624 | 16    | `POLYVAL_AUTH_KEY_BUFFER` — AES-GCM-SIV per-message authentication key derived from KGK by sivDeriveKeys (RFC 8452 §4)                             |
-| 202640 | 32    | `POLYVAL_ENC_KEY_BUFFER` — AES-GCM-SIV per-message encryption key (sized for AES-256; AES-128 uses bytes [0..16])                                  |
-| 202672 | 16    | `SIV_IC_BUFFER` — SIV initial counter (tag with bit 7 of byte 15 set; first 4 bytes hold the 32-bit LE CTR counter)                                |
-| 202688 | —     | END (< 262144 = 4 pages, 59456 bytes spare)                                                                                                        |
+| 0      | 32    | `KEY_BUFFER`, AES key (sized for AES-256)                                                                                                         |
+| 32     | 16    | `BLOCK_PT_BUFFER`, atomic 1-block plaintext input                                                                                                 |
+| 48     | 16    | `BLOCK_CT_BUFFER`, atomic 1-block ciphertext output                                                                                               |
+| 64     | 128   | `BLOCK_PT_8X_BUFFER`, 8 parallel plaintext blocks                                                                                                 |
+| 192    | 128   | `BLOCK_CT_8X_BUFFER`, 8 parallel ciphertext blocks                                                                                                |
+| 320    | 1920  | `ROUND_KEYS_BUFFER`, bitsliced forward (encrypt) round keys (15 rounds × 8 × 16 bytes; AES-128 uses 1408, AES-192 uses 1664, AES-256 uses 1920)   |
+| 2240   | 128   | `BITSLICED_STATE_BUFFER`, 8 × v128 AES state in Käsper-Schwabe layout                                                                             |
+| 2368   | 1024  | `CANRIGHT_SCRATCH_BUFFER`, ≈64 v128 scratch slots for the tower-field S-box                                                                       |
+| 3392   | 256   | `KEY_SCHEDULE_SCRATCH_BUFFER`, byte-level round-key scratch during keyExpansion (240 bytes for AES-256, padded to 256 for v128 alignment)         |
+| 3648   | 1920  | `INV_ROUND_KEYS_BUFFER`, EqInvCipher form decrypt round keys (rounds 1..Nr-1 are InvMixColumns(K[r]); rounds 0 and Nr are copies of forward keys) |
+| 5568   | 65536 | `CHUNK_PT_BUFFER`, CTR/CBC stream input                                                                                                           |
+| 71104  | 65536 | `CHUNK_CT_BUFFER`, CTR/CBC stream output                                                                                                          |
+| 136640 | 1     | `NR_BUFFER`, u8 round count (10/12/14), written by keyExpansion, read by encrypt/decrypt                                                          |
+| 136656 | 16    | `NONCE_BUFFER`, CTR initial counter value                                                                                                         |
+| 136672 | 16    | `COUNTER_BUFFER`, CTR working counter (128-bit LE)                                                                                                |
+| 136688 | 16    | `CBC_IV_BUFFER`, CBC chaining block (IV first chunk, last CT block thereafter)                                                                    |
+| 136704 | 16    | `H_BUFFER`, GCM hash subkey H = AES_ENC(K, 0¹²⁸), derived once per loadKey                                                                        |
+| 136720 | 16    | `J0_BUFFER`, GCM pre-counter block, set per seal/open call                                                                                        |
+| 136736 | 16    | `GHASH_ACC_BUFFER`, GHASH running accumulator (also POLYVAL accumulator during AES-GCM-SIV; GHASH and POLYVAL are mutually exclusive at runtime)  |
+| 136752 | 16    | `TAG_BUFFER`, computed-tag scratch on seal, comparison target on open                                                                             |
+| 136768 | 16    | `J0E_BUFFER`, E(K, J0) pad (XORed with S to form the GCM tag)                                                                                     |
+| 136784 | 16    | `GCM_LENS_BUFFER`, running GCM length state (AAD bit-length u64 BE in [0..7], PT/CT bit-length so far u64 BE in [8..15])                          |
+| 136800 | 16    | `GCM_SCRATCH_BUFFER`, zero-padded partial-block scratch for GHASH absorption tail                                                                 |
+| 136816 | 16    | `GCM_CB_BUFFER`, GCTR working counter (high 96 bits fixed from J0, low 32 bits 32-bit BE incrementing)                                            |
+| 136832 | 256   | `GF128_TABLE_BUFFER`, 16 entries × 16 bytes, 4-bit windowed multiply table computed from H once per loadKey                                       |
+| 137088 | 65536 | `AAD_BUFFER`, GCM additional authenticated data (single-shot caller writes AAD here before gcmStart)                                              |
+| 202624 | 16    | `POLYVAL_AUTH_KEY_BUFFER`, AES-GCM-SIV per-message authentication key derived from KGK by sivDeriveKeys (RFC 8452 §4)                             |
+| 202640 | 32    | `POLYVAL_ENC_KEY_BUFFER`, AES-GCM-SIV per-message encryption key (sized for AES-256; AES-128 uses bytes [0..16])                                  |
+| 202672 | 16    | `SIV_IC_BUFFER`, SIV initial counter (tag with bit 7 of byte 15 set; first 4 bytes hold the 32-bit LE CTR counter)                                |
+| 202688 | -     | END (< 262144 = 4 pages, 59456 bytes spare)                                                                                                        |
 
 `wipeBuffers()` zeroes every mutable region above. Bitsliced round keys are 128 bytes/round (not 16) per Käsper-Schwabe §4.5: each round key is pre-transposed to bitsliced form so that AddRoundKey is 8 plain v128 XORs. The 16 round-key bytes duplicate across the 8 parallel blocks (since all 8 share one schedule), then transpose, yielding 8 × v128 = 128 bytes per bitsliced round key.
 
@@ -1181,27 +1181,27 @@ Source: `src/asm/sha2/buffers.ts`
 
 | Offset | Size | Name                                                               |
 | ------ | ---- | ------------------------------------------------------------------ |
-| 0      | 32   | `SHA256_H` — SHA-256 hash state H0..H7 (8 × u32)                   |
-| 32     | 64   | `SHA256_BLOCK` — SHA-256 block accumulator                         |
-| 96     | 256  | `SHA256_W` — SHA-256 message schedule W[0..63] (64 × u32)          |
-| 352    | 32   | `SHA256_OUT` — SHA-256 digest output                               |
-| 384    | 64   | `SHA256_INPUT` — SHA-256 user input staging (one block)            |
-| 448    | 4    | `SHA256_PARTIAL` — u32 partial block length                        |
-| 452    | 8    | `SHA256_TOTAL` — u64 total bytes hashed                            |
-| 460    | 64   | `HMAC256_IPAD` — HMAC-SHA256 K' XOR ipad                           |
-| 524    | 64   | `HMAC256_OPAD` — HMAC-SHA256 K' XOR opad                           |
-| 588    | 32   | `HMAC256_INNER` — HMAC-SHA256 inner hash                           |
-| 620    | 64   | `SHA512_H` — SHA-512 hash state H0..H7 (8 × u64)                   |
-| 684    | 128  | `SHA512_BLOCK` — SHA-512 block accumulator                         |
-| 812    | 640  | `SHA512_W` — SHA-512 message schedule W[0..79] (80 × u64)          |
-| 1452   | 64   | `SHA512_OUT` — SHA-512 digest output (SHA-384 uses first 48 bytes) |
-| 1516   | 128  | `SHA512_INPUT` — SHA-512 user input staging (one block)            |
-| 1644   | 4    | `SHA512_PARTIAL` — u32 partial block length                        |
-| 1648   | 8    | `SHA512_TOTAL` — u64 total bytes hashed                            |
-| 1656   | 128  | `HMAC512_IPAD` — HMAC-SHA512 K' XOR ipad (128-byte block size)     |
-| 1784   | 128  | `HMAC512_OPAD` — HMAC-SHA512 K' XOR opad                           |
-| 1912   | 64   | `HMAC512_INNER` — HMAC-SHA512 inner hash                           |
-| 1976   | —    | END                                                                |
+| 0      | 32   | `SHA256_H`, SHA-256 hash state H0..H7 (8 × u32)                   |
+| 32     | 64   | `SHA256_BLOCK`, SHA-256 block accumulator                         |
+| 96     | 256  | `SHA256_W`, SHA-256 message schedule W[0..63] (64 × u32)          |
+| 352    | 32   | `SHA256_OUT`, SHA-256 digest output                               |
+| 384    | 64   | `SHA256_INPUT`, SHA-256 user input staging (one block)            |
+| 448    | 4    | `SHA256_PARTIAL`, u32 partial block length                        |
+| 452    | 8    | `SHA256_TOTAL`, u64 total bytes hashed                            |
+| 460    | 64   | `HMAC256_IPAD`, HMAC-SHA256 K' XOR ipad                           |
+| 524    | 64   | `HMAC256_OPAD`, HMAC-SHA256 K' XOR opad                           |
+| 588    | 32   | `HMAC256_INNER`, HMAC-SHA256 inner hash                           |
+| 620    | 64   | `SHA512_H`, SHA-512 hash state H0..H7 (8 × u64)                   |
+| 684    | 128  | `SHA512_BLOCK`, SHA-512 block accumulator                         |
+| 812    | 640  | `SHA512_W`, SHA-512 message schedule W[0..79] (80 × u64)          |
+| 1452   | 64   | `SHA512_OUT`, SHA-512 digest output (SHA-384 uses first 48 bytes) |
+| 1516   | 128  | `SHA512_INPUT`, SHA-512 user input staging (one block)            |
+| 1644   | 4    | `SHA512_PARTIAL`, u32 partial block length                        |
+| 1648   | 8    | `SHA512_TOTAL`, u64 total bytes hashed                            |
+| 1656   | 128  | `HMAC512_IPAD`, HMAC-SHA512 K' XOR ipad (128-byte block size)     |
+| 1784   | 128  | `HMAC512_OPAD`, HMAC-SHA512 K' XOR opad                           |
+| 1912   | 64   | `HMAC512_INNER`, HMAC-SHA512 inner hash                           |
+| 1976   | -    | END                                                                |
 
 `wipeBuffers()` zeroes all 20 buffer regions (SHA-256 state/block/W/out/input/partial/total, HMAC-256 ipad/opad/inner, SHA-512 state/block/W/out/input/partial/total, HMAC-512 ipad/opad/inner).
 
@@ -1212,12 +1212,12 @@ Source: `src/asm/sha3/buffers.ts`
 | Offset | Size | Name                                                                        |
 | ------ | ---- | --------------------------------------------------------------------------- |
 | 0      | 200  | `KECCAK_STATE`: 25 × u64 Keccak-f[1600] lane matrix (5×5, row-major x+5y)   |
-| 200    | 4    | `KECCAK_RATE`: u32 rate in bytes (variant-specific: 72–168)                 |
+| 200    | 4    | `KECCAK_RATE`: u32 rate in bytes (variant-specific: 72-168)                 |
 | 204    | 4    | `KECCAK_ABSORBED`: u32 bytes absorbed into current block                    |
 | 208    | 1    | `KECCAK_DSBYTE`: u8 domain separation byte (0x06 for SHA-3, 0x1f for SHAKE) |
 | 209    | 168  | `KECCAK_INPUT`: input staging buffer (max rate = SHAKE128 at 168 bytes)     |
 | 377    | 168  | `KECCAK_OUT`: output buffer (one SHAKE128 squeeze block)                    |
-| 545    | —    | END                                                                         |
+| 545    | -    | END                                                                         |
 
 `wipeBuffers()` zeroes all 6 buffer regions (state, rate, absorbed, dsbyte, input, output).
 
@@ -1239,7 +1239,7 @@ Source: `src/asm/kyber/`
 | XOF/PRF buffer   | 31904  | 1024  | SHAKE squeeze output for rej_uniform / CBD              |
 | Poly accumulator | 32928  | 512   | Internal scratch for polyvec_basemul_acc                |
 
-Total mutable: 29344 bytes (4096–33440). End = 33440 < 192 KB.
+Total mutable: 29344 bytes (4096-33440). End = 33440 < 192 KB.
 
 `wipeBuffers()` zeroes all mutable regions (poly slots, polyvec slots, SEED, MSG, PK, SK, CT, CT_PRIME, XOF/PRF, accumulator). The zetas data segment is read-only and is not wiped.
 
@@ -1252,13 +1252,13 @@ ML-DSA uses i32 coefficients (FIPS 204 §2.3: q = 8380417 ≈ 2²³ does not fit
 | Region           | Offset | Size  | Purpose                                                                                                                  |
 | ---------------- | ------ | ----- | ------------------------------------------------------------------------------------------------------------------------ |
 | AS data segment  | 0      | 4096  | Zetas table (256 × i32, read-only)                                                                                       |
-| `POLY_SLOTS`     | 4096   | 8192  | `POLY_SLOT_0..7` — 8 × 1024B scratch polynomials                                                                         |
+| `POLY_SLOTS`     | 4096   | 8192  | `POLY_SLOT_0..7`, 8 × 1024B scratch polynomials                                                                         |
 | `MATRIX_SLOT`    | 12288  | 65536 | Matrix Â region, row-major; sized for ML-DSA-87 (k × ℓ = 8 × 7, rounded to 8 × 8 = 64 polys × 1024 for clean addressing) |
-| `POLYVEC_SLOTS`  | 77824  | 65536 | `POLYVEC_SLOT_0..7` — 8 × 8192B scratch polyvecs (k = 8 max)                                                             |
+| `POLYVEC_SLOTS`  | 77824  | 65536 | `POLYVEC_SLOT_0..7`, 8 × 8192B scratch polyvecs (k = 8 max)                                                             |
 | `SEED_OFFSET`    | 143360 | 128   | `H(ξ ‖ k ‖ ℓ, 128)` lands here: ρ(32) ‖ ρ′(64) ‖ K(32)                                                                   |
 | `TR_OFFSET`      | 143488 | 64    | tr = H(pk, 64), public-key digest cached in sk for signing                                                               |
-| `MSG_REP_OFFSET` | 143552 | 64    | μ — message representative (FIPS 204 §6.2 / Appendix D.1)                                                                |
-| `C_TILDE_OFFSET` | 143616 | 64    | c̃ — signature commitment hash (≤ λ/4 max = 64 for λ=256)                                                                |
+| `MSG_REP_OFFSET` | 143552 | 64    | μ, message representative (FIPS 204 §6.2 / Appendix D.1)                                                                |
+| `C_TILDE_OFFSET` | 143616 | 64    | c̃, signature commitment hash (≤ λ/4 max = 64 for λ=256)                                                                |
 | _(reserved)_     | 143680 | 64    | alignment / reserved                                                                                                     |
 | `PK_OFFSET`      | 143744 | 2624  | Public key (≥ 2592 for ML-DSA-87)                                                                                        |
 | `SK_OFFSET`      | 146368 | 4928  | Signing key (≥ 4896 for ML-DSA-87)                                                                                       |
@@ -1322,17 +1322,17 @@ Three layers compose the library's constant-time posture: primitive algorithm ch
 
 ### TS-layer routing
 
-**Every secret-data equality check in TypeScript routes through `constantTimeEqual`** from `src/ts/utils.ts`. That function is a thin wrapper over a dedicated SIMD WASM module (`src/asm/ct/`) that does branch-free v128 XOR-accumulate. There is no JavaScript fallback — runtimes without SIMD support throw at init. The routing rule is library-wide: AEAD tag verification (AES-GCM, AES-GCM-SIV, ChaCha20-Poly1305, XChaCha20-Poly1305), HMAC verification (Serpent's Encrypt-then-MAC), seal-layer key commitment, ML-DSA's c̃ comparison, and ML-KEM's public-key hash check all use the central path. The policy is enforced by comments at every call site (e.g. "no tag compare lives inside the AES module itself — this is library-wide policy for atomic AEADs") so the rule stays visible at the point of enforcement.
+**Every secret-data equality check in TypeScript routes through `constantTimeEqual`** from `src/ts/utils.ts`. That function is a thin wrapper over a dedicated SIMD WASM module (`src/asm/ct/`) that does branch-free v128 XOR-accumulate. There is no JavaScript fallback, runtimes without SIMD support throw at init. The routing rule is library-wide: AEAD tag verification (AES-GCM, AES-GCM-SIV, ChaCha20-Poly1305, XChaCha20-Poly1305), HMAC verification (Serpent's Encrypt-then-MAC), seal-layer key commitment, ML-DSA's c̃ comparison, and ML-KEM's public-key hash check all use the central path. The policy is enforced by comments at every call site (e.g. "no tag compare lives inside the AES module itself, this is library-wide policy for atomic AEADs") so the rule stays visible at the point of enforcement.
 
 ### Documented exceptions
 
 Three primitives branch on secret-derived intermediate values. Each is documented at the source with rationale tied to a published spec section.
 
-**GHASH / POLYVAL 4-bit-windowed multiply** — `src/asm/aes/gf128.ts`. The AES-GCM and AES-GCM-SIV authentication backends use a 256-byte 4-bit-windowed multiplication table indexed by secret-derived state. This is the same posture as BoringSSL, OpenSSL, and RustCrypto on hardware without PCLMULQDQ. WebAssembly does not currently expose carry-less multiply, so a fully table-free GHASH or POLYVAL is not implementable in this environment without unacceptable throughput cost. The library documents the leak surface, mitigates it with per-message authentication keys (the POLYVAL key in AES-GCM-SIV derives per nonce from the master, not fixed across the session), and recommends the AEAD `seal` family over the lower-level `AESGCM` primitive.
+**GHASH / POLYVAL 4-bit-windowed multiply.** `src/asm/aes/gf128.ts`. The AES-GCM and AES-GCM-SIV authentication backends use a 256-byte 4-bit-windowed multiplication table indexed by secret-derived state. This is the same posture as BoringSSL, OpenSSL, and RustCrypto on hardware without PCLMULQDQ. WebAssembly does not currently expose carry-less multiply, so a fully table-free GHASH or POLYVAL is not implementable in this environment without unacceptable throughput cost. The library documents the leak surface, mitigates it with per-message authentication keys (the POLYVAL key in AES-GCM-SIV derives per nonce from the master, not fixed across the session), and recommends the AEAD `seal` family over the lower-level `AESGCM` primitive.
 
-**ML-DSA `decompose` special-case branch** — `src/asm/mldsa/rounding.ts`. FIPS 204 Algorithm 36 line 3 takes a special-case branch when `a − r0 = q − 1`. The leak is the same statistical signal an attacker already gets from the SHAKE-driven rejection-restart loop in Algorithm 7 signing — each restart changes the SHAKE output and the iteration count is observable through coarser timing channels regardless. Documented per FIPS 204 §3.6.3.
+**ML-DSA `decompose` special-case branch.** `src/asm/mldsa/rounding.ts`. FIPS 204 Algorithm 36 line 3 takes a special-case branch when `a − r0 = q − 1`. The leak is the same statistical signal an attacker already gets from the SHAKE-driven rejection-restart loop in Algorithm 7 signing, each restart changes the SHAKE output and the iteration count is observable through coarser timing channels regardless. Documented per FIPS 204 §3.6.3.
 
-**ML-DSA `poly_chknorm` early-exit** — `src/asm/mldsa/poly.ts`. The norm check (`‖z‖∞ < γ1 − β`, etc., per FIPS 204 §2.3) early-exits on the first coefficient that violates the bound. The leaked iteration count is the same signal already exposed by the rejection-restart pattern in signing — total signing time is observable regardless. Documented per FIPS 204 §2.3 and §3.6.3.
+**ML-DSA `poly_chknorm` early-exit.** `src/asm/mldsa/poly.ts`. The norm check (`‖z‖∞ < γ1 − β`, etc., per FIPS 204 §2.3) early-exits on the first coefficient that violates the bound. The leaked iteration count is the same signal already exposed by the rejection-restart pattern in signing, total signing time is observable regardless. Documented per FIPS 204 §2.3 and §3.6.3.
 
 Neither ML-DSA exception is key-revealing. Both reveal statistical patterns the attacker already gets through coarser timing channels intrinsic to the rejection-sampling design.
 

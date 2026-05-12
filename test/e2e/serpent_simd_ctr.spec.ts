@@ -48,7 +48,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const { label, key, nonce, pt, ct } of CTR_VECTORS) {
-	test(`SIMD CTR — Case ${label}`, async ({ page }) => {
+	test(`SIMD CTR, Case ${label}`, async ({ page }) => {
 		const result: string = await page.evaluate(async ({ key, nonce, pt }) => {
 			const wasm = await loadWasm();
 			const mem  = new Uint8Array(wasm.memory.buffer);

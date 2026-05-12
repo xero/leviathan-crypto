@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA-256 Known-Answer Tests (cross-browser) — FIPS 180-4
+ * SHA-256 Known-Answer Tests (cross-browser), FIPS 180-4
  *
  * Source: FIPS 180-4 (SHA Standard), Appendix B
  * Files:  vectors/sha2.ts (sha256Vectors)
@@ -55,7 +55,7 @@ test.beforeEach(async ({ page }) => {
 
 // ── Gate 3: SHA-256 empty message ──────────────────────────────────────────
 
-test('Gate 3 — SHA-256 empty message', async ({ page }) => {
+test('Gate 3, SHA-256 empty message', async ({ page }) => {
 	const expected = sha256Vectors[0].expected;
 	const result = await page.evaluate(async () => {
 		const wasm = await loadWasm();

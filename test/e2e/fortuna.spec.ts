@@ -27,8 +27,8 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('Fortuna — e2e', () => {
-	// T1 — All four (generator, hash) pair combinations smoke-test on real
+test.describe('Fortuna, e2e', () => {
+	// T1, All four (generator, hash) pair combinations smoke-test on real
 	// browser SIMD. Each pair requires only its own WASM modules:
 	//   SerpentGenerator + SHA256Hash   → serpent + sha2
 	//   SerpentGenerator + SHA3_256Hash → serpent + sha3
@@ -69,7 +69,7 @@ test.describe('Fortuna — e2e', () => {
 		}
 	});
 
-	// T2 — DOM entropy collectors actually fire on real browser events.
+	// T2, DOM entropy collectors actually fire on real browser events.
 	// Stash the Fortuna instance on window so synthetic events between
 	// page.evaluate calls feed the same instance.
 	test('DOM entropy collectors increase getEntropy()', async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('Fortuna — e2e', () => {
 		expect(after).toBeGreaterThan(baseline);
 	});
 
-	// T3 — stop() actually detaches listeners. We can't directly count
+	// T3, stop() actually detaches listeners. We can't directly count
 	// listeners from page.evaluate, so we verify via the disposed-error
 	// contract: any post-stop method call throws.
 	test('stop() removes listeners (post-stop methods throw disposed error)', async ({ page }) => {
@@ -152,7 +152,7 @@ test.describe('Fortuna — e2e', () => {
 		for (const msg of result) expect(msg).toMatch(/Fortuna instance has been disposed/);
 	});
 
-	// T4 — Coexistence with SerpentCtr. Browser replay of the unit-test
+	// T4, Coexistence with SerpentCtr. Browser replay of the unit-test
 	// scenario: a live SerpentCtr blocks Fortuna.get() via the exclusivity
 	// guard; disposing the ctr restores normal operation. Validates the
 	// guard works under real-browser SIMD.
@@ -186,7 +186,7 @@ test.describe('Fortuna — e2e', () => {
 		expect(result.afterLen).toBe(32);
 	});
 
-	// T5 — Optional `entropy` argument is plumbed through the dist build.
+	// T5, Optional `entropy` argument is plumbed through the dist build.
 	test('external entropy seed argument', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);

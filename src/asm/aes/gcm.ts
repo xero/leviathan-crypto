@@ -49,7 +49,7 @@
 //        Absorb 'len' bytes of CT into GHASH, advance ctLen. Used by the
 //        open direction's verify-before-decrypt pass.
 //   gcmDecryptChunk(srcOff, dstOff, len)  → 0 on success, -1 on len < 0
-//        Run GCTR src→dst (no GHASH absorption — already done). Counter
+//        Run GCTR src→dst (no GHASH absorption, already done). Counter
 //        must be re-initialised by gcmResetCtrToJ0Plus1() before the
 //        first call after gcmFinalize.
 //   gcmFinalize()
@@ -128,7 +128,7 @@ import {
 }
 
 /**
- * Load J0 into GCM_CB and increment the last 4 bytes by 1 BE — i.e.
+ * Load J0 into GCM_CB and increment the last 4 bytes by 1 BE, i.e.
  * GCM_CB := inc_32(J0). Subsequent inc32 calls advance from there.
  */
 @inline function initCtrToJ0Plus1(): void {
@@ -329,7 +329,7 @@ export function gcmEncryptChunk(srcOff: i32, dstOff: i32, len: i32): i32 {
 
 /**
  * Absorb `len` bytes of ciphertext from srcOff into GHASH and advance
- * ctBitLen — but do NOT decrypt. Used by the open direction's
+ * ctBitLen, but do NOT decrypt. Used by the open direction's
  * verify-before-decrypt pass.
  */
 export function gcmAbsorbCtChunk(srcOff: i32, len: i32): i32 {
@@ -346,7 +346,7 @@ export function gcmAbsorbCtChunk(srcOff: i32, len: i32): i32 {
 }
 
 /**
- * Run GCTR src→dst for `len` bytes — no GHASH absorption. Used by the
+ * Run GCTR src→dst for `len` bytes, no GHASH absorption. Used by the
  * open direction's post-tag-verify decrypt phase. Caller must have already
  * called gcmResetCtrToJ0Plus1() since gcmFinalize between the two phases.
  *

@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Monte Carlo ECB tests — Serpent AES submission
+ * Monte Carlo ECB tests, Serpent AES submission
  *
  * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
  * Files:  vectors/serpent_ecb_e_m.txt (encrypt, 1,200 outer × 10,000 inner)
@@ -76,7 +76,7 @@ function runDecryptLoop(
 	return { pt9999: mem.slice(ptOff, ptOff + 16) };
 }
 
-describe('ECB Monte Carlo — serpent_ecb_e_m.txt', () => {
+describe('ECB Monte Carlo, serpent_ecb_e_m.txt', () => {
 	const vectors = parseMcEcbEncryptFile('serpent_ecb_e_m.txt');
 
 	it('parses 1200 vectors (400 per key size)', () => {
@@ -95,7 +95,7 @@ describe('ECB Monte Carlo — serpent_ecb_e_m.txt', () => {
 	});
 });
 
-describe('ECB Monte Carlo — serpent_ecb_d_m.txt', () => {
+describe('ECB Monte Carlo, serpent_ecb_d_m.txt', () => {
 	const vectors = parseMcEcbDecryptFile('serpent_ecb_d_m.txt');
 
 	it('parses 1200 vectors (400 per key size)', () => {

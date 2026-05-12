@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// constant-time byte array comparison — SIMD (v128)
+// constant-time byte array comparison, SIMD (v128)
 //
 // returns 1 if equal, 0 if not.
 // caller writes both arrays into linear memory before calling.

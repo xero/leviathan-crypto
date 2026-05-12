@@ -41,11 +41,11 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm });
 });
 
-describe('ChaCha20 — RFC 8439 vectors', () => {
+describe('ChaCha20, RFC 8439 vectors', () => {
 
 	// GATE: ChaCha20 block function: RFC 8439 §2.2.1
 	// Vector: chacha20.ts[chacha20BlockVectors[0]]
-	it('block function — RFC 8439 §2.2.1 (counter=1)', () => {
+	it('block function, RFC 8439 §2.2.1 (counter=1)', () => {
 		const v = chacha20BlockVectors[0];
 		const chacha = new ChaCha20();
 		const key    = fromHex(v.key);
@@ -60,8 +60,8 @@ describe('ChaCha20 — RFC 8439 vectors', () => {
 		chacha.dispose();
 	});
 
-	// RFC 8439 §2.4.2 — full encryption test vector (114 bytes)
-	it('encryption — RFC 8439 §2.4.2 (114 bytes)', () => {
+	// RFC 8439 §2.4.2, full encryption test vector (114 bytes)
+	it('encryption, RFC 8439 §2.4.2 (114 bytes)', () => {
 		const v = chacha20EncryptionVectors[0];
 		const chacha = new ChaCha20();
 		const key    = fromHex(v.key);

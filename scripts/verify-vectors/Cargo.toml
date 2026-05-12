@@ -71,7 +71,7 @@ ml-dsa           = { version = "=0.1.0-rc.9", default-features = false, features
 # rand_core 0.10 traits: needed to implement a deterministic CryptoRng
 # that returns ACVP-supplied rnd bytes for ml-dsa's sign_mu_randomized.
 rand_core        = { version = "=0.10.1", default-features = false }
-# hybrid-array 0.4 — provides the typed-array form (`Array<u8, U64>`) that
+# hybrid-array 0.4, provides the typed-array form (`Array<u8, U64>`) that
 # ml-dsa uses for B32 / B64. ml-dsa exposes B32 publicly but B64 is
 # `pub(crate)`; we construct the equivalent `Array<u8, U64>` value from a
 # fixed [u8; 64] for the externalMu sigGen / sigVer paths.
@@ -94,7 +94,7 @@ sha3             = { version = "=0.11.0", default-features = false }
 # preference: RustCrypto's `kmac` crate is a 0.0.0 placeholder, and the
 # pinned `sha3 = "=0.11.0"` does not expose `CShake`. tiny-keccak
 # implements both KMAC and cSHAKE in one crate over its own
-# Keccak[1600] permutation — a separate lineage from RustCrypto's
+# Keccak[1600] permutation, a separate lineage from RustCrypto's
 # `sha3`, which keeps the "independent of leviathan-crypto's WASM
 # stack" claim intact for the SP 800-185 corpus.
 tiny-keccak      = { version = "=2.0.2",  default-features = false, features = ["cshake", "kmac"] }

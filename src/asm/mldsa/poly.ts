@@ -21,7 +21,7 @@
 //
 // src/asm/mldsa/poly.ts
 //
-// ML-DSA — scalar polynomial arithmetic in R_q and T_q.
+// ML-DSA, scalar polynomial arithmetic in R_q and T_q.
 // FIPS 204 §7.6 (AddNTT, MultiplyNTT) and the supporting reduce / freeze / norm
 // primitives needed by KeyGen_internal, Sign_internal, Verify_internal.
 //
@@ -40,7 +40,7 @@
 import { Q, N } from './params';
 import { barrett_reduce, montgomery_reduce } from './reduce';
 
-// ── poly_add — FIPS 204 Algorithm 44 (AddNTT, coefficient-wise) ─────────────
+// ── poly_add, FIPS 204 Algorithm 44 (AddNTT, coefficient-wise) ─────────────
 // No reduction. r[i] = a[i] + b[i] in i32.
 export function poly_add(rOff: i32, aOff: i32, bOff: i32): void {
 	for (let i: i32 = 0; i < N; i++) {
@@ -49,7 +49,7 @@ export function poly_add(rOff: i32, aOff: i32, bOff: i32): void {
 	}
 }
 
-// ── poly_sub — coefficient-wise subtraction ─────────────────────────────────
+// ── poly_sub, coefficient-wise subtraction ─────────────────────────────────
 // No reduction. r[i] = a[i] - b[i] in i32.
 export function poly_sub(rOff: i32, aOff: i32, bOff: i32): void {
 	for (let i: i32 = 0; i < N; i++) {
@@ -58,7 +58,7 @@ export function poly_sub(rOff: i32, aOff: i32, bOff: i32): void {
 	}
 }
 
-// ── poly_reduce — apply Barrett (centered) to each coefficient ──────────────
+// ── poly_reduce, apply Barrett (centered) to each coefficient ──────────────
 // Each coefficient → mod± q in [-(q-1)/2, (q-1)/2] (FIPS 204 §2.3).
 export function poly_reduce(polyOff: i32): void {
 	for (let i: i32 = 0; i < N; i++) {
@@ -66,7 +66,7 @@ export function poly_reduce(polyOff: i32): void {
 	}
 }
 
-// ── poly_caddq — conditional add q ──────────────────────────────────────────
+// ── poly_caddq, conditional add q ──────────────────────────────────────────
 // Maps any coefficient in [-q+1, q-1] back to [0, q-1] by adding q to negatives.
 // Branch-free via sign-bit mask. Used pre-encoding (pkEncode, sigEncode etc.).
 export function poly_caddq(polyOff: i32): void {
@@ -77,14 +77,14 @@ export function poly_caddq(polyOff: i32): void {
 	}
 }
 
-// ── poly_freeze — full canonical-residue reduction ──────────────────────────
+// ── poly_freeze, full canonical-residue reduction ──────────────────────────
 // reduce → caddq. After this every coefficient lies in [0, q-1].
 export function poly_freeze(polyOff: i32): void {
 	poly_reduce(polyOff);
 	poly_caddq(polyOff);
 }
 
-// ── poly_pointwise_montgomery — FIPS 204 Algorithm 45 (MultiplyNTT) ─────────
+// ── poly_pointwise_montgomery, FIPS 204 Algorithm 45 (MultiplyNTT) ─────────
 // Coefficient-wise c[i] = MontgomeryReduce(a[i] · b[i]) ≡ a[i]·b[i]·2^-32 (mod q).
 // The 2^-32 factor matches the Montgomery convention used by the NTT path:
 // when one input is in Montgomery form (×2^32), the closing reduce produces
@@ -98,12 +98,12 @@ export function poly_pointwise_montgomery(rOff: i32, aOff: i32, bOff: i32): void
 	}
 }
 
-// ── poly_tomont — convert each coefficient to Montgomery form ───────────────
+// ── poly_tomont, convert each coefficient to Montgomery form ───────────────
 // p[i] ← p[i] · R mod q, where R = 2³². Implemented as
 //   p[i] ← MontgomeryReduce(p[i] · MONT_R_SQ),  MONT_R_SQ = R² mod q.
 //
 // MONT_R_SQ derivation: R = 2³² ≡ 4193792 (mod q). R² mod q = 2365951
-// (FIPS 204 §2.3 / Appendix A — same constant the Dilithium reference
+// (FIPS 204 §2.3 / Appendix A, same constant the Dilithium reference
 // names MONTSQ). Verified once via BigInt at the keygen-gate level
 // (test/unit/mldsa/mldsa.test.ts) when ACVP keygen vectors round-trip.
 //
@@ -121,13 +121,13 @@ export function poly_tomont(polyOff: i32): void {
 	}
 }
 
-// ── poly_chknorm — return 1 iff some |w_i| ≥ bound, else 0 ──────────────────
+// ── poly_chknorm, return 1 iff some |w_i| ≥ bound, else 0 ──────────────────
 // Implements the ||w||∞ < bound test of FIPS 204 §2.3 over i32 coefficients
 // already reduced to centered residues (mod± q). The early-exit on the first
 // over-bound coefficient is data-dependent on input, but the leak is the same
-// already-observable rejection-restart pattern — see file header.
+// already-observable rejection-restart pattern, see file header.
 //
-// Used by the rejection branches at Alg 7 lines 21–25: ||z||∞ < γ1−β,
+// Used by the rejection branches at Alg 7 lines 21-25: ||z||∞ < γ1−β,
 // ||r0||∞ < γ2−β, ||ct0||∞ < γ2.
 export function poly_chknorm(polyOff: i32, bound: i32): i32 {
 	for (let i: i32 = 0; i < N; i++) {

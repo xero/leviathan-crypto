@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * ML-DSA ACVP validation suite — FIPS 204 keyGen / sigGen / sigVer.
+ * ML-DSA ACVP validation suite, FIPS 204 keyGen / sigGen / sigVer.
  *
  * Source: NIST ACVP ML-DSA-{keyGen,sigGen,sigVer}-FIPS204
  * Vectors: test/vectors/mldsa_{keygen,siggen,sigver}.ts
@@ -70,11 +70,11 @@ beforeAll(async () => {
 	await init({ mldsa: mldsaBytes, sha3: sha3Bytes });
 });
 
-// ── Gate 0 — init system wiring ────────────────────────────────────────────
+// ── Gate 0, init system wiring ────────────────────────────────────────────
 // GATE: ML-DSA init: init({ mldsa, sha3 }) registers both modules and the
 // class constructors succeed.
 
-describe('Gate 0 — init system wiring', () => {
+describe('Gate 0, init system wiring', () => {
 	it('mldsa module initialized', () => {
 		expect(isInitialized('mldsa')).toBe(true);
 	});
@@ -105,11 +105,11 @@ describe('Gate 0 — init system wiring', () => {
 	});
 });
 
-// ── Gate 1 — keyGen ML-DSA-44 first ACVP vector ────────────────────────────
+// ── Gate 1, keyGen ML-DSA-44 first ACVP vector ────────────────────────────
 // GATE: ML-DSA keyGen ML-DSA-44 first ACVP test (single-vector smoke).
 // Vector: test/vectors/mldsa_keygen.ts → ml_dsa_44_keygen[0].
 
-describe('Gate 1 — keyGen ML-DSA-44 first ACVP vector', () => {
+describe('Gate 1, keyGen ML-DSA-44 first ACVP vector', () => {
 	it('byte-identical pk and sk for tcId=1', () => {
 		const v = ml_dsa_44_keygen[0];
 		const xi = hexToBytes(v.seed);
@@ -124,7 +124,7 @@ describe('Gate 1 — keyGen ML-DSA-44 first ACVP vector', () => {
 	});
 });
 
-// ── Gate 2 — keyGen all parameter sets, all ACVP vectors ───────────────────
+// ── Gate 2, keyGen all parameter sets, all ACVP vectors ───────────────────
 // GATE: ML-DSA keyGen full ACVP corpus across 44/65/87.
 
 interface KeyGenVector { tcId: number; seed: string; pk: string; sk: string }
@@ -152,7 +152,7 @@ function runAcvpKeygenSuite(
 	});
 }
 
-describe('Gate 2 — keyGen all ACVP vectors', () => {
+describe('Gate 2, keyGen all ACVP vectors', () => {
 	runAcvpKeygenSuite('ML-DSA-44', () => new MlDsa44(), ml_dsa_44_keygen, MLDSA44);
 	runAcvpKeygenSuite('ML-DSA-65', () => new MlDsa65(), ml_dsa_65_keygen, MLDSA65);
 	runAcvpKeygenSuite('ML-DSA-87', () => new MlDsa87(), ml_dsa_87_keygen, MLDSA87);
@@ -173,10 +173,10 @@ function makeDsa(paramSet: string): MlDsa44 | MlDsa65 | MlDsa87 {
 	throw new Error(`unknown parameterSet: ${paramSet}`);
 }
 
-// ── Gate 3 — Sign deterministic ML-DSA-44 first ACVP vector ────────────────
+// ── Gate 3, Sign deterministic ML-DSA-44 first ACVP vector ────────────────
 // GATE: ML-DSA Sign first ACVP test (deterministic, external, pure).
 
-describe('Gate 3 — Sign ML-DSA-44 first ACVP vector', () => {
+describe('Gate 3, Sign ML-DSA-44 first ACVP vector', () => {
 	it('byte-identical signature for first deterministic external/pure vector', () => {
 		const v = ml_dsa_44_siggen.find(phase5SigGenFilter);
 		if (!v || !v.deterministic) throw new Error('no det external/pure vector found');
@@ -194,7 +194,7 @@ describe('Gate 3 — Sign ML-DSA-44 first ACVP vector', () => {
 	});
 });
 
-// ── Gate 4 — Sign all parameter sets, all phase-5 ACVP sigGen vectors ──────
+// ── Gate 4, Sign all parameter sets, all phase-5 ACVP sigGen vectors ──────
 // GATE: ML-DSA sigGen full ACVP corpus (external/pure subset) across 44/65/87,
 // driving signDeterministic for det=true and signDerand for det=false.
 
@@ -219,16 +219,16 @@ function runAcvpSigGenSuite(name: string, vectors: SigGenVector[], params: MlDsa
 	});
 }
 
-describe('Gate 4 — sigGen all phase-5 ACVP vectors', () => {
+describe('Gate 4, sigGen all phase-5 ACVP vectors', () => {
 	runAcvpSigGenSuite('ML-DSA-44', ml_dsa_44_siggen, MLDSA44);
 	runAcvpSigGenSuite('ML-DSA-65', ml_dsa_65_siggen, MLDSA65);
 	runAcvpSigGenSuite('ML-DSA-87', ml_dsa_87_siggen, MLDSA87);
 });
 
-// ── Gate 5 — Verify ML-DSA-44 first ACVP vector ────────────────────────────
+// ── Gate 5, Verify ML-DSA-44 first ACVP vector ────────────────────────────
 // GATE: ML-DSA Verify first ACVP test.
 
-describe('Gate 5 — Verify ML-DSA-44 first ACVP vector', () => {
+describe('Gate 5, Verify ML-DSA-44 first ACVP vector', () => {
 	it('verify returns testPassed for the first phase-5 sigVer vector', () => {
 		const v = ml_dsa_44_sigver.find(phase5SigVerFilter);
 		if (!v) throw new Error('no external/pure sigVer vector found');
@@ -245,7 +245,7 @@ describe('Gate 5 — Verify ML-DSA-44 first ACVP vector', () => {
 	});
 });
 
-// ── Gate 6 — Verify all parameter sets, all phase-5 ACVP sigVer vectors ────
+// ── Gate 6, Verify all parameter sets, all phase-5 ACVP sigVer vectors ────
 // GATE: ML-DSA sigVer full ACVP corpus (external/pure subset). Includes both
 // expected-pass and known-fail cases; verify must return v.testPassed.
 
@@ -267,16 +267,16 @@ function runAcvpSigVerSuite(name: string, vectors: SigVerVector[]): void {
 	});
 }
 
-describe('Gate 6 — sigVer all phase-5 ACVP vectors', () => {
+describe('Gate 6, sigVer all phase-5 ACVP vectors', () => {
 	runAcvpSigVerSuite('ML-DSA-44', ml_dsa_44_sigver);
 	runAcvpSigVerSuite('ML-DSA-65', ml_dsa_65_sigver);
 	runAcvpSigVerSuite('ML-DSA-87', ml_dsa_87_sigver);
 });
 
-// ── Gate 7 — Round-trip keygen → sign → verify ─────────────────────────────
+// ── Gate 7, Round-trip keygen → sign → verify ─────────────────────────────
 // GATE: end-to-end coherence with hedged sign across all parameter sets.
 
-describe('Gate 7 — Round-trip keygen → sign → verify', () => {
+describe('Gate 7, Round-trip keygen → sign → verify', () => {
 	const cases = [
 		{ name: 'ML-DSA-44', make: () => new MlDsa44() },
 		{ name: 'ML-DSA-65', make: () => new MlDsa65() },

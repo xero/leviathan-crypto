@@ -27,7 +27,7 @@ When you call [`init()`](./init.md), it delegates the work of obtaining and comp
 
 **Response / Promise\<Response\>.** Streaming compilation from an in-flight or deferred fetch.
 
-**Any other thenable (`PromiseLike<WasmSource>`).** The loader `await`s the thenable and recursively re-dispatches by the runtime type of the resolved value. `Promise<ArrayBuffer>`, `Promise<Uint8Array>`, `Promise<string>` (gzip+base64 blob), and even nested `Promise<Promise<Response>>` all work. Nesting is capped at depth 3 — deeper chains throw a `TypeError: thenable nesting too deep (max 3)`.
+**Any other thenable (`PromiseLike<WasmSource>`).** The loader `await`s the thenable and recursively re-dispatches by the runtime type of the resolved value. `Promise<ArrayBuffer>`, `Promise<Uint8Array>`, `Promise<string>` (gzip+base64 blob), and even nested `Promise<Promise<Response>>` all work. Nesting is capped at depth 3, deeper chains throw a `TypeError: thenable nesting too deep (max 3)`.
 
 All strategies produce the same result: a `WebAssembly.Instance` that the wrapper classes use to perform cryptographic operations.
 

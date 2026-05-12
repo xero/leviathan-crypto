@@ -28,7 +28,7 @@
  *
  * v3 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
  * authentication is collision-resistant under SHA-256, which is
- * key-committing — no separate commitment is needed in the preamble.
+ * key-committing, no separate commitment is needed in the preamble.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, hexToBytes, bytesToHex } from '../../../src/ts/index.js';

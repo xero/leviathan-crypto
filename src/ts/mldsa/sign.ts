@@ -21,7 +21,7 @@
 //
 // src/ts/mldsa/sign.ts
 //
-// FIPS 204 §6.2 Algorithm 7 — ML-DSA.Sign_internal.
+// FIPS 204 §6.2 Algorithm 7, ML-DSA.Sign_internal.
 // Drives the rejection-sampling loop. Each iteration produces a candidate
 // (z, h); when all four norm/popcount checks pass the signature is encoded
 // and returned. Implementation is hardened against the four ways an
@@ -39,14 +39,14 @@
 //   POLYVEC_SLOT_3  y_time → ⟨cs₂⟩ → r₀ → ⟨ct₀⟩ → h
 //   POLYVEC_SLOT_4  y_ntt → w₁ → ⟨cs₁⟩ → z
 //   POLYVEC_SLOT_5  w_ntt → w_time → (w − ⟨cs₂⟩)
-//   POLY_SLOT_0     signs (8 bytes — sample_in_ball signsOff)
+//   POLY_SLOT_0     signs (8 bytes, sample_in_ball signsOff)
 //   POLY_SLOT_1     c (then ĉ in NTT domain, persistent within iteration)
 //   POLY_SLOT_7     reserved scratch for polyvec_pointwise_acc_montgomery
 //
 // XOF/PRF region carries ExpandMask SHAKE squeeze, w1Encode bytes, and
-// SampleInBall position bytes — all single-use within an iteration.
+// SampleInBall position bytes, all single-use within an iteration.
 //
-// CT POSTURE — rejection-sampling loop branches:
+// CT POSTURE, rejection-sampling loop branches:
 //   The four reject conditions (‖z‖∞, ‖r₀‖∞, ‖⟨ct₀⟩‖∞, popcount(h)) are
 //   data-dependent on secret-derived intermediates. Each `continue` reveals
 //   that this iteration's candidate was out-of-bound, which is the same
@@ -66,14 +66,14 @@ const D            = 13;
 const Q            = 8380417;
 const SHAKE256_RATE = 136;
 
-// Per FIPS 204 Appendix C, expected iterations are 4–7 across parameter
+// Per FIPS 204 Appendix C, expected iterations are 4-7 across parameter
 // sets (geometric distribution with success probability p ≈ 1/expected ≈
-// 0.20–0.26). Spec minimum bound for implementations that choose to
+// 0.20-0.26). Spec minimum bound for implementations that choose to
 // bound: 814.
 //
 // 1000 gives a nominal 20% headroom over the spec minimum, but the actual
 // safety margin is far larger: Pr[fail within 1000 iterations] = (1-p)^1000
-// ≈ 10⁻⁹⁴ to 10⁻¹³¹ across parameter sets — many orders of magnitude past
+// ≈ 10⁻⁹⁴ to 10⁻¹³¹ across parameter sets, many orders of magnitude past
 // any cryptographic threshold (compare 2⁻¹²⁸ ≈ 10⁻³⁹). The bound exists
 // for liveness (deterministic failure on pathological inputs) rather than
 // as a probability tail-cut; liboqs and the pq-crystals reference make
@@ -95,15 +95,15 @@ function bitlen(n: number): number {
 }
 
 /**
- * ML-DSA.Sign_internal — FIPS 204 Algorithm 7.
+ * ML-DSA.Sign_internal, FIPS 204 Algorithm 7.
  *
  * Inputs:
- *   sk     — encoded signing key (skBytes per parameter set)
- *   MPrime — domain-separated message bytes (caller-built via constructMPrime)
- *   rnd    — 32-byte randomness (random for hedged, all-zero for deterministic,
+ *   sk    , encoded signing key (skBytes per parameter set)
+ *   MPrime, domain-separated message bytes (caller-built via constructMPrime)
+ *   rnd   , 32-byte randomness (random for hedged, all-zero for deterministic,
  *            caller-supplied for derand/CAVP)
  *
- * Output: σ (sigBytes) — encoded per Algorithm 26 (sigEncode).
+ * Output: σ (sigBytes), encoded per Algorithm 26 (sigEncode).
  *
  * Wipe contract: every WASM region that held a secret or secret-derived
  * intermediate is zeroed before return. TS-side scratch (μ, ρ'', c̃, the
@@ -155,21 +155,21 @@ export function mldsaSignInternal(
 	const sha3Mem  = new Uint8Array(sx.memory.buffer);
 	const sha3OutOff = sx.getOutOffset();
 
-	// ── TS-side sensitive buffers — wiped in finally ─────────────────────
+	// ── TS-side sensitive buffers, wiped in finally ─────────────────────
 	let mu:     Uint8Array | undefined;
 	let rhoPP:  Uint8Array | undefined;
 	let cTilde: Uint8Array | undefined;
 	let w1Bytes: Uint8Array | undefined;
 
 	try {
-		// ── skDecode — FIPS 204 §7.2 Algorithm 25 ────────────────────────
+		// ── skDecode, FIPS 204 §7.2 Algorithm 25 ────────────────────────
 		// sk = ρ ‖ K ‖ tr ‖ s₁ ‖ s₂ ‖ t₀  (offsets per Algorithm 24).
 		const rho = sk.subarray(0,    32);
 		const K   = sk.subarray(32,   64);
 		const tr  = sk.subarray(64,  128);
 		let off = 128;
 
-		// s₁ — ℓ polynomials, BitUnpack(η, η) per Alg 25 line 4
+		// s₁, ℓ polynomials, BitUnpack(η, η) per Alg 25 line 4
 		for (let r = 0; r < l; r++) {
 			mlMem.set(sk.subarray(off, off + etaPolyBytes), xofOff);
 			mx.bit_unpack(slot0 + r * POLY_BYTES, xofOff, eta, eta);
@@ -178,10 +178,10 @@ export function mldsaSignInternal(
 		// FIPS 204 §7.2 / Alg 25 line 5: s₁ coefficients must lie in [-η, η].
 		// bit_unpack at width bitlen(2η) overshoots that range for η ∈ {2,4}
 		// (η=2 yields [-5, 2]; η=4 yields [-11, 4]) when sk bytes are tampered
-		// or corrupted — reject before producing a wrong signature.
+		// or corrupted, reject before producing a wrong signature.
 		if (mx.polyvec_chknorm(slot0, eta + 1, l) !== 0)
 			throw new RangeError('leviathan-crypto: signing key s₁ coefficient out of [-η, η]');
-		// s₂ — k polynomials, BitUnpack(η, η)
+		// s₂, k polynomials, BitUnpack(η, η)
 		for (let r = 0; r < k; r++) {
 			mlMem.set(sk.subarray(off, off + etaPolyBytes), xofOff);
 			mx.bit_unpack(slot1 + r * POLY_BYTES, xofOff, eta, eta);
@@ -189,20 +189,20 @@ export function mldsaSignInternal(
 		}
 		if (mx.polyvec_chknorm(slot1, eta + 1, k) !== 0)
 			throw new RangeError('leviathan-crypto: signing key s₂ coefficient out of [-η, η]');
-		// t₀ — k polynomials, BitUnpack(2^(d-1)-1, 2^(d-1)) — Alg 25 line 6
+		// t₀, k polynomials, BitUnpack(2^(d-1)-1, 2^(d-1)), Alg 25 line 6
 		// bit_unpack(2^(d-1)-1, 2^(d-1)) decodes exactly to [-(2^(d-1)-1), 2^(d-1)]
-		// which matches the spec range — no caddq-style range check needed.
+		// which matches the spec range, no caddq-style range check needed.
 		for (let r = 0; r < k; r++) {
 			mlMem.set(sk.subarray(off, off + t0PolyBytes), xofOff);
 			mx.bit_unpack(slot2 + r * POLY_BYTES, xofOff, t0LowEdge, t0HighEdge);
 			off += t0PolyBytes;
 		}
 
-		// ── FIPS 204 Alg 7 lines 2–5: ŝ₁ ← NTT(s₁); ŝ₂ ← NTT(s₂);
+		// ── FIPS 204 Alg 7 lines 2-5: ŝ₁ ← NTT(s₁); ŝ₂ ← NTT(s₂);
 		//                             t̂₀ ← NTT(t₀); Â ← ExpandA(ρ) ────
 		// Each NTT'd polyvec is then tomont'd so subsequent
 		// poly_pointwise_montgomery products with a regular-form ĉ yield
-		// regular (non-Montgomery) results — matches the keygen tomont
+		// regular (non-Montgomery) results, matches the keygen tomont
 		// pattern (src/ts/mldsa/keygen.ts step 4 (c)). Without tomont the
 		// post-invNTT values carry an extra R⁻¹ factor and ACVP fails.
 		mx.polyvec_ntt(slot0, l);
@@ -228,7 +228,7 @@ export function mldsaSignInternal(
 
 		let success = false;
 
-		// ── Line 10–31: rejection-sampling loop ──────────────────────────
+		// ── Line 10-31: rejection-sampling loop ──────────────────────────
 		for (let iter = 0; iter < MAX_SIGN_ITERATIONS; iter++) {
 			// Line 11: y ← ExpandMask(ρ'', κ) at slot3 (time domain) ──────
 			expandMask(mx, sx, params, rhoPP, kappa, slot3);
@@ -247,7 +247,7 @@ export function mldsaSignInternal(
 			mx.polyvec_highbits(slot4, slot5, k, gamma2);
 
 			// Line 14: c̃ ← H(μ ‖ w₁Encode(w₁), λ/4) ─────────────────────
-			// w₁Encode = Σ SimpleBitPack(w₁[i], (q-1)/(2γ₂) - 1) — width per param set.
+			// w₁Encode = Σ SimpleBitPack(w₁[i], (q-1)/(2γ₂) - 1), width per param set.
 			for (let r = 0; r < k; r++) {
 				mx.simple_bit_pack(xofOff + r * w1PolyBytes, slot4 + r * POLY_BYTES, w1Bitlen);
 			}
@@ -265,7 +265,7 @@ export function mldsaSignInternal(
 			// Line 15: c ← SampleInBall(c̃) at polySlot1 (time domain) ──
 			// FIPS 204 Algorithm 29: SHAKE256(c̃) drives sign-bits (first
 			// 8 squeeze bytes) and position selection (subsequent bytes).
-			// Resumable kernel — squeeze further blocks until all τ samples
+			// Resumable kernel, squeeze further blocks until all τ samples
 			// land. polySlot0 is signs scratch; xofOff is position bytes.
 			mlMem.fill(0, polySlot1, polySlot1 + POLY_BYTES);
 			sx.shake256Init();
@@ -282,7 +282,7 @@ export function mldsaSignInternal(
 				sampleI = mx.sample_in_ball(polySlot1, polySlot0, xofOff, SHAKE256_RATE, tau, sampleI);
 			}
 
-			// Line 16: ĉ ← NTT(c) — single polynomial in place ─────────
+			// Line 16: ĉ ← NTT(c), single polynomial in place ─────────
 			mx.ntt(polySlot1);
 
 			// Line 17: ⟨cs₁⟩ ← NTT⁻¹(ĉ ∘ ŝ₁) at slot4 (overwrites w₁) ──
@@ -324,7 +324,7 @@ export function mldsaSignInternal(
 			mx.polyvec_caddq(slot3, k);                              // canonical for sub→reduce→caddq round-trip
 
 			// Line 20: r₀ ← LowBits(w − ⟨cs₂⟩). Compute (w − ⟨cs₂⟩) at
-			// slot5 (overwrites w — we no longer need w independently;
+			// slot5 (overwrites w, we no longer need w independently;
 			// downstream both r₀ and h derive from w − ⟨cs₂⟩).
 			mx.polyvec_sub(slot5, slot5, slot3, k);
 			mx.polyvec_reduce(slot5, k);
@@ -351,7 +351,7 @@ export function mldsaSignInternal(
 			mx.polyvec_reduce(slot3, k);                             // centered for chknorm
 
 			// Line 26 (first half): ‖⟨ct₀⟩‖∞ ≥ γ₂ ⇒ reject. Note the
-			// bound is γ₂ (NOT γ₂ − β) — the missing β subtract is a
+			// bound is γ₂ (NOT γ₂ − β), the missing β subtract is a
 			// common copy/paste error.
 			if (mx.polyvec_chknorm(slot3, gamma2, k) !== 0) {
 				kappa += l;
@@ -362,7 +362,7 @@ export function mldsaSignInternal(
 			// Line 25: h ← MakeHint(−⟨ct₀⟩, w − ⟨cs₂⟩ + ⟨ct₀⟩).
 			// MakeHint(z, r) = [HighBits(r) ≠ HighBits(r + z)] is symmetric
 			// in (r, r+z), so passing z = ⟨ct₀⟩ and r = w − ⟨cs₂⟩ produces
-			// h[i] = [HighBits(w − ⟨cs₂⟩) ≠ HighBits(w − ⟨cs₂⟩ + ⟨ct₀⟩)] —
+			// h[i] = [HighBits(w − ⟨cs₂⟩) ≠ HighBits(w − ⟨cs₂⟩ + ⟨ct₀⟩)],
 			// the same predicate. Avoids the explicit −⟨ct₀⟩ canonicalise.
 			// polyvec_make_hint aliases-safe with z; h overwrites slot3.
 			const popcount = mx.polyvec_make_hint(slot3, slot3, slot5, k, gamma2);
@@ -373,8 +373,8 @@ export function mldsaSignInternal(
 				continue;
 			}
 
-			// All four hard checks passed — encode signature.
-			// Line 32: σ ← sigEncode(c̃, z mod± q, h) — Algorithm 26.
+			// All four hard checks passed, encode signature.
+			// Line 32: σ ← sigEncode(c̃, z mod± q, h), Algorithm 26.
 			mlMem.set(cTilde, sigOff);                               // c̃ (λ/4 bytes)
 			const sigZOff = sigOff + lambdaOver4;
 			for (let r = 0; r < l; r++) {
@@ -395,12 +395,12 @@ export function mldsaSignInternal(
 			);
 		}
 
-		// Slice σ before any wipes — slice copies, so wipes after this
+		// Slice σ before any wipes, slice copies, so wipes after this
 		// don't touch the returned Uint8Array.
 		const sig = mlMem.slice(sigOff, sigOff + sigBytes);
 		return sig;
 	} finally {
-		// ── Wipe scratch (FIPS 204 §3.6.3 — Intermediate Values) ────────
+		// ── Wipe scratch (FIPS 204 §3.6.3, Intermediate Values) ────────
 		// Runs on the success path AND on any throw (sk-range violation,
 		// loop-bound exceedance, kernel error). Without this in finally,
 		// an early throw between skDecode and sigEncode would leave
@@ -410,13 +410,13 @@ export function mldsaSignInternal(
 		// ŝ₁/ŝ₂/t̂₀ are NTT-domain copies of secret-key components;
 		// y, ⟨cs₁⟩/⟨cs₂⟩/⟨ct₀⟩, w − ⟨cs₂⟩, r₀, z, h are all per-iteration
 		// secret-derived intermediates. Highest severity: t̂₀ (recovers
-		// the low bits of t — secret part of sk) and y (used in computing
+		// the low bits of t, secret part of sk) and y (used in computing
 		// z; compromise leaks rejection-sampling state).
 		mlMem.fill(0, mx.getPolyvecSlotBase(), mx.getPolyvecSlotBase() + 6 * mx.getPolyvecSlotSize());
-		// Poly slots: signs (POLY_SLOT_0, public — c̃ derived), c (POLY_SLOT_1,
-		// public — derivable from c̃), and POLY_SLOT_7 holding the last
+		// Poly slots: signs (POLY_SLOT_0, public, c̃ derived), c (POLY_SLOT_1,
+		// public, derivable from c̃), and POLY_SLOT_7 holding the last
 		// matrix-vector product partial (secret-derived via y_ntt). Wipe all
-		// 8 contiguous slots in one fill — cheap and avoids residue gaps.
+		// 8 contiguous slots in one fill, cheap and avoids residue gaps.
 		mlMem.fill(0, polySlotBase, polySlotBase + 8 * POLY_BYTES);
 		// XOF/PRF region last held SampleInBall position bytes (public, c̃-derived)
 		// or ExpandMask outputs (secret, ρ''-derived) on the rejected path.
@@ -424,7 +424,7 @@ export function mldsaSignInternal(
 		// Public-derivable but cheap to wipe for hygiene:
 		mlMem.fill(0, cTildeOff, cTildeOff + 64);
 		mlMem.fill(0, msgRepOff, msgRepOff + 64);
-		// Defensive: SEED, TR, SK regions — Sign_internal does not write
+		// Defensive: SEED, TR, SK regions, Sign_internal does not write
 		// to these (we extract sk components via TS subarrays), but a
 		// prior op may have left residue. Cheap wipe closes that window.
 		mlMem.fill(0, seedOff, seedOff + 128);
@@ -435,7 +435,7 @@ export function mldsaSignInternal(
 		// the SampleInBall stream. Wipe before returning.
 		sx.wipeBuffers();
 
-		// TS-side scratch — wipe last so any wipe()-throws don't skip
+		// TS-side scratch, wipe last so any wipe()-throws don't skip
 		// the WASM cleanup above.
 		if (mu)      wipe(mu);
 		if (rhoPP)   wipe(rhoPP);

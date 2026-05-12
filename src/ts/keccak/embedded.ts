@@ -22,6 +22,6 @@
 // src/ts/keccak/embedded.ts
 //
 // Re-exports the sha3 WASM blob under the keccak name.
-// The keccak alias shares the sha3 binary — no separate keccak.wasm exists.
+// The keccak alias shares the sha3 binary, no separate keccak.wasm exists.
 // Import via `leviathan-crypto/keccak/embedded`.
 export { WASM_GZ_BASE64 as keccakWasm } from '../embedded/sha3.js';

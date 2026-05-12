@@ -21,7 +21,7 @@
 //
 // src/ts/stream/seal-stream-pool.ts
 //
-// SealStreamPool — parallel batch encryption/decryption using the STREAM
+// SealStreamPool, parallel batch encryption/decryption using the STREAM
 // construction. Dispatches per-chunk seal/open jobs across Web Workers.
 // Any error is fatal: auth failure, crash, or timeout kills all workers,
 // wipes keys, and rejects all pending promises.
@@ -124,13 +124,13 @@ export class SealStreamPool {
 	): Promise<SealStreamPool> {
 		if (!isInitialized('sha2'))
 			throw new Error(
-				'leviathan-crypto: stream layer requires sha2 for key derivation — '
+				'leviathan-crypto: stream layer requires sha2 for key derivation, '
 				+ 'call init({ sha2: ... }) before creating a SealStreamPool',
 			);
 
 		if (cipher.kemCtSize > 0)
 			throw new Error(
-				'leviathan-crypto: SealStreamPool does not support KEM-enabled cipher suites — '
+				'leviathan-crypto: SealStreamPool does not support KEM-enabled cipher suites, '
 				+ 'KEM encryption is asymmetric (seal uses encapsulation key, open requires decapsulation key) '
 				+ 'and cannot share a single key across both directions. '
 				+ 'Use SealStream / OpenStream directly for hybrid KEM encryption.',
@@ -157,7 +157,7 @@ export class SealStreamPool {
 			}
 		} else {
 			if (required.length > 1)
-				throw new Error(`leviathan-crypto: cipher requires ${required.length} WASM modules (${required.join(', ')}) — provide a Record`);
+				throw new Error(`leviathan-crypto: cipher requires ${required.length} WASM modules (${required.join(', ')}), provide a Record`);
 			modules[required[0]] = await compileWasm(opts.wasm as WasmSource);
 		}
 
@@ -176,7 +176,7 @@ export class SealStreamPool {
 		if (key.length !== cipher.keySize)
 			throw new RangeError(`key must be ${cipher.keySize} bytes (got ${key.length})`);
 
-		// Generate nonce and build header before deriveKeys — XChaCha20 binds
+		// Generate nonce and build header before deriveKeys, XChaCha20 binds
 		// the header into HKDF info; SerpentCipher accepts and ignores it.
 		const nonce = randomBytes(16);
 		const header = writeHeader(cipher.formatEnum, framed, nonce, chunkSize);
@@ -286,7 +286,7 @@ export class SealStreamPool {
 		if (this._dead) throw new Error('leviathan-crypto: pool is dead');
 		if (ciphertext.length < HEADER_SIZE)
 			throw new RangeError(
-				`leviathan-crypto: ciphertext too short — need at least ${HEADER_SIZE} bytes for header`,
+				`leviathan-crypto: ciphertext too short, need at least ${HEADER_SIZE} bytes for header`,
 			);
 
 		// Validate header before splitting chunks
@@ -298,17 +298,17 @@ export class SealStreamPool {
 			);
 		if (h.chunkSize !== this._chunkSize)
 			throw new RangeError(
-				`leviathan-crypto: pool chunkSize mismatch — pool expects ${this._chunkSize}, `
+				`leviathan-crypto: pool chunkSize mismatch, pool expects ${this._chunkSize}, `
 				+ `header says ${h.chunkSize}`,
 			);
 		if (h.framed !== this._framed)
 			throw new Error(
-				`leviathan-crypto: pool framing mismatch — pool is ${this._framed ? 'framed' : 'unframed'}, `
+				`leviathan-crypto: pool framing mismatch, pool is ${this._framed ? 'framed' : 'unframed'}, `
 				+ `header says ${h.framed ? 'framed' : 'unframed'}`,
 			);
 
 		// Re-derive keys from the nonce embedded in this ciphertext's header.
-		// The pool's _keys are tied to its own seal nonce — for arbitrary incoming
+		// The pool's _keys are tied to its own seal nonce, for arbitrary incoming
 		// ciphertext the nonce may differ, so we derive fresh keys here.
 		if (!this._masterKey) throw new Error('leviathan-crypto: pool master key has been wiped');
 		const headerBytes = ciphertext.subarray(0, HEADER_SIZE);
@@ -316,7 +316,7 @@ export class SealStreamPool {
 		const minLen = HEADER_SIZE + commitmentLen;
 		if (ciphertext.length < minLen)
 			throw new RangeError(
-				`leviathan-crypto: ciphertext too short — need at least ${minLen} bytes for header + commitment`,
+				`leviathan-crypto: ciphertext too short, need at least ${minLen} bytes for header + commitment`,
 			);
 		const openKeys = this._cipher.deriveKeys(this._masterKey, h.nonce, undefined, headerBytes);
 		let openKeysWiped = false;
@@ -345,7 +345,7 @@ export class SealStreamPool {
 			// Strip header + commitment before chunk splitting
 			const body = ciphertext.subarray(HEADER_SIZE + commitmentLen);
 			if (body.length === 0)
-				throw new RangeError('leviathan-crypto: empty ciphertext — seal() always produces at least one chunk');
+				throw new RangeError('leviathan-crypto: empty ciphertext, seal() always produces at least one chunk');
 
 			// Compute max wire chunk size for per-chunk validation
 			const tagSize = this._cipher.tagSize;
@@ -390,7 +390,7 @@ export class SealStreamPool {
 			for (let i = 0; i < chunks.length; i++) {
 				if (chunks[i].length < tagSize)
 					throw new RangeError(
-						`leviathan-crypto: chunk ${i} too short — need at least ${tagSize} bytes for tag `
+						`leviathan-crypto: chunk ${i} too short, need at least ${tagSize} bytes for tag `
 						+ `(got ${chunks[i].length})`,
 					);
 				if (chunks[i].length > maxWireChunk)
@@ -405,7 +405,7 @@ export class SealStreamPool {
 					derivedKeyBytes: openKeys.bytes.slice(),
 				}));
 			}
-			// All per-job key copies made — wipe the main-thread openKeys immediately
+			// All per-job key copies made, wipe the main-thread openKeys immediately
 			// rather than waiting for Promise.all. earlyWiped tracks this so the
 			// finally below only fires on pre-dispatch throws (empty body, frame errors,
 			// chunk validation), not as a redundant second call on the normal path.
@@ -454,7 +454,7 @@ export class SealStreamPool {
 	private _send(worker: Worker, job: QueuedJob): void {
 		const transfer: ArrayBuffer[] = [];
 		// Only transfer data.buffer when the Uint8Array owns the buffer exclusively.
-		// Subarrays from open() share the caller's ciphertext buffer — transferring
+		// Subarrays from open() share the caller's ciphertext buffer, transferring
 		// one would detach all sibling views dispatched as parallel jobs.
 		if (job.data.buffer instanceof ArrayBuffer
 			&& job.data.byteOffset === 0
@@ -465,7 +465,7 @@ export class SealStreamPool {
 			transfer.push(job.counterNonce.buffer);
 		if (job.derivedKeyBytes?.buffer instanceof ArrayBuffer)
 			transfer.push(job.derivedKeyBytes.buffer);
-		// aad is intentionally not transferred — caller may retain the reference
+		// aad is intentionally not transferred, caller may retain the reference
 		worker.postMessage(job, { transfer });
 	}
 
@@ -507,7 +507,7 @@ export class SealStreamPool {
 		this._idle.length = 0;
 
 		// Fire-and-forget: wipe each worker's key material, then terminate.
-		// On timeout, terminate anyway — the main-thread key handles are
+		// On timeout, terminate anyway, the main-thread key handles are
 		// wiped below so the owning surface no longer has access.
 		for (const w of workers) this._wipeThenTerminate(w);
 

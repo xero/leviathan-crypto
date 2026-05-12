@@ -20,11 +20,11 @@
 //                           ▀█████▀▀
 //
 /**
- * mldsaVerifyInternal — scratch-region wipes after verify.
+ * mldsaVerifyInternal, scratch-region wipes after verify.
  *
  * Verify operates entirely on public inputs (vk, sig, M, ctx all public);
  * t̂₁·2^d, ẑ, w'_approx, h are all public-derivable. So the wipe is a
- * discipline-not-secrecy thing — but the discipline matches the keygen
+ * discipline-not-secrecy thing, but the discipline matches the keygen
  * and sign paths so reviewers don't have to special-case verify when
  * auditing the zeroize surface.
  *
@@ -69,7 +69,7 @@ const cases = [
 	{ name: 'ML-DSA-87', make: () => new MlDsa87() },
 ];
 
-describe('mldsaVerifyInternal — scratch slots wiped after verify', () => {
+describe('mldsaVerifyInternal, scratch slots wiped after verify', () => {
 	for (const { name, make } of cases) {
 		describe(name, () => {
 			it('POLYVEC slots 0..4 wiped after successful verify', () => {
@@ -144,7 +144,7 @@ describe('mldsaVerifyInternal — scratch slots wiped after verify', () => {
 					const sig = dsa.sign(signingKey, msg);
 					// Set a hint cumulative-count byte beyond ω → triggers Alg 21 line 4.
 					// Hint region starts after c̃ + z bytes. We don't need to be precise
-					// about position — the kernel returns -1 the moment it sees the
+					// about position, the kernel returns -1 the moment it sees the
 					// invalid byte, and the early-return path still hits the wipe.
 					const hintTail = sig.length - 1;
 					sig[hintTail] = 0xFF;
@@ -160,7 +160,7 @@ describe('mldsaVerifyInternal — scratch slots wiped after verify', () => {
 		});
 	}
 
-	// HashML-DSA verify wraps Verify_internal — same wipe coverage applies.
+	// HashML-DSA verify wraps Verify_internal, same wipe coverage applies.
 	// Spot-check across SHA-2 / SHA-3 / SHAKE prehashes.
 	for (const ph of ['SHA2-256', 'SHA3-512', 'SHAKE256'] as const) {
 		it(`verifyHash wipes scratch (ML-DSA-44, prehash=${ph})`, () => {

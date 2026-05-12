@@ -22,7 +22,7 @@
 // src/ts/serpent/index.ts
 //
 // Public API classes for the Serpent-256 WASM module.
-// Uses the init() module cache — call serpentInit(source) before constructing.
+// Uses the init() module cache, call serpentInit(source) before constructing.
 
 import { getInstance, initModule, _acquireModule, _releaseModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -30,7 +30,7 @@ import type { WasmSource } from '../wasm-source.js';
 /**
  * Load and initialise the Serpent WASM module from `source`.
  * Must be called before constructing any Serpent class.
- * @param source  WASM binary — gzip+base64 string, URL, ArrayBuffer, Uint8Array,
+ * @param source  WASM binary, gzip+base64 string, URL, ArrayBuffer, Uint8Array,
  *                pre-compiled WebAssembly.Module, Response, or Promise<Response>
  */
 export async function serpentInit(source: WasmSource): Promise<void> {
@@ -71,7 +71,7 @@ function getExports(): SerpentExports {
 // ── Serpent ─────────────────────────────────────────────────────────────────
 
 /**
- * Low-level Serpent-256 block cipher — raw ECB encrypt/decrypt.
+ * Low-level Serpent-256 block cipher, raw ECB encrypt/decrypt.
  *
  * Atomic (stateless) class: each method call is independent.
  * Does not hold exclusive module access; cannot be used while a stateful
@@ -166,7 +166,7 @@ export class SerpentCtr {
 	constructor(opts?: { dangerUnauthenticated: true }) {
 		if (!opts?.dangerUnauthenticated) {
 			throw new Error(
-				'leviathan-crypto: SerpentCtr is unauthenticated — use Seal with SerpentCipher instead. ' +
+				'leviathan-crypto: SerpentCtr is unauthenticated, use Seal with SerpentCipher instead. ' +
 				'To use SerpentCtr directly, pass { dangerUnauthenticated: true }.'
 			);
 		}
@@ -178,7 +178,7 @@ export class SerpentCtr {
 	 * Load key and nonce into WASM state and reset the block counter to 0.
 	 * Must be called before each message.
 	 * @param key    16, 24, or 32 bytes
-	 * @param nonce  16 bytes — must be unique per (key, message)
+	 * @param nonce  16 bytes, must be unique per (key, message)
 	 */
 	beginEncrypt(key: Uint8Array, nonce: Uint8Array): void {
 		if (this._tok === undefined)
@@ -199,7 +199,7 @@ export class SerpentCtr {
 
 	/**
 	 * XOR `chunk` with the next keystream block(s). Counter advances automatically.
-	 * @param chunk  Plaintext chunk — must not exceed WASM CHUNK_SIZE
+	 * @param chunk  Plaintext chunk, must not exceed WASM CHUNK_SIZE
 	 * @returns      Ciphertext of the same length
 	 */
 	encryptChunk(chunk: Uint8Array): Uint8Array {
@@ -208,7 +208,7 @@ export class SerpentCtr {
 		const maxChunk = this.x.getChunkSize();
 		if (chunk.length > maxChunk)
 			throw new RangeError(
-				`chunk exceeds maximum size of ${maxChunk} bytes — split into smaller chunks`,
+				`chunk exceeds maximum size of ${maxChunk} bytes, split into smaller chunks`,
 			);
 		const mem   = new Uint8Array(this.x.memory.buffer);
 		const ptOff = this.x.getChunkPtOffset();
@@ -219,16 +219,16 @@ export class SerpentCtr {
 	}
 
 	/**
-	 * Alias for `beginEncrypt` — CTR mode is symmetric.
+	 * Alias for `beginEncrypt`, CTR mode is symmetric.
 	 * @param key    16, 24, or 32 bytes
-	 * @param nonce  16 bytes — must match the value used to encrypt
+	 * @param nonce  16 bytes, must match the value used to encrypt
 	 */
 	beginDecrypt(key: Uint8Array, nonce: Uint8Array): void {
 		this.beginEncrypt(key, nonce);
 	}
 
 	/**
-	 * Alias for `encryptChunk` — CTR mode is symmetric.
+	 * Alias for `encryptChunk`, CTR mode is symmetric.
 	 * @param chunk  Ciphertext chunk
 	 * @returns      Plaintext of the same length
 	 */

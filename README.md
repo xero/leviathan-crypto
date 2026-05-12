@@ -205,13 +205,13 @@ await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha
 const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 
-// sender — encrypts with the public key
+// sender: encrypts with the public key
 const sealer   = new SealStream(suite, ek)
 const preamble = sealer.preamble       // 1108 bytes: 20B header + 1088B KEM ciphertext
 const ct0      = sealer.push(chunk0)
 const ctLast   = sealer.finalize(lastChunk)
 
-// recipient — decrypts with the private key
+// recipient: decrypts with the private key
 const opener = new OpenStream(suite, dk, preamble)
 const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)

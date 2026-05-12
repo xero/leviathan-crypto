@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-/** Minimal public type for the serpent WASM module — used for module-id checks. @internal */
+/** Minimal public type for the serpent WASM module, used for module-id checks. @internal */
 export interface SerpentExports {
   /** WASM linear memory for the serpent module. */
   memory: WebAssembly.Memory

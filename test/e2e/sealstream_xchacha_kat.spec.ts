@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test('SealStream KAT batch — XChaCha20 v3 (XC1, XC3, XCF1)', async ({ page }) => {
+test('SealStream KAT batch, XChaCha20 v3 (XC1, XC3, XCF1)', async ({ page }) => {
 	const errors = await page.evaluate(async ({ base, vectors }) => {
 		const lib = await import(`${base}/dist/index.js`);
 		const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);

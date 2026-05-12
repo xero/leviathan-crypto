@@ -1,4 +1,4 @@
-# leviathan-crypto — Copilot Instructions
+# leviathan-crypto: Copilot Instructions
 
 **Read `AGENTS.md` in the repository root before doing anything else.**
 

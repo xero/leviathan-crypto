@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_gcm_siv_open.test.ts
 //
-// Gate 17 — AES-GCM-SIV open direction. Round-trips every RFC 8452
+// Gate 17, AES-GCM-SIV open direction. Round-trips every RFC 8452
 // Appendix C vector and exercises the unauthenticated-plaintext-trap
 // boundary with synthesised tamper vectors:
 //   17a round-trip: open(seal(pt)) == pt for all 50 vectors
@@ -86,8 +86,8 @@ const expectAuthFail = (run: () => Uint8Array): void => {
 	expect((caught as Error).message).toMatch(/^siv:/);
 };
 
-describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
-	describe('17a — round-trip (all 50 RFC vectors)', () => {
+describe('AES-GCM-SIV open gate (Gate 17), RFC 8452 Appendix C', () => {
+	describe('17a, round-trip (all 50 RFC vectors)', () => {
 		for (const v of allVectors) {
 			// GATE: open(seal(pt)) == pt for every published vector.
 			it(v.description, () => {
@@ -103,7 +103,7 @@ describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('17b — tag tamper (single-byte flip on last tag byte)', () => {
+	describe('17b, tag tamper (single-byte flip on last tag byte)', () => {
 		for (const v of tamperSubsetEmptyAad) {
 			it(v.description, () => {
 				const cipher = new AESGCMSIV(fromHex(v.key));
@@ -118,12 +118,12 @@ describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('17c — CT tamper (first / middle / last byte)', () => {
+	describe('17c, CT tamper (first / middle / last byte)', () => {
 		for (const v of tamperSubsetEmptyAad) {
 			const ctLen = fromHex(v.plaintext).length;
 			if (ctLen < 16) continue;  // need ≥ 16 to exercise three distinct positions
 			for (const pos of [0, ctLen >> 1, ctLen - 1]) {
-				it(`${v.description} — flip CT[${pos}]`, () => {
+				it(`${v.description}, flip CT[${pos}]`, () => {
 					const cipher = new AESGCMSIV(fromHex(v.key));
 					try {
 						const sealed = fromHex(v.result);
@@ -137,7 +137,7 @@ describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('17d — AAD tamper', () => {
+	describe('17d, AAD tamper', () => {
 		for (const v of tamperSubsetWithAad) {
 			it(v.description, () => {
 				const cipher = new AESGCMSIV(fromHex(v.key));
@@ -153,7 +153,7 @@ describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('17e — nonce tamper', () => {
+	describe('17e, nonce tamper', () => {
 		for (const v of tamperSubsetEmptyAad) {
 			it(v.description, () => {
 				const cipher = new AESGCMSIV(fromHex(v.key));
@@ -169,7 +169,7 @@ describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('17f — key tamper', () => {
+	describe('17f, key tamper', () => {
 		for (const v of tamperSubsetEmptyAad) {
 			it(v.description, () => {
 				const tamperedKey = fromHex(v.key);
@@ -185,12 +185,12 @@ describe('AES-GCM-SIV open gate (Gate 17) — RFC 8452 Appendix C', () => {
 		}
 	});
 
-	describe('17g — PT-not-released after auth fail', () => {
+	describe('17g, PT-not-released after auth fail', () => {
 		// Verify that on tamper-induced auth failure, the
 		// decrypted-but-unauthenticated plaintext at CHUNK_PT_OFFSET is
 		// zeroed by sivWipeOnFail before any TS code observes it. The
 		// assertion covers the FULL 64 KiB CHUNK_PT, not just the ptLen
-		// prefix — a sivWipeOnFail bug that zeros only the prefix would
+		// prefix, a sivWipeOnFail bug that zeros only the prefix would
 		// be caught here.
 		for (const v of tamperSubsetEmptyAad) {
 			it(v.description, () => {

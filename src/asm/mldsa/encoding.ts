@@ -21,8 +21,8 @@
 //
 // src/asm/mldsa/encoding.ts
 //
-// ML-DSA — bit-level packing of polynomials and hint vectors.
-// FIPS 204 §7.1 Algorithms 16–21.
+// ML-DSA, bit-level packing of polynomials and hint vectors.
+// FIPS 204 §7.1 Algorithms 16-21.
 //
 // ML-DSA uses bit-pack widths that vary by parameter set and field. Across
 // the three parameter sets (44/65/87) the union of widths used by phase-4
@@ -49,7 +49,7 @@
 
 import { N } from './params';
 
-// ── simple_bit_pack — FIPS 204 Algorithm 16 ─────────────────────────────────
+// ── simple_bit_pack, FIPS 204 Algorithm 16 ─────────────────────────────────
 // Encode 256 coefficients ∈ [0, 2^bitlen − 1] as a 32·bitlen byte string.
 // Caller guarantees the range. The accumulator never holds more than
 // 7 + bitlen bits (≤ 27 for the widest ML-DSA field), well within u64.
@@ -72,7 +72,7 @@ export function simple_bit_pack(rByteOff: i32, polyOff: i32, bitlen: i32): void 
 	// is always empty here. No final flush needed.
 }
 
-// ── bit_pack — FIPS 204 Algorithm 17 ────────────────────────────────────────
+// ── bit_pack, FIPS 204 Algorithm 17 ────────────────────────────────────────
 // Encode 256 coefficients ∈ [-a, b] by writing (b − w_i) at bitlen(a+b) bits.
 // bitlen(n) for n > 0 is the position of the most-significant 1 plus 1, i.e.
 // 32 − clz(n). For a + b = 0 the field collapses to width 0; that case never
@@ -97,9 +97,9 @@ export function bit_pack(rByteOff: i32, polyOff: i32, a: i32, b: i32): void {
 	}
 }
 
-// ── simple_bit_unpack — FIPS 204 Algorithm 18 ───────────────────────────────
+// ── simple_bit_unpack, FIPS 204 Algorithm 18 ───────────────────────────────
 // Decode 32·bitlen bytes into 256 coefficients ∈ [0, 2^bitlen − 1].
-// Per spec, "When b + 1 is a power of 2, the coefficients are in [0, b]" —
+// Per spec, "When b + 1 is a power of 2, the coefficients are in [0, b]",
 // so the natural unsigned range and the spec range coincide for ML-DSA.
 export function simple_bit_unpack(polyOff: i32, vByteOff: i32, bitlen: i32): void {
 	const mask: u64 = (<u64>1 << <u64>bitlen) - 1;
@@ -118,12 +118,12 @@ export function simple_bit_unpack(polyOff: i32, vByteOff: i32, bitlen: i32): voi
 	}
 }
 
-// ── bit_unpack — FIPS 204 Algorithm 19 ──────────────────────────────────────
+// ── bit_unpack, FIPS 204 Algorithm 19 ──────────────────────────────────────
 // Decode 32·bitlen(a+b) bytes into 256 coefficients ∈ [b - 2^c + 1, b], where
 // c = bitlen(a+b). For widths where a+b+1 is a power of 2 (t0, z) this is
 // exactly [-a, b]; for the η=2 (a+b=4) and η=4 (a+b=8) widths the unsigned
 // span exceeds a+b+1, so malformed input may produce coefficients outside
-// [-a, b]. Range validation is the caller's responsibility — `mldsaSignInternal`
+// [-a, b]. Range validation is the caller's responsibility, `mldsaSignInternal`
 // (src/ts/mldsa/sign.ts) follows each s₁/s₂ unpack with `polyvec_chknorm(slot,
 // η+1, …)` and throws RangeError on out-of-range coefficients per FIPS 204
 // §7.2 / Alg 25 line 5.
@@ -147,7 +147,7 @@ export function bit_unpack(polyOff: i32, vByteOff: i32, a: i32, b: i32): void {
 	}
 }
 
-// ── hint_bit_pack — FIPS 204 Algorithm 20 ───────────────────────────────────
+// ── hint_bit_pack, FIPS 204 Algorithm 20 ───────────────────────────────────
 // Encode a hint polyvec h ∈ R₂^k (with ≤ ω total set bits) as ω + k bytes.
 // Each polynomial in h occupies one i32 slot per coefficient; only values 0
 // or 1 are valid. The first ω bytes hold the positions of the set bits in
@@ -169,17 +169,17 @@ export function hint_bit_pack(rByteOff: i32, hPvOff: i32, k: i32, omega: i32): v
 	}
 }
 
-// ── hint_bit_unpack — FIPS 204 Algorithm 21 ─────────────────────────────────
+// ── hint_bit_unpack, FIPS 204 Algorithm 21 ─────────────────────────────────
 // Decode ω + k bytes into a hint polyvec, returning -1 on malformed input.
 // The three malformed-input checks (lines 4, 9, 17 of Alg 21) are
 // SUF-CMA-critical per FIPS 204 §D.3:
 //
-//   Line 4  — y[ω+i] must be in [Index, ω].         Range check on cumulative
+//   Line 4 , y[ω+i] must be in [Index, ω].         Range check on cumulative
 //                                                   count: must not regress
 //                                                   nor exceed ω.
-//   Line 9  — within poly i, positions strictly      Prevents two encodings
+//   Line 9 , within poly i, positions strictly      Prevents two encodings
 //             ascending: y[Index − 1] < y[Index].   of the same h.
-//   Line 17 — trailing bytes y[Index..ω−1] are 0.   Same reason.
+//   Line 17, trailing bytes y[Index..ω−1] are 0.   Same reason.
 //
 // Returning -1 on any failure lets the TS caller short-circuit to ⊥ before
 // running the rest of verification (Alg 8 line 3).
@@ -195,7 +195,7 @@ export function hint_bit_unpack(hPvOff: i32, vByteOff: i32, k: i32, omega: i32):
 		const polyOff: i32 = hPvOff + i * 1024;
 		while (index < yWi) {
 			if (index > first) {
-				// Check 2 (Alg 21 line 9): y[Index − 1] < y[Index] — strict
+				// Check 2 (Alg 21 line 9): y[Index − 1] < y[Index], strict
 				// ascending positions inside the same polynomial.
 				const prev: i32 = <i32>load<u8>(vByteOff + index - 1);
 				const cur:  i32 = <i32>load<u8>(vByteOff + index);

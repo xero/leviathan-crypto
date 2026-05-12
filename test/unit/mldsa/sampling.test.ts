@@ -22,13 +22,13 @@
 // test/unit/mldsa/sampling.test.ts
 //
 // GATE: ML-DSA rejection sampling kernels.
-//   • rej_ntt_poly       — FIPS 204 Algorithm 30 (CoeffFromThreeBytes per group)
-//   • rej_bounded_poly   — FIPS 204 Algorithm 31 (CoeffFromHalfByte per nibble)
-//   • sample_in_ball     — FIPS 204 Algorithm 29 (Fisher-Yates over signs/positions)
+//   • rej_ntt_poly      , FIPS 204 Algorithm 30 (CoeffFromThreeBytes per group)
+//   • rej_bounded_poly  , FIPS 204 Algorithm 31 (CoeffFromHalfByte per nibble)
+//   • sample_in_ball    , FIPS 204 Algorithm 29 (Fisher-Yates over signs/positions)
 //
 // The expected coefficient values for the rej_ntt_poly gate are derived
 // independently from the spec definition (Algorithm 14, CoeffFromThreeBytes)
-// — NOT copied from the implementation output.
+// , NOT copied from the implementation output.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { loadMldsa, getWasm, readPoly, writeBytes, prng } from './helpers.js';
@@ -42,7 +42,7 @@ beforeAll(async () => {
 
 // ── GATE: rej_ntt_poly ─────────────────────────────────────────────────────
 
-describe('Gate — rej_ntt_poly (FIPS 204 Algorithm 30, inner)', () => {
+describe('Gate, rej_ntt_poly (FIPS 204 Algorithm 30, inner)', () => {
 	// CoeffFromThreeBytes(b0, b1, b2):
 	//   z = ((b2 & 0x7F) << 16) | (b1 << 8) | b0
 	//   if z < q: accept, else reject.
@@ -113,7 +113,7 @@ describe('Gate — rej_ntt_poly (FIPS 204 Algorithm 30, inner)', () => {
 
 // ── GATE: rej_bounded_poly ─────────────────────────────────────────────────
 
-describe('Gate — rej_bounded_poly (FIPS 204 Algorithm 31, inner)', () => {
+describe('Gate, rej_bounded_poly (FIPS 204 Algorithm 31, inner)', () => {
 	function expectedEta2(buf: Uint8Array): number[] {
 		const out: number[] = [];
 		for (let i = 0; i < buf.length && out.length < N; i++) {
@@ -180,7 +180,7 @@ describe('Gate — rej_bounded_poly (FIPS 204 Algorithm 31, inner)', () => {
 
 // ── GATE: sample_in_ball ───────────────────────────────────────────────────
 
-describe('Gate — sample_in_ball (FIPS 204 Algorithm 29)', () => {
+describe('Gate, sample_in_ball (FIPS 204 Algorithm 29)', () => {
 	for (const tau of [39, 49, 60]) {
 		test(`τ = ${tau}: output has exactly τ ±1 coefficients, rest zero`, () => {
 			const w = getWasm();
@@ -196,7 +196,7 @@ describe('Gate — sample_in_ball (FIPS 204 Algorithm 29)', () => {
 			writeBytes(signs, SIGNS);
 
 			// 256 bytes is more than enough for any τ ≤ 64 with overwhelming
-			// probability — see SampleInBall byte-budget discussion in
+			// probability, see SampleInBall byte-budget discussion in
 			// sampling.ts header.
 			const posBytes = new Uint8Array(256);
 			for (let i = 0; i < posBytes.length; i++) posBytes[i] = rand() & 0xFF;

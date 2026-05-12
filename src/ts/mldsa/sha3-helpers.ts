@@ -26,10 +26,10 @@
 //
 // ML-DSA uses both SHAKE rates (FIPS 202): SHAKE128 (rate 168) for ExpandA
 // and SHAKE256 (rate 136) for the rest of the scheme. The absorb path is
-// rate-agnostic — keccakAbsorb consumes whatever buffer length the caller
+// rate-agnostic, keccakAbsorb consumes whatever buffer length the caller
 // hands it as long as length ≤ 168 (the wider rate). One-shot SHAKE256
 // helpers and the incremental SHAKE128 / SHAKE256 squeezers below cover
-// every call shape phase 4–6 needs.
+// every call shape phase 4-6 needs.
 
 import type { Sha3Exports } from '../kyber/types.js';
 
@@ -50,7 +50,7 @@ export function sha3Absorb(sx: Sha3Exports, msg: Uint8Array): void {
 	}
 }
 
-/** SHAKE256(msg, n) — fixed-length output. Resets sha3 state. */
+/** SHAKE256(msg, n), fixed-length output. Resets sha3 state. */
 export function shake256Hash(sx: Sha3Exports, msg: Uint8Array, n: number): Uint8Array {
 	sx.shake256Init();
 	sha3Absorb(sx, msg);
@@ -97,7 +97,7 @@ export function shake256HashConcat(
  * Each call returns the next 168-byte block as a Uint8Array view into the
  * sha3 OUT region (lifetime: until the next squeeze call). Callers copy
  * into the consuming module's XOF buffer before invoking the rejection
- * sampler. Used by ExpandA (FIPS 204 Algorithm 32 — RejNTTPoly driver).
+ * sampler. Used by ExpandA (FIPS 204 Algorithm 32, RejNTTPoly driver).
  */
 export function shake128Squeezer(sx: Sha3Exports, seed: Uint8Array): {
 	rate: number
@@ -120,7 +120,7 @@ export function shake128Squeezer(sx: Sha3Exports, seed: Uint8Array): {
 /**
  * Set up SHAKE256 over `seed` and return an incremental block-squeezer.
  * Same shape as shake128Squeezer with rate 136. Used by ExpandS
- * (FIPS 204 Algorithm 33 — RejBoundedPoly driver).
+ * (FIPS 204 Algorithm 33, RejBoundedPoly driver).
  */
 export function shake256Squeezer(sx: Sha3Exports, seed: Uint8Array): {
 	rate: number

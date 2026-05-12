@@ -50,7 +50,7 @@ describe('ct.wasm module shape invariants', () => {
 		expect(memoryExport).toBeDefined();
 		expect(memoryExport!.kind).toBe('memory');
 
-		// Inspect the actual Memory by instantiating — kind/name alone doesn't
+		// Inspect the actual Memory by instantiating, kind/name alone doesn't
 		// carry the page-count invariant, so we verify it via a fresh instance.
 		const inst = new WebAssembly.Instance(mod);
 		const mem = (inst.exports as { memory: WebAssembly.Memory }).memory;

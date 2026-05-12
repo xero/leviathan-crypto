@@ -22,7 +22,7 @@
 // src/ts/sha2/index.ts
 //
 // Public API classes for the SHA-2 WASM module.
-// Uses the init() module cache — call sha2Init(source) before constructing.
+// Uses the init() module cache, call sha2Init(source) before constructing.
 
 import { getInstance, initModule, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -123,7 +123,7 @@ export class SHA384 {
 }
 
 // ── SHA224 ──────────────────────────────────────────────────────────────────
-// FIPS 180-4 §6.3 — SHA-256 round logic with the §5.3.2 IV; output is the
+// FIPS 180-4 §6.3, SHA-256 round logic with the §5.3.2 IV; output is the
 // leftmost 224 bits (28 bytes) of the SHA-256 state.
 
 export class SHA224 {
@@ -148,7 +148,7 @@ export class SHA224 {
 }
 
 // ── SHA512_224 ──────────────────────────────────────────────────────────────
-// FIPS 180-4 §6.7.1 — SHA-512 round logic with the §5.3.6.1 IV; output is the
+// FIPS 180-4 §6.7.1, SHA-512 round logic with the §5.3.6.1 IV; output is the
 // leftmost 224 bits (28 bytes) of the SHA-512 state.
 
 export class SHA512_224 {
@@ -173,7 +173,7 @@ export class SHA512_224 {
 }
 
 // ── SHA512_256 ──────────────────────────────────────────────────────────────
-// FIPS 180-4 §6.7.2 — SHA-512 round logic with the §5.3.6.2 IV; output is the
+// FIPS 180-4 §6.7.2, SHA-512 round logic with the §5.3.6.2 IV; output is the
 // leftmost 256 bits (32 bytes) of the SHA-512 state.
 
 export class SHA512_256 {

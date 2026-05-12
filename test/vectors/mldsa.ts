@@ -1,6 +1,6 @@
 // test/vectors/mldsa.ts
 //
-// NIST ACVP ML-DSA test vectors (FIPS 204) — barrel re-export.
+// NIST ACVP ML-DSA test vectors (FIPS 204), barrel re-export.
 //
 // Sources:
 //   ACVP-Server/gen-val/json-files/ML-DSA-keyGen-FIPS204/internalProjection.json
@@ -10,7 +10,7 @@
 // All three corpora share vsId=42. HashML-DSA vectors are merged into
 // the sigGen / sigVer corpora via the per-record `preHash` discriminator.
 //
-// Audit status: VERIFIED (NIST official ACVP — never modify values).
+// Audit status: VERIFIED (NIST official ACVP, never modify values).
 
 export type {
 	KeyGenVector as MlDsaKeyGenVector,

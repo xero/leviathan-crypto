@@ -28,10 +28,10 @@
  *
  * Two cases covered:
  *
- * 1. Happy path — the real pool worker zeros its key material and posts
+ * 1. Happy path, the real pool worker zeros its key material and posts
  *    `{ type: 'wiped' }` back. The main thread observes the ACK and the
  *    worker stops receiving messages afterward.
- * 2. Timeout fallback — a worker stub whose wipe handler deliberately never
+ * 2. Timeout fallback, a worker stub whose wipe handler deliberately never
  *    replies. After 100 ms the fallback `terminate()` runs, the pool is
  *    dead, and no unhandled rejection escapes.
  */
@@ -47,7 +47,7 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 });
 
-describe('SealStreamPool — wipe ACK handshake', () => {
+describe('SealStreamPool, wipe ACK handshake', () => {
 	it('destroy() drives each worker through wipe → wiped → terminate', async () => {
 		const key = randomBytes(32);
 		const pool = await SealStreamPool.create(XChaCha20Cipher, key, {
@@ -113,7 +113,7 @@ describe('SealStreamPool — wipe ACK handshake', () => {
 		const worker: Worker = p._workers[0];
 
 		// Swap the worker for a stub that swallows the wipe message. The
-		// pool still thinks it's a real Worker — all we replace are the
+		// pool still thinks it's a real Worker, all we replace are the
 		// methods `_wipeThenTerminate` touches.
 		worker.terminate(); // stop the real worker first
 
@@ -130,7 +130,7 @@ describe('SealStreamPool — wipe ACK handshake', () => {
 			},
 			postMessage: (msg: { type: string }): void => {
 				if (msg.type === 'wipe') wipeReceived = true;
-				// Deliberately never reply — force the timeout path.
+				// Deliberately never reply, force the timeout path.
 			},
 			terminate: (): void => {
 				terminateCalled = true;

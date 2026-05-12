@@ -18,7 +18,7 @@ This low-level reference details the SHA-2 AssemblyScript source and WASM export
 
 The `sha2` WASM module implements the full SHA-2 hash family and HMAC
 constructions in AssemblyScript, compiled to WebAssembly. All computation runs
-in WASM linear memory with static buffers—no heap allocation, no
+in WASM linear memory with static buffers, no heap allocation, no
 `memory.grow()`.
 
 The module provides:
@@ -143,7 +143,7 @@ sha224Init(): void
 Initialize SHA-224 state. Loads the eight initial hash values H0..H7
 (FIPS 180-4 §5.3.2) into `SHA256_H_OFFSET` and zeroes the partial block
 length and total byte counter. SHA-224 shares the SHA-256 round function
-and message schedule per FIPS 180-4 §6.3 — only the IVs differ. Use
+and message schedule per FIPS 180-4 §6.3, only the IVs differ. Use
 `sha256Update` for input.
 
 ```
@@ -206,7 +206,7 @@ sha512_224Init(): void
 
 Initialize SHA-512/224 state. Loads the eight 64-bit initial hash
 values (FIPS 180-4 §5.3.6.1) into `SHA512_H_OFFSET`. SHA-512/224 shares
-the SHA-512 round function and message schedule per FIPS 180-4 §6.7.1 —
+the SHA-512 round function and message schedule per FIPS 180-4 §6.7.1,
 only the IVs differ. Use `sha512Update` for input.
 
 ```
@@ -222,7 +222,7 @@ sha512_256Init(): void
 
 Initialize SHA-512/256 state. Loads the eight 64-bit initial hash
 values (FIPS 180-4 §5.3.6.2) into `SHA512_H_OFFSET`. SHA-512/256 shares
-the SHA-512 round function and message schedule per FIPS 180-4 §6.7.2 —
+the SHA-512 round function and message schedule per FIPS 180-4 §6.7.2,
 only the IVs differ. Use `sha512Update` for input.
 
 ```

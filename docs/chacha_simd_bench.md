@@ -24,7 +24,7 @@ This is the same parallelism model used in Serpent CTR-4.
 - **Bun version:** measured via `bun check`
 - **Browsers:** Playwright; Chromium, Firefox, WebKit
 - **Benchmark:** `test/e2e/chacha20_simd_bench.spec.ts`
-  - 50 warmup iterations, then 200–5000 timed trials per chunk size
+  - 50 warmup iterations, then 200-5000 timed trials per chunk size
   - Key: RFC 8439 §2.4.2 all-zero-sequential, Nonce: SWEEP_NONCE
 
 ---
@@ -66,21 +66,21 @@ V8-based; measured via extended benchmark in `test/unit/chacha20/chacha20_simd_4
 
 | Chunk size | Scalar (MB/s) | SIMD (MB/s) | Speedup |
 |------------|---------------|-------------|---------|
-| 65,536 B   | ~310–330      | ~970–1030   | **~3.11×** |
-| 16,384 B   | ~310–330      | ~980–1050   | **~3.17×** |
+| 65,536 B   | ~310-330      | ~970-1030   | **~3.11×** |
+| 16,384 B   | ~310-330      | ~980-1050   | **~3.17×** |
 
 ---
 
 ## Analysis
 
-**Inter-block SIMD delivers 2–3× gains across all tested runtimes.**
+**Inter-block SIMD delivers 2-3× gains across all tested runtimes.**
 
-Firefox (SpiderMonkey) has significantly lower absolute throughput (~22–60 MB/s
-vs ~250–1365 MB/s on V8/JSC) for both scalar and SIMD paths. This is a known
+Firefox (SpiderMonkey) has significantly lower absolute throughput (~22-60 MB/s
+vs ~250-1365 MB/s on V8/JSC) for both scalar and SIMD paths. This is a known
 SpiderMonkey characteristic for tight WASM inner loops with many fixed-address
 loads; SpiderMonkey does not perform the same alias-analysis-based register
 promotion that V8 applies. Despite the lower absolute numbers, the **speedup
-ratio is consistent (2.38–2.43×)**; SpiderMonkey benefits from SIMD proportionally.
+ratio is consistent (2.38-2.43×)**; SpiderMonkey benefits from SIMD proportionally.
 
 **SIMD recovers Firefox throughput relative to scalar.**
 The scalar path relies on fixed-address loads to the state matrix
@@ -121,7 +121,7 @@ overhead.
 **3. V8/JSC register-promotion neutralises the memory traffic advantage.**
 
 The expected win from SIMD was eliminating repeated loads of the 16-word state
-matrix (`CHACHA_STATE_OFFSET` words 0–15, fixed constant addresses). V8 and JSC
+matrix (`CHACHA_STATE_OFFSET` words 0-15, fixed constant addresses). V8 and JSC
 already apply register promotion to these fixed-address loads, keeping all 16
 words in scalar registers across the round loop. SIMD was supposed to load them
 once into v128 locals, but V8/JSC already do the equivalent. The advantage does

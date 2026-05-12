@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * KyberSuite — hybrid KEM + symmetric AEAD cipher suite tests.
+ * KyberSuite, hybrid KEM + symmetric AEAD cipher suite tests.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, randomBytes } from '../../../src/ts/index.js';
@@ -159,7 +159,7 @@ describe('KyberSuite error cases', () => {
 		const suite = KyberSuite(kem, XChaCha20Cipher);
 		const { encapsulationKey: ek } = suite.keygen();
 		const blob = Seal.encrypt(suite, ek, randomBytes(64));
-		// Try to decrypt with ek (wrong — should use dk)
+		// Try to decrypt with ek (wrong, should use dk)
 		expect(() => Seal.decrypt(suite, ek, blob)).toThrow(RangeError);
 		kem.dispose();
 	});

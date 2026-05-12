@@ -53,7 +53,7 @@ beforeAll(async () => {
 
 // ── sha3 module (stateful user: SHAKE128) ───────────────────────────────────
 
-describe('atomic defense — sha3', () => {
+describe('atomic defense, sha3', () => {
 	test('SHA3_256.hash throws when SHAKE128 owns the module', () => {
 		const atomic = new SHA3_256();
 		const shake  = new SHAKE128();
@@ -98,7 +98,7 @@ describe('atomic defense — sha3', () => {
 		).toThrow(/stateful instance is using/);
 		shake.dispose();
 		// After dispose, verify either returns true (correct tag) or throws
-		// AuthenticationError on mismatch — both are non-ownership errors.
+		// AuthenticationError on mismatch, both are non-ownership errors.
 		expect(() =>
 			KMAC128.verify(new Uint8Array(32), new Uint8Array([1, 2, 3, 4]),
 				new Uint8Array([0x61]), new Uint8Array(0))
@@ -121,7 +121,7 @@ describe('atomic defense — sha3', () => {
 
 // ── chacha20 module (stateful user: ChaCha20) ───────────────────────────────
 
-describe('atomic defense — chacha20', () => {
+describe('atomic defense, chacha20', () => {
 	test('Poly1305.mac throws when ChaCha20 owns the module', () => {
 		const atomic = new Poly1305();
 		const stream = new ChaCha20();
@@ -209,7 +209,7 @@ describe('atomic defense — chacha20', () => {
 
 // ── serpent module (stateful user: SerpentCtr) ──────────────────────────────
 
-describe('atomic defense — serpent', () => {
+describe('atomic defense, serpent', () => {
 	test('Serpent.loadKey throws when SerpentCtr owns the module', () => {
 		const atomic = new Serpent();
 		const ctr    = new SerpentCtr({ dangerUnauthenticated: true });
@@ -236,16 +236,16 @@ describe('atomic defense — serpent', () => {
 		const ctr    = new SerpentCtr({ dangerUnauthenticated: true });
 		expect(() => atomic.decryptBlock(ct)).toThrow(/stateful instance is using/);
 		ctr.dispose();
-		// Reload key — SerpentCtr's loadKey clobbered the schedule on acquire.
+		// Reload key, SerpentCtr's loadKey clobbered the schedule on acquire.
 		atomic.loadKey(new Uint8Array(32));
 		expect(atomic.decryptBlock(ct)).toBeInstanceOf(Uint8Array);
 		atomic.dispose();
 	});
 });
 
-// ── sha2 module (no stateful user today — simulate via _acquireModule) ──────
+// ── sha2 module (no stateful user today, simulate via _acquireModule) ──────
 
-describe('atomic defense — sha2 (simulated stateful)', () => {
+describe('atomic defense, sha2 (simulated stateful)', () => {
 	test('SHA256.hash throws when sha2 is acquired by a hypothetical stateful user', () => {
 		const atomic = new SHA256();
 		const tok    = _acquireModule('sha2');
@@ -388,9 +388,9 @@ describe('atomic defense — sha2 (simulated stateful)', () => {
 	});
 });
 
-// ── HKDF indirection — defended via underlying HMAC ─────────────────────────
+// ── HKDF indirection, defended via underlying HMAC ─────────────────────────
 
-describe('atomic defense — HKDF indirection', () => {
+describe('atomic defense, HKDF indirection', () => {
 	test('HKDF_SHA256.derive throws via its underlying HMAC_SHA256.hash when sha2 is owned', () => {
 		const hkdf = new HKDF_SHA256();
 		const tok  = _acquireModule('sha2');

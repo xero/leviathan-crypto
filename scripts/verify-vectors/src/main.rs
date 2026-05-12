@@ -100,7 +100,7 @@ fn print_section(label: &str) {
 fn run_mlkem(use_color: bool) -> bool {
     let kg_path = vector_path("kyber_keygen.ts");
     let ed_path = vector_path("kyber_encapdecap.ts");
-    print_section("ML-KEM — FIPS 203 (keygen + encap + decap + key validity)");
+    print_section("ML-KEM, FIPS 203 (keygen + encap + decap + key validity)");
 
     println!("Reading keygen vectors from   {}", kg_path.display());
     println!("Reading encapDecap vectors from {}\n", ed_path.display());
@@ -213,14 +213,14 @@ fn run_mlkem(use_color: bool) -> bool {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// ML-DSA (FIPS 204) dispatcher — implementation in src/mldsa.rs
+// ML-DSA (FIPS 204) dispatcher, implementation in src/mldsa.rs
 // ────────────────────────────────────────────────────────────────────────────
 
 fn run_mldsa(use_color: bool) -> bool {
     let kg_path = vector_path("mldsa_keygen.ts");
     let sg_path = vector_path("mldsa_siggen.ts");
     let sv_path = vector_path("mldsa_sigver.ts");
-    print_section("ML-DSA — FIPS 204 (keygen + sigGen + sigVer, incl. HashML-DSA)");
+    print_section("ML-DSA, FIPS 204 (keygen + sigGen + sigVer, incl. HashML-DSA)");
 
     println!("Reading keygen vectors from   {}", kg_path.display());
     println!("Reading sigGen vectors from   {}", sg_path.display());
@@ -315,12 +315,12 @@ fn run_mldsa(use_color: bool) -> bool {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// KMAC and cSHAKE (SP 800-185) dispatcher — implementation in src/kmac.rs
+// KMAC and cSHAKE (SP 800-185) dispatcher, implementation in src/kmac.rs
 // ────────────────────────────────────────────────────────────────────────────
 
 fn run_kmac(use_color: bool) -> bool {
     let path = vector_path("kmac.ts");
-    print_section("KMAC and cSHAKE — SP 800-185 (NIST CSRC samples + ACVP-Server byte-aligned subset)");
+    print_section("KMAC and cSHAKE, SP 800-185 (NIST CSRC samples + ACVP-Server byte-aligned subset)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -418,7 +418,7 @@ fn run_kmac(use_color: bool) -> bool {
 
 fn run_xchacha_seal(use_color: bool) -> bool {
     let path = vector_path("seal_xchacha_v3.ts");
-    print_section("XChaCha20 v3 — seal (single-chunk)");
+    print_section("XChaCha20 v3, seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -458,7 +458,7 @@ fn run_xchacha_seal(use_color: bool) -> bool {
 
 fn run_xchacha_sealstream(use_color: bool) -> bool {
     let path = vector_path("sealstream_xchacha_v3.ts");
-    print_section("XChaCha20 v3 — sealstream (multi-chunk)");
+    print_section("XChaCha20 v3, sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -498,7 +498,7 @@ fn run_xchacha_sealstream(use_color: bool) -> bool {
 
 fn run_serpent_seal(use_color: bool) -> bool {
     let path = vector_path("seal_serpent_v3.ts");
-    print_section("Serpent v3 — seal (single-chunk)");
+    print_section("Serpent v3, seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -538,7 +538,7 @@ fn run_serpent_seal(use_color: bool) -> bool {
 
 fn run_serpent_sealstream(use_color: bool) -> bool {
     let path = vector_path("sealstream_serpent_v3.ts");
-    print_section("Serpent v3 — sealstream (multi-chunk)");
+    print_section("Serpent v3, sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -578,7 +578,7 @@ fn run_serpent_sealstream(use_color: bool) -> bool {
 
 fn run_aes_seal(use_color: bool) -> bool {
     let path = vector_path("seal_aes_v3.ts");
-    print_section("AES-GCM-SIV v3 — seal (single-chunk)");
+    print_section("AES-GCM-SIV v3, seal (single-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -618,7 +618,7 @@ fn run_aes_seal(use_color: bool) -> bool {
 
 fn run_aes_sealstream(use_color: bool) -> bool {
     let path = vector_path("sealstream_aes_v3.ts");
-    print_section("AES-GCM-SIV v3 — sealstream (multi-chunk)");
+    print_section("AES-GCM-SIV v3, sealstream (multi-chunk)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -658,7 +658,7 @@ fn run_aes_sealstream(use_color: bool) -> bool {
 
 fn run_aes_gcm_siv(use_color: bool) -> bool {
     let path = vector_path("aes_gcm_siv.ts");
-    print_section("AES-GCM-SIV — RFC 8452 Appendix C");
+    print_section("AES-GCM-SIV, RFC 8452 Appendix C");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -700,7 +700,7 @@ fn run_aes_gcm_siv(use_color: bool) -> bool {
 
 fn run_polyval(use_color: bool) -> bool {
     let path = vector_path("polyval.ts");
-    print_section("POLYVAL — RFC 8452 §7 + Appendix A");
+    print_section("POLYVAL, RFC 8452 §7 + Appendix A");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -758,7 +758,7 @@ fn run_polyval(use_color: bool) -> bool {
 
 fn run_aes(use_color: bool) -> bool {
     let path = vector_path("aes.ts");
-    print_section("AES — FIPS 197 (cipher example + key schedule + S-box + round trace)");
+    print_section("AES, FIPS 197 (cipher example + key schedule + S-box + round trace)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -788,7 +788,7 @@ fn run_aes(use_color: bool) -> bool {
 
 fn run_aes_cbc(use_color: bool) -> bool {
     let path = vector_path("aes_cbc.ts");
-    print_section("AES-CBC — SP 800-38A §F.2");
+    print_section("AES-CBC, SP 800-38A §F.2");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -835,7 +835,7 @@ fn run_aes_cbc(use_color: bool) -> bool {
 
 fn run_aes_ctr(use_color: bool) -> bool {
     let path = vector_path("aes_ctr.ts");
-    print_section("AES-CTR — SP 800-38A §F.5 (Ctr128BE / 128-bit BE counter)");
+    print_section("AES-CTR, SP 800-38A §F.5 (Ctr128BE / 128-bit BE counter)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {
@@ -882,7 +882,7 @@ fn run_aes_ctr(use_color: bool) -> bool {
 
 fn run_aes_gcm(use_color: bool) -> bool {
     let path = vector_path("aes_gcm.ts");
-    print_section("AES-GCM — McGrew-Viega Appendix B (18 vectors, mixed 96/64/480-bit IVs)");
+    print_section("AES-GCM, McGrew-Viega Appendix B (18 vectors, mixed 96/64/480-bit IVs)");
     println!("Reading vectors from {}\n", path.display());
 
     let src = match fs::read_to_string(&path) {

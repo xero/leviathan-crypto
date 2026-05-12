@@ -98,8 +98,8 @@ The original Fortuna spec (Ferguson and Schneier, *Practical Cryptography*
 
 `AESGenerator` + `SHA256Hash` is the spec-canonical pair. This library
 also offers Serpent-256 and ChaCha20 as alternative generators, and
-SHA3-256 as an alternative hash. The construction is otherwise identical
-— the pool-selection schedule, the 32-pool count, the 64-bit reseed
+SHA3-256 as an alternative hash. The construction is otherwise identical:
+the pool-selection schedule, the 32-pool count, the 64-bit reseed
 threshold, the 100ms reseed interval, and the entropy-credit constants
 are unchanged from the spec.
 
@@ -520,7 +520,7 @@ Fortuna operations on the same module throw the ownership error from
 `init.ts`:
 
 ```
-leviathan-crypto: another stateful instance is using the '<module>' WASM module — call dispose() on it before constructing a new one
+leviathan-crypto: another stateful instance is using the '<module>' WASM module, call dispose() on it before constructing a new one
 ```
 
 The relevant pairings:

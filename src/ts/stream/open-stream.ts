@@ -21,7 +21,7 @@
 //
 // src/ts/stream/open-stream.ts
 //
-// OpenStream — cipher-agnostic streaming decryption using the STREAM
+// OpenStream, cipher-agnostic streaming decryption using the STREAM
 // construction (Hoang/Reyhanitabar/Rogaway/Vizár, CRYPTO 2015).
 
 import { isInitialized } from '../init.js';
@@ -46,7 +46,7 @@ export class OpenStream {
 
 		if (!isInitialized('sha2'))
 			throw new Error(
-				'leviathan-crypto: stream layer requires sha2 for key derivation — '
+				'leviathan-crypto: stream layer requires sha2 for key derivation, '
 				+ 'call init({ sha2: ... }) before creating an OpenStream',
 			);
 		const decKeySize = cipher.decKeySize ?? cipher.keySize;
@@ -162,7 +162,7 @@ export class OpenStream {
 			this.cipher.wipeKeys(this.keys);
 			this.state = 'finalized';
 		}
-		// 'failed' already wiped keys; 'finalized' already wiped keys — no-op.
+		// 'failed' already wiped keys; 'finalized' already wiped keys, no-op.
 	}
 
 	seek(index: number): void {
@@ -174,7 +174,7 @@ export class OpenStream {
 			);
 		if (index < this.counter)
 			throw new RangeError(
-				`OpenStream: seek is forward-only — current counter ${this.counter}, requested ${index}. `
+				`OpenStream: seek is forward-only, current counter ${this.counter}, requested ${index}. `
 				+ 'Backward seeks would permit plaintext replay; construct a new OpenStream to restart.',
 			);
 		this.counter = index;
@@ -182,12 +182,12 @@ export class OpenStream {
 
 	private _stripFrame(chunk: Uint8Array): Uint8Array {
 		if (chunk.length < 4)
-			throw new RangeError(`framed chunk too short — need at least 4 bytes (got ${chunk.length})`);
+			throw new RangeError(`framed chunk too short, need at least 4 bytes (got ${chunk.length})`);
 		const dv = new DataView(chunk.buffer, chunk.byteOffset);
 		const payloadLen = dv.getUint32(0, false);
 		if (payloadLen !== chunk.length - 4)
 			throw new RangeError(
-				`framed chunk length mismatch — prefix says ${payloadLen}, actual payload is ${chunk.length - 4}`,
+				`framed chunk length mismatch, prefix says ${payloadLen}, actual payload is ${chunk.length - 4}`,
 			);
 		return chunk.subarray(4);
 	}
@@ -211,7 +211,7 @@ export class OpenStream {
 					if (buffered !== null) {
 						controller.enqueue(this.finalize(buffered));
 					} else {
-						this.dispose(); // no chunks piped — wipe keys, emit nothing
+						this.dispose(); // no chunks piped, wipe keys, emit nothing
 					}
 				} catch (err) {
 					this.dispose();

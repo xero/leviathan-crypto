@@ -3,10 +3,10 @@
 //
 // Worker for SealStreamPool with SerpentCipher.
 // Holds 3 derived keys (enc/mac/iv) and raw WASM instances.
-// Direct WASM calls — no initModule (avoids same-thread module cache conflicts
+// Direct WASM calls, no initModule (avoids same-thread module cache conflicts
 // in @vitest/web-worker test environment).
 //
-// All HMAC / CBC / PKCS7 primitives come from `./shared-ops.js` — the same
+// All HMAC / CBC / PKCS7 primitives come from `./shared-ops.js`, the same
 // module the main-thread `SerpentCipher` uses. Byte-identical output with
 // the main thread is the regression guard (see
 // test/unit/stream/pool-byte-exact.test.ts). Must NOT import from `../init.js`:
@@ -24,7 +24,7 @@ import {
 
 // Worker-local augmentation: the pool worker also calls `wipeBuffers()` on
 // teardown. Shared-ops doesn't need that method so it's not on the shared
-// type — add it here.
+// type, add it here.
 /** sha2 WASM exports extended with `wipeBuffers` for worker teardown. @internal */
 type Sha2W     = Sha2OpsExports     & { wipeBuffers(): void };
 /** Serpent WASM exports extended with `wipeBuffers` for worker teardown. @internal */
@@ -38,9 +38,9 @@ let keys: Uint8Array | undefined;
  * Message handler for the Serpent pool worker.
  *
  * Accepts three message types:
- * - `'init'`  — instantiate sha2 + serpent WASM modules and store derived keys
- * - `'wipe'`  — zero keys and WASM buffers, then post `{ type: 'wiped' }`
- * - `{ op: 'seal' | 'open', ... }` — encrypt or decrypt one chunk
+ * - `'init'` , instantiate sha2 + serpent WASM modules and store derived keys
+ * - `'wipe'` , zero keys and WASM buffers, then post `{ type: 'wiped' }`
+ * - `{ op: 'seal' | 'open', ... }`, encrypt or decrypt one chunk
  *
  * Replies with `{ type: 'result', id, data }` on success or
  * `{ type: 'error', id, message, isAuthError }` on failure.

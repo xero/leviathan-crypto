@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_kat.test.ts
 //
-// Gate 4 — full AES encrypt KAT for all three key sizes. Combines FIPS 197
+// Gate 4, full AES encrypt KAT for all three key sizes. Combines FIPS 197
 // §B (AES-128 example) with the twelve NIST CAVP AESVS ECB Known-Answer-Test
 // files (4 file types × 3 key sizes).
 
@@ -36,7 +36,7 @@ beforeAll(async () => {
 	await init({ aes: aesWasm });
 });
 
-describe('AES-128 KAT (Gate 4) — FIPS 197 §B', () => {
+describe('AES-128 KAT (Gate 4), FIPS 197 §B', () => {
 	// GATE: full 10-round AES-128 encrypt of the §B example.
 	it('FIPS 197 §B AES-128 cipher example', () => {
 		const aes = new AES();
@@ -58,7 +58,7 @@ for (const file of [
 	'aes_ECBGFSbox256.rsp', 'aes_ECBKeySbox256.rsp',
 	'aes_ECBVarKey256.rsp', 'aes_ECBVarTxt256.rsp',
 ]) {
-	describe(`AES KAT (Gate 4) — CAVP ${file}`, () => {
+	describe(`AES KAT (Gate 4), CAVP ${file}`, () => {
 		const { encrypt } = parseEcbKatFile(file);
 
 		it('parses non-zero vectors', () => {

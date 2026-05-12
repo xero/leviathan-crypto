@@ -1,4 +1,4 @@
-# Agent Instructions — Leviathan Crypto Library
+# Agent Instructions: Leviathan Crypto Library
 
 This file is the contract for all AI-assisted development on this repository.
 Read it in full before starting any work.
@@ -9,14 +9,14 @@ Read it in full before starting any work.
 
 `leviathan-crypto` is a strictly-typed, zero-dependency WebAssembly cryptography
 library for the web. All cryptographic computation runs in WASM (AssemblyScript),
-outside the JavaScript JIT. The TypeScript layer provides the public API — input
+outside the JavaScript JIT. The TypeScript layer provides the public API, input
 validation, type safety, and developer ergonomics. It never implements
 cryptographic algorithms.
 
 Read `docs/architecture.md` before starting any implementation work. It defines
 the module structure, the `init()` API contract, the class naming conventions,
 the build pipeline, and the repository layout. If something in your task conflicts
-with `docs/architecture.md`, `docs/architecture.md` wins — flag the conflict
+with `docs/architecture.md`, `docs/architecture.md` wins, flag the conflict
 rather than resolving it silently.
 
 ---
@@ -27,22 +27,22 @@ Always run `bun i` first. Every session, no exceptions. Missing devDependencies
 (eslint, playwright, tsx, etc.) have caused agents to waste time debugging tool
 errors that were simply install problems. Don't be that agent.
 
-Use these shorthands — they are the correct commands:
+Use these shorthands, they are the correct commands:
 
 ```sh
-bun i       # install — always run first, every session
+bun i       # install, always run first, every session
 bun bake    # full build (asm → embed → ts → wasm copy → docs)
-bun check   # full test suite — unit + browser, correct timeouts
-bun fix     # eslint autofix — run before marking any task done
-bun pin     # re-pin action SHAs — run after any workflow file change
+bun check   # full test suite, unit + browser, correct timeouts
+bun fix     # eslint autofix, run before marking any task done
+bun pin     # re-pin action SHAs, run after any workflow file change
 ```
 
-**Never run `bun build` directly** — that invokes the Bun bundler, not the
+**Never run `bun build` directly.** that invokes the Bun bundler, not the
 project build. Use the shorthand aliases (`bun bake` / `bun check` / `bun fix`
 / `bun pin`) in agent sessions rather than the verbose `bun run build` /
 `bun run test` / `bun run lint` / `bun run pin-actions`. The shorthand and the
 verbose forms run identical dispatchers (`scripts/build.ts`, `scripts/check.ts`,
-`scripts/lint.ts`, `scripts/pin-actions.ts`) — favor the shorthand for terse,
+`scripts/lint.ts`, `scripts/pin-actions.ts`), favor the shorthand for terse,
 consistent invocations. `bun check` does a full build, then runs lint + unit
 + e2e in parallel. Always capture output to a log file and inspect from there,
 to avoid running it twice:
@@ -59,8 +59,8 @@ and intentional.** Each `.github/workflows/unit-*.yml` invokes this command
 for its respective group; per-group file lists, build prerequisites, and
 timeouts live in `scripts/lib/test-groups.ts` as the single source of truth.
 Do not replace these invocations with `bun check` when editing workflow
-files, and do not edit workflow YAML to add or remove individual test paths
-— group composition belongs in `test-groups.ts` (see test-suite editing
+files, and do not edit workflow YAML to add or remove individual test paths;
+group composition belongs in `test-groups.ts` (see test-suite editing
 instructions below).
 
 ### Running tests during iteration
@@ -111,7 +111,7 @@ constant, test vector expected value) that differs from the published standard,
 > **Why this rule exists:** A planning document once contained a wrong expected
 > value for SHA-256("abc"). An agent treated the planning document as
 > authoritative, found that the implementation did not match, and corrupted the
-> test vectors to make them pass — resulting in a test suite that validated a
+> test vectors to make them pass, resulting in a test suite that validated a
 > wrong implementation. The implementation was actually correct; the planning
 > document was wrong.
 
@@ -132,14 +132,14 @@ provides zero correctness assurance. It is worse than no tests.
 
 ### 3. Gate discipline
 
-Every primitive family has a gate test — the simplest authoritative known-answer
+Every primitive family has a gate test, the simplest authoritative known-answer
 test for that primitive. The gate is marked with a `// GATE` comment in the test
 file.
 
 **The gate must pass before any other tests in that family are written.**
 
 If the gate fails, stop. Debug the implementation. Do not write round-trip tests,
-streaming tests, or cross-check tests while the gate is failing — they will all
+streaming tests, or cross-check tests while the gate is failing, they will all
 pass or fail for the wrong reasons.
 
 If the gate passes on the first build, verify that the expected value was sourced
@@ -151,17 +151,17 @@ because the expected value was copied from the implementation output is not a ga
 Each AssemblyScript primitive is implemented from the spec directly. Do not port
 from an existing reference implementation. If a reference implementation exists
 for cross-checking, use it **after** the independent implementation passes its
-gate — never before.
+gate, never before.
 
 This makes cross-checks a genuine correctness signal. If the WASM output matches
-a reference for random inputs, that is meaningful evidence — because the two
+a reference for random inputs, that is meaningful evidence, because the two
 implementations were written independently from the same spec. If you read the
 reference first and port it, the cross-check tells you nothing except that you
 copied it correctly.
 
 ### 5. Never embed cryptographic values in planning documents
 
-Architecture documents, task files, and prompts describe structure and contracts —
+Architecture documents, task files, and prompts describe structure and contracts,
 not cryptographic values. Hash outputs, round constants, S-box entries, rotation
 amounts, and test vector expected values belong only in:
 
@@ -185,12 +185,12 @@ that way.
 ## Code Style
 
 - **Tabs, not spaces** for indentation (AssemblyScript and TypeScript)
-- **Unix line endings** — follow what's defined in `.gitattributes`
+- **Unix line endings.** follow what's defined in `.gitattributes`
 - **Terse over verbose**: inline conditionals, short variable names, no
   unnecessary intermediate variables
 - **No comments that restate the code**: comments explain *why*, not *what*
 - **Spec citations in source**: when implementing a standard, cite the section.
-  Example: `// FIPS 180-4 §4.1.2 — Ch function`
+  Example: `// FIPS 180-4 §4.1.2, Ch function`
 - **Exports are the public contract**: keep internal functions unexported;
   only export what the TypeScript layer needs to call
 - **The ASCII art header** goes on every source file (see any existing file)
@@ -228,7 +228,7 @@ These are decisions already made. Do not relitigate them without raising it firs
 - **`stream/` is cipher-agnostic**: `SealStream`, `OpenStream`, and
   `SealStreamPool` take a `CipherSuite` object at construction. The two
   shipped implementations are `XChaCha20Cipher` and `SerpentCipher`. Do not
-  add cipher-specific stream classes — the generic pattern replaces them.
+  add cipher-specific stream classes, the generic pattern replaces them.
 - **Stream layer requires sha2**: HKDF-SHA256 is a stream-layer dependency,
   not a cipher choice. All stream classes validate `isInitialized('sha2')`
   and throw if not. This is separate from the cipher's own module requirements.
@@ -261,7 +261,7 @@ Both are required. Neither is optional.
   `grep -E "test/unit/path/to/file" /tmp/check.log` or count `it(`/`test(`
   calls directly in the file.
 - **Unit Tests or E2E Tests table**: add or remove the corresponding row.
-  Match the format of existing rows — file path, description, vector/test
+  Match the format of existing rows, file path, description, vector/test
   count, gate column.
 
 ### 2. Update CI (unit tests only)
@@ -274,7 +274,7 @@ For unit tests:
   `name` matches the test family (e.g. `aes`, `mldsa`, `kyber`). To locate
   the right group when unsure: `grep -l "test/unit/family" scripts/lib/test-groups.ts`.
 - Add or remove the test file path from that group's `files` array.
-- No workflow file edit is needed when adding a test to an existing group —
+- No workflow file edit is needed when adding a test to an existing group;
   the corresponding `.github/workflows/unit-<family>.yml` already calls
   `bun scripts/test.ts unit:group <name>`, which reads the file list from
   `test-groups.ts` at run time.
@@ -283,7 +283,7 @@ For unit tests:
 with no existing group, do both: (1) add a new `UNIT_GROUPS` entry to
 `scripts/lib/test-groups.ts` with `name`, `files`, `buildTargets`, and
 `timeoutMin`; (2) create a new `unit-<family>.yml` workflow. Read an existing
-workflow file first and match its structure exactly — job name format,
+workflow file first and match its structure exactly, job name format,
 timeout settings, step order, `bun i` precondition, and the
 `bun scripts/test.ts unit:group <name>` invocation. Then wire it into
 `test-suite.yml` following the same pattern as the other unit jobs. Run
@@ -300,7 +300,7 @@ timeout settings, step order, `bun i` precondition, and the
 - **Constant-time operations**: MAC verification, padding validation, and any
   comparison of secret-derived values must use XOR-accumulate patterns. No early
   return on mismatch. No branch on secret bytes.
-- **AEAD `decrypt()` throws on authentication failure** — never returns null.
+- **AEAD `decrypt()` throws on authentication failure.** never returns null.
   Null returns are a footgun for callers who might forget to check.
 - **No polyfill for `crypto.getRandomValues`**: fail loudly in environments
   that don't have it.
@@ -312,7 +312,7 @@ timeout settings, step order, `bun i` precondition, and the
 
 ## Docs as Contract (not Authority)
 
-`docs/*.md` describe what the library does — they are not authoritative on
+`docs/*.md` describe what the library does, they are not authoritative on
 cryptographic values or algorithm behavior. The spec is. If a doc contradicts
 the spec, the spec wins and the doc is wrong.
 
@@ -323,7 +323,7 @@ direction.
 
 `docs/CLAUDE_consumer.md` ships inside the npm package. It is read by AI
 assistants consuming this library. It must be kept in sync with any public API
-change — if a class is added, removed, renamed, or its signature changes,
+change, if a class is added, removed, renamed, or its signature changes,
 `CLAUDE_consumer.md` gets updated in the same commit.
 
 ---
@@ -342,8 +342,8 @@ change — if a class is added, removed, renamed, or its signature changes,
 
 A task is complete when **all** of the following are true:
 
-1. `bun check` passes — all unit and e2e tests green
-2. `bun fix` has been run — no lint errors remain
+1. `bun check` passes, all unit and e2e tests green
+2. `bun fix` has been run, no lint errors remain
 3. The gate test for any new primitive is sourced from the authoritative spec
 4. `wipeBuffers()` covers all new buffers
 5. No existing tests were modified to make new tests pass
@@ -364,9 +364,9 @@ A task is complete when **all** of the following are true:
 10. `SECURITY.md` supported versions table updated
 11. `CHANGELOG` entry added with breaking changes, migration table if applicable,
    and added/fixed/removed summary
-12. `npm pack --dry-run` run and output reviewed — confirm deleted files are
+12. `npm pack --dry-run` run and output reviewed, confirm deleted files are
     absent, no unexpected files included
-13. Version bump in `package.json` is **not** part of any task — it is handled
+13. Version bump in `package.json` is **not** part of any task, it is handled
     by the release workflow at tag time. Never touch `package.json` version.
 
 ---
@@ -392,7 +392,7 @@ Two failed attempts at the same problem is the limit. On the third attempt you
 are guessing. Create `ISSUE.md` in the repository root:
 
 ```markdown
-# Issue — [short title]
+# Issue, [short title]
 
 ## Status
 Blocked. Implementation work stopped at [file / function / test].
@@ -401,7 +401,7 @@ Blocked. Implementation work stopped at [file / function / test].
 [The specific task or step that hit the blocker]
 
 ## What I tried
-[Each attempt, in order, with the result of each. Be specific — include
+[Each attempt, in order, with the result of each. Be specific, include
 error messages, wrong output values, and what you expected instead.]
 
 ## Where I am stuck

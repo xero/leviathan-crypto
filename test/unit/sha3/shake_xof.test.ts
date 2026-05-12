@@ -5,7 +5,7 @@
 // squeeze(a) followed by squeeze(b) yields bytes [0,a) and [a,a+b) of the XOF stream.
 //
 // NOTE: SHAKE128 and SHAKE256 share a single WASM 'sha3' module instance.
-// Instances must not be interleaved — each test uses one instance at a time.
+// Instances must not be interleaved, each test uses one instance at a time.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, SHAKE128, SHAKE256 } from '../../../src/ts/index.js';
@@ -48,7 +48,7 @@ describe('SHAKE128 multi-squeeze KAT', () => {
 
 describe('SHAKE128 byte-by-byte squeeze', () => {
 	test('MS-4: squeeze(1) × 32 concatenates to same output as squeeze(32)', () => {
-		// Reference: shake128Vectors[0] — FIPS 202 empty message, 32-byte output
+		// Reference: shake128Vectors[0], FIPS 202 empty message, 32-byte output
 		const ref = shake128Vectors[0].expected;
 		const h = new SHAKE128();
 		h.absorb(new Uint8Array(0));
@@ -62,7 +62,7 @@ describe('SHAKE128 byte-by-byte squeeze', () => {
 
 describe('SHAKE128 reset after multi-squeeze', () => {
 	test('MS-9: reset() after multi-squeeze produces same output as a fresh squeeze', () => {
-		// Reference: shake128Vectors[0] — FIPS 202 empty message, 32-byte output
+		// Reference: shake128Vectors[0], FIPS 202 empty message, 32-byte output
 		const ref = shake128Vectors[0].expected;
 		const h = new SHAKE128();
 
@@ -71,7 +71,7 @@ describe('SHAKE128 reset after multi-squeeze', () => {
 		h.squeeze(100);
 		h.squeeze(100);
 
-		// reset and re-run — must produce clean output, not a continuation
+		// reset and re-run, must produce clean output, not a continuation
 		h.reset();
 		h.absorb(new Uint8Array(0));
 		const out = toHex(h.squeeze(32));
@@ -99,7 +99,7 @@ describe('SHAKE256 multi-squeeze KAT', () => {
 
 describe('SHAKE256 byte-by-byte squeeze', () => {
 	test('MS-8: squeeze(1) × 32 concatenates to same output as squeeze(32)', () => {
-		// Reference: shake256Vectors[0] — FIPS 202 empty message, 32-byte output
+		// Reference: shake256Vectors[0], FIPS 202 empty message, 32-byte output
 		const ref = shake256Vectors[0].expected;
 		const h = new SHAKE256();
 		h.absorb(new Uint8Array(0));

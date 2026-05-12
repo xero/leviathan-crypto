@@ -52,7 +52,7 @@ The STREAM construction is based on [Hoang, Reyhanitabar, Rogaway, and Vizár (C
 >
 > This is safe because every validation error depends only on attacker-observable input lengths and never on secret-derived state. Distinguishing a validation throw from an auth failure gives an attacker no information they did not already have. Auth failures from `cipher.openChunk` remain terminal, as they are the crypto-path case.
 >
-> **`OpenStream.seek(index)` validates `index` before mutating state.** Indices that are not non-negative safe integers — `NaN`, `Infinity`, fractional, negative, or `> Number.MAX_SAFE_INTEGER` — throw `RangeError` without changing `counter`, so the caller can retry with a corrected index. The check uses `Number.isSafeInteger(index) && index >= 0` so values above `2^53 - 1` (where IEEE 754 doubles have integer gaps) are rejected directly rather than relying on a separate magnitude comparison. Backward seeks (`index < counter`) throw `'forward-only'` for the same reason (plaintext replay prevention). See `seek()` in the OpenStream API table.
+> **`OpenStream.seek(index)` validates `index` before mutating state.** Indices that are not non-negative safe integers, `NaN`, `Infinity`, fractional, negative, or `> Number.MAX_SAFE_INTEGER`, throw `RangeError` without changing `counter`, so the caller can retry with a corrected index. The check uses `Number.isSafeInteger(index) && index >= 0` so values above `2^53 - 1` (where IEEE 754 doubles have integer gaps) are rejected directly rather than relying on a separate magnitude comparison. Backward seeks (`index < counter`) throw `'forward-only'` for the same reason (plaintext replay prevention). See `seek()` in the OpenStream API table.
 >
 > **AEAD `encrypt()` is strict single-use.** `ChaCha20Poly1305.encrypt()` and `XChaCha20Poly1305.encrypt()` are terminal on any throw, including key and nonce length validation. A retry on the same instance always raises the single-use guard, never a fresh length error. This tightens the 2.0-beta semantics where length validation was recoverable. Always allocate a new AEAD per message.
 >
@@ -122,7 +122,7 @@ bytes:
  20-51: key commitment (32 bytes)
 ```
 
-The commitment is the second half of a 64-byte HKDF-SHA-256 output: bytes 0..32 are the per-stream AES-GCM-SIV key (no subkey-derivation step — AES-GCM-SIV's nonce is 12 bytes, used directly per chunk; there is no HChaCha20 analog), bytes 32..64 are the commitment. `OpenStream` and `SealStreamPool` verify the commitment against the receiver's derived value in constant time before any chunk is processed. A wrong key fails fast with `AuthenticationError`, before AES-GCM-SIV is consulted. The discriminator string is `commitment-aes-gcm-siv`. This closes the Invisible Salamanders attack surface for AES-GCM-SIV — POLYVAL is not key-committing on its own (same posture as Poly1305).
+The commitment is the second half of a 64-byte HKDF-SHA-256 output: bytes 0..32 are the per-stream AES-GCM-SIV key (no subkey-derivation step, AES-GCM-SIV's nonce is 12 bytes, used directly per chunk; there is no HChaCha20 analog), bytes 32..64 are the commitment. `OpenStream` and `SealStreamPool` verify the commitment against the receiver's derived value in constant time before any chunk is processed. A wrong key fails fast with `AuthenticationError`, before AES-GCM-SIV is consulted. The discriminator string is `commitment-aes-gcm-siv`. This closes the Invisible Salamanders attack surface for AES-GCM-SIV, POLYVAL is not key-committing on its own (same posture as Poly1305).
 
 The HKDF info string is `aes-gcm-siv-sealstream-v3` followed by the full 20-byte header. Tampering with `formatEnum`, the framed flag, the nonce, or `chunkSize` produces different derived keys, so the AEAD fails directly on the first chunk rather than relying on indirect detection through chunk-boundary mismatch.
 
@@ -231,7 +231,7 @@ import { XChaCha20Cipher } from 'leviathan-crypto/chacha20'
 import { chacha20Wasm }    from 'leviathan-crypto/chacha20/embedded'
 import { sha2Wasm }        from 'leviathan-crypto/sha2/embedded'
 
-// init already called — preamble, key, and ciphertext chunks received from sender
+// init already called, preamble, key, and ciphertext chunks received from sender
 const opener = new OpenStream(XChaCha20Cipher, key, preamble)
 
 const pt0    = opener.pull(ct0)
@@ -346,13 +346,13 @@ await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha
 const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 
-// sender — encrypts with the public key
+// sender, encrypts with the public key
 const sealer   = new SealStream(suite, ek)
 const preamble = sealer.preamble  // 1108 bytes for MlKem768
 const ct0      = sealer.push(chunk0)
 const ctLast   = sealer.finalize(lastChunk)
 
-// recipient — decrypts with the private key
+// recipient, decrypts with the private key
 const opener = new OpenStream(suite, dk, preamble)
 const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)

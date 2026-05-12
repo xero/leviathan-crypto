@@ -5,7 +5,7 @@
 //     (1 record each = 3 total) via RustCrypto's `aes` crate, exercising
 //     both the encrypt and decrypt directions.
 //
-// Carried (read but not exercised — RustCrypto's `aes` crate does not
+// Carried (read but not exercised, RustCrypto's `aes` crate does not
 // expose round-key schedules, S-box lookups, or per-round state):
 //   - aesKeyExpansionVectors (3 records)
 //   - aesSboxTable (256-byte Uint8Array)
@@ -25,7 +25,7 @@ pub fn verify(av: &AesVectors) -> (bool, Vec<String>) {
     let mut log = Vec::new();
     let mut all_ok = true;
 
-    log.push("FIPS 197 cipher vectors (one per keysize) — verified end-to-end:".to_string());
+    log.push("FIPS 197 cipher vectors (one per keysize), verified end-to-end:".to_string());
     log.push(String::new());
 
     for v in &av.cipher_128 { let (ok, sub) = verify_block::<Aes128>(v, 16); log.extend(sub); if !ok { all_ok = false; } }

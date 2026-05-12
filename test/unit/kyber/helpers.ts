@@ -22,7 +22,7 @@
 // test/unit/kyber/helpers.ts
 //
 // WASM test helpers for the kyber module. Loads build/kyber.wasm directly
-// (no init() system — kyber WASM has its own memory, not imported).
+// (no init() system, kyber WASM has its own memory, not imported).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -123,7 +123,7 @@ export async function loadKyber(): Promise<KyberExports> {
 }
 
 export function getWasm(): KyberExports {
-	if (!_instance) throw new Error('kyber WASM not loaded — call loadKyber() in beforeAll');
+	if (!_instance) throw new Error('kyber WASM not loaded, call loadKyber() in beforeAll');
 	return _instance;
 }
 
@@ -244,6 +244,6 @@ export async function loadSha3(): Promise<Sha3Exports> {
 }
 
 export function getSha3(): Sha3Exports {
-	if (!_sha3Instance) throw new Error('sha3 WASM not loaded — call loadSha3() in beforeAll');
+	if (!_sha3Instance) throw new Error('sha3 WASM not loaded, call loadSha3() in beforeAll');
 	return _sha3Instance;
 }

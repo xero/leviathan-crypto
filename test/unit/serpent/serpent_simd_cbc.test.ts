@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SIMD CBC decrypt cross-check — scalar vs SIMD for a broad range of sizes.
+ * SIMD CBC decrypt cross-check, scalar vs SIMD for a broad range of sizes.
  * Exercises the SIMD inner loop, scalar tail, and chaining across chunk boundaries.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -99,7 +99,7 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm });
 });
 
-describe('SIMD CBC decrypt cross-check — broad size coverage', () => {
+describe('SIMD CBC decrypt cross-check, broad size coverage', () => {
 	// Every block count from 1 to 12 (exercises all SIMD/tail combinations)
 	for (let blocks = 1; blocks <= 12; blocks++) {
 		const len = blocks * 16;

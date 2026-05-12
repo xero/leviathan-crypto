@@ -51,7 +51,7 @@ function fillAllPools(f: Fortuna, rounds = 2): void {
 	}
 }
 
-describe('Fortuna — pool-selection spec conformance (§9.5.5)', () => {
+describe('Fortuna, pool-selection spec conformance (§9.5.5)', () => {
 	let fortuna: Fortuna;
 
 	afterEach(() => {
@@ -60,7 +60,7 @@ describe('Fortuna — pool-selection spec conformance (§9.5.5)', () => {
 		} catch { /* already disposed */ }
 	});
 
-	test('spec §9.5.5 — pool P_i consumed iff 2^i divides reseedCnt', async () => {
+	test('spec §9.5.5, pool P_i consumed iff 2^i divides reseedCnt', async () => {
 		// We verify reseeds 1..16, checking pools 0..4 (well within the fill range).
 		// Strategy per reseed:
 		//   1. Fill all pools so they hold non-zero data.
@@ -102,7 +102,7 @@ describe('Fortuna — pool-selection spec conformance (§9.5.5)', () => {
 			fillAllPools(fortuna);
 			// Capture the LIVE reference to pool[0] right before the reseed.
 			const pool0Live = fortuna._getPoolHash()[0];
-			expect(isZero(pool0Live)).toBe(false); // pool has data — pre-state sanity
+			expect(isZero(pool0Live)).toBe(false); // pool has data, pre-state sanity
 
 			const cntBefore = fortuna._getReseedCnt();
 			fortuna.get(16);

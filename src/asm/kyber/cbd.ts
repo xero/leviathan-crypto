@@ -21,13 +21,13 @@
 //
 // src/asm/kyber/cbd.ts
 //
-// ML-KEM (Kyber) — Centered Binomial Distribution sampling.
-// FIPS 203 §4.2.2 SamplePolyCBD_η — Algorithm 7 (η=2) and Algorithm 8 (η=3).
+// ML-KEM (Kyber), Centered Binomial Distribution sampling.
+// FIPS 203 §4.2.2 SamplePolyCBD_η, Algorithm 7 (η=2) and Algorithm 8 (η=3).
 // Reference: pq-crystals/kyber main ref/cbd.c.
 
 /**
  * CBD with η=2. Samples 256 coefficients in [−2, 2].
- * FIPS 203 Algorithm 7 — SamplePolyCBD_2.
+ * FIPS 203 Algorithm 7, SamplePolyCBD_2.
  * Input: 128-byte PRF output buffer (2×N/4 = 2×64 = 128 bytes).
  * @param polyOffset output 256×i16 polynomial
  * @param bufOffset input 128-byte buffer
@@ -56,7 +56,7 @@ export function cbd2(polyOffset: i32, bufOffset: i32): void {
 
 /**
  * CBD with η=3. Samples 256 coefficients in [−3, 3].
- * FIPS 203 Algorithm 8 — SamplePolyCBD_3.
+ * FIPS 203 Algorithm 8, SamplePolyCBD_3.
  * Input: 192-byte PRF output buffer (3×N/4 = 3×64 = 192 bytes).
  * @param polyOffset output 256×i16 polynomial
  * @param bufOffset input 192-byte buffer

@@ -71,7 +71,7 @@ jobs:
           BREAKING="${{ steps.changelog.outputs.breaking }}"
 
           if [ "$BREAKING" = "1" ]; then
-            TITLE="⚠ $TAG — Breaking Changes"
+            TITLE="⚠ $TAG: Breaking Changes"
           else
             TITLE="$TAG"
           fi

@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * NESSIE test vectors — Serpent (cross-browser)
+ * NESSIE test vectors, Serpent (cross-browser)
  *
  * Source: NESSIE project evaluation, 2000-2003
  * Files:  serpent_nessie-128.txt, serpent_nessie-192.txt, serpent_nessie-256.txt (served from localhost)
@@ -69,7 +69,7 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-test('NESSIE 256-bit — all 1284 vectors', async ({ page }) => {
+test('NESSIE 256-bit, all 1284 vectors', async ({ page }) => {
 	const url = `${SERVER_BASE}/test/vectors/serpent_nessie-256.txt`;
 	const errors: string[] = await page.evaluate(async (vecUrl) => {
 		const text = await fetch(vecUrl).then(r => r.text());
@@ -93,7 +93,7 @@ test('NESSIE 256-bit — all 1284 vectors', async ({ page }) => {
 	expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('NESSIE 128-bit — all 1028 vectors', async ({ page }) => {
+test('NESSIE 128-bit, all 1028 vectors', async ({ page }) => {
 	const url = `${SERVER_BASE}/test/vectors/serpent_nessie-128.txt`;
 	const errors: string[] = await page.evaluate(async (vecUrl) => {
 		const text = await fetch(vecUrl).then(r => r.text());

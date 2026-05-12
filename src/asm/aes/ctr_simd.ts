@@ -85,7 +85,7 @@ import { encryptBlock, encryptBlock_8x } from './aes';
 /**
  * Encrypt chunkLen bytes using the 8-block bitsliced AES kernel for CTR mode.
  * Processes 128 bytes (8 blocks) per kernel call; remaining 0..127 bytes
- * use the scalar `processBlockScalar` path. CTR is symmetric — encrypt and
+ * use the scalar `processBlockScalar` path. CTR is symmetric, encrypt and
  * decrypt are identical operations.
  * Counter must be initialised before calling.
  * @param chunkLen  number of bytes to encrypt (1..CHUNK_SIZE)
@@ -134,7 +134,7 @@ export function encryptChunk_simd(chunkLen: i32): i32 {
 
 /**
  * Decrypt chunkLen bytes using SIMD-accelerated AES CTR mode.
- * Identical to `encryptChunk_simd` — CTR mode is symmetric.
+ * Identical to `encryptChunk_simd`, CTR mode is symmetric.
  * @param chunkLen  number of bytes to decrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
  */

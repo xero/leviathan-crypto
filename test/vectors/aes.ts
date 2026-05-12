@@ -3,7 +3,7 @@
 // AES (Rijndael with 128-bit block, 128/192/256-bit keys) test vectors.
 //
 // Sources:
-//   FIPS 197 — Advanced Encryption Standard, Update 1 (May 9, 2023)
+//   FIPS 197, Advanced Encryption Standard, Update 1 (May 9, 2023)
 //   @see https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf
 //   Sections covered: §5.1.1 Figure 7 (forward S-box table),
 //                     Appendix A.1 (AES-128 key expansion),
@@ -12,7 +12,7 @@
 //                     Appendix B (AES-128 cipher example with
 //                                 per-round intermediate states).
 //
-//   FIPS 197 — Advanced Encryption Standard (original, November 26, 2001)
+//   FIPS 197, Advanced Encryption Standard (original, November 26, 2001)
 //   @see https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf
 //   Sections covered: Appendix C.2 (AES-192 cipher example with per-round
 //                                   intermediate states),
@@ -23,7 +23,7 @@
 // cipher examples that the original FIPS 197 (November 2001) carried in
 // Appendix C, replacing them with a pointer to the NIST CSRC AES project
 // page. The original 2001 publication remains an authoritative spec
-// source for those AES-192/256 vectors — the AES algorithm itself was
+// source for those AES-192/256 vectors, the AES algorithm itself was
 // not modified by upd1 (only editorial revisions were applied). The
 // 2001 publication is hash-pinned in research-docs/specs/nist.fips.197.pdf
 // for direct citation here.
@@ -31,7 +31,7 @@
 // Note on §C.1 (AES-128, original 2001 publication): contains a separate
 // AES-128 worked example with key 000102…0e0f and plaintext 00112233…
 // ddeeff that differs from the §B example below. It was intentionally
-// not transcribed into this corpus — gate 3 (single-round verification)
+// not transcribed into this corpus, gate 3 (single-round verification)
 // is anchored by the §B example, and the AESAVS KAT/MMT/MCT files
 // (aes_ECB*128.rsp) provide independent block-cipher-level coverage for
 // AES-128. Adding §C.1 would have required a tagging mechanism for the
@@ -43,7 +43,7 @@
 // one AES block) in column-major byte order matching the AES state-array
 // layout (FIPS 197 §3.4).
 //
-// Audit status: VERIFIED — per-vector citations in each export below.
+// Audit status: VERIFIED, per-vector citations in each export below.
 
 // ============================================================
 // Interfaces
@@ -67,7 +67,7 @@ export interface KeyExpansionVector {
 }
 
 // ============================================================
-// FIPS 197 §B — AES-128 cipher example
+// FIPS 197 §B, AES-128 cipher example
 // ============================================================
 
 /** FIPS 197 Appendix B worked example for the AES-128 block cipher. */
@@ -81,7 +81,7 @@ export const aes128CipherVectors: BlockVector[] = [
 ];
 
 // ============================================================
-// FIPS 197 (2001) §C.2 — AES-192 cipher example
+// FIPS 197 (2001) §C.2, AES-192 cipher example
 // ============================================================
 
 /** FIPS 197 (2001) Appendix C.2 worked example for the AES-192 block cipher. */
@@ -95,7 +95,7 @@ export const aes192CipherVectors: BlockVector[] = [
 ];
 
 // ============================================================
-// FIPS 197 (2001) §C.3 — AES-256 cipher example
+// FIPS 197 (2001) §C.3, AES-256 cipher example
 // ============================================================
 
 /** FIPS 197 (2001) Appendix C.3 worked example for the AES-256 block cipher. */
@@ -116,7 +116,7 @@ export const aesCipherVectorsByKeySize: Record<128 | 192 | 256, BlockVector[]> =
 };
 
 // ============================================================
-// FIPS 197 §A — Key expansion examples
+// FIPS 197 §A, Key expansion examples
 // ============================================================
 
 /**
@@ -186,7 +186,7 @@ export const aesKeyExpansionVectors: KeyExpansionVector[] = [
 ];
 
 // ============================================================
-// FIPS 197 (Update 1) §5.1.1 Figure 7 — AES forward S-box table
+// FIPS 197 (Update 1) §5.1.1 Figure 7, AES forward S-box table
 // ============================================================
 
 /**
@@ -194,11 +194,11 @@ export const aesKeyExpansionVectors: KeyExpansionVector[] = [
  * byte for input b. Used by SubBytes (FIPS 197 §5.1.1) and SubWord during
  * key expansion (§5.2).
  *
- * Source: FIPS 197 (Update 1, May 9, 2023) §5.1.1 Figure 7 — Table 4
+ * Source: FIPS 197 (Update 1, May 9, 2023) §5.1.1 Figure 7, Table 4
  *   "SBOX(): substitution values for the byte xy (in hexadecimal format)"
  * @see https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf
  *
- * Audit status: VERIFIED — values transcribed directly from the FIPS 197
+ * Audit status: VERIFIED, values transcribed directly from the FIPS 197
  *   PDF (independent two-pass transcription). Each comment line below
  *   corresponds to one row of Figure 7. The table is a permutation of
  *   the bytes 0x00..0xff (verifiable property: `new Set(aesSboxTable).size
@@ -241,12 +241,12 @@ export const aesSboxTable: Uint8Array = new Uint8Array([
 ]);
 
 // ============================================================
-// FIPS 197 — Per-round intermediate states (cipher example dissections)
+// FIPS 197, Per-round intermediate states (cipher example dissections)
 // ============================================================
 
 /**
  * Per-round state values for the AES Cipher() function. Each entry is one
- * round's complete state breakdown — the input (`start`) plus each
+ * round's complete state breakdown, the input (`start`) plus each
  * post-transformation snapshot (`afterSubBytes`, `afterShiftRows`,
  * `afterMixColumns`, `end`) and the round key XORed at the end of the
  * round. The chain invariant `rounds[i].end === rounds[i+1].start` holds
@@ -272,12 +272,12 @@ export const aesSboxTable: Uint8Array = new Uint8Array([
 export interface RoundIntermediateVector {
 	description:     string;
 	round:           number; // 1..N where N = round count for the key size
-	start:           string; // hex (32 chars) — state at start of round
+	start:           string; // hex (32 chars), state at start of round
 	afterSubBytes:   string; // hex (32 chars)
 	afterShiftRows:  string; // hex (32 chars)
 	afterMixColumns: string; // hex (32 chars), '' for the final round only
 	roundKey:        string; // hex (32 chars), the round key XORed at end
-	end:             string; // hex (32 chars) — state after AddRoundKey;
+	end:             string; // hex (32 chars), state after AddRoundKey;
 	                         // equals start of next round (non-final) or
 	                         // ciphertext (final round)
 }
@@ -286,11 +286,11 @@ export interface RoundIntermediateVector {
  * AES-128 per-round intermediate states for the §B cipher example.
  *
  * Source: FIPS 197 (Update 1, May 9, 2023) Appendix B
- *   "Cipher Example" — 10 rounds, plaintext 32 43 f6 a8…07 34, key
+ *   "Cipher Example", 10 rounds, plaintext 32 43 f6 a8…07 34, key
  *   2b 7e 15 16…4f 3c, ciphertext 39 25 84 1d…0b 32.
  * @see https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf
  *
- * Audit status: VERIFIED — every state transcribed directly from the
+ * Audit status: VERIFIED, every state transcribed directly from the
  *   FIPS 197 PDF, no value derived algorithmically. Round keys
  *   cross-check against `aesKeyExpansionVectors[0].roundKeySchedule`
  *   (FIPS 197 §A.1, same input key).
@@ -402,11 +402,11 @@ export const aesRoundIntermediates128: RoundIntermediateVector[] = [
  * AES-192 per-round intermediate states for the §C.2 cipher example.
  *
  * Source: FIPS 197 (November 26, 2001) Appendix C.2
- *   "AES-192 (Nk=6, Nr=12)" — 12 rounds, plaintext 00112233…ddeeff,
+ *   "AES-192 (Nk=6, Nr=12)", 12 rounds, plaintext 00112233…ddeeff,
  *   key 00010203…14151617, ciphertext dda97ca4…ec0d7191.
  * @see https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf
  *
- * Audit status: VERIFIED — every state transcribed directly from the
+ * Audit status: VERIFIED, every state transcribed directly from the
  *   FIPS 197 (2001) PDF, no value derived algorithmically.
  */
 export const aesRoundIntermediates192: RoundIntermediateVector[] = [
@@ -536,11 +536,11 @@ export const aesRoundIntermediates192: RoundIntermediateVector[] = [
  * AES-256 per-round intermediate states for the §C.3 cipher example.
  *
  * Source: FIPS 197 (November 26, 2001) Appendix C.3
- *   "AES-256 (Nk=8, Nr=14)" — 14 rounds, plaintext 00112233…ddeeff,
+ *   "AES-256 (Nk=8, Nr=14)", 14 rounds, plaintext 00112233…ddeeff,
  *   key 00010203…1c1d1e1f, ciphertext 8ea2b7ca…4b496089.
  * @see https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf
  *
- * Audit status: VERIFIED — every state transcribed directly from the
+ * Audit status: VERIFIED, every state transcribed directly from the
  *   FIPS 197 (2001) PDF, no value derived algorithmically.
  */
 export const aesRoundIntermediates256: RoundIntermediateVector[] = [

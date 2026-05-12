@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// SIMD CBC decrypt e2e — round-trip through scalar encrypt + SIMD decrypt in browser.
+// SIMD CBC decrypt e2e, round-trip through scalar encrypt + SIMD decrypt in browser.
 import { test, expect } from '@playwright/test';
 
 const JS_URL = 'http://localhost:1337/build/serpent.js';
@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-test('SIMD CBC decrypt round-trip — 128 bytes (8 blocks)', async ({ page }) => {
+test('SIMD CBC decrypt round-trip, 128 bytes (8 blocks)', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		const wasm = await loadWasm();
 		const mem  = new Uint8Array(wasm.memory.buffer);
@@ -80,7 +80,7 @@ test('SIMD CBC decrypt round-trip — 128 bytes (8 blocks)', async ({ page }) =>
 	expect(result).toBe('PASS');
 });
 
-test('SIMD CBC decrypt round-trip — 80 bytes (5 blocks, SIMD+tail)', async ({ page }) => {
+test('SIMD CBC decrypt round-trip, 80 bytes (5 blocks, SIMD+tail)', async ({ page }) => {
 	const result = await page.evaluate(async () => {
 		const wasm = await loadWasm();
 		const mem  = new Uint8Array(wasm.memory.buffer);

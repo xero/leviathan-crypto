@@ -58,7 +58,7 @@ describe('hexToBytes / bytesToHex', () => {
 	});
 
 	test('invalid hex character throws', () => {
-		// `parseInt('0g', 16)` returns 0 — it stops at the first invalid
+		// `parseInt('0g', 16)` returns 0, it stops at the first invalid
 		// character after parsing a valid prefix, rather than failing. That
 		// silently produced the wrong byte. The regex guard now rejects any
 		// input outside `[0-9a-fA-F]` up front.
@@ -139,7 +139,7 @@ describe('base64ToBytes / bytesToBase64', () => {
 	});
 
 	test('base64ToBytes accepts legacy %3d padding', () => {
-		// %3d was the old bytesToBase64(x, true) output — must remain decodable
+		// %3d was the old bytesToBase64(x, true) output, must remain decodable
 		const one = new Uint8Array([0xf0]);
 		const oldStyle = bytesToBase64(one)
 			.replace(/\+/g, '-')
@@ -269,7 +269,7 @@ describe('randomBytes', () => {
 	test('two calls produce different output', () => {
 		const a = randomBytes(32);
 		const b = randomBytes(32);
-		// Probability of collision is 2^-256 — effectively impossible
+		// Probability of collision is 2^-256, effectively impossible
 		expect(constantTimeEqual(a, b)).toBe(false);
 	});
 });

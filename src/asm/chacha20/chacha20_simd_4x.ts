@@ -21,12 +21,12 @@
 //
 // src/asm/chacha/chacha20_simd_4x.ts
 //
-// ChaCha20 4-wide inter-block SIMD — RFC 8439, May 2018
+// ChaCha20 4-wide inter-block SIMD, RFC 8439, May 2018
 // URL: https://www.rfc-editor.org/rfc/rfc8439
 //
 // Each v128 register holds word[w] from 4 independent blocks (same key/nonce,
 // counters ctr, ctr+1, ctr+2, ctr+3). The 4 blocks are completely independent
-// so each lane's dependency chain is isolated — 4× useful work per SIMD
+// so each lane's dependency chain is isolated, 4× useful work per SIMD
 // instruction with no shuffle overhead (unlike intra-block SIMD).
 //
 // Quarter-round indices: RFC 8439 §2.1
@@ -73,7 +73,7 @@ function qr_4x(base: i32, a: i32, b: i32, c: i32, d: i32): void {
 @inline
 function computeBlock_scalar(): void {
 	memory.copy(CHACHA_BLOCK_OFFSET, CHACHA_STATE_OFFSET, 64)
-	// 10 double rounds — RFC 8439 §2.1.1
+	// 10 double rounds, RFC 8439 §2.1.1
 	for (let i = 0; i < 10; i++) {
 		qr_4x(CHACHA_BLOCK_OFFSET, 0,  4,  8, 12)
 		qr_4x(CHACHA_BLOCK_OFFSET, 1,  5,  9, 13)
@@ -95,13 +95,13 @@ function computeBlock_scalar(): void {
 //
 // Produces 256 bytes of keystream (4 × 64) stored in deinterleaved order at
 // CHACHA_SIMD_WORK_OFFSET:
-//   bytes   0– 63: block 0 keystream (counter = ctr)
-//   bytes  64–127: block 1 keystream (counter = ctr+1)
-//   bytes 128–191: block 2 keystream (counter = ctr+2)
-//   bytes 192–255: block 3 keystream (counter = ctr+3)
+//   bytes   0- 63: block 0 keystream (counter = ctr)
+//   bytes  64-127: block 1 keystream (counter = ctr+1)
+//   bytes 128-191: block 2 keystream (counter = ctr+2)
+//   bytes 192-255: block 3 keystream (counter = ctr+3)
 //
 // Each v128 register r[w] holds [block0_word_w, block1_word_w, block2_word_w,
-// block3_word_w]. All 16 registers are local variables — locals stay in CPU
+// block3_word_w]. All 16 registers are local variables, locals stay in CPU
 // registers; globals would compile to global.get/global.set and prevent JIT
 // register allocation.
 //
@@ -110,7 +110,7 @@ function computeBlock_scalar(): void {
 function block4x(ctr: u32): void {
 	const s = CHACHA_STATE_OFFSET
 
-	// Load state words into v128 locals — words 0–11 and 13–15 are identical
+	// Load state words into v128 locals, words 0-11 and 13-15 are identical
 	// across all 4 blocks (splat); word 12 (counter) differs (ctr+0..3).
 	let r0:  v128 = i32x4.splat(load<i32>(s +  0))
 	let r1:  v128 = i32x4.splat(load<i32>(s +  4))
@@ -134,7 +134,7 @@ function block4x(ctr: u32): void {
 	let r14: v128 = i32x4.splat(load<i32>(s + 56))
 	let r15: v128 = i32x4.splat(load<i32>(s + 60))
 
-	// 10 double rounds — RFC 8439 §2.1.1
+	// 10 double rounds, RFC 8439 §2.1.1
 	// Column rounds then diagonal rounds. No shuffles needed: each lane's
 	// chain of dependencies is isolated within its block.
 	for (let i = 0; i < 10; i++) {
@@ -181,7 +181,7 @@ function block4x(ctr: u32): void {
 		r9  = v128.add<i32>(r9,  r14); r4  = v128.xor(r4,  r9);  r4  = v128.or(i32x4.shl(r4,   7), i32x4.shr_u(r4,  25))
 	}
 
-	// Add back initial state — RFC 8439 §2.2
+	// Add back initial state, RFC 8439 §2.2
 	// Reconstruct initial values from CHACHA_STATE_OFFSET instead of saving
 	// 16 extra v128 locals (saves register pressure).
 	r0  = v128.add<i32>(r0,  i32x4.splat(load<i32>(s +  0)))
@@ -212,7 +212,7 @@ function block4x(ctr: u32): void {
 	// i32x4.extract_lane requires a compile-time constant lane index.
 	const w = CHACHA_SIMD_WORK_OFFSET
 
-	// Block 0 (lane 0): bytes 0–63
+	// Block 0 (lane 0): bytes 0-63
 	store<u32>(w +   0, i32x4.extract_lane(r0,  0)); store<u32>(w +   4, i32x4.extract_lane(r1,  0))
 	store<u32>(w +   8, i32x4.extract_lane(r2,  0)); store<u32>(w +  12, i32x4.extract_lane(r3,  0))
 	store<u32>(w +  16, i32x4.extract_lane(r4,  0)); store<u32>(w +  20, i32x4.extract_lane(r5,  0))
@@ -222,7 +222,7 @@ function block4x(ctr: u32): void {
 	store<u32>(w +  48, i32x4.extract_lane(r12, 0)); store<u32>(w +  52, i32x4.extract_lane(r13, 0))
 	store<u32>(w +  56, i32x4.extract_lane(r14, 0)); store<u32>(w +  60, i32x4.extract_lane(r15, 0))
 
-	// Block 1 (lane 1): bytes 64–127
+	// Block 1 (lane 1): bytes 64-127
 	store<u32>(w +  64, i32x4.extract_lane(r0,  1)); store<u32>(w +  68, i32x4.extract_lane(r1,  1))
 	store<u32>(w +  72, i32x4.extract_lane(r2,  1)); store<u32>(w +  76, i32x4.extract_lane(r3,  1))
 	store<u32>(w +  80, i32x4.extract_lane(r4,  1)); store<u32>(w +  84, i32x4.extract_lane(r5,  1))
@@ -232,7 +232,7 @@ function block4x(ctr: u32): void {
 	store<u32>(w + 112, i32x4.extract_lane(r12, 1)); store<u32>(w + 116, i32x4.extract_lane(r13, 1))
 	store<u32>(w + 120, i32x4.extract_lane(r14, 1)); store<u32>(w + 124, i32x4.extract_lane(r15, 1))
 
-	// Block 2 (lane 2): bytes 128–191
+	// Block 2 (lane 2): bytes 128-191
 	store<u32>(w + 128, i32x4.extract_lane(r0,  2)); store<u32>(w + 132, i32x4.extract_lane(r1,  2))
 	store<u32>(w + 136, i32x4.extract_lane(r2,  2)); store<u32>(w + 140, i32x4.extract_lane(r3,  2))
 	store<u32>(w + 144, i32x4.extract_lane(r4,  2)); store<u32>(w + 148, i32x4.extract_lane(r5,  2))
@@ -242,7 +242,7 @@ function block4x(ctr: u32): void {
 	store<u32>(w + 176, i32x4.extract_lane(r12, 2)); store<u32>(w + 180, i32x4.extract_lane(r13, 2))
 	store<u32>(w + 184, i32x4.extract_lane(r14, 2)); store<u32>(w + 188, i32x4.extract_lane(r15, 2))
 
-	// Block 3 (lane 3): bytes 192–255
+	// Block 3 (lane 3): bytes 192-255
 	store<u32>(w + 192, i32x4.extract_lane(r0,  3)); store<u32>(w + 196, i32x4.extract_lane(r1,  3))
 	store<u32>(w + 200, i32x4.extract_lane(r2,  3)); store<u32>(w + 204, i32x4.extract_lane(r3,  3))
 	store<u32>(w + 208, i32x4.extract_lane(r4,  3)); store<u32>(w + 212, i32x4.extract_lane(r5,  3))
@@ -256,7 +256,7 @@ function block4x(ctr: u32): void {
 // ── Exported chunk functions ────────────────────────────────────────────────
 
 // 4-wide inter-block SIMD encrypt: processes 256-byte groups via block4x,
-// falls back to scalar for the 0–3 remaining blocks (0–192 bytes).
+// falls back to scalar for the 0-3 remaining blocks (0-192 bytes).
 // Returns len on success, -1 if len is out of range.
 export function chachaEncryptChunk_simd(len: i32): i32 {
 	if (len <= 0 || len > CHUNK_SIZE) return -1
@@ -283,7 +283,7 @@ export function chachaEncryptChunk_simd(len: i32): i32 {
 		processed += 256
 	}
 
-	// Scalar tail: 0–3 remaining blocks (0–192 bytes)
+	// Scalar tail: 0-3 remaining blocks (0-192 bytes)
 	while (processed < len) {
 		computeBlock_scalar()
 

@@ -19,9 +19,9 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// SealStream AES-GCM-SIV v3 KAT vectors — STREAM construction.
+// SealStream AES-GCM-SIV v3 KAT vectors, STREAM construction.
 //
-// SELF-GENERATED — no external authority for these wire formats.
+// SELF-GENERATED, no external authority for these wire formats.
 // AES-GCM-SIV v3 wire format: 20-byte header + 32-byte key commitment in
 // the preamble (52 bytes total). HKDF info string is
 // 'aes-gcm-siv-sealstream-v3' concatenated with the 20-byte header,

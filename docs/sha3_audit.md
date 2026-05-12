@@ -50,7 +50,7 @@ Cryptographic audit of the SHA-3 / Keccak WASM implementation in `leviathan-cryp
 
 FIPS 202 represents the Keccak state as a 5×5 grid of 64-bit lanes. Our implementation stores all 25 lanes as `i64` words at `STATE_OFFSET` (200 bytes) in WASM linear memory, with lane `A[x][y]` at byte offset `(x + 5y) * 8`. This matches FIPS 202 Appendix B.
 
-`keccakF()` (`keccak.ts:86–110`) loads all 25 lanes into local variables at the start, using the naming convention `aXY` where X and Y are coordinates:
+`keccakF()` (`keccak.ts:86-110`) loads all 25 lanes into local variables at the start, using the naming convention `aXY` where X and Y are coordinates:
 
 ```
 a00 = load<i64>(s +   0)    // A[0][0] at offset 0*8 = 0
@@ -63,7 +63,7 @@ a11 = load<i64>(s +  48)    // A[1][1] at offset 6*8 = 48
 a44 = load<i64>(s + 192)    // A[4][4] at offset 24*8 = 192
 ```
 
-The store-back at lines 221–245 uses the same offsets. All 25 loads and 25 stores are consistent with the `x + 5y` indexing convention. Correct.
+The store-back at lines 221-245 uses the same offsets. All 25 loads and 25 stores are consistent with the `x + 5y` indexing convention. Correct.
 
 **Endianness:** WASM linear memory is little-endian by specification. The `load<i64>` and `store<i64>` instructions natively read/write in LE order, which aligns with Keccak's lane convention (FIPS 202 §B.1: the first bit of a string maps to the LSB of the lane). No byte-swapping needed.
 
@@ -71,7 +71,7 @@ The store-back at lines 221–245 uses the same offsets. All 25 loads and 25 sto
 
 ### 1.2 Theta
 
-(`keccak.ts:114–130`)
+(`keccak.ts:114-130`)
 
 **Step 1: Column parity C[x]:**
 
@@ -99,15 +99,15 @@ All mod-5 indices verified: `(x-1) mod 5` and `(x+1) mod 5` are correct for all 
 
 **Step 3: XOR D[x] into all lanes of column x:**
 
-Lines 126–130 apply `a_X_Y ^= d_X` for all 25 lanes, grouped by column. Each column receives the correct D value. Correct.
+Lines 126-130 apply `a_X_Y ^= d_X` for all 25 lanes, grouped by column. Each column receives the correct D value. Correct.
 
 ---
 
 ### 1.3 Rho
 
-(`keccak.ts:69–75`, applied as part of the combined rho+pi step at lines 133–161)
+(`keccak.ts:69-75`, applied as part of the combined rho+pi step at lines 133-161)
 
-The rotation offset table (`ROT` array, `keccak.ts:69–75`) stores 25 values indexed by `x + 5y`:
+The rotation offset table (`ROT` array, `keccak.ts:69-75`) stores 25 values indexed by `x + 5y`:
 
 | (x,y) | Spec | Implementation (`ROT[x+5y]`) | Match |
 |--------|------|------------------------------|-------|
@@ -139,19 +139,19 @@ The rotation offset table (`ROT` array, `keccak.ts:69–75`) stores 25 values in
 
 All 25 rotation offsets verified by independent derivation via FIPS 202 §3.2.2 Algorithm 2: starting at `(x,y) = (1,0)`, following the path `(x,y) -> (y, (2x+3y) mod 5)` for 24 steps, with rotation amount `(t+1)(t+2)/2 mod 64`. Lane (0,0) has offset 0 (never rotated). Exact match.
 
-The `rot64()` function (`keccak.ts:78–80`) implements left rotation as `(v << n) | (v >>> (64 - n))`. For the special case of `rot64(a00, 0)` (line 133), this produces `(v << 0) | (v >>> 64)`. In WASM, `i64.shr_u` with shift amount 64 yields 0 (shift amounts are taken mod 64 for `i64`), so `rot64(v, 0) = v | 0 = v`. Correct. Lane (0,0) passes through unrotated.
+The `rot64()` function (`keccak.ts:78-80`) implements left rotation as `(v << n) | (v >>> (64 - n))`. For the special case of `rot64(a00, 0)` (line 133), this produces `(v << 0) | (v >>> 64)`. In WASM, `i64.shr_u` with shift amount 64 yields 0 (shift amounts are taken mod 64 for `i64`), so `rot64(v, 0) = v | 0 = v`. Correct. Lane (0,0) passes through unrotated.
 
 > [!NOTE]
 > The `ROT` static array is declared but not directly indexed in the hot path.
 > Instead, the combined rho+pi step uses hardcoded rotation amounts for each
-> of the 25 lanes (lines 133–161). The `ROT` array serves as a reference for
+> of the 25 lanes (lines 133-161). The `ROT` array serves as a reference for
 > auditing; the actual rotations are compile-time constants in the unrolled code.
 
 ---
 
 ### 1.4 Rho+Pi (combined)
 
-(`keccak.ts:133–161`, combined with rho)
+(`keccak.ts:133-161`, combined with rho)
 
 The pi step permutes lanes according to: `A'[x][y] = A[(x + 3y) mod 5][x]`
 
@@ -193,7 +193,7 @@ All 25 source lanes, all 25 rotation offsets, and all 25 destination slots match
 
 ### 1.5 Chi
 
-(`keccak.ts:164–192`)
+(`keccak.ts:164-192`)
 
 Chi is the only nonlinear step. FIPS 202 §3.2.4 specifies:
 
@@ -225,7 +225,7 @@ This pattern repeats for all 5 rows (y=0 through y=4). Verified for all 25 lanes
 
 ### 1.6 Iota
 
-(`keccak.ts:195–218`)
+(`keccak.ts:195-218`)
 
 Iota XORs a round constant `RC[round]` into lane A[0][0] only. The implementation uses an if-else chain keyed on the round index:
 
@@ -289,7 +289,7 @@ The round count is hardcoded. There is no parameter, configuration, or condition
 
 ### 1.8 Padding and Domain Separation
 
-(`keccak.ts:296–317`, `keccakFinal()`)
+(`keccak.ts:296-317`, `keccakFinal()`)
 
 **Domain separation bytes:**
 
@@ -306,7 +306,7 @@ SHA-3 variants use `0x06` (bits `0110` = Keccak domain `01` + pad10*1 `1`). SHAK
 
 **Padding (pad10*1):**
 
-`keccakFinal()` (`keccak.ts:296–317`):
+`keccakFinal()` (`keccak.ts:296-317`):
 
 1. XOR the domain separation byte at position `absorbed` in the state:
    ```
@@ -328,7 +328,7 @@ SHA-3 variants use `0x06` (bits `0110` = Keccak domain `01` + pad10*1 `1`). SHAK
 
 **Edge case: message length is a multiple of rate:** If the message length is an exact multiple of rate, then `absorbed == 0` after the last full block is absorbed and permuted. The padding XORs `dsByte` at position 0 and `0x80` at position `rate - 1`, filling an entire padding block. This is correct. A full padding block is always applied, even when the message aligns perfectly with the rate boundary.
 
-**SHAKE padding (`shakePad`):** The `shakePad()` function (`keccak.ts:327–341`) is structurally identical to the padding portion of `keccakFinal()`. It XORs the domain byte and 0x80, then applies `keccakF()`. This correctly sets up the state for the squeeze phase.
+**SHAKE padding (`shakePad`):** The `shakePad()` function (`keccak.ts:327-341`) is structurally identical to the padding portion of `keccakFinal()`. It XORs the domain byte and 0x80, then applies `keccakF()`. This correctly sets up the state for the squeeze phase.
 
 ---
 
@@ -362,13 +362,13 @@ The SHA-3 WASM module uses static buffer allocation in linear memory (`buffers.t
 
 Total: **545 bytes**. No gaps, no overlaps. All buffers are contiguous and tightly packed.
 
-**State initialization:** `keccakInit()` (`keccak.ts:249–255`) zeros all 200 bytes of state and 168 bytes of INPUT, resets RATE, ABSORBED, and DSBYTE. The state is fully zeroed before each new hash computation.
+**State initialization:** `keccakInit()` (`keccak.ts:249-255`) zeros all 200 bytes of state and 168 bytes of INPUT, resets RATE, ABSORBED, and DSBYTE. The state is fully zeroed before each new hash computation.
 
-**No aliasing:** The state (offset 0–199) and output buffer (offset 377–544) are well-separated. The absorption loop XORs input bytes directly into the state at `STATE_OFFSET + absorbed + i`, which always falls within [0, 199] since `absorbed < rate <= 168 < 200`. No out-of-bounds access is possible.
+**No aliasing:** The state (offset 0-199) and output buffer (offset 377-544) are well-separated. The absorption loop XORs input bytes directly into the state at `STATE_OFFSET + absorbed + i`, which always falls within [0, 199] since `absorbed < rate <= 168 < 200`. No out-of-bounds access is possible.
 
 **Off-by-one check in absorption:** The loop guard `absorbed === rate` triggers a permutation when exactly `rate` bytes have been absorbed. The rate is at most 168 (SHAKE128), and the state is 200 bytes, so the XOR target `STATE_OFFSET + absorbed + i` is always within bounds. After permutation, `absorbed` resets to 0. Correct.
 
-**`wipeBuffers()`** (`keccak.ts:354–361`): Zeros all buffers individually. State (200 bytes), input (168 bytes), output (168 bytes), and the three metadata fields (RATE, ABSORBED, DSBYTE). This covers all 545 bytes of SHA-3 module memory. Complete and correct.
+**`wipeBuffers()`** (`keccak.ts:354-361`): Zeros all buffers individually. State (200 bytes), input (168 bytes), output (168 bytes), and the three metadata fields (RATE, ABSORBED, DSBYTE). This covers all 545 bytes of SHA-3 module memory. Complete and correct.
 
 **Input buffer sizing:** The INPUT buffer is 168 bytes, matching the maximum rate (SHAKE128). The TypeScript `absorb()` function chunks messages into 168-byte segments. For variants with smaller rates (e.g., SHA3-512 at 72 bytes), the WASM `keccakAbsorb()` function processes only `rate` bytes per permutation. The extra input buffer space is harmless and never over-indexed.
 
@@ -458,7 +458,7 @@ and Python `hashlib`:
 
 **The chi step is constant-time by construction.** The nonlinear operation `b[x] ^ (~b[x+1] & b[x+2])` uses only bitwise operators, all of which execute in fixed time on all modern architectures. No branch depends on lane values.
 
-**The iota if-else chain** (`keccak.ts:195–218`) branches on the round counter, not on secret data. The round counter is always 0–23, independent of the hash input. While the if-else chain is technically not constant-time with respect to the round number, the round number is not secret. It is a public loop index. This does not constitute a side-channel vulnerability.
+**The iota if-else chain** (`keccak.ts:195-218`) branches on the round counter, not on secret data. The round counter is always 0-23, independent of the hash input. While the if-else chain is technically not constant-time with respect to the round number, the round number is not secret. It is a public loop index. This does not constitute a side-channel vulnerability.
 
 **WASM execution model:** As noted in the [SHA-2](./sha2_audit.md#21-side-channel-analysis) and [Serpent](./serpent_audit.md#21-side-channel-analysis) audits, WASM integer operations have fixed-width semantics compiled ahead-of-time. The entire `keccakF()` function operates on 25 local `i64` variables, all loaded from memory at the start, all stored back at the end. During the 24 rounds, no memory access occurs. This is the optimal constant-time pattern. The permutation is a pure register-to-register computation.
 

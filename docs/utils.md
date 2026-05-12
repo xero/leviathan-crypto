@@ -59,7 +59,7 @@ The comparison runs inside a WASM SIMD module, removing the JS JIT compiler
 from the timing picture. Speculative optimisation and branch prediction inside
 the engine cannot short-circuit the loop. This function requires WebAssembly
 SIMD; on runtimes without SIMD support it throws `Error: leviathan-crypto:
-constantTimeEqual requires WebAssembly SIMD — this runtime does not support it`
+constantTimeEqual requires WebAssembly SIMD, this runtime does not support it`
 at first call. SIMD has been a baseline feature of all major browsers and
 Node.js 16.4+ since 2021, and the library's symmetric and post-quantum
 primitives require SIMD already; this function tightens that posture
@@ -357,7 +357,7 @@ const hmac2       = new HMAC_SHA256()
 const expectedTag = hmac2.hash(macKey, concat(receivedIv, receivedCt))
 hmac2.dispose()
 
-// Always verify before decrypting — never decrypt unauthenticated ciphertext
+// Always verify before decrypting, never decrypt unauthenticated ciphertext
 if (!constantTimeEqual(expectedTag, receivedTag)) {
   wipe(expectedTag)
   throw new Error('Authentication failed')

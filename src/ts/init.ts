@@ -25,7 +25,7 @@ import { hasSIMD } from './utils.js';
 
 export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa'
 
-// 'keccak' is an alias for 'sha3' — same WASM binary, same instance slot
+// 'keccak' is an alias for 'sha3', same WASM binary, same instance slot
 const ALIASES: Partial<Record<Module, Module>> = { keccak: 'sha3' };
 
 function resolve(mod: Module): Module {
@@ -34,7 +34,7 @@ function resolve(mod: Module): Module {
 
 // Module-scope cache: one WebAssembly.Instance per canonical module
 const instances = new Map<Module, WebAssembly.Instance>();
-// Pending inits — coalesces concurrent initModule calls for the same module.
+// Pending inits, coalesces concurrent initModule calls for the same module.
 const pending = new Map<Module, Promise<WebAssembly.Instance>>();
 // Exclusivity registry: per-module ownership token held by a stateful wrapper
 // for its entire lifetime. Prevents shared-WASM-state clobber when two
@@ -50,7 +50,7 @@ export async function initModule(mod: Module, source: WasmSource): Promise<void>
 	}
 	if ((resolved === 'serpent' || resolved === 'chacha20' || resolved === 'kyber' || resolved === 'aes' || resolved === 'mldsa') && !hasSIMD())
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD — '
+			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 	const p = loadWasm(source);
@@ -70,7 +70,7 @@ export function getInstance(mod: Module): WebAssembly.Instance {
 	}
 	if (owners.has(r)) {
 		throw new Error(
-			`leviathan-crypto: another stateful instance is using the '${r}' WASM module — `
+			`leviathan-crypto: another stateful instance is using the '${r}' WASM module, `
 			+ 'call dispose() on it before constructing a new one',
 		);
 	}
@@ -90,7 +90,7 @@ export function _acquireModule(mod: Module): symbol {
 	const r = resolve(mod);
 	if (owners.has(r))
 		throw new Error(
-			`leviathan-crypto: another stateful instance is using the '${r}' WASM module — `
+			`leviathan-crypto: another stateful instance is using the '${r}' WASM module, `
 			+ 'call dispose() on it before constructing a new one',
 		);
 	const tok = Symbol(r);
@@ -133,13 +133,13 @@ export function _assertNotOwned(mod: Module): void {
 	const r = resolve(mod);
 	if (owners.has(r))
 		throw new Error(
-			`leviathan-crypto: another stateful instance is using the '${r}' WASM module — `
+			`leviathan-crypto: another stateful instance is using the '${r}' WASM module, `
 			+ 'call dispose() on it before constructing a new one',
 		);
 }
 
 /**
- * Reset all cached instances — for testing only. Clears `instances`, `pending`,
+ * Reset all cached instances, for testing only. Clears `instances`, `pending`,
  * and `owners` so tests can re-exercise module lifecycle (init, exclusivity,
  * race) from a known-empty state.
  * @internal

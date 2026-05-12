@@ -21,7 +21,7 @@
 //
 // src/asm/aes/buffers.ts
 //
-// AES module — static buffer layout.
+// AES module, static buffer layout.
 // Independent linear memory starting at offset 0.
 //
 // Supports AES-128/192/256 encrypt + decrypt; the round-count slot
@@ -43,7 +43,7 @@
 // 320       1920      ROUND_KEYS_BUFFER   (15 × 8 × 16, bitsliced; AES-128
 //                                          uses 11 × 128 = 1408, AES-192
 //                                          uses 13 × 128 = 1664, AES-256
-//                                          uses 15 × 128 = 1920) — forward
+//                                          uses 15 × 128 = 1920), forward
 //                                          (encrypt) round keys.
 // 2240      128       BITSLICED_STATE_BUFFER  (8 × v128 = AES state in K-S layout)
 // 2368      1024      CANRIGHT_SCRATCH_BUFFER (≈64 v128 scratch slots for the
@@ -58,12 +58,12 @@
 //                                              1..Nr-1 are InvMixColumns(K[r]))
 // 5568      65536     CHUNK_PT_BUFFER     (CTR/CBC stream input)
 // 71104     65536     CHUNK_CT_BUFFER     (CTR/CBC stream output)
-// 136640    1         NR_BUFFER           (u8 — round count: 10/12/14, written
+// 136640    1         NR_BUFFER           (u8, round count: 10/12/14, written
 //                                          by keyExpansion, read by encrypt/
 //                                          decrypt round loops)
 // 136656    16        NONCE_BUFFER        (CTR initial counter value)
 // 136672    16        COUNTER_BUFFER      (CTR working counter, 128-bit LE)
-// 136688    16        CBC_IV_BUFFER       (CBC chaining block — IV on first
+// 136688    16        CBC_IV_BUFFER       (CBC chaining block, IV on first
 //                                          chunk, last ciphertext block on
 //                                          subsequent chunks)
 // 136704    16        H_BUFFER            (GCM hash subkey H = AES_ENC(K, 0^128),
@@ -74,7 +74,7 @@
 //                                          across AAD and CT blocks)
 // 136752    16        TAG_BUFFER          (computed-tag scratch on seal,
 //                                          comparison target on open)
-// 136768    16        J0E_BUFFER          (E(K, J0) pad — derived in gcmStart
+// 136768    16        J0E_BUFFER          (E(K, J0) pad, derived in gcmStart
 //                                          and XORed with S to form the tag)
 // 136784    16        GCM_LENS_BUFFER     (running GCM seal/open state:
 //                                          bytes [0..7]  = AAD bit-length (u64 BE),
@@ -82,10 +82,10 @@
 // 136800    16        GCM_SCRATCH_BUFFER  (zero-padded partial block scratch
 //                                          for GHASH absorption tail; reused
 //                                          between AAD-tail, CT-tail, lengths)
-// 136816    16        GCM_CB_BUFFER       (GCTR working counter — high 96 bits
+// 136816    16        GCM_CB_BUFFER       (GCTR working counter, high 96 bits
 //                                          fixed from J0, low 32 bits 32-bit
 //                                          BE incrementing per block)
-// 136832    256       GF128_TABLE_BUFFER  (16 entries × 16 bytes — 4-bit
+// 136832    256       GF128_TABLE_BUFFER  (16 entries × 16 bytes, 4-bit
 //                                          windowed multiply table, computed
 //                                          from H once per loadKey)
 // 137088    65536     AAD_BUFFER          (GCM additional authenticated data;
@@ -99,7 +99,7 @@
 //                                          derived from KGK; sized for
 //                                          AES-256, AES-128 uses bytes
 //                                          [0..16] only)
-// 202672    16        SIV_IC_BUFFER            (SIV initial counter — tag
+// 202672    16        SIV_IC_BUFFER            (SIV initial counter, tag
 //                                          with bit 7 of byte 15 set;
 //                                          first 4 bytes hold the 32-bit
 //                                          little-endian CTR counter)
@@ -112,13 +112,13 @@
 // Why bitsliced round keys are 128 bytes/round (not 16): per Käsper-Schwabe §4.5,
 // each AES round key is pre-transposed to bitsliced form so that AddRoundKey is
 // 8 plain v128 XORs. The 16 round-key bytes duplicate across the 8 "parallel
-// blocks" (since all 8 blocks share one key schedule), then transpose — yielding
+// blocks" (since all 8 blocks share one key schedule), then transpose, yielding
 // 8 × v128 = 128 bytes per bitsliced round key.
 //
 // Why a dedicated KEY_SCHEDULE_SCRATCH_BUFFER: prior layout placed the byte-level
 // scratch at ROUND_KEYS_OFFSET + 1408 (the gap above the AES-128 round keys).
 // For AES-256 (15 × 128 = 1920 bytes of bitsliced round keys) that gap vanishes
-// and the scratch collides with rounds 11–13. Carving out a dedicated 256-byte
+// and the scratch collides with rounds 11-13. Carving out a dedicated 256-byte
 // region eliminates the collision and keeps the round-key buffer purely about
 // round keys.
 //
@@ -161,7 +161,7 @@ export const GF128_TABLE_OFFSET:          i32 = 136832;
 export const AAD_OFFSET:                  i32 = 137088;
 // ── AES-GCM-SIV (Phase 4b) buffers ─────────────────────────────────────────
 // GHASH_ACC_OFFSET aliases as the POLYVAL accumulator (mutually exclusive
-// at runtime — atomic AEAD pattern), so no new offset is added for it.
+// at runtime, atomic AEAD pattern), so no new offset is added for it.
 export const POLYVAL_AUTH_KEY_OFFSET:      i32 = 202624;
 export const POLYVAL_ENC_KEY_OFFSET:       i32 = 202640;
 export const SIV_IC_OFFSET:                i32 = 202672;
@@ -173,7 +173,7 @@ export const BITSLICED_STATE_SIZE:      i32 = 128;    // 8 v128 = state for 8 pa
 export const CANRIGHT_SCRATCH_SIZE:     i32 = 1024;   // 64 v128 scratch slots
 export const KEY_SCHEDULE_SCRATCH_SIZE: i32 = 256;    // 240 B used by AES-256, padded to 256
 export const INV_ROUND_KEYS_SIZE:       i32 = 1920;   // parallel to ROUND_KEYS_SIZE
-export const NR_SIZE:                   i32 = 1;      // u8 — Nr ∈ {10, 12, 14}
+export const NR_SIZE:                   i32 = 1;      // u8, Nr ∈ {10, 12, 14}
 export const NONCE_SIZE:                i32 = 16;     // CTR initial counter value
 export const COUNTER_SIZE:              i32 = 16;     // CTR working counter (128-bit LE)
 export const CBC_IV_SIZE:               i32 = 16;     // CBC chaining block
@@ -187,7 +187,7 @@ export const GCM_SCRATCH_SIZE:          i32 = 16;     // partial-block tail scra
 export const GCM_CB_SIZE:               i32 = 16;     // GCTR working counter
 export const GF128_TABLE_SIZE:          i32 = 256;    // 16 entries × 16 bytes
 export const AAD_BUFFER_SIZE:           i32 = 65536;  // 64 KiB max single-shot AAD
-export const POLYVAL_AUTH_KEY_SIZE:     i32 = 16;     // RFC 8452 §4 — 128-bit auth key
+export const POLYVAL_AUTH_KEY_SIZE:     i32 = 16;     // RFC 8452 §4, 128-bit auth key
 export const POLYVAL_ENC_KEY_SIZE:      i32 = 32;     // sized for AES-256 (AES-128 uses 16)
 export const SIV_IC_SIZE:               i32 = 16;     // SIV initial counter
 

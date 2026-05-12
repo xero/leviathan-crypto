@@ -55,7 +55,7 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm, serpent: serpentWasm, aes: aesWasm, sha2: sha2Wasm });
 });
 
-// chunkSize — the pool default for these tests. Keep small enough that the
+// chunkSize, the pool default for these tests. Keep small enough that the
 // 5MB bucket exercises multiple chunks without multi-second CPU burn.
 const CHUNK_SIZE = 65536;
 
@@ -125,7 +125,7 @@ function sealViaMainThread(
 }
 
 // Deterministic filler for payload sizes that exceed the 65,536-byte
-// crypto.getRandomValues cap. Content irrelevant to the cross-check — we
+// crypto.getRandomValues cap. Content irrelevant to the cross-check, we
 // just need two call sites to produce the same bytes.
 function fillPattern(n: number): Uint8Array {
 	const out = new Uint8Array(n);
@@ -134,7 +134,7 @@ function fillPattern(n: number): Uint8Array {
 }
 
 for (const cfg of configs) {
-	describe(`pool-byte-exact — ${cfg.name}`, () => {
+	describe(`pool-byte-exact, ${cfg.name}`, () => {
 		// Cache the master key per-cipher so we don't regenerate it per bucket.
 		const key = randomBytes(cfg.cipher.keySize);
 

@@ -21,18 +21,18 @@
 //
 // src/asm/kyber/sampling.ts
 //
-// ML-KEM (Kyber) — uniform rejection sampling for matrix A coefficient generation.
-// FIPS 203 §4.2.1 — Algorithm 6 (SampleNTT).
+// ML-KEM (Kyber), uniform rejection sampling for matrix A coefficient generation.
+// FIPS 203 §4.2.1, Algorithm 6 (SampleNTT).
 // Reference: pq-crystals/kyber main ref/indcpa.c rej_uniform().
 //
-// Note: this function has data-dependent branching — that is acceptable because
+// Note: this function has data-dependent branching, that is acceptable because
 // it operates on public seeds only (matrix A generation, not key material).
 
 import { Q } from './params';
 
 /**
  * Rejection sampling: extract coefficients in [0, q) from a byte buffer.
- * FIPS 203 §4.2.1 Algorithm 6 — inner sampling loop.
+ * FIPS 203 §4.2.1 Algorithm 6, inner sampling loop.
  * Each 3-byte group encodes two 12-bit candidates. Accepts if < q.
  * @param polyOffset output polynomial offset (256×i16)
  * @param ctrStart   starting coefficient index (resume after partial fill)

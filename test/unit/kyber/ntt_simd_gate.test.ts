@@ -43,7 +43,7 @@ beforeAll(async () => {
 
 // GATE: ML-KEM SIMD NTT: byte-identical to scalar for 100 random polys
 
-describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
+describe('Gate 1, SIMD NTT matches scalar NTT', () => {
 
 	test('ntt (SIMD) == ntt_scalar for zero polynomial', () => {
 		const w = getWasm();
@@ -60,7 +60,7 @@ describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
 		const w = getWasm();
 		const s0 = w.getPolySlot0();
 		const s1 = w.getPolySlot1();
-		// coeff[128] = 128 — exercises the first non-trivial butterfly
+		// coeff[128] = 128, exercises the first non-trivial butterfly
 		const poly = new Array(N).fill(0);
 		poly[128] = 128;
 		writePoly(poly, s0);
@@ -145,7 +145,7 @@ describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
 			w.poly_reduce(s0);
 			const recovered = readPoly(s0);
 			for (let i = 0; i < N; i++) {
-				// invntt(ntt(f)) = f * R mod q — apply montgomery_reduce to normalize
+				// invntt(ntt(f)) = f * R mod q, apply montgomery_reduce to normalize
 				const normalized = i16(w.montgomery_reduce(recovered[i]));
 				if (((original[i] - normalized) % Q + Q) % Q !== 0) {
 					throw new Error(
@@ -159,7 +159,7 @@ describe('Gate 1 — SIMD NTT matches scalar NTT', () => {
 
 // GATE: ML-KEM SIMD polynomial arithmetic: matches reference semantics
 
-describe('Gate 2 — SIMD poly arithmetic matches reference', () => {
+describe('Gate 2, SIMD poly arithmetic matches reference', () => {
 
 	test('poly_add (SIMD): r[i] = a[i] + b[i] for 50 random pairs', () => {
 		const w = getWasm();
@@ -216,7 +216,7 @@ describe('Gate 2 — SIMD poly arithmetic matches reference', () => {
 		const s0 = w.getPolySlot0();
 		for (let trial = 0; trial < 50; trial++) {
 			const poly = randPoly(Q, rand);
-			// Use wider range to stress the reduction — include values up to 2q
+			// Use wider range to stress the reduction, include values up to 2q
 			for (let i = 0; i < N; i++) poly[i] = (rand() % (2 * Q)) - Q;
 			writePoly(poly, s0);
 			w.poly_reduce(s0);

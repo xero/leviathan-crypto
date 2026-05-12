@@ -21,13 +21,13 @@
 //
 // test/unit/mldsa/poly_arithmetic.test.ts
 //
-// GATE: ML-DSA polynomial arithmetic — add, sub, reduce, caddq, pointwise
+// GATE: ML-DSA polynomial arithmetic, add, sub, reduce, caddq, pointwise
 // Montgomery multiply, chknorm. Property-based against the spec definitions
-// (FIPS 204 §7.6 Algorithms 44–45 and §2.3 mod± q / norm definitions).
+// (FIPS 204 §7.6 Algorithms 44-45 and §2.3 mod± q / norm definitions).
 //
 // The pointwise-multiply round-trip gate verifies NTT-domain multiplication
 // matches schoolbook multiplication mod (X²⁵⁶ + 1) mod q over a randomised
-// batch — the same kind of cross-check used to validate Kyber's basemul.
+// batch, the same kind of cross-check used to validate Kyber's basemul.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { loadMldsa, getWasm, readPoly, writePoly, prng, modQ } from './helpers.js';
@@ -78,8 +78,8 @@ function schoolbookMul(a: number[], b: number[]): number[] {
 
 // ── GATE: poly_add ──────────────────────────────────────────────────────────
 
-describe('Gate — poly_add (FIPS 204 Algorithm 44, coefficient-wise)', () => {
-	test('add two known polynomials — coefficient-wise sum without reduction', () => {
+describe('Gate, poly_add (FIPS 204 Algorithm 44, coefficient-wise)', () => {
+	test('add two known polynomials, coefficient-wise sum without reduction', () => {
 		const w = getWasm();
 		const A = w.getPolySlot0(), B = w.getPolySlot1(), R0 = w.getPolySlot2();
 		const a = zeroPoly(); a[0] = 100; a[1] = -50; a[255] = Q - 1;
@@ -109,7 +109,7 @@ describe('Gate — poly_add (FIPS 204 Algorithm 44, coefficient-wise)', () => {
 
 // ── GATE: poly_sub ──────────────────────────────────────────────────────────
 
-describe('Gate — poly_sub', () => {
+describe('Gate, poly_sub', () => {
 	test('30 random subs match coefficient-wise integer difference', () => {
 		const w = getWasm();
 		const rand = prng(0x53554244);  // 'SUBD'
@@ -127,7 +127,7 @@ describe('Gate — poly_sub', () => {
 
 // ── GATE: poly_reduce ──────────────────────────────────────────────────────
 
-describe('Gate — poly_reduce (centered Barrett, FIPS 204 §2.3 mod± q)', () => {
+describe('Gate, poly_reduce (centered Barrett, FIPS 204 §2.3 mod± q)', () => {
 	test('every output coefficient lies in [-(q-1)/2, (q-1)/2] and is ≡ input mod q', () => {
 		const w = getWasm();
 		const rand = prng(0x52454443);  // 'REDC'
@@ -151,7 +151,7 @@ describe('Gate — poly_reduce (centered Barrett, FIPS 204 §2.3 mod± q)', () =
 
 // ── GATE: poly_caddq ───────────────────────────────────────────────────────
 
-describe('Gate — poly_caddq (canonicalise to [0, q-1])', () => {
+describe('Gate, poly_caddq (canonicalise to [0, q-1])', () => {
 	test('negatives gain +q, non-negatives unchanged', () => {
 		const w = getWasm();
 		const A = w.getPolySlot0();
@@ -170,7 +170,7 @@ describe('Gate — poly_caddq (canonicalise to [0, q-1])', () => {
 
 // ── GATE: poly_pointwise_montgomery ────────────────────────────────────────
 
-describe('Gate — poly_pointwise_montgomery (FIPS 204 Algorithm 45)', () => {
+describe('Gate, poly_pointwise_montgomery (FIPS 204 Algorithm 45)', () => {
 	test('coefficient-wise: c[i] = montgomery_reduce(a[i] · b[i])', () => {
 		const w = getWasm();
 		const rand = prng(0x504D4F4E);  // 'PMON'
@@ -230,7 +230,7 @@ describe('Gate — poly_pointwise_montgomery (FIPS 204 Algorithm 45)', () => {
 
 // ── GATE: poly_chknorm ─────────────────────────────────────────────────────
 
-describe('Gate — poly_chknorm (||·||∞ < bound, FIPS 204 §2.3)', () => {
+describe('Gate, poly_chknorm (||·||∞ < bound, FIPS 204 §2.3)', () => {
 	test('all-zero polynomial passes any positive bound', () => {
 		const w = getWasm();
 		const A = w.getPolySlot0();

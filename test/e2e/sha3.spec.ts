@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA-3 and SHAKE Known-Answer Tests (cross-browser) — FIPS 202
+ * SHA-3 and SHAKE Known-Answer Tests (cross-browser), FIPS 202
  *
  * Source: FIPS 202 (SHA-3 Standard), Appendix A
  * Files:  vectors/sha3.ts (sha3_256Vectors, sha3_512Vectors, shake128Vectors)
@@ -57,7 +57,7 @@ test.beforeEach(async ({ page }) => {
 
 // ── Gate 7: SHA3-256 empty message ──────────────────────────────────────────
 
-test('Gate 7 — SHA3-256 empty message', async ({ page }) => {
+test('Gate 7, SHA3-256 empty message', async ({ page }) => {
 	const expected = sha3_256Vectors[0].expected;
 	const result = await page.evaluate(async (_exp) => {
 		const wasm = await loadWasm();

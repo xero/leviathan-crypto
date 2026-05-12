@@ -42,7 +42,7 @@ function ekFromDk(dk: Uint8Array): Uint8Array {
 // GATE: kemRatchetDecap KDF_SCKA: HKDF-SHA-256 self-generated, Python-verified
 // Vector: ratchet_kat.ts[kemRatchetDecapVectors[0]]
 // ownEk is extracted from dk and bound into the HKDF info string.
-test('kemRatchetDecap — gate: ACVP-derived sharedSecret', () => {
+test('kemRatchetDecap, gate: ACVP-derived sharedSecret', () => {
 	const v     = kemRatchetDecapVectors[0];
 	const dk    = hexToBytes(v.dk);
 	const ownEk = ekFromDk(dk);
@@ -68,7 +68,7 @@ function makeRk(): Uint8Array {
 
 // ── Round-trip identity ─────────────────────────────────────────────────────
 
-test('kemRatchetEncap/Decap — round-trip: nextRootKey matches', () => {
+test('kemRatchetEncap/Decap, round-trip: nextRootKey matches', () => {
 	const kem = new MlKem512();
 	const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
 	const rk = makeRk();
@@ -85,7 +85,7 @@ test('kemRatchetEncap/Decap — round-trip: nextRootKey matches', () => {
 
 // ── Direction symmetry ──────────────────────────────────────────────────────
 
-test('kemRatchetEncap/Decap — direction symmetry: alice.send === bob.recv', () => {
+test('kemRatchetEncap/Decap, direction symmetry: alice.send === bob.recv', () => {
 	const kem = new MlKem512();
 	const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
 	const rk = makeRk();
@@ -93,7 +93,7 @@ test('kemRatchetEncap/Decap — direction symmetry: alice.send === bob.recv', ()
 	const alice = kemRatchetEncap(kem, rk, ek);
 	const bob   = kemRatchetDecap(kem, rk, dk, alice.kemCt, ek);
 
-	// Alice's send is Bob's receive and vice versa — A2B direction split
+	// Alice's send is Bob's receive and vice versa, A2B direction split
 	expect(constantTimeEqual(alice.sendChainKey, bob.recvChainKey)).toBe(true);
 	expect(constantTimeEqual(alice.recvChainKey, bob.sendChainKey)).toBe(true);
 
@@ -104,7 +104,7 @@ test('kemRatchetEncap/Decap — direction symmetry: alice.send === bob.recv', ()
 
 // ── Context isolation ───────────────────────────────────────────────────────
 
-describe('kemRatchetEncap/Decap — context isolation', () => {
+describe('kemRatchetEncap/Decap, context isolation', () => {
 	test('different context produces different nextRootKey', () => {
 		const kem = new MlKem512();
 		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
@@ -113,7 +113,7 @@ describe('kemRatchetEncap/Decap — context isolation', () => {
 		// For context-b test we need same rk/ek/dk: re-use the same kemCt is wrong
 		// since sharedSecret is deterministic for a given (ek, dk) pair only if
 		// encapsulation is deterministic. ML-KEM encapsulation uses fresh randomness
-		// each call — so call encap again with context-b separately.
+		// each call, so call encap again with context-b separately.
 		const ek2  = ek.slice(); // same encapsulation key
 		const ct2 = kemRatchetEncap(kem, rk, ek2, utf8ToBytes('context-b'));
 
@@ -135,7 +135,7 @@ describe('kemRatchetEncap/Decap — context isolation', () => {
 
 // ── kemCt length ────────────────────────────────────────────────────────────
 
-test('kemRatchetEncap — kemCt.length === kem.params.ctBytes', () => {
+test('kemRatchetEncap, kemCt.length === kem.params.ctBytes', () => {
 	const kem = new MlKem512();
 	const { encapsulationKey: ek } = kem.keygen();
 	const rk = makeRk();
@@ -147,7 +147,7 @@ test('kemRatchetEncap — kemCt.length === kem.params.ctBytes', () => {
 	kem.dispose();
 });
 
-// ── Init guard — note ───────────────────────────────────────────────────────
+// ── Init guard, note ───────────────────────────────────────────────────────
 // kemRatchetEncap and kemRatchetDecap check isInitialized('sha2') at the top
 // of each call and throw Error if sha2 is not loaded. This is verified by
 // inspection and by the init guard test in ratchet_kdf.test.ts which uses

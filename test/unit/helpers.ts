@@ -22,7 +22,7 @@
 // test/unit/helpers.ts
 //
 // WASM test helpers for Vitest. Gets the serpent WASM instance from the
-// init() cache — call `await init('serpent')` in beforeAll before using.
+// init() cache, call `await init('serpent')` in beforeAll before using.
 
 import { getInstance } from '../../src/ts/init.js';
 

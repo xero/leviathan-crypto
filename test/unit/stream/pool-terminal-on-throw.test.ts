@@ -51,7 +51,7 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm, sha2: sha2Wasm });
 });
 
-describe('SealStreamPool — terminal on seal() throw', () => {
+describe('SealStreamPool, terminal on seal() throw', () => {
 	async function makePool(): Promise<SealStreamPool> {
 		const key = randomBytes(32);
 		return SealStreamPool.create(XChaCha20Cipher, key, {
@@ -84,7 +84,7 @@ describe('SealStreamPool — terminal on seal() throw', () => {
 		expect(caught).toBeInstanceOf(Error);
 		expect((caught as Error).message).toMatch(/not initialized|pool/i);
 
-		// Pool terminal state — regardless of which error bubbled.
+		// Pool terminal state, regardless of which error bubbled.
 		expect(pool.dead).toBe(true);
 
 		// Subsequent seal() reports "pool is dead", NOT "already sealed".
@@ -97,7 +97,7 @@ describe('SealStreamPool — terminal on seal() throw', () => {
 	});
 });
 
-describe('SealStreamPool — output-assembly RangeError also kills the pool', () => {
+describe('SealStreamPool, output-assembly RangeError also kills the pool', () => {
 	async function makePool(): Promise<SealStreamPool> {
 		const key = randomBytes(32);
 		return SealStreamPool.create(XChaCha20Cipher, key, {
@@ -114,7 +114,7 @@ describe('SealStreamPool — output-assembly RangeError also kills the pool', ()
 		// Intercept _dispatch to return a Proxy that duck-types as a Uint8Array
 		// but reports `.length = MAX_SAFE_INTEGER`. `new Uint8Array(totalLen)`
 		// inside seal() rejects that as an invalid typed-array length, throwing
-		// RangeError — after Promise.all has already resolved successfully.
+		// RangeError, after Promise.all has already resolved successfully.
 		// The RangeError falls into the same catch as a crypto failure, which
 		// routes through `_killAll` and kills the pool.
 		p._dispatch = async (): Promise<Uint8Array> => {

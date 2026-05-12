@@ -1,4 +1,4 @@
-# leviathan-crypto — Claude Instructions
+# leviathan-crypto, Claude Instructions
 
 **Read `AGENTS.md` in the repository root before doing anything else.**
 

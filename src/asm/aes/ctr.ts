@@ -30,12 +30,12 @@
 // downward toward byte 0.
 //
 // This is the canonical AES CTR convention. SP 800-38A §F.5 worked
-// examples validate against big-endian incrementing — the §F.5.1 transition
+// examples validate against big-endian incrementing, the §F.5.1 transition
 // from IC = `f0f1...feff` to IC+1 = `f0f1...ff00` (byte 15 wraps, byte 14
 // increments) confirms it. The Serpent module in this repo uses 128-bit
 // little-endian by historical choice; AES matches the NIST AES convention.
 //
-// `resetCounter()` copies NONCE_BUFFER → COUNTER_BUFFER — the nonce IS
+// `resetCounter()` copies NONCE_BUFFER → COUNTER_BUFFER, the nonce IS
 // the initial counter block, parallel to the Serpent CTR shape but with
 // the increment direction flipped.
 
@@ -113,7 +113,7 @@ export function setCounter(hi: i64, lo: i64): void {
 
 /**
  * Encrypt chunkLen bytes from CHUNK_PT_BUFFER to CHUNK_CT_BUFFER using AES CTR mode.
- * CTR is symmetric — encryption and decryption are identical operations.
+ * CTR is symmetric, encryption and decryption are identical operations.
  * Counter must be initialised via `resetCounter()` or `setCounter()` before calling.
  * @param chunkLen  number of bytes to encrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
@@ -136,7 +136,7 @@ export function encryptChunk(chunkLen: i32): i32 {
 
 /**
  * Decrypt chunkLen bytes from CHUNK_CT_BUFFER to CHUNK_PT_BUFFER using AES CTR mode.
- * Identical to `encryptChunk` — CTR mode is symmetric.
+ * Identical to `encryptChunk`, CTR mode is symmetric.
  * @param chunkLen  number of bytes to decrypt (1..CHUNK_SIZE)
  * @returns         chunkLen on success, -1 if chunkLen is out of range
  */

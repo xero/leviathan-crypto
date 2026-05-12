@@ -21,7 +21,7 @@
 //
 // src/ts/serpent/generator.ts
 //
-// Practical Cryptography (Ferguson & Schneier, 2003) §9.4 — generator
+// Practical Cryptography (Ferguson & Schneier, 2003) §9.4, generator
 // Serpent-256 ECB counter-mode PRF for Fortuna's generator slot.
 
 import { _assertNotOwned, getInstance } from '../init.js';
@@ -46,7 +46,7 @@ interface SerpentMin {
  * one block of pseudorandom output. Practical Cryptography (Ferguson &
  * Schneier, 2003) §9.4.
  *
- * Pass to `Fortuna.create({ generator: SerpentGenerator, ... })` — do not
+ * Pass to `Fortuna.create({ generator: SerpentGenerator, ... })`, do not
  * call `generate()` directly outside of Fortuna.
  */
 export const SerpentGenerator: Generator = {

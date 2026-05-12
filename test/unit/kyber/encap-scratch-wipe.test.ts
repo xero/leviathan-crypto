@@ -24,7 +24,7 @@
  *
  * Verifies that after `MlKem*.encapsulate(ek)` returns, every kyber WASM
  * scratch region that held secret or secret-derived bytes during the
- * IND-CPA re-encryption is zeroed. MSG_OFFSET holds the raw message m —
+ * IND-CPA re-encryption is zeroed. MSG_OFFSET holds the raw message m,
  * reading it alongside the public ek reproduces the shared secret K =
  * G(m ‖ H(ek))[0..32], so it's the highest-severity encap residual. The
  * poly/polyvec slot sizes are k-independent (fixed at the k=4 maximum),
@@ -70,8 +70,8 @@ function freshEncap(): MlKem768 {
 	return kem;
 }
 
-describe('kemEncapsulateDerand — scratch slots wiped after encap', () => {
-	it('MSG_OFFSET is zero after encap (raw m — reproduces K with public ek)', () => {
+describe('kemEncapsulateDerand, scratch slots wiped after encap', () => {
+	it('MSG_OFFSET is zero after encap (raw m, reproduces K with public ek)', () => {
 		const kem = freshEncap();
 
 		const x = getExports();

@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * ChaCha20 SIMD cross-check — chachaEncryptChunk_simd vs RFC 8439 vectors
+ * ChaCha20 SIMD cross-check, chachaEncryptChunk_simd vs RFC 8439 vectors
  *
  * Exercises the 4-wide inter-block SIMD path with the RFC 8439 §2.4.2
  * encryption vector (114 bytes, scalar tail only) and a size sweep covering
@@ -64,11 +64,11 @@ beforeAll(async () => {
 	await init({ chacha20: chacha20Wasm });
 });
 
-describe('ChaCha20 SIMD cross-check — RFC vectors via chachaEncryptChunk_simd', () => {
+describe('ChaCha20 SIMD cross-check, RFC vectors via chachaEncryptChunk_simd', () => {
 
 	// RFC 8439 §2.4.2: 114-byte plaintext, counter=1. Fits entirely in scalar
 	// tail since 114 < 256. Confirms tail path alone is correct.
-	it('RFC 8439 §2.4.2 — 114 bytes (scalar tail only)', () => {
+	it('RFC 8439 §2.4.2, 114 bytes (scalar tail only)', () => {
 		const v   = chacha20EncryptionVectors[0];
 		const wasm = getWasm();
 		const mem  = new Uint8Array(wasm.memory.buffer);
@@ -96,7 +96,7 @@ describe('ChaCha20 SIMD cross-check — RFC vectors via chachaEncryptChunk_simd'
 	const SWEEP_SIZES = [64, 128, 200, 256, 300, 384, 512, 600, 65536];
 
 	for (const size of SWEEP_SIZES) {
-		it(`size sweep — ${size} bytes: SIMD === scalar`, () => {
+		it(`size sweep, ${size} bytes: SIMD === scalar`, () => {
 			const wasm = getWasm();
 			const mem  = new Uint8Array(wasm.memory.buffer);
 			const pt   = new Uint8Array(size).fill(0x5a);
@@ -152,7 +152,7 @@ describe('ChaCha20 SIMD cross-check — RFC vectors via chachaEncryptChunk_simd'
 			wasm.getChunkCtOffset() + 512,
 		).slice();
 
-		// Decrypt (ChaCha20 is symmetric — re-encrypt the ciphertext)
+		// Decrypt (ChaCha20 is symmetric, re-encrypt the ciphertext)
 		mem.set(key,   wasm.getKeyOffset());
 		mem.set(nonce, wasm.getChachaNonceOffset());
 		wasm.chachaSetCounter(1);

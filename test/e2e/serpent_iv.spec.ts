@@ -77,7 +77,7 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-test('Intermediate values — final CT for all 3 key sizes', async ({ page }) => {
+test('Intermediate values, final CT for all 3 key sizes', async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (cases) => {
 		const wasm = await loadWasm();
 		const errs: string[] = [];

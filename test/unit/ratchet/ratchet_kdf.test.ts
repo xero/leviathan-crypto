@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * ratchetInit and KDFChain Known-Answer Tests — HKDF-SHA-256
+ * ratchetInit and KDFChain Known-Answer Tests, HKDF-SHA-256
  *
  * Source: HKDF-SHA-256 (RFC 5869); vectors self-generated and Python-verified
  * Files:  vectors/ratchet_kat.ts (ratchetInitVectors, kdfChainVectors)
@@ -50,11 +50,11 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── ratchetInit — KAT vectors ───────────────────────────────────────────────
+// ── ratchetInit, KAT vectors ───────────────────────────────────────────────
 
 // GATE: ratchetInit KDF_SCKA_INIT: HKDF-SHA-256 self-generated, Python-verified
 // Vector: ratchet_kat.ts[ratchetInitVectors[0]]
-test('ratchetInit — gate: all-zero sk', () => {
+test('ratchetInit, gate: all-zero sk', () => {
 	const v   = ratchetInitVectors[0];
 	const res = ratchetInit(fromHex(v.sk));
 	expect(toHex(res.nextRootKey)).toBe(v.nextRootKey);
@@ -63,7 +63,7 @@ test('ratchetInit — gate: all-zero sk', () => {
 	wipe(res.nextRootKey); wipe(res.sendChainKey); wipe(res.recvChainKey);
 });
 
-describe('ratchetInit — all KAT vectors', () => {
+describe('ratchetInit, all KAT vectors', () => {
 	for (const v of ratchetInitVectors) {
 		test(`vector ${v.id}: sk=${v.sk.slice(0, 8)}… context=${v.context || '(none)'}`, () => {
 			const context = v.context !== '' ? fromHex(v.context) : undefined;
@@ -76,9 +76,9 @@ describe('ratchetInit — all KAT vectors', () => {
 	}
 });
 
-// ── KDFChain — KAT vectors ──────────────────────────────────────────────────
+// ── KDFChain, KAT vectors ──────────────────────────────────────────────────
 
-describe('KDFChain — KAT vectors', () => {
+describe('KDFChain, KAT vectors', () => {
 	for (const v of kdfChainVectors) {
 		test(`chain ${v.id}: initialCk=${v.initialCk.slice(0, 8)}…`, () => {
 			const chain      = new KDFChain(fromHex(v.initialCk));
@@ -94,9 +94,9 @@ describe('KDFChain — KAT vectors', () => {
 	}
 });
 
-// ── KDFChain — nextChainKey propagation ─────────────────────────────────────
+// ── KDFChain, nextChainKey propagation ─────────────────────────────────────
 
-describe('KDFChain — nextChainKey propagation', () => {
+describe('KDFChain, nextChainKey propagation', () => {
 	test('chain 0: each step n matches vector step.n', () => {
 		const v     = kdfChainVectors[0];
 		const chain = new KDFChain(fromHex(v.initialCk));
@@ -141,7 +141,7 @@ describe('dispose guard', () => {
 	});
 });
 
-describe('ratchetInit — input guards', () => {
+describe('ratchetInit, input guards', () => {
 	test('throws RangeError for sk of wrong length', () => {
 		expect(() => ratchetInit(new Uint8Array(16))).toThrow(RangeError);
 	});
@@ -162,7 +162,7 @@ describe('ratchetInit — input guards', () => {
 	});
 });
 
-describe('KDFChain — input guards', () => {
+describe('KDFChain, input guards', () => {
 	test('throws RangeError for ck of wrong length', () => {
 		expect(() => new KDFChain(new Uint8Array(16))).toThrow(RangeError);
 	});
@@ -181,9 +181,9 @@ test('ratchetReady() returns true after init({ sha2 })', () => {
 	expect(ratchetReady()).toBe(true);
 });
 
-// ── Init guard — isolated describe, resets and restores sha2 ────────────────
+// ── Init guard, isolated describe, resets and restores sha2 ────────────────
 
-describe('init guard — sha2 not initialized', () => {
+describe('init guard, sha2 not initialized', () => {
 	beforeAll(() => {
 		_resetForTesting();
 	});

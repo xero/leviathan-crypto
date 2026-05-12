@@ -39,7 +39,7 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm, chacha20: chacha20Wasm, aes: aesWasm, sha2: sha2Wasm, sha3: sha3Wasm });
 });
 
-describe('Fortuna — pluggable primitives validation', () => {
+describe('Fortuna, pluggable primitives validation', () => {
 	test('hash.outputSize must match generator.keySize', async () => {
 		const bigHash = { outputSize: 64, wasmModules: ['sha2'] as const, digest: (_: Uint8Array) => new Uint8Array(64) };
 		await expect(
@@ -74,7 +74,7 @@ const combinations = [
 ] as const;
 
 for (const combo of combinations) {
-	describe(`Fortuna — ${combo.name}`, () => {
+	describe(`Fortuna, ${combo.name}`, () => {
 		let fortuna: Fortuna;
 
 		afterEach(() => {
@@ -116,7 +116,7 @@ for (const combo of combinations) {
 
 // ── Tree-shaking: chacha20-only init ────────────────────────────────────────
 
-describe('Fortuna — chacha20-only init (tree-shaking canary)', () => {
+describe('Fortuna, chacha20-only init (tree-shaking canary)', () => {
 	let fortuna: Fortuna;
 
 	beforeAll(async () => {
@@ -141,7 +141,7 @@ describe('Fortuna — chacha20-only init (tree-shaking canary)', () => {
 
 // ── F-2 regression: loud failure on no entropy ──────────────────────────────
 
-describe('Fortuna — F-2 zero-entropy regression', () => {
+describe('Fortuna, F-2 zero-entropy regression', () => {
 	beforeAll(async () => {
 		_resetForTesting();
 		await init({ serpent: serpentWasm, sha2: sha2Wasm });

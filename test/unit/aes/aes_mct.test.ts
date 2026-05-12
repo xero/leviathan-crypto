@@ -21,18 +21,18 @@
 //
 // test/unit/aes/aes_mct.test.ts
 //
-// Gate 7 — AESVS Monte Carlo Test for ECB. Three files
+// Gate 7, AESVS Monte Carlo Test for ECB. Three files
 // (aes_ECBMCT{128,192,256}.rsp), 100 chains × 1000 inner iterations per
-// direction. The chaining rule is key-size-dependent — see AESAVS §6.4.1
+// direction. The chaining rule is key-size-dependent, see AESAVS §6.4.1
 // (the encryption pseudocode and the three `If keylen = …` branches).
 //
-// Reference: AESAVS §6.4.1 (Monte Carlo Test - ECB), pp. 7–8 of the
+// Reference: AESAVS §6.4.1 (Monte Carlo Test - ECB), pp. 7-8 of the
 // `research-docs/specs/AESAVS.pdf` document. Read before modifying.
 //
 // Per-iteration mechanics: the inner j-loop produces ct[0..999] (encrypt)
 // or pt[0..999] (decrypt) by chaining each output back as the next input.
 // The next-key derivation (`deriveNextKey`) uses the penultimate (j=998)
-// and final (j=999) outputs — captured in `penult` and `final` mid-loop —
+// and final (j=999) outputs, captured in `penult` and `final` mid-loop,
 // per the AESAVS §6.4.1 byte slicing.
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -82,7 +82,7 @@ for (const file of [
 	'aes_ECBMCT192.rsp',
 	'aes_ECBMCT256.rsp',
 ]) {
-	describe(`AES MCT (Gate 7) — CAVP ${file}`, () => {
+	describe(`AES MCT (Gate 7), CAVP ${file}`, () => {
 		const { encrypt, decrypt } = parseEcbMctFile(file);
 
 		it('parses 100 chains per direction', () => {
@@ -90,7 +90,7 @@ for (const file of [
 			expect(decrypt.length).toBe(100);
 		});
 
-		it('100 encrypt chains × 1000 iterations — AESAVS §6.4.1 chain rule', () => {
+		it('100 encrypt chains × 1000 iterations, AESAVS §6.4.1 chain rule', () => {
 			const aes = new AES();
 			try {
 				let key = fromHex(encrypt[0].key);
@@ -121,7 +121,7 @@ for (const file of [
 			}
 		});
 
-		it('100 decrypt chains × 1000 iterations — AESAVS §6.4.1 chain rule', () => {
+		it('100 decrypt chains × 1000 iterations, AESAVS §6.4.1 chain rule', () => {
 			const aes = new AES();
 			try {
 				let key = fromHex(decrypt[0].key);

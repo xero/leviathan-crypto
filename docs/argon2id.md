@@ -24,7 +24,7 @@ thousand dollars of GPU hardware can test billions of PBKDF2-SHA256 candidates
 per second. bcrypt improves on this with a 4 KiB memory requirement that limits
 GPU parallelism, but 4 KiB is trivial by modern standards.
 
-Argon2 was the winner of the Password Hashing Competition (PHC, 2013–2015),
+Argon2 was the winner of the Password Hashing Competition (PHC, 2013-2015),
 selected from 24 submissions after two years of public analysis. It was designed
 specifically to be **memory-hard**: computing the hash requires not just CPU
 time but a large block of RAM that cannot be traded away. An attacker who tries
@@ -95,8 +95,8 @@ These align with OWASP and RFC 9106 recommendations:
 | INTERACTIVE | 19456 KiB | 2 | 1 | 32 | Login forms, session tokens |
 | SENSITIVE | 65536 KiB | 3 | 4 | 32 | Master passwords, high-value secrets |
 
-**INTERACTIVE** (~200–500 ms on modern hardware) is the right default for user
-login. **SENSITIVE** (~1–2 s, 64 MiB) is for situations where latency is
+**INTERACTIVE** (~200-500 ms on modern hardware) is the right default for user
+login. **SENSITIVE** (~1-2 s, 64 MiB) is for situations where latency is
 acceptable in exchange for significantly stronger resistance: master passwords,
 recovery keys, encryption keys derived from a passphrase.
 
@@ -114,7 +114,7 @@ import { constantTimeEqual } from 'leviathan-crypto';
 
 const argon2id = await loadArgon2idWasm();
 
-// Registration — hash and store
+// Registration, hash and store
 const salt = crypto.getRandomValues(new Uint8Array(16));
 const hash = argon2id({
   password:    new TextEncoder().encode(password),
@@ -128,7 +128,7 @@ const hash = argon2id({
 // Store hash, salt, and params together. Salt is not secret.
 db.store(userId, { hash, salt, passes: 2, memorySize: 19456, parallelism: 1 });
 
-// Verification — recompute and compare
+// Verification, recompute and compare
 const stored = db.load(userId);
 const candidate = argon2id({
   password:    new TextEncoder().encode(candidatePassword),
@@ -191,7 +191,7 @@ hkdf.dispose();
 
 const blob = Seal.encrypt(SerpentCipher, key, plaintext);
 
-// Store with blob — all required for decryption
+// Store with blob, all required for decryption
 const envelope = { blob, argonSalt };
 
 // ── Decrypt ──────────────────────────────────────────────────────────────────

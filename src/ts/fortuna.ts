@@ -21,7 +21,7 @@
 //
 // src/ts/fortuna.ts
 //
-// Fortuna CSPRNG — Ferguson & Schneier, Practical Cryptography (2003), Chapter 9.
+// Fortuna CSPRNG, Ferguson & Schneier, Practical Cryptography (2003), Chapter 9.
 // Backed by a pluggable Generator (cipher PRF) and HashFn (accumulator hash).
 // Requires init() for the modules used by the chosen generator and hash pair.
 
@@ -33,17 +33,17 @@ const isBrowser = typeof window !== 'undefined';
 const isNode = typeof process !== 'undefined' && typeof process.pid === 'number';
 
 /**
- * Fortuna CSPRNG — spec §9.3–§9.5
+ * Fortuna CSPRNG, spec §9.3-§9.5
  *
  * Use `Fortuna.create({ generator, hash })` to instantiate. Direct construction is not allowed.
  */
 export class Fortuna {
 	// ── Constants ──────────────────────────────────────────────────────────
 	private static readonly NUM_POOLS = 32;
-	private static readonly RESEED_LIMIT = 64;          // bits — pool 0 threshold (spec §9.5)
-	private static readonly MS_PER_RESEED = 100;        // ms — minimum reseed interval (spec §9.5)
-	private static readonly NODE_STATS_INTERVAL = 1000; // ms — OS stats collector interval
-	private static readonly CRYPTO_INTERVAL = 3000;     // ms — crypto.randomBytes interval
+	private static readonly RESEED_LIMIT = 64;          // bits, pool 0 threshold (spec §9.5)
+	private static readonly MS_PER_RESEED = 100;        // ms, minimum reseed interval (spec §9.5)
+	private static readonly NODE_STATS_INTERVAL = 1000; // ms, OS stats collector interval
+	private static readonly CRYPTO_INTERVAL = 3000;     // ms, crypto.randomBytes interval
 
 	// ── State ─────────────────────────────────────────────────────────────
 	private gen: Generator;
@@ -93,7 +93,7 @@ export class Fortuna {
 
 		const f = new Fortuna(opts.generator, opts.hash, opts.msPerReseed ?? Fortuna.MS_PER_RESEED);
 		f.initialize(opts.entropy);
-		// Force the first reseed — pool[0] is saturated by initialize(),
+		// Force the first reseed, pool[0] is saturated by initialize(),
 		// so this call triggers an immediate reseed and guarantees get() never
 		// returns undefined. The byte is discarded.
 		f.get(1);
@@ -124,13 +124,13 @@ export class Fortuna {
 
 	// ── Public API ────────────────────────────────────────────────────────
 
-	/** Get n random bytes. Always returns Uint8Array — instance is guaranteed seeded after create(). */
+	/** Get n random bytes. Always returns Uint8Array, instance is guaranteed seeded after create(). */
 	get(length: number): Uint8Array {
 		if (this.disposed) throw new Error('Fortuna instance has been disposed');
-		// Capture hrtime jitter at call time (Node.js) — spec §9.5
+		// Capture hrtime jitter at call time (Node.js), spec §9.5
 		if (isNode) this.captureHrtime();
 
-		// Check reseed trigger — spec §9.5
+		// Check reseed trigger, spec §9.5
 		if (this.poolEntropy[0] >= Fortuna.RESEED_LIMIT &&
 			Date.now() >= this.lastReseed + this.msPerReseed) {
 			this.reseedCnt = (this.reseedCnt + 1) >>> 0; // u32 wrap
@@ -144,7 +144,7 @@ export class Fortuna {
 					// Pool digest = current chain hash
 					seed = concat(seed, this.poolHash[i]);
 					strength += this.poolEntropy[i];
-					// Reset pool — wipe old chain hash before dropping the reference.
+					// Reset pool, wipe old chain hash before dropping the reference.
 					const old = this.poolHash[i];
 					this.poolHash[i] = new Uint8Array(this.hash.outputSize);
 					wipe(old);
@@ -204,28 +204,28 @@ export class Fortuna {
 
 	// ── Test-only accessors ───────────────────────────────────────────────
 
-	/** @internal — exposed for testing key replacement */
+	/** @internal, exposed for testing key replacement */
 	_getGenKey(): Uint8Array {
 		return this.genKey;
 	}
 
-	/** @internal — exposed for testing pool state */
+	/** @internal, exposed for testing pool state */
 	_getPoolEntropy(): number[] {
 		return this.poolEntropy;
 	}
 
-	/** @internal — exposed for testing reseed count */
+	/** @internal, exposed for testing reseed count */
 	_getReseedCnt(): number {
 		return this.reseedCnt;
 	}
 
-	/** @internal — exposed for testing pool-hash backing arrays */
+	/** @internal, exposed for testing pool-hash backing arrays */
 	_getPoolHash(): Uint8Array[] {
 		return this.poolHash;
 	}
 
 	/**
-	 * @internal — test-only deterministic factory. Seeds pool[0] with the provided
+	 * @internal, test-only deterministic factory. Seeds pool[0] with the provided
 	 * entropy and triggers one reseed directly, bypassing all OS entropy collection
 	 * and the hrtime jitter capture in get(). This makes KAT vectors reproducible
 	 * across runs. Not suitable for production use.
@@ -252,7 +252,7 @@ export class Fortuna {
 		const f = new Fortuna(opts.generator, opts.hash, 0);
 		// Seed pool[0] with the provided entropy, no OS collection.
 		f.addRandomEvent(opts.entropy, 0, opts.entropy.length * 8);
-		// Manually trigger reseed #1 without calling get() — get() calls captureHrtime()
+		// Manually trigger reseed #1 without calling get(), get() calls captureHrtime()
 		// in Node.js which adds non-deterministic data before the reseed fires.
 		f.reseedFromPool0();
 		return f;
@@ -260,14 +260,14 @@ export class Fortuna {
 
 	// ── Generator (spec §9.4) ─────────────────────────────────────────────
 
-	/** Get length pseudo-random bytes. — spec §9.4 */
+	/** Get length pseudo-random bytes., spec §9.4 */
 	private pseudoRandomData(length: number): Uint8Array {
 		const blocks = Math.ceil(length / this.gen.blockSize);
 		const out = this.gen.generate(this.genKey, this.genCnt, length);
-		// External counter advance — generator is stateless and does not mutate caller's counter
+		// External counter advance, generator is stateless and does not mutate caller's counter
 		for (let i = 0; i < blocks; i++) this.incrementCounter();
 
-		// Key replacement — mandatory forward secrecy (spec §9.4).
+		// Key replacement, mandatory forward secrecy (spec §9.4).
 		// Wipe the prior key BEFORE dropping its reference so no key bytes are
 		// reachable after key replacement; anyone holding a Uint8Array view to
 		// the old key now observes zero.
@@ -278,7 +278,7 @@ export class Fortuna {
 		return out;
 	}
 
-	/** Reseed the generator — spec §9.4 */
+	/** Reseed the generator, spec §9.4 */
 	private reseed(seed: Uint8Array): void {
 		// genKey = hash(genKey ‖ seed). Wipe both the hash input and the
 		// prior key before dropping references.
@@ -288,7 +288,7 @@ export class Fortuna {
 		wipe(this.genKey);
 		this.genKey = newKey;
 
-		// Increment counter — makes it nonzero on first reseed, marking generator as seeded
+		// Increment counter, makes it nonzero on first reseed, marking generator as seeded
 		this.incrementCounter();
 		this.lastReseed = Date.now();
 	}
@@ -309,7 +309,7 @@ export class Fortuna {
 		wipe(seed);
 	}
 
-	/** Increment little-endian counter. — spec §9.4 */
+	/** Increment little-endian counter., spec §9.4 */
 	private incrementCounter(): void {
 		for (let i = 0; i < this.genCnt.length; i++) {
 			if (++this.genCnt[i] !== 0) break;
@@ -343,7 +343,7 @@ export class Fortuna {
 	// ── Initialization ────────────────────────────────────────────────────
 
 	private initialize(entropy?: Uint8Array): void {
-		// Initial seeding — crypto random per pool (spec §9.5)
+		// Initial seeding, crypto random per pool (spec §9.5)
 		for (let i = 0; i < Fortuna.NUM_POOLS * 4; i++) {
 			this.collectorCryptoRandom();
 		}
@@ -404,7 +404,7 @@ export class Fortuna {
 			this.timers.push(setInterval(() => this.collectNodeStats(), Fortuna.NODE_STATS_INTERVAL));
 		}
 
-		// Crypto timer — both environments
+		// Crypto timer, both environments
 		this.timers.push(setInterval(() => this.collectorCryptoRandom(), Fortuna.CRYPTO_INTERVAL));
 
 		this.active = true;
@@ -547,14 +547,14 @@ export class Fortuna {
 
 	private collectNodeStats(): void {
 		try {
-			// hrtime — nanosecond scheduling jitter
+			// hrtime, nanosecond scheduling jitter
 			const hr = process.hrtime.bigint();
 			const hrBytes = new Uint8Array(8);
 			for (let i = 0; i < 8; i++) hrBytes[i] = Number((hr >> BigInt(i * 8)) & 0xffn);
 			this.addRandomEvent(hrBytes, this.robin.time, 8);
 			this.robin.time = (this.robin.time + 1) % Fortuna.NUM_POOLS;
 
-			// cpuUsage — user + system CPU microseconds
+			// cpuUsage, user + system CPU microseconds
 			const cpu = process.cpuUsage();
 			const cpuBytes = new Uint8Array(8);
 			cpuBytes[0] = cpu.user & 0xff; cpuBytes[1] = (cpu.user >>> 8) & 0xff;
@@ -564,7 +564,7 @@ export class Fortuna {
 			this.addRandomEvent(cpuBytes, this.robin.rnd, 2);
 			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 
-			// memoryUsage — heapUsed changes constantly
+			// memoryUsage, heapUsed changes constantly
 			const mem = process.memoryUsage();
 			const memVal = mem.heapUsed;
 			const memBytes = new Uint8Array(4);
@@ -573,7 +573,7 @@ export class Fortuna {
 			this.addRandomEvent(memBytes, this.robin.rnd, 1);
 			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 
-			// loadavg — slow-changing but real system state
+			// loadavg, slow-changing but real system state
 			// eslint-disable-next-line @typescript-eslint/no-require-imports
 			const os = require('node:os');
 			const la: number[] = os.loadavg();
@@ -581,7 +581,7 @@ export class Fortuna {
 			this.addRandomEvent(utf8ToBytes(laStr), this.robin.time, 1);
 			this.robin.time = (this.robin.time + 1) % Fortuna.NUM_POOLS;
 
-			// freemem — changes with allocation activity
+			// freemem, changes with allocation activity
 			const fm: number = os.freemem();
 			const fmBytes = new Uint8Array(4);
 			fmBytes[0] = fm & 0xff; fmBytes[1] = (fm >>> 8) & 0xff;

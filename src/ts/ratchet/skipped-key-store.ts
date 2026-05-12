@@ -21,7 +21,7 @@
 //
 // src/ts/ratchet/skipped-key-store.ts
 //
-// SkippedKeyStore — MKSKIPPED cache for a single KDFChain (DR spec §3.2/§3.5).
+// SkippedKeyStore, MKSKIPPED cache for a single KDFChain (DR spec §3.2/§3.5).
 // Manages out-of-order and skipped message key storage with transactional
 // resolve via ResolveHandle. Split budgets: maxCacheSize bounds memory;
 // maxSkipPerResolve bounds per-message HKDF work (DoS mitigation).
@@ -57,7 +57,7 @@ export class SkippedKeyStore {
 		this._maxSkipPerResolve = skip;
 	}
 
-	// O(1) eviction — Map iteration is insertion order, and keys are inserted
+	// O(1) eviction, Map iteration is insertion order, and keys are inserted
 	// in strictly increasing counter order, so the first key yielded IS the
 	// oldest (lowest counter).
 	private _evictOldest(): void {
@@ -69,8 +69,8 @@ export class SkippedKeyStore {
 	}
 
 	// Resolve a message key for the given counter. Returns a ResolveHandle the
-	// caller settles via commit() (success — key wiped) or rollback()
-	// (failure — key returned to the store so a later legitimate message at
+	// caller settles via commit() (success, key wiped) or rollback()
+	// (failure, key returned to the store so a later legitimate message at
 	// the same counter can still decrypt).
 	//
 	// Three paths based on counter vs chain.n:

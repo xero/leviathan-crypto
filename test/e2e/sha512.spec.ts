@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SHA-512 and SHA-384 Known-Answer Tests (cross-browser) — FIPS 180-4
+ * SHA-512 and SHA-384 Known-Answer Tests (cross-browser), FIPS 180-4
  *
  * Source: FIPS 180-4 (SHA Standard), Appendix C (SHA-512), Appendix D (SHA-384)
  * Files:  vectors/sha2.ts (sha512Vectors, sha384Vectors)
@@ -55,7 +55,7 @@ test.beforeEach(async ({ page }) => {
 
 // ── Gate 4: SHA-512 "abc" ──────────────────────────────────────────────────
 
-test('Gate 4 — SHA-512 "abc"', async ({ page }) => {
+test('Gate 4, SHA-512 "abc"', async ({ page }) => {
 	const vec = sha512Vectors[1]; // "abc"
 	const result = await page.evaluate(async (v) => {
 		const wasm = await loadWasm();

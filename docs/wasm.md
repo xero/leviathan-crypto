@@ -168,7 +168,7 @@ Embedding the binary as a string enables the library to function with zero
 configuration. You do not need to serve .wasm files from a CDN, configure MIME
 types, or establish a build plugin to manage binary imports. Simply npm install and
 import. Gzip compression significantly reduces the embedded footprint, typically
-to around 20–25% of the uncompressed WASM binary size. The tradeoff is a
+to around 20-25% of the uncompressed WASM binary size. The tradeoff is a
 decompression step at init time using `DecompressionStream`. For production deployments where bundle size is
 critical, the library also accepts `URL`, `ArrayBuffer`, `Response`, and pre-compiled
 `WebAssembly.Module` sources. See [loader.md](./loader.md) for details.

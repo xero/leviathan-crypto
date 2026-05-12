@@ -21,14 +21,14 @@
 //
 // src/ts/ratchet/kdf-chain.ts
 //
-// KDFChain — stateful symmetric ratchet chain step (spec §5.2, KDF_SCKA_CK).
+// KDFChain, stateful symmetric ratchet chain step (spec §5.2, KDF_SCKA_CK).
 // Each step derives a message key and advances the chain key via HKDF-SHA-256.
 
 import { HKDF_SHA256 } from '../sha2/index.js';
 import { isInitialized } from '../init.js';
 import { wipe, concat, utf8ToBytes } from '../utils.js';
 
-// Signal Double Ratchet §7.2 — chain step info string
+// Signal Double Ratchet §7.2, chain step info string
 const INFO_CHAIN_BYTES = utf8ToBytes('leviathan-ratchet-v1 Chain Step');
 
 const ZERO_SALT = new Uint8Array(32);
@@ -56,7 +56,7 @@ export class KDFChain {
 
 		const nextN = this._n + 1;
 
-		// Encode counter as big-endian uint64 — two u32 calls, no BigInt
+		// Encode counter as big-endian uint64, two u32 calls, no BigInt
 		const ctrBuf = new Uint8Array(8);
 		const dv     = new DataView(ctrBuf.buffer);
 		dv.setUint32(0, Math.floor(nextN / 0x100000000), false);

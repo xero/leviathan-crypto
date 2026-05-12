@@ -58,22 +58,22 @@ type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyb
 ```
 
 The WASM module families. Each one backs a group of related classes.
-`'keccak'` is an alias for `'sha3'` — same WASM binary, same instance slot.
+`'keccak'` is an alias for `'sha3'`, same WASM binary, same instance slot.
 
 | Module | Classes it enables |
 |---|---|
 | `'aes'` | `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator` |
-| `'aes'` + `'sha2'` | `AESGCMSIVCipher`, `Seal` (with `AESGCMSIVCipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
+| `'aes'` + `'sha2'` | `AESGCMSIVCipher`, `Seal` (with `AESGCMSIVCipher`), `SealStream`, `OpenStream`, see [aead.md](./aead.md) |
 | `'serpent'` | `Serpent`, `SerpentCbc`, `SerpentCtr` |
-| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
+| `'serpent'` + `'sha2'` | `SerpentCipher`, `Seal` (with `SerpentCipher`), `SealStream`, `OpenStream`, see [aead.md](./aead.md) |
 | `Fortuna` combinations | `Fortuna` accepts a `Generator` + `HashFn` pair. Valid module combinations: `'aes' + 'sha2'`, `'aes' + 'sha3'`, `'serpent' + 'sha2'`, `'serpent' + 'sha3'`, `'chacha20' + 'sha2'`, `'chacha20' + 'sha3'`. See [fortuna.md](./fortuna.md). |
 | `'chacha20'` | `ChaCha20`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
-| `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream` — see [aead.md](./aead.md) |
+| `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream`, see [aead.md](./aead.md) |
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
 | `'sha3'` / `'keccak'` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
-| `'kyber'` + `'sha3'` | `MlKem512`, `MlKem768`, `MlKem1024` — see [kyber.md](./kyber.md) |
-| `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite` (hybrid KEM+AEAD factory) — see [kyber.md](./kyber.md) |
-| `'mldsa'` + `'sha3'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash) — see [mldsa.md](./mldsa.md) |
+| `'kyber'` + `'sha3'` | `MlKem512`, `MlKem768`, `MlKem1024`, see [kyber.md](./kyber.md) |
+| `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite` (hybrid KEM+AEAD factory), see [kyber.md](./kyber.md) |
+| `'mldsa'` + `'sha3'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash), see [mldsa.md](./mldsa.md) |
 | `'mldsa'` + `'sha3'` + `'sha2'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash; sha2 only required when `ph` is `'SHA2-*'`) |
 
 ```typescript
@@ -94,7 +94,7 @@ the type:
 | `Response` | Streaming compilation via `WebAssembly.instantiateStreaming`. |
 | `PromiseLike<WasmSource>` | Awaited and re-dispatched by the resolved runtime type. |
 
-Any `PromiseLike<WasmSource>` is accepted — `Promise<ArrayBuffer>`,
+Any `PromiseLike<WasmSource>` is accepted, `Promise<ArrayBuffer>`,
 `Promise<Uint8Array>`, `Promise<string>`, a `fetch()` response promise, and
 nested thenables up to depth 3 all resolve transparently. See
 [loader.md](./loader.md) for details.
@@ -201,7 +201,7 @@ function getInstance(mod: Module): WebAssembly.Instance
 ```
 
 Returns the cached WebAssembly instance for a module. Used internally by
-wrapper classes. **Not exported from the `leviathan-crypto` root barrel** —
+wrapper classes. **Not exported from the `leviathan-crypto` root barrel**,
 the wrapper classes consume it directly within the package. Documented here
 for completeness; consumers do not normally need to call it.
 
@@ -261,8 +261,8 @@ import { init } from 'leviathan-crypto'
 import { keccakWasm } from 'leviathan-crypto/keccak/embedded'
 
 await init({ keccak: keccakWasm })
-// isInitialized('sha3') === true — same slot
-// isInitialized('keccak') === true — alias resolves symmetrically
+// isInitialized('sha3') === true, same slot
+// isInitialized('keccak') === true, alias resolves symmetrically
 ```
 
 Or via the subpath directly:
@@ -311,7 +311,7 @@ if (!isInitialized('sha2')) {
 |---|---|
 | Using a class before calling `init()` | Throws: `"leviathan-crypto: call init({ ${mod}: ... }) before using this class"` |
 | Invalid `WasmSource` (null, number, etc.) | Throws: `TypeError` with a descriptive message |
-| Empty string source | Throws: `"leviathan-crypto: invalid WasmSource — empty string"` |
+| Empty string source | Throws: `"leviathan-crypto: invalid WasmSource, empty string"` |
 | Calling `init()` for an already-loaded module | No error. Module is silently skipped. |
 
 ---

@@ -25,8 +25,8 @@
  * Sources:
  *   IETF draft-irtf-cfrg-xchacha (draft-irtf-cfrg-xchacha-03)
  *   URL: https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-xchacha
- *   §A.3.1 — HChaCha20 test vector (key derivation)
- *   §A.3.2 — XChaCha20-Poly1305 AEAD vector
+ *   §A.3.1, HChaCha20 test vector (key derivation)
+ *   §A.3.2, XChaCha20-Poly1305 AEAD vector
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, XChaCha20Poly1305, AuthenticationError } from '../../../src/ts/index.js';
@@ -49,7 +49,7 @@ function getWasm() {
 	return getInstance('chacha20').exports as unknown as ChaChaExports;
 }
 
-describe('HChaCha20 — draft-irtf-cfrg-xchacha §A.3.1', () => {
+describe('HChaCha20, draft-irtf-cfrg-xchacha §A.3.1', () => {
 
 	// GATE: HChaCha20/XChaCha20: draft-irtf-cfrg-xchacha §A.3.1
 	// Vector: chacha20.ts[hchacha20Vectors[0]]
@@ -83,10 +83,10 @@ const DRAFT_PT    = new TextEncoder().encode(TV.ptText!);
 const DRAFT_CT    = fromHex(TV.ct);
 const DRAFT_TAG   = fromHex(TV.tag);
 
-describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
+describe('XChaCha20-Poly1305, draft-irtf-cfrg-xchacha §A.3.2', () => {
 
 	// Draft vector
-	it('draft §A.3.2 — encrypt produces correct ciphertext and tag', () => {
+	it('draft §A.3.2, encrypt produces correct ciphertext and tag', () => {
 		const xchacha = new XChaCha20Poly1305();
 		const ct = xchacha.encrypt(DRAFT_KEY, DRAFT_NONCE, DRAFT_PT, DRAFT_AAD);
 		expect(toHex(ct.slice(0, -16))).toBe(toHex(DRAFT_CT));
@@ -94,7 +94,7 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 		xchacha.dispose();
 	});
 
-	it('draft §A.3.2 — decrypt recovers plaintext', () => {
+	it('draft §A.3.2, decrypt recovers plaintext', () => {
 		const xchacha = new XChaCha20Poly1305();
 		const combined = new Uint8Array(DRAFT_CT.length + 16);
 		combined.set(DRAFT_CT);
@@ -240,7 +240,7 @@ describe('XChaCha20-Poly1305 — draft-irtf-cfrg-xchacha §A.3.2', () => {
 
 // ── Single-use encrypt guard ────────────────────────────────────────────────
 
-describe('XChaCha20Poly1305 — single-use encrypt guard', () => {
+describe('XChaCha20Poly1305, single-use encrypt guard', () => {
 	it('encrypt() once succeeds', () => {
 		const xchacha = new XChaCha20Poly1305();
 		const key     = crypto.getRandomValues(new Uint8Array(32));
@@ -297,7 +297,7 @@ describe('XChaCha20Poly1305 — single-use encrypt guard', () => {
 
 // ── Wipe-before-throw ───────────────────────────────────────────────────────
 
-describe('XChaCha20Poly1305 — wipe-before-throw', () => {
+describe('XChaCha20Poly1305, wipe-before-throw', () => {
 	it('WASM chunk output buffer is zeroed after auth failure', () => {
 		const key   = crypto.getRandomValues(new Uint8Array(32));
 		const nonce = crypto.getRandomValues(new Uint8Array(24));
@@ -336,12 +336,12 @@ describe('XChaCha20Poly1305 — wipe-before-throw', () => {
 // `encrypt`/`decrypt`: after a successful AEAD call, the chacha20 module's
 // key buffer reads as zeros, ensuring the caller's key does not persist in
 // WASM linear memory after the public method returns. Mirrors the AES Gate
-// 17g (`aes_gcm_siv_open.test.ts`) shape — a sentinel key is staged in JS,
+// 17g (`aes_gcm_siv_open.test.ts`) shape, a sentinel key is staged in JS,
 // the call runs to completion, and KEY_OFFSET / POLY_KEY_OFFSET /
 // XCHACHA_SUBKEY_OFFSET are read directly from `x.memory.buffer` and
 // asserted zero (the XCHACHA_SUBKEY region is the HChaCha20-derived
 // inner-key material specific to the X variant).
-describe('XChaCha20Poly1305 — wipe-after-return', () => {
+describe('XChaCha20Poly1305, wipe-after-return', () => {
 	it('encrypt: KEY, POLY_KEY, and XCHACHA_SUBKEY regions are zero after a successful call', () => {
 		const key   = new Uint8Array(32).fill(0x42);   // distinctive sentinel
 		const nonce = crypto.getRandomValues(new Uint8Array(24));

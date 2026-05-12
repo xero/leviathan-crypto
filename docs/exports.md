@@ -71,13 +71,13 @@ Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD, with CBC and CTR mod
 | Export | Kind | Description |
 |--------|------|-------------|
 | `aesInit` | function | Module-scoped init. `aesInit(source: WasmSource)` loads only aes. |
-| `AES` | class | AES ECB block cipher. `loadKey(key)` (16, 24, or 32 byte keys), `encryptBlock(plaintext)`, `decryptBlock(ciphertext)` (FIPS 197 §5.3.5 Equivalent Inverse Cipher). Unauthenticated. Atomic — does not hold module exclusivity. |
-| `AESCbc` | class | AES CBC mode (SP 800-38A §6.2) with PKCS7 padding (RFC 5652 §6.3). `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. **Unauthenticated** — requires `{ dangerUnauthenticated: true }` opt-in; pair with HMAC (Encrypt-then-MAC) or use `Seal` with `SerpentCipher`/`XChaCha20Cipher` instead. SIMD CBC decrypt; scalar CBC encrypt (chaining is sequential by definition). Stateful — holds the AES module exclusively until `dispose()`. |
-| `AESCtr` | class | AES CTR mode (SP 800-38A §6.5). `loadKey(key)`, `setNonce(nonce)`, `encrypt(plaintext)` / `decrypt(ciphertext)`. Counter is 128-bit big-endian (SP 800-38A Appendix B.1, matches §F.5 worked examples). **Unauthenticated** — pair with HMAC or use an authenticated cipher instead. SIMD via the bitsliced 8-block kernel. Stateful — counter advances across calls; reset with `setNonce`. |
-| `AESGCM` | class | AES-GCM authenticated encryption (SP 800-38D §7). `seal(key, iv, aad, pt)` returns `ciphertext \|\| tag` (128-bit tag); `open(key, iv, aad, sealed)` verifies and returns plaintext, throws `RangeError('authentication failed')` on any verification failure. 12-byte (96-bit) IV is the recommended fast path; variable-length IVs trigger the GHASH-on-IV slow path per §7.1 step 2. AAD up to 64 KiB; PT up to 64 KiB per single call (chunked iteration internally for larger inputs). Tag length fixed at 128 bits. Stateful — holds the AES module exclusively until `dispose()`. |
-| `AESGCMSIV` | class | AES-GCM-SIV nonce-misuse-resistant authenticated encryption (RFC 8452). Constructor takes a 16-byte (AES-128) or 32-byte (AES-256) key — AES-192 is **not** supported (RFC 8452 §6 only defines AES-128/256 variants). `seal(nonce, plaintext, aad?)` returns `ciphertext \|\| tag`; `open(nonce, sealed, aad?)` returns plaintext, throws `AuthenticationError('siv')` on any verification failure. Nonce must be exactly 12 bytes. AAD ≤ 64 KiB; plaintext ≤ 64 KiB per call (single-shot only — larger messages will use a future streaming SIV variant). Tag verification routes through `constantTimeEqual` in the dedicated `ct` WASM module. Atomic. |
-| `AESGenerator` | const | `Generator` const for `Fortuna`. AES-256 ECB counter-mode PRF (Practical Cryptography §9.4 — the spec-canonical Fortuna generator). `keySize: 32`, `blockSize: 16`, `counterSize: 16`. Requires `init({ aes })`. Re-exported from the root barrel. |
-| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `KyberSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher` — closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
+| `AES` | class | AES ECB block cipher. `loadKey(key)` (16, 24, or 32 byte keys), `encryptBlock(plaintext)`, `decryptBlock(ciphertext)` (FIPS 197 §5.3.5 Equivalent Inverse Cipher). Unauthenticated. Atomic, does not hold module exclusivity. |
+| `AESCbc` | class | AES CBC mode (SP 800-38A §6.2) with PKCS7 padding (RFC 5652 §6.3). `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`. **Unauthenticated.** requires `{ dangerUnauthenticated: true }` opt-in; pair with HMAC (Encrypt-then-MAC) or use `Seal` with `SerpentCipher`/`XChaCha20Cipher` instead. SIMD CBC decrypt; scalar CBC encrypt (chaining is sequential by definition). Stateful, holds the AES module exclusively until `dispose()`. |
+| `AESCtr` | class | AES CTR mode (SP 800-38A §6.5). `loadKey(key)`, `setNonce(nonce)`, `encrypt(plaintext)` / `decrypt(ciphertext)`. Counter is 128-bit big-endian (SP 800-38A Appendix B.1, matches §F.5 worked examples). **Unauthenticated.** pair with HMAC or use an authenticated cipher instead. SIMD via the bitsliced 8-block kernel. Stateful, counter advances across calls; reset with `setNonce`. |
+| `AESGCM` | class | AES-GCM authenticated encryption (SP 800-38D §7). `seal(key, iv, aad, pt)` returns `ciphertext \|\| tag` (128-bit tag); `open(key, iv, aad, sealed)` verifies and returns plaintext, throws `RangeError('authentication failed')` on any verification failure. 12-byte (96-bit) IV is the recommended fast path; variable-length IVs trigger the GHASH-on-IV slow path per §7.1 step 2. AAD up to 64 KiB; PT up to 64 KiB per single call (chunked iteration internally for larger inputs). Tag length fixed at 128 bits. Stateful, holds the AES module exclusively until `dispose()`. |
+| `AESGCMSIV` | class | AES-GCM-SIV nonce-misuse-resistant authenticated encryption (RFC 8452). Constructor takes a 16-byte (AES-128) or 32-byte (AES-256) key, AES-192 is **not** supported (RFC 8452 §6 only defines AES-128/256 variants). `seal(nonce, plaintext, aad?)` returns `ciphertext \|\| tag`; `open(nonce, sealed, aad?)` returns plaintext, throws `AuthenticationError('siv')` on any verification failure. Nonce must be exactly 12 bytes. AAD ≤ 64 KiB; plaintext ≤ 64 KiB per call (single-shot only, larger messages will use a future streaming SIV variant). Tag verification routes through `constantTimeEqual` in the dedicated `ct` WASM module. Atomic. |
+| `AESGenerator` | const | `Generator` const for `Fortuna`. AES-256 ECB counter-mode PRF (Practical Cryptography §9.4, the spec-canonical Fortuna generator). `keySize: 32`, `blockSize: 16`, `counterSize: 16`. Requires `init({ aes })`. Re-exported from the root barrel. |
+| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `KyberSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher`, closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
 
 ---
 
@@ -169,7 +169,7 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 | `CSHAKE256` | class | cSHAKE256 customizable XOF (SP 800-185 §3). Same shape as CSHAKE128 with the 256-bit-strength rate. |
 | `KMAC128` | class | KMAC128 keyed Keccak MAC, fixed-output (SP 800-185 §4). `new KMAC128(key, outLen, customization)`, `update(chunk)`, `finalize()`, `mac(msg)`, static `verify(tag, key, msg, customization)` (throws `AuthenticationError('kmac128')` on mismatch). |
 | `KMAC256` | class | KMAC256 keyed Keccak MAC, fixed-output (SP 800-185 §4). Same shape as KMAC128 with `AuthenticationError('kmac256')` discriminator. |
-| `KMACXOF128` | class | KMAC128 in XOF mode (SP 800-185 §4.3.1). `new KMACXOF128(key, customization)`, `update(chunk)`, `squeeze(n)`, `mac(msg, outLen)`. No static `verify` — caller squeezes a fixed length and uses `constantTimeEqual`. |
+| `KMACXOF128` | class | KMAC128 in XOF mode (SP 800-185 §4.3.1). `new KMACXOF128(key, customization)`, `update(chunk)`, `squeeze(n)`, `mac(msg, outLen)`. No static `verify`, caller squeezes a fixed length and uses `constantTimeEqual`. |
 | `KMACXOF256` | class | KMAC256 in XOF mode (SP 800-185 §4.3.1). Same shape as KMACXOF128. |
 
 ---
@@ -239,7 +239,7 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 | Export | Kind | Description |
 |--------|------|-------------|
 | `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
-| `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly — use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
+| `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly, use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
 | `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `dispose()`. |
 | `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
 | `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
@@ -259,7 +259,7 @@ Takes a `Generator` and a `HashFn` at create time. Required `init()` modules dep
 | Export | Kind | Description |
 |--------|------|-------------|
 | `Fortuna`            | class    | Fortuna CSPRNG (Ferguson & Schneier). `Fortuna.create({ generator, hash })` static factory; `get(n)`, `addEntropy()`, `stop()`. |
-| `AESGenerator`       | const    | `Generator` const for `Fortuna`. AES-256 PRF in counter mode (Practical Cryptography §9.4 — the spec-canonical generator). Requires `init({ aes })`. Re-exported from `'leviathan-crypto/aes'`. |
+| `AESGenerator`       | const    | `Generator` const for `Fortuna`. AES-256 PRF in counter mode (Practical Cryptography §9.4, the spec-canonical generator). Requires `init({ aes })`. Re-exported from `'leviathan-crypto/aes'`. |
 | `SerpentGenerator`   | const    | `Generator` const for `Fortuna`. Serpent-256 PRF in counter mode. Requires `init({ serpent })`. Re-exported from `'leviathan-crypto/serpent'`. |
 | `ChaCha20Generator`  | const    | `Generator` const for `Fortuna`. ChaCha20 PRF with fixed zero nonce. Requires `init({ chacha20 })`. Re-exported from `'leviathan-crypto/chacha20'`. |
 | `SHA256Hash`         | const    | `HashFn` const for `Fortuna`. Stateless SHA-256. Requires `init({ sha2 })`. Re-exported from `'leviathan-crypto/sha2'`. |
@@ -277,19 +277,19 @@ Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `ratchetInit` | function | `ratchetInit(sk, context?)` — derives initial root key, send chain key, and receive chain key from a 32-byte shared secret (`KDF_SCKA_INIT`). Returns `RatchetInitResult`. |
+| `ratchetInit` | function | `ratchetInit(sk, context?)`, derives initial root key, send chain key, and receive chain key from a 32-byte shared secret (`KDF_SCKA_INIT`). Returns `RatchetInitResult`. |
 | `KDFChain` | class | Stateful symmetric ratchet chain (`KDF_SCKA_CK`). `new KDFChain(ck)`, `step()` → 32-byte message key, `stepWithCounter()` → `{ key, counter }`, `dispose()`. |
-| `SkippedKeyStore` | class | MKSKIPPED cache for a single `KDFChain` (DR spec §3.2/§3.5). `new SkippedKeyStore({ maxCacheSize?, maxSkipPerResolve? })`. `resolve(chain, counter)` → `ResolveHandle` — call `handle.commit()` on successful decrypt, `handle.rollback()` on auth failure. `advanceToBoundary(chain, pn)`, `size`, `wipeAll()`. Requires `sha2`. |
+| `SkippedKeyStore` | class | MKSKIPPED cache for a single `KDFChain` (DR spec §3.2/§3.5). `new SkippedKeyStore({ maxCacheSize?, maxSkipPerResolve? })`. `resolve(chain, counter)` → `ResolveHandle`, call `handle.commit()` on successful decrypt, `handle.rollback()` on auth failure. `advanceToBoundary(chain, pn)`, `size`, `wipeAll()`. Requires `sha2`. |
 | `RatchetKeypair` | class | Single-use ek/dk lifecycle for one KEM ratchet step. `new RatchetKeypair(kem)`, `readonly ek`, `decap(kem, rk, kemCt, context?)`, `dispose()`. Requires `sha2`, `kyber`, `sha3`. |
-| `kemRatchetEncap` | function | `kemRatchetEncap(kem, rk, peerEk, context?)` — encapsulation side of a KEM ratchet step (`KDF_SCKA_RK`). Returns `KemEncapResult` including `kemCt` to transmit to peer. |
-| `kemRatchetDecap` | function | `kemRatchetDecap(kem, rk, dk, kemCt, ownEk, context?)` — decapsulation side of a KEM ratchet step. `ownEk` is the local party's encapsulation key, bound into the HKDF info string alongside `peerEk` and `kemCt` as defense-in-depth on top of the KEM FO transform. Returns `KemDecapResult` with chain key slots swapped to match Bob's perspective. |
-| `ratchetReady` | function | `ratchetReady(): boolean` — returns `true` if `sha2` has been initialized. |
-| `RatchetInitResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }` — all 32-byte `Uint8Array` fields. |
-| `KemEncapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey, kemCt }` — three 32-byte keys plus the ML-KEM ciphertext. |
-| `KemDecapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }` — all 32-byte `Uint8Array` fields. Slots are swapped relative to the encap side. |
-| `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }` — canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
+| `kemRatchetEncap` | function | `kemRatchetEncap(kem, rk, peerEk, context?)`, encapsulation side of a KEM ratchet step (`KDF_SCKA_RK`). Returns `KemEncapResult` including `kemCt` to transmit to peer. |
+| `kemRatchetDecap` | function | `kemRatchetDecap(kem, rk, dk, kemCt, ownEk, context?)`, decapsulation side of a KEM ratchet step. `ownEk` is the local party's encapsulation key, bound into the HKDF info string alongside `peerEk` and `kemCt` as defense-in-depth on top of the KEM FO transform. Returns `KemDecapResult` with chain key slots swapped to match Bob's perspective. |
+| `ratchetReady` | function | `ratchetReady(): boolean`, returns `true` if `sha2` has been initialized. |
+| `RatchetInitResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }`, all 32-byte `Uint8Array` fields. |
+| `KemEncapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey, kemCt }`, three 32-byte keys plus the ML-KEM ciphertext. |
+| `KemDecapResult` | type | `{ nextRootKey, sendChainKey, recvChainKey }`, all 32-byte `Uint8Array` fields. Slots are swapped relative to the encap side. |
+| `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }`, canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
 | `MlKemLike` | interface | Structural interface satisfied by `MlKem512`, `MlKem768`, `MlKem1024`. Used as the `kem` parameter type for `kemRatchetEncap`/`kemRatchetDecap`/`RatchetKeypair`. |
-| `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key` — 32-byte message key (throws after settlement). `commit()` — wipes key, marks settled (call on successful decrypt). `rollback()` — returns key to store, marks settled (call on auth failure). Double-settle throws. |
+| `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key`, 32-byte message key (throws after settlement). `commit()`, wipes key, marks settled (call on successful decrypt). `rollback()`, returns key to store, marks settled (call on auth failure). Double-settle throws. |
 
 ---
 

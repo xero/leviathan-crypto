@@ -3,14 +3,14 @@
 // AES-GCM mode test vectors.
 //
 // Sources:
-//   McGrew & Viega — "The Galois/Counter Mode of Operation (GCM)"
+//   McGrew & Viega, "The Galois/Counter Mode of Operation (GCM)"
 //   January 2004 submission to NIST. The original NIST URL
 //   (csrc.nist.gov/CryptoToolkit/modes/proposedmodes/gcm/gcm-spec.pdf)
 //   no longer resolves; the 2004-11-05 Wayback Machine snapshot is
 //   pinned in research-docs/specs/gcm-spec.pdf.
-//   Sections covered: Appendix B (test cases 1–18) — all 18 cases below.
+//   Sections covered: Appendix B (test cases 1-18), all 18 cases below.
 //
-//   NIST SP 800-38D — Galois/Counter Mode (GCM) and GMAC (November 2007)
+//   NIST SP 800-38D, Galois/Counter Mode (GCM) and GMAC (November 2007)
 //   @see https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 //   Used as the normative reference for IV-length and tag-length rules
 //   the McGrew-Viega test cases exercise.
@@ -20,9 +20,9 @@
 //
 // All 18 cases from gcm-spec.pdf Appendix B are present below. The
 // distribution across key sizes is:
-//   AES-128 — Test Cases 1–6
-//   AES-192 — Test Cases 7–12
-//   AES-256 — Test Cases 13–18
+//   AES-128, Test Cases 1-6
+//   AES-192, Test Cases 7-12
+//   AES-256, Test Cases 13-18
 // Within each key size, the six cases cover empty/non-empty plaintext
 // and AAD, and 96-bit / 64-bit / 480-bit IV variants (the 96-bit cases
 // take the IV-prepending fast path; the others trigger GHASH-on-IV).
@@ -33,7 +33,7 @@
 // GCMVS .rsp corpora alongside this file (aes_gcmEncryptExtIV{128,192,256}.rsp
 // and aes_gcmDecrypt{128,192,256}.rsp) for breadth.
 //
-// Audit status: VERIFIED — every byte transcribed directly from the
+// Audit status: VERIFIED, every byte transcribed directly from the
 //   gcm-spec.pdf PDF (Wayback-archived McGrew-Viega submission), no
 //   value derived from any GCM implementation.
 
@@ -55,12 +55,12 @@ export interface GcmVector {
 	pt:          string;  // hex; may be empty
 	ct:          string;  // hex; same length as pt
 	tag:         string;  // hex; typically 32 chars (16 bytes); GCM allows
-	                      // shorter (4–16 byte) tags
+	                      // shorter (4-16 byte) tags
 }
 
 /**
  * A negative AES-GCM test vector: a (key, iv, aad, ct, tag) input whose
- * authentication MUST fail under AES-GCM. There is no `pt` field —
+ * authentication MUST fail under AES-GCM. There is no `pt` field,
  * decryption must throw an authentication error and never produce
  * plaintext. Tests use this shape to verify that decryption of tampered
  * input rejects rather than returning corrupted data.
@@ -75,7 +75,7 @@ export interface GcmFailVector {
 }
 
 // ============================================================
-// Positive vectors — McGrew-Viega Appendix B Test Cases 1–18
+// Positive vectors, McGrew-Viega Appendix B Test Cases 1-18
 // ============================================================
 
 /**

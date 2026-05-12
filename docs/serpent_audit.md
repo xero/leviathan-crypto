@@ -19,11 +19,11 @@ Audit of the `leviathan-crypto` WebAssembly Serpent-256 implementation (Assembly
 > - [2. Security Analysis](#2-security-analysis)
 >   - [2.1 Side-Channel Analysis](#21-side-channel-analysis)
 >   - [2.2 Cryptanalytic Attack Papers](#22-cryptanalytic-attack-papers)
->     - [Paper 1 — Amplified Boomerang Attacks (FSE 2000)](#paper-1--amplified-boomerang-attacks-fse-2000)
->     - [Paper 2 — Chosen-Plaintext Linear Attacks (IET 2013)](#paper-2--chosen-plaintext-linear-attacks-iet-2013)
->     - [Paper 3 — Differential-Linear Attack on 12-Round Serpent (FSE 2008)](#paper-3--differential-linear-attack-on-12-round-serpent-fse-2008)
->     - [Paper 4 — Linear Cryptanalysis of Reduced Round Serpent (FSE 2001)](#paper-4--linear-cryptanalysis-of-reduced-round-serpent-fse-2001)
->     - [Paper 5 — The Rectangle Attack (EUROCRYPT 2001)](#paper-5--the-rectangle-attack-eurocrypt-2001)
+>     - [Paper 1, Amplified Boomerang Attacks (FSE 2000)](#paper-1--amplified-boomerang-attacks-fse-2000)
+>     - [Paper 2, Chosen-Plaintext Linear Attacks (IET 2013)](#paper-2--chosen-plaintext-linear-attacks-iet-2013)
+>     - [Paper 3, Differential-Linear Attack on 12-Round Serpent (FSE 2008)](#paper-3--differential-linear-attack-on-12-round-serpent-fse-2008)
+>     - [Paper 4, Linear Cryptanalysis of Reduced Round Serpent (FSE 2001)](#paper-4--linear-cryptanalysis-of-reduced-round-serpent-fse-2001)
+>     - [Paper 5, The Rectangle Attack (EUROCRYPT 2001)](#paper-5--the-rectangle-attack-eurocrypt-2001)
 >     - [Consolidated Verdict Table](#consolidated-verdict-table)
 >     - [Final Assessment](#final-assessment)
 >   - [2.3 Biclique Cryptanalysis (Full 32-Round)](#23-biclique-cryptanalysis-full-32-round)
@@ -31,7 +31,7 @@ Audit of the `leviathan-crypto` WebAssembly Serpent-256 implementation (Assembly
 >     - [Background](#background)
 >     - [Tool Validation and Formula Corrections](#tool-validation-and-formula-corrections)
 >     - [Optimization Search Results](#optimization-search-results)
->     - [Key Index Pair Search — Structural Constraints](#key-index-pair-search--structural-constraints)
+>     - [Key Index Pair Search, Structural Constraints](#key-index-pair-search--structural-constraints)
 >     - [Best Known Result](#best-known-result)
 >     - [Structural Conclusions](#structural-conclusions)
 >     - [Assessment](#assessment)
@@ -65,7 +65,7 @@ Audit of the `leviathan-crypto` WebAssembly Serpent-256 implementation (Assembly
 
 ### 1.1 S-Boxes
 
-We implement all 8 forward S-boxes (`sb0`–`sb7`) and 8 inverse S-boxes (`si0`–`si7`) as Boolean logic circuits in AssemblyScript (`src/asm/serpent/serpent.ts:86–233`). Each function operates on 5 working register slots using `rget`/`rset` helpers that read/write fixed memory offsets in WASM. The operations are exclusively `&`, `|`, `^`, and `~`—no lookups, no data-dependent branches.
+We implement all 8 forward S-boxes (`sb0`-`sb7`) and 8 inverse S-boxes (`si0`-`si7`) as Boolean logic circuits in AssemblyScript (`src/asm/serpent/serpent.ts:86-233`). Each function operates on 5 working register slots using `rget`/`rset` helpers that read/write fixed memory offsets in WASM. The operations are exclusively `&`, `|`, `^`, and `~`, no lookups, no data-dependent branches.
 
 These Boolean expansions match the 4-bit lookup tables in the reference C implementation (`serpent-reference.c`, `SBox[8][16]` and `SBoxInverse[8][16]`). The reference tables are:
 
@@ -86,7 +86,7 @@ Correctness is established by the full test-vector suite: KAT, S-box entry tests
 
 ### 1.2 Linear Transform
 
-The `lk` function (`serpent.ts:272–294`) implements the forward linear transform (LT) combined with the next round's key XOR. The spec defines a 10-step bitslice transform. Here's how we implement each step:
+The `lk` function (`serpent.ts:272-294`) implements the forward linear transform (LT) combined with the next round's key XOR. The spec defines a 10-step bitslice transform. Here's how we implement each step:
 
 | Step | Spec | leviathan-crypto (`lk`) |
 |------|------|------------------------|
@@ -103,7 +103,7 @@ The `lk` function (`serpent.ts:272–294`) implements the forward linear transfo
 
 All rotation amounts match the spec: 13, 3, 1, 7, 5, 22 for the forward transform.
 
-The `kl` function (`serpent.ts:297–319`) implements the inverse linear transform with correct inverse rotations:
+The `kl` function (`serpent.ts:297-319`) implements the inverse linear transform with correct inverse rotations:
 
 | Forward | Inverse | Verify: (fwd + inv) mod 32 |
 |---------|---------|---------------------------|
@@ -119,12 +119,12 @@ The `kl` function (`serpent.ts:297–319`) implements the inverse linear transfo
 
 ### 1.3 Key Schedule
 
-`loadKey` (`serpent.ts:636–699`) implements the full Serpent key schedule. The process has three stages:
+`loadKey` (`serpent.ts:636-699`) implements the full Serpent key schedule. The process has three stages:
 
-**Key loading and padding** (lines 637–658):
+**Key loading and padding** (lines 637-658):
 The function validates the key (16, 24, or 32 bytes; returns -1 otherwise), then zeros the 132-word subkey buffer. It sets a padding bit by storing `1` at word position `keyLen`, matching the reference C `shortToLongKey()`. Next, it copies the key bytes in source order (`key[i] = input[i]`) per the v3 NIST natural byte order convention (see [1.5](#15-byte-ordering)). Finally, it repacks 8 groups of 4 byte-valued words into 8 little-endian uint32 words.
 
-**Prekey expansion** (lines 669–678):
+**Prekey expansion** (lines 669-678):
 ```
 w[i] = (w[i-8] ^ w[i-5] ^ w[i-3] ^ w[i-1] ^ 0x9E3779B9 ^ i) <<< 11
 ```
@@ -138,7 +138,7 @@ w[i] = rotateLeft(w[i-8] ^ w[i-5] ^ w[i-3] ^ w[i-1] ^ PHI ^ i, 11)
 
 The golden ratio constant `φ = 0x9E3779B9` matches in both implementations.
 
-**Subkey derivation** (lines 681–699):
+**Subkey derivation** (lines 681-699):
 
 Round keys are derived by applying bitslice S-boxes to groups of 4 prekey words. The S-box selection follows `S_{(3-n) mod 8}` per the spec:
 - K₃₂ uses S₃, K₃₁ uses S₄, K₃₀ uses S₅, ..., cycling through all 8 S-boxes.
@@ -151,21 +151,21 @@ Reference C applies S-boxes via nibble extraction and scatter: for each of the 3
 
 ### 1.4 Round Structure
 
-**Encryption** (`serpent.ts:703–740`):
+**Encryption** (`serpent.ts:703-740`):
 
 ```
 Load PT (LE-load 4 words) → K(0) XOR → 32 rounds → K(32) XOR → Store CT (LE-store 4 words)
 ```
 
 Round structure for `n = 0..31`:
-- Rounds 0–30: `S[n % 8]` → `LK` (linear transform + K(n+1) XOR)
+- Rounds 0-30: `S[n % 8]` → `LK` (linear transform + K(n+1) XOR)
 - Round 31: `S[31 % 8] = S[7]` → `K(32)` XOR (no linear transform)
 
 This matches the spec exactly. The reference C `encryptGivenKHat()`:
-- Rounds 0–30: XOR K̂ᵢ, Ŝ(i), LT
+- Rounds 0-30: XOR K̂ᵢ, Ŝ(i), LT
 - Round 31: XOR K̂₃₁, Ŝ(31), XOR K̂₃₂ (no LT)
 
-**Decryption** (`serpent.ts:749–787`):
+**Decryption** (`serpent.ts:749-787`):
 
 ```
 Load CT (LE-load 4 words) → K(32) XOR → 32 inverse rounds → K(0) XOR → Store PT (LE-store 4 words)
@@ -173,7 +173,7 @@ Load CT (LE-load 4 words) → K(32) XOR → 32 inverse rounds → K(0) XOR → S
 
 Inverse round structure for `n = 0..31`:
 - Round 0 (first decryption round): `SI[7]` → `KL` (inverse LT + K(31) XOR)
-- Rounds 1–30: `SI[7 - n%8]` → `KL` (inverse LT + K(32-n) XOR)
+- Rounds 1-30: `SI[7 - n%8]` → `KL` (inverse LT + K(32-n) XOR)
 - Round 31 (last decryption round): `SI[0]` → `K(0)` XOR (no inverse LT)
 
 The inverse S-box selection `SI[7 - n%8]` correctly reverses the forward order: SI7, SI6, SI5, SI4, SI3, SI2, SI1, SI0, SI7, SI6, ...
@@ -186,7 +186,7 @@ The final K(0) XOR in decryption uses slots `(2, 3, 1, 4)` rather than the defau
 
 v3 uses **NIST natural byte order** at the public Serpent API. Bytes 0..3 of a 16-byte block load into internal word `r[0]` as a little-endian u32, with byte 0 as the LSB. This is the convention used by FIPS 197 (AES), AB&K's NESSIE submission of Serpent, the Wikipedia pseudocode, and the RustCrypto, Crypto++, Botan, and BouncyCastle Serpent implementations.
 
-**Input loading** (encrypt, `serpent.ts:707–711`):
+**Input loading** (encrypt, `serpent.ts:707-711`):
 ```
 r[0] = LE(pt[ 0.. 3])    (byte 0 = LSB)
 r[1] = LE(pt[ 4.. 7])
@@ -194,7 +194,7 @@ r[2] = LE(pt[ 8..11])
 r[3] = LE(pt[12..15])    (byte 15 = MSB)
 ```
 
-**Output storing** (encrypt, `serpent.ts:732–739`):
+**Output storing** (encrypt, `serpent.ts:732-739`):
 ```
 ct[ 0.. 3] = LE(r[0])
 ct[ 4.. 7] = LE(r[1])
@@ -202,9 +202,9 @@ ct[ 8..11] = LE(r[2])
 ct[12..15] = LE(r[3])
 ```
 
-**Decryption mirrors encryption at the I/O boundary.** The ciphertext load (`serpent.ts:751–756`) and plaintext store (`serpent.ts:778–786`) use the same natural-order LE words. The internal slot ordering after the inverse round structure is `(2, 3, 1, 4)`, set by `keyXor(2, 3, 1, 4, 0)` at line 772; the final store reads `r[2]`, `r[3]`, `r[1]`, `r[4]` in that order to undo the slot rotation that the inverse SI0 leaves behind. This slot permutation is spec-defined and not a convention choice.
+**Decryption mirrors encryption at the I/O boundary.** The ciphertext load (`serpent.ts:751-756`) and plaintext store (`serpent.ts:778-786`) use the same natural-order LE words. The internal slot ordering after the inverse round structure is `(2, 3, 1, 4)`, set by `keyXor(2, 3, 1, 4, 0)` at line 772; the final store reads `r[2]`, `r[3]`, `r[1]`, `r[4]` in that order to undo the slot rotation that the inverse SI0 leaves behind. This slot permutation is spec-defined and not a convention choice.
 
-**Key loading** (`serpent.ts:645–649`):
+**Key loading** (`serpent.ts:645-649`):
 ```
 key[i] = input_byte[i]    (straight copy, no reversal)
 ```
@@ -222,8 +222,8 @@ Key bytes pass through to the prekey-expansion buffer in source order, then pack
 `serpent_unrolled.ts` is auto-generated (`bun bench/generate_unrolled.ts`) and contains fully unrolled versions of `encryptBlock` and `decryptBlock`. All 32 rounds are expanded with hardcoded slot indices (the EC/DC constant values pre-resolved at generation time).
 
 The unrolled variant:
-- Imports `sb0`–`sb7`, `si0`–`si7`, `lk`, `kl`, `keyXor` from `serpent.ts` (same functions, not copies).
-- Uses identical LE-word load/store logic — natural byte order, no reversal at the I/O boundary.
+- Imports `sb0`-`sb7`, `si0`-`si7`, `lk`, `kl`, `keyXor` from `serpent.ts` (same functions, not copies).
+- Uses identical LE-word load/store logic, natural byte order, no reversal at the I/O boundary.
 - Round 31 correctly skips the linear transform in both encrypt and decrypt.
 - The S-box and slot assignments in each expanded round match the values that the loop-based version would produce via EC/DC lookup.
 
@@ -238,7 +238,7 @@ This is the version called by CTR and CBC modes (`index.ts` re-exports `encryptB
 - Counter format: 128-bit little-endian, byte 0 is LSB.
 - `resetCounter()`: copies NONCE buffer to COUNTER buffer (nonce = initial counter value).
 - `incrementCounter()`: LE byte-by-byte increment with carry propagation. Early-exit on no carry is a minor timing leak (see [2.1](#21-side-channel-analysis)).
-- `processBlock()`: copies counter to BLOCK_PT, encrypts, XORs keystream with plaintext. Supports partial final blocks (1–16 bytes).
+- `processBlock()`: copies counter to BLOCK_PT, encrypts, XORs keystream with plaintext. Supports partial final blocks (1-16 bytes).
 - `setCounter(lo, hi)`: absolute 128-bit counter positioning for worker pool parallelism.
 
 **CBC mode** (`cbc.ts`):
@@ -273,7 +273,7 @@ Total: 131,732 bytes < 196,608 (3 × 64KB pages).
 
 No dynamic allocation (`memory.grow()`) is used. All offsets are compile-time constants. Buffer regions do not overlap. The WORK_BUFFER (5 registers) is placed after the large chunk buffers to avoid any possibility of chunk data overwriting working state.
 
-`wipeBuffers()` (`serpent.ts:495–506`) zeros all buffers: KEY (32B), BLOCK_PT (16B), BLOCK_CT (16B), NONCE (16B), COUNTER (16B), SUBKEY (528B), WORK (20B), CHUNK_PT (64KB), CHUNK_CT (64KB), CBC_IV (16B). This covers all sensitive material including key material and intermediate state.
+`wipeBuffers()` (`serpent.ts:495-506`) zeros all buffers: KEY (32B), BLOCK_PT (16B), BLOCK_CT (16B), NONCE (16B), COUNTER (16B), SUBKEY (528B), WORK (20B), CHUNK_PT (64KB), CHUNK_CT (64KB), CBC_IV (16B). This covers all sensitive material including key material and intermediate state.
 
 ---
 
@@ -287,7 +287,7 @@ The TypeScript classes (`src/ts/serpent/index.ts`) provide the public API:
 
 **`SerpentCbc`**: CBC mode with PKCS7. `encrypt()` applies `pkcs7Pad()` in TypeScript, processes in 64KB chunks via WASM. `decrypt()` validates ciphertext is a non-zero multiple of 16, processes chunks, then applies `pkcs7Strip()`. JSDoc carries authentication warning.
 
-**PKCS7 validation** (`pkcs7Strip` in `shared-ops.ts`): Uses constant-time XOR-accumulate validation over a fixed 16-byte tail window. The per-byte pad-region mask is derived arithmetically as `((16 - padLen - i - 1) >> 31) & 0xff` — a signed arithmetic shift collapses the sign of `16 - padLen - i - 1` to `0xff` when `i >= 16 - padLen` and `0x00` otherwise, with no ternary, no `Math.min`/`Math.max`, and no secret-derived clamp. Every pad byte is examined on every call; the result is accumulated into a `bad` flag and folded with the out-of-range checks (`padLen == 0`, `padLen > 16`) before a single terminal throw. This closes the Vaudenay-2002 padding-oracle surface at the validation level — no engine branch is emitted over the secret byte, and no length-dependent work is done between the tail read and the throw.
+**PKCS7 validation** (`pkcs7Strip` in `shared-ops.ts`): Uses constant-time XOR-accumulate validation over a fixed 16-byte tail window. The per-byte pad-region mask is derived arithmetically as `((16 - padLen - i - 1) >> 31) & 0xff`, a signed arithmetic shift collapses the sign of `16 - padLen - i - 1` to `0xff` when `i >= 16 - padLen` and `0x00` otherwise, with no ternary, no `Math.min`/`Math.max`, and no secret-derived clamp. Every pad byte is examined on every call; the result is accumulated into a `bad` flag and folded with the out-of-range checks (`padLen == 0`, `padLen > 16`) before a single terminal throw. This closes the Vaudenay-2002 padding-oracle surface at the validation level, no engine branch is emitted over the secret byte, and no length-dependent work is done between the tail read and the throw.
 
 The TypeScript layer performs no cryptographic computation. It writes inputs to WASM memory, calls WASM exports, and reads outputs. This is the correct architecture per `ARCHITECTURE.md`.
 
@@ -297,7 +297,7 @@ The TypeScript layer performs no cryptographic computation. It writes inputs to 
 
 The EC (encrypt), DC (decrypt), and KC (key schedule) constants encode 5-slot register permutations as magic integers. For each round `n`, the constant `m = EC[n]` determines working register assignments via `m%5, m%7, m%11, m%13, m%17`, which must produce all five distinct indices {0,1,2,3,4}.
 
-In the WASM implementation, these are switch statements (`serpent.ts:30–80`) rather than the TypeScript version's `Uint32Array` lookup tables. The values are identical:
+In the WASM implementation, these are switch statements (`serpent.ts:30-80`) rather than the TypeScript version's `Uint32Array` lookup tables. The values are identical:
 
 ```
 EC[0] = 44255, EC[1] = 61867, EC[2] = 45034, ...
@@ -335,17 +335,17 @@ The unrolled variant (`serpent_unrolled.ts`) pre-resolves all EC/DC values at ge
 
 While WASM does not carry a formal constant-time guarantee in its specification (the spec defines semantics, not timing), the practical constant-time properties are significantly stronger than JavaScript. The uniform, branch-free, fixed-width integer operations in the S-box circuits are as close to constant-time as a browser execution environment can provide without native code.
 
-**CTR counter increment** (`ctr.ts:33–40`): The 128-bit LE counter increment uses an early-exit `break` when no carry occurs. This leaks the carry-propagation depth, which correlates with the counter value. The counter value is not secret in CTR mode (it is either derived from a nonce or is itself the nonce incremented by a public block index), so this is a low-severity concern. A fully constant-time increment (always iterating all 16 bytes) would be marginally cleaner but is not a security requirement.
+**CTR counter increment** (`ctr.ts:33-40`): The 128-bit LE counter increment uses an early-exit `break` when no carry occurs. This leaks the carry-propagation depth, which correlates with the counter value. The counter value is not secret in CTR mode (it is either derived from a nonce or is itself the nonce incremented by a public block index), so this is a low-severity concern. A fully constant-time increment (always iterating all 16 bytes) would be marginally cleaner but is not a security requirement.
 
 ---
 
 ### 2.2 Cryptanalytic Attack Papers
 
-Every attack examined across 5 academic papers targets reduced-round Serpent. The minimum security margin across all papers is 20 rounds (32 − 12), and the best attack provides only ~6.6 bits of advantage over brute force on 12 rounds. The leviathan-crypto WASM implementation makes it structurally impossible to invoke fewer than 32 rounds. The round count is hardcoded in both the loop-based (`serpent.ts:430–435`) and unrolled (`serpent_unrolled.ts`) implementations, with no parameter, configuration, or conditional logic to reduce it.
+Every attack examined across 5 academic papers targets reduced-round Serpent. The minimum security margin across all papers is 20 rounds (32 − 12), and the best attack provides only ~6.6 bits of advantage over brute force on 12 rounds. The leviathan-crypto WASM implementation makes it structurally impossible to invoke fewer than 32 rounds. The round count is hardcoded in both the loop-based (`serpent.ts:430-435`) and unrolled (`serpent_unrolled.ts`) implementations, with no parameter, configuration, or conditional logic to reduce it.
 
 ---
 
-#### Paper 1 — Amplified Boomerang Attacks (FSE 2000)
+#### Paper 1: Amplified Boomerang Attacks (FSE 2000)
 
 **Authors:** John Kelsey, Tadayoshi Kohno, Bruce Schneier
 **Published:** FSE 2000, LNCS 1978, pp. 75-93
@@ -355,15 +355,15 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 | Amplified boomerang distinguisher | 7 | Chosen-plaintext | 2^113 | < brute force | Distinguisher |
 | Amplified boomerang key recovery | 8 | Chosen-plaintext | 2^113 | 2^179 | Key recovery (68 subkey bits) |
 
-**Core technique:** The cipher is split into two halves: E₀ (rounds 1–4) and E₁ (rounds 5–7). A 4-round differential with probability 2^{−31} and a 3-round differential with probability 2^{−16} are combined via the amplified boomerang framework. Differences spread rapidly through Serpent's linear transform. The authors state: "differences spread out, so that it is possible to find reasonably good characteristics for three or four rounds at a time, but not for larger numbers of rounds."
+**Core technique:** The cipher is split into two halves: E₀ (rounds 1-4) and E₁ (rounds 5-7). A 4-round differential with probability 2^{−31} and a 3-round differential with probability 2^{−16} are combined via the amplified boomerang framework. Differences spread rapidly through Serpent's linear transform. The authors state: "differences spread out, so that it is possible to find reasonably good characteristics for three or four rounds at a time, but not for larger numbers of rounds."
 
 **Analysis:** The best result reaches 8 rounds with a **24-round security margin**. The attack exploits algebraic properties of the S-boxes and linear transform that are inherent to the Serpent design, not implementation-specific. The WASM implementation faithfully reproduces these components. The authors explicitly confirm: "this attack does not threaten the full 32-round Serpent."
 
-**Verdict: NOT APPLICABLE — 24-round security margin.**
+**Verdict: NOT APPLICABLE, 24-round security margin.**
 
 ---
 
-#### Paper 2 — Chosen-Plaintext Linear Attacks (IET 2013)
+#### Paper 2: Chosen-Plaintext Linear Attacks (IET 2013)
 
 **Authors:** Jialin Huang, Xuejia Lai
 **Published:** IET Information Security, Vol. 7, Iss. 4, pp. 293-299, 2013
@@ -378,13 +378,13 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 
 **Core technique:** By fixing specific S-box inputs in the first round of a linear approximation, inactive S-boxes have correlation exactly ±1 instead of 2^{−1}, boosting the overall approximation correlation. This reduces data complexity by up to 2^22 for single-approximation attacks and dramatically reduces time complexity for multidimensional attacks.
 
-**Analysis:** The best result reaches 11 rounds. The 9-round approximation has correlation 2^{−54}; extending to 32 rounds would push the bias below 2^{−64}, where data requirements exceed the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The S-boxes (`serpent.ts:86–157`) are the standard Serpent S-boxes; the linear approximation properties exploited are inherent to the truth tables.
+**Analysis:** The best result reaches 11 rounds. The 9-round approximation has correlation 2^{−54}; extending to 32 rounds would push the bias below 2^{−64}, where data requirements exceed the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The S-boxes (`serpent.ts:86-157`) are the standard Serpent S-boxes; the linear approximation properties exploited are inherent to the truth tables.
 
-**Verdict: NOT APPLICABLE — 21-round security margin.**
+**Verdict: NOT APPLICABLE, 21-round security margin.**
 
 ---
 
-#### Paper 3 — Differential-Linear Attack on 12-Round Serpent (FSE 2008)
+#### Paper 3: Differential-Linear Attack on 12-Round Serpent (FSE 2008)
 
 **Authors:** Orr Dunkelman, Sebastiaan Indesteege, Nathan Keller
 **Published:** FSE 2008
@@ -403,15 +403,15 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 
 **The 12-round result is the best classical attack across all papers examined.** At 2^249.4 time complexity vs. 2^256 brute force, it provides only ~6.6 bits of advantage, a purely certificational result. The progression from 11 to 12 rounds required an increase of 2^113.7 in time complexity.
 
-**Related-key attack (Section 5):** Exploits a rotation property requiring removal of the `0x9e3779b9 ^ i` constants from the key schedule. leviathan-crypto's key schedule (`serpent.ts:324–325`) includes these constants via the `keyIt` helper: `rotl<i32>(... ^ 0x9e3779b9 ^ i, 11)`. This attack is entirely inapplicable.
+**Related-key attack (Section 5):** Exploits a rotation property requiring removal of the `0x9e3779b9 ^ i` constants from the key schedule. leviathan-crypto's key schedule (`serpent.ts:324-325`) includes these constants via the `keyIt` helper: `rotl<i32>(... ^ 0x9e3779b9 ^ i, 11)`. This attack is entirely inapplicable.
 
 **Analysis:** The 12-round attack covers only 12 of 32 rounds, leaving a **20-round security margin**. The time complexity is within ~6.6 bits of brute force at 12 rounds; extending to 13 rounds would push complexity well beyond 2^256.
 
-**Verdict: NOT APPLICABLE — 20-round security margin.**
+**Verdict: NOT APPLICABLE, 20-round security margin.**
 
 ---
 
-#### Paper 4 — Linear Cryptanalysis of Reduced Round Serpent (FSE 2001)
+#### Paper 4: Linear Cryptanalysis of Reduced Round Serpent (FSE 2001)
 
 **Authors:** Eli Biham, Orr Dunkelman, Nathan Keller
 **Published:** FSE 2001, LNCS 2355, pp. 16-27
@@ -422,15 +422,15 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 | 10-round key recovery | 10 | Known-plaintext | 2^118 | 2^89 | Key recovery |
 | 11-round key recovery (192/256) | 11 | Known-plaintext | 2^118 | 2^187 | Key recovery |
 
-**Core technique:** Systematic search for linear approximations identified a 9-round approximation with bias 2^{−52} (39 active S-boxes), 4–8x stronger than the bounds claimed by the Serpent designers. The authors note: "there is a huge distance between a 9-round approximation and attacking 32 rounds, or even 16 rounds of Serpent."
+**Core technique:** Systematic search for linear approximations identified a 9-round approximation with bias 2^{−52} (39 active S-boxes), 4-8x stronger than the bounds claimed by the Serpent designers. The authors note: "there is a huge distance between a 9-round approximation and attacking 32 rounds, or even 16 rounds of Serpent."
 
-**Analysis:** The bias progression shows roughly 5–13 bits of degradation per additional round. A 32-round approximation would have bias far below 2^{−128}, requiring more data than the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The 11-round attack's memory requirement of 2^{193} bits is astronomically beyond any physical storage.
+**Analysis:** The bias progression shows roughly 5-13 bits of degradation per additional round. A 32-round approximation would have bias far below 2^{−128}, requiring more data than the 2^{128} codebook. Full 32-round Serpent retains a **21-round security margin**. The 11-round attack's memory requirement of 2^{193} bits is astronomically beyond any physical storage.
 
-**Verdict: NOT APPLICABLE — 21-round security margin.**
+**Verdict: NOT APPLICABLE, 21-round security margin.**
 
 ---
 
-#### Paper 5 — The Rectangle Attack (EUROCRYPT 2001)
+#### Paper 5: The Rectangle Attack (EUROCRYPT 2001)
 
 **Authors:** Eli Biham, Orr Dunkelman, Nathan Keller
 **Published:** EUROCRYPT 2001, LNCS 2045, pp. 340-357
@@ -445,7 +445,7 @@ Every attack examined across 5 academic papers targets reduced-round Serpent. Th
 
 **Analysis:** The best result covers 10 rounds. The 6-round differential at the core has probability 2^{−93}. Each additional round adds at least 2^{−15} probability degradation. Full 32-round Serpent retains a **22-round security margin**.
 
-**Verdict: NOT APPLICABLE — 22-round security margin.**
+**Verdict: NOT APPLICABLE, 22-round security margin.**
 
 ---
 
@@ -470,7 +470,7 @@ Every attack in this corpus shares one fundamental limitation: they work only on
 
 The remaining 20 rounds represent an exponential barrier that no known cryptanalytic technique can bridge. The Serpent designers chose 32 rounds specifically to provide this defense-in-depth, roughly doubling the rounds needed for security at the time of design.
 
-**leviathan-crypto's round count is not configurable.** The loop-based implementation (`serpent.ts:430–435`) runs from `n=0` to `n>=31` with no configurable parameter. The unrolled implementation (`serpent_unrolled.ts`) has all 32 rounds expanded at code-generation time. The key schedule generates all 33 subkeys (K₀–K₃₂) unconditionally. Both CTR and CBC modes delegate to the same full 32-round block cipher. There is no API to request reduced-round encryption.
+**leviathan-crypto's round count is not configurable.** The loop-based implementation (`serpent.ts:430-435`) runs from `n=0` to `n>=31` with no configurable parameter. The unrolled implementation (`serpent_unrolled.ts`) has all 32 rounds expanded at code-generation time. The key schedule generates all 33 subkeys (K₀-K₃₂) unconditionally. Both CTR and CBC modes delegate to the same full 32-round block cipher. There is no API to request reduced-round encryption.
 
 **Residual concern: unauthenticated modes.** Neither CBC nor CTR mode provides integrity or authentication. Chosen-ciphertext attacks (padding oracles, bit-flipping) are a more realistic threat than any reduced-round algebraic attack. The TypeScript wrapper includes JSDoc warnings on both `SerpentCtr` and `SerpentCbc` directing users to pair with HMAC-SHA256 (Encrypt-then-MAC) or use `XChaCha20Poly1305` instead. The PKCS7 padding validation uses constant-time XOR-accumulate comparison, mitigating padding oracle attacks at the validation level.
 
@@ -508,7 +508,7 @@ A hand calculation of the dim-4 attack's complexity components verified the publ
 | C_recomp | 2^{7.006} |
 | C_falsepos | 2^{0.00} |
 | **Per-group** | **2^{7.205}** |
-| **Total** | **2^{255.205}** (vs. published 2^{255.21} — 0.005-bit agreement) |
+| **Total** | **2^{255.205}** (vs. published 2^{255.21}, 0.005-bit agreement) |
 
 C_recomp dominates at 87% of per-group cost.
 
@@ -516,7 +516,7 @@ C_recomp dominates at 87% of per-group cost.
 
 With the corrected tool, systematic search was conducted across three parameter dimensions:
 
-**Variable v position search:** 2,912 candidates (91 states × 32 nibbles) were tested with the generator-set biclique (delta K31 n6, nabla K18 n11, states #91–#96). Every candidate produced an independent biclique (100% independence rate). Late-state positions (states 61–90) consistently outperformed earlier ones due to less diffusion between v and the biclique boundary.
+**Variable v position search:** 2,912 candidates (91 states × 32 nibbles) were tested with the generator-set biclique (delta K31 n6, nabla K18 n11, states #91-#96). Every candidate produced an independent biclique (100% independence rate). Late-state positions (states 61-90) consistently outperformed earlier ones due to less diffusion between v and the biclique boundary.
 
 **Multi-nibble v optimization:** At the best single-nibble position (state 66, nibble 8), combining nibbles 8+9 (|v| = 8 bits) eliminated the false-positive term entirely: C_falsepos dropped from 2^{4.00} to 2^{0.00}. Adding nibble 9 increased C_recomp by only +0.04 bits (23 additional S-boxes), because nibbles 8 and 9 occupy the same byte and share most of their diffusion path.
 
@@ -530,7 +530,7 @@ Phase 2 improvement summary:
 | Better v position | K31/K18, d6/n11, v=s66n8+9 | 2^{255.21} | 2^{4} |
 | Better biclique nibbles | K31/K18, d0/n13, v=s66n8+9 | 2^{255.20} | 2^{4} |
 
-#### Key Index Pair Search — Structural Constraints
+#### Key Index Pair Search: Structural Constraints
 
 The search was broadened to test whether delta key indices other than K31 could yield better results. Three parallel searches tested K29, K30, and K31 delta pairs against all valid nabla pairs, totaling 1,327,104 evaluations in 6.7 hours of compute time.
 
@@ -571,7 +571,7 @@ Complete improvement chain:
 
 | Step | Configuration | Time | Improvement |
 |------|--------------|------|-------------|
-| Paper published | K31/K18, d6/n11, s75n31 | 2^{255.39} | — |
+| Paper published | K31/K18, d6/n11, s75n31 | 2^{255.39} | - |
 | Better v | K31/K18, d6/n11, s66n8+9 | 2^{255.21} | −0.18 bits |
 | Better biclique | K31/K18, d0/n13, s66n8+9 | 2^{255.20} | −0.01 bits |
 | Better nabla pair | K31/K17, d0/n10, s66n8+9 | 2^{255.19} | −0.01 bits |

@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('Seal — e2e', () => {
+test.describe('Seal, e2e', () => {
 	test('XChaCha20 Seal round-trip', async ({ page }) => {
 		const result = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);

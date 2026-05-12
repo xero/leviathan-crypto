@@ -1,4 +1,4 @@
-# leviathan-crypto — Windsurf Rules
+# leviathan-crypto: Windsurf Rules
 
 **Read `AGENTS.md` in the repository root before doing anything else.**
 

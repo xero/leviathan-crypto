@@ -1,9 +1,9 @@
 // TS vector file parser. Handles two shapes:
 //
-//   SealXChachaV3Vector       — single-chunk seal blob, flat fields
-//   SealStreamXChachaV3Vector — multi-chunk sealstream, with nested chunks array
-//   SealSerpentV3Vector       — single-chunk seal blob, flat fields (Serpent)
-//   SealStreamSerpentV3Vector — multi-chunk sealstream, with nested chunks array
+//   SealXChachaV3Vector      , single-chunk seal blob, flat fields
+//   SealStreamXChachaV3Vector, multi-chunk sealstream, with nested chunks array
+//   SealSerpentV3Vector      , single-chunk seal blob, flat fields (Serpent)
+//   SealStreamSerpentV3Vector, multi-chunk sealstream, with nested chunks array
 //
 // This parser only handles output produced by scripts/gen-seal-vectors.ts and
 // scripts/gen-sealstream-vectors.ts. Hand-edited vector files are not
@@ -134,7 +134,7 @@ fn extract_string(body: &str, field: &str) -> String {
 
 // Identifier boundary: previous char must be start-of-input or a non-identifier
 // char so that a request for field "k" doesn't match the `k:` inside `ek:` /
-// `dk:`. The seal/sealstream parsers' fields don't collide with each other —
+// `dk:`. The seal/sealstream parsers' fields don't collide with each other,
 // this is the surface where ML-KEM (`ek`, `dk`, `c`, `k`) and ML-DSA (`mu`,
 // `sig`) need it.
 fn find_field_offset(body: &str, field: &str) -> Option<usize> {
@@ -294,7 +294,7 @@ fn parse_siv_array(src: &str, export_name: &str) -> Vec<AesGcmSivVector> {
 
 // PolyvalFieldOpsVector and PolyvalMulXVector are unit-test-only
 // fixtures for Phase 4b-impl. The verifier reads them so the corpus is
-// fully traversed end-to-end, but does not exercise them — RustCrypto's
+// fully traversed end-to-end, but does not exercise them, RustCrypto's
 // `polyval` crate does not expose dot() / mulX_GHASH directly, and the
 // SIV vectors in aes_gcm_siv.ts transitively cover POLYVAL
 // multiplication. The non-description fields are therefore intentionally
@@ -690,7 +690,7 @@ fn parse_uint8_array_literal(src: &str, export_name: &str) -> Option<Vec<u8>> {
     let len      = find_matching_bracket(&src[lbracket..])?;
     let body     = &src[lbracket..lbracket + len];
 
-    // Strip `//` line comments — aes.ts annotates each S-box row with
+    // Strip `//` line comments, aes.ts annotates each S-box row with
     // `// row 0xN_:` headers, and a comment-leading comma-segment would
     // otherwise eat the first byte of the following row.
     let stripped: String = body.lines()
@@ -1324,7 +1324,7 @@ pub struct KmacAcvpVector {
 
 // Escape-aware single-quoted string extractor. Handles `\'` and `\\`
 // (the two escapes the kmac.ts generator emits). Other backslash
-// sequences pass through unchanged — the corpus does not contain any.
+// sequences pass through unchanged, the corpus does not contain any.
 fn extract_string_escaped(body: &str, field: &str) -> String {
     let needle = format!("{}:", field);
     let Some(start) = find_field_offset(body, field) else { return String::new(); };

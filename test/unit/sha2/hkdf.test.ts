@@ -38,9 +38,9 @@ beforeAll(async () => {
 	await init({ sha2: sha2Wasm });
 });
 
-// ── HKDF_SHA256 — RFC vectors ───────────────────────────────────────────────
+// ── HKDF_SHA256, RFC vectors ───────────────────────────────────────────────
 
-describe('HKDF_SHA256 — RFC vectors', () => {
+describe('HKDF_SHA256, RFC vectors', () => {
 	// GATE: HKDF-SHA-256: RFC 5869 §A.1
 	// Vector: sha2.ts[hkdfSha256Vectors[0]]
 	test('A.1 derive() OKM matches', () => {
@@ -68,9 +68,9 @@ describe('HKDF_SHA256 — RFC vectors', () => {
 	});
 });
 
-// ── HKDF_SHA256 — extract() isolation ───────────────────────────────────────
+// ── HKDF_SHA256, extract() isolation ───────────────────────────────────────
 
-describe('HKDF_SHA256 — extract() isolation', () => {
+describe('HKDF_SHA256, extract() isolation', () => {
 	test('A.1 extract(salt, ikm) PRK matches', () => {
 		const v = hkdfSha256Vectors[0];
 		const h = new HKDF_SHA256();
@@ -106,9 +106,9 @@ describe('HKDF_SHA256 — extract() isolation', () => {
 	});
 });
 
-// ── HKDF_SHA256 — expand() isolation ────────────────────────────────────────
+// ── HKDF_SHA256, expand() isolation ────────────────────────────────────────
 
-describe('HKDF_SHA256 — expand() isolation', () => {
+describe('HKDF_SHA256, expand() isolation', () => {
 	test('A.1 expand(prk, info, 42) OKM matches', () => {
 		const v = hkdfSha256Vectors[0];
 		const h = new HKDF_SHA256();
@@ -126,9 +126,9 @@ describe('HKDF_SHA256 — expand() isolation', () => {
 	});
 });
 
-// ── HKDF_SHA256 — derive() consistency ──────────────────────────────────────
+// ── HKDF_SHA256, derive() consistency ──────────────────────────────────────
 
-describe('HKDF_SHA256 — derive() consistency', () => {
+describe('HKDF_SHA256, derive() consistency', () => {
 	test('derive() === expand(extract(salt, ikm), info, length) for A.1', () => {
 		const v = hkdfSha256Vectors[0];
 		const h = new HKDF_SHA256();
@@ -150,9 +150,9 @@ describe('HKDF_SHA256 — derive() consistency', () => {
 	});
 });
 
-// ── HKDF_SHA256 — RangeError guards ────────────────────────────────────────
+// ── HKDF_SHA256, RangeError guards ────────────────────────────────────────
 
-describe('HKDF_SHA256 — RangeError guards', () => {
+describe('HKDF_SHA256, RangeError guards', () => {
 	test('expand() throws RangeError for length < 1', () => {
 		const h = new HKDF_SHA256();
 		const prk = new Uint8Array(32);
@@ -175,18 +175,18 @@ describe('HKDF_SHA256 — RangeError guards', () => {
 	});
 });
 
-// ── HKDF_SHA256 — dispose ──────────────────────────────────────────────────
+// ── HKDF_SHA256, dispose ──────────────────────────────────────────────────
 
-describe('HKDF_SHA256 — dispose', () => {
+describe('HKDF_SHA256, dispose', () => {
 	test('dispose() does not throw', () => {
 		const h = new HKDF_SHA256();
 		expect(() => h.dispose()).not.toThrow();
 	});
 });
 
-// ── HKDF_SHA512 — generated vectors ────────────────────────────────────────
+// ── HKDF_SHA512, generated vectors ────────────────────────────────────────
 
-describe('HKDF_SHA512 — generated vectors', () => {
+describe('HKDF_SHA512, generated vectors', () => {
 	test('S512-1 derive() OKM matches', () => {
 		const v = hkdfSha512Vectors[0];
 		const h = new HKDF_SHA512();
@@ -212,9 +212,9 @@ describe('HKDF_SHA512 — generated vectors', () => {
 	});
 });
 
-// ── HKDF_SHA512 — salt default ─────────────────────────────────────────────
+// ── HKDF_SHA512, salt default ─────────────────────────────────────────────
 
-describe('HKDF_SHA512 — salt default', () => {
+describe('HKDF_SHA512, salt default', () => {
 	test('extract(null, ikm) === extract(new Uint8Array(64), ikm)', () => {
 		const ikm = fromHex('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b');
 		const h = new HKDF_SHA512();
@@ -225,9 +225,9 @@ describe('HKDF_SHA512 — salt default', () => {
 	});
 });
 
-// ── HKDF_SHA512 — RangeError guards ────────────────────────────────────────
+// ── HKDF_SHA512, RangeError guards ────────────────────────────────────────
 
-describe('HKDF_SHA512 — RangeError guards', () => {
+describe('HKDF_SHA512, RangeError guards', () => {
 	test('expand() throws RangeError for length > 16320', () => {
 		const h = new HKDF_SHA512();
 		const prk = new Uint8Array(64);
@@ -243,9 +243,9 @@ describe('HKDF_SHA512 — RangeError guards', () => {
 	});
 });
 
-// ── HKDF_SHA512 — dispose ──────────────────────────────────────────────────
+// ── HKDF_SHA512, dispose ──────────────────────────────────────────────────
 
-describe('HKDF_SHA512 — dispose', () => {
+describe('HKDF_SHA512, dispose', () => {
 	test('dispose() does not throw', () => {
 		const h = new HKDF_SHA512();
 		expect(() => h.dispose()).not.toThrow();

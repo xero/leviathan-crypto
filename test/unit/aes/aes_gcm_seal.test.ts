@@ -21,8 +21,8 @@
 //
 // test/unit/aes/aes_gcm_seal.test.ts
 //
-// Gate 13 — AESGCM seal direction. Two corpora:
-//   (a) McGrew-Viega Appendix B — 18 worked test cases including
+// Gate 13, AESGCM seal direction. Two corpora:
+//   (a) McGrew-Viega Appendix B, 18 worked test cases including
 //       intermediate values; covers 96-bit IV fast path and variable-length
 //       IV slow path across AES-128 / 192 / 256.
 //   (b) NIST CAVP GCMVS encrypt files (~23k vectors total). The taglen
@@ -42,7 +42,7 @@ beforeAll(async () => {
 	await init({ aes: aesWasm });
 });
 
-describe('AESGCM seal (Gate 13) — McGrew-Viega Appendix B', () => {
+describe('AESGCM seal (Gate 13), McGrew-Viega Appendix B', () => {
 	for (const v of aesGcmVectors) {
 		// GATE: full AES-GCM encrypt for each MV worked example.
 		it(v.description, () => {
@@ -67,7 +67,7 @@ for (const file of [
 	'aes_gcmEncryptExtIV192.rsp',
 	'aes_gcmEncryptExtIV256.rsp',
 ]) {
-	describe(`AESGCM seal (Gate 13) — GCMVS ${file}`, () => {
+	describe(`AESGCM seal (Gate 13), GCMVS ${file}`, () => {
 		const vectors = parseGcmvsEncrypt(file).filter(v => v.taglen === 128);
 
 		// One outer 'it' per file so vitest reports one row; per-vector

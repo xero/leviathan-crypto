@@ -319,16 +319,16 @@ d=12). Writes each 12-bit value directly as a centered i16 coefficient.
 Compress and serialize a polynomial. Applies FIPS 203 Compress_dv then
 ByteEncode_dv. Division-free multiply-shift replaces the division by q.
 
-- `dv=4` — used by ML-KEM-512 and ML-KEM-768. Packs 8 coefficients into 4 bytes (4 bits each). Output: 128 bytes.
-- `dv=5` — used by ML-KEM-1024. Packs 8 coefficients into 5 bytes (5 bits each). Output: 160 bytes.
+- `dv=4`, used by ML-KEM-512 and ML-KEM-768. Packs 8 coefficients into 4 bytes (4 bits each). Output: 128 bytes.
+- `dv=5`, used by ML-KEM-1024. Packs 8 coefficients into 5 bytes (5 bits each). Output: 160 bytes.
 
 #### `poly_decompress(polyOffset: i32, aOffset: i32, dv: i32): void`
 
 Deserialize and decompress a polynomial. Applies FIPS 203 ByteDecode_dv then
 Decompress_dv. Uses `round(x × q / 2^dv)` rounding arithmetic.
 
-- `dv=4` — reads 128 bytes.
-- `dv=5` — reads 160 bytes.
+- `dv=4`, reads 128 bytes.
+- `dv=5`, reads 160 bytes.
 
 #### `poly_frommsg(polyOffset: i32, msgOffset: i32): void`
 
@@ -360,8 +360,8 @@ in matrix-vector multiplication.
 Sample a centered binomial noise polynomial from PRF output. FIPS 203
 SamplePolyCBD_η.
 
-- `eta=2` — calls `cbd2`. Input: 128 bytes.
-- `eta=3` — calls `cbd3`. Input: 192 bytes.
+- `eta=2`, calls `cbd2`. Input: 128 bytes.
+- `eta=3`, calls `cbd3`. Input: 192 bytes.
 
 #### `poly_add(rOffset: i32, aOffset: i32, bOffset: i32): void`
 
@@ -413,15 +413,15 @@ Compress and serialize a polyvec. FIPS 203 k × Compress_du + ByteEncode_du.
 Uses 64-bit multiply for higher precision. The output size depends on both k
 and du.
 
-- `du=10` — used by ML-KEM-512 and ML-KEM-768. Output: k × 320 bytes.
-- `du=11` — used by ML-KEM-1024. Output: k × 352 bytes.
+- `du=10`, used by ML-KEM-512 and ML-KEM-768. Output: k × 320 bytes.
+- `du=11`, used by ML-KEM-1024. Output: k × 352 bytes.
 
 #### `polyvec_decompress(pvOffset: i32, aOffset: i32, k: i32, du: i32): void`
 
 Decompress a serialized polyvec. FIPS 203 k × ByteDecode_du then Decompress_du.
 
-- `du=10` — reads k × 320 bytes.
-- `du=11` — reads k × 352 bytes.
+- `du=10`, reads k × 320 bytes.
+- `du=11`, reads k × 352 bytes.
 
 #### `polyvec_ntt(pvOffset: i32, k: i32): void`
 

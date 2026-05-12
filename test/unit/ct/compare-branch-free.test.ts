@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * constantTimeEqual — branch-free tail.
+ * constantTimeEqual, branch-free tail.
  *
  * Covers the WASM SIMD path (the only path):
  *   - Equality over every boundary length (0, 1, 15, 16, 17, 31, 32, 33, 32768).
@@ -56,7 +56,7 @@ function runMatrix(): void {
 		}
 	});
 
-	describe('unequal inputs — one bit flipped at every position', () => {
+	describe('unequal inputs, one bit flipped at every position', () => {
 		for (const n of LENGTHS_NEQ) {
 			it(`len=${n} → false for every single-bit flip`, () => {
 				const a = filled(n);

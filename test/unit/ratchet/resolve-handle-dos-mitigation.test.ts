@@ -47,7 +47,7 @@ beforeAll(async () => {
 
 describe('resolve-handle DoS mitigation', () => {
 	test('rollback on auth failure preserves the legitimate message key', () => {
-		// ── Alice side — derive 10 message keys and encrypt 10 messages ──────
+		// ── Alice side, derive 10 message keys and encrypt 10 messages ──────
 		const sharedChainKey = new Uint8Array(32);
 		sharedChainKey.fill(0x5A);
 
@@ -69,11 +69,11 @@ describe('resolve-handle DoS mitigation', () => {
 		}
 		aliceChain.dispose();
 
-		// ── Bob side — reconstruct chain, use SkippedKeyStore for OOO ────────
+		// ── Bob side, reconstruct chain, use SkippedKeyStore for OOO ────────
 		const bobChain = new KDFChain(sharedChainKey.slice());
 		const bobStore = new SkippedKeyStore();
 
-		// 1. Bob receives message 5 first — skip-ahead, commit on success.
+		// 1. Bob receives message 5 first, skip-ahead, commit on success.
 		const h5 = bobStore.resolve(bobChain, 5);
 		const nonce5 = new Uint8Array(12);
 		new DataView(nonce5.buffer).setUint32(8, 5, false);
@@ -127,7 +127,7 @@ describe('resolve-handle DoS mitigation', () => {
 	});
 
 	test('rollback permits arbitrarily many auth failures without consuming the key', () => {
-		// Harder version — the attacker sends N garbage ciphertexts at counter 3.
+		// Harder version, the attacker sends N garbage ciphertexts at counter 3.
 		// Every one triggers resolve + rollback. The real message still decrypts.
 		const sharedChainKey = new Uint8Array(32).fill(0xC3);
 
@@ -146,7 +146,7 @@ describe('resolve-handle DoS mitigation', () => {
 
 		// Bob receives message 10 first to push counter 5 into the store.
 		const h10 = bobStore.resolve(bobChain, 10);
-		h10.rollback();           // we don't care about 10 — put it back
+		h10.rollback();           // we don't care about 10, put it back
 		expect(bobStore.size).toBe(10); // counters 1..10
 
 		// Attacker floods Bob with 20 garbage ciphertexts at counter 5.

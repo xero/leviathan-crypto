@@ -21,7 +21,7 @@
 //
 // src/ts/sha2/hkdf.ts
 //
-// RFC 5869 — HKDF (HMAC-based Extract-and-Expand Key Derivation Function)
+// RFC 5869, HKDF (HMAC-based Extract-and-Expand Key Derivation Function)
 // Pure TS composition over HMAC_SHA256 and HMAC_SHA512.
 
 import { HMAC_SHA256, HMAC_SHA512 } from './index.js';
@@ -35,13 +35,13 @@ export class HKDF_SHA256 {
 		this.hmac = new HMAC_SHA256();
 	}
 
-	// RFC 5869 §2.2 — Extract
+	// RFC 5869 §2.2, Extract
 	extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array {
 		const s = (!salt || salt.length === 0) ? new Uint8Array(32) : salt;
 		return this.hmac.hash(s, ikm);
 	}
 
-	// RFC 5869 §2.3 — Expand
+	// RFC 5869 §2.3, Expand
 	expand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array {
 		if (prk.length !== 32) throw new RangeError('HKDF expand: PRK must be 32 bytes');
 		if (length < 1) throw new RangeError('HKDF expand: length must be at least 1');
@@ -93,13 +93,13 @@ export class HKDF_SHA512 {
 		this.hmac = new HMAC_SHA512();
 	}
 
-	// RFC 5869 §2.2 — Extract
+	// RFC 5869 §2.2, Extract
 	extract(salt: Uint8Array | null, ikm: Uint8Array): Uint8Array {
 		const s = (!salt || salt.length === 0) ? new Uint8Array(64) : salt;
 		return this.hmac.hash(s, ikm);
 	}
 
-	// RFC 5869 §2.3 — Expand
+	// RFC 5869 §2.3, Expand
 	expand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array {
 		if (prk.length !== 64) throw new RangeError('HKDF expand: PRK must be 64 bytes');
 		if (length < 1) throw new RangeError('HKDF expand: length must be at least 1');

@@ -21,7 +21,7 @@
 //
 // cSHAKE and KMAC test vectors (SP 800-185, NIST ACVP-Server).
 //
-// Sources (Tier 1, external authority — values are immutable per AGENTS.md §1):
+// Sources (Tier 1, external authority, values are immutable per AGENTS.md §1):
 //
 //   NIST SP 800-185 sample documents (the "Appendix A" exports):
 //     cSHAKE: https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/cSHAKE_samples.pdf
@@ -36,7 +36,7 @@
 //
 // Scope: byte-oriented API only.
 //
-// leviathan-crypto's KMAC and cSHAKE WASM surface consumes Uint8Array — every
+// leviathan-crypto's KMAC and cSHAKE WASM surface consumes Uint8Array, every
 // primitive in the library is byte-oriented. The ACVP-Server corpus is
 // overwhelmingly bit-level: messages, keys, and MACs typically carry
 // non-byte-aligned lengths. Records whose keyLen, msgLen, or macLen is not a
@@ -58,7 +58,7 @@
 // drifts to bit-level lengths past the first iteration regardless of the
 // initial outLen. The byte-oriented API cannot drive the chain.
 //
-// Empty exports — kmacxof128_appendix_a / kmacxof256_appendix_a are never
+// Empty exports, kmacxof128_appendix_a / kmacxof256_appendix_a are never
 // empty (NIST publishes 3 samples each). kmac256_acvp and kmacxof128_acvp are
 // empty arrays: no records survived the byte-alignment filter. The exports are
 // retained for symmetry with the variant-grouping convention and so Phase 2
@@ -76,7 +76,7 @@
 // Interfaces
 // ============================================================
 
-/** SP 800-185 sample for cSHAKE — N and S are ASCII strings. */
+/** SP 800-185 sample for cSHAKE, N and S are ASCII strings. */
 export interface CshakeSampleVector {
 	description:  string;
 	msg:          string;  // hex
@@ -87,7 +87,7 @@ export interface CshakeSampleVector {
 	expected:     string;  // hex
 }
 
-/** SP 800-185 sample for KMAC / KMACXOF — S is an ASCII string. */
+/** SP 800-185 sample for KMAC / KMACXOF, S is an ASCII string. */
 export interface KmacSampleVector {
 	description:  string;
 	key:          string;  // hex
@@ -135,7 +135,7 @@ export interface KmacAcvpVector {
 }
 
 // ============================================================
-// cSHAKE-128 — SP 800-185 sample values
+// cSHAKE-128, SP 800-185 sample values
 // Source: csrc.nist.gov/.../examples/cSHAKE_samples.pdf, samples #1, #2
 // Records: 2
 // ============================================================
@@ -168,7 +168,7 @@ export const cshake128_appendix_a: CshakeSampleVector[] = [
 ];
 
 // ============================================================
-// cSHAKE-128 — ACVP AFT (byte-aligned filter applied)
+// cSHAKE-128, ACVP AFT (byte-aligned filter applied)
 // Source: ACVP-Server cSHAKE-128-1.0, vsId=0, tgId=1, byte-aligned subset
 // Records: 2
 // ============================================================
@@ -203,7 +203,7 @@ export const cshake128_acvp: CshakeAcvpVector[] = [
 ];
 
 // ============================================================
-// cSHAKE-256 — SP 800-185 sample values
+// cSHAKE-256, SP 800-185 sample values
 // Source: csrc.nist.gov/.../examples/cSHAKE_samples.pdf, samples #3, #4
 // Records: 2
 // ============================================================
@@ -238,7 +238,7 @@ export const cshake256_appendix_a: CshakeSampleVector[] = [
 ];
 
 // ============================================================
-// cSHAKE-256 — ACVP AFT (byte-aligned filter applied)
+// cSHAKE-256, ACVP AFT (byte-aligned filter applied)
 // Source: ACVP-Server cSHAKE-256-1.0, vsId=0, tgId=1, byte-aligned subset
 // Records: 3
 // ============================================================
@@ -542,7 +542,7 @@ export const cshake256_acvp: CshakeAcvpVector[] = [
 ];
 
 // ============================================================
-// KMAC-128 — SP 800-185 sample values
+// KMAC-128, SP 800-185 sample values
 // Source: csrc.nist.gov/.../examples/KMAC_samples.pdf, samples #1, #2, #3
 // Records: 3
 // ============================================================
@@ -587,7 +587,7 @@ export const kmac128_appendix_a: KmacSampleVector[] = [
 ];
 
 // ============================================================
-// KMAC-128 — ACVP AFT/MVT (byte-aligned, xof=false)
+// KMAC-128, ACVP AFT/MVT (byte-aligned, xof=false)
 // Source: ACVP-Server KMAC-128-1.0, vsId=0, byte-aligned subset of tgIds 3/4/7/8
 // Records: 2
 // ============================================================
@@ -803,7 +803,7 @@ export const kmac128_acvp: KmacAcvpVector[] = [
 ];
 
 // ============================================================
-// KMAC-256 — SP 800-185 sample values
+// KMAC-256, SP 800-185 sample values
 // Source: csrc.nist.gov/.../examples/KMAC_samples.pdf, samples #4, #5, #6
 // Records: 3
 // ============================================================
@@ -857,15 +857,15 @@ export const kmac256_appendix_a: KmacSampleVector[] = [
 ];
 
 // ============================================================
-// KMAC-256 — ACVP AFT/MVT (byte-aligned, xof=false)
+// KMAC-256, ACVP AFT/MVT (byte-aligned, xof=false)
 // Source: ACVP-Server KMAC-256-1.0, vsId=0, byte-aligned subset of tgIds 3/4/7/8
 // Records: 0
 // ============================================================
 
-export const kmac256_acvp: KmacAcvpVector[] = []; // intentionally empty — see scope statement at top of file.
+export const kmac256_acvp: KmacAcvpVector[] = []; // intentionally empty, see scope statement at top of file.
 
 // ============================================================
-// KMACXOF-128 — SP 800-185 sample values
+// KMACXOF-128, SP 800-185 sample values
 // Source: csrc.nist.gov/.../examples/KMACXOF_samples.pdf, samples #1, #2, #3
 // Records: 3
 // ============================================================
@@ -910,15 +910,15 @@ export const kmacxof128_appendix_a: KmacSampleVector[] = [
 ];
 
 // ============================================================
-// KMACXOF-128 — ACVP AFT/MVT (byte-aligned, xof=true)
+// KMACXOF-128, ACVP AFT/MVT (byte-aligned, xof=true)
 // Source: ACVP-Server KMAC-128-1.0, vsId=0, byte-aligned subset of tgIds 1/2/5/6
 // Records: 0
 // ============================================================
 
-export const kmacxof128_acvp: KmacAcvpVector[] = []; // intentionally empty — see scope statement at top of file.
+export const kmacxof128_acvp: KmacAcvpVector[] = []; // intentionally empty, see scope statement at top of file.
 
 // ============================================================
-// KMACXOF-256 — SP 800-185 sample values
+// KMACXOF-256, SP 800-185 sample values
 // Source: csrc.nist.gov/.../examples/KMACXOF_samples.pdf, samples #4, #5, #6
 // Records: 3
 // ============================================================
@@ -972,7 +972,7 @@ export const kmacxof256_appendix_a: KmacSampleVector[] = [
 ];
 
 // ============================================================
-// KMACXOF-256 — ACVP AFT/MVT (byte-aligned, xof=true)
+// KMACXOF-256, ACVP AFT/MVT (byte-aligned, xof=true)
 // Source: ACVP-Server KMAC-256-1.0, vsId=0, byte-aligned subset of tgIds 1/2/5/6
 // Records: 1
 // ============================================================

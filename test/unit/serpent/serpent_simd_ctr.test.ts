@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * SIMD CTR cross-check — encryptChunk_simd must produce byte-identical
+ * SIMD CTR cross-check, encryptChunk_simd must produce byte-identical
  * output to scalar encryptChunk for all 5 existing CTR test vectors.
  *
  * Forces both paths explicitly, independent of hasSIMD() runtime detection.
@@ -60,7 +60,7 @@ beforeAll(async () => {
 	await init({ serpent: serpentWasm });
 });
 
-describe('SIMD CTR cross-check — scalar vs encryptChunk_simd', () => {
+describe('SIMD CTR cross-check, scalar vs encryptChunk_simd', () => {
 	for (const { label, key, nonce, pt, ct } of CTR_VECTORS) {
 		it(`Case ${label}: SIMD matches scalar`, () => {
 			const wasm = getWasm();

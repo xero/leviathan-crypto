@@ -45,7 +45,7 @@ export default defineConfig([
   {
     files: ["test/**/*.ts"],
     rules: {
-      // Non-null assertions in test files are acceptable — test code asserts known shapes
+      // Non-null assertions in test files are acceptable, test code asserts known shapes
       "@typescript-eslint/no-non-null-assertion": "off",
     },
   },
@@ -92,7 +92,7 @@ export default defineConfig([
       "@typescript-eslint/prefer-namespace-keyword": "error",
       // no-trailing-whitespace
       "no-trailing-spaces": "error",
-      // no-var (was disabled in TSLint, strict enables it — keeping it on)
+      // no-var (was disabled in TSLint, strict enables it, keeping it on)
       "no-var": "error",
       // triple-equals: allow-null-check
       eqeqeq: ["error", "always", { null: "ignore" }],

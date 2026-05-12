@@ -27,7 +27,7 @@
 //
 // State: 25 × u64 at STATE_OFFSET (200 bytes, 5×5 lane matrix)
 // Indexing: A[x][y] stored at offset (x + 5y) × 8
-// Endianness: little-endian lanes (WASM native — no byte-swap needed)
+// Endianness: little-endian lanes (WASM native, no byte-swap needed)
 
 import {
 	STATE_OFFSET,
@@ -38,7 +38,7 @@ import {
 	OUT_OFFSET,
 } from './buffers';
 
-// Round constants (ι step) — FIPS 202 §3.2.5
+// Round constants (ι step), FIPS 202 §3.2.5
 const RC0:  i64 = 0x0000000000000001;
 const RC1:  i64 = 0x0000000000008082;
 const RC2:  i64 = 0x800000000000808a;
@@ -64,7 +64,7 @@ const RC21: i64 = 0x8000000000008080;
 const RC22: i64 = 0x0000000080000001;
 const RC23: i64 = 0x8000000080008008;
 
-// ρ rotation offsets — FIPS 202 §3.2.2 Table 2
+// ρ rotation offsets, FIPS 202 §3.2.2 Table 2
 // Indexed by lane position (x + 5y)
 const ROT: StaticArray<i32> = [
 	 0,  1, 62, 28, 27,   // y=0: A[0..4][0]
@@ -110,7 +110,7 @@ function keccakF(): void {
 	let a44 = load<i64>(s + 192);
 
 	for (let round = 0; round < 24; round++) {
-		// θ (theta) — FIPS 202 §3.2.1
+		// θ (theta), FIPS 202 §3.2.1
 		let c0 = a00 ^ a01 ^ a02 ^ a03 ^ a04;
 		let c1 = a10 ^ a11 ^ a12 ^ a13 ^ a14;
 		let c2 = a20 ^ a21 ^ a22 ^ a23 ^ a24;
@@ -129,7 +129,7 @@ function keccakF(): void {
 		a03 ^= d0; a13 ^= d1; a23 ^= d2; a33 ^= d3; a43 ^= d4;
 		a04 ^= d0; a14 ^= d1; a24 ^= d2; a34 ^= d3; a44 ^= d4;
 
-		// ρ + π combined — FIPS 202 §3.2.2, §3.2.3
+		// ρ + π combined, FIPS 202 §3.2.2, §3.2.3
 		let b00 = rot64(a00,  0);
 		let b01 = rot64(a30, 28);
 		let b02 = rot64(a10,  1);
@@ -160,7 +160,7 @@ function keccakF(): void {
 		let b43 = rot64(a34, 56);
 		let b44 = rot64(a14,  2);
 
-		// χ (chi) — FIPS 202 §3.2.4
+		// χ (chi), FIPS 202 §3.2.4
 		a00 = b00 ^ (~b10 & b20);
 		a10 = b10 ^ (~b20 & b30);
 		a20 = b20 ^ (~b30 & b40);
@@ -191,7 +191,7 @@ function keccakF(): void {
 		a34 = b34 ^ (~b44 & b04);
 		a44 = b44 ^ (~b04 & b14);
 
-		// ι (iota) — FIPS 202 §3.2.5
+		// ι (iota), FIPS 202 §3.2.5
 		if (round === 0)       { a00 ^= RC0  }
 		else if (round === 1)  { a00 ^= RC1  }
 		else if (round === 2)  { a00 ^= RC2  }
@@ -254,7 +254,7 @@ function keccakInit(rate: i32, dsByte: u8): void {
 	store<u8> (DSBYTE_OFFSET,   dsByte);
 }
 
-// Variant-specific init — FIPS 202 §B.2
+// Variant-specific init, FIPS 202 §B.2
 // Domain sep: SHA3-* = 0x06, SHAKE* = 0x1f
 export function sha3_256Init(): void { keccakInit(136, 0x06); }
 export function sha3_384Init(): void { keccakInit(104, 0x06); }
@@ -262,7 +262,7 @@ export function sha3_512Init(): void { keccakInit( 72, 0x06); }
 export function sha3_224Init(): void { keccakInit(144, 0x06); }
 export function shake128Init(): void { keccakInit(168, 0x1f); }
 export function shake256Init(): void { keccakInit(136, 0x1f); }
-// cSHAKE — SP 800-185 §3.3.
+// cSHAKE, SP 800-185 §3.3.
 // Sponge suffix "00" (two zero bits) precedes the FIPS 202 §B.2 pad10*1 rule;
 // in byte form with the low-order bit first this becomes 0x04.
 export function cshake128Init(): void { keccakInit(168, 0x04); }
@@ -297,7 +297,7 @@ export function keccakAbsorb(len: i32): void {
 }
 
 // Finalize: apply padding, squeeze outLen bytes to OUT_OFFSET
-// FIPS 202 §5.1 — multi-rate padding (pad10*1)
+// FIPS 202 §5.1, multi-rate padding (pad10*1)
 export function keccakFinal(outLen: i32): void {
 	let rate     = load<i32>(RATE_OFFSET);
 	let absorbed = load<i32>(ABSORBED_OFFSET);
@@ -328,7 +328,7 @@ export function sha3_512Final(): void { keccakFinal(64); }
 export function sha3_224Final(): void { keccakFinal(28); }
 export function shakeFinal(outLen: i32): void { keccakFinal(outLen); }
 
-// Apply sponge padding and run first permutation — FIPS 202 §4 squeeze phase
+// Apply sponge padding and run first permutation, FIPS 202 §4 squeeze phase
 export function shakePad(): void {
 	const rate     = load<i32>(RATE_OFFSET);
 	const absorbed = load<i32>(ABSORBED_OFFSET);

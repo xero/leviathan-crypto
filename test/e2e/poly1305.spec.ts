@@ -20,9 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * Poly1305 Known-Answer Tests (cross-browser) — RFC 8439
+ * Poly1305 Known-Answer Tests (cross-browser), RFC 8439
  *
- * Source: RFC 8439 — ChaCha20 and Poly1305 for IETF Protocols, §2.5.2 and Appendix A.3
+ * Source: RFC 8439, ChaCha20 and Poly1305 for IETF Protocols, §2.5.2 and Appendix A.3
  * Files:  vectors/chacha20.ts (poly1305Vectors)
  */
 import { test, expect } from '@playwright/test';
@@ -47,7 +47,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // RFC 8439 §2.5.2 gate vector
-test('Poly1305 RFC 8439 §2.5.2 — 34-byte message', async ({ page }) => {
+test('Poly1305 RFC 8439 §2.5.2, 34-byte message', async ({ page }) => {
 	const v = poly1305Vectors[0];
 	const result: string = await page.evaluate(async (vec) => {
 		const wasm = await loadWasm();

@@ -21,7 +21,7 @@
 //
 // src/ts/stream/seal-stream.ts
 //
-// SealStream — cipher-agnostic streaming encryption using the STREAM
+// SealStream, cipher-agnostic streaming encryption using the STREAM
 // construction (Hoang/Reyhanitabar/Rogaway/Vizár, CRYPTO 2015).
 
 import { randomBytes, concat } from '../utils.js';
@@ -37,7 +37,7 @@ function u32beFrame(n: number): Uint8Array {
 	return b;
 }
 
-// Module-level nonce injection slot — used only by _fromNonce for KAT tests.
+// Module-level nonce injection slot, used only by _fromNonce for KAT tests.
 // Set immediately before constructing, cleared inside the constructor.
 let _injectNonce: Uint8Array | undefined;
 
@@ -59,7 +59,7 @@ export class SealStream {
 
 		if (!isInitialized('sha2'))
 			throw new Error(
-				'leviathan-crypto: stream layer requires sha2 for key derivation — '
+				'leviathan-crypto: stream layer requires sha2 for key derivation, '
 				+ 'call init({ sha2: ... }) before creating a SealStream',
 			);
 		if (key.length !== cipher.keySize)
@@ -69,7 +69,7 @@ export class SealStream {
 
 		const nonce = _injectNonce ?? randomBytes(16);
 		_injectNonce = undefined;
-		// Header must be built before deriveKeys — XChaCha20 binds it into
+		// Header must be built before deriveKeys, XChaCha20 binds it into
 		// the HKDF info string. SerpentCipher accepts and ignores it.
 		const header = writeHeader(cipher.formatEnum, this.framed, nonce, this.chunkSize);
 		this.keys = cipher.deriveKeys(key, nonce, undefined, header);
@@ -88,7 +88,7 @@ export class SealStream {
 
 	/**
 	 * @internal
-	 * KAT-only factory — injects a fixed nonce so seal output is deterministic.
+	 * KAT-only factory, injects a fixed nonce so seal output is deterministic.
 	 * Stripped from published `.d.ts` by `stripInternal`. Do not use in production.
 	 */
 	static _fromNonce(cipher: CipherSuite, key: Uint8Array, opts: SealStreamOpts, nonce: Uint8Array): SealStream {
@@ -145,7 +145,7 @@ export class SealStream {
 			this.cipher.wipeKeys(this.keys);
 			this.state = 'finalized';
 		}
-		// 'failed' already wiped keys; 'finalized' already wiped keys — no-op.
+		// 'failed' already wiped keys; 'finalized' already wiped keys, no-op.
 	}
 
 	toTransformStream(): TransformStream<Uint8Array, Uint8Array> {

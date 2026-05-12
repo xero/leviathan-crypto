@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// Root barrel — re-exports everything
+// Root barrel, re-exports everything
 import { serpentInit } from './serpent/index.js';
 import { chacha20Init } from './chacha20/index.js';
 import { sha2Init } from './sha2/index.js';
@@ -58,15 +58,15 @@ export async function init(
 	sources: Partial<Record<Module, WasmSource>>,
 ): Promise<void> {
 	const entries = Object.entries(sources) as [string, WasmSource][];
-	// SIMD preflight — serpent, chacha20, and kyber modules contain SIMD instructions
+	// SIMD preflight, serpent, chacha20, and kyber modules contain SIMD instructions
 	if (('serpent' in sources || 'chacha20' in sources || 'kyber' in sources || 'aes' in sources || 'mldsa' in sources) && !hasSIMD())
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD — '
+			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 	for (const [mod, src] of entries) {
 		if (!Object.hasOwn(_dispatchers, mod))
-			throw new Error(`leviathan-crypto: unknown module "${mod}" — expected one of: ${Object.keys(_dispatchers).join(', ')}`);
+			throw new Error(`leviathan-crypto: unknown module "${mod}", expected one of: ${Object.keys(_dispatchers).join(', ')}`);
 		if (src == null)
 			throw new TypeError(`leviathan-crypto: source for "${mod}" is null or undefined`);
 	}

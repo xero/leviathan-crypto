@@ -29,7 +29,7 @@ import { isInitialized } from '../init.js';
 import { wipe, concat, utf8ToBytes } from '../utils.js';
 import type { MlKemLike, RatchetInitResult, KemEncapResult, KemDecapResult } from './types.js';
 
-// Signal Double Ratchet §7.2 — info strings
+// Signal Double Ratchet §7.2, info strings
 const INFO_INIT = utf8ToBytes('leviathan-ratchet-v1 Chain Start');
 const INFO_ROOT = utf8ToBytes('leviathan-ratchet-v1 Chain Add Epoch');
 // INFO_CHAIN ('leviathan-ratchet-v1 Chain Step') is used in kdf-chain.ts
@@ -61,7 +61,7 @@ function kdfRoot(
 	}
 }
 
-// u32 big-endian length prefix — same convention as serpent/cipher-suite.ts AAD encoding.
+// u32 big-endian length prefix, same convention as serpent/cipher-suite.ts AAD encoding.
 function u32be(n: number): Uint8Array {
 	if (!Number.isInteger(n) || n < 0 || n > 0xFFFFFFFF)
 		throw new RangeError(`u32be: n must be an integer in [0, 0xFFFFFFFF] (got ${n})`);
@@ -70,7 +70,7 @@ function u32be(n: number): Uint8Array {
 	return b;
 }
 
-// KEM ratchet info — binds peerEk, kemCt, and context with u32be length prefixes.
+// KEM ratchet info, binds peerEk, kemCt, and context with u32be length prefixes.
 // Defense-in-depth: the HKDF output is tied to the exact (peerEk, kemCt, context)
 // tuple used, not just the KEM shared secret. An attacker who substitutes any of
 // these inputs derives a different chain key trio, regardless of the KEM transcript.
@@ -84,7 +84,7 @@ function buildRootInfo(peerEk: Uint8Array, kemCt: Uint8Array, context?: Uint8Arr
 	);
 }
 
-// KDF_SCKA_INIT — spec §7.2
+// KDF_SCKA_INIT, spec §7.2
 // Derives initial root key, send chain key, and receive chain key from a
 // shared secret sk. Optional context bytes are appended to the info string.
 export function ratchetInit(sk: Uint8Array, context?: Uint8Array): RatchetInitResult {
@@ -99,7 +99,7 @@ export function ratchetInit(sk: Uint8Array, context?: Uint8Array): RatchetInitRe
 	return { nextRootKey, sendChainKey, recvChainKey };
 }
 
-// KDF_SCKA_RK — encapsulation side (spec §7.2)
+// KDF_SCKA_RK, encapsulation side (spec §7.2)
 // Generates a fresh KEM ciphertext, derives next epoch keys from the shared secret.
 // `peerEk` and `kemCt` are bound into the HKDF info string (defense-in-depth).
 export function kemRatchetEncap(
@@ -123,11 +123,11 @@ export function kemRatchetEncap(
 	}
 }
 
-// KDF_SCKA_RK — decapsulation side (spec §7.2)
+// KDF_SCKA_RK, decapsulation side (spec §7.2)
 // Recovers the shared secret from the KEM ciphertext, derives next epoch keys.
 // The chain key slots are swapped relative to the encap side: what the KDF
 // labels 'sendChainKey' (A→B direction) becomes the decap side's recvChainKey,
-// and vice versa — Alice's send IS Bob's receive.
+// and vice versa, Alice's send IS Bob's receive.
 //
 // `ownEk` is the local party's encapsulation key (the same public key the
 // encap side targeted as `peerEk`). It must be passed explicitly so both

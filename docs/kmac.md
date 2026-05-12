@@ -425,8 +425,8 @@ Error: leviathan-crypto: call init({ sha3: ... }) before using this class
 `CSHAKE128` and `CSHAKE256` require non-empty customization. Per SP 800-185 §3.3, cSHAKE with both `N` and `S` empty collapses to plain SHAKE. The public API hides `N`, so the empty-customization case becomes "use SHAKE instead":
 
 ```
-Error: CSHAKE128: customization is empty — use SHAKE128 instead
-Error: CSHAKE256: customization is empty — use SHAKE256 instead
+Error: CSHAKE128: customization is empty, use SHAKE128 instead
+Error: CSHAKE256: customization is empty, use SHAKE256 instead
 ```
 
 **Fix.** Pass a non-empty `Uint8Array` for `customization`. If you do not need domain separation, use `SHAKE128` or `SHAKE256` directly from [sha3.md](./sha3.md).
@@ -438,10 +438,10 @@ Error: CSHAKE256: customization is empty — use SHAKE256 instead
 `KMAC128`, `KMAC256`, `KMACXOF128`, and `KMACXOF256` all require a non-empty key. A keyless KMAC degenerates to keyless cSHAKE; the constructor rejects the empty case and points to the corresponding cSHAKE class:
 
 ```
-Error: KMAC128: empty key — use CSHAKE128 instead
-Error: KMAC256: empty key — use CSHAKE256 instead
-Error: KMACXOF128: empty key — use CSHAKE128 instead
-Error: KMACXOF256: empty key — use CSHAKE256 instead
+Error: KMAC128: empty key, use CSHAKE128 instead
+Error: KMAC256: empty key, use CSHAKE256 instead
+Error: KMACXOF128: empty key, use CSHAKE128 instead
+Error: KMACXOF256: empty key, use CSHAKE256 instead
 ```
 
 **Fix.** Provide a non-empty key, or use the corresponding `CSHAKE` class if you intended a keyless construction.
@@ -478,7 +478,7 @@ Error: KMAC128: already finalized
 cSHAKE and KMACXOF classes transition from absorb to squeeze on the first `squeeze()` call. Subsequent `absorb()` (cSHAKE) or `update()` (KMACXOF) throws.
 
 ```
-Error: CSHAKE128: cannot absorb after squeeze — call reset() first
+Error: CSHAKE128: cannot absorb after squeeze, call reset() first
 Error: KMACXOF128: cannot update after squeeze
 ```
 

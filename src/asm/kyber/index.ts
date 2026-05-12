@@ -21,8 +21,8 @@
 //
 // src/asm/kyber/index.ts
 //
-// ML-KEM (Kyber) WASM module — public exports.
-// FIPS 203 — Module-Lattice-Based Key-Encapsulation Mechanism Standard.
+// ML-KEM (Kyber) WASM module, public exports.
+// FIPS 203, Module-Lattice-Based Key-Encapsulation Mechanism Standard.
 
 // ── Buffer layout ───────────────────────────────────────────────────────────
 

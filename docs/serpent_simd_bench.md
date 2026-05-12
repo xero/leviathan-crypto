@@ -23,7 +23,7 @@ parallelism model as ChaCha20 CTR-4.
 
 - **Date:** 2026-03-27
 - **Hardware:** Apple Silicon (arm64)
-- **Browsers:** Playwright — Chromium, Firefox, WebKit
+- **Browsers:** Playwright, Chromium, Firefox, WebKit
 - **Benchmark:** `test/e2e/serpent_simd_bench.spec.ts`
   - 50-100 warmup iterations, then 200-2000 timed trials per chunk size
   - Key: 32-byte sequential (0x00..0x1f), Nonce: 16-byte sequential (0x00..0x0f)

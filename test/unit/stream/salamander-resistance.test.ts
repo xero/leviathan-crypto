@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * Invisible Salamanders mitigation — attack-shape regression test.
+ * Invisible Salamanders mitigation, attack-shape regression test.
  *
  * Background: ChaCha20-Poly1305 and AES-256-GCM-SIV are not key-committing
  * on their own; an adversary with control over two master keys can craft
@@ -39,7 +39,7 @@
  * distinct master keys produce distinct commitments under the same
  * nonce + INFO + header, and tampered headers produce different
  * commitments. The construction-time fail-fast property is also pinned
- * — wrong key throws at OpenStream construction, not at the first
+ *, wrong key throws at OpenStream construction, not at the first
  * chunk.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -69,7 +69,7 @@ const suites: SuiteEntry[] = [
 ];
 
 for (const { name, cipher, infoLabel, commitDiscriminator } of suites) {
-	describe(`Invisible Salamanders mitigation — commitment divergence (${name})`, () => {
+	describe(`Invisible Salamanders mitigation, commitment divergence (${name})`, () => {
 		it('two distinct master keys produce distinct 32-byte commitments under identical nonce + header', () => {
 			const m1 = new Uint8Array(32); m1.fill(0xa1);
 			const m2 = new Uint8Array(32); m2.fill(0xb2);
@@ -148,7 +148,7 @@ for (const { name, cipher, infoLabel, commitDiscriminator } of suites) {
 			// throw is the contractual fail-fast guarantee. We verify by
 			// constructing an OpenStream with a tampered commitment (a single
 			// flipped bit) and asserting the throw fires at construction time
-			// — the OpenStream variable never binds.
+			// , the OpenStream variable never binds.
 			const key  = cipher.keygen();
 			const sealer = new SealStream(cipher, key, { chunkSize: 1024 });
 			const preamble = sealer.preamble.slice();

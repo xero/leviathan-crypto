@@ -21,8 +21,8 @@
 //
 // src/ts/kyber/index.ts
 //
-// ML-KEM public API — MlKem512, MlKem768, MlKem1024 classes.
-// Uses the init() module cache — call init({ kyber: ..., sha3: ... }) before constructing.
+// ML-KEM public API, MlKem512, MlKem768, MlKem1024 classes.
+// Uses the init() module cache, call init({ kyber: ..., sha3: ... }) before constructing.
 
 import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -52,13 +52,13 @@ function assertLayout(kx: KyberExports, p: KyberParams): void {
 	const ctPrime = kx.getCtPrimeOffset();
 	const xof     = kx.getXofPrfOffset();
 	if (pk + p.ekBytes > sk)
-		throw new Error('leviathan-crypto: kyber buffer overflow — ek overflows into SK region');
+		throw new Error('leviathan-crypto: kyber buffer overflow, ek overflows into SK region');
 	if (sk + p.skCpaBytes > ct)
-		throw new Error('leviathan-crypto: kyber buffer overflow — sk overflows into CT region');
+		throw new Error('leviathan-crypto: kyber buffer overflow, sk overflows into CT region');
 	if (ct + p.ctBytes > ctPrime)
-		throw new Error('leviathan-crypto: kyber buffer overflow — ct overflows into CT_PRIME region');
+		throw new Error('leviathan-crypto: kyber buffer overflow, ct overflows into CT_PRIME region');
 	if (ctPrime + p.ctBytes > xof)
-		throw new Error('leviathan-crypto: kyber buffer overflow — ct_prime overflows into XOF region');
+		throw new Error('leviathan-crypto: kyber buffer overflow, ct_prime overflows into XOF region');
 }
 
 // ── Base class ──────────────────────────────────────────────────────────────
@@ -151,33 +151,33 @@ export class MlKemBase {
 
 	dispose(): void {
 		this.kx.wipeBuffers();
-		// MlKemBase does not own the sha3 module — wiping this.sx.wipeBuffers()
+		// MlKemBase does not own the sha3 module, wiping this.sx.wipeBuffers()
 		// here would clobber any SHAKE128/SHAKE256 instance live at the time
 		// of dispose(). The wipe is not needed: every public kyber op
 		// (keygen, encapsulate, decapsulate, checkDecapsulationKey) calls
 		// sx.wipeBuffers() before returning, under the _assertNotOwned('sha3')
 		// guard it holds for the duration. sha3 scratch therefore carries no
-		// residue across a kyber op boundary — secret-derived or otherwise.
+		// residue across a kyber op boundary, secret-derived or otherwise.
 	}
 }
 
 // ── Public classes ──────────────────────────────────────────────────────────
 
-/** ML-KEM-512 — k=2, η₁=3, η₂=2, dᵤ=10, dᵥ=4. */
+/** ML-KEM-512, k=2, η₁=3, η₂=2, dᵤ=10, dᵥ=4. */
 export class MlKem512 extends MlKemBase {
 	constructor() {
 		super(MLKEM512);
 	}
 }
 
-/** ML-KEM-768 — k=3, η₁=2, η₂=2, dᵤ=10, dᵥ=4. */
+/** ML-KEM-768, k=3, η₁=2, η₂=2, dᵤ=10, dᵥ=4. */
 export class MlKem768 extends MlKemBase {
 	constructor() {
 		super(MLKEM768);
 	}
 }
 
-/** ML-KEM-1024 — k=4, η₁=2, η₂=2, dᵤ=11, dᵥ=5. */
+/** ML-KEM-1024, k=4, η₁=2, η₂=2, dᵤ=11, dᵥ=5. */
 export class MlKem1024 extends MlKemBase {
 	constructor() {
 		super(MLKEM1024);

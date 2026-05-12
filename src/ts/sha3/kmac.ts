@@ -21,7 +21,7 @@
 //
 // src/ts/sha3/kmac.ts
 //
-// cSHAKE and KMAC public classes — SP 800-185.
+// cSHAKE and KMAC public classes, SP 800-185.
 // Built on the existing sha3 WASM sponge primitives plus two new init
 // exports (cshake128Init / cshake256Init). All SP 800-185 §2.3 encoding
 // helpers live in TypeScript per the established mldsa/sha3-helpers.ts
@@ -49,8 +49,8 @@ function getExports(): Sha3KmacExports {
 
 // ── SP 800-185 §2.3 encoding helpers ────────────────────────────────────────
 
-// SP 800-185 §2.3.1 — left_encode(x). Encodes x as n base-256 bytes (big-endian)
-// preceded by the byte n. Cap on the input range is conservative — all
+// SP 800-185 §2.3.1, left_encode(x). Encodes x as n base-256 bytes (big-endian)
+// preceded by the byte n. Cap on the input range is conservative, all
 // realistic uses (rate ≤ 168, output bit-lengths, key bit-lengths) fit in a
 // 32-bit signed integer.
 function leftEncode(x: number): Uint8Array {
@@ -68,7 +68,7 @@ function leftEncode(x: number): Uint8Array {
 	return out;
 }
 
-// SP 800-185 §2.3.1 — right_encode(x). Same digit sequence as left_encode but
+// SP 800-185 §2.3.1, right_encode(x). Same digit sequence as left_encode but
 // with the n byte appended.
 function rightEncode(x: number): Uint8Array {
 	if (!Number.isInteger(x) || x < 0 || x > 0x7fffffff)
@@ -85,7 +85,7 @@ function rightEncode(x: number): Uint8Array {
 	return out;
 }
 
-// SP 800-185 §2.3.2 — encode_string(S). left_encode of the BIT length of S
+// SP 800-185 §2.3.2, encode_string(S). left_encode of the BIT length of S
 // followed by S itself. For byte-aligned inputs len(S) = 8 * bytes.length.
 function encodeString(s: Uint8Array): Uint8Array {
 	const prefix = leftEncode(s.length * 8);
@@ -95,7 +95,7 @@ function encodeString(s: Uint8Array): Uint8Array {
 	return out;
 }
 
-// SP 800-185 §2.3.3 — bytepad(x, w). Prepend left_encode(w), then zero-pad
+// SP 800-185 §2.3.3, bytepad(x, w). Prepend left_encode(w), then zero-pad
 // until total length is a multiple of w.
 function bytepad(x: Uint8Array, w: number): Uint8Array {
 	const prefix = leftEncode(w);
@@ -122,7 +122,7 @@ function absorb(x: Sha3KmacExports, msg: Uint8Array): void {
 	}
 }
 
-// SP 800-185 §4 — function name "KMAC" used by KMAC{128,256} and the XOF
+// SP 800-185 §4, function name "KMAC" used by KMAC{128,256} and the XOF
 // variants when calling cSHAKE internally. ASCII 'K','M','A','C'.
 const KMAC_N = new Uint8Array([0x4b, 0x4d, 0x41, 0x43]);
 const EMPTY = new Uint8Array(0);
@@ -130,7 +130,7 @@ const EMPTY = new Uint8Array(0);
 // ── CSHAKE128 ───────────────────────────────────────────────────────────────
 
 /**
- * cSHAKE128 — customizable SHAKE128 (SP 800-185 §3).
+ * cSHAKE128, customizable SHAKE128 (SP 800-185 §3).
  *
  * Holds exclusive access to the `sha3` WASM module from construction until
  * `dispose()`. Constructing any other sha3 user (SHAKE128/256, SHA3_*,
@@ -146,13 +146,13 @@ export class CSHAKE128 {
 	private _tok: symbol | undefined;
 
 	constructor(customization: Uint8Array) {
-		// SP 800-185 §3.3 — if N and S are both empty cSHAKE collapses to
+		// SP 800-185 §3.3, if N and S are both empty cSHAKE collapses to
 		// SHAKE. The public API hides N (always empty); the both-empty case
-		// is therefore "customization is empty" — reject and direct the
+		// is therefore "customization is empty", reject and direct the
 		// caller to SHAKE128.
 		if (customization.length === 0)
-			throw new Error('CSHAKE128: customization is empty — use SHAKE128 instead');
-		// SP 800-185 §3.3 — cSHAKE128 prefix:
+			throw new Error('CSHAKE128: customization is empty, use SHAKE128 instead');
+		// SP 800-185 §3.3, cSHAKE128 prefix:
 		//   bytepad(encode_string(N) || encode_string(S), 168)
 		const en = encodeString(EMPTY);
 		const es = encodeString(customization);
@@ -187,7 +187,7 @@ export class CSHAKE128 {
 		if (this._tok === undefined)
 			throw new Error('CSHAKE128: instance has been disposed');
 		if (this._squeezing)
-			throw new Error('CSHAKE128: cannot absorb after squeeze — call reset() first');
+			throw new Error('CSHAKE128: cannot absorb after squeeze, call reset() first');
 		absorb(this.x, msg);
 		return this;
 	}
@@ -246,7 +246,7 @@ export class CSHAKE128 {
 // ── CSHAKE256 ───────────────────────────────────────────────────────────────
 
 /**
- * cSHAKE256 — customizable SHAKE256 (SP 800-185 §3).
+ * cSHAKE256, customizable SHAKE256 (SP 800-185 §3).
  *
  * Holds exclusive access to the `sha3` WASM module from construction until
  * `dispose()`.
@@ -262,7 +262,7 @@ export class CSHAKE256 {
 
 	constructor(customization: Uint8Array) {
 		if (customization.length === 0)
-			throw new Error('CSHAKE256: customization is empty — use SHAKE256 instead');
+			throw new Error('CSHAKE256: customization is empty, use SHAKE256 instead');
 		const en = encodeString(EMPTY);
 		const es = encodeString(customization);
 		const cat = new Uint8Array(en.length + es.length);
@@ -296,7 +296,7 @@ export class CSHAKE256 {
 		if (this._tok === undefined)
 			throw new Error('CSHAKE256: instance has been disposed');
 		if (this._squeezing)
-			throw new Error('CSHAKE256: cannot absorb after squeeze — call reset() first');
+			throw new Error('CSHAKE256: cannot absorb after squeeze, call reset() first');
 		absorb(this.x, msg);
 		return this;
 	}
@@ -355,7 +355,7 @@ export class CSHAKE256 {
 // ── KMAC128 ─────────────────────────────────────────────────────────────────
 
 /**
- * KMAC128 — keyed Keccak MAC, fixed-output (SP 800-185 §4).
+ * KMAC128, keyed Keccak MAC, fixed-output (SP 800-185 §4).
  *
  * Bound to a specific output length at construction (the spec's right_encode(L)
  * suffix is a function of L). Use `KMACXOF128` for arbitrary-length output.
@@ -372,18 +372,18 @@ export class KMAC128 {
 
 	constructor(key: Uint8Array, outLen: number, customization: Uint8Array) {
 		if (key.length === 0)
-			throw new Error('KMAC128: empty key — use CSHAKE128 instead');
+			throw new Error('KMAC128: empty key, use CSHAKE128 instead');
 		if (!Number.isInteger(outLen) || outLen < 1)
 			throw new RangeError(`KMAC128: outLen must be a positive integer (got ${outLen})`);
 		this._outLen = outLen;
 
-		// SP 800-185 §4 — cSHAKE128 prefix with N = "KMAC", S = customization.
+		// SP 800-185 §4, cSHAKE128 prefix with N = "KMAC", S = customization.
 		const en = encodeString(KMAC_N);
 		const es = encodeString(customization);
 		const csPrefix = new Uint8Array(en.length + es.length);
 		csPrefix.set(en, 0); csPrefix.set(es, en.length);
 		const cshakePad = bytepad(csPrefix, this._rate);
-		// SP 800-185 §4 — KMAC newX = bytepad(encode_string(K), rate) || X || right_encode(L).
+		// SP 800-185 §4, KMAC newX = bytepad(encode_string(K), rate) || X || right_encode(L).
 		// The key bytepad is absorbed at construction; X is absorbed via update();
 		// right_encode(L*8) is appended in finalize().
 		const keyPad = bytepad(encodeString(key), this._rate);
@@ -450,7 +450,7 @@ export class KMAC128 {
 	 * Constant-time tag verification. Throws `AuthenticationError('kmac128')`
 	 * on mismatch (matches the lib's AEAD pattern). Returns `true` on success.
 	 *
-	 * Atomic — does not hold the sha3 module beyond the internal compute.
+	 * Atomic, does not hold the sha3 module beyond the internal compute.
 	 */
 	static verify(
 		tag: Uint8Array,
@@ -477,7 +477,7 @@ export class KMAC128 {
 // ── KMAC256 ─────────────────────────────────────────────────────────────────
 
 /**
- * KMAC256 — 256-bit-strength keyed Keccak MAC, fixed-output (SP 800-185 §4).
+ * KMAC256, 256-bit-strength keyed Keccak MAC, fixed-output (SP 800-185 §4).
  */
 export class KMAC256 {
 	private readonly x: Sha3KmacExports;
@@ -488,7 +488,7 @@ export class KMAC256 {
 
 	constructor(key: Uint8Array, outLen: number, customization: Uint8Array) {
 		if (key.length === 0)
-			throw new Error('KMAC256: empty key — use CSHAKE256 instead');
+			throw new Error('KMAC256: empty key, use CSHAKE256 instead');
 		if (!Number.isInteger(outLen) || outLen < 1)
 			throw new RangeError(`KMAC256: outLen must be a positive integer (got ${outLen})`);
 		this._outLen = outLen;
@@ -583,7 +583,7 @@ export class KMAC256 {
 // ── KMACXOF128 ──────────────────────────────────────────────────────────────
 
 /**
- * KMACXOF128 — XOF variant of KMAC128 (SP 800-185 §4.3.1). Output length
+ * KMACXOF128, XOF variant of KMAC128 (SP 800-185 §4.3.1). Output length
  * is caller-chosen per squeeze; the spec's right_encode(0) suffix marks the
  * XOF mode.
  */
@@ -597,7 +597,7 @@ export class KMACXOF128 {
 
 	constructor(key: Uint8Array, customization: Uint8Array) {
 		if (key.length === 0)
-			throw new Error('KMACXOF128: empty key — use CSHAKE128 instead');
+			throw new Error('KMACXOF128: empty key, use CSHAKE128 instead');
 
 		const en = encodeString(KMAC_N);
 		const es = encodeString(customization);
@@ -634,7 +634,7 @@ export class KMACXOF128 {
 		if (n < 1) throw new RangeError(`squeeze length must be >= 1 (got ${n})`);
 
 		if (!this._squeezing) {
-			// SP 800-185 §4.3.1 — right_encode(0) terminates the absorb phase.
+			// SP 800-185 §4.3.1, right_encode(0) terminates the absorb phase.
 			absorb(this.x, rightEncode(0));
 			this.x.shakePad();
 			this._squeezing = true;
@@ -676,15 +676,15 @@ export class KMACXOF128 {
 	}
 }
 
-// ── @internal — test-only cSHAKE-with-N helpers ─────────────────────────────
+// ── @internal, test-only cSHAKE-with-N helpers ─────────────────────────────
 
 /**
- * cSHAKE128(X, L, N, S) — direct primitive with explicit function-name N.
+ * cSHAKE128(X, L, N, S), direct primitive with explicit function-name N.
  *
  * The public CSHAKE128 class hard-wires N to empty per SP 800-185 §3.4
  * ("Users of cSHAKE should not make up their own names"). This helper
- * exists so that ACVP cSHAKE corpora — whose records carry NIST-reserved
- * function names ("KMAC", "TupleHash", "ParallelHash") — can be exercised
+ * exists so that ACVP cSHAKE corpora, whose records carry NIST-reserved
+ * function names ("KMAC", "TupleHash", "ParallelHash"), can be exercised
  * against the WASM sponge. Acquires and releases the sha3 module token
  * around the computation; not safe to call concurrently with any stateful
  * sha3 user.
@@ -698,7 +698,7 @@ export function _cshake128Raw(
 	outLen: number,
 ): Uint8Array {
 	if (functionName.length === 0 && customization.length === 0)
-		throw new Error('_cshake128Raw: N and S both empty — use SHAKE128 instead');
+		throw new Error('_cshake128Raw: N and S both empty, use SHAKE128 instead');
 	const rate = 168;
 	const en = encodeString(functionName);
 	const es = encodeString(customization);
@@ -731,7 +731,7 @@ export function _cshake128Raw(
 }
 
 /**
- * cSHAKE256(X, L, N, S) — direct primitive with explicit function-name N.
+ * cSHAKE256(X, L, N, S), direct primitive with explicit function-name N.
  * See `_cshake128Raw` for usage notes.
  * @internal
  */
@@ -742,7 +742,7 @@ export function _cshake256Raw(
 	outLen: number,
 ): Uint8Array {
 	if (functionName.length === 0 && customization.length === 0)
-		throw new Error('_cshake256Raw: N and S both empty — use SHAKE256 instead');
+		throw new Error('_cshake256Raw: N and S both empty, use SHAKE256 instead');
 	const rate = 136;
 	const en = encodeString(functionName);
 	const es = encodeString(customization);
@@ -777,7 +777,7 @@ export function _cshake256Raw(
 // ── KMACXOF256 ──────────────────────────────────────────────────────────────
 
 /**
- * KMACXOF256 — XOF variant of KMAC256 (SP 800-185 §4.3.1).
+ * KMACXOF256, XOF variant of KMAC256 (SP 800-185 §4.3.1).
  */
 export class KMACXOF256 {
 	private readonly x: Sha3KmacExports;
@@ -789,7 +789,7 @@ export class KMACXOF256 {
 
 	constructor(key: Uint8Array, customization: Uint8Array) {
 		if (key.length === 0)
-			throw new Error('KMACXOF256: empty key — use CSHAKE256 instead');
+			throw new Error('KMACXOF256: empty key, use CSHAKE256 instead');
 
 		const en = encodeString(KMAC_N);
 		const es = encodeString(customization);

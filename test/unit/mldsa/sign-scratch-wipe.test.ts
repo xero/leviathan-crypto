@@ -20,27 +20,27 @@
 //                           ▀█████▀▀
 //
 /**
- * mldsaSignInternal — scratch-region wipes after sign.
+ * mldsaSignInternal, scratch-region wipes after sign.
  *
  * Verifies that after `MlDsa*.sign(...)` (or signDeterministic / signDerand)
  * returns, every mldsa WASM scratch region that held secret or
  * secret-derived bytes during signing is zeroed.
  *
  * Severity ranking of residuals to guard against:
- *   (a) ŝ₁ / ŝ₂ / t̂₀ in NTT/tomont form (slots 0/1/2) — full secret-key state
+ *   (a) ŝ₁ / ŝ₂ / t̂₀ in NTT/tomont form (slots 0/1/2), full secret-key state
  *       in NTT representation; recovers s₁/s₂/t₀ via inverse NTT.
- *   (b) y / cs₁ / cs₂ / ct₀ / w − cs₂ (slots 3/4/5) — per-iteration
+ *   (b) y / cs₁ / cs₂ / ct₀ / w − cs₂ (slots 3/4/5), per-iteration
  *       secret-derived intermediates. y leak compromises the rejection-
  *       sampling state; cs₁/cs₂ leak relate to challenge × secret products.
- *   (c) POLY_SLOT_7 — accumulator scratch from polyvec_pointwise_acc
+ *   (c) POLY_SLOT_7, accumulator scratch from polyvec_pointwise_acc
  *       (matrix-vector product); holds last partial product across y_ntt.
- *   (d) XOF/PRF region — last expandMask output (ρ''-derived) on a
+ *   (d) XOF/PRF region, last expandMask output (ρ''-derived) on a
  *       rejected iteration, or sample_in_ball position bytes (c̃-derived,
  *       public) on the accepted iteration; wipe regardless for hygiene.
  *
  * Public regions allowed to retain content: SIG_OFFSET (signature is
  * public; we wipe nothing here so the slice stays valid until copied
- * out), MATRIX_SLOT (Â — public).
+ * out), MATRIX_SLOT (Â, public).
  *
  * GATE: ML-DSA sign scratch-wipe.
  */
@@ -95,7 +95,7 @@ const cases = [
 	{ name: 'ML-DSA-87', make: () => new MlDsa87(), k: MLDSA87.k, l: MLDSA87.l, skBytes: MLDSA87.skBytes },
 ];
 
-describe('mldsaSignInternal — scratch slots wiped after sign', () => {
+describe('mldsaSignInternal, scratch slots wiped after sign', () => {
 	for (const { name, make, k, l, skBytes } of cases) {
 		describe(name, () => {
 			it('POLYVEC_SLOTS 0..5 fully zeroed (ŝ₁ ŝ₂ t̂₀ y/cs₂/h cs₁/z w/w-cs₂)', () => {

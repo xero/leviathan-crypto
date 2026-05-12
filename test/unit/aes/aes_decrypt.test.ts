@@ -21,7 +21,7 @@
 //
 // test/unit/aes/aes_decrypt.test.ts
 //
-// Gate 5 — full AES decrypt KAT for all three key sizes. Combines FIPS 197
+// Gate 5, full AES decrypt KAT for all three key sizes. Combines FIPS 197
 // §B (the cipher example reversed: key + ciphertext → plaintext) with the
 // twelve NIST CAVP AESVS ECB Known-Answer-Test files' [DECRYPT] sections.
 
@@ -36,7 +36,7 @@ beforeAll(async () => {
 	await init({ aes: aesWasm });
 });
 
-describe('AES-128 decrypt KAT (Gate 5) — FIPS 197 §B', () => {
+describe('AES-128 decrypt KAT (Gate 5), FIPS 197 §B', () => {
 	// GATE: full 10-round AES-128 decrypt of the §B example.
 	// Decrypt of the §B ciphertext under the §B key must reproduce the §B
 	// plaintext. Sources the same authoritative vector as Gate 4, applied
@@ -79,7 +79,7 @@ for (const file of [
 	'aes_ECBGFSbox256.rsp', 'aes_ECBKeySbox256.rsp',
 	'aes_ECBVarKey256.rsp', 'aes_ECBVarTxt256.rsp',
 ]) {
-	describe(`AES decrypt KAT (Gate 5) — CAVP ${file}`, () => {
+	describe(`AES decrypt KAT (Gate 5), CAVP ${file}`, () => {
 		const { decrypt } = parseEcbKatFile(file);
 
 		it('parses non-zero vectors', () => {

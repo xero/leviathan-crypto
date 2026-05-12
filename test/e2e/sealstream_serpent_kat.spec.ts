@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test('SealStream KAT batch — Serpent v3 (SC1, SC3, SCF1)', async ({ page }) => {
+test('SealStream KAT batch, Serpent v3 (SC1, SC3, SCF1)', async ({ page }) => {
 	const errors = await page.evaluate(async ({ base, vectors }) => {
 		const lib = await import(`${base}/dist/index.js`);
 		const { sha2Wasm } = await import(`${base}/dist/sha2/embedded.js`);

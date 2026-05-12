@@ -31,7 +31,7 @@
 //                    ‖ ctx
 //                    ‖ <message-bytes>)
 //
-// In a byte-oriented SHAKE wrapper, BytesToBits is a no-op — the absorbed
+// In a byte-oriented SHAKE wrapper, BytesToBits is a no-op, the absorbed
 // bytes are the same. So we hand the absorber a contiguous Uint8Array
 // laid out exactly as the spec describes, plus the domain-separator byte
 // up front.
@@ -55,7 +55,7 @@ export function constructMPrime(domSep: number, ctx: Uint8Array, M: Uint8Array):
  * Build the HashML-DSA M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID ‖ PH_M.
  *
  * FIPS 204 §5.4 / Algorithm 4 line 23 (sign) and Algorithm 5 line 18 (verify).
- * The leading byte is 0x01 (vs 0x00 for pure ML-DSA) — domain separation
+ * The leading byte is 0x01 (vs 0x00 for pure ML-DSA), domain separation
  * across pure / pre-hash modes per FIPS 204 §3.6.4. Caller has already
  * validated ctx.length ≤ 255.
  */

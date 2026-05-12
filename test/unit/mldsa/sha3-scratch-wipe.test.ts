@@ -28,7 +28,7 @@
  * the op's duration. After any such op returns, the sha3 module's STATE
  * (200 B @ 0), INPUT (168 B @ 209), and OUT (168 B @ 377) are all zero.
  *
- * GATE: ML-DSA cross-module SHA3 wipe — confirms keygen does not leak
+ * GATE: ML-DSA cross-module SHA3 wipe, confirms keygen does not leak
  * ρ′ / K / xi-derived bytes through the SHAKE state across op boundaries.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -44,7 +44,7 @@ beforeAll(async () => {
 	await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm });
 });
 
-// sha3 buffer layout — src/asm/sha3/buffers.ts
+// sha3 buffer layout, src/asm/sha3/buffers.ts
 const SHA3_STATE_OFFSET = 0;
 const SHA3_STATE_LEN    = 200;
 const SHA3_INPUT_OFFSET = 209;
@@ -107,7 +107,7 @@ describe('sha3 scratch wiped after every public mldsa op', () => {
 	// ── Phase-5: sign / verify wipes too ────────────────────────────────
 	// Sign drives multiple SHAKE256 invocations: μ, ρ'', expandMask (per
 	// iteration), c̃ (per iteration), sample_in_ball (per iteration). The
-	// sha3 STATE / INPUT / OUT regions hold residue from each — wipe must
+	// sha3 STATE / INPUT / OUT regions hold residue from each, wipe must
 	// fire before sign returns, regardless of how many iterations the
 	// rejection-sample loop ran.
 

@@ -251,7 +251,7 @@ Creates a new SerpentCtr instance. Throws if `init({ serpent: serpentWasm })` ha
 called. Throws if `{ dangerUnauthenticated: true }` is not passed:
 
 ```
-leviathan-crypto: SerpentCtr is unauthenticated — use Seal with SerpentCipher instead.
+leviathan-crypto: SerpentCtr is unauthenticated, use Seal with SerpentCipher instead.
 To use SerpentCtr directly, pass { dangerUnauthenticated: true }.
 ```
 
@@ -340,7 +340,7 @@ Creates a new SerpentCbc instance. Throws if `init({ serpent: serpentWasm })` ha
 called. Throws if `{ dangerUnauthenticated: true }` is not passed:
 
 ```
-leviathan-crypto: SerpentCbc is unauthenticated — use Seal with SerpentCipher instead.
+leviathan-crypto: SerpentCbc is unauthenticated, use Seal with SerpentCipher instead.
 To use SerpentCbc directly, pass { dangerUnauthenticated: true }.
 ```
 
@@ -366,7 +366,7 @@ Decrypts Serpent CBC ciphertext and strips PKCS7 padding.
 
 - **key**: 16, 24, or 32 bytes. Throws `RangeError` if the length is invalid.
 - **iv**: exactly 16 bytes. Must match the IV used for encryption. Throws `RangeError` if the length is not 16.
-- **ciphertext**: must be a non-zero multiple of 16 bytes. Throws `RangeError` with the generic message `'invalid ciphertext'` on any failure — zero length, non-multiple-of-16 length, or invalid PKCS7 padding. The single message and branch-free padding check close the Vaudenay 2002 padding-oracle surface; a caller cannot distinguish failure modes by message or by timing.
+- **ciphertext**: must be a non-zero multiple of 16 bytes. Throws `RangeError` with the generic message `'invalid ciphertext'` on any failure, zero length, non-multiple-of-16 length, or invalid PKCS7 padding. The single message and branch-free padding check close the Vaudenay 2002 padding-oracle surface; a caller cannot distinguish failure modes by message or by timing.
 
 Returns the decrypted plaintext as a new `Uint8Array`.
 
@@ -385,7 +385,7 @@ need to continue.
 
 ---
 
-### Security — direct use of `SerpentCbc`
+### Security, direct use of `SerpentCbc`
 
 `SerpentCbc` is unauthenticated. If you use it directly via
 `{ dangerUnauthenticated: true }`, you are responsible for:
@@ -407,7 +407,7 @@ recommended path.
 
 Serpent-256 ECB counter-mode PRF for Fortuna's generator slot. Implements the
 `Generator` interface (Practical Cryptography, Ferguson & Schneier 2003 §9.4).
-This is a plain `const` object, not a class — no instantiation, no `dispose()`.
+This is a plain `const` object, not a class, no instantiation, no `dispose()`.
 
 Requires `init({ serpent: serpentWasm })`. See [fortuna.md](./fortuna.md) for
 full usage with `Fortuna.create()`.
@@ -582,16 +582,16 @@ cipher.dispose();
 | Condition | Error type | Message |
 |-----------|-----------|---------|
 | `init({ serpent: ... })` not called before constructing `Serpent` | `Error` | `leviathan-crypto: call init({ serpent: ... }) before using this class` |
-| `SerpentCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCbc is unauthenticated — use Seal with SerpentCipher instead. To use SerpentCbc directly, pass { dangerUnauthenticated: true }.` |
-| `SerpentCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCtr is unauthenticated — use Seal with SerpentCipher instead. To use SerpentCtr directly, pass { dangerUnauthenticated: true }.` |
+| `SerpentCbc` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCbc is unauthenticated, use Seal with SerpentCipher instead. To use SerpentCbc directly, pass { dangerUnauthenticated: true }.` |
+| `SerpentCtr` constructed without `{ dangerUnauthenticated: true }` | `Error` | `leviathan-crypto: SerpentCtr is unauthenticated, use Seal with SerpentCipher instead. To use SerpentCtr directly, pass { dangerUnauthenticated: true }.` |
 | Key is not 16, 24, or 32 bytes (`Serpent.loadKey`) | `RangeError` | `key must be 16, 24, or 32 bytes (got N)` |
 | Key is not 16, 24, or 32 bytes (`SerpentCbc`) | `RangeError` | `Serpent key must be 16, 24, or 32 bytes (got N)` |
 | Key is not 16, 24, or 32 bytes (`SerpentCtr`) | `RangeError` | `key must be 16, 24, or 32 bytes` |
 | Block is not 16 bytes (`Serpent`) | `RangeError` | `block must be 16 bytes (got N)` |
 | Nonce is not 16 bytes (`SerpentCtr`) | `RangeError` | `nonce must be 16 bytes (got N)` |
-| Chunk exceeds buffer size (`SerpentCtr`) | `RangeError` | `chunk exceeds maximum size of N bytes — split into smaller chunks` |
+| Chunk exceeds buffer size (`SerpentCtr`) | `RangeError` | `chunk exceeds maximum size of N bytes, split into smaller chunks` |
 | IV is not 16 bytes (`SerpentCbc`) | `RangeError` | `CBC IV must be 16 bytes (got N)` |
-| Ciphertext length zero, not a multiple of 16, or PKCS7 padding invalid (`SerpentCbc.decrypt`) | `RangeError` | `invalid ciphertext` (same message for every failure mode — no numeric leak) |
+| Ciphertext length zero, not a multiple of 16, or PKCS7 padding invalid (`SerpentCbc.decrypt`) | `RangeError` | `invalid ciphertext` (same message for every failure mode, no numeric leak) |
 | `SerpentGenerator.generate()` key ≠ 32 bytes | `RangeError` | `SerpentGenerator: key must be 32 bytes (got N)` |
 | `SerpentGenerator.generate()` counter ≠ 16 bytes | `RangeError` | `SerpentGenerator: counter must be 16 bytes (got N)` |
 | `SerpentGenerator.generate()` n out of range | `RangeError` | `SerpentGenerator: n must be a non-negative safe integer <= 2^30 (got N)` |

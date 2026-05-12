@@ -23,15 +23,15 @@
  * PKCS7 padding-oracle normalisation tests.
  *
  * `SerpentCbc.decrypt()` must throw a single generic `RangeError` with message
- * `'invalid ciphertext'` for every failure mode — empty input, non-multiple-of-16
- * length, out-of-range pad byte, and pad-byte mismatch — with timing that does
+ * `'invalid ciphertext'` for every failure mode, empty input, non-multiple-of-16
+ * length, out-of-range pad byte, and pad-byte mismatch, with timing that does
  * not distinguish the failure mode. Error messages must not leak any numeric
  * input-dependent data (byte values, lengths). Happy-path decrypt remains
  * byte-identical.
  *
  * `SerpentCipher` must continue to verify HMAC before invoking `pkcs7Strip`,
  * so a ciphertext whose HMAC fails raises `AuthenticationError` regardless of
- * its inner PKCS7 validity — the authenticated path never exercises the
+ * its inner PKCS7 validity, the authenticated path never exercises the
  * padding check on attacker-controlled bytes.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -94,7 +94,7 @@ function makeBogusCiphertext(
 
 // ── 1. Happy path unchanged ─────────────────────────────────────────────────
 
-describe('SerpentCbc — happy path round-trip unchanged', () => {
+describe('SerpentCbc, happy path round-trip unchanged', () => {
 	const key = new Uint8Array(32);
 	for (let i = 0; i < 32; i++) key[i] = i;
 	const iv = new Uint8Array(16);
@@ -131,7 +131,7 @@ describe('SerpentCbc — happy path round-trip unchanged', () => {
 
 // ── 2. All failure modes throw the same message ─────────────────────────────
 
-describe('SerpentCbc — all failure modes throw identical error', () => {
+describe('SerpentCbc, all failure modes throw identical error', () => {
 	const key = new Uint8Array(32).fill(0x33);
 	const iv  = new Uint8Array(16).fill(0x44);
 
@@ -160,7 +160,7 @@ describe('SerpentCbc — all failure modes throw identical error', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		let err: Error;
 		try {
-			// A 16-byte tail whose last byte is 0 — padLen 0 is invalid.
+			// A 16-byte tail whose last byte is 0, padLen 0 is invalid.
 			const tail = new Uint8Array(16);  // all zeros
 			const ct = makeBogusCiphertext(cbc, key, iv, tail);
 			err = capture(() => cbc.decrypt(key, iv, ct));
@@ -175,7 +175,7 @@ describe('SerpentCbc — all failure modes throw identical error', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		let err: Error;
 		try {
-			// A 16-byte tail whose last byte is 17 — padLen > 16 is invalid.
+			// A 16-byte tail whose last byte is 17, padLen > 16 is invalid.
 			const tail = new Uint8Array(16);
 			tail[15] = 17;
 			const ct = makeBogusCiphertext(cbc, key, iv, tail);
@@ -229,14 +229,14 @@ describe('SerpentCbc — all failure modes throw identical error', () => {
 		}
 		expect(messages.length).toBe(5);
 		for (const m of messages) expect(m).toBe(PKCS7_INVALID);
-		// All strictly identical — Set collapses to size 1
+		// All strictly identical, Set collapses to size 1
 		expect(new Set(messages).size).toBe(1);
 	});
 });
 
 // ── 3. No numeric leaks in error messages ───────────────────────────────────
 
-describe('SerpentCbc — error messages leak no numeric data', () => {
+describe('SerpentCbc, error messages leak no numeric data', () => {
 	const key = new Uint8Array(32).fill(0x55);
 	const iv  = new Uint8Array(16).fill(0x66);
 
@@ -248,7 +248,7 @@ describe('SerpentCbc — error messages leak no numeric data', () => {
 		expect(msg).not.toMatch(/\d/);
 	}
 
-	it('empty input — no digits leaked', () => {
+	it('empty input, no digits leaked', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		try {
 			assertNoDigits(capture(() => cbc.decrypt(key, iv, new Uint8Array(0))).message);
@@ -257,7 +257,7 @@ describe('SerpentCbc — error messages leak no numeric data', () => {
 		}
 	});
 
-	it('length 17 — no digits leaked', () => {
+	it('length 17, no digits leaked', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		try {
 			assertNoDigits(capture(() => cbc.decrypt(key, iv, new Uint8Array(17))).message);
@@ -266,7 +266,7 @@ describe('SerpentCbc — error messages leak no numeric data', () => {
 		}
 	});
 
-	it('padLen 0 — no digits leaked', () => {
+	it('padLen 0, no digits leaked', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		try {
 			const tail = new Uint8Array(16);
@@ -277,7 +277,7 @@ describe('SerpentCbc — error messages leak no numeric data', () => {
 		}
 	});
 
-	it('padLen 17 — no digits leaked', () => {
+	it('padLen 17, no digits leaked', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		try {
 			const tail = new Uint8Array(16); tail[15] = 17;
@@ -288,7 +288,7 @@ describe('SerpentCbc — error messages leak no numeric data', () => {
 		}
 	});
 
-	it('padLen=5 mismatch — no digits leaked', () => {
+	it('padLen=5 mismatch, no digits leaked', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		try {
 			const tail = new Uint8Array(16); tail[15] = 5;
@@ -302,7 +302,7 @@ describe('SerpentCbc — error messages leak no numeric data', () => {
 
 // ── 4. Timing invariance (best-effort, loose threshold) ─────────────────────
 
-describe('SerpentCbc — pkcs7Strip timing invariance (loose)', () => {
+describe('SerpentCbc, pkcs7Strip timing invariance (loose)', () => {
 	// Regression guard for the pre-fix behaviour where a bad-padLen input
 	// short-circuited before the xor-accumulate loop ran. We measure wall-
 	// clock time per adversarial category and fail only on massive outliers
@@ -362,7 +362,7 @@ describe('SerpentCbc — pkcs7Strip timing invariance (loose)', () => {
 		const all = [tZero, t17, t5];
 		const lo  = Math.min(...all);
 		const hi  = Math.max(...all);
-		// Loose 10× threshold — catches the pre-fix class of bug (early return
+		// Loose 10× threshold, catches the pre-fix class of bug (early return
 		// before the xor loop gave O(1) vs O(16) timing spread, typically
 		// 2-5× but easily larger under load) while tolerating CI jitter.
 		expect(hi / lo).toBeLessThan(10.0);
@@ -371,7 +371,7 @@ describe('SerpentCbc — pkcs7Strip timing invariance (loose)', () => {
 
 // ── 5. SerpentCipher still authenticates first (verify-then-decrypt) ────────
 
-describe('SerpentCipher — HMAC verified before pkcs7Strip runs', () => {
+describe('SerpentCipher, HMAC verified before pkcs7Strip runs', () => {
 	it('wrong key on Seal.decrypt throws AuthenticationError, not RangeError', () => {
 		// A legitimate SerpentCipher blob decrypted under the wrong key must
 		// fail HMAC before reaching the inner CBC pkcs7Strip. If the padding
@@ -388,14 +388,14 @@ describe('SerpentCipher — HMAC verified before pkcs7Strip runs', () => {
 
 	it('tampered blob (may produce bad PKCS7 after CBC) still throws AuthenticationError', () => {
 		// Flipping a byte in the ciphertext region typically corrupts the
-		// recovered plaintext — including its PKCS7 tail. The HMAC check must
+		// recovered plaintext, including its PKCS7 tail. The HMAC check must
 		// reject it before pkcs7Strip ever sees the mangled output.
 		const key = randomBytes(32);
 		const pt = new Uint8Array(32).fill(0xAB);
 		const blob = Seal.encrypt(SerpentCipher, key, pt).slice();
 		// Flip a byte in the middle of the ciphertext region (past the
 		// header, before the trailing HMAC). Exact offset doesn't matter for
-		// this test — the HMAC covers the whole ciphertext, so any change
+		// this test, the HMAC covers the whole ciphertext, so any change
 		// must fail auth.
 		const midpoint = (blob.length >>> 1);
 		blob[midpoint] ^= 0xff;
@@ -406,14 +406,14 @@ describe('SerpentCipher — HMAC verified before pkcs7Strip runs', () => {
 
 // ── 6. Correctness-equivalence regression guard for the rewrite ─────────────
 
-describe('pkcs7Strip — correctness across padLen ∈ [1,16]', () => {
+describe('pkcs7Strip, correctness across padLen ∈ [1,16]', () => {
 	// Regression guard for the branch-free rewrite. Probe `pkcs7Strip` directly
 	// so the test isolates the padding check from CBC decrypt behaviour.
 	//
 	// Acceptance table: for each padLen in [1, 16], build a 16-byte tail with
 	// the correct trailing `padLen` bytes all equal to `padLen`. The previous
 	// implementation accepted these; the rewrite must too. Rejection table:
-	// flip exactly one byte inside the pad region — the previous implementation
+	// flip exactly one byte inside the pad region, the previous implementation
 	// rejected these; the rewrite must too.
 
 	function tailAccepted(padLen: number): Uint8Array {
@@ -434,14 +434,14 @@ describe('pkcs7Strip — correctness across padLen ∈ [1,16]', () => {
 		});
 	}
 
-	// For padLen == 1 there is only one pad byte — no "other byte in the pad
+	// For padLen == 1 there is only one pad byte, no "other byte in the pad
 	// region" to flip. padLen == 2..16 gives `padLen - 1` internal flip sites
 	// per case; we exercise every internal flip position to cover the mask.
 	for (let padLen = 2; padLen <= 16; padLen++) {
 		for (let flipOffset = 1; flipOffset < padLen; flipOffset++) {
 			it(`rejects padLen=${padLen} with flipped byte at offset ${flipOffset} from end`, () => {
 				const blk = tailAccepted(padLen);
-				// flipOffset ∈ [1, padLen-1] — position inside pad region but
+				// flipOffset ∈ [1, padLen-1], position inside pad region but
 				// not the final byte, so padLen byte itself is preserved.
 				blk[15 - flipOffset] ^= 0xff;
 				expect(() => pkcs7Strip(blk)).toThrow(RangeError);
@@ -457,7 +457,7 @@ describe('pkcs7Strip — correctness across padLen ∈ [1,16]', () => {
 
 // ── 7. Exhaustive rejection for padLen ∈ {0} ∪ [17, 255] ────────────────────
 
-describe('pkcs7Strip — rejects every out-of-range trailing byte', () => {
+describe('pkcs7Strip, rejects every out-of-range trailing byte', () => {
 	// Every byte value outside [1, 16] for the last byte of a 16-byte input
 	// must throw the same RangeError('invalid ciphertext'), regardless of
 	// the leading 15 bytes. Use a valid 16-aligned length (exactly one block)

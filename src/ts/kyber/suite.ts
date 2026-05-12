@@ -21,7 +21,7 @@
 //
 // src/ts/kyber/suite.ts
 //
-// KyberSuite — wraps a MlKemBase + inner CipherSuite into a unified CipherSuite.
+// KyberSuite, wraps a MlKemBase + inner CipherSuite into a unified CipherSuite.
 // Provides hybrid KEM + symmetric AEAD for use with SealStream / OpenStream / Seal.
 
 import type { CipherSuite, DerivedKeys } from '../stream/types.js';
@@ -43,7 +43,7 @@ const KEM_LABEL: Record<number, string> = {
 	4: 'mlkem1024',
 };
 
-// Structural interface for the KEM object — avoids circular imports with index.ts
+// Structural interface for the KEM object, avoids circular imports with index.ts
 export interface MlKemLike {
 	readonly params: KyberParams;
 	encapsulate(ek: Uint8Array): KyberEncapsulation;
@@ -81,13 +81,13 @@ export function KyberSuite(
 			let ctForInfo: Uint8Array;
 
 			if (kemCt === undefined) {
-				// encrypt path: key = ek — encapsulate to produce shared secret + ct
+				// encrypt path: key = ek, encapsulate to produce shared secret + ct
 				const result = kem.encapsulate(key);
 				sharedSecret = result.sharedSecret;
 				outKemCt = result.ciphertext;
 				ctForInfo = outKemCt;
 			} else {
-				// decrypt path: key = dk — decapsulate to recover shared secret
+				// decrypt path: key = dk, decapsulate to recover shared secret
 				sharedSecret = kem.decapsulate(key, kemCt);
 				ctForInfo = kemCt;
 			}

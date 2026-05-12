@@ -120,7 +120,7 @@ const asciiHeader = `//                  ▄▄▄▄▄▄▄▄▄▄
 //`;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// XChaCha20 path — v3 wire format (commitment + header-bound HKDF)
+// XChaCha20 path, v3 wire format (commitment + header-bound HKDF)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildXChacha(): string {
@@ -135,7 +135,7 @@ function buildXChacha(): string {
 	const xc1_header     = xc1_preamble.subarray(0, HEADER_SIZE);
 	const xc1_commitment = xc1_preamble.subarray(HEADER_SIZE, xc1_preambleLen);
 	const { nonce: xc1_headerNonce } = readHeader(xc1_header);
-	// HKDF info = INFO || 20-byte header — bind header into derivation
+	// HKDF info = INFO || 20-byte header, bind header into derivation
 	const xc1_info = concat(xcInfo, xc1_header);
 	const xc1_okm  = hkdf.derive(xc1_key, xc1_headerNonce, xc1_info, 64);
 	const xc1_streamKey = xc1_okm.subarray(0, 32);
@@ -176,9 +176,9 @@ function buildXChacha(): string {
 	console.log('XC_EMPTY (xchacha v3): verified');
 
 	return `${asciiHeader}
-// Seal XChaCha20 v3 KAT vectors — single-chunk STREAM construction.
+// Seal XChaCha20 v3 KAT vectors, single-chunk STREAM construction.
 //
-// SELF-GENERATED — no external authority for these wire formats.
+// SELF-GENERATED, no external authority for these wire formats.
 // XChaCha20 v3 wire format: 20-byte header + 32-byte key commitment in the
 // preamble (52 bytes total). HKDF info string is 'xchacha20-sealstream-v3'
 // concatenated with the 20-byte header, binding formatEnum, framed flag,
@@ -223,12 +223,12 @@ export const xc_empty: SealXChachaV3Vector = {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Serpent path — v3 wire format
+// Serpent path, v3 wire format
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildSerpent(): string {
 	// Phase A: drive SerpentCipher seal/open paths. SerpentCbc cannot be alive
-	// here — it holds the 'serpent' WASM module exclusively and would block
+	// here, it holds the 'serpent' WASM module exclusively and would block
 	// SerpentCipher.sealChunk via the _assertNotOwned guard.
 
 	const sc1_key   = new Uint8Array(32); sc1_key.fill(0x03);
@@ -283,12 +283,12 @@ function buildSerpent(): string {
 	}
 
 	return `${asciiHeader}
-// Seal Serpent v2 KAT vectors — single-chunk STREAM construction.
+// Seal Serpent v2 KAT vectors, single-chunk STREAM construction.
 //
-// SELF-GENERATED — no external authority for these wire formats.
+// SELF-GENERATED, no external authority for these wire formats.
 // Serpent v3 wire format: 20-byte header preamble. HMAC-SHA-256 chunk
 // authentication is collision-resistant under SHA-256, which is
-// key-committing — no separate commitment is needed in the preamble.
+// key-committing, no separate commitment is needed in the preamble.
 // Generated with fixed nonce seams, then independently verified against
 // the underlying primitives (HKDF-SHA-256, SerpentCbc, HMAC-SHA-256).
 // Vectors serve as regression trip-wires for Seal wire format stability.
@@ -327,7 +327,7 @@ export const sc_empty: SealSerpentV3Vector = {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AES-GCM-SIV path — v3 wire format (commitment + header-bound HKDF)
+// AES-GCM-SIV path, v3 wire format (commitment + header-bound HKDF)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildAes(): string {
@@ -344,7 +344,7 @@ function buildAes(): string {
 	const ac1_header     = ac1_preamble.subarray(0, HEADER_SIZE);
 	const ac1_commitment = ac1_preamble.subarray(HEADER_SIZE, ac1_preambleLen);
 	const { nonce: ac1_headerNonce } = readHeader(ac1_header);
-	// HKDF info = INFO || 20-byte header — header-bound derivation, mirrors XChaCha20.
+	// HKDF info = INFO || 20-byte header, header-bound derivation, mirrors XChaCha20.
 	const ac1_info = concat(aesInfo, ac1_header);
 	const ac1_okm  = hkdf.derive(ac1_key, ac1_headerNonce, ac1_info, 64);
 	const ac1_aesKey    = ac1_okm.subarray(0, 32);
@@ -383,9 +383,9 @@ function buildAes(): string {
 	console.log('AC_EMPTY (aes-gcm-siv v3): verified');
 
 	return `${asciiHeader}
-// Seal AES-GCM-SIV v3 KAT vectors — single-chunk STREAM construction.
+// Seal AES-GCM-SIV v3 KAT vectors, single-chunk STREAM construction.
 //
-// SELF-GENERATED — no external authority for these wire formats.
+// SELF-GENERATED, no external authority for these wire formats.
 // AES-GCM-SIV v3 wire format: 20-byte header + 32-byte key commitment in
 // the preamble (52 bytes total). HKDF info string is
 // 'aes-gcm-siv-sealstream-v3' concatenated with the 20-byte header,

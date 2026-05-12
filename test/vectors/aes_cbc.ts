@@ -3,10 +3,10 @@
 // AES-CBC mode test vectors.
 //
 // Sources:
-//   NIST SP 800-38A — Recommendation for Block Cipher Modes of Operation:
+//   NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation:
 //   Methods and Techniques (December 2001).
 //   @see https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf
-//   Sections covered: Appendix F.2 — CBC Example Vectors
+//   Sections covered: Appendix F.2, CBC Example Vectors
 //                       F.2.1 CBC-AES128.Encrypt   F.2.2 CBC-AES128.Decrypt
 //                       F.2.3 CBC-AES192.Encrypt   F.2.4 CBC-AES192.Decrypt
 //                       F.2.5 CBC-AES256.Encrypt   F.2.6 CBC-AES256.Decrypt
@@ -19,7 +19,7 @@
 // paths independently.
 //
 // All hex strings are lowercase, no separators.
-// Audit status: VERIFIED — per-vector citations in each export below.
+// Audit status: VERIFIED, per-vector citations in each export below.
 
 export interface CbcVector {
 	description: string;
@@ -44,7 +44,7 @@ const SHARED_PT =
 const SHARED_IV = '000102030405060708090a0b0c0d0e0f';
 
 // ============================================================
-// SP 800-38A §F.2 — CBC encryption
+// SP 800-38A §F.2, CBC encryption
 // ============================================================
 
 export const aesCbcEncryptVectors: CbcVector[] = [
@@ -84,7 +84,7 @@ export const aesCbcEncryptVectors: CbcVector[] = [
 ];
 
 // ============================================================
-// SP 800-38A §F.2 — CBC decryption
+// SP 800-38A §F.2, CBC decryption
 // ============================================================
 
 export const aesCbcDecryptVectors: CbcVector[] = [

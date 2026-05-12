@@ -3,13 +3,13 @@
 // AES-GCM-SIV (RFC 8452) test vectors.
 //
 // Sources:
-//   RFC 8452 — Gueron, Langley, Lindell, "AES-GCM-SIV: Nonce
+//   RFC 8452, Gueron, Langley, Lindell, "AES-GCM-SIV: Nonce
 //   Misuse-Resistant Authenticated Encryption", April 2019.
 //   @see https://www.rfc-editor.org/rfc/rfc8452.txt
 //   Section covered: Appendix C (Test Vectors). Subsections:
-//     C.1  AEAD_AES_128_GCM_SIV   — 24 vectors
-//     C.2  AEAD_AES_256_GCM_SIV   — 24 vectors
-//     C.3  Counter Wrap Tests     —  2 vectors (AES-256-GCM-SIV)
+//     C.1  AEAD_AES_128_GCM_SIV  , 24 vectors
+//     C.2  AEAD_AES_256_GCM_SIV  , 24 vectors
+//     C.3  Counter Wrap Tests    ,  2 vectors (AES-256-GCM-SIV)
 //   Total: 50 vectors.
 //
 // All hex strings are lowercase, no separators.
@@ -22,14 +22,14 @@
 // in Phase 4b-impl. The corpus does not need to ship them.
 //
 // The 13 hex/string fields per record carry the full RFC-published
-// trace for each vector — not just (key, nonce, aad, pt, ct, tag).
+// trace for each vector, not just (key, nonce, aad, pt, ct, tag).
 // The intermediates (recordAuthKey, recordEncKey, polyvalInput,
 // polyvalResult, polyvalXorNonce, polyvalMasked, tag,
 // initialCounter) let unit tests bisect a failure to the offending
 // sub-step (key derivation, POLYVAL hashing, tag formation, or CTR
 // encryption) rather than testing only the final `result`.
 //
-// Audit status: VERIFIED — every byte transcribed directly from
+// Audit status: VERIFIED, every byte transcribed directly from
 //   RFC 8452 text, then byte-equality-cross-checked by an independent
 //   Rust implementation (`aes-gcm-siv` crate, RustCrypto) via
 //   `scripts/verify-vectors`.
@@ -80,7 +80,7 @@ export interface AesGcmSivVector {
 }
 
 // ============================================================
-// C.1 — AEAD_AES_128_GCM_SIV (24 vectors)
+// C.1, AEAD_AES_128_GCM_SIV (24 vectors)
 // ============================================================
 
 export const aesGcmSiv128Vectors: AesGcmSivVector[] = [
@@ -601,7 +601,7 @@ export const aesGcmSiv128Vectors: AesGcmSivVector[] = [
 ];
 
 // ============================================================
-// C.2 — AEAD_AES_256_GCM_SIV (24 vectors)
+// C.2, AEAD_AES_256_GCM_SIV (24 vectors)
 // ============================================================
 
 export const aesGcmSiv256Vectors: AesGcmSivVector[] = [
@@ -1122,7 +1122,7 @@ export const aesGcmSiv256Vectors: AesGcmSivVector[] = [
 ];
 
 // ============================================================
-// C.3 — Counter Wrap Tests (2 vectors, AES-256-GCM-SIV)
+// C.3, Counter Wrap Tests (2 vectors, AES-256-GCM-SIV)
 // ============================================================
 
 // The tests in this section use AEAD_AES_256_GCM_SIV and are

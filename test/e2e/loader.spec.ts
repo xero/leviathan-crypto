@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 	await page.goto(BASE);
 });
 
-test.describe('WasmSource loader — all source types', () => {
+test.describe('WasmSource loader, all source types', () => {
 	test('embedded string (gzip+base64)', async ({ page }) => {
 		const digest = await page.evaluate(async (base) => {
 			const lib = await import(`${base}/dist/index.js`);
@@ -129,7 +129,7 @@ test.describe('WasmSource loader — all source types', () => {
 	test('nested Promise.resolve(Promise.resolve(Promise.resolve(Response))) loads cleanly', async ({ page }) => {
 		// Per Promises/A+ §2.3.3.3 and ECMAScript's PromiseResolveThenableJob,
 		// `Promise.resolve(Promise.resolve(x))` flattens to a single
-		// `Promise.resolve(x)` — each layer collapses during await. The loader
+		// `Promise.resolve(x)`, each layer collapses during await. The loader
 		// sees one thenable resolving to a Response, not three. This test
 		// guards against a future change that would count Promise-wrapper
 		// depth statically and incorrectly trip the guard.

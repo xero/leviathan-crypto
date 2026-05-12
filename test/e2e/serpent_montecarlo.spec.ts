@@ -20,11 +20,11 @@
 //                           ▀█████▀▀
 //
 /**
- * Monte Carlo cross-browser tests — Serpent ECB + CBC
+ * Monte Carlo cross-browser tests, Serpent ECB + CBC
  *
  * Reduced: 50 outer × 10,000 inner (vs 1,200 in Vitest).
  * A correct 50-iteration result is strong evidence of correct 1,200-iteration
- * behavior — Monte Carlo errors compound within the first few iterations.
+ * behavior, Monte Carlo errors compound within the first few iterations.
  */
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
@@ -131,7 +131,7 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-test(`Monte Carlo ECB encrypt — ${mcVecs.length} vectors × 10000 inner`, async ({ page }) => {
+test(`Monte Carlo ECB encrypt, ${mcVecs.length} vectors × 10000 inner`, async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm  = await loadWasm();
 		const ptOff = wasm.getBlockPtOffset();
@@ -155,7 +155,7 @@ test(`Monte Carlo ECB encrypt — ${mcVecs.length} vectors × 10000 inner`, asyn
 	expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test(`Monte Carlo CBC encrypt — ${mcCbcEncVecs.length} vectors × 10000 inner`, async ({ page }) => {
+test(`Monte Carlo CBC encrypt, ${mcCbcEncVecs.length} vectors × 10000 inner`, async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm  = await loadWasm();
 		const ptOff = wasm.getBlockPtOffset();
@@ -186,7 +186,7 @@ test(`Monte Carlo CBC encrypt — ${mcCbcEncVecs.length} vectors × 10000 inner`
 	expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test(`Monte Carlo CBC decrypt — ${mcCbcDecVecs.length} vectors × 10000 inner`, async ({ page }) => {
+test(`Monte Carlo CBC decrypt, ${mcCbcDecVecs.length} vectors × 10000 inner`, async ({ page }) => {
 	const errors: string[] = await page.evaluate(async (vecs) => {
 		const wasm  = await loadWasm();
 		const ptOff = wasm.getBlockPtOffset();

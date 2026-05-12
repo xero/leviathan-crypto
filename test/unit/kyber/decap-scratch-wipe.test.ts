@@ -30,7 +30,7 @@
  *   - POLY_SLOT_1 full 512B (e₂ noise tail), POLYVEC_SLOT_1 (r noise
  *     polyvec, 2048B), POLYVEC_SLOT_2 (e₁ noise polyvec for u, 2048B),
  *     XOF_PRF_OFFSET (last PRF output block, 1024B).
- *   - SK_OFFSET (skCpa CPA secret key — highest-severity residual,
+ *   - SK_OFFSET (skCpa CPA secret key, highest-severity residual,
  *     long-lived key material; size varies per parameter set) and
  *     POLYVEC_SLOT_3 (uncompressed u polyvec from FO re-encryption,
  *     leaks coefficient low-order bits that Compress_du discards in
@@ -82,23 +82,23 @@ function runDecap(): void {
 	kem.dispose();
 }
 
-describe('kemDecapsulate — scratch slots wiped after decaps', () => {
+describe('kemDecapsulate, scratch slots wiped after decaps', () => {
 	it('MSG buffer, POLY_SLOT_0, POLY_SLOT_2, POLY_SLOT_3 are zero after decapsulate', () => {
 		runDecap();
 
 		const x = getExports();
 		const mem = new Uint8Array(x.memory.buffer);
 
-		// MSG_OFFSET (32B) — held m' from indcpaDecrypt
+		// MSG_OFFSET (32B), held m' from indcpaDecrypt
 		expect(regionIsZero(mem, x.getMsgOffset(), 32)).toBe(true);
-		// POLY_SLOT_0 (32B of interest) — held K' after ct_cmov
+		// POLY_SLOT_0 (32B of interest), held K' after ct_cmov
 		expect(regionIsZero(mem, x.getPolySlot0(), 32)).toBe(true);
 		// POLY_SLOT_2 / SLOT_3 full-slot wipes: 512B each
 		expect(regionIsZero(mem, x.getPolySlot2(), 512)).toBe(true);
 		expect(regionIsZero(mem, x.getPolySlot3(), 512)).toBe(true);
 	});
 
-	it('POLY_SLOT_1 is fully zero — K̄ head + e₂ noise tail', () => {
+	it('POLY_SLOT_1 is fully zero, K̄ head + e₂ noise tail', () => {
 		// The e₂ noise polynomial lives in POLY_SLOT_1[0..512] during
 		// indcpaEncrypt; the whole 512-byte slot must be zeroed, not just
 		// the K̄ head.
@@ -109,7 +109,7 @@ describe('kemDecapsulate — scratch slots wiped after decaps', () => {
 		expect(regionIsZero(mem, x.getPolySlot1(), 512)).toBe(true);
 	});
 
-	it('POLYVEC_SLOT_1 is zero — r noise polyvec residual', () => {
+	it('POLYVEC_SLOT_1 is zero, r noise polyvec residual', () => {
 		runDecap();
 
 		const x = getExports();
@@ -117,7 +117,7 @@ describe('kemDecapsulate — scratch slots wiped after decaps', () => {
 		expect(regionIsZero(mem, x.getPolyvecSlot1(), 2048)).toBe(true);
 	});
 
-	it('POLYVEC_SLOT_2 is zero — e₁ noise polyvec residual', () => {
+	it('POLYVEC_SLOT_2 is zero, e₁ noise polyvec residual', () => {
 		runDecap();
 
 		const x = getExports();
@@ -125,7 +125,7 @@ describe('kemDecapsulate — scratch slots wiped after decaps', () => {
 		expect(regionIsZero(mem, x.getPolyvecSlot2(), 2048)).toBe(true);
 	});
 
-	it('XOF_PRF_OFFSET is zero — last PRF output block', () => {
+	it('XOF_PRF_OFFSET is zero, last PRF output block', () => {
 		runDecap();
 
 		const x = getExports();
@@ -133,7 +133,7 @@ describe('kemDecapsulate — scratch slots wiped after decaps', () => {
 		expect(regionIsZero(mem, x.getXofPrfOffset(), 1024)).toBe(true);
 	});
 
-	it('POLYVEC_SLOT_3 is zero — uncompressed u polyvec residual', () => {
+	it('POLYVEC_SLOT_3 is zero, uncompressed u polyvec residual', () => {
 		// indcpaEncrypt (the FO re-encryption step) writes invNTT(Â^T·r̂) + e₁
 		// reduced into POLYVEC_SLOT_3 as the uncompressed u polyvec. The
 		// ciphertext ships Compress_du(u) which is lossy for du ∈ {10, 11};

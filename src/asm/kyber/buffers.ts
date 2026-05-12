@@ -21,17 +21,17 @@
 //
 // src/asm/kyber/buffers.ts
 //
-// Kyber module — static buffer layout.
+// Kyber module, static buffer layout.
 // Independent linear memory starting at offset 0. 3 pages = 192KB.
 //
 // The AS runtime places the zetas StaticArray<i16> (from ntt.ts) in the data
 // segment at low memory. Mutable regions start at 4096 to leave room.
 //
 // Offset    Size      Name
-// 0..4095   (AS data segment — zetas table placed here by compiler)
+// 0..4095   (AS data segment, zetas table placed here by compiler)
 // 4096      5120      POLY_SLOTS  (10 × 512 bytes = 10 scratch polynomials)
 // 9216      16384     POLYVEC_SLOTS (8 × 2048 bytes = 8 scratch polyvecs, K=4 max)
-// 25600     8192      BYTE_BUFFERS (8 × 1024 bytes — named sub-regions below)
+// 25600     8192      BYTE_BUFFERS (8 × 1024 bytes, named sub-regions below)
 //   25600     32      SEED_BUFFER
 //   25632     32      MSG_BUFFER
 //   25664   1568      PK_BUFFER (k=4: polyvec_bytes 1536 + seed 32)
@@ -118,7 +118,7 @@ const MUTABLE_SIZE:  i32 = 29344;  // 33440 - 4096
 export function getModuleId():     i32 { return 5; }
 export function getMemoryPages():  i32 { return memory.size(); }
 
-// ── Offset getters — poly slots ─────────────────────────────────────────────
+// ── Offset getters, poly slots ─────────────────────────────────────────────
 
 export function getPolySlotBase():  i32 { return POLY_SLOT_BASE; }
 export function getPolySlotSize():  i32 { return POLY_SLOT_SIZE; }
@@ -133,7 +133,7 @@ export function getPolySlot7():     i32 { return POLY_SLOT_7; }
 export function getPolySlot8():     i32 { return POLY_SLOT_8; }
 export function getPolySlot9():     i32 { return POLY_SLOT_9; }
 
-// ── Offset getters — polyvec slots ──────────────────────────────────────────
+// ── Offset getters, polyvec slots ──────────────────────────────────────────
 
 export function getPolyvecSlotBase():  i32 { return POLYVEC_SLOT_BASE; }
 export function getPolyvecSlotSize():  i32 { return POLYVEC_SLOT_SIZE; }
@@ -146,7 +146,7 @@ export function getPolyvecSlot5():     i32 { return POLYVEC_SLOT_5; }
 export function getPolyvecSlot6():     i32 { return POLYVEC_SLOT_6; }
 export function getPolyvecSlot7():     i32 { return POLYVEC_SLOT_7; }
 
-// ── Offset getters — byte buffers ───────────────────────────────────────────
+// ── Offset getters, byte buffers ───────────────────────────────────────────
 
 export function getSeedOffset():      i32 { return SEED_OFFSET;     }
 export function getMsgOffset():       i32 { return MSG_OFFSET;      }

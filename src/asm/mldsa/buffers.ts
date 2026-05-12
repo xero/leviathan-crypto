@@ -21,10 +21,10 @@
 //
 // src/asm/mldsa/buffers.ts
 //
-// ML-DSA module — static buffer layout.
+// ML-DSA module, static buffer layout.
 // Independent linear memory starting at offset 0. 4 pages = 256KB.
 //
-// Coefficient size: i32 (FIPS 204 §2.3 — q=8380417 ≈ 2²³ does not fit i16).
+// Coefficient size: i32 (FIPS 204 §2.3, q=8380417 ≈ 2²³ does not fit i16).
 // Polynomial size:  256 × 4 = 1024 bytes.
 // Polyvec size (ML-DSA-87, max k/ℓ=8): 8 × 1024 = 8192 bytes.
 //
@@ -46,13 +46,13 @@
 // POLYVEC_SLOTS gives 8 polyvec scratches sized for k=8 (any of k or ℓ fits).
 //
 // Offset    Size      Name
-// 0..4095   4096      (AS data segment — zetas table)
-// 4096      8192      POLY_SLOTS    (8 × 1024 — POLY_SLOT_0..7)
+// 0..4095   4096      (AS data segment, zetas table)
+// 4096      8192      POLY_SLOTS    (8 × 1024, POLY_SLOT_0..7)
 // 12288     65536     MATRIX_SLOT   (matrix Â, k×ℓ max = 8×8 polys × 1024)
-// 77824     65536     POLYVEC_SLOTS (8 × 8192 — POLYVEC_SLOT_0..7, k=8 max)
+// 77824     65536     POLYVEC_SLOTS (8 × 8192, POLYVEC_SLOT_0..7, k=8 max)
 // 143360    128       SEED_OFFSET   (ρ ‖ ρ′ ‖ K = 32+64+32, H(ξ‖k‖ℓ, 128) lands here)
 // 143488    64        TR_OFFSET     (tr = H(pk, 64))
-// 143552    64        MSG_REP_OFFSET (μ — message representative, FIPS 204 D.1)
+// 143552    64        MSG_REP_OFFSET (μ, message representative, FIPS 204 D.1)
 // 143616    64        C_TILDE_OFFSET (signature commitment hash, ≤ λ/4 max = 64)
 // 143680    64        (alignment / reserved)
 // 143744    2624      PK_OFFSET     (≥ 2592 for ML-DSA-87)
@@ -103,13 +103,13 @@ export const POLYVEC_SLOT_7: i32 = 135168;
 
 /** Seed scratch. Holds H(ξ‖k‖ℓ, 128) output: ρ(32) ‖ ρ′(64) ‖ K(32) = 128 B. */
 export const SEED_OFFSET:    i32 = 143360;
-/** tr = H(pk, 64) — public-key digest cached in sk for signing. */
+/** tr = H(pk, 64), public-key digest cached in sk for signing. */
 export const TR_OFFSET:      i32 = 143488;
-/** μ — message representative (FIPS 204 §6.2 / Appendix D.1). */
+/** μ, message representative (FIPS 204 §6.2 / Appendix D.1). */
 export const MSG_REP_OFFSET: i32 = 143552;
-/** c̃ — signature commitment hash, λ/4 bytes (≤ 64 for λ=256). */
+/** c̃, signature commitment hash, λ/4 bytes (≤ 64 for λ=256). */
 export const C_TILDE_OFFSET: i32 = 143616;
-/** Public key buffer (max 2592 for ML-DSA-87 — FIPS 204 §4 Table 2). */
+/** Public key buffer (max 2592 for ML-DSA-87, FIPS 204 §4 Table 2). */
 export const PK_OFFSET:      i32 = 143744;
 /** Secret key buffer (max 4896 for ML-DSA-87). */
 export const SK_OFFSET:      i32 = 146368;
@@ -131,7 +131,7 @@ const MUTABLE_SIZE:  i32 = 160128;  // 164224 - 4096 (XOF_PRF inclusive)
 export function getModuleId():     i32 { return 6; }
 export function getMemoryPages():  i32 { return memory.size(); }
 
-// ── Offset getters — poly slots ─────────────────────────────────────────────
+// ── Offset getters, poly slots ─────────────────────────────────────────────
 
 export function getPolySlotBase():  i32 { return POLY_SLOT_BASE; }
 export function getPolySlotSize():  i32 { return POLY_SLOT_SIZE; }
@@ -144,12 +144,12 @@ export function getPolySlot5():     i32 { return POLY_SLOT_5; }
 export function getPolySlot6():     i32 { return POLY_SLOT_6; }
 export function getPolySlot7():     i32 { return POLY_SLOT_7; }
 
-// ── Offset getters — matrix slot ────────────────────────────────────────────
+// ── Offset getters, matrix slot ────────────────────────────────────────────
 
 export function getMatrixSlot():     i32 { return MATRIX_SLOT; }
 export function getMatrixSlotSize(): i32 { return MATRIX_SLOT_SIZE; }
 
-// ── Offset getters — polyvec slots ──────────────────────────────────────────
+// ── Offset getters, polyvec slots ──────────────────────────────────────────
 
 export function getPolyvecSlotBase():  i32 { return POLYVEC_SLOT_BASE; }
 export function getPolyvecSlotSize():  i32 { return POLYVEC_SLOT_SIZE; }
@@ -162,7 +162,7 @@ export function getPolyvecSlot5():     i32 { return POLYVEC_SLOT_5; }
 export function getPolyvecSlot6():     i32 { return POLYVEC_SLOT_6; }
 export function getPolyvecSlot7():     i32 { return POLYVEC_SLOT_7; }
 
-// ── Offset getters — byte buffers ───────────────────────────────────────────
+// ── Offset getters, byte buffers ───────────────────────────────────────────
 
 export function getSeedOffset():     i32 { return SEED_OFFSET;    }
 export function getTrOffset():       i32 { return TR_OFFSET;      }

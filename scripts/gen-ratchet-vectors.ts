@@ -23,7 +23,7 @@
 /**
  * Generate HKDF-SHA-256 reference vectors for the ratchet KDF constructions.
  *
- * Calls HKDF_SHA256.derive() directly — no ratchet wrapper code involved.
+ * Calls HKDF_SHA256.derive() directly, no ratchet wrapper code involved.
  * Pins KDF_SCKA_INIT and KDF_SCKA_CK parameter assignments before Phase B.
  *
  * usage: bun scripts/gen-ratchet-vectors.ts
@@ -302,9 +302,9 @@ console.log(`${asciiHeader}
 // inputs are embedded constants sourced from NIST ACVP. They do not change
 // unless the gate vector is intentionally replaced.
 // Spec: Signal Double Ratchet §5 + §7.2 (Sparse Post-Quantum Ratchet)
-//   KDF_SCKA_INIT — info = 'leviathan-ratchet-v1 Chain Start'
-//   KDF_SCKA_CK   — info = 'leviathan-ratchet-v1 Chain Step' + uint64be(N)
-//   KDF_SCKA_RK   — info = 'leviathan-ratchet-v1 Chain Add Epoch'
+//   KDF_SCKA_INIT, info = 'leviathan-ratchet-v1 Chain Start'
+//   KDF_SCKA_CK  , info = 'leviathan-ratchet-v1 Chain Step' + uint64be(N)
+//   KDF_SCKA_RK  , info = 'leviathan-ratchet-v1 Chain Add Epoch'
 //                          || u32be(|peerEk|) || peerEk
 //                          || u32be(|kemCt|)  || kemCt
 //                          || u32be(|context|) || context
@@ -312,7 +312,7 @@ console.log(`${asciiHeader}
 //                   u32be length prefixes, giving defense-in-depth on top
 //                   of the KEM FO transform.)
 //
-// Vectors derived by calling HKDF_SHA256.derive() directly — no ratchet
+// Vectors derived by calling HKDF_SHA256.derive() directly, no ratchet
 // wrapper code involved. HKDF_SHA256 is independently verified against
 // RFC 5869 vectors in test/unit/sha2/hkdf.test.ts.
 //
@@ -365,8 +365,8 @@ const KEMCT_ACVP_TCID_77 = '${KEMCT_ACVP_TCID_77}';
 export interface KemRatchetDecapVector {
 \tid:           number
 \trk:           string  // hex, 32 bytes
-\tdk:           string  // hex, ML-KEM-512 dk — from ACVP tcId 77
-\tkemCt:        string  // hex, ML-KEM-512 ciphertext — from ACVP tcId 77
+\tdk:           string  // hex, ML-KEM-512 dk, from ACVP tcId 77
+\tkemCt:        string  // hex, ML-KEM-512 ciphertext, from ACVP tcId 77
 \tnextRootKey:  string  // hex, 32 bytes
 \trecvChainKey: string  // hex, 32 bytes
 \tsendChainKey: string  // hex, 32 bytes

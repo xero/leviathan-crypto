@@ -23,7 +23,7 @@
  * Cross-check that the pure-function `shared-ops.ts` primitives produce
  * byte-identical output to the main-thread class wrappers. These functions
  * are used by both `SerpentCipher.sealChunk`/`openChunk` and the
- * `SealStreamPool` worker — drift between them breaks pool / main parity,
+ * `SealStreamPool` worker, drift between them breaks pool / main parity,
  * so the guards live here.
  *
  * Also covers PKCS7 normalisation end to end in the shared module: every
@@ -73,9 +73,9 @@ beforeAll(async () => {
 
 // ── 1. hmacSha256 vs main-thread HMAC_SHA256.hash (RFC 4231) ────────────────
 
-describe('shared-ops.hmacSha256 — RFC 4231 + main-thread parity', () => {
+describe('shared-ops.hmacSha256, RFC 4231 + main-thread parity', () => {
 	for (const v of hmacSha256Vectors) {
-		it(`RFC 4231 ${v.description} — matches spec output`, () => {
+		it(`RFC 4231 ${v.description}, matches spec output`, () => {
 			const key = hex(v.key);
 			const msg = hex(v.input);
 			const out = hmacSha256(getSha2Ops(), key, msg);
@@ -108,7 +108,7 @@ describe('shared-ops.hmacSha256 — RFC 4231 + main-thread parity', () => {
 
 // ── 2. cbcEncryptChunk matches SerpentCbc.encrypt ───────────────────────────
 
-describe('shared-ops.cbcEncryptChunk — main-thread parity', () => {
+describe('shared-ops.cbcEncryptChunk, main-thread parity', () => {
 	it('matches SerpentCbc.encrypt for fixed triples across size buckets', () => {
 		const key = new Uint8Array(32);
 		for (let i = 0; i < 32; i++) key[i] = (i * 3 + 7) & 0xff;
@@ -120,10 +120,10 @@ describe('shared-ops.cbcEncryptChunk — main-thread parity', () => {
 			const pt = new Uint8Array(n);
 			for (let i = 0; i < n; i++) pt[i] = (i * 13) & 0xff;
 
-			// Pure path first — uses raw exports.
+			// Pure path first, uses raw exports.
 			const viaShared = cbcEncryptChunk(getSerpentOps(), key, iv, pt);
 
-			// Class path second — class exclusivity guard requires no owner here.
+			// Class path second, class exclusivity guard requires no owner here.
 			const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 			try {
 				const viaClass = cbc.encrypt(key, iv, pt);
@@ -138,7 +138,7 @@ describe('shared-ops.cbcEncryptChunk — main-thread parity', () => {
 
 // ── 3. cbcDecryptChunk uses SIMD, matches SerpentCbc.decrypt ────────────────
 
-describe('shared-ops.cbcDecryptChunk — SIMD path + main-thread parity', () => {
+describe('shared-ops.cbcDecryptChunk, SIMD path + main-thread parity', () => {
 	it('round-trips with cbcEncryptChunk for sizes 0..65536', () => {
 		const key = new Uint8Array(32).fill(0x44);
 		const iv  = new Uint8Array(16).fill(0x77);
@@ -173,7 +173,7 @@ describe('shared-ops.cbcDecryptChunk — SIMD path + main-thread parity', () => 
 		expect(Array.from(viaShared)).toEqual(Array.from(pt));
 	});
 
-	it('uses cbcDecryptChunk_simd — counted via a wrapped-exports spy', () => {
+	it('uses cbcDecryptChunk_simd, counted via a wrapped-exports spy', () => {
 		// Behavioural probe: build a plain object that re-exports the real
 		// serpent methods with counter wrappers around both decrypt paths.
 		// If a future refactor swaps to the scalar cbcDecryptChunk, this fails.
@@ -233,7 +233,7 @@ describe('shared-ops pkcs7 round-trip', () => {
 
 // ── 5. pkcs7Strip normalised failure modes ──────────────────────────────────
 
-describe('shared-ops.pkcs7Strip — branch-free padding check', () => {
+describe('shared-ops.pkcs7Strip, branch-free padding check', () => {
 	function capture(fn: () => unknown): Error {
 		try {
 			fn();
@@ -273,13 +273,13 @@ describe('shared-ops.pkcs7Strip — branch-free padding check', () => {
 	it('padLen=5 but preceding pad bytes mismatched throws RangeError("invalid ciphertext")', () => {
 		const data = new Uint8Array(16);
 		data[15] = 5;          // padLen=5
-		// leave data[11..14] as 0 — those should be 5 for valid PKCS7
+		// leave data[11..14] as 0, those should be 5 for valid PKCS7
 		const err = capture(() => pkcs7Strip(data));
 		expect(err).toBeInstanceOf(RangeError);
 		expect(err.message).toBe(PKCS7_INVALID);
 	});
 
-	it('all failure modes produce strictly identical error message — no leaks', () => {
+	it('all failure modes produce strictly identical error message, no leaks', () => {
 		const cases: Uint8Array[] = [
 			new Uint8Array(0),
 			new Uint8Array(17),

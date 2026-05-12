@@ -21,8 +21,8 @@
 //
 // test/unit/mldsa/rounding.test.ts
 //
-// GATE: ML-DSA rounding kernels — Power2Round, Decompose, HighBits, LowBits,
-// MakeHint, UseHint (FIPS 204 §7.4 Algorithms 35–40). Each kernel is property-
+// GATE: ML-DSA rounding kernels, Power2Round, Decompose, HighBits, LowBits,
+// MakeHint, UseHint (FIPS 204 §7.4 Algorithms 35-40). Each kernel is property-
 // tested against the spec's algebraic identity over a randomised batch.
 
 import { describe, test, expect, beforeAll } from 'vitest';
@@ -44,7 +44,7 @@ beforeAll(async () => {
 
 // ── GATE: power2round ──────────────────────────────────────────────────────
 
-describe('Gate — power2round (FIPS 204 Algorithm 35)', () => {
+describe('Gate, power2round (FIPS 204 Algorithm 35)', () => {
 	test('identity r ≡ r1·2^d + r0 (mod q) and r0 ∈ (-2^(d-1), 2^(d-1)]', () => {
 		const w = getWasm();
 		const A = w.getPolySlot0(), R1 = w.getPolySlot1(), R0 = w.getPolySlot2();
@@ -77,7 +77,7 @@ describe('Gate — power2round (FIPS 204 Algorithm 35)', () => {
 
 // ── GATE: decompose ────────────────────────────────────────────────────────
 
-describe('Gate — decompose (FIPS 204 Algorithm 36)', () => {
+describe('Gate, decompose (FIPS 204 Algorithm 36)', () => {
 	for (const gamma2 of [GAMMA2_44, GAMMA2_65_87]) {
 		test(`γ₂ = ${gamma2}: identity r ≡ r1·2γ₂ + r0 (mod q)`, () => {
 			const w = getWasm();
@@ -111,7 +111,7 @@ describe('Gate — decompose (FIPS 204 Algorithm 36)', () => {
 
 // ── GATE: highbits / lowbits ──────────────────────────────────────────────
 
-describe('Gate — highbits / lowbits (FIPS 204 Algorithms 37, 38)', () => {
+describe('Gate, highbits / lowbits (FIPS 204 Algorithms 37, 38)', () => {
 	test('highbits == decompose.r1 and lowbits == decompose.r0', () => {
 		const w = getWasm();
 		const A = w.getPolySlot0();
@@ -137,7 +137,7 @@ describe('Gate — highbits / lowbits (FIPS 204 Algorithms 37, 38)', () => {
 
 // ── GATE: make_hint / use_hint ────────────────────────────────────────────
 
-describe('Gate — make_hint / use_hint (FIPS 204 Algorithms 39, 40)', () => {
+describe('Gate, make_hint / use_hint (FIPS 204 Algorithms 39, 40)', () => {
 	// FIPS 204 Lemma (per Dilithium spec §2.4): if make_hint(z, w − z) = h then
 	// use_hint(h, w − z) = HighBits(w). This is the round-trip identity that
 	// the verification path relies on.

@@ -21,12 +21,12 @@
 //
 // test/unit/aes/aes_cbc_mct.test.ts
 //
-// Gate 10 — AES CBC Monte Carlo Test against the three NIST CAVP AESVS
+// Gate 10, AES CBC Monte Carlo Test against the three NIST CAVP AESVS
 // MCT files (one per key size). 100 chains × 1000 inner iterations per
 // direction.
 //
-// Reference: AESAVS §6.4.2 (Monte Carlo Test - CBC), pp. 8–9 of
-// `research-docs/specs/AESAVS.pdf`. The chain rule is non-obvious — in
+// Reference: AESAVS §6.4.2 (Monte Carlo Test - CBC), pp. 8-9 of
+// `research-docs/specs/AESAVS.pdf`. The chain rule is non-obvious, in
 // particular, the next chain's plaintext (encrypt) or ciphertext
 // (decrypt) is the **penultimate** output, not the final and not zero.
 // Read the spec before modifying.
@@ -39,7 +39,7 @@
 // Decrypt inner loop (AESAVS §6.4.2 final paragraph: "the pseudocode for
 // decryption can be obtained by replacing all PT's with CT's and all
 // CT's with PT's"). The CBC chaining state still advances to the
-// previous ciphertext input — that's what AES_inv uses for the implicit
+// previous ciphertext input, that's what AES_inv uses for the implicit
 // CBC chaining inside the spec text.
 //
 // Outer loop:
@@ -73,7 +73,7 @@ beforeAll(async () => {
 });
 
 /**
- * AESVS §6.4.1/§6.4.2 next-key derivation. Identical to ECB MCT — for CBC
+ * AESVS §6.4.1/§6.4.2 next-key derivation. Identical to ECB MCT, for CBC
  * the substituted byte source is the cipher *output* (CT for encrypt, PT
  * for decrypt) at indices j-1 (penult) and j (final).
  *
@@ -101,14 +101,14 @@ const xor16 = (a: Uint8Array, b: Uint8Array): Uint8Array => {
 	return out;
 };
 
-/** Raw single-block encrypt — caller has already loaded the key. */
+/** Raw single-block encrypt, caller has already loaded the key. */
 function blockEncrypt(x: AesCbcMctExports, mem: Uint8Array, b: Uint8Array): Uint8Array {
 	mem.set(b, x.getBlockPtOffset());
 	x.encryptBlock();
 	return mem.slice(x.getBlockCtOffset(), x.getBlockCtOffset() + 16);
 }
 
-/** Raw single-block decrypt — caller has already loaded the key.
+/** Raw single-block decrypt, caller has already loaded the key.
  *  Note: aes.ts decryptBlock reads ciphertext from BLOCK_PT and writes
  *  plaintext to BLOCK_CT (the buffer-naming is encrypt-direction, see
  *  the comment in aes.ts decryptBlock). */
@@ -125,7 +125,7 @@ for (const file of [
 	'aes_CBCMCT192.rsp',
 	'aes_CBCMCT256.rsp',
 ]) {
-	describe(`AES CBC MCT (Gate 10) — CAVP ${file}`, () => {
+	describe(`AES CBC MCT (Gate 10), CAVP ${file}`, () => {
 		const { encrypt, decrypt } = parseCbcMctFile(file);
 
 		it('parses 100 chains per direction', () => {
@@ -133,8 +133,8 @@ for (const file of [
 			expect(decrypt.length).toBe(100);
 		});
 
-		// Encrypt MCT — AESAVS §6.4.2 chain rule.
-		it('100 encrypt chains × 1000 iterations — AESVS §6.4.2', () => {
+		// Encrypt MCT, AESAVS §6.4.2 chain rule.
+		it('100 encrypt chains × 1000 iterations, AESVS §6.4.2', () => {
 			const x = getExports();
 			const mem = new Uint8Array(x.memory.buffer);
 
@@ -151,7 +151,7 @@ for (const file of [
 				mem.set(key, x.getKeyOffset());
 				x.loadKey(key.length);
 
-				// Inner loop — AESAVS §6.4.2 encrypt:
+				// Inner loop, AESAVS §6.4.2 encrypt:
 				//   prev_iv = IV
 				//   cur_pt  = PT
 				//   prev_ct (saved across iterations to support PT[j+1] = CT[j-1])
@@ -185,8 +185,8 @@ for (const file of [
 			}
 		}, 600_000);
 
-		// Decrypt MCT — same shape, with PT/CT swapped per AESAVS §6.4.2.
-		it('100 decrypt chains × 1000 iterations — AESVS §6.4.2', () => {
+		// Decrypt MCT, same shape, with PT/CT swapped per AESAVS §6.4.2.
+		it('100 decrypt chains × 1000 iterations, AESVS §6.4.2', () => {
 			const x = getExports();
 			const mem = new Uint8Array(x.memory.buffer);
 
@@ -203,8 +203,8 @@ for (const file of [
 				mem.set(key, x.getKeyOffset());
 				x.loadKey(key.length);
 
-				// Inner loop — AESAVS §6.4.2 decrypt (PT↔CT swap):
-				//   prev_iv = IV (chain state — previous ciphertext input)
+				// Inner loop, AESAVS §6.4.2 decrypt (PT↔CT swap):
+				//   prev_iv = IV (chain state, previous ciphertext input)
 				//   cur_ct  = CT[0] (current ciphertext input; mutates per spec)
 				//   prev_pt (PT[j-1] is fed back as CT[j+1] for j ≥ 1)
 				let prevIv: Uint8Array = iv;
@@ -230,7 +230,7 @@ for (const file of [
 
 				expect(toHex(lastPt), `COUNT=${i} PT mismatch`).toBe(decrypt[i].pt);
 
-				// Outer chain advance (PT/CT swapped — outputs are PT here).
+				// Outer chain advance (PT/CT swapped, outputs are PT here).
 				key = deriveNextKey(key, penult, lastPt);
 				iv  = new Uint8Array(lastPt);   // PT[999]
 				ct  = new Uint8Array(penult);   // PT[998]

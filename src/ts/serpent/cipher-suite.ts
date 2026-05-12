@@ -21,7 +21,7 @@
 //
 // src/ts/serpent/cipher-suite.ts
 //
-// SerpentCipher — CipherSuite implementation for the STREAM construction.
+// SerpentCipher, CipherSuite implementation for the STREAM construction.
 // 3-key HKDF derivation, HMAC-derived CBC IV, Serpent-CBC + HMAC-SHA-256.
 // Verify-then-decrypt ordering prevents padding oracle attacks (Vaudenay 2002).
 //
@@ -144,7 +144,7 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 		} finally {
 			if (iv)       wipe(iv);
 			if (tagInput) wipe(tagInput);
-			// No hmac/cbc instance to dispose — shared-ops functions are instance-free.
+			// No hmac/cbc instance to dispose, shared-ops functions are instance-free.
 		}
 	},
 
@@ -153,7 +153,7 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 	 * to prevent padding oracle attacks (Vaudenay 2002). Throws
 	 * `AuthenticationError` on tag mismatch.
 	 * @param keys         Derived keys from `deriveKeys`
-	 * @param counterNonce Per-chunk nonce — must match the value used by `sealChunk`
+	 * @param counterNonce Per-chunk nonce, must match the value used by `sealChunk`
 	 * @param chunk        Ciphertext || 32-byte HMAC tag
 	 * @param aad          Optional additional authenticated data
 	 * @returns            Plaintext with PKCS7 padding removed
@@ -235,7 +235,7 @@ export const SerpentCipher: CipherSuite & { keygen(): Uint8Array } = {
 		// IIFE source is bundled at lib build time (scripts/embed-workers.ts).
 		// Avoids the syntactic `new Worker(new URL(..., import.meta.url))`
 		// pattern that triggers eager worker-chunk emission in Vite's
-		// transform hook (issue.md). Classic worker via blob URL —
+		// transform hook (issue.md). Classic worker via blob URL,
 		// module workers fail on file:// in Chromium (issue2.md).
 		const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' });
 		const url  = URL.createObjectURL(blob);

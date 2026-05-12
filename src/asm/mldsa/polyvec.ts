@@ -21,7 +21,7 @@
 //
 // src/asm/mldsa/polyvec.ts
 //
-// ML-DSA — k-/ℓ-iterated polyvec operations.
+// ML-DSA, k-/ℓ-iterated polyvec operations.
 // FIPS 204 §7.6 (AddVectorNTT, ScalarVectorNTT, MatrixVectorNTT) plus the
 // rounding/hint wrappers needed for Sign_internal and Verify_internal.
 //
@@ -86,7 +86,7 @@ export function polyvec_tomont(pvOff: i32, len: i32): void {
 	}
 }
 
-// ── NTT — apply forward / inverse NTT to each entry ─────────────────────────
+// ── NTT, apply forward / inverse NTT to each entry ─────────────────────────
 
 export function polyvec_ntt(pvOff: i32, len: i32): void {
 	for (let i: i32 = 0; i < len; i++) {
@@ -102,7 +102,7 @@ export function polyvec_invntt(pvOff: i32, len: i32): void {
 
 // ── Pointwise / inner-product / matrix-vector multiplication in T_q ─────────
 //
-// FIPS 204 Algorithm 45 lifted to vector and matrix forms (Algs 46–48).
+// FIPS 204 Algorithm 45 lifted to vector and matrix forms (Algs 46-48).
 
 /** Coefficient-wise c[i] = a[i] ◦ b[i] across `len` polynomials. */
 export function polyvec_pointwise_montgomery(rOff: i32, aOff: i32, bOff: i32, len: i32): void {
@@ -167,7 +167,7 @@ export function polyvec_chknorm(pvOff: i32, bound: i32, len: i32): i32 {
 	return 0;
 }
 
-// ── Rounding wrappers — apply per-polynomial rounding kernels ───────────────
+// ── Rounding wrappers, apply per-polynomial rounding kernels ───────────────
 
 export function polyvec_power2round(r1pvOff: i32, r0pvOff: i32, aPvOff: i32, len: i32): void {
 	for (let i: i32 = 0; i < len; i++) {

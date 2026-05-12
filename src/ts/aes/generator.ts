@@ -21,7 +21,7 @@
 //
 // src/ts/aes/generator.ts
 //
-// Practical Cryptography (Ferguson & Schneier, 2003) §9.4 — generator
+// Practical Cryptography (Ferguson & Schneier, 2003) §9.4, generator
 // AES-256 ECB counter-mode PRF for Fortuna's generator slot. This is the
 // original Fortuna spec primitive; the library previously deviated by
 // shipping only Serpent and ChaCha20 generators. AES restores the
@@ -47,11 +47,11 @@ interface AesMin {
  *
  * Each 16-byte counter value is encrypted as a plaintext block to produce
  * one block of pseudorandom output. Practical Cryptography (Ferguson &
- * Schneier, 2003) §9.4. This is the original Fortuna spec primitive —
+ * Schneier, 2003) §9.4. This is the original Fortuna spec primitive,
  * `SerpentGenerator` and `ChaCha20Generator` are deliberate spec
  * deviations; `AESGenerator` is the canonical choice.
  *
- * Pass to `Fortuna.create({ generator: AESGenerator, ... })` — do not
+ * Pass to `Fortuna.create({ generator: AESGenerator, ... })`, do not
  * call `generate()` directly outside of Fortuna.
  */
 export const AESGenerator: Generator = {

@@ -21,7 +21,7 @@
 //
 // src/ts/keccak/index.ts
 //
-// Keccak alias subpath — resolves to the sha3 WASM module slot.
+// Keccak alias subpath, resolves to the sha3 WASM module slot.
 // Consumers who prefer the Keccak name (e.g. Kyber/ML-KEM implementations)
 // can import from `leviathan-crypto/keccak` instead of `leviathan-crypto/sha3`.
 

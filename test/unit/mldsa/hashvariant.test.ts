@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * HashML-DSA validation suite — FIPS 204 §5.4 Algorithms 4 & 5.
+ * HashML-DSA validation suite, FIPS 204 §5.4 Algorithms 4 & 5.
  *
  * Drives the new public methods signHash / signHashDeterministic /
  * signHashDerand / verifyHash across the 3 parameter sets × 12 approved
@@ -75,7 +75,7 @@ const ALL_PREHASH: readonly PreHashAlgorithm[] = [
 	'SHAKE128', 'SHAKE256',
 ];
 
-// ACVP labels SHAKE with a hyphen — translate to the FIPS 204 spelling
+// ACVP labels SHAKE with a hyphen, translate to the FIPS 204 spelling
 // the public API takes. All other labels are byte-identical.
 function normalizeHashAlg(s: string): PreHashAlgorithm {
 	if (s === 'SHAKE-128') return 'SHAKE128';
@@ -90,19 +90,19 @@ function makeDsa(paramSet: string): MlDsa44 | MlDsa65 | MlDsa87 {
 	throw new Error(`unknown parameterSet: ${paramSet}`);
 }
 
-// HashML-DSA filter — external interface, preHash branch.
+// HashML-DSA filter, external interface, preHash branch.
 const hashSigGenFilter = (v: SigGenVector): boolean =>
 	v.signatureInterface === 'external' && v.preHash === 'preHash';
 const hashSigVerFilter = (v: SigVerVector): boolean =>
 	v.signatureInterface === 'external' && v.preHash === 'preHash';
 
-// ── Gate 8 — HashML-DSA round-trip per (paramSet, prehash) ─────────────────
+// ── Gate 8, HashML-DSA round-trip per (paramSet, prehash) ─────────────────
 // GATE: signHash → verifyHash succeeds for every (paramSet, prehash)
 // combination (3 × 12 = 36 tuples). The inner Sign_internal / Verify_internal
 // is already gated by phase 5; this gate exercises that the M' construction,
 // OID dispatch, and pre-hash routing all wire up correctly.
 
-describe('Gate 8 — HashML-DSA round-trip per (paramSet, prehash)', () => {
+describe('Gate 8, HashML-DSA round-trip per (paramSet, prehash)', () => {
 	const cases = [
 		{ name: 'ML-DSA-44', make: () => new MlDsa44() },
 		{ name: 'ML-DSA-65', make: () => new MlDsa65() },
@@ -142,7 +142,7 @@ describe('Gate 8 — HashML-DSA round-trip per (paramSet, prehash)', () => {
 	}
 });
 
-// ── Gate 9 — HashML-DSA byte-identical signatures from ACVP sigGen ──────────
+// ── Gate 9, HashML-DSA byte-identical signatures from ACVP sigGen ──────────
 // GATE: sigGen vectors with preHash=preHash drive signHashDerand /
 // signHashDeterministic and assert byte-equality of the produced signature.
 
@@ -168,13 +168,13 @@ function runHashSigGenSuite(name: string, vectors: SigGenVector[], params: MlDsa
 	});
 }
 
-describe('Gate 9 — HashML-DSA ACVP sigGen byte-equality', () => {
+describe('Gate 9, HashML-DSA ACVP sigGen byte-equality', () => {
 	runHashSigGenSuite('ML-DSA-44', ml_dsa_44_siggen, MLDSA44);
 	runHashSigGenSuite('ML-DSA-65', ml_dsa_65_siggen, MLDSA65);
 	runHashSigGenSuite('ML-DSA-87', ml_dsa_87_siggen, MLDSA87);
 });
 
-// ── Gate 10 — HashML-DSA verify across ACVP sigVer corpus ───────────────────
+// ── Gate 10, HashML-DSA verify across ACVP sigVer corpus ───────────────────
 // GATE: sigVer vectors with preHash=preHash exercise verifyHash; both
 // expected-pass and known-fail cases are present, and the verdict must
 // match v.testPassed.
@@ -198,7 +198,7 @@ function runHashSigVerSuite(name: string, vectors: SigVerVector[]): void {
 	});
 }
 
-describe('Gate 10 — HashML-DSA ACVP sigVer verdicts', () => {
+describe('Gate 10, HashML-DSA ACVP sigVer verdicts', () => {
 	runHashSigVerSuite('ML-DSA-44', ml_dsa_44_sigver);
 	runHashSigVerSuite('ML-DSA-65', ml_dsa_65_sigver);
 	runHashSigVerSuite('ML-DSA-87', ml_dsa_87_sigver);
@@ -207,9 +207,9 @@ describe('Gate 10 — HashML-DSA ACVP sigVer verdicts', () => {
 // ── Cross-protocol separation (FIPS 204 §3.6.4) ─────────────────────────────
 // A HashML-DSA signature MUST NOT verify under pure verify(), and a pure
 // ML-DSA signature MUST NOT verify under verifyHash(). The 0x01 vs 0x00
-// domain-sep byte in M' is what enforces this — confirm explicitly.
+// domain-sep byte in M' is what enforces this, confirm explicitly.
 
-describe('Cross-protocol separation — pure ↔ HashML-DSA mutually distinct', () => {
+describe('Cross-protocol separation, pure ↔ HashML-DSA mutually distinct', () => {
 	it('signHash output → verify (pure) returns false', () => {
 		const dsa = new MlDsa65();
 		try {
@@ -240,7 +240,7 @@ describe('Cross-protocol separation — pure ↔ HashML-DSA mutually distinct', 
 			const { verificationKey, signingKey } = dsa.keygen();
 			const msg = new Uint8Array([0xCA, 0xFE]);
 			const sig = dsa.signHash(signingKey, msg, 'SHA2-256');
-			// Same M, same key, different OID in M' — must fail.
+			// Same M, same key, different OID in M', must fail.
 			expect(dsa.verifyHash(verificationKey, msg, sig, 'SHA3-256')).toBe(false);
 		} finally {
 			dsa.dispose();
@@ -262,9 +262,9 @@ describe('Cross-protocol separation — pure ↔ HashML-DSA mutually distinct', 
 	});
 });
 
-// ── Validate-checks — signHash family + verifyHash ──────────────────────────
+// ── Validate-checks, signHash family + verifyHash ──────────────────────────
 
-describe('signHash / verifyHash — wrong-length sk / pk / σ / ctx', () => {
+describe('signHash / verifyHash, wrong-length sk / pk / σ / ctx', () => {
 	it('signHash throws on wrong-length sk', () => {
 		const dsa = new MlDsa44();
 		try {
@@ -343,7 +343,7 @@ describe('signHash / verifyHash — wrong-length sk / pk / σ / ctx', () => {
 	});
 });
 
-describe('signHash / verifyHash — unsupported prehash throws RangeError', () => {
+describe('signHash / verifyHash, unsupported prehash throws RangeError', () => {
 	// Type system rules out this case at compile time; runtime guard is a
 	// belt-and-braces check for callers who widen the type via `as`.
 	it('bogus prehash throws on signHash', () => {

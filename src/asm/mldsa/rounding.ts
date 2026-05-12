@@ -21,8 +21,8 @@
 //
 // src/asm/mldsa/rounding.ts
 //
-// ML-DSA — high-/low-order rounding kernels.
-// FIPS 204 §7.4 Algorithms 35–40 (Power2Round, Decompose, HighBits, LowBits,
+// ML-DSA, high-/low-order rounding kernels.
+// FIPS 204 §7.4 Algorithms 35-40 (Power2Round, Decompose, HighBits, LowBits,
 // MakeHint, UseHint).
 //
 // All kernels expect input in canonical [0, q-1] form. Phase-4 wrappers must
@@ -31,7 +31,7 @@
 // CT posture: Decompose's special-case branch (line 3 of Alg 36) is data-
 // dependent on the input coefficient. Inputs to Decompose come from secret-
 // derived intermediate values (w, ct0). The leak here is the same statistical
-// signal already produced by the signing rejection-restart loop — the next
+// signal already produced by the signing rejection-restart loop, the next
 // iteration of Alg 7 depends on these values, and the iteration count is
 // observable through SHAKE differences. Documented per FIPS 204 §3.6.3.
 // MakeHint composes two HighBits calls per coefficient; same posture applies.
@@ -41,14 +41,14 @@ import { Q, D, N } from './params';
 
 // ── Constants derived from D (= 13 across all parameter sets) ───────────────
 
-/** 2^D — divisor for low-bit drop. */
+/** 2^D, divisor for low-bit drop. */
 const TWO_D: i32 = 1 << D;          // 8192
-/** 2^(D-1) — half-divisor for centered split. */
+/** 2^(D-1), half-divisor for centered split. */
 const HALF_TWO_D: i32 = 1 << (D - 1); // 4096
 /** Mask for the low D bits. */
 const LOW_D_MASK: i32 = TWO_D - 1;  // 0x1FFF
 
-// ── power2round — FIPS 204 Algorithm 35 ─────────────────────────────────────
+// ── power2round, FIPS 204 Algorithm 35 ─────────────────────────────────────
 // Splits each coefficient r ∈ [0, q-1] into (r1, r0) such that
 // r ≡ r1 · 2^d + r0 (mod q), with r0 ∈ (-2^(d-1), 2^(d-1)] and
 // r1 ∈ [0, ⌈(q-1)/2^d⌉ - 1] = [0, 1023].
@@ -70,7 +70,7 @@ export function power2round(r1Off: i32, r0Off: i32, aOff: i32): void {
 	}
 }
 
-// ── _decompose_step — single-coefficient Decompose, returns (r1, r0) packed ─
+// ── _decompose_step, single-coefficient Decompose, returns (r1, r0) packed ─
 // Returns an i64 with r1 in the low 32 bits (signed) and r0 in the high 32
 // bits (signed). Inlined so the caller doesn't pay for a function call; the
 // pack/unpack compiles to register moves on the WASM SIMD pipeline.
@@ -95,7 +95,7 @@ function _decompose_step(a: i32, gamma2: i32): i64 {
 	return ((<i64>r0) << 32) | (<i64><u32>r1);
 }
 
-// ── decompose — FIPS 204 Algorithm 36 (poly-wide) ───────────────────────────
+// ── decompose, FIPS 204 Algorithm 36 (poly-wide) ───────────────────────────
 export function decompose(r1Off: i32, r0Off: i32, aOff: i32, gamma2: i32): void {
 	for (let i: i32 = 0; i < N; i++) {
 		const p: i64 = _decompose_step(load<i32>(aOff + i * 4), gamma2);
@@ -104,24 +104,24 @@ export function decompose(r1Off: i32, r0Off: i32, aOff: i32, gamma2: i32): void 
 	}
 }
 
-// ── highbits — FIPS 204 Algorithm 37 (poly-wide) ────────────────────────────
+// ── highbits, FIPS 204 Algorithm 37 (poly-wide) ────────────────────────────
 export function highbits(rOff: i32, aOff: i32, gamma2: i32): void {
 	for (let i: i32 = 0; i < N; i++) {
 		store<i32>(rOff + i * 4, <i32>_decompose_step(load<i32>(aOff + i * 4), gamma2));
 	}
 }
 
-// ── lowbits — FIPS 204 Algorithm 38 (poly-wide) ─────────────────────────────
+// ── lowbits, FIPS 204 Algorithm 38 (poly-wide) ─────────────────────────────
 export function lowbits(rOff: i32, aOff: i32, gamma2: i32): void {
 	for (let i: i32 = 0; i < N; i++) {
 		store<i32>(rOff + i * 4, <i32>(_decompose_step(load<i32>(aOff + i * 4), gamma2) >> 32));
 	}
 }
 
-// ── make_hint — FIPS 204 Algorithm 39 (poly-wide) ───────────────────────────
+// ── make_hint, FIPS 204 Algorithm 39 (poly-wide) ───────────────────────────
 // h[i] = [[ HighBits(r[i]) ≠ HighBits(r[i] + z[i]) ]] where addition is in Z_q.
 //
-// Both r and z must be in [0, q-1] before this call — Sign_internal ensures
+// Both r and z must be in [0, q-1] before this call, Sign_internal ensures
 // this by applying poly_caddq to the relevant polyvecs first. The kernel
 // performs the modular reduction of (r + z) internally so the second
 // HighBits call sees a value in Z_q.
@@ -139,7 +139,7 @@ export function make_hint(hOff: i32, zOff: i32, rOff: i32, gamma2: i32): void {
 	}
 }
 
-// ── use_hint — FIPS 204 Algorithm 40 (poly-wide) ────────────────────────────
+// ── use_hint, FIPS 204 Algorithm 40 (poly-wide) ────────────────────────────
 // m = (q − 1) / (2γ₂); for each coefficient:
 //   (r1, r0) ← Decompose(r)
 //   if h = 1 and r0 > 0 : return (r1 + 1) mod m

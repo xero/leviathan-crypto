@@ -21,7 +21,7 @@
 //
 // src/ts/stream/seal.ts
 //
-// Seal — unified single-shot encrypt/decrypt using the STREAM construction.
+// Seal, unified single-shot encrypt/decrypt using the STREAM construction.
 // Seal blobs are valid SealStream blobs with a single final chunk.
 // OpenStream can decrypt a Seal blob without modification.
 
@@ -40,7 +40,7 @@ export class Seal {
 		opts?: { aad?: Uint8Array },
 	): Uint8Array {
 		if (pt.length > CHUNK_MAX)
-			throw new RangeError(`Seal.encrypt: plaintext exceeds maximum (${CHUNK_MAX} bytes) — use SealStream for large data`);
+			throw new RangeError(`Seal.encrypt: plaintext exceeds maximum (${CHUNK_MAX} bytes), use SealStream for large data`);
 		const sealer = new SealStream(suite, key, { chunkSize: Math.max(pt.length, CHUNK_MIN) });
 		try {
 			const ct = sealer.finalize(pt, opts);
@@ -58,7 +58,7 @@ export class Seal {
 	): Uint8Array {
 		const preambleLen = HEADER_SIZE + suite.kemCtSize + suite.commitmentSize;
 		if (blob.length < preambleLen)
-			throw new RangeError(`Seal.decrypt: blob too short — need at least ${preambleLen} bytes (got ${blob.length})`);
+			throw new RangeError(`Seal.decrypt: blob too short, need at least ${preambleLen} bytes (got ${blob.length})`);
 		const preamble = blob.subarray(0, preambleLen);
 		const opener = new OpenStream(suite, key, preamble);
 		try {
@@ -70,7 +70,7 @@ export class Seal {
 
 	/**
 	 * @internal
-	 * KAT-only — injects a fixed nonce so output is deterministic.
+	 * KAT-only, injects a fixed nonce so output is deterministic.
 	 * Stripped from published `.d.ts` by `stripInternal`. Do not use in production.
 	 */
 	static _fromNonce(
@@ -81,7 +81,7 @@ export class Seal {
 		opts?: { aad?: Uint8Array },
 	): Uint8Array {
 		if (pt.length > CHUNK_MAX)
-			throw new RangeError(`Seal._fromNonce: plaintext exceeds maximum (${CHUNK_MAX} bytes) — use SealStream for large data`);
+			throw new RangeError(`Seal._fromNonce: plaintext exceeds maximum (${CHUNK_MAX} bytes), use SealStream for large data`);
 		const sealer = SealStream._fromNonce(suite, key, { chunkSize: Math.max(pt.length, CHUNK_MIN) }, nonce);
 		try {
 			const ct = sealer.finalize(pt, opts);

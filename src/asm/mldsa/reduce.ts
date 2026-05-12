@@ -21,13 +21,13 @@
 //
 // src/asm/mldsa/reduce.ts
 //
-// ML-DSA — modular arithmetic: Montgomery and Barrett reduction over Z_q.
-// FIPS 204 Appendix A (Algorithm 49 — MontgomeryReduce) and §2.3 (mod± q).
+// ML-DSA, modular arithmetic: Montgomery and Barrett reduction over Z_q.
+// FIPS 204 Appendix A (Algorithm 49, MontgomeryReduce) and §2.3 (mod± q).
 
 import { Q, QINV, BARRETT_V, BARRETT_SHIFT, HALF_Q } from './params';
 
 /**
- * Montgomery reduction. FIPS 204 Algorithm 49 — MontgomeryReduce(a).
+ * Montgomery reduction. FIPS 204 Algorithm 49, MontgomeryReduce(a).
  *
  * Input:  a ∈ [-2³¹·q, 2³¹·q]   (i64)
  * Output: r ≡ a·2⁻³² (mod q),   |r| < 2q   (per FIPS 204 Appendix A)
@@ -39,7 +39,7 @@ import { Q, QINV, BARRETT_V, BARRETT_SHIFT, HALF_Q } from './params';
  *   4. return r
  *
  * The "(a mod 2³²) · QINV mod 2³²" sequence is realised in two's-complement
- * i32 arithmetic by ((i32)a) * QINV with implicit wrap — the low 32 bits of
+ * i32 arithmetic by ((i32)a) * QINV with implicit wrap, the low 32 bits of
  * the full product are the low 32 bits of (a · QINV) regardless of sign.
  * The subtraction a − t·q is then exact in i64 and the result is divisible
  * by 2³², so the arithmetic right shift by 32 yields the mathematical
@@ -47,7 +47,7 @@ import { Q, QINV, BARRETT_V, BARRETT_SHIFT, HALF_Q } from './params';
  */
 @inline
 export function montgomery_reduce(a: i64): i32 {
-	// t = (i32)((a mod 2³²) · QINV) — the low 32 bits of the full product
+	// t = (i32)((a mod 2³²) · QINV), the low 32 bits of the full product
 	const t: i32 = (<i32>a) * QINV;
 	// r = (a − t·q) >> 32
 	return <i32>((a - <i64>t * <i64>Q) >> 32);
@@ -55,16 +55,16 @@ export function montgomery_reduce(a: i64): i32 {
 
 /**
  * Barrett reduction (centered) over i32 inputs. Returns the unique r ≡ a (mod q)
- * with r ∈ [-(q-1)/2, (q-1)/2] — i.e. a mod± q per FIPS 204 §2.3.
+ * with r ∈ [-(q-1)/2, (q-1)/2], i.e. a mod± q per FIPS 204 §2.3.
  *
  * Multiply-shift estimate of round(a / q):
- *   v = 1049603 ≈ 2⁴³ / q   (params.ts BARRETT_V — derivation cited there)
+ *   v = 1049603 ≈ 2⁴³ / q   (params.ts BARRETT_V, derivation cited there)
  *   t = (v · a + 2⁴²) >> 43 ≈ round(a / q)
  *
  * Branch-free post-correction handles boundary cases where the rounded t
  * leaves r just outside [-HALF_Q, HALF_Q]: a single conditional ±q absorbs
  * the at-most-one-off error. No data-dependent branching on coefficient
- * values — the corrections compile to mask-and-add, suitable for
+ * values, the corrections compile to mask-and-add, suitable for
  * constant-time use.
  */
 @inline

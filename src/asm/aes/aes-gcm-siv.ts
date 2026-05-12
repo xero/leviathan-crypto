@@ -21,7 +21,7 @@
 //
 // src/asm/aes/aes-gcm-siv.ts
 //
-// AES-GCM-SIV (RFC 8452) — single-shot atomic AEAD bounded by
+// AES-GCM-SIV (RFC 8452), single-shot atomic AEAD bounded by
 // CHUNK_PT_BUFFER (64 KiB plaintext cap). Only AES-128 and AES-256
 // keys are supported (RFC 8452 §6 explicitly excludes AES-192).
 //
@@ -49,7 +49,7 @@
 //        builds the EXPECTED tag at TAG_OFFSET, and returns. Does NOT
 //        compare. The TS layer reads the expected tag and routes the
 //        constant-time compare through `constantTimeEqual` in
-//        `src/ts/utils.ts` (per library policy — atomic AEADs do not
+//        `src/ts/utils.ts` (per library policy, atomic AEADs do not
 //        compare tags inside their own module).
 //
 //   sivWipeOnFail()
@@ -61,7 +61,7 @@
 //
 // CTR convention (RFC 8452 §4): 16-byte counter block. Bytes [0..4] hold
 // a 32-bit little-endian counter (incremented per block, wrapping mod
-// 2^32 — silent per the RFC); bytes [4..16] are fixed across the call.
+// 2^32, silent per the RFC); bytes [4..16] are fixed across the call.
 // This is materially different from GCM's CTR (96-bit fixed prefix +
 // 32-bit big-endian counter at bytes [12..16]); the two share no code.
 
@@ -142,8 +142,8 @@ import {
  * AES-256 → 6 blocks).
  *
  * Outputs:
- *   POLYVAL_AUTH_KEY_OFFSET[0..16] — auth_key
- *   POLYVAL_ENC_KEY_OFFSET[0..16 or 32] — enc_key
+ *   POLYVAL_AUTH_KEY_OFFSET[0..16], auth_key
+ *   POLYVAL_ENC_KEY_OFFSET[0..16 or 32], enc_key
  */
 export function sivDeriveKeys(nonceOff: i32): void {
 	const Nr: i32 = <i32>load<u8>(NR_OFFSET);
@@ -298,7 +298,7 @@ export function sivSeal(aadLen: i32, ptLen: i32): void {
  *     calls `sivWipeOnFail` and throws.
  *
  * IMPORTANT: this function does NOT release plaintext on its own. The
- * write-then-verify pattern is inherent to SIV — the tag depends on the
+ * write-then-verify pattern is inherent to SIV, the tag depends on the
  * plaintext, so the plaintext must be computed before the tag can be
  * checked. The TS layer enforces "MUST NOT release unauthenticated
  * plaintext" (RFC 8452 §5) by gating the read of CHUNK_PT_OFFSET on a
@@ -333,7 +333,7 @@ export function sivOpen(aadLen: i32, ctLen: i32): void {
 	}
 	store<u8>(TAG_OFFSET + 15, load<u8>(TAG_OFFSET + 15) & 0x7F);
 
-	// 6. AES-encrypt TAG in place under enc_key — TAG_OFFSET now holds
+	// 6. AES-encrypt TAG in place under enc_key, TAG_OFFSET now holds
 	//    the EXPECTED tag.
 	memory.copy(BLOCK_PT_OFFSET, TAG_OFFSET, 16);
 	encryptBlock();

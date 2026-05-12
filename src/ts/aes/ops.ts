@@ -21,7 +21,7 @@
 //
 // src/ts/aes/ops.ts
 //
-// Raw AES-GCM-SIV operations — standalone functions that take AesExports
+// Raw AES-GCM-SIV operations, standalone functions that take AesExports
 // explicitly. Used by both `AESGCMSIVCipher` (cipher-suite.ts) and the
 // pool worker (pool-worker.ts), eliminating duplication.
 //
@@ -48,7 +48,7 @@ const MAX_AAD     = 65536;
  * `sivSeal` overwrites CHUNK_PT with the ciphertext in place; the tag
  * lands at TAG_OFFSET.
  *
- * @note AES-256 only — the key MUST be 32 bytes. The standalone
+ * @note AES-256 only, the key MUST be 32 bytes. The standalone
  *       `AESGCMSIV` class accepts both 16-byte (AES-128) and 32-byte
  *       (AES-256) keys per RFC 8452 §6, but this `ops.ts` path is the
  *       internal helper for `AESGCMSIVCipher` and the AES pool worker,
@@ -59,13 +59,13 @@ const MAX_AAD     = 65536;
  *
  * @param x          AES WASM exports
  * @param key        32-byte AES-256 key (KGK in RFC 8452 terminology)
- * @param nonce      12-byte nonce — must be unique per `(key, message)`
+ * @param nonce      12-byte nonce, must be unique per `(key, message)`
  *                   under the standard nonce-respecting model; reuse is
  *                   tolerated by the SIV construction but reduces IND-CPA
  *                   to message-equality leakage
  * @param plaintext  Data to encrypt; must be ≤ `x.getChunkSize()`
  * @param aad        Additional authenticated data; must be ≤ 64 KiB
- * @returns          `{ ciphertext, tag }` — tag is 16 bytes
+ * @returns          `{ ciphertext, tag }`, tag is 16 bytes
  */
 export function sivAeadEncrypt(
 	x:         AesExports,
@@ -80,7 +80,7 @@ export function sivAeadEncrypt(
 		throw new RangeError(`AES-GCM-SIV: nonce must be ${NONCE_LEN} bytes (got ${nonce.length})`);
 	const maxChunk = x.getChunkSize();
 	if (plaintext.length > maxChunk)
-		throw new RangeError(`AES-GCM-SIV: plaintext exceeds ${maxChunk} bytes — split into smaller chunks`);
+		throw new RangeError(`AES-GCM-SIV: plaintext exceeds ${maxChunk} bytes, split into smaller chunks`);
 	if (aad.length > MAX_AAD)
 		throw new RangeError(`AES-GCM-SIV: AAD must be ≤ ${MAX_AAD} bytes (got ${aad.length})`);
 
@@ -110,7 +110,7 @@ export function sivAeadEncrypt(
 }
 
 /**
- * AES-256-GCM-SIV AEAD decrypt (RFC 8452). Verify-after-decrypt — the
+ * AES-256-GCM-SIV AEAD decrypt (RFC 8452). Verify-after-decrypt, the
  * tag is a function of the plaintext, so SIV reconstructs the plaintext
  * before recomputing and comparing the tag in constant time.
  *
@@ -118,7 +118,7 @@ export function sivAeadEncrypt(
  * CHUNK_PT_OFFSET before this function throws. Subsequent reads of
  * the WASM memory cannot recover plaintext from a forged ciphertext.
  *
- * @note AES-256 only — the key MUST be 32 bytes (matching
+ * @note AES-256 only, the key MUST be 32 bytes (matching
  *       `sivAeadEncrypt`). The standalone `AESGCMSIV` class supports
  *       both AES-128 and AES-256, but this `ops.ts` helper is the
  *       internal path used by `AESGCMSIVCipher` and the AES pool
@@ -128,7 +128,7 @@ export function sivAeadEncrypt(
  *
  * @param x           AES WASM exports
  * @param key         32-byte AES-256 key
- * @param nonce       12-byte nonce — must match the value used to encrypt
+ * @param nonce       12-byte nonce, must match the value used to encrypt
  * @param ciphertext  Ciphertext bytes (must be ≤ `x.getChunkSize()`)
  * @param tag         16-byte SIV tag
  * @param aad         Additional authenticated data
@@ -152,7 +152,7 @@ export function sivAeadDecrypt(
 		throw new RangeError(`AES-GCM-SIV: tag must be ${TAG_LEN} bytes (got ${tag.length})`);
 	const maxChunk = x.getChunkSize();
 	if (ciphertext.length > maxChunk)
-		throw new RangeError(`AES-GCM-SIV: ciphertext exceeds ${maxChunk} bytes — split into smaller chunks`);
+		throw new RangeError(`AES-GCM-SIV: ciphertext exceeds ${maxChunk} bytes, split into smaller chunks`);
 	if (aad.length > MAX_AAD)
 		throw new RangeError(`AES-GCM-SIV: AAD must be ≤ ${MAX_AAD} bytes (got ${aad.length})`);
 
@@ -169,7 +169,7 @@ export function sivAeadDecrypt(
 		mem.set(aad, x.getAadOffset());
 	mem.set(ciphertext, x.getChunkCtOffset());
 	// sivOpen reads the provided tag from SIV_IC_OFFSET (the CTR initial
-	// counter slot — RFC 8452 §4, where the tag drives the CTR start).
+	// counter slot, RFC 8452 §4, where the tag drives the CTR start).
 	mem.set(tag, x.getSivIcOffset());
 
 	x.sivDeriveKeys(x.getNonceOffset());
@@ -179,7 +179,7 @@ export function sivAeadDecrypt(
 	// buffer survives any subsequent WASM memory growth.
 	const memView = new Uint8Array(x.memory.buffer);
 	const expectedTag = memView.slice(x.getTagOffset(), x.getTagOffset() + TAG_LEN);
-	// Defensive copy of the provided tag for the constant-time compare —
+	// Defensive copy of the provided tag for the constant-time compare,
 	// callers may pass a view over a mutable buffer.
 	const providedTagCopy = new Uint8Array(tag);
 

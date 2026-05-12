@@ -7,16 +7,16 @@
 // Usage:
 //   bun scripts/generate_simd.ts > src/asm/serpent/serpent_simd.ts
 //
-// Each v128 register holds 4 × i32 lanes — one lane per independent block.
+// Each v128 register holds 4 × i32 lanes, one lane per independent block.
 // S-box gate logic is extracted from src/asm/serpent/serpent.ts and translated
 // mechanically: rget→rget_v, rset→rset_v, bitwise ops→v128 namespace.
 //
 // Commit the generator AND the generated output. To modify the SIMD
-// functions, edit this generator and re-run — never edit the output by hand.
+// functions, edit this generator and re-run, never edit the output by hand.
 
 import { readFileSync } from 'fs'
 
-// ── Round constant functions — copied verbatim from src/asm/serpent/serpent.ts ──
+// ── Round constant functions, copied verbatim from src/asm/serpent/serpent.ts ──
 // MUST be identical to ec(), dc() in serpent.ts. Do not approximate or rederive.
 
 const ec = (n: number): number => {
@@ -72,7 +72,7 @@ function toSimd(body: string): string {
     // rget(x) & rget(y) → v128.and(rget_v(x), rget_v(y))
     .replace(/rset\((\w+), rget\((\w+)\) & rget\((\w+)\)\)/g,
       'rset_v($1, v128.and(rget_v($2), rget_v($3)))')
-    // rget(x) → rget_v(x) (simple assign — must be last)
+    // rget(x) → rget_v(x) (simple assign, must be last)
     .replace(/rset\((\w+), rget\((\w+)\)\)/g,
       'rset_v($1, rget_v($2))')
 }
@@ -146,7 +146,7 @@ lines.push(HEADER)
 lines.push('//')
 lines.push('// src/asm/serpent/serpent_simd.ts')
 lines.push('//')
-lines.push('// AUTO-GENERATED — do not edit by hand.')
+lines.push('// AUTO-GENERATED, do not edit by hand.')
 lines.push('// To regenerate: bun scripts/generate_simd.ts > src/asm/serpent/serpent_simd.ts')
 lines.push('//')
 lines.push('// SIMD-accelerated Serpent-256 encrypt and decrypt (4 blocks per call).')
@@ -159,12 +159,12 @@ lines.push("import { SUBKEY_OFFSET, SIMD_WORK_OFFSET } from './buffers'")
 lines.push('')
 
 // v128 register helpers
-lines.push('// v128 working register helpers — 5 × v128 at SIMD_WORK_OFFSET, 16-byte stride')
+lines.push('// v128 working register helpers, 5 × v128 at SIMD_WORK_OFFSET, 16-byte stride')
 lines.push('@inline function rget_v(i: i32): v128 { return v128.load(SIMD_WORK_OFFSET + (i << 4)) }')
 lines.push('@inline function rset_v(i: i32, v: v128): void { v128.store(SIMD_WORK_OFFSET + (i << 4), v) }')
 lines.push('')
 
-// Forward S-boxes (sb0_v – sb7_v)
+// Forward S-boxes (sb0_v - sb7_v)
 lines.push('// ── Forward S-boxes (v128) ──────────────────────────────────────────────────')
 lines.push('')
 for (let i = 0; i < 8; i++) {
@@ -172,7 +172,7 @@ for (let i = 0; i < 8; i++) {
   lines.push('')
 }
 
-// Inverse S-boxes (si0_v – si7_v)
+// Inverse S-boxes (si0_v - si7_v)
 lines.push('// ── Inverse S-boxes (v128) ──────────────────────────────────────────────────')
 lines.push('')
 for (let i = 0; i < 8; i++) {
@@ -180,8 +180,8 @@ for (let i = 0; i < 8; i++) {
   lines.push('')
 }
 
-// keyXor_v — subkey XOR with splat broadcast
-lines.push('// ── Key XOR (v128) — splat scalar subkey to all 4 lanes ────────────────────')
+// keyXor_v, subkey XOR with splat broadcast
+lines.push('// ── Key XOR (v128), splat scalar subkey to all 4 lanes ────────────────────')
 lines.push('')
 lines.push(`@inline function keyXor_v(a: i32, b: i32, c: i32, d: i32, i: i32): void {
 \trset_v(a, v128.xor(rget_v(a), i32x4.splat(load<i32>(SUBKEY_OFFSET + (4 * i + 0) * 4))))
@@ -191,10 +191,10 @@ lines.push(`@inline function keyXor_v(a: i32, b: i32, c: i32, d: i32, i: i32): v
 }`)
 lines.push('')
 
-// lk_v — linear transform + key XOR (encrypt direction)
+// lk_v, linear transform + key XOR (encrypt direction)
 // Rotation amounts copied exactly from lk() in serpent.ts (Serpent spec).
 lines.push('// ── Linear transform + key XOR (v128, encrypt) ─────────────────────────────')
-lines.push('// Rotation amounts: 13, 3, 1, 7, 5, 22 — from Serpent spec via serpent.ts lk()')
+lines.push('// Rotation amounts: 13, 3, 1, 7, 5, 22, from Serpent spec via serpent.ts lk()')
 lines.push('')
 lines.push(`@inline function lk_v(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32): void {
 \trset_v(a, v128.or(i32x4.shl(rget_v(a), 13), i32x4.shr_u(rget_v(a), 19)))
@@ -221,10 +221,10 @@ lines.push(`@inline function lk_v(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32
 }`)
 lines.push('')
 
-// kl_v — inverse linear transform + key XOR (decrypt direction)
+// kl_v, inverse linear transform + key XOR (decrypt direction)
 // Rotation amounts copied exactly from kl() in serpent.ts (Serpent spec).
 lines.push('// ── Inverse linear transform + key XOR (v128, decrypt) ──────────────────────')
-lines.push('// Rotation amounts: 27, 10, 31, 25, 19, 29 — from Serpent spec via serpent.ts kl()')
+lines.push('// Rotation amounts: 27, 10, 31, 25, 19, 29, from Serpent spec via serpent.ts kl()')
 lines.push('')
 lines.push(`@inline function kl_v(a: i32, b: i32, c: i32, d: i32, e: i32, i: i32): void {
 \trset_v(a, v128.xor(rget_v(a), i32x4.splat(load<i32>(SUBKEY_OFFSET + (4 * i + 0) * 4))))
@@ -267,7 +267,7 @@ for (let n = 0; n < 31; n++) {
   lines.push('')
 }
 
-lines.push('\t// Round 31 (final — no linear transform)')
+lines.push('\t// Round 31 (final, no linear transform)')
 lines.push(genFinalEncRound())
 lines.push('')
 lines.push('\tkeyXor_v(0, 1, 2, 3, 32) // K(32)')
@@ -278,7 +278,7 @@ lines.push('')
 
 lines.push('// ── Decrypt 4 blocks (v128) ─────────────────────────────────────────────────')
 lines.push('// Same interleaved layout as encrypt. Result in v128 registers.')
-lines.push('// Note: output registers are [4,1,3,2] not [0,1,2,3] — matches scalar decrypt.')
+lines.push('// Note: output registers are [4,1,3,2] not [0,1,2,3], matches scalar decrypt.')
 lines.push('export function decryptBlock_simd_4x(): void {')
 lines.push('\tkeyXor_v(0, 1, 2, 3, 32) // K(32)')
 lines.push('')
@@ -290,10 +290,10 @@ for (let n = 0; n < 31; n++) {
   lines.push('')
 }
 
-lines.push('\t// Round 31 (final — no inverse linear transform)')
+lines.push('\t// Round 31 (final, no inverse linear transform)')
 lines.push(genFinalDecRound())
 lines.push('')
-lines.push('\t// K(0): final key XOR — slots (2,3,1,4), NOT (0,1,2,3)')
+lines.push('\t// K(0): final key XOR, slots (2,3,1,4), NOT (0,1,2,3)')
 lines.push('\tkeyXor_v(2, 3, 1, 4, 0)')
 lines.push('}')
 

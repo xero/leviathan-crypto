@@ -21,7 +21,7 @@
 //
 // src/ts/chacha20/cipher-suite.ts
 //
-// XChaCha20Cipher — CipherSuite implementation for the STREAM construction.
+// XChaCha20Cipher, CipherSuite implementation for the STREAM construction.
 // HKDF-SHA-256 key derivation → HChaCha20 subkey → ChaCha20-Poly1305 per chunk.
 
 import { getInstance, _assertNotOwned } from '../init.js';
@@ -72,21 +72,21 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 	 * `masterKey` and `nonce` via HKDF-SHA-256 followed by HChaCha20 subkey
 	 * derivation. The full 20-byte preamble header is appended to the HKDF
 	 * info string, binding `formatEnum`, framed flag, nonce, and chunkSize
-	 * into the derived material — header tampering causes derived keys to
+	 * into the derived material, header tampering causes derived keys to
 	 * differ and AEAD fails on the first chunk.
 	 *
 	 * The 64-byte HKDF output is split: bytes 0..32 feed HChaCha20 subkey
 	 * derivation, bytes 32..64 are the key commitment that ends up in the
 	 * preamble. Verifying the commitment before any chunk is processed
-	 * closes the Invisible Salamanders attack surface — Poly1305 alone is
+	 * closes the Invisible Salamanders attack surface, Poly1305 alone is
 	 * not key-committing, so without this an adversary with control over
 	 * two master keys could craft a single ciphertext + tag that decrypts
 	 * validly under both.
 	 *
 	 * @param masterKey  32-byte master key
-	 * @param nonce      Stream nonce (16 bytes — also used as HChaCha20 input)
+	 * @param nonce      Stream nonce (16 bytes, also used as HChaCha20 input)
 	 * @param _kemCt     Unused for symmetric XChaCha20; KEM wrappers pass it through
-	 * @param header     20-byte preamble header — required (throws otherwise)
+	 * @param header     20-byte preamble header, required (throws otherwise)
 	 * @returns          `DerivedKeys` holding the 32-byte HChaCha20 subkey and 32-byte commitment
 	 */
 	deriveKeys(masterKey: Uint8Array, nonce: Uint8Array, _kemCt?: Uint8Array, header?: Uint8Array): DerivedKeys {
@@ -97,7 +97,7 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 		const hkdf = new HKDF_SHA256();
 		let okm: Uint8Array;
 		try {
-			// INFO || header — binds formatEnum, framed flag, nonce, chunkSize into the KDF.
+			// INFO || header, binds formatEnum, framed flag, nonce, chunkSize into the KDF.
 			// Any header tampering produces different keys, AEAD fails on the first chunk.
 			const info = concat(INFO, header);
 			okm = hkdf.derive(masterKey, nonce, info, 64);
@@ -108,7 +108,7 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 		// Bytes 0..32: streamKey for HChaCha20 subkey derivation.
 		// Bytes 32..64: key commitment for the seal preamble.
 		const streamKey  = okm.subarray(0, 32);
-		const commitment = okm.slice(32, 64);          // independent backing — survives okm wipe
+		const commitment = okm.slice(32, 64);          // independent backing, survives okm wipe
 
 		const x = getExports();
 		const subkey = deriveSubkey(x, streamKey, nonce);
@@ -145,7 +145,7 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 	/**
 	 * Verify and decrypt one stream chunk. Throws `AuthenticationError` on tag mismatch.
 	 * @param keys         Derived keys from `deriveKeys`
-	 * @param counterNonce 12-byte per-chunk nonce — must match the value used by `sealChunk`
+	 * @param counterNonce 12-byte per-chunk nonce, must match the value used by `sealChunk`
 	 * @param chunk        Ciphertext || 16-byte Poly1305 tag
 	 * @param aad          Optional additional authenticated data
 	 * @returns            Plaintext
@@ -186,7 +186,7 @@ export const XChaCha20Cipher: CipherSuite & { keygen(): Uint8Array } = {
 		// IIFE source is bundled at lib build time (scripts/embed-workers.ts).
 		// Avoids the syntactic `new Worker(new URL(..., import.meta.url))`
 		// pattern that triggers eager worker-chunk emission in Vite's
-		// transform hook (issue.md). Classic worker via blob URL —
+		// transform hook (issue.md). Classic worker via blob URL,
 		// module workers fail on file:// in Chromium (issue2.md).
 		const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' });
 		const url  = URL.createObjectURL(blob);

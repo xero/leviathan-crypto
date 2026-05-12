@@ -21,18 +21,18 @@
 //
 // src/ts/mldsa/keygen.ts
 //
-// FIPS 204 §6.1 Algorithm 6 — ML-DSA.KeyGen_internal.
+// FIPS 204 §6.1 Algorithm 6, ML-DSA.KeyGen_internal.
 // Implements the deterministic xi-seeded key generator used by both the
 // public keygen() (random ξ) and keygenDerand(ξ) entry points. Output is
 // (pk, sk) byte-encoded per Algorithms 22 (pkEncode) and 24 (skEncode).
 //
 // Slot map (matrix slot + 6 polyvec slots):
-//   MATRIX_SLOT      Â (matrix, k×ℓ polynomials in NTT domain — public)
-//   POLYVEC_SLOT_0   s₁ (time domain — preserved for skEncode bit_pack)
-//   POLYVEC_SLOT_1   s₂ (time domain — preserved for skEncode bit_pack)
+//   MATRIX_SLOT      Â (matrix, k×ℓ polynomials in NTT domain, public)
+//   POLYVEC_SLOT_0   s₁ (time domain, preserved for skEncode bit_pack)
+//   POLYVEC_SLOT_1   s₂ (time domain, preserved for skEncode bit_pack)
 //   POLYVEC_SLOT_2   t = NTT⁻¹(Â · ŝ₁) + s₂  (intermediate, secret-derived)
-//   POLYVEC_SLOT_3   t₁ (high bits of t — public, encoded into pk)
-//   POLYVEC_SLOT_4   t₀ (low bits of t — secret, encoded into sk)
+//   POLYVEC_SLOT_3   t₁ (high bits of t, public, encoded into pk)
+//   POLYVEC_SLOT_4   t₀ (low bits of t, secret, encoded into sk)
 //   POLYVEC_SLOT_5   ŝ₁ (NTT-domain Montgomery-form copy of s₁; consumed by
 //                       the matrix product, then wiped). Time-domain s₁
 //                       must survive in slot 0 for the sk BitPack step.
@@ -47,7 +47,7 @@ import { shake256HashConcat } from './sha3-helpers.js';
 import { expandA, expandS } from './expand.js';
 
 const POLY_BYTES = 1024;
-const D          = 13;             // FIPS 204 §4 Table 1 — d=13 for all sets
+const D          = 13;             // FIPS 204 §4 Table 1, d=13 for all sets
 
 // Bitlen helper. bitlen(n) = floor(log2(n)) + 1 for n > 0. For ML-DSA we
 // only ever feed it positive n, so the n=0 branch is a defensive return.
@@ -61,7 +61,7 @@ function bitlen(n: number): number {
 }
 
 /**
- * ML-DSA.KeyGen_internal — FIPS 204 Algorithm 6.
+ * ML-DSA.KeyGen_internal, FIPS 204 Algorithm 6.
  *
  * Input  ξ (32 bytes): the keygen seed. Produced internally by `keygen()`
  *                      via `randomBytes(32)`, or supplied by `keygenDerand`.
@@ -69,7 +69,7 @@ function bitlen(n: number): number {
  *
  * Wipe contract on return: every WASM region that held a secret or
  * secret-derived intermediate is zeroed. Public regions (matrix Â, t₁,
- * pk, ρ) are deliberately not wiped — they can be re-derived from the
+ * pk, ρ) are deliberately not wiped, they can be re-derived from the
  * returned pk/sk anyway. The caller is expected to wipe the local ξ
  * buffer it allocated; this function does not own that buffer.
  */
@@ -115,7 +115,7 @@ export function mldsaKeygenInternal(
 		// ── Step 1: H(ξ ‖ k_byte ‖ ℓ_byte, 1024 bits) → ρ‖ρ′‖K ─────────
 		// FIPS 204 §6.1 Algorithm 6 line 1. The k/ℓ domain-separator bytes
 		// are the post-IPD addition (FIPS 204 §D.3) defending against
-		// cross-parameter-set seed reuse — IntegerToBytes(k,1) and
+		// cross-parameter-set seed reuse, IntegerToBytes(k,1) and
 		// IntegerToBytes(ℓ,1).
 		const kByte = new Uint8Array([k & 0xFF]);
 		const lByte = new Uint8Array([l & 0xFF]);
@@ -147,13 +147,13 @@ export function mldsaKeygenInternal(
 		//   (a) Copy s₁ → ŝ₁-slot. Time-domain s₁ in slot_0 must survive
 		//       for the BitPack step in skEncode (Algorithm 24); the
 		//       NTT/tomont/multiply chain destroys its argument.
-		//   (b) NTT(ŝ₁) in place — regular form.
+		//   (b) NTT(ŝ₁) in place, regular form.
 		//   (c) tomont(ŝ₁): each coefficient ×R so that the subsequent
 		//       pointwise_montgomery's R⁻¹ leaves a regular-form product.
 		//   (d) Matrix-vector product Â·ŝ₁ → polyvec_slot_2.
 		//   (e) NTT⁻¹ in place → time-domain Â·s₁.
 		//   (f) Add s₂ coefficient-wise.
-		//   (g) Reduce + caddq so coefficients are canonical [0, q-1] —
+		//   (g) Reduce + caddq so coefficients are canonical [0, q-1],
 		//       required by power2round (per phase 3 contract).
 		mlMem.copyWithin(s1NttOff, s1Off, s1Off + l * POLY_BYTES);
 		mx.polyvec_ntt(s1NttOff, l);
@@ -236,11 +236,11 @@ export function mldsaKeygenInternal(
 		const pk = mlMem.slice(pkOff, pkOff + pkBytes);
 		const sk = mlMem.slice(skOff, skOff + skBytes);
 
-		// ── Wipe scratch (FIPS 204 §3.6.3 — Intermediate Values) ──────
+		// ── Wipe scratch (FIPS 204 §3.6.3, Intermediate Values) ──────
 		// Every region that held secret or secret-derived bytes is
 		// zeroed. Public regions (ρ via SEED, pk, MATRIX_SLOT holding Â,
-		// POLYVEC_SLOT_3 holding t₁) we leave untouched — they are not
-		// secrets — but the SEED region also held ρ′ and K so it gets
+		// POLYVEC_SLOT_3 holding t₁) we leave untouched, they are not
+		// secrets, but the SEED region also held ρ′ and K so it gets
 		// wiped in full.
 		//
 		// Severity ranking:
@@ -248,7 +248,7 @@ export function mldsaKeygenInternal(
 		//     signing for deterministic per-message randomness). Highest
 		//     severity: ρ′ leak ⇒ recoverable signing key from ρ.
 		//   - SK_OFFSET holds the encoded sk; also long-lived, but the
-		//     caller already received this — no marginal disclosure
+		//     caller already received this, no marginal disclosure
 		//     beyond keeping it in memory longer than needed.
 		//   - POLYVEC_SLOT_0/1/4 held s₁, s₂, t₀ (full secret-key state).
 		//   - POLYVEC_SLOT_2 held t (secret-derived; t₀ exposes low bits).
@@ -272,7 +272,7 @@ export function mldsaKeygenInternal(
 
 		return { verificationKey: pk, signingKey: sk };
 	} finally {
-		// TS-side scratch — wipe even on early throw.
+		// TS-side scratch, wipe even on early throw.
 		if (seed128)  wipe(seed128);
 		if (rho)      wipe(rho);
 		if (rhoPrime) wipe(rhoPrime);

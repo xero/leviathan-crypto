@@ -23,7 +23,7 @@
 /**
  * Generate Fortuna pluggable-primitive KAT vectors.
  *
- * SELF-GENERATED — no external authority for these wire formats. Generated with
+ * SELF-GENERATED, no external authority for these wire formats. Generated with
  * a deterministic entropy seed and msPerReseed: 0, then independently verified
  * against the underlying primitives. Vectors serve as regression trip-wires for
  * Fortuna's pluggable-primitive output stability.
@@ -92,7 +92,7 @@ for (const combo of combinations) {
 	const firstGet32 = hex(f.get(32));
 	f.stop();
 
-	// Independent cross-verification — recompute the expected genKey and
+	// Independent cross-verification, recompute the expected genKey and
 	// firstGet32 directly from the underlying primitives, without going through
 	// Fortuna. This converts the script from snapshot-writer to snapshot+verifier
 	// so the SELF-VERIFIED label is honest. The construction follows
@@ -115,9 +115,9 @@ for (const combo of combinations) {
 	const expectedFirstGet32 = combo.generator.generate(expectedGenKey, counter, 32);
 
 	if (hex(expectedGenKey) !== genKeyAfterCreate)
-		throw new Error(`${combo.name}: genKey mismatch — implementation diverges from primitive composition`);
+		throw new Error(`${combo.name}: genKey mismatch, implementation diverges from primitive composition`);
 	if (hex(expectedFirstGet32) !== firstGet32)
-		throw new Error(`${combo.name}: firstGet32 mismatch — implementation diverges from primitive composition`);
+		throw new Error(`${combo.name}: firstGet32 mismatch, implementation diverges from primitive composition`);
 
 	records.push({
 		exportName: combo.exportName,
@@ -157,7 +157,7 @@ const asciiHeader = `//                  ▄▄▄▄▄▄▄▄▄▄
 //
 // Fortuna pluggable-primitive KAT vectors.
 //
-// SELF-GENERATED — no external authority for these wire formats. Generated with
+// SELF-GENERATED, no external authority for these wire formats. Generated with
 // a deterministic entropy seed and msPerReseed: 0, then independently verified
 // against the underlying primitives. Vectors serve as regression trip-wires for
 // Fortuna's pluggable-primitive output stability.

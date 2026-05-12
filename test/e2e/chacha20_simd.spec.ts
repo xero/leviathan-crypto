@@ -19,7 +19,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// ChaCha20 SIMD e2e — 4-wide inter-block SIMD in browser WASM runtimes.
+// ChaCha20 SIMD e2e, 4-wide inter-block SIMD in browser WASM runtimes.
 // Verifies chachaEncryptChunk_simd produces byte-identical output to the
 // scalar chachaEncryptChunk for three representative input sizes:
 //   - 114 bytes: scalar tail only (RFC 8439 §2.4.2 plaintext length)
@@ -65,8 +65,8 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(INIT);
 });
 
-// 114 bytes — scalar tail only (< 256)
-test('SIMD ChaCha20 — 114 bytes: SIMD === scalar', async ({ page }) => {
+// 114 bytes, scalar tail only (< 256)
+test('SIMD ChaCha20, 114 bytes: SIMD === scalar', async ({ page }) => {
 	const result = await page.evaluate(async ({ key, nonce }) => {
 		const pt = new Uint8Array(114).fill(0x41);
 		const scalar = (async () => {
@@ -84,8 +84,8 @@ test('SIMD ChaCha20 — 114 bytes: SIMD === scalar', async ({ page }) => {
 	expect(result.simd).toBe(result.scalar);
 });
 
-// 256 bytes — exactly 1 SIMD group
-test('SIMD ChaCha20 — 256 bytes: SIMD === scalar', async ({ page }) => {
+// 256 bytes, exactly 1 SIMD group
+test('SIMD ChaCha20, 256 bytes: SIMD === scalar', async ({ page }) => {
 	const result = await page.evaluate(async ({ key, nonce }) => {
 		const pt = new Uint8Array(256).fill(0x5a);
 		const scalar = async () => {
@@ -103,8 +103,8 @@ test('SIMD ChaCha20 — 256 bytes: SIMD === scalar', async ({ page }) => {
 	expect(result.simd).toBe(result.scalar);
 });
 
-// 320 bytes — 1 SIMD group + 1 scalar tail block
-test('SIMD ChaCha20 — 320 bytes: SIMD === scalar', async ({ page }) => {
+// 320 bytes, 1 SIMD group + 1 scalar tail block
+test('SIMD ChaCha20, 320 bytes: SIMD === scalar', async ({ page }) => {
 	const result = await page.evaluate(async ({ key, nonce }) => {
 		const pt = new Uint8Array(320).fill(0x7f);
 		const scalar = async () => {

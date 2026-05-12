@@ -141,7 +141,7 @@ pub fn check_preamble<'a>(
 
     if derived.commitment != pinned_commitment {
         return Err(format!(
-            "{label}: commitment mismatch — HKDF-SHA-256 bytes 32..64 do not match preamble"
+            "{label}: commitment mismatch, HKDF-SHA-256 bytes 32..64 do not match preamble"
         ));
     }
     log.push("  ✓ commitment matches HKDF(masterKey, nonce, INFO‖header, 64)[32:64]".to_string());
@@ -216,7 +216,7 @@ pub fn verify_sealstream(v: &SealStreamVector) -> (bool, Vec<String>) {
                           |  (check.header[19] as u32);
     if header_chunk_size != v.chunk_size {
         log.push(format!(
-            "  ✗ {}: chunkSize mismatch — header says {}, vector field says {}",
+            "  ✗ {}: chunkSize mismatch, header says {}, vector field says {}",
             v.name, header_chunk_size, v.chunk_size,
         ));
         return (false, log);
@@ -226,7 +226,7 @@ pub fn verify_sealstream(v: &SealStreamVector) -> (bool, Vec<String>) {
     let header_framed = (check.header[0] & 0x80) != 0;
     if header_framed != v.framed {
         log.push(format!(
-            "  ✗ {}: framed flag mismatch — header says {}, vector says {}",
+            "  ✗ {}: framed flag mismatch, header says {}, vector says {}",
             v.name, header_framed, v.framed,
         ));
         return (false, log);

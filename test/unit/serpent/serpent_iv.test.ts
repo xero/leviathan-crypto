@@ -20,12 +20,12 @@
 //                           ▀█████▀▀
 //
 /**
- * Intermediate value tests — Serpent AES submission
+ * Intermediate value tests, Serpent AES submission
  *
  * Source: AES candidate submission, Ross Anderson / Eli Biham / Lars Knudsen
  * File:   vectors/serpent_ecb_iv.txt (3 key-size cases)
  *
- * GATE 2 — must pass before non-gate Serpent tests.
+ * GATE 2, must pass before non-gate Serpent tests.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
@@ -48,7 +48,7 @@ function extractSubkeyHex(subkeyBuf: Uint8Array, i: number): string {
 	return w2h(x3) + w2h(x2) + w2h(x1) + w2h(x0);
 }
 
-describe('Intermediate values — serpent_ecb_iv.txt key schedule (Gate 2)', () => {
+describe('Intermediate values, serpent_ecb_iv.txt key schedule (Gate 2)', () => {
 	const cases = parseIvFile('serpent_ecb_iv.txt');
 
 	it('parses 3 key-size cases', () => {

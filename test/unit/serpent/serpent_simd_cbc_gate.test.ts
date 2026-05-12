@@ -78,7 +78,7 @@ function roundTrip(ptLen: number): void {
 	const pt = new Uint8Array(ptLen);
 	for (let i = 0; i < ptLen; i++) pt[i] = (i * 7 + 13) & 0xFF;
 
-	// Encrypt (scalar — no SIMD encrypt exists)
+	// Encrypt (scalar, no SIMD encrypt exists)
 	loadKeyAndIv(wasm);
 	mem.set(pt, ptOff);
 	wasm.cbcEncryptChunk(ptLen);
@@ -108,28 +108,28 @@ beforeAll(async () => {
 
 describe('SIMD CBC decrypt gate', () => {
 	// GATE: Serpent SIMD CBC decrypt: byte-identical to scalar
-	it('4 blocks (64 bytes) — exercises SIMD inner loop only', () => {
+	it('4 blocks (64 bytes), exercises SIMD inner loop only', () => {
 		roundTrip(64);
 	});
 
-	it('5 blocks (80 bytes) — exercises SIMD loop + scalar tail', () => {
+	it('5 blocks (80 bytes), exercises SIMD loop + scalar tail', () => {
 		roundTrip(80);
 	});
 
-	it('1 block (16 bytes) — scalar tail only', () => {
+	it('1 block (16 bytes), scalar tail only', () => {
 		roundTrip(16);
 	});
 
-	it('8 blocks (128 bytes) — two SIMD iterations', () => {
+	it('8 blocks (128 bytes), two SIMD iterations', () => {
 		roundTrip(128);
 	});
 
-	it('7 blocks (112 bytes) — one SIMD iteration + 3-block tail', () => {
+	it('7 blocks (112 bytes), one SIMD iteration + 3-block tail', () => {
 		roundTrip(112);
 	});
 });
 
-describe('SIMD CBC decrypt chaining continuity — multi-call', () => {
+describe('SIMD CBC decrypt chaining continuity, multi-call', () => {
 	it('3 × CHUNK_SIZE decrypt: SIMD matches scalar across chunk boundaries', () => {
 		const wasm = getWasm();
 		const mem = new Uint8Array(wasm.memory.buffer);

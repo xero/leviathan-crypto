@@ -56,8 +56,8 @@ beforeAll(async () => {
 
 // ── sha3 module ─────────────────────────────────────────────────────────────
 
-describe('exclusivity — sha3', () => {
-	test('two sequential SHAKE128 with dispose between — succeeds', () => {
+describe('exclusivity, sha3', () => {
+	test('two sequential SHAKE128 with dispose between, succeeds', () => {
 		const a = new SHAKE128();
 		a.dispose();
 		const b = new SHAKE128();
@@ -65,19 +65,19 @@ describe('exclusivity — sha3', () => {
 		expect(_isModuleBusy('sha3')).toBe(false);
 	});
 
-	test('two SHAKE128 without dispose — second throws mentioning sha3', () => {
+	test('two SHAKE128 without dispose, second throws mentioning sha3', () => {
 		const a = new SHAKE128();
 		expect(() => new SHAKE128()).toThrow(/sha3/);
 		a.dispose();
 	});
 
-	test('SHAKE128 + SHAKE256 without dispose — second throws', () => {
+	test('SHAKE128 + SHAKE256 without dispose, second throws', () => {
 		const a = new SHAKE128();
 		expect(() => new SHAKE256()).toThrow(/sha3/);
 		a.dispose();
 	});
 
-	test('SHAKE128 + atomic SHA3_256 — atomic construction throws', () => {
+	test('SHAKE128 + atomic SHA3_256, atomic construction throws', () => {
 		const a = new SHAKE128();
 		expect(() => new SHA3_256()).toThrow(/sha3/);
 		a.dispose();
@@ -93,7 +93,7 @@ describe('exclusivity — sha3', () => {
 		a.dispose();
 	});
 
-	test('idempotent dispose — second dispose does not throw', () => {
+	test('idempotent dispose, second dispose does not throw', () => {
 		const a = new SHAKE128();
 		a.dispose();
 		expect(() => a.dispose()).not.toThrow();
@@ -139,8 +139,8 @@ describe('exclusivity — sha3', () => {
 
 // ── chacha20 module ─────────────────────────────────────────────────────────
 
-describe('exclusivity — chacha20', () => {
-	test('two sequential ChaCha20 with dispose between — succeeds', () => {
+describe('exclusivity, chacha20', () => {
+	test('two sequential ChaCha20 with dispose between, succeeds', () => {
 		const a = new ChaCha20();
 		a.dispose();
 		const b = new ChaCha20();
@@ -148,31 +148,31 @@ describe('exclusivity — chacha20', () => {
 		expect(_isModuleBusy('chacha20')).toBe(false);
 	});
 
-	test('two ChaCha20 without dispose — second throws mentioning chacha20', () => {
+	test('two ChaCha20 without dispose, second throws mentioning chacha20', () => {
 		const a = new ChaCha20();
 		expect(() => new ChaCha20()).toThrow(/chacha20/);
 		a.dispose();
 	});
 
-	test('ChaCha20 + atomic Poly1305 — atomic construction throws', () => {
+	test('ChaCha20 + atomic Poly1305, atomic construction throws', () => {
 		const a = new ChaCha20();
 		expect(() => new Poly1305()).toThrow(/chacha20/);
 		a.dispose();
 	});
 
-	test('ChaCha20 + atomic ChaCha20Poly1305 — atomic construction throws', () => {
+	test('ChaCha20 + atomic ChaCha20Poly1305, atomic construction throws', () => {
 		const a = new ChaCha20();
 		expect(() => new ChaCha20Poly1305()).toThrow(/chacha20/);
 		a.dispose();
 	});
 
-	test('ChaCha20 + atomic XChaCha20Poly1305 — atomic construction throws', () => {
+	test('ChaCha20 + atomic XChaCha20Poly1305, atomic construction throws', () => {
 		const a = new ChaCha20();
 		expect(() => new XChaCha20Poly1305()).toThrow(/chacha20/);
 		a.dispose();
 	});
 
-	test('idempotent dispose — second dispose does not throw', () => {
+	test('idempotent dispose, second dispose does not throw', () => {
 		const a = new ChaCha20();
 		a.dispose();
 		expect(() => a.dispose()).not.toThrow();
@@ -182,8 +182,8 @@ describe('exclusivity — chacha20', () => {
 
 // ── serpent module ──────────────────────────────────────────────────────────
 
-describe('exclusivity — serpent', () => {
-	test('two sequential SerpentCtr with dispose between — succeeds', () => {
+describe('exclusivity, serpent', () => {
+	test('two sequential SerpentCtr with dispose between, succeeds', () => {
 		const a = new SerpentCtr({ dangerUnauthenticated: true });
 		a.dispose();
 		const b = new SerpentCtr({ dangerUnauthenticated: true });
@@ -191,25 +191,25 @@ describe('exclusivity — serpent', () => {
 		expect(_isModuleBusy('serpent')).toBe(false);
 	});
 
-	test('two SerpentCtr without dispose — second throws mentioning serpent', () => {
+	test('two SerpentCtr without dispose, second throws mentioning serpent', () => {
 		const a = new SerpentCtr({ dangerUnauthenticated: true });
 		expect(() => new SerpentCtr({ dangerUnauthenticated: true })).toThrow(/serpent/);
 		a.dispose();
 	});
 
-	test('two SerpentCbc without dispose — second throws mentioning serpent', () => {
+	test('two SerpentCbc without dispose, second throws mentioning serpent', () => {
 		const a = new SerpentCbc({ dangerUnauthenticated: true });
 		expect(() => new SerpentCbc({ dangerUnauthenticated: true })).toThrow(/serpent/);
 		a.dispose();
 	});
 
-	test('SerpentCtr + SerpentCbc — second throws mentioning serpent', () => {
+	test('SerpentCtr + SerpentCbc, second throws mentioning serpent', () => {
 		const a = new SerpentCtr({ dangerUnauthenticated: true });
 		expect(() => new SerpentCbc({ dangerUnauthenticated: true })).toThrow(/serpent/);
 		a.dispose();
 	});
 
-	test('SerpentCtr + atomic Serpent (block) — atomic construction throws', () => {
+	test('SerpentCtr + atomic Serpent (block), atomic construction throws', () => {
 		const a = new SerpentCtr({ dangerUnauthenticated: true });
 		expect(() => new Serpent()).toThrow(/serpent/);
 		a.dispose();
@@ -224,7 +224,7 @@ describe('exclusivity — serpent', () => {
 		a.dispose();
 	});
 
-	test('idempotent dispose — second dispose does not throw', () => {
+	test('idempotent dispose, second dispose does not throw', () => {
 		const a = new SerpentCtr({ dangerUnauthenticated: true });
 		a.dispose();
 		expect(() => a.dispose()).not.toThrow();
@@ -234,7 +234,7 @@ describe('exclusivity — serpent', () => {
 
 // ── cross-module independence ───────────────────────────────────────────────
 
-describe('exclusivity — cross-module independence', () => {
+describe('exclusivity, cross-module independence', () => {
 	test('SHAKE128 does not block ChaCha20', () => {
 		const s = new SHAKE128();
 		const c = new ChaCha20();
@@ -283,7 +283,7 @@ describe('shared-state clobber reproducer', () => {
 
 // ── post-dispose guards ─────────────────────────────────────────────────────
 
-describe('post-dispose — SHAKE128', () => {
+describe('post-dispose, SHAKE128', () => {
 	test('absorb after dispose throws', () => {
 		const s = new SHAKE128();
 		s.dispose();
@@ -309,7 +309,7 @@ describe('post-dispose — SHAKE128', () => {
 	});
 });
 
-describe('post-dispose — SHAKE256', () => {
+describe('post-dispose, SHAKE256', () => {
 	test('absorb after dispose throws', () => {
 		const s = new SHAKE256();
 		s.dispose();
@@ -335,7 +335,7 @@ describe('post-dispose — SHAKE256', () => {
 	});
 });
 
-describe('post-dispose — ChaCha20', () => {
+describe('post-dispose, ChaCha20', () => {
 	test('beginEncrypt after dispose throws', () => {
 		const c = new ChaCha20();
 		c.dispose();
@@ -351,7 +351,7 @@ describe('post-dispose — ChaCha20', () => {
 	});
 });
 
-describe('post-dispose — SerpentCtr', () => {
+describe('post-dispose, SerpentCtr', () => {
 	test('beginEncrypt after dispose throws', () => {
 		const s = new SerpentCtr({ dangerUnauthenticated: true });
 		s.dispose();
@@ -367,7 +367,7 @@ describe('post-dispose — SerpentCtr', () => {
 	});
 });
 
-describe('post-dispose — SerpentCbc', () => {
+describe('post-dispose, SerpentCbc', () => {
 	test('encrypt after dispose throws', () => {
 		const s = new SerpentCbc({ dangerUnauthenticated: true });
 		s.dispose();
@@ -383,7 +383,7 @@ describe('post-dispose — SerpentCbc', () => {
 	});
 });
 
-describe('post-dispose — regression: disposed call does not clobber new instance', () => {
+describe('post-dispose, regression: disposed call does not clobber new instance', () => {
 	test('SHAKE128 disposed+new+old-call: old throws, new output uncorrupted', () => {
 		const a = new SHAKE128();
 		a.absorb(enc('A'));
@@ -402,10 +402,10 @@ describe('post-dispose — regression: disposed call does not clobber new instan
 	});
 });
 
-// ── kyber exclusivity — SHAKE ↔ MlKem interleave ────────────────────────────
+// ── kyber exclusivity, SHAKE ↔ MlKem interleave ────────────────────────────
 
-describe('exclusivity — kyber ↔ sha3', () => {
-	test('SHAKE128 live blocks MlKem768.keygen() — assertNotOwned(sha3)', () => {
+describe('exclusivity, kyber ↔ sha3', () => {
+	test('SHAKE128 live blocks MlKem768.keygen(), assertNotOwned(sha3)', () => {
 		const s = new SHAKE128();
 		const m = new MlKem768();
 		try {
@@ -463,7 +463,7 @@ describe('exclusivity — kyber ↔ sha3', () => {
 	test('MlKem768 atomic ops do not hold the sha3 token across calls', () => {
 		const m = new MlKem768();
 		m.keygen();
-		// After the atomic call returns, sha3 must be unowned — a fresh SHAKE128
+		// After the atomic call returns, sha3 must be unowned, a fresh SHAKE128
 		// must construct without throwing.
 		expect(_isModuleBusy('sha3')).toBe(false);
 		const s = new SHAKE128();

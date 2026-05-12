@@ -42,10 +42,10 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 export async function decodeWasm(b64: string): Promise<Uint8Array> {
 	if (typeof DecompressionStream === 'undefined')
 		throw new Error(
-			'leviathan-crypto: DecompressionStream not available — '
+			'leviathan-crypto: DecompressionStream not available, '
 			+ 'use a URL, ArrayBuffer, or WebAssembly.Module source in this runtime',
 		);
-	// _b64 throws RangeError on invalid base64 — no nullish check required.
+	// _b64 throws RangeError on invalid base64, no nullish check required.
 	const compressed = _b64(b64);
 	const ds = new DecompressionStream('gzip');
 	const writer = ds.writable.getWriter();
@@ -68,7 +68,7 @@ export async function decodeWasm(b64: string): Promise<Uint8Array> {
 // Max thenable nesting depth. A caller can pass `Promise<Response>` or even
 // `Promise<Promise<Response>>` (e.g. deferred fetch wrapped in another async
 // layer), but arbitrary `Promise<Promise<Promise<...>>>` chains would indicate
-// a caller bug — cap at 3 levels and throw a clear error beyond that.
+// a caller bug, cap at 3 levels and throw a clear error beyond that.
 const MAX_THENABLE_DEPTH = 3;
 
 /**
@@ -84,7 +84,7 @@ export async function compileWasm(source: WasmSource, depth = 0): Promise<WebAss
 	if (depth > MAX_THENABLE_DEPTH)
 		throw new TypeError(`leviathan-crypto: thenable nesting too deep (max ${MAX_THENABLE_DEPTH})`);
 	if (typeof source === 'string') {
-		if (source.length === 0) throw new TypeError('leviathan-crypto: invalid WasmSource — empty string');
+		if (source.length === 0) throw new TypeError('leviathan-crypto: invalid WasmSource, empty string');
 		return WebAssembly.compile(toArrayBuffer(await decodeWasm(source)));
 	}
 	if (source instanceof URL)
@@ -102,13 +102,13 @@ export async function compileWasm(source: WasmSource, depth = 0): Promise<WebAss
 		return compileWasm(resolved as WasmSource, depth + 1);
 	}
 	throw new TypeError(
-		`leviathan-crypto: invalid WasmSource — got ${source === null ? 'null' : typeof source}`,
+		`leviathan-crypto: invalid WasmSource, got ${source === null ? 'null' : typeof source}`,
 	);
 }
 
 /**
  * Load a WASM module from any accepted source type.
- * The loading strategy is inferred from the argument type — no mode string.
+ * The loading strategy is inferred from the argument type, no mode string.
  *
  * Throws `TypeError` for null, numeric, or unrecognised inputs, or if a
  * thenable source nests deeper than `MAX_THENABLE_DEPTH`.

@@ -20,13 +20,13 @@
 //                           ▀█████▀▀
 //
 /**
- * KyberSuite — commitmentSize forwarding and end-to-end commitment round-trip.
+ * KyberSuite, commitmentSize forwarding and end-to-end commitment round-trip.
  *
  * KyberSuite wraps a KEM around an inner symmetric CipherSuite. Salamander
  * mitigation is provided by the inner cipher (via commitmentSize > 0); the
  * wrapper just forwards. KEM-bound HKDF info already includes kemCt, so
  * for KyberSuite + XChaCha20 the commitment indirectly depends on kemCt
- * too — multi-recipient KEM envelopes get salamander resistance for free.
+ * too, multi-recipient KEM envelopes get salamander resistance for free.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, randomBytes } from '../../../src/ts/index.js';
@@ -55,7 +55,7 @@ beforeAll(async () => {
 	});
 });
 
-describe('KyberSuite — commitmentSize forwarding', () => {
+describe('KyberSuite, commitmentSize forwarding', () => {
 	it('KyberSuite(MlKem768, XChaCha20Cipher).commitmentSize === 32', () => {
 		const kem = new MlKem768();
 		try {
@@ -145,7 +145,7 @@ describe('KyberSuite — commitmentSize forwarding', () => {
 	});
 });
 
-describe('KyberSuite + XChaCha20 — commitment round-trip', () => {
+describe('KyberSuite + XChaCha20, commitment round-trip', () => {
 	it('Seal.encrypt produces a blob whose preamble carries the inner commitment, decrypt verifies', () => {
 		const kem = new MlKem768();
 		try {
@@ -218,7 +218,7 @@ describe('KyberSuite + XChaCha20 — commitment round-trip', () => {
 	});
 });
 
-describe('KyberSuite + AES-GCM-SIV — commitment round-trip', () => {
+describe('KyberSuite + AES-GCM-SIV, commitment round-trip', () => {
 	it('Seal.encrypt produces a blob whose preamble carries the inner commitment, decrypt verifies', () => {
 		const kem = new MlKem768();
 		try {

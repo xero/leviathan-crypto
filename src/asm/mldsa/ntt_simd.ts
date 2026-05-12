@@ -21,11 +21,11 @@
 //
 // src/asm/mldsa/ntt_simd.ts
 //
-// ML-DSA — SIMD NTT and inverse NTT using WASM v128 with i32x4 lanes.
+// ML-DSA, SIMD NTT and inverse NTT using WASM v128 with i32x4 lanes.
 // FIPS 204 Algorithms 41 (NTT) and 42 (NTT⁻¹), vectorised.
 //
 // SIMD lane discipline: ML-DSA coefficients are i32 (q ≈ 2²³ does not fit i16),
-// so each v128 carries 4 coefficients — half the lane count of Kyber's i16x8.
+// so each v128 carries 4 coefficients, half the lane count of Kyber's i16x8.
 // 4 contiguous butterflies fit a v128 only when len ≥ 4 (group size ≥ 8).
 // Smaller layers (len = 2, 1) reuse the scalar fqmul/barrett_reduce because
 // the per-butterfly twiddle factors don't share lanes inside a vector.
@@ -42,9 +42,9 @@ import { getZetasOffset } from './ntt';
 // 4× Montgomery multiplication: returns (a · b · 2⁻³²) mod q lane-wise.
 //
 // FIPS 204 Algorithm 49, vectorised:
-//   c    = a × b              — full i64 product, 4 lanes split across 2 v128
-//   t    = (c mod 2³²) · QINV — low 32 bits per lane via i32x4.mul
-//   r    = (c − t·q) >> 32    — high 32 bits of the divisible-by-2³² value
+//   c    = a × b             , full i64 product, 4 lanes split across 2 v128
+//   t    = (c mod 2³²) · QINV, low 32 bits per lane via i32x4.mul
+//   r    = (c − t·q) >> 32   , high 32 bits of the divisible-by-2³² value
 //
 // Lane packing: i64x2.shr_s(_, 32) places the desired i32 result in the LOW
 // 32 bits of each i64 lane (with sign-extended zeros / ones in the high half
@@ -52,14 +52,14 @@ import { getZetasOffset } from './ntt';
 // of two i64x2 vectors and packs them into one i32x4.
 @inline
 export function fqmul_4x(a: v128, b: v128): v128 {
-	// p = a * b — full signed i64 products, low pair and high pair of lanes.
+	// p = a * b, full signed i64 products, low pair and high pair of lanes.
 	const p_lo: v128 = i64x2.extmul_low_i32x4_s(a, b);
 	const p_hi: v128 = i64x2.extmul_high_i32x4_s(a, b);
 
-	// (c mod 2³²) per lane — i32x4.mul gives the low 32 bits of each product.
+	// (c mod 2³²) per lane, i32x4.mul gives the low 32 bits of each product.
 	const p_mod32: v128 = i32x4.mul(a, b);
 
-	// t = ((c mod 2³²) · QINV) mod 2³² — closed in i32 by the ring property
+	// t = ((c mod 2³²) · QINV) mod 2³², closed in i32 by the ring property
 	// of multiplication mod 2³². i32x4.mul is exactly that.
 	const qinv_v: v128 = i32x4.splat(QINV);
 	const t:      v128 = i32x4.mul(p_mod32, qinv_v);
@@ -69,7 +69,7 @@ export function fqmul_4x(a: v128, b: v128): v128 {
 	const tq_lo: v128 = i64x2.extmul_low_i32x4_s(t, q_v);
 	const tq_hi: v128 = i64x2.extmul_high_i32x4_s(t, q_v);
 
-	// r = (p − t·q) >> 32 — exact division because p ≡ t·q (mod 2³²).
+	// r = (p − t·q) >> 32, exact division because p ≡ t·q (mod 2³²).
 	const r_lo: v128 = i64x2.shr_s(i64x2.sub(p_lo, tq_lo), 32);
 	const r_hi: v128 = i64x2.shr_s(i64x2.sub(p_hi, tq_hi), 32);
 
@@ -87,16 +87,16 @@ export function fqmul_4x(a: v128, b: v128): v128 {
 	);
 }
 
-// ── ntt_simd — FIPS 204 Algorithm 41, vectorised ───────────────────────────
+// ── ntt_simd, FIPS 204 Algorithm 41, vectorised ───────────────────────────
 //
-// SIMD layers: len = 128, 64, 32, 16, 8, 4 — 4 butterflies per v128 step.
-// Scalar tail: len = 2, 1 — two layers where the twiddle differs per pair.
+// SIMD layers: len = 128, 64, 32, 16, 8, 4, 4 butterflies per v128 step.
+// Scalar tail: len = 2, 1, two layers where the twiddle differs per pair.
 export function ntt_simd(polyOffset: i32): void {
 	const zetasPtr: i32 = getZetasOffset();
 	let m: i32 = 0;
 	let len: i32 = 128;
 
-	// SIMD layers — group size ≥ 8.
+	// SIMD layers, group size ≥ 8.
 	while (len >= 4) {
 		let start: i32 = 0;
 		while (start < 256) {
@@ -120,7 +120,7 @@ export function ntt_simd(polyOffset: i32): void {
 		len >>= 1;
 	}
 
-	// Scalar tail — len = 2, 1.
+	// Scalar tail, len = 2, 1.
 	while (len >= 1) {
 		let start: i32 = 0;
 		while (start < 256) {
@@ -139,17 +139,17 @@ export function ntt_simd(polyOffset: i32): void {
 	}
 }
 
-// ── invntt_simd — FIPS 204 Algorithm 42, vectorised ────────────────────────
+// ── invntt_simd, FIPS 204 Algorithm 42, vectorised ────────────────────────
 //
-// Scalar head: len = 1, 2 — two layers below the v128 grouping threshold.
-// SIMD layers: len = 4, 8, 16, 32, 64, 128 — 4 butterflies per v128 step.
+// Scalar head: len = 1, 2, two layers below the v128 grouping threshold.
+// SIMD layers: len = 4, 8, 16, 32, 64, 128, 4 butterflies per v128 step.
 // Final scalar 256⁻¹ multiplication is fused into a SIMD pass at the end.
 export function invntt_simd(polyOffset: i32): void {
 	const zetasPtr: i32 = getZetasOffset();
 	let m: i32 = 256;
 	let len: i32 = 1;
 
-	// Scalar head — len = 1, 2.
+	// Scalar head, len = 1, 2.
 	while (len < 4) {
 		let start: i32 = 0;
 		while (start < 256) {
@@ -167,7 +167,7 @@ export function invntt_simd(polyOffset: i32): void {
 		len <<= 1;
 	}
 
-	// SIMD layers — len = 4, 8, 16, 32, 64, 128.
+	// SIMD layers, len = 4, 8, 16, 32, 64, 128.
 	while (len < 256) {
 		let start: i32 = 0;
 		while (start < 256) {
@@ -228,7 +228,7 @@ export function barrett_reduce_4x(a: v128): v128 {
 		24, 25, 26, 27,
 	);
 
-	// r = a − t·q (i32x4-safe: |t| ≪ 2¹⁰ and q ≈ 2²³, product < 2³³ — but
+	// r = a − t·q (i32x4-safe: |t| ≪ 2¹⁰ and q ≈ 2²³, product < 2³³, but
 	// since t ≈ a/q with |a| ≤ 2³¹ we have |t·q| ≤ |a| + q so r stays i32).
 	let r: v128 = i32x4.sub(a, i32x4.mul(t, q_v));
 

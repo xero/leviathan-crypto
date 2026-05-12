@@ -100,16 +100,16 @@ describe('_resetForTesting clears all state', () => {
 		expect(_isModuleBusy('sha3')).toBe(true);
 		_resetForTesting();
 		expect(_isModuleBusy('sha3')).toBe(false);
-		// h is now a zombie reference — do not call methods on it.
+		// h is now a zombie reference, do not call methods on it.
 		// Re-init and re-use succeeds cleanly.
 		await init({ sha3: sha3Wasm });
 		const h2 = new SHAKE128();
 		h2.dispose();
-		// Deliberately avoid touching `h` — its token points to a reset registry.
+		// Deliberately avoid touching `h`, its token points to a reset registry.
 		void h;
 	});
 
-	test('clears pending map — subsequent init re-populates', async () => {
+	test('clears pending map, subsequent init re-populates', async () => {
 		const p = initModule('serpent', serpentWasm);
 		// If pending is leaked past reset, a subsequent init while the promise
 		// is still unresolved would be a silent no-op. Wait for resolution

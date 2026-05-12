@@ -30,12 +30,12 @@
  * its `finally` block so neither persists across the op boundary.
  *
  * PH_M itself is M-derived (M is public input), so the wipe is
- * discipline rather than secrecy — but the discipline is uniform across
+ * discipline rather than secrecy, but the discipline is uniform across
  * modules: every public mldsa op that touches a module leaves that
  * module wiped, with a regression test gating the contract. This file
  * is the sha2-side counterpart of `sha3-scratch-wipe.test.ts`.
  *
- * GATE: ML-DSA cross-module SHA-2 wipe — confirms HashML-DSA SHA-2
+ * GATE: ML-DSA cross-module SHA-2 wipe, confirms HashML-DSA SHA-2
  * pre-hash leaves no PH_M / message-block residue in the sha2 module.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -50,7 +50,7 @@ beforeAll(async () => {
 	await init({ mldsa: mldsaWasm, sha3: sha3Wasm, sha2: sha2Wasm });
 });
 
-// sha2 buffer layout — src/asm/sha2/buffers.ts
+// sha2 buffer layout, src/asm/sha2/buffers.ts
 const SHA2_BUFFER_END   = 1976;  // HMAC512_INNER_OFFSET (1912) + 64
 const SHA256_H_OFFSET   = 0;
 const SHA256_BLOCK_OFF  = 32;
@@ -84,7 +84,7 @@ const KEYGEN_SEED = new Uint8Array(32);
 
 describe('sha2 scratch wiped after every HashML-DSA op with a SHA-2 prehash', () => {
 	// One signHash test per SHA-2 prehash. The choice of paramSet is
-	// independent — sha2 buffers are paramSet-invariant. Stick with
+	// independent, sha2 buffers are paramSet-invariant. Stick with
 	// MlDsa44 to keep keygen fast.
 
 	it('signHash(SHA2-224) → sha2 STATE/INPUT/OUT zero', () => {
@@ -153,7 +153,7 @@ describe('sha2 scratch wiped after every HashML-DSA op with a SHA-2 prehash', ()
 		}
 	});
 
-	// verifyHash success path — the wipe must fire on the return-true branch.
+	// verifyHash success path, the wipe must fire on the return-true branch.
 	it('verifyHash(SHA2-512) success path → sha2 STATE/INPUT/OUT zero', () => {
 		const dsa = new MlDsa44();
 		try {
@@ -167,7 +167,7 @@ describe('sha2 scratch wiped after every HashML-DSA op with a SHA-2 prehash', ()
 		}
 	});
 
-	// verifyHash failure path — wipe must fire on return-false too.
+	// verifyHash failure path, wipe must fire on return-false too.
 	// Tampered c̃ in σ → cTilde compare fails → verify returns false.
 	it('verifyHash(SHA2-256) failure path → sha2 STATE/INPUT/OUT zero', () => {
 		const dsa = new MlDsa44();
@@ -228,7 +228,7 @@ describe('sha2 scratch wiped after every HashML-DSA op with a SHA-2 prehash', ()
 
 	// Inverse-discipline check: signHash with a SHA-3 / SHAKE prehash MUST
 	// NOT touch sha2 buffers. The optional-sha2 design says we only wipe
-	// the modules we used — pre-existing sha2 state from an unrelated op
+	// the modules we used, pre-existing sha2 state from an unrelated op
 	// (a prior HMAC, say) is the caller's to manage, not ours to clobber.
 	it('signHash(SHAKE128) does NOT touch sha2 buffers (sentinel preserved)', () => {
 		const dsa = new MlDsa44();
@@ -241,7 +241,7 @@ describe('sha2 scratch wiped after every HashML-DSA op with a SHA-2 prehash', ()
 			mem.fill(sentinel, SHA512_OUT_OFF,   SHA512_OUT_OFF   + 64);
 			mem.fill(sentinel, SHA512_INPUT_OFF, SHA512_INPUT_OFF + 128);
 			dsa.signHash(signingKey, new Uint8Array([30, 31]), 'SHAKE128');
-			// Sentinel must be preserved — sha2 was not used, not wiped.
+			// Sentinel must be preserved, sha2 was not used, not wiped.
 			for (let i = 0; i < 32;  i++) expect(mem[SHA256_OUT_OFF   + i]).toBe(sentinel);
 			for (let i = 0; i < 64;  i++) expect(mem[SHA256_INPUT_OFF + i]).toBe(sentinel);
 			for (let i = 0; i < 64;  i++) expect(mem[SHA512_OUT_OFF   + i]).toBe(sentinel);

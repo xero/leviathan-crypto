@@ -21,7 +21,7 @@
 //
 // src/ts/stream/types.ts
 //
-// CipherSuite interface — cipher-specific logic injected into SealStream
+// CipherSuite interface, cipher-specific logic injected into SealStream
 // and OpenStream. Implementations are plain objects (not classes).
 
 export interface DerivedKeys {

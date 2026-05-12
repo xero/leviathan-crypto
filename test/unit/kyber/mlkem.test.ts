@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * ML-KEM ACVP validation suite — FIPS 203
+ * ML-KEM ACVP validation suite, FIPS 203
  *
  * Source: NIST ACVP ML-KEM-keyGen-FIPS203, ML-KEM-encapDecap-FIPS203
  * Files:  vectors/kyber.ts (keygen, encap, decap_val, key_check vectors for 512/768/1024)
@@ -61,7 +61,7 @@ import type { KyberParams } from '../../../src/ts/kyber/params.js';
 
 // GATE: ML-KEM init system: FIPS 203 ML-KEM-768
 
-describe('Gate 0 — init system wiring', () => {
+describe('Gate 0, init system wiring', () => {
 	beforeAll(async () => {
 		_resetForTesting();
 		const kyberBytes = readFileSync(join(__dirname, '../../../build/kyber.wasm'));
@@ -104,7 +104,7 @@ beforeAll(async () => {
 // GATE: ML-KEM-768 IND-CPA keygen: NIST ACVP ML-KEM-keyGen-FIPS203
 // Vector: kyber_keygen.ts[ml_kem_768_keygen[0]]
 
-describe('Gate 1 — IND-CPA keygen ML-KEM-768', () => {
+describe('Gate 1, IND-CPA keygen ML-KEM-768', () => {
 	it.each(ml_kem_768_keygen)('tcId=$tcId', ({ tcId: _tcId, d, z, ek, dk }) => {
 		const dBytes = fromHex(d);
 		const zBytes = fromHex(z);
@@ -130,7 +130,7 @@ describe('Gate 1 — IND-CPA keygen ML-KEM-768', () => {
 // GATE: ML-KEM IND-CPA keygen all param sets: NIST ACVP ML-KEM-keyGen-FIPS203
 // Vector: kyber_keygen.ts[ml_kem_512_keygen[0]]
 
-describe('Gate 2 — IND-CPA keygen all param sets', () => {
+describe('Gate 2, IND-CPA keygen all param sets', () => {
 	function runKeygen(vectors: typeof ml_kem_512_keygen, params: KyberParams) {
 		it.each(vectors)('tcId=$tcId', ({ tcId: _tcId, d, z, ek, dk }) => {
 			const dBytes = fromHex(d);
@@ -166,7 +166,7 @@ describe('Gate 2 — IND-CPA keygen all param sets', () => {
 // GATE: ML-KEM encapsulation all param sets: NIST ACVP ML-KEM-encapDecap-FIPS203
 // Vector: kyber_encapdecap.ts[ml_kem_512_encap[0]]
 
-describe('Gate 3 — Encapsulation all param sets', () => {
+describe('Gate 3, Encapsulation all param sets', () => {
 	function runEncap(vectors: typeof ml_kem_512_encap, params: KyberParams) {
 		it.each(vectors)('tcId=$tcId', ({ tcId: _tcId, ek, c, k, m }) => {
 			const ekBytes = fromHex(ek);
@@ -195,7 +195,7 @@ describe('Gate 3 — Encapsulation all param sets', () => {
 // GATE: ML-KEM valid decapsulation: NIST ACVP ML-KEM-encapDecap-FIPS203
 // Vector: kyber_encapdecap.ts[ml_kem_512_decap_val[0]]
 
-describe('Gate 4 — Decapsulation valid', () => {
+describe('Gate 4, Decapsulation valid', () => {
 	function runDecapValid(vectors: typeof ml_kem_512_decap_val, params: KyberParams) {
 		const valid = vectors.filter(v => v.reason === 'valid decapsulation');
 		it.each(valid)('tcId=$tcId', ({ tcId: _tcId, dk, c, k }) => {
@@ -223,7 +223,7 @@ describe('Gate 4 — Decapsulation valid', () => {
 // GATE: ML-KEM implicit rejection: NIST ACVP ML-KEM-encapDecap-FIPS203
 // Vector: kyber_encapdecap.ts[ml_kem_512_decap_val[0]]
 
-describe('Gate 5 — Decapsulation implicit rejection', () => {
+describe('Gate 5, Decapsulation implicit rejection', () => {
 	function runDecapReject(vectors: typeof ml_kem_512_decap_val, params: KyberParams) {
 		const modified = vectors.filter(v => v.reason === 'modified ciphertext');
 		it.each(modified)('tcId=$tcId', ({ tcId: _tcId, dk, c, k }) => {
@@ -252,7 +252,7 @@ describe('Gate 5 — Decapsulation implicit rejection', () => {
 // GATE: ML-KEM encapsulation key validation: NIST ACVP ML-KEM-encapDecap-FIPS203
 // Vector: kyber_encapdecap.ts[ml_kem_512_encap_key_check[0]]
 
-describe('Gate 6 — Encapsulation key validation', () => {
+describe('Gate 6, Encapsulation key validation', () => {
 	function runEncapKeyCheck(vectors: typeof ml_kem_512_encap_key_check, params: KyberParams) {
 		it.each(vectors)('tcId=$tcId testPassed=$testPassed', ({ tcId: _tcId, testPassed, ek }) => {
 			const ekBytes = fromHex(ek);
@@ -275,7 +275,7 @@ describe('Gate 6 — Encapsulation key validation', () => {
 // GATE: ML-KEM decapsulation key validation: NIST ACVP ML-KEM-encapDecap-FIPS203
 // Vector: kyber_encapdecap.ts[ml_kem_512_decap_key_check[0]]
 
-describe('Gate 7 — Decapsulation key validation', () => {
+describe('Gate 7, Decapsulation key validation', () => {
 	function runDecapKeyCheck(vectors: typeof ml_kem_512_decap_key_check, params: KyberParams) {
 		it.each(vectors)('tcId=$tcId testPassed=$testPassed', ({ tcId: _tcId, testPassed, dk }) => {
 			const dkBytes = fromHex(dk);
@@ -297,7 +297,7 @@ describe('Gate 7 — Decapsulation key validation', () => {
 
 // GATE: ML-KEM round-trip property: deterministic keygen/encap/decap
 
-describe('Gate 8 — Round-trip property', () => {
+describe('Gate 8, Round-trip property', () => {
 	function runRoundTrip(params: KyberParams, label: string) {
 		describe(label, () => {
 			// Use deterministic seeds derived from iteration index
@@ -329,7 +329,7 @@ describe('Gate 8 — Round-trip property', () => {
 
 // GATE: ML-KEM implicit rejection property: flip one ciphertext byte
 
-describe('Gate 9 — Implicit rejection property', () => {
+describe('Gate 9, Implicit rejection property', () => {
 	function runRejection(params: KyberParams, label: string) {
 		describe(label, () => {
 			for (let i = 0; i < 5; i++) {
@@ -370,7 +370,7 @@ describe('Gate 9 — Implicit rejection property', () => {
  * Return a copy of ek with coefficient 0 of the first polynomial set to `coeff`.
  * Preserves coefficient 1 (and the rest of the ek). The 12-bit value `coeff`
  * is packed as: byte0 = coeff & 0xFF; byte1 low nibble = (coeff >> 8) & 0x0F.
- * byte1 high nibble is coefficient 1's low 4 bits — left untouched.
+ * byte1 high nibble is coefficient 1's low 4 bits, left untouched.
  */
 function patchCoeff0(ek: Uint8Array, coeff: number): Uint8Array {
 	if (coeff < 0 || coeff > 0xFFF) throw new Error('coeff out of 12-bit range');
@@ -380,7 +380,7 @@ function patchCoeff0(ek: Uint8Array, coeff: number): Uint8Array {
 	return out;
 }
 
-describe('FIPS 203 §7.2 — encapsulate auto-validates ek', () => {
+describe('FIPS 203 §7.2, encapsulate auto-validates ek', () => {
 	beforeAll(async () => {
 		_resetForTesting();
 		const kyberBytes = readFileSync(join(__dirname, '../../../build/kyber.wasm'));
@@ -439,7 +439,7 @@ describe('FIPS 203 §7.2 — encapsulate auto-validates ek', () => {
 		expect(() => kem.encapsulate(bad)).toThrow(/FIPS 203 §7\.2/);
 	});
 
-	it('boundary: coeff=Q-1 (3328) accepted — strict < check', () => {
+	it('boundary: coeff=Q-1 (3328) accepted, strict < check', () => {
 		const kem = new MlKem768();
 		const { encapsulationKey: ek, decapsulationKey: dk } = kem.keygen();
 		const patched = patchCoeff0(ek, 3328);
@@ -448,12 +448,12 @@ describe('FIPS 203 §7.2 — encapsulate auto-validates ek', () => {
 		// validates the ek, and encapsulate must succeed without throwing.
 		expect(kem.checkEncapsulationKey(patched)).toBe(true);
 		expect(() => kem.encapsulate(patched)).not.toThrow();
-		// unused variable silenced — dk is only needed for a round-trip which
+		// unused variable silenced, dk is only needed for a round-trip which
 		// this boundary test intentionally does not exercise.
 		void dk;
 	});
 
-	it('boundary: coeff=4095 (max 12-bit) rejected — upper bound sanity', () => {
+	it('boundary: coeff=4095 (max 12-bit) rejected, upper bound sanity', () => {
 		const kem = new MlKem768();
 		const { encapsulationKey: ek } = kem.keygen();
 		const bad = patchCoeff0(ek, 4095);
@@ -506,7 +506,7 @@ describe('FIPS 203 §7.2 — encapsulate auto-validates ek', () => {
 	});
 });
 
-describe('FIPS 203 §7.3 — decapsulate auto-validates dk', () => {
+describe('FIPS 203 §7.3, decapsulate auto-validates dk', () => {
 	beforeAll(async () => {
 		_resetForTesting();
 		const kyberBytes = readFileSync(join(__dirname, '../../../build/kyber.wasm'));
@@ -522,8 +522,8 @@ describe('FIPS 203 §7.3 — decapsulate auto-validates dk', () => {
 		expect(toHex(K1)).toBe(toHex(K2));
 	});
 
-	it('invalid dk (ACVP §7.3 failure vector — modified H) → decapsulate throws with §7.3 message', () => {
-		// "modified H" = embedded H(ek) no longer matches — §7.3 reject. dk length is correct.
+	it('invalid dk (ACVP §7.3 failure vector, modified H) → decapsulate throws with §7.3 message', () => {
+		// "modified H" = embedded H(ek) no longer matches, §7.3 reject. dk length is correct.
 		const bad = ml_kem_768_decap_key_check.find(
 			v => !v.testPassed && v.dk.length / 2 === MLKEM768.dkBytes,
 		);

@@ -57,11 +57,11 @@ const RFC_PT    = new TextEncoder().encode(TV.ptText!);
 const RFC_CT    = fromHex(TV.ct);
 const RFC_TAG   = fromHex(TV.tag);
 
-describe('ChaCha20-Poly1305 AEAD — RFC 8439', () => {
+describe('ChaCha20-Poly1305 AEAD, RFC 8439', () => {
 
 	// GATE: ChaCha20-Poly1305 AEAD: RFC 8439 §2.8.2
 	// Vector: chacha20.ts[chacha20Poly1305Vectors[0]]
-	it('encrypt — RFC 8439 §2.8.2 sunscreen vector', () => {
+	it('encrypt, RFC 8439 §2.8.2 sunscreen vector', () => {
 		const aead   = new ChaCha20Poly1305();
 		const sealed = aead.encrypt(RFC_KEY, RFC_NONCE, RFC_PT, RFC_AAD);
 		expect(toHex(sealed.slice(0, -16))).toBe(toHex(RFC_CT));
@@ -69,7 +69,7 @@ describe('ChaCha20-Poly1305 AEAD — RFC 8439', () => {
 		aead.dispose();
 	});
 
-	it('decrypt — RFC 8439 §2.8.2 sunscreen vector recovers plaintext', () => {
+	it('decrypt, RFC 8439 §2.8.2 sunscreen vector recovers plaintext', () => {
 		const aead = new ChaCha20Poly1305();
 		const combined = new Uint8Array(RFC_CT.length + 16);
 		combined.set(RFC_CT);
@@ -241,7 +241,7 @@ describe('ChaCha20-Poly1305 AEAD — RFC 8439', () => {
 		aead2.dispose();
 	});
 
-	// Input validation — strict single-use: each encrypt() attempt locks the
+	// Input validation, strict single-use: each encrypt() attempt locks the
 	// instance, so each length probe needs a fresh AEAD.
 	it('throws RangeError for non-32-byte key', () => {
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
@@ -286,7 +286,7 @@ describe('ChaCha20-Poly1305 AEAD — RFC 8439', () => {
 
 // ── Return type unification ─────────────────────────────────────────────────
 
-describe('ChaCha20Poly1305 — return type', () => {
+describe('ChaCha20Poly1305, return type', () => {
 	it('encrypt() returns Uint8Array', () => {
 		const aead   = new ChaCha20Poly1305();
 		const key    = crypto.getRandomValues(new Uint8Array(32));
@@ -322,7 +322,7 @@ describe('ChaCha20Poly1305 — return type', () => {
 
 	it('output layout is ciphertext || tag (not tag || ciphertext)', () => {
 		// Encrypt with ChaCha20Poly1305, manually verify the last 16 bytes are tag
-		// by also computing via raw ops — the RFC vector has known ct and tag
+		// by also computing via raw ops, the RFC vector has known ct and tag
 		const aead   = new ChaCha20Poly1305();
 		const sealed = aead.encrypt(RFC_KEY, RFC_NONCE, RFC_PT, RFC_AAD);
 		// sealed = RFC_CT(114 bytes) || RFC_TAG(16 bytes)
@@ -335,7 +335,7 @@ describe('ChaCha20Poly1305 — return type', () => {
 
 // ── Single-use encrypt guard ────────────────────────────────────────────────
 
-describe('ChaCha20Poly1305 — single-use encrypt guard', () => {
+describe('ChaCha20Poly1305, single-use encrypt guard', () => {
 	it('encrypt() once succeeds and returns Uint8Array', () => {
 		const aead   = new ChaCha20Poly1305();
 		const key    = crypto.getRandomValues(new Uint8Array(32));
@@ -393,12 +393,12 @@ describe('ChaCha20Poly1305 — single-use encrypt guard', () => {
 
 // ── ops.ts behavioural check ────────────────────────────────────────────────
 
-describe('aeadEncrypt — behavioural regression after chachaLoadKey dedup', () => {
-	// Direct call to the raw `aeadEncrypt` function from ops.ts — bypasses the
+describe('aeadEncrypt, behavioural regression after chachaLoadKey dedup', () => {
+	// Direct call to the raw `aeadEncrypt` function from ops.ts, bypasses the
 	// class wrapper's single-use guard and exercises the exact call sequence
 	// that drops the redundant second `chachaLoadKey()` after
 	// `chachaSetCounter(1)`. Byte-exact match against RFC 8439 §2.8.2 proves
-	// the dedup is equivalent — `chachaGenPolyKey` only mutates the counter
+	// the dedup is equivalent, `chachaGenPolyKey` only mutates the counter
 	// word of CHACHA_STATE, so `chachaSetCounter(1)` alone restores state
 	// for encryption without re-loading the key.
 	it('produces RFC 8439 §2.8.2 ciphertext || tag after the redundant chachaLoadKey removal', () => {
@@ -411,7 +411,7 @@ describe('aeadEncrypt — behavioural regression after chachaLoadKey dedup', () 
 
 // ── Wipe-before-throw ───────────────────────────────────────────────────────
 
-describe('ChaCha20Poly1305 — wipe-before-throw', () => {
+describe('ChaCha20Poly1305, wipe-before-throw', () => {
 	it('WASM chunk output buffer is zeroed after auth failure', () => {
 		const key   = crypto.getRandomValues(new Uint8Array(32));
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
@@ -449,10 +449,10 @@ describe('ChaCha20Poly1305 — wipe-before-throw', () => {
 // `encrypt`/`decrypt`: after a successful AEAD call, the chacha20 module's
 // key buffer reads as zeros, ensuring the caller's key does not persist in
 // WASM linear memory after the public method returns. Mirrors the AES Gate
-// 17g (`aes_gcm_siv_open.test.ts`) shape — a sentinel key is staged in JS,
+// 17g (`aes_gcm_siv_open.test.ts`) shape, a sentinel key is staged in JS,
 // the call runs to completion, and KEY_OFFSET / POLY_KEY_OFFSET are read
 // directly from `x.memory.buffer` and asserted zero.
-describe('ChaCha20Poly1305 — wipe-after-return', () => {
+describe('ChaCha20Poly1305, wipe-after-return', () => {
 	it('encrypt: KEY and POLY_KEY regions are zero after a successful call', () => {
 		const key   = new Uint8Array(32).fill(0x42);   // distinctive sentinel
 		const nonce = crypto.getRandomValues(new Uint8Array(12));

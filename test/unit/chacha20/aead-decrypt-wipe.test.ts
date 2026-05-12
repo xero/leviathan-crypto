@@ -55,7 +55,7 @@ function regionIsZero(mem: Uint8Array, off: number, len: number): boolean {
 	return true;
 }
 
-describe('ChaCha20Poly1305.decrypt — auth failure wipes WASM state', () => {
+describe('ChaCha20Poly1305.decrypt, auth failure wipes WASM state', () => {
 	it('CHUNK_CT region is zero after auth failure (regression)', () => {
 		const enc = new ChaCha20Poly1305();
 		const key = crypto.getRandomValues(new Uint8Array(32));

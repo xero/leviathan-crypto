@@ -21,9 +21,9 @@
 //
 // test/unit/aes/aes_gcm_open.test.ts
 //
-// Gate 14 — AESGCM open direction. NIST CAVP GCMVS decrypt files contain
+// Gate 14, AESGCM open direction. NIST CAVP GCMVS decrypt files contain
 // both passing vectors (PT field present) and FAIL vectors (no PT, marked
-// FAIL — tag/CT/AAD/IV/key tampered) for each (Keylen, IVlen, PTlen,
+// FAIL, tag/CT/AAD/IV/key tampered) for each (Keylen, IVlen, PTlen,
 // AADlen, Taglen) section. We exercise both:
 //
 //   - Passing vectors decrypt correctly to the published PT.
@@ -53,7 +53,7 @@ for (const file of [
 	const passing = allVectors.filter(v => !v.fail);
 	const failing = allVectors.filter(v =>  v.fail);
 
-	describe(`AESGCM open (Gate 14) — GCMVS ${file}`, () => {
+	describe(`AESGCM open (Gate 14), GCMVS ${file}`, () => {
 		// GATE: passing vectors decrypt to the published PT.
 		it(`${passing.length} 128-bit-tag passing vectors decrypt correctly`, () => {
 			const aes = new AESGCM();
@@ -78,7 +78,7 @@ for (const file of [
 			}
 		});
 
-		// GATE: FAIL vectors all throw — none silently produce plaintext.
+		// GATE: FAIL vectors all throw, none silently produce plaintext.
 		// This is the most security-critical gate in the entire phase. A
 		// single FAIL vector that returns plaintext means GCM authentication
 		// is broken.

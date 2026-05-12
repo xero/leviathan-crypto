@@ -21,7 +21,7 @@
 //
 // src/asm/serpent/buffers.ts
 //
-// Serpent module — static buffer layout.
+// Serpent module, static buffer layout.
 // Independent linear memory starting at offset 0.
 //
 // Total: 131856 bytes < 3 × 64KB = 196608 (64752 bytes spare).
