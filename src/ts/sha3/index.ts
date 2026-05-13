@@ -373,6 +373,114 @@ export class SHAKE256 {
 	}
 }
 
+// ── SHA3_256Stream ──────────────────────────────────────────────────────────
+
+/**
+ * Incremental SHA3-256. Construct, `update()` chunks (any size), `finalize()`
+ * to get the 32-byte digest. Finalize disposes the instance.
+ *
+ * Holds exclusive access to the `sha3` WASM module from construction until
+ * `dispose()` or `finalize()`. Mirrors SHAKE128 lifecycle.
+ */
+export class SHA3_256Stream {
+	private readonly x: Sha3Exports;
+	private _tok: symbol | undefined;
+
+	constructor() {
+		this.x = getExports();
+		this._tok = _acquireModule('sha3');
+		try {
+			this.x.sha3_256Init();
+		} catch (e) {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+			throw e;
+		}
+	}
+
+	update(chunk: Uint8Array): this {
+		if (this._tok === undefined)
+			throw new Error('SHA3_256Stream: instance has been disposed');
+		absorb(this.x, chunk);
+		return this;
+	}
+
+	finalize(): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SHA3_256Stream: instance has been disposed');
+		this.x.sha3_256Final();
+		const mem = new Uint8Array(this.x.memory.buffer);
+		const off = this.x.getOutOffset();
+		const out = mem.slice(off, off + 32);
+		this.dispose();
+		return out;
+	}
+
+	dispose(): void {
+		if (this._tok === undefined) return;
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+		}
+	}
+}
+
+// ── SHA3_512Stream ──────────────────────────────────────────────────────────
+
+/**
+ * Incremental SHA3-512. Construct, `update()` chunks (any size), `finalize()`
+ * to get the 64-byte digest. Finalize disposes the instance.
+ *
+ * Holds exclusive access to the `sha3` WASM module from construction until
+ * `dispose()` or `finalize()`. Mirrors SHAKE128 lifecycle.
+ */
+export class SHA3_512Stream {
+	private readonly x: Sha3Exports;
+	private _tok: symbol | undefined;
+
+	constructor() {
+		this.x = getExports();
+		this._tok = _acquireModule('sha3');
+		try {
+			this.x.sha3_512Init();
+		} catch (e) {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+			throw e;
+		}
+	}
+
+	update(chunk: Uint8Array): this {
+		if (this._tok === undefined)
+			throw new Error('SHA3_512Stream: instance has been disposed');
+		absorb(this.x, chunk);
+		return this;
+	}
+
+	finalize(): Uint8Array {
+		if (this._tok === undefined)
+			throw new Error('SHA3_512Stream: instance has been disposed');
+		this.x.sha3_512Final();
+		const mem = new Uint8Array(this.x.memory.buffer);
+		const off = this.x.getOutOffset();
+		const out = mem.slice(off, off + 64);
+		this.dispose();
+		return out;
+	}
+
+	dispose(): void {
+		if (this._tok === undefined) return;
+		try {
+			this.x.wipeBuffers();
+		} finally {
+			_releaseModule('sha3', this._tok);
+			this._tok = undefined;
+		}
+	}
+}
+
 // ── SHA3_256Hash ────────────────────────────────────────────────────────────
 
 export { SHA3_256Hash } from './hash.js';

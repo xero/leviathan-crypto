@@ -310,6 +310,62 @@ SP 800-185 additions add no migration burden.
   callers (`init.ts`, `seal-stream-pool.ts`) and tests are unaffected
   (relative source imports, not the published `.d.ts`).
 
+### Added (Phase 1 signature work)
+
+- **`Sign`, `SignStream`, `VerifyStream`** under `src/ts/sign/`. `Sign` is the
+  single-shot envelope (`Sign.sign`, `Sign.verify`, `Sign.signDetached`,
+  `Sign.verifyDetached`, `Sign.peek`), structurally parallel to `Seal`.
+  `SignStream` and `VerifyStream` are the streaming counterparts; the wire
+  bytes produced by `SignStream.finalize` are byte-identical to `Sign.sign`
+  for the same `(suite, sk, msg, ctx)`, so production and consumption sides
+  can choose independently between in-memory and incremental.
+- **SignatureSuite abstraction.** `SignatureSuite` and the
+  `StreamableSignatureSuite` extension are the structural template for every
+  signature scheme the lib ships now and in the future, parallel to
+  `CipherSuite` in the seal layer. `PrehashAlgorithm` is the union of the six
+  prehash function identifiers used across the catalog. All three are
+  exported from the top-level barrel.
+- **Six ML-DSA-backed suite consts.** `MlDsa44Suite`, `MlDsa65Suite`, and
+  `MlDsa87Suite` (catalog bytes 0x03, 0x04, 0x05) cover pure ML-DSA across
+  NIST security categories 2/3/5. `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`,
+  and `MlDsa87PreHashSuite` (catalog bytes 0x13, 0x14, 0x15) cover the
+  HashML-DSA variants. Prehash choices: SHA3-256 for the 44 / 65 levels,
+  SHA3-512 for the 87 level. Every suite ships a built-in
+  `{scheme}-envelope-v3` (or `{scheme}-prehash-envelope-v3`) ctxDomain so
+  signatures cannot accidentally validate across suites even with identical
+  `(sk, msg, user_ctx)`.
+- **`SigningError`** class in `src/ts/errors.ts`. Discriminator-first
+  constructor mirroring `AuthenticationError`'s posture: 12 stable
+  discriminator strings span the suite layer (`sig-key-size`,
+  `sig-ctx-too-long`, `sig-malformed-input`), the envelope layer
+  (`sig-blob-too-short`, `sig-suite-unknown`, `sig-ctx-overflow`,
+  `sig-ctx-mismatch`, `verify-failed`), and the stream layer
+  (`sig-stream-finalized`, `sig-stream-disposed`, `sig-suite-mismatch`).
+- **`MlDsaBase` prehashed-input surface.** Four new methods accept a
+  precomputed prehash digest rather than re-hashing the message:
+  `signHashPrehashed`, `signHashPrehashedDeterministic`,
+  `signHashPrehashedDerand`, and `verifyHashPrehashed`. M' construction
+  (OID prefix plus ctx plus PH) is shared with the existing `signHash` /
+  `verifyHash`, only the digest source changes. `SignStream` and
+  `VerifyStream` build on these so a streamed prehash flow is byte-identical
+  to a single-shot one whose digest was computed externally.
+- **`SHA3_256Stream` and `SHA3_512Stream`** in the sha3 module. Incremental
+  SHA-3 over `update(chunk)` / `finalize()`, lifecycle modeled after
+  SHAKE128: `_acquireModule('sha3')` at construction, `_releaseModule` on
+  `finalize()` or `dispose()`, the same exclusivity guard that protects
+  SHAKE state. Required by `SignStream` for prehash suites; usable on their
+  own anywhere a fixed-output streamed SHA-3 digest is needed.
+- **`docs/signaturesuite.md`** spec doc parallel to `docs/ciphersuite.md`,
+  documenting the SignatureSuite interface, the 22-entry format-byte
+  catalog (with Phase 1 entries 0x03-0x05 and 0x13-0x15 live), the wire
+  format, the ctxDomain construction rules, and the error discriminator
+  table.
+- **`docs/phase-index.md`** tracking the seven-phase v3 signature roadmap.
+  Phase 1 marked complete; Phases 2 through 7 marked queued with their
+  owned files and dependencies.
+
+Migration: none. All additions, no breaking changes.
+
 ## v2.1.0
 
 ### Added

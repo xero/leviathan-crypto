@@ -185,6 +185,8 @@ await serpentInit(serpentWasm)
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })`, `'keccak'` is an alias for `'sha3'`. The SP 800-185 family (cSHAKE, KMAC, KMACXOF) shares the SHA-3 WASM slot. |
 | `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })`, both modules required |
 | `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`, both modules required (post-quantum digital signatures, FIPS 204) |
+| `Sign`, `SignStream`, `VerifyStream`, the six `MlDsa*Suite` / `MlDsa*PreHashSuite` consts | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`, the sign envelope and stream layers are SignatureSuite-driven and inherit the suite's module requirements. Phase 1 ships only ML-DSA-backed suites. |
+| `SHA3_256Stream`, `SHA3_512Stream` | `init({ sha3: sha3Wasm })`, incremental SHA-3 over `update` / `finalize`; required substrate for `SignStream` over prehash suites. |
 | `Fortuna` | `init(...)` with one cipher module (`aes`, `serpent`, or `chacha20`) plus one hash module (`sha2` or `sha3`). All six combinations are valid. |
 | `KDFChain`, `ratchetInit`, `ratchetReady`, `SkippedKeyStore` | `init({ sha2: sha2Wasm })` |
 | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })` |
@@ -544,6 +546,70 @@ Their hedged / deterministic / derand semantics are identical to `sign`
 > just `init({ mldsa, sha3 })`. Calling `signHash` / `verifyHash` with a
 > SHA-2 algorithm without sha2 initialized throws a clear error rather
 > than silently mis-signing.
+
+### Signature envelope and streaming (Sign / SignStream / VerifyStream)
+
+The v3 sign module wraps every signature scheme in a `SignatureSuite`
+object, parallel to how `CipherSuite` wraps cipher families. `Sign` is
+the single-shot envelope; `SignStream` / `VerifyStream` are the
+streaming counterparts. The wire bytes are identical regardless of
+which production path the sender chooses.
+
+```typescript
+import { init, Sign, MlDsa65Suite } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+
+const { pk, sk } = MlDsa65Suite.keygen()
+const msg = new TextEncoder().encode('release manifest v1.2.3')
+const ctx = new TextEncoder().encode('app:my-app:v1')
+
+const blob    = Sign.sign(MlDsa65Suite, sk, msg, ctx)
+const payload = Sign.verify(MlDsa65Suite, pk, blob, ctx)   // returns msg, throws on failure
+```
+
+Streaming (prehash suites only):
+
+```typescript
+import { init, SignStream, VerifyStream, MlDsa65PreHashSuite } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+
+const { pk, sk } = MlDsa65PreHashSuite.keygen()
+const ctx = new TextEncoder().encode('app:my-app:v1')
+
+const signer = new SignStream(MlDsa65PreHashSuite, sk, ctx)
+try {
+    signer.update(chunk0)
+    signer.update(chunk1)
+    const blob = signer.finalize()
+
+    const verifier = new VerifyStream(MlDsa65PreHashSuite, pk, ctx)
+    try {
+        verifier.update(blob.subarray(0, blob.length - MlDsa65PreHashSuite.sigSize))
+        // (in practice the wire bytes interleave envelope header + chunks + sig;
+        //  the producer splits them or VerifyStream consumes the whole blob)
+        const payload = verifier.finalize()
+    } finally {
+        verifier.dispose()
+    }
+} finally {
+    signer.dispose()
+}
+```
+
+Locked semantics for the v3 sign layer:
+
+- **`ctx` is required, never optional.** Pass `new Uint8Array()` for the empty case; the suite layer does not default it.
+- **Cross-suite domain separation is automatic.** Each suite ships a built-in `ctxDomain` string. A sig produced by `MlDsa65Suite` cannot accidentally verify under `MlDsa65PreHashSuite` even with identical inputs.
+- **Hedged signing by default.** ML-DSA suites route to FIPS 204 §3.4 hedged signing; deterministic and externally-randomized variants are not exposed on the suite, use the underlying `MlDsa*` class for those.
+- **`Sign.verify` returns the payload, throws on failure.** Catch `SigningError` (with the relevant `discriminator`), do not check for nulls. `Sign.verifyDetached` returns boolean for the raw-signature variant.
+- **`SignStream` holds the sha3 module exclusively** from construction until `finalize()` or `dispose()`. Wrap in `try` / `finally` and dispose unconditionally.
+- **Only `StreamableSignatureSuite` suites work with `SignStream` / `VerifyStream`.** Pure-mode suites (`MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`) are a TypeScript compile error when passed to a stream constructor; use `Sign.sign` for those.
 
 ### Fortuna CSPRNG
 

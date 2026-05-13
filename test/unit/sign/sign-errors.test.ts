@@ -19,56 +19,71 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// src/ts/errors.ts
+// test/unit/sign/sign-errors.test.ts
 //
-// Typed error classes for leviathan-crypto.
+// SigningError class unit tests, mirrors test/unit/errors.test.ts.
 
-/**
- * Thrown when AEAD authentication fails.
- *
- * `cipher` is the cipher name passed by the call site (e.g. `'serpent'`,
- * `'chacha20-poly1305'`, `'xchacha20-poly1305'`). The class appends
- * `': authentication failed'`, do not include that text in the cipher name.
- */
-export class AuthenticationError extends Error {
-	constructor(cipher: string) {
-		super(`${cipher}: authentication failed`);
-		this.name = 'AuthenticationError';
-		Object.setPrototypeOf(this, AuthenticationError.prototype);
-	}
-}
+import { describe, it, expect } from 'vitest';
+import { SigningError } from '../../../src/ts/errors.js';
 
-/**
- * Thrown on signing or verification contract violations and signature
- * failures within the v3 sign module.
- *
- * `discriminator` is a stable string identifier for the failure mode;
- * consumers may switch on it. Categories:
- *
- *   Suite layer (suite.sign / verify / signPrehashed / verifyPrehashed):
- *     'sig-key-size'             wrong sk or pk size for the suite
- *     'sig-ctx-too-long'         effective_ctx would exceed the FIPS 204 cap
- *     'sig-malformed-input'      primitive validation failure, e.g. wrong digest length
- *
- *   Envelope layer (Sign.sign / verify / signDetached / verifyDetached):
- *     'sig-blob-too-short'       Sign.verify input shorter than minimum
- *     'sig-suite-unknown'        suite_byte does not map to a known suite
- *     'sig-ctx-overflow'         wire ctx_len pushes past sig boundary
- *     'sig-ctx-mismatch'         caller ctx not equal to wire ctx
- *     'verify-failed'            suite.verify returned false during envelope verify
- *
- *   Stream layer (SignStream / VerifyStream):
- *     'sig-stream-finalized'     update() called after finalize()
- *     'sig-stream-disposed'      operation on disposed stream
- *     'sig-suite-mismatch'       wire suite_byte not equal to VerifyStream constructor suite
- */
-export class SigningError extends Error {
-	constructor(
-		public readonly discriminator: string,
-		message?: string,
-	) {
-		super(message ?? `leviathan-crypto SigningError: ${discriminator}`);
-		this.name = 'SigningError';
-		Object.setPrototypeOf(this, SigningError.prototype);
-	}
-}
+// sig-phase1.md §4 enumerates 11 discriminator strings (3 suite + 5 envelope
+// + 3 stream). TASK-A's DoD claims "12"; the spec listing is authoritative.
+const KNOWN_DISCRIMINATORS = [
+	// suite layer
+	'sig-key-size',
+	'sig-ctx-too-long',
+	'sig-malformed-input',
+	// envelope layer
+	'sig-blob-too-short',
+	'sig-suite-unknown',
+	'sig-ctx-overflow',
+	'sig-ctx-mismatch',
+	'verify-failed',
+	// stream layer
+	'sig-stream-finalized',
+	'sig-stream-disposed',
+	'sig-suite-mismatch',
+] as const;
+
+describe('SigningError', () => {
+	it('discriminator-only constructor auto-generates the message', () => {
+		const e = new SigningError('sig-key-size');
+		expect(e.message).toBe('leviathan-crypto SigningError: sig-key-size');
+	});
+
+	it('discriminator + custom message uses the custom message verbatim', () => {
+		const e = new SigningError('sig-ctx-too-long', 'user_ctx length 999 > 200');
+		expect(e.message).toBe('user_ctx length 999 > 200');
+	});
+
+	it('discriminator field is readable on the instance', () => {
+		const e = new SigningError('sig-malformed-input');
+		expect(e.discriminator).toBe('sig-malformed-input');
+	});
+
+	it('name === \'SigningError\'', () => {
+		expect(new SigningError('sig-key-size').name).toBe('SigningError');
+	});
+
+	it('instanceof Error is true', () => {
+		expect(new SigningError('verify-failed')).toBeInstanceOf(Error);
+	});
+
+	it('instanceof SigningError is true (verifies setPrototypeOf)', () => {
+		expect(new SigningError('verify-failed')).toBeInstanceOf(SigningError);
+	});
+
+	it('prototype chain is correct', () => {
+		const e = new SigningError('sig-suite-mismatch');
+		expect(Object.getPrototypeOf(e)).toBe(SigningError.prototype);
+	});
+
+	it('accepts every known discriminator string', () => {
+		for (const d of KNOWN_DISCRIMINATORS) {
+			const e = new SigningError(d);
+			expect(e.discriminator).toBe(d);
+			expect(e.name).toBe('SigningError');
+			expect(e).toBeInstanceOf(SigningError);
+		}
+	});
+});

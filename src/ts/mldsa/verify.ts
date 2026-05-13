@@ -54,6 +54,8 @@ import type { MlDsaParams } from './params.js';
 import { constantTimeEqual, wipe } from '../utils.js';
 import { sha3Absorb, shake256Hash, shake256HashConcat } from './sha3-helpers.js';
 import { expandA } from './expand.js';
+import { type PreHashAlgorithm, getOid } from './hashvariant.js';
+import { constructMPrimeHash } from './format.js';
 
 const POLY_BYTES    = 1024;
 const D             = 13;
@@ -265,5 +267,36 @@ export function mldsaVerifyInternal(
 		// SHA3 module: wipe state across op boundary, same convention as
 		// keygen / sign. Holds vk (public), tr (public), μ (public-derivable).
 		sx.wipeBuffers();
+	}
+}
+
+/**
+ * HashML-DSA verify, post-prehash. FIPS 204 §5.4 Algorithm 5 lines 17-19.
+ * Builds M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID(algo) ‖ prehash and drives
+ * Verify_internal.
+ *
+ * Same return / throw posture as `mldsaVerifyInternal`: returns a pure
+ * boolean for every signature outcome. Caller (in index.ts) is expected
+ * to have already filtered wrong-length vk / sig / digest with the
+ * appropriate verdict (false) before calling this helper.
+ *
+ * The caller owns `prehash`; this helper never wipes it.
+ */
+export function verifyWithPrehash(
+	mx:      MlDsaExports,
+	sx:      Sha3Exports,
+	params:  MlDsaParams,
+	vk:      Uint8Array,
+	prehash: Uint8Array,
+	sig:     Uint8Array,
+	algo:    PreHashAlgorithm,
+	ctx:     Uint8Array,
+): boolean {
+	const oid    = getOid(algo);
+	const MPrime = constructMPrimeHash(ctx, oid, prehash);
+	try {
+		return mldsaVerifyInternal(mx, sx, params, vk, MPrime, sig);
+	} finally {
+		wipe(MPrime);
 	}
 }

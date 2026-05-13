@@ -89,6 +89,10 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-mldsa.yml
 
+  unit-sign:
+    needs: [build]
+    uses: ./.github/workflows/unit-sign.yml
+
   suite-status:
     name: test-suite-status
     if: always()
@@ -111,6 +115,7 @@ jobs:
       - unit-aes-siv
       - unit-aes-mct
       - unit-mldsa
+      - unit-sign
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream results

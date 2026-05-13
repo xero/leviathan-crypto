@@ -79,6 +79,20 @@ The stateless AEADs (`ChaCha20Poly1305`, `XChaCha20Poly1305`) enforce strict sin
 
 `OpenStream.seek(index)` only moves forward. Backward seeks would reuse an already-consumed per-chunk counter nonce against a new ciphertext, permitting plaintext replay against a stale opener. The call throws rather than silently reusing the nonce.
 
+### Signature surface threat model
+
+The v3 sign module (`Sign`, `SignStream`, `VerifyStream`, and the six ML-DSA SignatureSuite consts) is built on the same disciplines that protect the seal layer: required-customization construction, constant-time comparison on attacker-supplied bytes, wipe-on-failure, and runtime exclusivity guards on shared WASM state.
+
+**Cross-suite domain separation via `ctxDomain`.** Every SignatureSuite carries a built-in `{scheme}-envelope-v3` (or `{scheme}-prehash-envelope-v3`) string. The suite wraps the caller's user_ctx into an effective ctx of the form `lengthPrefix(suite.ctxDomain) || lengthPrefix(user_ctx)` before handing the ctx to the underlying primitive. A signature produced under `MlDsa65Suite` cannot accidentally validate against `MlDsa65PreHashSuite` even with identical `(sk, msg, user_ctx)`, the M' transcripts differ at the very first bytes. The factory enforces `ctxDomain ≤ 32 bytes`; per-call `user_ctx ≤ 200 bytes` throws `SigningError('sig-ctx-too-long')`. The 200-byte cap, plus length prefixes, plus the 32-byte ctxDomain ceiling, keep the combined effective ctx inside the FIPS 204 255-byte limit with margin.
+
+**Hedged signing by default.** The ML-DSA suites route `suite.sign` to `MlDsaBase.sign`, the FIPS 204 §3.4 recommended hedged variant: a fresh 32-byte `rnd` is sampled per call from `crypto.getRandomValues`, so two signatures over the same `(sk, msg, ctx)` differ. Hedged signing remains unforgeable under fault attacks that bias the rejection-sampling stream, the failure mode that deterministic ML-DSA is vulnerable to. The deterministic and externally-randomized (CAVP-style) variants live on the underlying primitive, not on the suite; suites do not expose them.
+
+**Constant-time ctx comparison in the envelope and stream parsers.** `Sign.verify` and `VerifyStream` compare the caller-supplied ctx against the wire-format ctx via `constantTimeEqual` from `src/ts/utils.ts`, never `===` on `Uint8Array`. A wrong ctx and a wrong signature are indistinguishable to a timing observer.
+
+**Wipe hygiene across both stream classes.** `SignStream` holds the SHA3-256 / SHA3-512 running prehash; `finalize()` and `dispose()` zero the hasher state via the underlying `SHA3_*Stream.dispose()` wipe. `VerifyStream` additionally buffers payload chunks for the post-finalize length-known verify pass; on auth failure inside `finalize()` the collected chunks are wiped before the `SigningError` propagates, so partial payload bytes never leak through a thrown error path. Caller-owned signing keys, verification keys, and messages are not wiped by the lib, those remain the caller's responsibility under the same memory-hygiene contract that applies to AEAD keys.
+
+**Concurrency posture for Phase 1.** `SignStream` and `VerifyStream` hold an exclusive ownership token on the `sha3` WASM module from construction until `finalize()` or `dispose()`. Concurrent use of `Sign.sign` on a prehash suite during a live `SignStream`, or vice versa, throws the same `_acquireModule` exclusivity error that protects SHAKE128 from clobber. Phase 1 supports single-threaded use only; concurrent multi-signer use cases ship in later phases when the underlying primitive offers worker-pool variants.
+
 ### Dependency management
 
 This library has zero runtime dependencies by design. `sideEffects: false` is enforced in `package.json`. Argon2id integration is documented as an _optional_ external dependency. See: [leviathan-crypto/wiki/argon2id](https://github.com/xero/leviathan-crypto/wiki/argon2id).

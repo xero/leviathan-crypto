@@ -246,6 +246,42 @@ These are decisions already made. Do not relitigate them without raising it firs
 - **Single-use encrypt guards**: `SealStream.finalize()`, `SealStreamPool.seal()`,
   `ChaCha20Poly1305.encrypt()`, and `XChaCha20Poly1305.encrypt()` can only be
   called once per instance. This prevents nonce reuse.
+- **Per-call WASM lifecycle in SignatureSuite factories**: suite consts under
+  `src/ts/sign/suites/` instantiate the underlying primitive class per call,
+  use it inside a `try`, and `dispose()` it in `finally`. No suite-level
+  long-lived instance is held. This matches the static-method posture of
+  KMAC and keeps suites stateless and reentrant. All future phase suite
+  factories (slhdsa, ed25519, ecdsa-p256, hybrid-pq, hybrid-classical) follow
+  this pattern.
+- **Internal factories + external consts in `src/ts/sign/suites/`**: PascalCase
+  factory functions (e.g. `MldsaPureSuite`, `MldsaPrehashSuite`) build the
+  suite objects and stay unexported. Each catalog entry is then exported as
+  a named `const`, one per format byte. The factories must not become public,
+  the catalog's format-byte allocations are locked and consumers cannot mint
+  custom suites with reserved bytes.
+- **ctxDomain construction**: every SignatureSuite carries a built-in
+  `{scheme}-envelope-v3` (or `{scheme}-prehash-envelope-v3` for prehash, or
+  `{scheme1}-{scheme2}-envelope-v3` for hybrids) string. The suite's sign /
+  verify methods wrap user_ctx into effective_ctx via
+  `buildEffectiveCtx(ctxDomain, user_ctx)` before calling the underlying
+  primitive. Wire format carries the raw user_ctx, never effective_ctx.
+  Suite-level ctxDomain ≤ 32 bytes (factory-validated, throws plain `Error`).
+  Per-call user_ctx ≤ 200 bytes (throws `SigningError('sig-ctx-too-long')`).
+- **SignatureSuite vs StreamableSignatureSuite at the type level**: pure-mode
+  suites (catalog category 0x0X) implement `SignatureSuite` only and cannot
+  be passed to `SignStream` / `VerifyStream` (compile-time error). Prehash
+  and hybrid suites implement `StreamableSignatureSuite` (extends
+  `SignatureSuite`) and expose `signPrehashed` / `verifyPrehashed`. The
+  type-level wall keeps "sign in pure mode" and "sign via streaming
+  prehash" from collapsing into the same call site by accident.
+- **SHA3 streaming classes (`SHA3_256Stream`, `SHA3_512Stream`)**: Phase 1
+  added these alongside the existing one-shot `SHA3_256` / `SHA3_512`.
+  Lifecycle mirrors SHAKE128 / SHAKE256: `_acquireModule('sha3')` at
+  construction, `_releaseModule` on `dispose()` or `finalize()`, exclusivity
+  enforced via the standard guard. Future phase work that adds streaming
+  prehashes for SHA-2 (Ed25519ph, ECDSA-P256 prehash) should add analogous
+  `SHA256Stream` / `SHA512Stream` to the sha2 module using the same
+  discipline.
 
 ---
 

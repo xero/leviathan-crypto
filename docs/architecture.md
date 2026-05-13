@@ -297,6 +297,8 @@ src/asm/
 
 **Signature module** (`mldsa/`) has no `cipher-suite.ts` or `pool-worker.ts` (signing and verification are not AEAD operations). It splits its surface into `keygen.ts`, `sign.ts`, `verify.ts`, `format.ts` (M' construction with domain separator and OID prefix), `hashvariant.ts` (the twelve §5.4.1 pre-hash dispatch), `expand.ts` (ExpandA, ExpandS, ExpandMask, SampleInBall via SHAKE), `validate.ts` (input validation), and `sha3-helpers.ts` (sponge orchestration).
 
+**Signing surface** (`sign/`) sits beside `stream/` as the signing counterpart to the AEAD layer. `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; they delegate to a `SignatureSuite` object passed at the call site (or to the stream constructor). The `sign/suites/` directory holds the in-tree suite consts. Phase 1 ships six ML-DSA suites; future phases add SLH-DSA, Ed25519, ECDSA-P256, and the hybrid composites. See [signaturesuite.md](./signaturesuite.md).
+
 **Shared utilities.** `shared/` holds primitives reused across cipher modules without belonging to any one of them. `pkcs7.ts` is the canonical PKCS#7 padding helper used by Serpent CBC and consumer code.
 
 **Build artifacts.** `ct-wasm.ts` and the `embedded/` directory hold auto-generated outputs that only exist after `bun bake`. Both are gitignored. `ct-wasm.ts` is the inline raw byte array of the ct WASM module. `embedded/` holds gzip+base64 blobs of each WASM binary (from `scripts/embed-wasm.ts`) and IIFE source strings for each pool worker (from `scripts/embed-workers.ts`).
@@ -335,7 +337,7 @@ src/ts/
 │   ├── serpent.ts                  ← serpent.wasm gzip+base64 blob
 │   ├── sha2.ts                     ← sha2.wasm gzip+base64 blob
 │   └── sha3.ts                     ← sha3.wasm gzip+base64 blob
-├── errors.ts       ← AuthenticationError
+├── errors.ts       ← AuthenticationError, SigningError
 ├── fortuna.ts      ← Fortuna CSPRNG (composes pluggable Generator + HashFn)
 ├── index.ts        ← root barrel + dispatching init()
 ├── init.ts         ← initModule(), module cache, isInitialized
@@ -394,6 +396,16 @@ src/ts/
 │   └── types.ts
 ├── shared/
 │   └── pkcs7.ts     ← canonical PKCS#7 padding helper (used by Serpent CBC + consumer code)
+├── sign/
+│   ├── ctx.ts              ← buildEffectiveCtx, prehashAlgoToMldsa, CTX_DOMAIN_MAX, USER_CTX_MAX
+│   ├── envelope.ts         ← Sign (static single-shot signing + attached envelope)
+│   ├── hasher.ts           ← running-prehash helper for SignStream / VerifyStream
+│   ├── index.ts
+│   ├── sign-stream.ts      ← SignStream (streaming signing for StreamableSignatureSuite)
+│   ├── suites/
+│   │   └── mldsa.ts        ← MlDsa{44,65,87}{,PreHash}Suite consts (Phase 1)
+│   ├── types.ts            ← SignatureSuite, StreamableSignatureSuite, PrehashAlgorithm
+│   └── verify-stream.ts    ← VerifyStream (buffered streaming verification)
 ├── stream/
 │   ├── constants.ts         ← HEADER_SIZE, CHUNK_MIN/MAX, TAG_DATA/FINAL, FLAG_FRAMED
 │   ├── header.ts            ← wire format header encode/decode, counter nonce
@@ -604,6 +616,9 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `kyber` + `sha3` + inner cipher | `KyberSuite` (hybrid KEM+AEAD factory)                                                                  |
 | `mldsa` + `sha3`                | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash)                  |
 | `mldsa` + `sha3` + `sha2`       | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash)                               |
+| `mldsa` + `sha3`                | `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite` (sign-layer pure-mode suites for `Sign`)                |
+| `mldsa` + `sha3`                | `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite` (sign-layer prehash suites for `SignStream` / `VerifyStream`) |
+| `sign`                          | `Sign`, `SignStream`, `VerifyStream` (scheme-agnostic; modules depend on the suite)                    |
 | `sha2`                          | `ratchetInit`, `KDFChain`, `SkippedKeyStore`                                                            |
 | `kyber` + `sha3` + `sha2`       | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair`                                                  |
 | `stream`                        | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`                                                    |
@@ -622,6 +637,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
  -  Ratchet exports are KDF primitives from Signal's Sparse Post-Quantum Ratchet spec; session state, message ordering, and header format remain application concerns.
  - **`Fortuna`** requires `await Fortuna.create({ generator, hash })` rather than `new Fortuna()`. Required modules depend on the generator and hash you pass. See [fortuna.md](./fortuna.md) for valid combinations.
  - `SealStream`, `OpenStream`, and `SealStreamPool` are cipher-agnostic; you select the cipher by passing `XChaCha20Cipher`, `SerpentCipher`, or `AESGCMSIVCipher` at construction.
+ - `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; you select the scheme by passing a `SignatureSuite` (Phase 1 ships `MlDsa{44,65,87}Suite` and `MlDsa{44,65,87}PreHashSuite`). See [signaturesuite.md](./signaturesuite.md).
 
 ### Usage pattern
 
@@ -995,6 +1011,7 @@ All MlDsa classes also call sha3 WASM via `expand.ts` and `sha3-helpers.ts`: SHA
 | `MlKem512`, `MlKem768`, `MlKem1024` → `kyber` + `sha3`            | Kyber module handles polynomial arithmetic; sha3 provides SHAKE128/256, SHA3-256/512 for G/H/J/matrix gen.                                                                                                  |
 | `MlDsa44`, `MlDsa65`, `MlDsa87` → `mldsa` + `sha3`                | ML-DSA module handles polynomial arithmetic, rounding, and packing; sha3 provides SHAKE128 (ExpandA), SHAKE256 (ExpandS, ExpandMask, μ, ρ'', SampleInBall), and SHA3-fixed digests for HashML-DSA pre-hash. |
 | `MlDsa*` (HashML-DSA, SHA-2 pre-hash) → `mldsa` + `sha3` + `sha2` | `sha2` module covers the SHA2-{224, 256, 384, 512, 512/224, 512/256} pre-hash variants from §5.4.1.                                                                                                         |
+| `Sign`, `SignStream`, `VerifyStream` → depends on suite            | Scheme-agnostic. Module requirements are determined by the `SignatureSuite` passed at the call site (or to the stream constructor). Phase 1 suites require `mldsa` + `sha3`.                              |
 | `HKDF_SHA256`, `HKDF_SHA512` → `sha2`                             | Pure TS composition, extract and expand steps per RFC 5869.                                                                                                                                                |
 | All other classes                                                 | Each depends on exactly **one** WASM module.                                                                                                                                                                |
 
@@ -1008,7 +1025,7 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _(barrel itself)_   | `init` (dispatching function, calls per-module init functions via `Promise.all`)                                                                                                                                                                          |
 | `init.ts`           | `Module`, `WasmSource`, `isInitialized`                                                                                                                                                                                                                    |
-| `errors.ts`         | `AuthenticationError`                                                                                                                                                                                                                                      |
+| `errors.ts`         | `AuthenticationError`, `SigningError`                                                                                                                                                                                                                      |
 | `serpent/index.ts`  | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher`, `SerpentGenerator`                                                                                                                                                                                 |
 | `chacha20/index.ts` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`, `ChaCha20Generator`                                                                                                                                                    |
 | `aes/index.ts`      | `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGCMSIVCipher`, `AESGenerator`                                                                                                                                                                        |
@@ -1017,6 +1034,7 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 | `keccak/index.ts`   | `keccakInit` + re-exports all sha3 classes (alias subpath)                                                                                                                                                                                                 |
 | `kyber/index.ts`    | `kyberInit`, `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024`, `MlKemBase`, `KyberKeyPair`, `KyberEncapsulation`, `KyberParams`, `MLKEM512`, `MLKEM768`, `MLKEM1024`                                                                                      |
 | `mldsa/index.ts`    | `mldsaInit`, `MlDsa44`, `MlDsa65`, `MlDsa87`, `MlDsaBase`, `MLDSA44`, `MLDSA65`, `MLDSA87`, `MlDsaKeyPair`, `MlDsaParams`, `PreHashAlgorithm`                                                                                                              |
+| `sign/index.ts`     | `Sign`, `SignStream`, `VerifyStream`, `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`, `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite`, `SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm`, `buildEffectiveCtx`, `prehashAlgoToMldsa`, `USER_CTX_MAX`, `CTX_DOMAIN_MAX` |
 | `stream/index.ts`   | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite`, `DerivedKeys`, `SealStreamOpts`, `PoolOpts`, `FLAG_FRAMED`, `TAG_DATA`, `TAG_FINAL`, `HEADER_SIZE`, `CHUNK_MIN`, `CHUNK_MAX`                                                          |
 | `ratchet/index.ts`  | `KDFChain`, `ratchetInit`, `ratchetReady`, `kemRatchetEncap`, `kemRatchetDecap`, `SkippedKeyStore`, `RatchetKeypair`, `RatchetInitResult`, `KemEncapResult`, `KemDecapResult`, `MlKemLike`, `RatchetMessageHeader`, `ResolveHandle`, `SkippedKeyStoreOpts` |
 | `fortuna.ts`        | `Fortuna`                                                                                                                                                                                                                                                  |

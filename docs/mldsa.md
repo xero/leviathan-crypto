@@ -263,6 +263,76 @@ failure (wrong sig, malformed hint, length mismatch on `vk` / `sig`),
 > NOT verify under `verifyHash` and vice versa. Treat the two as
 > separate signature schemes that happen to share a key format.
 
+### `signHashPrehashed(sk, digest, ph, ctx?): Uint8Array`
+
+Hedged HashML-DSA sign with a caller-supplied prehash, FIPS 204 §5.4
+Algorithm 4 lines 22-24 (the post-PH path). Skips step 1 (`PH ← Hash(M,
+ph)`) and uses `digest` directly. Identical Sign_internal output to
+[`signHash`](#signhashsk-m-ph-ctx-uint8array) when `digest = Hash(M, ph)`.
+
+`digest` must be exactly the FIPS 204 §5.4.1 output length for `ph`: 28
+bytes for `SHA2-224` / `SHA2-512/224` / `SHA3-224`, 32 bytes for
+`SHA2-256` / `SHA2-512/256` / `SHA3-256` / `SHAKE128`, 48 bytes for
+`SHA2-384` / `SHA3-384`, 64 bytes for `SHA2-512` / `SHA3-512` /
+`SHAKE256`. A mismatch throws
+[`SigningError('sig-malformed-input')`](#error-reference). The caller
+owns `digest` and is responsible for wiping it; the method never mutates
+the buffer.
+
+Use this entry point when:
+
+- The transcript already produced the digest as part of a protocol step
+  (e.g. a signed-blob commit where the digest is the canonical identifier).
+- The signer cannot buffer `M` into a single `Uint8Array` (a `SignStream`-
+  style API computes the prehash incrementally and hands `signHashPrehashed`
+  the finalized digest).
+- A FIPS 140 boundary places the digest computation in a different module
+  from ML-DSA, FIPS 204 §5.4 explicitly endorses the split.
+
+Hedged is the default per FIPS 204 §3.4; see
+[`sign`](#signsk-m-ctx-uint8array) for the rationale.
+
+### `signHashPrehashedDeterministic(sk, digest, ph, ctx?): Uint8Array`
+
+Deterministic prehashed sign, `rnd ← 0³²` per FIPS 204 §3.4. Same
+fault-attack caveat as
+[`signDeterministic`](#signdeterministicsk-m-ctx-uint8array). Produces
+byte-identical output to
+[`signHashDeterministic`](#signhashdeterministicsk-m-ph-ctx-uint8array)
+when `digest = Hash(M, ph)`.
+
+### `signHashPrehashedDerand(sk, digest, ph, rnd, ctx?): Uint8Array`
+
+Externally-randomised prehashed sign, testing / CAVP API. Caller
+supplies the 32-byte `rnd` (FIPS 204 §3.4 contract: `rnd` MUST come from
+an approved RBG and MUST NOT be reused across signatures). Used to
+re-oracle ACVP HashML-DSA sigGen vectors through the prehashed entry
+point with byte-identical output.
+
+### `verifyHashPrehashed(vk, digest, sig, ph, ctx?): boolean`
+
+HashML-DSA verify with a caller-supplied prehash, FIPS 204 §5.4
+Algorithm 5 lines 17-19 (the post-PH path). Same return / throw posture
+as [`verifyHash`](#verifyhashvk-m-sig-ph-ctx-boolean): returns boolean
+for every signature outcome; throws `RangeError` only on caller-side
+contract violations (`ctx.length > 255`, unsupported `ph`).
+
+Wrong-size `digest` is a structural mismatch (a different-shaped M'
+than the signer would have produced) and returns `false`, mirroring
+how wrong-length `vk` / `sig` already return `false` per FIPS 204
+§3.6.2. This DIVERGES from the sign-side behaviour, which throws
+`SigningError` on wrong-size `digest`: on the sign side the caller
+fed bad input (a contract violation); on the verify side, "this is
+not a valid signature" is the correct verdict.
+
+> [!CAUTION]
+> The prehashed family signs `digest` *as if* it were `Hash(M, ph)`,
+> the library cannot check whether `digest` actually equals that hash.
+> A protocol that wants to bind a specific `M` MUST compute the digest
+> itself (or verify the digest's provenance) before calling these
+> methods; otherwise an attacker that controls `digest` can produce a
+> signature that is consistent with any pre-image they later choose.
+
 ### `dispose(): void`
 
 Wipe all mldsa WASM scratch memory. Idempotent. Safe to call multiple times.
@@ -305,6 +375,19 @@ public methods [`signHash`](#signhashsk-m-ph-ctx-uint8array),
 [`verifyHash`](#verifyhashvk-m-sig-ph-ctx-boolean) match the shape of
 their pure counterparts with `ph: PreHashAlgorithm` placed immediately
 after the message bytes (or signature, for verify).
+
+Four parallel prehashed-input variants
+([`signHashPrehashed`](#signhashprehashedsk-digest-ph-ctx-uint8array),
+[`signHashPrehashedDeterministic`](#signhashprehasheddeterministicsk-digest-ph-ctx-uint8array),
+[`signHashPrehashedDerand`](#signhashprehashedderandsk-digest-ph-rnd-ctx-uint8array),
+and
+[`verifyHashPrehashed`](#verifyhashprehashedvk-digest-sig-ph-ctx-boolean))
+skip the internal `PH ← Hash(M, ph)` step and accept the digest from
+the caller. Use these when the digest already exists (a streaming
+signer that absorbed `M` incrementally, a transcript that carries the
+digest as its identifier, or a FIPS 140 boundary that computes the
+hash in a separate module). When `digest = Hash(M, ph)`, the prehashed
+and non-prehashed forms produce byte-identical signatures.
 
 Use HashML-DSA when:
 
@@ -542,9 +625,32 @@ Behavior](#validation-behavior) for the full split.
 
 ---
 
+## SignatureSuites
+
+The mldsa-suites layer wraps `MlDsaBase` into the `SignatureSuite` interface
+for use with `Sign`, `SignStream`, and `VerifyStream`. Six suite consts ship
+in Phase 1:
+
+- `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite` for pure ML-DSA (FIPS 204 §5.2).
+- `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite` for
+  HashML-DSA (FIPS 204 §5.4) with SHA3-256 (44, 65) or SHA3-512 (87).
+
+The pure-mode suites satisfy `SignatureSuite` only; the prehash-mode suites
+also satisfy `StreamableSignatureSuite` and plug into `SignStream` /
+`VerifyStream`. Each method instantiates a fresh `MlDsa{44,65,87}` instance
+inside a `try { ... } finally { dispose() }` block, so WASM key material is
+wiped on every path.
+
+See [signaturesuite.md](./signaturesuite.md) for the full `SignatureSuite`
+interface, wire format, error reference, and usage examples.
+
+---
+
 ## Cross-references
 
 - [Architecture](./architecture.md), module layout and three-tier design.
 - [init.md](./init.md), `init()` API and module-loader contract.
+- [signaturesuite.md](./signaturesuite.md), `SignatureSuite` interface plus
+  the `MlDsa*Suite` consts, `Sign`, `SignStream`, and `VerifyStream`.
 - [asm_mldsa.md](./asm_mldsa.md), low-level WASM module reference.
 - [kyber.md](./kyber.md), sibling post-quantum module (KEM, not signatures).

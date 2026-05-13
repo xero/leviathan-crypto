@@ -60,6 +60,8 @@ import type { MlDsaParams } from './params.js';
 import { wipe } from '../utils.js';
 import { sha3Absorb, shake256HashConcat } from './sha3-helpers.js';
 import { expandA, expandMask } from './expand.js';
+import { type PreHashAlgorithm, getOid } from './hashvariant.js';
+import { constructMPrimeHash } from './format.js';
 
 const POLY_BYTES   = 1024;
 const D            = 13;
@@ -441,5 +443,40 @@ export function mldsaSignInternal(
 		if (rhoPP)   wipe(rhoPP);
 		if (cTilde)  wipe(cTilde);
 		if (w1Bytes) wipe(w1Bytes);
+	}
+}
+
+/**
+ * HashML-DSA sign, post-prehash. FIPS 204 §5.4 Algorithm 4 lines 22-24.
+ * Builds M' = 0x01 ‖ |ctx| ‖ ctx ‖ OID(algo) ‖ prehash and drives
+ * Sign_internal with the caller-supplied rnd.
+ *
+ * The caller owns `prehash` (it may be a slice of WASM memory, a
+ * caller-controlled digest, or an internally-computed PH_M); this helper
+ * never wipes it. The caller also owns `rnd` (hedged: caller wipes a
+ * freshly-generated value; deterministic: rnd is zeros, no wipe; derand:
+ * caller-supplied per FIPS 204 §3.4 contract).
+ *
+ * The 12 approved pre-hash functions (`algo`) and their OIDs are FIPS 204
+ * §5.4.1's full catalog. Domain-sep byte 0x01 inside the M' construction
+ * separates HashML-DSA signatures from pure-ML-DSA signatures on the same
+ * key per §3.6.4.
+ */
+export function signWithPrehash(
+	mx:      MlDsaExports,
+	sx:      Sha3Exports,
+	params:  MlDsaParams,
+	sk:      Uint8Array,
+	prehash: Uint8Array,
+	algo:    PreHashAlgorithm,
+	ctx:     Uint8Array,
+	rnd:     Uint8Array,
+): Uint8Array {
+	const oid    = getOid(algo);
+	const MPrime = constructMPrimeHash(ctx, oid, prehash);
+	try {
+		return mldsaSignInternal(mx, sx, params, sk, MPrime, rnd);
+	} finally {
+		wipe(MPrime);
 	}
 }

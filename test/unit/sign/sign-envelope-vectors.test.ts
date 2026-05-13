@@ -19,56 +19,45 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// src/ts/errors.ts
+// test/unit/sign/sign-envelope-vectors.test.ts
 //
-// Typed error classes for leviathan-crypto.
+// Wire-format gate for the v3 sign envelope. Asserts byte-equality
+// between hand-assembled blob hex (test/vectors/sign_envelope.ts) and
+// Sign.sign output. Uses the deterministic fixture suite so the gate
+// is independent of any real cryptographic primitive.
 
-/**
- * Thrown when AEAD authentication fails.
- *
- * `cipher` is the cipher name passed by the call site (e.g. `'serpent'`,
- * `'chacha20-poly1305'`, `'xchacha20-poly1305'`). The class appends
- * `': authentication failed'`, do not include that text in the cipher name.
- */
-export class AuthenticationError extends Error {
-	constructor(cipher: string) {
-		super(`${cipher}: authentication failed`);
-		this.name = 'AuthenticationError';
-		Object.setPrototypeOf(this, AuthenticationError.prototype);
-	}
-}
+import { describe, it, expect } from 'vitest';
+import { Sign } from '../../../src/ts/sign/index.js';
+import { hexToBytes, bytesToHex } from '../../../src/ts/utils.js';
+import {
+	signEnvelopeVectors,
+	FIXTURE_SK_HEX,
+} from '../../vectors/sign_envelope.js';
+import { makeFixtureSuite, FIXTURE_FORMAT_ENUM } from './helpers.js';
 
-/**
- * Thrown on signing or verification contract violations and signature
- * failures within the v3 sign module.
- *
- * `discriminator` is a stable string identifier for the failure mode;
- * consumers may switch on it. Categories:
- *
- *   Suite layer (suite.sign / verify / signPrehashed / verifyPrehashed):
- *     'sig-key-size'             wrong sk or pk size for the suite
- *     'sig-ctx-too-long'         effective_ctx would exceed the FIPS 204 cap
- *     'sig-malformed-input'      primitive validation failure, e.g. wrong digest length
- *
- *   Envelope layer (Sign.sign / verify / signDetached / verifyDetached):
- *     'sig-blob-too-short'       Sign.verify input shorter than minimum
- *     'sig-suite-unknown'        suite_byte does not map to a known suite
- *     'sig-ctx-overflow'         wire ctx_len pushes past sig boundary
- *     'sig-ctx-mismatch'         caller ctx not equal to wire ctx
- *     'verify-failed'            suite.verify returned false during envelope verify
- *
- *   Stream layer (SignStream / VerifyStream):
- *     'sig-stream-finalized'     update() called after finalize()
- *     'sig-stream-disposed'      operation on disposed stream
- *     'sig-suite-mismatch'       wire suite_byte not equal to VerifyStream constructor suite
- */
-export class SigningError extends Error {
-	constructor(
-		public readonly discriminator: string,
-		message?: string,
-	) {
-		super(message ?? `leviathan-crypto SigningError: ${discriminator}`);
-		this.name = 'SigningError';
-		Object.setPrototypeOf(this, SigningError.prototype);
+describe('Sign envelope wire-format vectors', () => {
+	for (const v of signEnvelopeVectors) {
+		it(v.description, () => {
+			expect(v.formatEnum).toBe(FIXTURE_FORMAT_ENUM);
+			const sk = hexToBytes(FIXTURE_SK_HEX);
+			const ctx = hexToBytes(v.ctxHex);
+			const msg = hexToBytes(v.payloadHex);
+			const expectedSig = hexToBytes(v.sigHex);
+			const expectedBlob = hexToBytes(v.expectedBlobHex);
+			const suite = makeFixtureSuite();
+			const blob = Sign.sign(suite, sk, msg, ctx);
+			expect(bytesToHex(blob)).toBe(v.expectedBlobHex);
+			expect(blob).toEqual(expectedBlob);
+
+			const peek = Sign.peek(blob, suite);
+			expect(peek.suiteByte).toBe(v.formatEnum);
+			expect(peek.ctx).toEqual(ctx);
+			expect(peek.payloadLength).toBe(msg.length);
+			expect(blob.subarray(peek.payloadOffset, peek.sigOffset)).toEqual(msg);
+			expect(blob.subarray(peek.sigOffset)).toEqual(expectedSig);
+
+			const out = Sign.verify(suite, sk, blob, ctx);
+			expect(out).toEqual(msg);
+		});
 	}
-}
+});

@@ -33,12 +33,25 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | Module | Description |
 |--------|-------------|
 | [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+| [ciphersuite.md](./ciphersuite.md) | `CipherSuite` interface and the in-tree symmetric / hybrid cipher consts |
+
+### Signatures
+
+| Module | Description |
+|--------|-------------|
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite`, `Sign`, `SignStream`, `VerifyStream`, plus the Phase 1 `MlDsa{44,65,87}{,PreHash}Suite` consts |
 
 ### Post-Quantum KEM
 
 | Module | Description |
 |--------|-------------|
 | [kyber.md](./kyber.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`: ML-KEM key encapsulation (FIPS 203) |
+
+### Post-Quantum Signatures
+
+| Module | Description |
+|--------|-------------|
+| [mldsa.md](./mldsa.md) | `MlDsa44`, `MlDsa65`, `MlDsa87`: ML-DSA digital signatures (FIPS 204), pure mode and HashML-DSA |
 
 ### Post-Quantum Ratchet
 

@@ -217,6 +217,33 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
+**_Need post-quantum signatures?_** The [sign module](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) wraps ML-DSA (FIPS 204) behind a `SignatureSuite` abstraction. `Sign` covers single-shot attached / detached signatures; `SignStream` and `VerifyStream` handle chunked input via HashML-DSA.
+
+```typescript
+import { init, Sign, SignStream, MlDsa65Suite, MlDsa65PreHashSuite } from 'leviathan-crypto'
+import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
+
+const { pk, sk } = MlDsa65Suite.keygen()
+const msg = new TextEncoder().encode('hello world')
+const ctx = new TextEncoder().encode('myapp/v1')
+
+// single-shot
+const blob    = Sign.sign(MlDsa65Suite, sk, msg, ctx)
+const payload = Sign.verify(MlDsa65Suite, pk, blob, ctx)
+
+// streamed (over chunked input)
+const signer = new SignStream(MlDsa65PreHashSuite, sk, ctx)
+signer.update(chunk1)
+signer.update(chunk2)
+const sig = signer.finalize()
+// wire output is signer.preamble + chunk1 + chunk2 + sig
+```
+
+Six suites ship in Phase 1: `MlDsa44Suite` / `MlDsa65Suite` / `MlDsa87Suite` for pure ML-DSA, and `MlDsa44PreHashSuite` / `MlDsa65PreHashSuite` / `MlDsa87PreHashSuite` for HashML-DSA. SLH-DSA, Ed25519, ECDSA-P256, and the hybrid composites land in later phases. See the [signaturesuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) for the wire format, error reference, and the full 22-entry catalog.
+
 **_Building a secure messenger?_** The [ratchet module](https://github.com/xero/leviathan-crypto/wiki/ratchet) provides Sparse Post-Quantum Ratchet primitives for consumers who need forward secrecy and post-compromise security at the session layer. [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit) bootstraps the symmetric chains, [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain) derives per-message keys, [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap) perform the ML-KEM ratchet step, and [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) handles out-of-order delivery.
 
 ```typescript
@@ -277,6 +304,8 @@ A covert communications application for end-to-end encrypted group conversations
 | Encrypt a stream or large file | [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream) to encrypt, [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead#openstream) to decrypt |
 | Encrypt in parallel | [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) distributes chunks across Web Workers |
 | Add post-quantum security | [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps [`MlKem512`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), [`MlKem768`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), or [`MlKem1024`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets) with any cipher suite |
+| Sign a message | [`Sign`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) with [`MlDsa65Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#pure-mode-suites) for attached or detached signatures |
+| Sign a stream or large file | [`SignStream`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#examples) with [`MlDsa65PreHashSuite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#prehash-mode-suites); [`VerifyStream`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#examples) on the receive side |
 | Build a forward-secret session | [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit), [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain), [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) |
 | Hash data | [`SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha256), [`SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha384), [`SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha512), [`SHA3_256`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_256), [`SHA3_512`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_512), [`SHAKE256`](https://github.com/xero/leviathan-crypto/wiki/sha3#shake256) ... |
 | Authenticate a message | [`HMAC_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha256), [`HMAC_SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha384), [`HMAC_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha512), or [`KMAC256`](https://github.com/xero/leviathan-crypto/wiki/kmac#kmac256) |

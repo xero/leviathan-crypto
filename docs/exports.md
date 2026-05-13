@@ -9,6 +9,7 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [Serpent-256](#serpent-256)
 > - [AES](#aes)
 > - [Stream](#stream)
+> - [Sign](#sign)
 > - [Errors](#errors)
 > - [XChaCha20 / Poly1305](#xchacha20--poly1305)
 > - [SHA-2](#sha-2)
@@ -105,11 +106,34 @@ Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 
 ---
 
+## Sign
+
+Cipher-agnostic signature envelope and streaming layer over the v3 SignatureSuite abstraction.
+Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `Sign` | class (static) | One-shot signature envelope. `Sign.sign(suite, sk, msg, ctx)`, `Sign.verify(suite, pk, blob, ctx)`, `Sign.signDetached(suite, sk, msg, ctx)`, `Sign.verifyDetached(suite, pk, msg, sig, ctx)`, `Sign.peek(blob, suite?)`. Never instantiated. |
+| `SignStream` | class | Streaming signature production over a `StreamableSignatureSuite`. `new SignStream(suite, sk, ctx)`, `update(chunk)`, `finalize()`, `dispose()`. `finalize()` returns wire bytes byte-identical to `Sign.sign` for the same inputs. |
+| `VerifyStream` | class | Streaming signature consumption over a `StreamableSignatureSuite`. `new VerifyStream(suite, pk, ctx)`, `update(chunk)`, `finalize()` returns verified payload or throws `SigningError`. Buffered payload chunks are wiped on auth failure. |
+| `SignatureSuite` | interface | Suite contract for all signature schemes. Fields: `formatEnum`, `formatName`, `ctxDomain`, `pkSize`, `skSize`, `sigSize`, `wasmModules`. Methods: `sign(sk, msg, ctx)`, `verify(pk, msg, sig, ctx)`, `keygen()`. |
+| `StreamableSignatureSuite` | interface | `SignatureSuite` extension for suites usable with `SignStream`/`VerifyStream`. Adds `prehashAlgorithm`, `prehashSize`, `signPrehashed(sk, digest, ctx)`, `verifyPrehashed(pk, digest, sig, ctx)`. |
+| `PrehashAlgorithm` | type | Union of the six prehash function identifiers used across the catalog: `'sha-256' \| 'sha-512' \| 'sha3-256' \| 'sha3-512' \| 'shake-128' \| 'shake-256'`. |
+| `MlDsa44Suite` | const | Pure ML-DSA-44 SignatureSuite. `formatEnum: 0x03`, `ctxDomain: 'mldsa44-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa65Suite` | const | Pure ML-DSA-65 SignatureSuite. `formatEnum: 0x04`, `ctxDomain: 'mldsa65-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa87Suite` | const | Pure ML-DSA-87 SignatureSuite. `formatEnum: 0x05`, `ctxDomain: 'mldsa87-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa44PreHashSuite` | const | ML-DSA-44 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x13`, `ctxDomain: 'mldsa44-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa65PreHashSuite` | const | ML-DSA-65 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x14`, `ctxDomain: 'mldsa65-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa87PreHashSuite` | const | ML-DSA-87 + SHA3-512 prehash StreamableSignatureSuite. `formatEnum: 0x15`, `ctxDomain: 'mldsa87-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+
+---
+
 ## Errors
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
+| `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signaturesuite.md](./signaturesuite.md)). |
 
 ---
 
@@ -163,6 +187,8 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 | `SHA3_256` | class | SHA3-256 hash (FIPS 202). `hash(msg)` returns 32 bytes. |
 | `SHA3_384` | class | SHA3-384 hash (FIPS 202). `hash(msg)` returns 48 bytes. |
 | `SHA3_512` | class | SHA3-512 hash (FIPS 202). `hash(msg)` returns 64 bytes. |
+| `SHA3_256Stream` | class | Incremental SHA3-256. `update(chunk)`, `finalize()` returns 32 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
+| `SHA3_512Stream` | class | Incremental SHA3-512. `update(chunk)`, `finalize()` returns 64 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
 | `SHAKE128` | class | SHAKE128 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
 | `SHAKE256` | class | SHAKE256 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
 | `CSHAKE128` | class | cSHAKE128 customizable XOF (SP 800-185 §3). `new CSHAKE128(customization)`, `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. Throws if customization is empty (use SHAKE128 instead). |
@@ -240,7 +266,7 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 |--------|------|-------------|
 | `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
 | `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly, use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
-| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `dispose()`. |
+| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `signHashPrehashed(sk, digest, ph, ctx?)`, `signHashPrehashedDeterministic(sk, digest, ph, ctx?)`, `signHashPrehashedDerand(sk, digest, ph, ctx, rnd)`, `verifyHashPrehashed(vk, digest, sig, ph, ctx?)`, `dispose()`. |
 | `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
 | `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
 | `MlDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 204 pkEncode / skEncode). |
