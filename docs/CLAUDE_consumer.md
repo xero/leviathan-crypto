@@ -573,7 +573,7 @@ const payload = Sign.verify(MlDsa65Suite, pk, blob, ctx)   // returns msg, throw
 Streaming (prehash suites only):
 
 ```typescript
-import { init, SignStream, VerifyStream, MlDsa65PreHashSuite } from 'leviathan-crypto'
+import { init, SignStream, VerifyStream, MlDsa65PreHashSuite, concat } from 'leviathan-crypto'
 import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
 import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
 
@@ -582,23 +582,26 @@ await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
 const { pk, sk } = MlDsa65PreHashSuite.keygen()
 const ctx = new TextEncoder().encode('app:my-app:v1')
 
+// Producer: emit preamble first, stream chunks, then append sig from finalize.
 const signer = new SignStream(MlDsa65PreHashSuite, sk, ctx)
+let wire: Uint8Array
 try {
     signer.update(chunk0)
     signer.update(chunk1)
-    const blob = signer.finalize()
-
-    const verifier = new VerifyStream(MlDsa65PreHashSuite, pk, ctx)
-    try {
-        verifier.update(blob.subarray(0, blob.length - MlDsa65PreHashSuite.sigSize))
-        // (in practice the wire bytes interleave envelope header + chunks + sig;
-        //  the producer splits them or VerifyStream consumes the whole blob)
-        const payload = verifier.finalize()
-    } finally {
-        verifier.dispose()
-    }
+    const sig = signer.finalize()
+    wire = concat(signer.preamble, chunk0, chunk1, sig)
 } finally {
     signer.dispose()
+}
+
+// Consumer: feed the wire bytes in any number of update() calls; VerifyStream
+// is byte-stream tolerant and parses header, payload, and sig incrementally.
+const verifier = new VerifyStream(MlDsa65PreHashSuite, pk, ctx)
+try {
+    verifier.update(wire)
+    const payload = verifier.finalize()
+} finally {
+    verifier.dispose()
 }
 ```
 

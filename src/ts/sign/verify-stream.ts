@@ -119,9 +119,14 @@ export class VerifyStream {
 
 			const digest = (h as RunningHash).finalize();
 			const sig = this.sigWindow;
-			if (!this.suite.verifyPrehashed(this.pk, digest, sig, this.expectedCtx)) {
+			try {
+				if (!this.suite.verifyPrehashed(this.pk, digest, sig, this.expectedCtx)) {
+					this.wipeBuffers();
+					throw new SigningError('verify-failed');
+				}
+			} catch (e) {
 				this.wipeBuffers();
-				throw new SigningError('verify-failed');
+				throw e;
 			}
 			return concat(...this.payloadChunks);
 		} finally {
@@ -151,11 +156,14 @@ export class VerifyStream {
 		}
 
 		const suiteByte = combined[0];
-		if (suiteByte !== this.suite.formatEnum)
+		if (suiteByte !== this.suite.formatEnum) {
+			this.state = State.Finalized;
+			this.wipeBuffers();
 			throw new SigningError(
 				'sig-suite-mismatch',
 				`wire suite 0x${suiteByte.toString(16)} != suite.formatEnum 0x${this.suite.formatEnum.toString(16)}`,
 			);
+		}
 
 		const ctxLen = combined[1];
 		if (combined.length < 2 + ctxLen) {
@@ -164,8 +172,11 @@ export class VerifyStream {
 		}
 
 		const wireCtx = combined.subarray(2, 2 + ctxLen);
-		if (!constantTimeEqual(wireCtx, this.expectedCtx))
+		if (!constantTimeEqual(wireCtx, this.expectedCtx)) {
+			this.state = State.Finalized;
+			this.wipeBuffers();
 			throw new SigningError('sig-ctx-mismatch');
+		}
 
 		this.payloadHasher = createRunningHash(this.suite.prehashAlgorithm);
 		this.state = State.ParsingData;

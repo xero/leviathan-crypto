@@ -2,7 +2,7 @@
 
 ### Test Suite & Vector Corpus
 
-Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all 3651 tests.
+Describes the unit and e2e test inventory, gate structure, and the complete vector corpus with source provenance for all tests.
 
 > [!TIP]
 > Looking for how to run the test suite locally? See [development.md](./development.md). This document describes what the suite contains; the development doc covers how to invoke it.

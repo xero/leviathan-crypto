@@ -27,6 +27,7 @@
 
 import { SigningError } from '../errors.js';
 import type { StreamableSignatureSuite } from './types.js';
+import { USER_CTX_MAX } from './ctx.js';
 import { createRunningHash } from './hasher.js';
 import type { RunningHash } from './hasher.js';
 
@@ -48,10 +49,10 @@ export class SignStream {
 		this.suite = suite;
 		this.sk = sk;
 
-		if (ctx.length > 255)
+		if (ctx.length > USER_CTX_MAX)
 			throw new SigningError(
 				'sig-ctx-too-long',
-				`ctx length ${ctx.length} > 255 (wire format ctx_len is u8)`,
+				`user_ctx length ${ctx.length} > ${USER_CTX_MAX}`,
 			);
 		const preamble = new Uint8Array(2 + ctx.length);
 		preamble[0] = suite.formatEnum;
