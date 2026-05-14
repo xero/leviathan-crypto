@@ -271,7 +271,7 @@ describe('FORS pkGen × pkFromSig round-trip (FIPS 205 §8 Algorithms 15, 16, 17
 			x.adrsSetKeyPairAddress(adrs, 0);
 			x._testForsSign(sigBuf, md, skSeed, pkSeed, adrs);
 
-			// Recover with md flipped — must diverge from pkExpected since
+			// Recover with md flipped: must diverge from pkExpected since
 			// indices[] differ and select different leaves.
 			const tampered = MD.slice();
 			tampered[0] ^= 0x01;

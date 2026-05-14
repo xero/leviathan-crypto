@@ -25,7 +25,7 @@
 // HashSLH-DSA (preHash) records compose the M' manually here, since the
 // crate does not expose a hash-and-sign convenience wrapper. The OID +
 // digest-length table comes from FIPS 205 §10.2 (which aligns with
-// FIPS 204 §5.4 Table 1 — same OID arc 2.16.840.1.101.3.4.2.NN per
+// FIPS 204 §5.4 Table 1: same OID arc 2.16.840.1.101.3.4.2.NN per
 // hashAlg, so the byte layout is shared with the ML-DSA pre-hash path
 // in src/mldsa.rs).
 //

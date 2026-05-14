@@ -26,7 +26,7 @@
 // dispatch logic is not duplicated. Not exported from the sign barrel.
 //
 // Wires `sha3-256`, `sha3-512`, and the SHAKE pair used by the SLH-DSA
-// prehash suites. The two SHA-2 variants still throw — they will land when
+// prehash suites. The two SHA-2 variants still throw; they will land when
 // the sha2 module grows streaming wrappers (planned for Ed25519ph in
 // Phase 4 and ECDSA-P256 prehash in Phase 5).
 //

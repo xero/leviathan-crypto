@@ -27,9 +27,9 @@
 // tweakable hash over (left || right) child concatenation.
 //
 // Algorithms implemented (FIPS 205 numbering):
-//   Algorithm  9  xmss_node       — node at height z, index i, in one subtree
-//   Algorithm 10  xmss_sign       — WOTS+ sig + h' sibling auth path
-//   Algorithm 11  xmss_pkFromSig  — recover the subtree root from a signature
+//   Algorithm  9  xmss_node:      node at height z, index i, in one subtree
+//   Algorithm 10  xmss_sign:      WOTS+ sig + h' sibling auth path
+//   Algorithm 11  xmss_pkFromSig: recover the subtree root from a signature
 //
 // Subtree heights per FIPS 205 §11.1 Table 2:
 //
@@ -43,7 +43,7 @@
 // authentication path).
 //
 // Working-buffer layout extends fors.ts's STATE region:
-//   +3072 .. +3391  XMSS_PAIR_BASE — per-recursion-level (lnode‖rnode)
+//   +3072 .. +3391  XMSS_PAIR_BASE: per-recursion-level (lnode‖rnode)
 //                                    pair slots for xmss_node, 2·n bytes
 //                                    per level z ∈ [1..h']; max h'=4, n=32
 //                                    so 5·64 = 320 B (slot 0 unused).

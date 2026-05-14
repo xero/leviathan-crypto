@@ -30,7 +30,7 @@
 //   GATE 4: idx_tree shift trace: a manual layer-by-layer walk using
 //           xmss_pkFromSig with the spec-shifted idx_tree / idx_leaf at
 //           each layer reproduces the same final root as PK.root.
-//   GATE 5: deterministic byte-stability — two ht_sign calls with identical
+//   GATE 5: deterministic byte-stability; two ht_sign calls with identical
 //           inputs produce byte-identical sigs (no randomness in ht_sign).
 //
 // idx_tree handling: the WASM API takes idx_tree as two u32 halves to avoid

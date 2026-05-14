@@ -24,10 +24,10 @@
 // FIPS 205 §8 Forest of Random Subsets (FORS).
 //
 // Algorithms implemented (FIPS 205 numbering):
-//   Algorithm 14 fors_skGen        — derive a single FORS secret value
-//   Algorithm 15 fors_node         — Merkle node within one FORS tree
-//   Algorithm 16 fors_sign         — produce a k-path FORS signature
-//   Algorithm 17 fors_pkFromSig    — recover FORS public key from signature
+//   Algorithm 14 fors_skGen:       derive a single FORS secret value
+//   Algorithm 15 fors_node:        Merkle node within one FORS tree
+//   Algorithm 16 fors_sign:        produce a k-path FORS signature
+//   Algorithm 17 fors_pkFromSig:   recover FORS public key from signature
 //
 // Digest split for fors_sign and fors_pkFromSig: this WASM layer accepts a
 // ⌈k·a/8⌉-byte md buffer and consumes the *lower* k·a bits. The exact
@@ -37,23 +37,23 @@
 // This file documents the contract; callers supply the prepared md as input.
 //
 // ADRS types used here:
-//   ADRS_FORS_TREE  — internal nodes within a FORS tree
-//   ADRS_FORS_ROOTS — final compression over the k tree roots
-//   ADRS_FORS_PRF   — secret-key derivation via PRF
+//   ADRS_FORS_TREE:  internal nodes within a FORS tree
+//   ADRS_FORS_ROOTS: final compression over the k tree roots
+//   ADRS_FORS_PRF:   secret-key derivation via PRF
 //
 // Working-buffer layout: this module shares the STATE region with WOTS+.
 // Within a single WASM entry call, WOTS+ algorithms and FORS algorithms
 // are never both in flight, so aliasing the working buffers is safe.
 //
-//   +64 .. +1183   FORS_ROOTS_OFFSET — k tree roots (max 1120 B = 35·n at 256f)
+//   +64 .. +1183   FORS_ROOTS_OFFSET:   k tree roots (max 1120 B = 35·n at 256f)
 //                    Aliases WOTS_TMP_OFFSET; WOTS+ uses up to 2144 B here.
-//   +2208 .. +2239 FORS_LEAF_OFFSET  — n-byte sk / leaf hash scratch
+//   +2208 .. +2239 FORS_LEAF_OFFSET:    n-byte sk / leaf hash scratch
 //                    Aliases WOTS_SK_OFFSET.
-//   +2336 .. +2367 FORS_SK_ADRS_OFFSET — scratch ADRS (FORS_PRF type)
+//   +2336 .. +2367 FORS_SK_ADRS_OFFSET: scratch ADRS (FORS_PRF type)
 //                    Aliases SK_ADRS_OFFSET.
-//   +2368 .. +2399 FORS_PK_ADRS_OFFSET — scratch ADRS (FORS_ROOTS type)
+//   +2368 .. +2399 FORS_PK_ADRS_OFFSET: scratch ADRS (FORS_ROOTS type)
 //                    Aliases WOTSPK_ADRS_OFFSET.
-//   +2432 .. +3071 FORS_PAIR_BASE     — per-recursion-level lnode‖rnode
+//   +2432 .. +3071 FORS_PAIR_BASE:      per-recursion-level lnode‖rnode
 //                                       buffers, 2·n bytes per level z,
 //                                       z ∈ [1..a]; max a = 9, 2·n = 64
 //                                       → 9·64 = 576 B.
@@ -226,8 +226,8 @@ export function forsNode(
 // ── FIPS 205 §8 Algorithm 16, fors_sign ────────────────────────────────────
 // Signs a ⌈k·a/8⌉-byte digest. Signature layout (k·(a+1)·n bytes):
 //   per tree i ∈ [0, k):
-//     n bytes — secret value at index i·2^a + indices[i]
-//     a·n bytes — authentication path bottom-up
+//     n bytes: secret value at index i·2^a + indices[i]
+//     a·n bytes: authentication path bottom-up
 // Total: k·(a+1)·n bytes; matches FIPS 205 §11.1 Table 2 / §9 sigEncode.
 
 export function forsSign(
