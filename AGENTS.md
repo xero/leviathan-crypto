@@ -189,8 +189,11 @@ that way.
 - **Terse over verbose**: inline conditionals, short variable names, no
   unnecessary intermediate variables
 - **No comments that restate the code**: comments explain *why*, not *what*
+- **NEVER use emdashes or endashes anywhere**: rewrite the sentence or use
+  different punctuation. Ranges should use a standard hyphen.
 - **Spec citations in source**: when implementing a standard, cite the section.
-  Example: `// FIPS 180-4 §4.1.2, Ch function`
+  Example: `// FIPS 180-4 §4.1.2, Ch function`, use the `§` character as the
+  section reference symbol.
 - **Exports are the public contract**: keep internal functions unexported;
   only export what the TypeScript layer needs to call
 - **The ASCII art header** goes on every source file (see any existing file)
@@ -389,10 +392,102 @@ However, docs ARE authoritative on API shape. If `docs/serpent.md` says
 that is a discrepancy that must be flagged, not silently resolved in either
 direction.
 
-`docs/CLAUDE_consumer.md` ships inside the npm package. It is read by AI
-assistants consuming this library. It must be kept in sync with any public API
-change, if a class is added, removed, renamed, or its signature changes,
-`CLAUDE_consumer.md` gets updated in the same commit.
+### Two doc audiences
+
+`docs/` serves two distinct readers, and the obligations differ:
+
+1. **Per-feature API reference** (`docs/serpent.md`, `docs/aead.md`,
+   `docs/mldsa.md`, etc). These are the canonical API references and ship
+   inside the npm package via the INCLUDE list in `scripts/copy-docs.ts`.
+   They are load-bearing for consumer AI agents: `docs/CLAUDE_consumer.md`
+   routes agents to these files for any non-trivial API work.
+
+2. **Consumer AI quickstart** (`docs/CLAUDE_consumer.md`). The build pipeline
+   copies this to repo-root `CLAUDE.md` at `npm pack` time via
+   `scripts/pack.ts --pre`, and removes it post-pack. Consumers find it at
+   `node_modules/leviathan-crypto/CLAUDE.md`. Source of truth always lives
+   at `docs/CLAUDE_consumer.md`; never edit the root copy.
+
+### `docs/CLAUDE_consumer.md` generation rules
+
+`CLAUDE_consumer.md` is the consumer-facing AI quickstart. It is NOT a
+duplicate of any `docs/<feature>.md`. It exists to front-load the foot-guns
+an agent will hit immediately on first use, route the agent to the right
+feature doc, and show one canonical example. Everything else lives in the
+per-feature doc.
+
+Structure (target ≤ 8000 chars, hard cap 10000):
+
+1. Repo-out redirect: a `> [!NOTE]` block at the top telling agents working
+   *inside* the repo to stop and read `AGENTS.md` instead. Cheap insurance
+   against the pack artifact slipping into a dev session.
+2. Identity paragraph: what the library is. ~5 sentences.
+3. Critical foot-guns. The repo-wide ones that apply to every consumer
+   regardless of which primitive they touch: `init()` required, `dispose()`
+   in finally, stateful exclusivity, `decrypt()` throws and never returns
+   null, `verify()` returns boolean for signature schemes, `SerpentCbc` arg
+   order. ≤ 4000 chars total.
+4. Subpath init function names table.
+5. Class → required modules → doc-file routing table. One row per primitive
+   family; the doc column points at `docs/<feature>.md`.
+6. Single canonical example: `Seal` + `SerpentCipher` round-trip showing
+   `init` / `keygen` / `encrypt` / `decrypt` / `dispose`. No second example.
+7. Footer pointing to `docs/exports.md` for the full export catalog.
+
+Forbidden in `CLAUDE_consumer.md`:
+
+- Per-primitive worked examples. Those live in `docs/<primitive>.md`.
+- Duplicate API reference tables. Those live in `docs/<primitive>.md`.
+- Cipher-specific deep dives, wire format details, error discriminator
+  tables. Those live in `docs/<primitive>.md`.
+- Anything that would push the file past 10000 chars.
+
+The size cap is load-bearing, not aesthetic. If you are tempted to add a
+section to `CLAUDE_consumer.md`, you are almost certainly adding content
+that belongs in a feature doc.
+
+Update triggers (modify `CLAUDE_consumer.md`):
+
+- A new primitive family is added → add a row to the routing table.
+- A new module-init combination is introduced → update the affected row.
+- A new subpath import is added → add a row to the subpath table.
+- A new repo-wide foot-gun is discovered → add to the critical section.
+- A new feature doc lands and ships via `copy-docs.ts` INCLUDE → its row
+  in the routing table is part of the same change.
+
+Non-triggers (update `docs/<feature>.md` only, leave `CLAUDE_consumer.md`
+alone):
+
+- New method on an existing class.
+- New optional parameter on an existing method.
+- Error message text change.
+- Internal refactor with no public surface change.
+- Anything that affects only one primitive family without changing its
+  module requirements or subpath surface.
+
+### `docs/<feature>.md` agent-readability bar
+
+Because the routing table in `CLAUDE_consumer.md` makes per-feature docs
+load-bearing for consumer agents, every `docs/<feature>.md` that ships (see
+the INCLUDE list in `scripts/copy-docs.ts`) must contain, at minimum:
+
+- Front-matter table of contents linking every H2 heading.
+- "Module Init" section near the top showing the exact `init()` call required.
+- "Security Notes" with `> [!CAUTION]` / `> [!IMPORTANT]` callouts for every
+  foot-gun specific to that primitive.
+- "API Reference" tables for class members.
+- "Usage Examples" with at minimum one canonical happy-path per public class.
+- "Error Conditions" table listing every documented throw.
+- "Cross-References" footer table pointing to related docs.
+
+A new public class or const requires its `docs/<feature>.md` to meet this
+bar in the same change that introduces the export. Any new doc file added
+to `copy-docs.ts` INCLUDE must meet this bar before merging.
+
+When adding a new primitive doc to `docs/`: add it to the INCLUDE list in
+`scripts/copy-docs.ts` in alphabetical order, and add its routing row to
+`CLAUDE_consumer.md`. Both edits are part of the same change. The INCLUDE
+list edit is what makes the doc actually ship.
 
 ---
 
@@ -422,8 +517,14 @@ A task is complete when **all** of the following are true:
    `unit-*.yml` workflow, followed by `bun pin`
 9. Any public API addition, removal, or signature change has matching updates
    in the relevant `docs/*.md` file. included but not limited to:
-   - `docs/CLAUDE_consumer.md` agentic documentation help (always)
-   - `docs/exports.md` any export changed
+   -  `docs/<feature>.md` for the specific primitive(s) affected, this is
+     the canonical API reference for consumer agents and is always
+     required when the surface of that primitive changes
+   - `docs/exports.md` for any export added, removed, or renamed
+   - `docs/CLAUDE_consumer.md` only when the change matches a generation
+     trigger in the rules above (new primitive family, new module-init
+     combination, new subpath import, new repo-wide foot-gun). Most
+     changes update only the relevant feature doc.
    - `docs/architecture.md` if the module structure changed
    - `docs/aead.md` if the streaming API or wire format changed
 

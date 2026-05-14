@@ -34,8 +34,8 @@
 		"CLAUDE.md"
 	],
 	"scripts": {
-		"prepack": "npm pkg delete devDependencies scripts",
-		"postpack": "git restore package.json",
+		"prepack": "bun scripts/pack.ts --pre",
+		"postpack": "bun scripts/pack.ts --post",
 		"build": "bun scripts/build.ts",
 		"test": "bun scripts/test.ts",
 		"lint": "bun scripts/lint.ts",
