@@ -139,7 +139,6 @@ export const TARGETS: Record<BuildTarget, TargetDef> = {
 			// Post-ts copies in parallel.
 			await Promise.all([
 				walk('wasm-copy', visited),
-				walk('claude-md', visited),
 				walk('docs', visited),
 			])
 		},

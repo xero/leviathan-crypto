@@ -20,78 +20,32 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// Copies consumer-relevant API docs into dist/docs/ for npm packaging.
-// Excludes internal/project docs (branding, audit, test-suite, etc).
-// Strips SVG <img> tags from architecture.md, they reference absolute
-// GitHub URLs and are useless (and large) for agents working offline.
-//
-// Runs after build:ts as part of the build chain.
+// Pre/post pack actions for the npm pack lifecycle.
+// Wired into package.json prepack/postpack hooks.
+//   --pre:  stash devDependencies and scripts from package.json,
+//           generate root CLAUDE.md from docs/CLAUDE_consumer.md
+//   --post: restore package.json, remove root CLAUDE.md
 
-import {mkdirSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
-import {resolve, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {rm} from 'node:fs/promises'
+import {spawnSync} from 'node:child_process'
+import {runTarget} from './lib/build-graph.ts'
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, '..');
-const SRC  = resolve(ROOT, 'docs');
-const OUT  = resolve(ROOT, 'dist/docs');
-
-// consumer API docs only
-const INCLUDE = [
-	'aead.md',
-	'aes.md',
-	'argon2id.md',
-	'cdn.md',
-	'chacha20.md',
-	'ciphersuite.md',
-	'examples.md',
-	'exports.md',
-	'fortuna.md',
-	'init.md',
-	'kmac.md',
-	'kyber.md',
-	'loader.md',
-	'mldsa.md',
-	'ratchet.md',
-	'serpent.md',
-	'sha2.md',
-	'sha3.md',
-	'signaturesuite.md',
-	'slhdsa.md',
-	'types.md',
-	'utils.md',
-];
-
-// strip SVG img tags that reference absolute GitHub URLs.
-// useless for agents in an installed package context
-const SVG_IMG = /<img[^>]+\.svg[^>]*>/;
-
-export async function run(): Promise<void> {
-	if (!existsSync(OUT)) mkdirSync(OUT, {recursive: true});
-
-	for (const file of INCLUDE) {
-		const src  = resolve(SRC, file);
-		const dest = resolve(OUT, file);
-
-		if (!existsSync(src)) {
-			process.stderr.write(`missing: docs/${file}\n`);
-			process.exit(1);
-		}
-
-		let content = readFileSync(src, 'utf8');
-
-		// strip absolute-URL SVG image lines, useless for agents working
-		// offline against the installed package
-		content = content
-			.split('\n')
-			.filter(line => !SVG_IMG.test(line))
-			.join('\n');
-
-		writeFileSync(dest, content, 'utf8');
-		process.stdout.write(`copied: docs/${file} → dist/docs/${file}\n`);
-	}
-
-	process.stdout.write(`done: ${INCLUDE.length} docs → dist/docs/\n`);
+async function pre(): Promise<void> {
+	const r = spawnSync('npm', ['pkg', 'delete', 'devDependencies', 'scripts'], {stdio: 'inherit'})
+	if (r.status !== 0) process.exit(r.status ?? 1)
+	await runTarget('claude-md')
 }
 
-if (import.meta.main) await run()
+async function post(): Promise<void> {
+	// idempotent by design: --post must succeed even if --pre failed partway
+	spawnSync('git', ['restore', 'package.json'], {stdio: 'inherit'})
+	await rm('CLAUDE.md', {force: true})
+}
+
+const flag = process.argv[2]
+if (flag === '--pre') await pre()
+else if (flag === '--post') await post()
+else {
+	process.stderr.write('usage: bun scripts/pack.ts --pre | --post\n')
+	process.exit(1)
+}
