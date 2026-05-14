@@ -324,7 +324,7 @@ function MldsaSlhdsaHybridSuite(
 
 			// Both sub-verifies have already returned by this point; the &&
 			// is a pure boolean reduction with nothing left to short-circuit.
-			// Do NOT wipe sigMldsa / sigSlhdsa — they are subarrays of the
+			// Do NOT wipe sigMldsa / sigSlhdsa; they are subarrays of the
 			// caller's `sig` buffer.
 			return mldsaOk && slhdsaOk;
 		},

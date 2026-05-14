@@ -22,7 +22,7 @@
 // test/unit/sign/helpers.ts
 //
 // Fixture SignatureSuite used by envelope/stream tests that don't need a
-// real cryptographic primitive — the envelope wire format is what's under
+// real cryptographic primitive. The envelope wire format is what's under
 // test. Deterministic, no WASM, no cryptographic strength.
 
 import { constantTimeEqual } from '../../../src/ts/utils.js';

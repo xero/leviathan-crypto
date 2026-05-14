@@ -27,14 +27,14 @@
 // slhVerifyInternal) end-to-end per parameter set:
 //
 //   1. Keygen → sign → verify round-trip with all three randomizer modes
-//      (hedged, deterministic, derand) — FIPS 205 §9.2.
-//   2. Hedged signatures differ across two calls on the same (sk, M) — the
+//      (hedged, deterministic, derand) per FIPS 205 §9.2.
+//   2. Hedged signatures differ across two calls on the same (sk, M); the
 //      randomizer is sampled fresh each call (§9.2 hedged variant).
 //   3. Deterministic signatures are byte-stable across calls on the same
-//      (sk, M) — opt_rand = PK.seed per §3.4.
+//      (sk, M); opt_rand = PK.seed per §3.4.
 //   4. Derand signatures are byte-stable per fixed (sk, M, opt_rand).
 //   5. Tampered signatures (single-byte flip at a random offset) verify as
-//      false — structural correctness check on the verify path.
+//      false; structural correctness check on the verify path.
 //   6. Wrong-size signatures verify as false (structural rejection).
 //
 // This test drives the WASM exports directly via the INPUT/OUT byte layouts;

@@ -28,8 +28,8 @@
 // authentication into a chain that terminates at PK.root.
 //
 // Algorithms implemented (FIPS 205 numbering):
-//   Algorithm 12  ht_sign    — sign across all d hypertree layers
-//   Algorithm 13  ht_verify  — verify across all d layers
+//   Algorithm 12  ht_sign:   sign across all d hypertree layers
+//   Algorithm 13  ht_verify: verify across all d layers
 //
 // Hypertree dimensions per FIPS 205 §11.1 Table 2:
 //
@@ -48,7 +48,7 @@
 // (hi/lo) so the host can call without BigInt.
 //
 // Working-buffer layout extends xmss.ts's STATE region:
-//   +3392 .. +3423  HT_ROOT_OFFSET — XMSS root (n bytes) carried across
+//   +3392 .. +3423  HT_ROOT_OFFSET: XMSS root (n bytes) carried across
 //                                    hypertree layers as input M to the
 //                                    next layer's xmss_sign.
 //

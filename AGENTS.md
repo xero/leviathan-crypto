@@ -517,7 +517,7 @@ A task is complete when **all** of the following are true:
    `unit-*.yml` workflow, followed by `bun pin`
 9. Any public API addition, removal, or signature change has matching updates
    in the relevant `docs/*.md` file. included but not limited to:
-   -  `docs/<feature>.md` for the specific primitive(s) affected, this is
+   - `docs/<feature>.md` for the specific primitive(s) affected, this is
      the canonical API reference for consumer agents and is always
      required when the surface of that primitive changes
    - `docs/exports.md` for any export added, removed, or renamed

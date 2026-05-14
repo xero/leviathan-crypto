@@ -24,11 +24,11 @@
 // FIPS 205 §5 Winternitz One-Time Signature Plus (WOTS+).
 //
 // Algorithms implemented (FIPS 205 numbering):
-//   Algorithm 4  base_2b           — byte-string → base-2^b digit array
-//   Algorithm 5  chain             — iterative F hash chain
-//   Algorithm 6  wots_pkGen        — derive public key from SK.seed
-//   Algorithm 7  wots_sign         — sign an n-byte message
-//   Algorithm 8  wots_pkFromSig    — recover public key from signature
+//   Algorithm 4  base_2b:          byte-string → base-2^b digit array
+//   Algorithm 5  chain:            iterative F hash chain
+//   Algorithm 6  wots_pkGen:       derive public key from SK.seed
+//   Algorithm 7  wots_sign:        sign an n-byte message
+//   Algorithm 8  wots_pkFromSig:   recover public key from signature
 //
 // Lock-step structure with the spec: every helper / branch carries a
 // `// FIPS 205 §5 Algorithm X line Y` comment so reviewers can trace
@@ -45,11 +45,11 @@
 //
 // Working-buffer layout (STATE region, base = STATE_OFFSET; bytes 0..63
 // hold ADRS + PARAMS, leaving 4032 free for the WOTS+ scratch below):
-//   +64 .. +2207   WOTS_TMP_OFFSET — len·n public values (max 2144 B at 256f)
-//   +2208 .. +2239 WOTS_SK_OFFSET  — n-byte PRF output scratch
-//   +2240 .. +2335 WOTS_MSG_OFFSET — base-w encoded msg||csum array (max 67 B)
-//   +2336 .. +2367 SK_ADRS_OFFSET  — scratch copy of ADRS (WOTS_PRF type)
-//   +2368 .. +2399 WOTSPK_ADRS_OFFSET — scratch copy of ADRS (WOTS_PK type)
+//   +64 .. +2207   WOTS_TMP_OFFSET:    len·n public values (max 2144 B at 256f)
+//   +2208 .. +2239 WOTS_SK_OFFSET:     n-byte PRF output scratch
+//   +2240 .. +2335 WOTS_MSG_OFFSET:    base-w encoded msg||csum array (max 67 B)
+//   +2336 .. +2367 SK_ADRS_OFFSET:     scratch copy of ADRS (WOTS_PRF type)
+//   +2368 .. +2399 WOTSPK_ADRS_OFFSET: scratch copy of ADRS (WOTS_PK type)
 //
 // FORS layers reuse +64..+2207 / +2336..+2399 (algorithms are mutually
 // exclusive within a single WASM call); see src/asm/slhdsa/fors.ts.
@@ -125,7 +125,7 @@ function base2b(outPtr: i32, xPtr: i32, b: i32, outLen: i32): void {
 // = i+s−1 on return when s > 0, unchanged when s = 0.
 //
 // Aliasing: F absorbs M1 fully before squeezing the output, so calling
-// slhHashF with m1Ptr = outPtr is safe (see src/asm/slhdsa/hashes.ts —
+// slhHashF with m1Ptr = outPtr is safe (see src/asm/slhdsa/hashes.ts:
 // keccakAbsorbAt reads input bytes into the sponge before keccakSqueezeTo
 // writes output back).
 

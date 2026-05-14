@@ -3,8 +3,8 @@
 > [!NOTE]
 > This file ships with the npm package to help AI assistants use this
 > library correctly. If you are working **inside** the `leviathan-crypto`
-> repository, stop reading this file and open `AGENTS.md` at the repo root
-> — that is the contract for developing the library itself.
+> repository, stop reading this file and open `AGENTS.md` at the repo
+> root. That is the contract for developing the library itself.
 
 ---
 
@@ -26,20 +26,20 @@ Two parallel hierarchies, both built on a suite extension point:
 
 **AEAD.** `Seal` (one-shot) → `SealStream` + `OpenStream` (streaming) →
 `SealStreamPool` (parallel via Web Workers). All four take a `CipherSuite`
-at construction and share one wire format — a `Seal` blob is structurally
+at construction and share one wire format; a `Seal` blob is structurally
 a single-chunk `SealStream` output, and `OpenStream` decrypts it
 interchangeably. Three symmetric suites ship: `SerpentCipher`,
 `XChaCha20Cipher`, `AESGCMSIVCipher`. `KyberSuite` is a fourth, wrapping
-any of them with ML-KEM for hybrid PQ encryption — same `CipherSuite`
+any of them with ML-KEM for hybrid PQ encryption. Same `CipherSuite`
 interface, no change to the consuming API.
 
 **Signatures.** `Sign` (one-shot) → `SignStream` + `VerifyStream`
 (streaming). Both take a `SignatureSuite`. ML-DSA, SLH-DSA, prehash
 variants, and PQ-only hybrid composites all slot in unchanged.
 
-Pick the tier by data shape, pick the suite by cryptographic choice — the
+Pick the tier by data shape, pick the suite by cryptographic choice. The
 axes are orthogonal. **Prefer the high-level surface
-(`Seal`/`Sign`/`Fortuna`)** — it handles key derivation, nonce management,
+(`Seal`/`Sign`/`Fortuna`).** It handles key derivation, nonce management,
 authentication, key wipes, counter-binding, and rejects tampered,
 reordered, or spliced inputs before plaintext is released. The lower-level
 primitives (`SerpentCbc`, raw `ChaCha20`, etc.) require reading the
@@ -57,7 +57,7 @@ per-feature docs.
 
 No class works before `init()` is called. The call throws clearly when a
 needed module is missing. Use the `/embedded` subpath of each module for
-the bundled gzip+base64 blob. `init()` is idempotent — safe to call from
+the bundled gzip+base64 blob. `init()` is idempotent; safe to call from
 multiple entry points.
 
 ### 2. `dispose()` in `finally`
@@ -74,21 +74,21 @@ A stateful class (`SHAKE128`, `ChaCha20`, `SerpentCtr`, `SerpentCbc`,
 `SealStream`, etc.) holds exclusive access to its WASM module for its
 lifetime. Constructing a second stateful instance on the same module
 throws. Atomic methods on the same module also throw while a stateful
-holder is alive. Pool workers are unaffected — each has its own WASM
+holder is alive. Pool workers are unaffected; each has its own WASM
 instance.
 
-### 4. AEAD `decrypt()` throws on auth failure — never returns null
+### 4. AEAD `decrypt()` throws on auth failure, never returns null
 
 All `Seal.decrypt`, AEAD `decrypt()`, and `OpenStream.pull` paths throw on
 authentication failure. They do not return null and never return corrupted
-plaintext. Wrap calls in try/catch — wrong key, tampered blob, and
+plaintext. Wrap calls in try/catch; wrong key, tampered blob, and
 corrupted bytes all surface as exceptions.
 
-### 5. Signature `verify()` returns a boolean — never throws on bad sig
+### 5. Signature `verify()` returns a boolean, never throws on bad sig
 
 For raw `MlDsa*.verify` / `SlhDsa*.verify` / hybrid `verifyPrehashed`, a
 bad signature returns `false`. It does not throw. Branching on "did
-`verify` complete without throwing" is a bug — bad sigs complete too.
+`verify` complete without throwing" is a bug. Bad sigs complete too.
 
 ```typescript
 if (!dsa.verify(vk, M, sig, ctx)) throw new Error('signature invalid')
@@ -102,7 +102,7 @@ primitives are boolean; `Sign.verify` is throw.
 ### 6. Pure-mode and prehash signatures are NOT interchangeable
 
 A signature produced by `dsa.sign` will not verify under `dsa.verifyHash`
-on the same key, and vice versa — even with identical message bytes. The
+on the same key, and vice versa, even with identical message bytes. The
 M' construction binds a different domain-separator byte (0x00 vs 0x01,
 FIPS 204 §3.6.4 / FIPS 205 §10.2.2) to prevent cross-protocol forgery.
 Choose one mode per protocol and stay consistent. The same wall holds at
@@ -136,7 +136,7 @@ The eight primitive modules each have a subpath `leviathan-crypto/<mod>`
 with init function `<mod>Init(source)` and an embedded blob at
 `<mod>/embedded` (exported as `<mod>Wasm`). The modules: `serpent`,
 `chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `kyber`, `mldsa`. `keccak`
-is an alias for `sha3` — same WASM binary, same instance slot.
+is an alias for `sha3`; same WASM binary, same instance slot.
 
 Two subpaths have no `/embedded` companion:
 `leviathan-crypto/ratchet` (KDF over sha2 + kyber + sha3) and
@@ -167,7 +167,7 @@ Read the cited doc before non-trivial work. Files ship under
 | `MlDsa44/65/87` (+HashML-DSA) | `mldsa`, `sha3` (+`sha2` SHA-2 prehash) | `mldsa.md` |
 | `SlhDsa128f/192f/256f` (+HashSLH-DSA) | `slhdsa` (+`sha3` prehash, +`sha2` SHA-2 prehash) | `slhdsa.md` |
 | `Sign` / `SignStream` / `VerifyStream` + `*Suite` consts | varies | `signaturesuite.md` |
-| `Fortuna` — use `await Fortuna.create({ generator, hash })` | one cipher + one hash | `fortuna.md` |
+| `Fortuna` via `await Fortuna.create({ generator, hash })` | one cipher + one hash | `fortuna.md` |
 | Sparse PQ Ratchet (KDF only, see foot-gun #8) | `sha2`, `kyber`, `sha3` | `ratchet.md` |
 | Argon2id passphrase KDF | see doc | `argon2id.md` |
 | Utilities (`hexToBytes`, `randomBytes`, `constantTimeEqual`, `wipe`, ...) | none | `utils.md` |
@@ -189,8 +189,8 @@ Read the cited doc before non-trivial work. Files ship under
 
 ## Canonical example
 
-`Seal` + `SerpentCipher` round-trip — init, recommended high-level path,
-throw-on-failure decrypt:
+`Seal` + `SerpentCipher` round-trip showing init, the recommended
+high-level path, and throw-on-failure decrypt:
 
 ```typescript
 import { init, Seal, SerpentCipher } from 'leviathan-crypto'
