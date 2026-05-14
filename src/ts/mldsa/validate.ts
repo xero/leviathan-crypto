@@ -128,8 +128,8 @@ export function validateMessage(M: Uint8Array): void {
  * surface intercepts this to return false (a wrong-size digest is a
  * structural mismatch, indistinguishable from a wrong signature), while
  * the sign surface lets the throw propagate (the caller supplied bad
- * input, that is a contract violation per the task spec §interface
- * shapes / FIPS 204 §5.4 input contract).
+ * input, that is a contract violation per the FIPS 204 §5.4 input
+ * contract).
  */
 export function validateDigest(digest: Uint8Array, algo: PreHashAlgorithm): void {
 	if (!(digest instanceof Uint8Array))

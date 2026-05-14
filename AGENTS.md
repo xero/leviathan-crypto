@@ -202,13 +202,18 @@ that way.
 
 These are decisions already made. Do not relitigate them without raising it first.
 
-- **Eight WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
-  `sha3.wasm`, `ct.wasm`, `kyber.wasm`, `aes.wasm`, `mldsa.wasm`. Each is
-  independent: separate linear memory, separate buffer layout, separate
-  AssemblyScript entry point. `ct.wasm` is an internal utility (SIMD
-  constant-time compare, not a user-facing module). `'keccak'` is an
-  alias for `'sha3'` in the TypeScript layer; it is not a separate
-  module. No `keccak.wasm` exists or should be created.
+- **Nine WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
+  `sha3.wasm`, `ct.wasm`, `kyber.wasm`, `aes.wasm`, `mldsa.wasm`,
+  `slhdsa.wasm`. Each is independent: separate linear memory, separate
+  buffer layout, separate AssemblyScript entry point. `ct.wasm` is an
+  internal utility (SIMD constant-time compare, not a user-facing
+  module). `'keccak'` is an alias for `'sha3'` in the TypeScript layer;
+  it is not a separate module. No `keccak.wasm` exists or should be
+  created. `slhdsa.wasm` embeds its own Keccak permutation (verbatim
+  port from sha3-wasm) for the FIPS 205 internal hash primitives
+  (F / H / T_l / PRF / PRFmsg / Hmsg); pure-mode SLH-DSA never touches
+  the sha3 module, prehash SLH-DSA only touches sha3 for the running
+  digest in the sign layer.
 - **Static buffers only**: no dynamic allocation (`memory.grow()` is not used).
   All buffers are fixed offsets in linear memory defined in `buffers.ts`.
 - **Buffer layout starts at 0**: each module's layout is independent and starts
@@ -250,9 +255,22 @@ These are decisions already made. Do not relitigate them without raising it firs
   `src/ts/sign/suites/` instantiate the underlying primitive class per call,
   use it inside a `try`, and `dispose()` it in `finally`. No suite-level
   long-lived instance is held. This matches the static-method posture of
-  KMAC and keeps suites stateless and reentrant. All future phase suite
-  factories (slhdsa, ed25519, ecdsa-p256, hybrid-pq, hybrid-classical) follow
-  this pattern.
+  KMAC and keeps suites stateless and reentrant. The Phase 2 SLH-DSA pure
+  and prehash suites and the PQ-only hybrid suites follow this pattern;
+  all future phase suite factories (ed25519, ecdsa-p256, hybrid-classical)
+  do the same.
+- **PQ-only hybrid suite factory pattern**: hybrid suite factories under
+  `src/ts/sign/suites/hybrid-pq.ts` compose two underlying signature
+  primitives (currently ML-DSA + SLH-DSA at matching NIST categories).
+  Composite encoding is `pk_combined = pk_mldsa || pk_slhdsa` and
+  `sig_combined = sig_mldsa || sig_slhdsa` with sizes catalog-known and
+  no length prefixes. ML-DSA half always comes first by convention. The
+  same `effective_ctx` is fed to both sub-signers; the per-hybrid unique
+  `ctxDomain` (e.g. `'mldsa44-slhdsa128f-envelope-v3'`) prevents
+  cross-suite and cross-hybrid forgery. `verifyPrehashed` ALWAYS runs
+  both sub-verifies; no early-return on the first half's result.
+  Signature subarrays returned from the wire-format split must NOT be
+  wiped on verify failure, they are subarrays of caller-owned data.
 - **Internal factories + external consts in `src/ts/sign/suites/`**: PascalCase
   factory functions (e.g. `MldsaPureSuite`, `MldsaPrehashSuite`) build the
   suite objects and stay unexported. Each catalog entry is then exported as
@@ -282,6 +300,20 @@ These are decisions already made. Do not relitigate them without raising it firs
   prehashes for SHA-2 (Ed25519ph, ECDSA-P256 prehash) should add analogous
   `SHA256Stream` / `SHA512Stream` to the sha2 module using the same
   discipline.
+- **SHAKE streaming classes (`SHAKE128Stream`, `SHAKE256Stream`)**: Phase 2
+  added these to the sha3 module alongside the unbounded `SHAKE128` /
+  `SHAKE256` XOF classes. `outputLen` is bound at construction; `update`
+  / `finalize` shape mirrors `SHA3_256Stream`. Required substrate for
+  `createRunningHash('shake-128' | 'shake-256')` in the sign layer; used
+  by SLH-DSA prehash suites and PQ-only hybrid suites.
+- **Phase 2 test groups**: SLH-DSA primitive and signature-layer tests
+  live in three new CI groups in `scripts/lib/test-groups.ts`:
+  `slhdsa` (10-min timeout, primitive plus prehash/validation),
+  `slhdsa-acvp` (20-min timeout, the ACVP corpus, isolated because it
+  is the slowest), and `sign-hybrid` (15-min timeout, `UNIT_FULL` build
+  targets, sign-layer SLH-DSA and PQ-only hybrid suite tests). The
+  split keeps any single group inside its `timeout-minutes`; consult
+  the recorded per-group runtimes before considering consolidation.
 
 ---
 

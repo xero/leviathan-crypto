@@ -1,6 +1,6 @@
 # Phase Index, v3 signature work
 
-Status (as of 2026-05-12): Phase 1 complete.
+Status (as of 2026-05-14): Phase 1 and Phase 2 complete. DOGFOOD milestone reached.
 
 ## Phase 1, Abstraction
   Status: ✅ complete
@@ -10,7 +10,7 @@ Status (as of 2026-05-12): Phase 1 complete.
   Scope guard: no new WASM; no other suites; no log work
 
 ## Phase 2, SLH-DSA + PQ-only hybrids        [DOGFOOD MILESTONE]
-  Status: ⏳ queued
+  Status: ✅ complete
   Delivers: slhdsa primitive (3 levels) + 6 slhdsa suites (0x06-0x08, 0x16-0x18) + 3 PQ-only hybrid suites (0x30-0x32)
   Owned files: src/asm/slhdsa/, src/ts/slhdsa/, src/ts/sign/suites/slhdsa.ts, src/ts/sign/suites/hybrid-pq.ts
   Depends on: Phase 1 (sig-iface)

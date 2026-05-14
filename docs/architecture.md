@@ -2,14 +2,14 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture, comprising eight independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation and ML-DSA signatures, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
+Overview of Leviathan Crypto's architecture, comprising nine independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
 
 > ### Table of Contents
 >
 > - [Architectural overview](#architectural-overview)
 > - [Scope](#scope)
 > - [Repository Structure](#repository-structure)
-> - [Eight Independent WASM Modules](#eight-independent-wasm-modules)
+> - [Nine Independent WASM Modules](#nine-independent-wasm-modules)
 > - [init() API](#init-api)
 > - [Public API Classes](#public-api-classes)
 > - [Build Pipeline](#build-pipeline)
@@ -57,6 +57,8 @@ Overview of Leviathan Crypto's architecture, comprising eight independent WASM m
 
 **ML-DSA is the post-quantum signature peer.** `MlDsa44`, `MlDsa65`, and `MlDsa87` are FIPS 204 lattice-based signatures at NIST security categories 2, 3, and 5. The ring arithmetic, NTT, and rejection-sampling kernels are constant-time at the algorithm level, and the c̃ comparison in verify routes through the same SIMD `ct.equal` primitive used elsewhere in the library. Signing is hedged by default. HashML-DSA wraps the same Sign and Verify primitives with a per-function OID DER prefix and a 0x01 domain-separator byte for cross-protocol separation. All FIPS 204 hard checks land at runtime, including the three HintBitUnpack malformed-input checks added in §D.3.
 
+**SLH-DSA is the assumption-diverse signature peer.** `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f` are FIPS 205 stateless hash-based signatures at NIST security categories 1, 3, and 5. Security rests on the preimage and collision resistance of SHAKE rather than any lattice or number-theoretic assumption, so a future lattice cryptanalysis advance that compromises ML-DSA does not transfer. Phase 2 ships the SHAKE-fast (`128f` / `192f` / `256f`) parameter sets; the slow variants and SHA-2 family are out of scope. HashSLH-DSA mirrors HashML-DSA's M' construction byte-for-byte across the 12 §10.2.2 pre-hash functions. The library also ships three PQ-only hybrid composite suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) that bind both primitives to the same prehash digest under a unique `ctxDomain`, defending against the case where one PQ family breaks before the other.
+
 **Fortuna is the library's CSPRNG.** It collects entropy from platform-specific sources (browser input events, timing jitter, Node.js process stats, plus `crypto.getRandomValues()` as a baseline), distributes it across 32 independent pools, and reseeds an internal generator built on a cipher-as-PRF construction. The generator key is replaced after every `get()` call, so state compromise at time T cannot reveal any output produced before T. The primitive pair is pluggable, mirroring `CipherSuite`'s extension-point pattern: any of the three ciphers above plugs into the generator, paired with either SHA-256 or SHA3-256 for hashing.
 
 **Above the seal layer sits the ratchet module:** KDF primitives from Signal's Sparse Post-Quantum Ratchet (SPQR), the post-quantum extension of the Double Ratchet protocol. `ratchetInit` bootstraps the root and chain keys from an out-of-band shared secret. `KDFChain` advances a symmetric chain key and derives per-message keys with forward secrecy. `kemRatchetEncap` and `kemRatchetDecap` perform the ML-KEM ratchet step for post-compromise security. `SkippedKeyStore` caches message keys for out-of-order delivery; cached keys return through a transactional handle that commits on auth success and rolls back on failure, so a garbage ciphertext at a valid counter cannot consume the legitimate message's slot. The store also bounds memory and per-message HKDF work, so a malicious header with a high counter cannot force unbounded derivations. These are primitives, not a full session: state machines, message counters, header format, and epoch orchestration are application concerns. Consumers compose them with their own transport for forward-secret protocols whose needs outgrow one-shot AEAD.
@@ -80,6 +82,7 @@ Overview of Leviathan Crypto's architecture, comprising eight independent WASM m
 | [`sha3`](./asm_sha3.md)       | SHA3-224/256/384/512, SHAKE128, SHAKE256 (XOFs), cSHAKE128/256, KMAC128/256, KMACXOF128/256 (SP 800-185)                                                                            | [`SHA3_224`](./sha3.md#sha3_224), [`SHA3_256`](./sha3.md#sha3_256), [`SHA3_384`](./sha3.md#sha3_384), [`SHA3_512`](./sha3.md#sha3_512), [`SHAKE128`](./sha3.md#shake128), [`SHAKE256`](./sha3.md#shake256), [`CSHAKE128`](./kmac.md#cshake128), [`CSHAKE256`](./kmac.md#cshake256), [`KMAC128`](./kmac.md#kmac128), [`KMAC256`](./kmac.md#kmac256), [`KMACXOF128`](./kmac.md#kmacxof128), [`KMACXOF256`](./kmac.md#kmacxof256) |
 | [`kyber`](./asm_kyber.md)     | ML-KEM polynomial arithmetic (FIPS 203): SIMD NTT, basemul, CBD, compression, FO comparisons                                                                                      | [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), [`MlKem1024`](./kyber.md#parameter-sets)                                                                                                                                                                                                                                                                                 |
 | [`mldsa`](./asm_mldsa.md)     | ML-DSA polynomial arithmetic (FIPS 204): SIMD NTT over q=8380417, rejection sampling, Power2Round, Decompose, MakeHint, HintBitPack/Unpack with §D.3 SUF-CMA checks, SampleInBall | [`MlDsa44`](./mldsa.md), [`MlDsa65`](./mldsa.md), [`MlDsa87`](./mldsa.md) (pure ML-DSA and HashML-DSA across the twelve §5.4.1 pre-hash functions)                                                                                                                                                                                                                                                         |
+| `slhdsa`                      | SLH-DSA stateless hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition | [`SlhDsa128f`](./slhdsa.md), [`SlhDsa192f`](./slhdsa.md), [`SlhDsa256f`](./slhdsa.md) (pure SLH-DSA and HashSLH-DSA across the twelve §10.2.2 pre-hash functions)                                                                                                                                                                                                                                          |
 | [`ct`](./asm_ct.md)           | Constant-time comparison primitives                                                                                                                                               | [`constantTimeEqual`](./utils.md#constanttimeequal)                                                                                                                                                                                                                                                                                                                                                        |
 
 
@@ -297,7 +300,7 @@ src/asm/
 
 **Signature module** (`mldsa/`) has no `cipher-suite.ts` or `pool-worker.ts` (signing and verification are not AEAD operations). It splits its surface into `keygen.ts`, `sign.ts`, `verify.ts`, `format.ts` (M' construction with domain separator and OID prefix), `hashvariant.ts` (the twelve §5.4.1 pre-hash dispatch), `expand.ts` (ExpandA, ExpandS, ExpandMask, SampleInBall via SHAKE), `validate.ts` (input validation), and `sha3-helpers.ts` (sponge orchestration).
 
-**Signing surface** (`sign/`) sits beside `stream/` as the signing counterpart to the AEAD layer. `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; they delegate to a `SignatureSuite` object passed at the call site (or to the stream constructor). The `sign/suites/` directory holds the in-tree suite consts. Phase 1 ships six ML-DSA suites; future phases add SLH-DSA, Ed25519, ECDSA-P256, and the hybrid composites. See [signaturesuite.md](./signaturesuite.md).
+**Signing surface** (`sign/`) sits beside `stream/` as the signing counterpart to the AEAD layer. `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; they delegate to a `SignatureSuite` object passed at the call site (or to the stream constructor). The `sign/suites/` directory holds the in-tree suite consts. Phase 1 shipped six ML-DSA suites (three pure, three prehash). Phase 2 adds six SLH-DSA suites at the matching shape plus three PQ-only hybrid composites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) that bind both primitives to the same prehash digest. Future phases add Ed25519, ECDSA-P256, and the classical+PQ hybrid composites. See [signaturesuite.md](./signaturesuite.md).
 
 **Shared utilities.** `shared/` holds primitives reused across cipher modules without belonging to any one of them. `pkcs7.ts` is the canonical PKCS#7 padding helper used by Serpent CBC and consumer code.
 
@@ -494,9 +497,9 @@ The repository root holds project documentation, package metadata, and tool conf
 
 ---
 
-## Eight Independent WASM Modules
+## Nine Independent WASM Modules
 
-Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Seven of the eight modules load through `init()`. The eighth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
+Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Eight of the nine modules load through `init()`. The ninth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
 
 | Module     | Binary          | Primitives                                                                                                                                                                                                                                                                                  |
 | ---------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -507,6 +510,7 @@ Each primitive family compiles to its own `.wasm` binary with fully independent 
 | `sha3`     | `sha3.wasm`     | SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128, SHAKE256                                                                                                                                                                                                                                  |
 | `kyber`    | `kyber.wasm`    | ML-KEM polynomial arithmetic: SIMD NTT/invNTT (v128 butterflies with scalar tail), basemul, Montgomery/Barrett, CBD, compress, CT verify/cmov                                                                                                                                               |
 | `mldsa`    | `mldsa.wasm`    | ML-DSA polynomial arithmetic: SIMD NTT/invNTT for q=8380417 (v128 i32 butterflies), Montgomery/Barrett over q, rejection sampling (RejNTTPoly, RejBoundedPoly), Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint, HintBitPack/Unpack with the §D.3 SUF-CMA checks, SampleInBall |
+| `slhdsa`   | `slhdsa.wasm`   | SLH-DSA hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, 32-byte ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition, slh_keygen_internal / slh_sign_internal / slh_verify_internal (§9 Algorithms 18 / 19 / 20) |
 | `ct`       | `ct.wasm`       | SIMD constant-time byte comparison. Backs `constantTimeEqual` and `CT_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page.                                                                                                                                                          |
 
 **Size.** Consumers who only use Serpent don't load the SHA-3 binary.
@@ -541,6 +545,10 @@ Each module's buffer layout starts at offset 0 and is defined in its own `buffer
 
 [The TypeScript module](./mldsa.md) exports `MlDsa44`, `MlDsa65`, and `MlDsa87`, signature classes covering NIST security categories 2, 3, and 5. All three require both `mldsa` and `sha3` to be initialized; HashML-DSA with a SHA-2 family pre-hash additionally requires `sha2`. The sha3 module provides SHAKE128 (matrix expansion via ExpandA), SHAKE256 (noise expansion via ExpandS, masking expansion via ExpandMask, message representative μ, ρ'' derivation, and SampleInBall), and the SHA3-fixed digests for HashML-DSA pre-hash. The sha2 module covers SHA2-{224, 256, 384, 512, 512/224, 512/256} when HashML-DSA selects a SHA-2 pre-hash.
 
+**`slhdsa.wasm`** implements SLH-DSA stateless hash-based signing per FIPS 205. The binary embeds its own Keccak-f[1600] permutation so pure-SLH-DSA usage does not depend on the `sha3` module. The §11.2 SHAKE family of tweakable hashes (F / H / T_ℓ / PRF / PRF_msg / H_msg) sits on top of the embedded permutation; the §4.2 ADRS struct (32 bytes, BE-32 limbs) parameterizes every hash call; and the §5-§8 algorithms (WOTS+ chains, FORS authentication paths, XMSS subtrees, hypertree composition) build up to the §9 internal entry points `slhKeygenInternal` (Algorithm 18), `slhSignInternal` (Algorithm 19), and `slhVerifyInternal` (Algorithm 20). The `_test*` prefixed test-fixture exports drive individual layers in isolation during unit testing and are not part of the consumer-facing `SlhDsaExports` interface. Three parameter sets ship in Phase 2: SHAKE-128f (category 1), SHAKE-192f (category 3), SHAKE-256f (category 5). See: [SLH-DSA Public API](./slhdsa.md), [Audit Checklist](./slhdsa_audit.md).
+
+[The TypeScript module](./slhdsa.md) exports `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f`, signature classes covering NIST security categories 1, 3, and 5. Pure SLH-DSA requires only `slhdsa`. HashSLH-DSA with a SHA-3 or SHAKE pre-hash additionally requires `sha3`; with a SHA-2 pre-hash, additionally `sha2`. The hybrid PQ-only suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) compose `slhdsa` with `mldsa` and `sha3` to produce one combined signature that an attacker would have to forge under both primitives; the streaming `SignStream` path drives the running SHAKE prehash through `sha3`. See [signaturesuite.md](./signaturesuite.md#pq-only-hybrid-composite-encoding) for the wire format.
+
 **`ct.wasm`** implements constant-time byte array equality with a single SIMD-only primitive. The module exports `compare(aOff, bOff, len)`, which reads both arrays directly from caller-specified offsets in linear memory and returns 1 if all bytes match, 0 otherwise. Comparison is zero-copy: no internal staging buffers, no buffer slots, no `wipeBuffers` export. The implementation is structurally branch-free. A `v128.xor`/`v128.or` accumulator processes 16-byte blocks, a scalar tail handles any remainder, and the final zero-test is an arithmetic shift, not a conditional. Requires WebAssembly SIMD (`v128` instructions); if the runtime lacks SIMD or compilation fails, the first call throws a branded error. See: [Constant-Time WASM Reference](asm_ct.md)
 
 [The TypeScript module](./utils.md#constanttimeequal) exports `constantTimeEqual` and `CT_MAX_BYTES` from the root barrel. The wrapper instantiates the WASM synchronously on first call and caches it for subsequent calls. It writes both arrays into linear memory, calls `compare`, and zeroes both regions in a `finally` block before returning. `CT_MAX_BYTES` is 32 KB per side; the 64 KB page holds two equal-length inputs.
@@ -554,7 +562,7 @@ WASM instantiation is async. [`init()`](./init.md) is the initialization gate, c
 ### Signature
 
 ```typescript
-type Module = 'serpent' | 'chacha20' | 'aes' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa'
+type Module = 'serpent' | 'chacha20' | 'aes' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa' | 'slhdsa'
 
 type WasmSource =
   | string                  // gzip+base64 embedded blob
@@ -570,7 +578,7 @@ async function init(
 ): Promise<void>
 ```
 
-The loading strategy is inferred from the source type, so there is no need for a mode string. Each module also exports its own init function, such as `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, and `mldsaInit(source)`, enabling tree-shakeable imports.
+The loading strategy is inferred from the source type, so there is no need for a mode string. Each module also exports its own init function, such as `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, `mldsaInit(source)`, and `slhdsaInit(source)`, enabling tree-shakeable imports.
 
 > [!NOTE]
 > **`keccak` is an alias for `sha3`.** Both names are accepted by `init()`, `initModule()`, `getInstance()`, and `isInitialized()`. They share the same WASM binary and the same instance slot. The alias exists so Kyber/ML-KEM consumers can write `init({ keccak: keccakWasm })` using the semantically correct name for the underlying sponge primitive.
@@ -618,6 +626,12 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `mldsa` + `sha3` + `sha2`       | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash)                               |
 | `mldsa` + `sha3`                | `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite` (sign-layer pure-mode suites for `Sign`)                |
 | `mldsa` + `sha3`                | `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite` (sign-layer prehash suites for `SignStream` / `VerifyStream`) |
+| `slhdsa`                        | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f` (pure SLH-DSA)                                                 |
+| `slhdsa` + `sha3`               | `SlhDsa{128f,192f,256f}` with HashSLH-DSA over SHA-3 / SHAKE pre-hash                                    |
+| `slhdsa` + `sha3` + `sha2`      | `SlhDsa{128f,192f,256f}` with HashSLH-DSA over a SHA-2 family pre-hash                                   |
+| `slhdsa`                        | `SlhDsa128fSuite`, `SlhDsa192fSuite`, `SlhDsa256fSuite` (sign-layer pure-mode SLH-DSA suites)            |
+| `slhdsa` + `sha3`               | `SlhDsa128fPreHashSuite`, `SlhDsa192fPreHashSuite`, `SlhDsa256fPreHashSuite` (sign-layer prehash SLH-DSA suites) |
+| `mldsa` + `sha3` + `slhdsa`     | `MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite` (PQ-only hybrid composites) |
 | `sign`                          | `Sign`, `SignStream`, `VerifyStream` (scheme-agnostic; modules depend on the suite)                    |
 | `sha2`                          | `ratchetInit`, `KDFChain`, `SkippedKeyStore`                                                            |
 | `kyber` + `sha3` + `sha2`       | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair`                                                  |
@@ -637,7 +651,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
  -  Ratchet exports are KDF primitives from Signal's Sparse Post-Quantum Ratchet spec; session state, message ordering, and header format remain application concerns.
  - **`Fortuna`** requires `await Fortuna.create({ generator, hash })` rather than `new Fortuna()`. Required modules depend on the generator and hash you pass. See [fortuna.md](./fortuna.md) for valid combinations.
  - `SealStream`, `OpenStream`, and `SealStreamPool` are cipher-agnostic; you select the cipher by passing `XChaCha20Cipher`, `SerpentCipher`, or `AESGCMSIVCipher` at construction.
- - `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; you select the scheme by passing a `SignatureSuite` (Phase 1 ships `MlDsa{44,65,87}Suite` and `MlDsa{44,65,87}PreHashSuite`). See [signaturesuite.md](./signaturesuite.md).
+ - `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; you select the scheme by passing a `SignatureSuite`. Phase 1 ships `MlDsa{44,65,87}Suite` and `MlDsa{44,65,87}PreHashSuite`; Phase 2 adds `SlhDsa{128f,192f,256f}Suite`, `SlhDsa{128f,192f,256f}PreHashSuite`, and the PQ-only hybrid composites `MlDsa{44,65,87}SlhDsa{128f,192f,256f}Suite`. See [signaturesuite.md](./signaturesuite.md).
 
 ### Usage pattern
 
@@ -894,7 +908,7 @@ index.ts
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/import-graph.svg" alt="TS Layer: internal import graph diagram">
 
-Each module's init function (`serpentInit`, `chacha20Init`, `aesInit`, `sha2Init`, `sha3Init`, `kyberInit`, `mldsaInit`) calls `initModule()` from `init.ts`, passing a `WasmSource`. `initModule()` delegates to `loadWasm(source)` in `loader.ts`. The loader infers the loading strategy from the source type, with no mode string and no knowledge of module names or embedded file paths.
+Each module's init function (`serpentInit`, `chacha20Init`, `aesInit`, `sha2Init`, `sha3Init`, `kyberInit`, `mldsaInit`, `slhdsaInit`) calls `initModule()` from `init.ts`, passing a `WasmSource`. `initModule()` delegates to `loadWasm(source)` in `loader.ts`. The loader infers the loading strategy from the source type, with no mode string and no knowledge of module names or embedded file paths.
 
 Pool workers (`serpent/pool-worker.ts`, `chacha20/pool-worker.ts`, `aes/pool-worker.ts`) instantiate their own WASM modules from pre-compiled `WebAssembly.Module` objects passed via `postMessage`. They do not use `initModule()` or the main-thread cache. Workers are spawned from blob URLs constructed in `cipher-suite.ts` over an IIFE source string built at lib build time (`src/ts/embedded/<cipher>-pool-worker.ts`). The `pool-worker.ts` file itself is the source the bundler reads, not the runtime spawn entry.
 
@@ -1503,6 +1517,9 @@ The architectural defenses compose into protection against specific named attack
 | [sha3](./sha3.md)                                 | SHA-3 hashes and SHAKE XOFs TypeScript API                                                             |
 | [kyber](./kyber.md)                               | ML-KEM TypeScript API and `KyberSuite`                                                                 |
 | [mldsa](./mldsa.md)                               | ML-DSA and HashML-DSA TypeScript API                                                                   |
+| [slhdsa](./slhdsa.md)                             | SLH-DSA and HashSLH-DSA TypeScript API                                                                 |
+| [signaturesuite](./signaturesuite.md)             | `SignatureSuite`, `Sign`, `SignStream`, `VerifyStream`, ML-DSA / SLH-DSA / PQ-only hybrid suite catalog |
+| [slhdsa_audit](./slhdsa_audit.md)                 | SLH-DSA implementation audit checklist                                                                 |
 | [ratchet](./ratchet.md)                           | SPQR ratchet KDF primitives                                                                            |
 | [fortuna](./fortuna.md)                           | Fortuna CSPRNG with forward secrecy and entropy pooling                                                |
 | [argon2id](./argon2id.md)                         | Argon2id password hashing and key derivation                                                           |

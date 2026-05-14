@@ -185,8 +185,9 @@ await serpentInit(serpentWasm)
 | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` | `init({ sha3: sha3Wasm })` or `init({ keccak: keccakWasm })`, `'keccak'` is an alias for `'sha3'`. The SP 800-185 family (cSHAKE, KMAC, KMACXOF) shares the SHA-3 WASM slot. |
 | `MlKem512`, `MlKem768`, `MlKem1024` | `init({ kyber: kyberWasm, sha3: sha3Wasm })`, both modules required |
 | `MlDsa44`, `MlDsa65`, `MlDsa87` | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`, both modules required (post-quantum digital signatures, FIPS 204) |
-| `Sign`, `SignStream`, `VerifyStream`, the six `MlDsa*Suite` / `MlDsa*PreHashSuite` consts | `init({ mldsa: mldsaWasm, sha3: sha3Wasm })`, the sign envelope and stream layers are SignatureSuite-driven and inherit the suite's module requirements. Phase 1 ships only ML-DSA-backed suites. |
-| `SHA3_256Stream`, `SHA3_512Stream` | `init({ sha3: sha3Wasm })`, incremental SHA-3 over `update` / `finalize`; required substrate for `SignStream` over prehash suites. |
+| `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f` | `init({ slhdsa: slhdsaWasm })` for pure SLH-DSA; HashSLH-DSA with SHA-2 pre-hash additionally needs `sha2`; with SHA-3 / SHAKE pre-hash additionally needs `sha3` (FIPS 205, stateless hash-based signatures). The slhdsa WASM module embeds its own Keccak permutation, so pure-mode use never touches `sha3`. |
+| `Sign`, `SignStream`, `VerifyStream`, the six `MlDsa*Suite` / `MlDsa*PreHashSuite` consts, the six `SlhDsa*Suite` / `SlhDsa*PreHashSuite` consts, and the three `MlDsa*SlhDsa*Suite` PQ-only hybrid consts | `init(...)` modules depend on the suite. ML-DSA suites need `mldsa + sha3`; SLH-DSA pure suites need `slhdsa`; SLH-DSA prehash suites need `slhdsa + sha3` (for the running SHAKE digest); PQ-only hybrid suites need `mldsa + sha3 + slhdsa`. The sign envelope and stream layers are SignatureSuite-driven and inherit the suite's `wasmModules` declaration. |
+| `SHA3_256Stream`, `SHA3_512Stream`, `SHAKE128Stream`, `SHAKE256Stream` | `init({ sha3: sha3Wasm })`, incremental fixed-output SHA-3 / SHAKE over `update` / `finalize`; required substrate for `SignStream` over prehash suites. |
 | `Fortuna` | `init(...)` with one cipher module (`aes`, `serpent`, or `chacha20`) plus one hash module (`sha2` or `sha3`). All six combinations are valid. |
 | `KDFChain`, `ratchetInit`, `ratchetReady`, `SkippedKeyStore` | `init({ sha2: sha2Wasm })` |
 | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })` |
@@ -612,7 +613,122 @@ Locked semantics for the v3 sign layer:
 - **Hedged signing by default.** ML-DSA suites route to FIPS 204 §3.4 hedged signing; deterministic and externally-randomized variants are not exposed on the suite, use the underlying `MlDsa*` class for those.
 - **`Sign.verify` returns the payload, throws on failure.** Catch `SigningError` (with the relevant `discriminator`), do not check for nulls. `Sign.verifyDetached` returns boolean for the raw-signature variant.
 - **`SignStream` holds the sha3 module exclusively** from construction until `finalize()` or `dispose()`. Wrap in `try` / `finally` and dispose unconditionally.
-- **Only `StreamableSignatureSuite` suites work with `SignStream` / `VerifyStream`.** Pure-mode suites (`MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`) are a TypeScript compile error when passed to a stream constructor; use `Sign.sign` for those.
+- **Only `StreamableSignatureSuite` suites work with `SignStream` / `VerifyStream`.** Pure-mode suites (`MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`, `SlhDsa128fSuite`, `SlhDsa192fSuite`, `SlhDsa256fSuite`) are a TypeScript compile error when passed to a stream constructor; use `Sign.sign` for those. Prehash and PQ-only hybrid suites implement `StreamableSignatureSuite` and stream cleanly.
+
+### SLH-DSA post-quantum digital signatures (FIPS 205)
+
+SLH-DSA is the second post-quantum signature scheme shipped by the
+library, parallel to ML-DSA but built on hash functions only (no
+algebraic structure). Pick SLH-DSA when you want maximum conservatism
+on quantum cryptanalysis assumptions and can absorb larger signatures
+(~17-49 KB versus ML-DSA's 2.4-4.6 KB).
+
+```typescript
+import { init, SlhDsa128f } from 'leviathan-crypto'
+import { slhdsaWasm } from 'leviathan-crypto/slhdsa/embedded'
+
+await init({ slhdsa: slhdsaWasm })
+
+const dsa = new SlhDsa128f()
+const { verificationKey, signingKey } = dsa.keygen()
+
+// Hedged signing, recommended default per FIPS 205 §3.4.
+const sig = dsa.sign(signingKey, message)
+const ok  = dsa.verify(verificationKey, message, sig)   // boolean
+
+dsa.dispose()
+```
+
+Three parameter sets: `SlhDsa128f` (NIST category 1, 17088-byte sig),
+`SlhDsa192f` (category 3, 35664-byte sig), `SlhDsa256f` (category 5,
+49856-byte sig). Each ships the SHAKE-family fast variant; the `s`
+small-signature variants are not shipped.
+
+**Three signing modes** (same shape as ML-DSA):
+
+- `sign(sk, M, ctx?)`, **hedged** (default). Generates a fresh n-byte
+  opt_rand per call; two signatures over the same `(sk, M)` differ.
+- `signDeterministic(sk, M, ctx?)`, sets opt_rand ← PK.seed per
+  FIPS 205 §3.4. **Vulnerable to fault attacks**.
+- `signDerand(sk, M, optRand, ctx?)`, testing / CAVP API. Caller
+  supplies the n-byte opt_rand. MUST NOT be reused across signatures.
+
+> [!CAUTION]
+> **`verify` returns boolean and does NOT throw on bad signatures**
+> (same posture as ML-DSA). Wrong-length pk / σ return `false`; only
+> contract violations (`ctx.length > 255`, unsupported `ph`, category
+> mismatch on prehash) throw.
+
+### HashSLH-DSA, pre-hash variant (FIPS 205 §10.2.2)
+
+```typescript
+const sig = dsa.signHash(signingKey, message, 'SHAKE128')
+const ok  = dsa.verifyHash(verificationKey, message, sig, 'SHAKE128')
+```
+
+`ph` is one of the FIPS 205 §10.2.2 approved functions:
+`'SHA2-224' | 'SHA2-256' | 'SHA2-384' | 'SHA2-512' |
+'SHA2-512/224' | 'SHA2-512/256' | 'SHA3-224' | 'SHA3-256' | 'SHA3-384' |
+'SHA3-512' | 'SHAKE128' | 'SHAKE256'`.
+
+> [!CAUTION]
+> **FIPS 205 §10.2.2 category restriction.** `SHA2-256` and `SHAKE128`
+> prehash are only valid for category-1 keys (`SlhDsa128f`). The library
+> enforces this at the public surface and throws `RangeError` if a
+> category-3 or category-5 key is paired with `SHA2-256` / `SHAKE128`.
+
+The caller-supplied-prehash variants (`signHashPrehashed`,
+`signHashPrehashedDeterministic`, `signHashPrehashedDerand`,
+`verifyHashPrehashed`) accept the digest directly when `M` is not
+buffered in one place. Wrong-size digest is a sign-side contract
+violation (`SigningError('sig-malformed-input')`) and a verify-side
+structural verdict (returns `false`).
+
+> [!CAUTION]
+> **Pure SLH-DSA and HashSLH-DSA signatures are NOT interchangeable**
+> even on the same key. Different domain-sep byte (0x00 vs 0x01) in M'.
+> Choose one per protocol and stay consistent.
+
+### PQ-only hybrid signatures (ML-DSA + SLH-DSA composite)
+
+Three exported suite consts compose ML-DSA and SLH-DSA at matching
+security categories: `MlDsa44SlhDsa128fSuite` (cat-2 + cat-1, format
+byte 0x30), `MlDsa65SlhDsa192fSuite` (cat-3 + cat-3, 0x31),
+`MlDsa87SlhDsa256fSuite` (cat-5 + cat-5, 0x32). Use a hybrid when you
+want signature validity to survive the catastrophic break of one of
+the two underlying schemes.
+
+```typescript
+import { init, Sign, SignStream, VerifyStream, MlDsa65SlhDsa192fSuite, concat } from 'leviathan-crypto'
+import { mldsaWasm }  from 'leviathan-crypto/mldsa/embedded'
+import { sha3Wasm }   from 'leviathan-crypto/sha3/embedded'
+import { slhdsaWasm } from 'leviathan-crypto/slhdsa/embedded'
+
+await init({ mldsa: mldsaWasm, sha3: sha3Wasm, slhdsa: slhdsaWasm })
+
+const { pk, sk } = MlDsa65SlhDsa192fSuite.keygen()
+// pk = pk_mldsa || pk_slhdsa (composite, sizes catalog-known, no length prefixes)
+// sk = sk_mldsa || sk_slhdsa
+
+const ctx  = new TextEncoder().encode('app:my-app:v1')
+const blob = Sign.sign(MlDsa65SlhDsa192fSuite, sk, msg, ctx)
+const out  = Sign.verify(MlDsa65SlhDsa192fSuite, pk, blob, ctx)
+```
+
+Hybrid suites are **prehash-only** (the SHAKE digest is computed once
+and fed to both halves), so they must go through `SignStream` /
+`VerifyStream` for streaming or `Sign.sign` for single-shot. The
+underlying `Sign` envelope wraps the composite signature transparently;
+on the wire the signature is `sig_mldsa || sig_slhdsa` with no length
+prefix.
+
+> [!CAUTION]
+> **`verifyPrehashed` always runs both sub-verifies.** No early return
+> on the first half's boolean. Both halves must validate; one valid +
+> one invalid is rejected. Cross-suite forgery is blocked at the
+> ctxDomain layer: a standalone `MlDsa65Suite` sig placed as the
+> ML-DSA half of `MlDsa65SlhDsa192fSuite` is rejected because the
+> envelope ctxDomain differs.
 
 ### Fortuna CSPRNG
 
@@ -750,6 +866,8 @@ The complete API reference ships in `docs/` alongside this file:
 | `docs/aead.md` | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite` |
 | `docs/kyber.md` | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`, ML-KEM (FIPS 203) API reference |
 | `docs/mldsa.md` | `MlDsa44`, `MlDsa65`, `MlDsa87`, ML-DSA (FIPS 204) digital-signature API reference |
+| `docs/slhdsa.md` | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`, SLH-DSA (FIPS 205) stateless hash-based digital-signature API reference |
+| `docs/signaturesuite.md` | `Sign`, `SignStream`, `VerifyStream`, the `SignatureSuite` catalog (ML-DSA, SLH-DSA, PQ-only hybrid suites), wire format, ctxDomain construction rules, error discriminator table |
 | `docs/fortuna.md` | `Fortuna` CSPRNG |
 | `docs/init.md` | `init()` API, loading modes, subpath imports |
 | `docs/utils.md` | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes` |

@@ -21,9 +21,7 @@
 //
 // src/ts/sign/index.ts
 //
-// Public barrel for the v3 sign module. Phase 1 / TASK-A ships only the
-// type contracts and the ctx utilities; Sign / SignStream / VerifyStream
-// and the suite consts are wired in by later tasks.
+// Public barrel for the v3 sign module.
 
 export type {
 	SignatureSuite,
@@ -47,3 +45,14 @@ export {
 	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
 	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
 } from './suites/mldsa.js';
+
+export {
+	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,
+	SlhDsa128fPreHashSuite, SlhDsa192fPreHashSuite, SlhDsa256fPreHashSuite,
+} from './suites/slhdsa.js';
+
+export {
+	MlDsa44SlhDsa128fSuite,
+	MlDsa65SlhDsa192fSuite,
+	MlDsa87SlhDsa256fSuite,
+} from './suites/hybrid-pq.js';

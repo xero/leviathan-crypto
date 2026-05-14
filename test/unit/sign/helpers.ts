@@ -21,9 +21,9 @@
 //
 // test/unit/sign/helpers.ts
 //
-// Fixture SignatureSuite for envelope/stream tests that pre-date the real
-// mldsa suites (TASK-D / TASK-E). Deterministic, no WASM, no cryptographic
-// strength. The envelope wire format is what's under test.
+// Fixture SignatureSuite used by envelope/stream tests that don't need a
+// real cryptographic primitive — the envelope wire format is what's under
+// test. Deterministic, no WASM, no cryptographic strength.
 
 import { constantTimeEqual } from '../../../src/ts/utils.js';
 import { SigningError } from '../../../src/ts/errors.js';

@@ -16,6 +16,8 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [SHA-3](#sha-3)
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
+> - [ML-DSA (Post-quantum signatures)](#ml-dsa-post-quantum-signatures)
+> - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
 > - [Fortuna CSPRNG](#fortuna-csprng)
 > - [Ratchet (Sparse Post-Quantum Ratchet KDF)](#ratchet-sparse-post-quantum-ratchet-kdf)
 > - [Types](#types)
@@ -31,7 +33,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa'` |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa'` |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -125,6 +127,15 @@ Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
 | `MlDsa44PreHashSuite` | const | ML-DSA-44 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x13`, `ctxDomain: 'mldsa44-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
 | `MlDsa65PreHashSuite` | const | ML-DSA-65 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x14`, `ctxDomain: 'mldsa65-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
 | `MlDsa87PreHashSuite` | const | ML-DSA-87 + SHA3-512 prehash StreamableSignatureSuite. `formatEnum: 0x15`, `ctxDomain: 'mldsa87-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `SlhDsa128fSuite` | const | Pure SLH-DSA-SHAKE-128f SignatureSuite. `formatEnum: 0x06`, `ctxDomain: 'slhdsa128f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa192fSuite` | const | Pure SLH-DSA-SHAKE-192f SignatureSuite. `formatEnum: 0x07`, `ctxDomain: 'slhdsa192f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa256fSuite` | const | Pure SLH-DSA-SHAKE-256f SignatureSuite. `formatEnum: 0x08`, `ctxDomain: 'slhdsa256f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa128fPreHashSuite` | const | SLH-DSA-SHAKE-128f + SHAKE128(32) prehash StreamableSignatureSuite. `formatEnum: 0x16`, `ctxDomain: 'slhdsa128f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `SlhDsa192fPreHashSuite` | const | SLH-DSA-SHAKE-192f + SHAKE256(64) prehash StreamableSignatureSuite. `formatEnum: 0x17`, `ctxDomain: 'slhdsa192f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `SlhDsa256fPreHashSuite` | const | SLH-DSA-SHAKE-256f + SHAKE256(64) prehash StreamableSignatureSuite. `formatEnum: 0x18`, `ctxDomain: 'slhdsa256f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `MlDsa44SlhDsa128fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-44 + SLH-DSA-128f (NIST cat-2 + cat-1). `formatEnum: 0x30`, `ctxDomain: 'mldsa44-slhdsa128f-envelope-v3'`. Composite `pk = pk_mldsa \|\| pk_slhdsa`, `sig = sig_mldsa \|\| sig_slhdsa`, ML-DSA-first, no length prefixes. Prehash SHAKE128(32). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa65SlhDsa192fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-65 + SLH-DSA-192f (cat-3 + cat-3). `formatEnum: 0x31`, `ctxDomain: 'mldsa65-slhdsa192f-envelope-v3'`. Prehash SHAKE256(64). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa87SlhDsa256fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-87 + SLH-DSA-256f (cat-5 + cat-5). `formatEnum: 0x32`, `ctxDomain: 'mldsa87-slhdsa256f-envelope-v3'`. Prehash SHAKE256(64). Requires `init({ mldsa, sha3, slhdsa })`. |
 
 ---
 
@@ -191,6 +202,8 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 | `SHA3_512Stream` | class | Incremental SHA3-512. `update(chunk)`, `finalize()` returns 64 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
 | `SHAKE128` | class | SHAKE128 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
 | `SHAKE256` | class | SHAKE256 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
+| `SHAKE128Stream` | class | Fixed-output streaming SHAKE128. `new SHAKE128Stream(outputLen)`, `update(chunk)`, `finalize()` returns exactly `outputLen` bytes and disposes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. Substrate for `createRunningHash('shake-128')` in the sign layer. |
+| `SHAKE256Stream` | class | Fixed-output streaming SHAKE256. Same shape as `SHAKE128Stream`. Substrate for `createRunningHash('shake-256')`. |
 | `CSHAKE128` | class | cSHAKE128 customizable XOF (SP 800-185 §3). `new CSHAKE128(customization)`, `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. Throws if customization is empty (use SHAKE128 instead). |
 | `CSHAKE256` | class | cSHAKE256 customizable XOF (SP 800-185 §3). Same shape as CSHAKE128 with the 256-bit-strength rate. |
 | `KMAC128` | class | KMAC128 keyed Keccak MAC, fixed-output (SP 800-185 §4). `new KMAC128(key, outLen, customization)`, `update(chunk)`, `finalize()`, `mac(msg)`, static `verify(tag, key, msg, customization)` (throws `AuthenticationError('kmac128')` on mismatch). |
@@ -275,6 +288,39 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 | `MLDSA44` | const | Parameter set for ML-DSA-44. |
 | `MLDSA65` | const | Parameter set for ML-DSA-65. |
 | `MLDSA87` | const | Parameter set for ML-DSA-87. |
+
+---
+
+## SLH-DSA (Post-quantum signatures)
+
+Requires `init({ slhdsa: slhdsaWasm })`. HashSLH-DSA with a SHA-2 family
+pre-hash additionally requires `init({ sha2: sha2Wasm })`; HashSLH-DSA
+with a SHA-3 or SHAKE pre-hash additionally requires
+`init({ sha3: sha3Wasm })`. Pure-mode SLH-DSA needs neither, the slhdsa
+WASM module embeds its own Keccak permutation for the internal
+F / H / T_l / PRF / PRFmsg / Hmsg primitives.
+Subpath: `leviathan-crypto/slhdsa`. See [slhdsa.md](./slhdsa.md).
+
+SLH-DSA classes ship pure-SLH-DSA `keygen` / `keygenDerand` / `sign` /
+`signDeterministic` / `signDerand` / `verify` and the HashSLH-DSA
+pre-hash counterparts `signHash` / `signHashDeterministic` /
+`signHashDerand` / `verifyHash`, plus the caller-supplied-prehash
+variants `signHashPrehashed` / `signHashPrehashedDeterministic` /
+`signHashPrehashedDerand` / `verifyHashPrehashed` (FIPS 205 §10.2.2
+Algorithm 23 / §10.3 Algorithm 25).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `slhdsaInit` | function | Module-scoped init. `slhdsaInit(source: WasmSource)` loads only the slhdsa WASM. |
+| `SlhDsaBase` | class | Abstract base class for all SLH-DSA variants. Holds `params: SlhDsaParams`. Not normally instantiated directly, use `SlhDsa128f`, `SlhDsa192f`, or `SlhDsa256f`. |
+| `SlhDsa128f` | class | SLH-DSA-SHAKE-128f (n=16, h=66, d=22, h'=3, a=6, k=33, lg(w)=4; NIST category 1). pk 32 B, sk 64 B, sig 17088 B. Same method surface as `SlhDsa192f`. |
+| `SlhDsa192f` | class | SLH-DSA-SHAKE-192f (n=24, h=66, d=22, h'=3, a=8, k=33, lg(w)=4; NIST category 3). pk 48 B, sk 96 B, sig 35664 B. `keygen()`, `keygenDerand(seed)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, optRand, ctx?)`, `verify(pk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, optRand, ctx?)`, `verifyHash(pk, M, sig, ph, ctx?)`, `signHashPrehashed(sk, digest, ph, ctx?)`, `signHashPrehashedDeterministic(sk, digest, ph, ctx?)`, `signHashPrehashedDerand(sk, digest, ph, optRand, ctx?)`, `verifyHashPrehashed(pk, digest, sig, ph, ctx?)`, `dispose()`. |
+| `SlhDsa256f` | class | SLH-DSA-SHAKE-256f (n=32, h=68, d=17, h'=4, a=9, k=35, lg(w)=4; NIST category 5). pk 64 B, sk 128 B, sig 49856 B. Same API as `SlhDsa192f`. |
+| `SlhDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 205 pkEncode / skEncode). |
+| `SlhDsaParams` | type | Parameter-set configuration (n, h, d, h', a, k, lg(w), securityCategory, byte sizes, paramSet name, wasmSelector). |
+| `SLHDSA128F` | const | Parameter set for SLH-DSA-SHAKE-128f. |
+| `SLHDSA192F` | const | Parameter set for SLH-DSA-SHAKE-192f. |
+| `SLHDSA256F` | const | Parameter set for SLH-DSA-SHAKE-256f. |
 
 ---
 

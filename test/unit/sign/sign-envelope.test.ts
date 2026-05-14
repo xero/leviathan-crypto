@@ -22,8 +22,8 @@
 // test/unit/sign/sign-envelope.test.ts
 //
 // Sign class envelope coverage, structural and round-trip. Uses the
-// in-test fixture suite (no real mldsa yet); cryptographic round-trips
-// against the real suites land in TASK-E.
+// in-test fixture suite; cryptographic round-trips against the real suites
+// are covered by sign-mldsa-integration / sign-hybrid-pq-integration.
 
 import { describe, it, expect } from 'vitest';
 import { Sign } from '../../../src/ts/sign/index.js';

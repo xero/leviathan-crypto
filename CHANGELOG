@@ -366,6 +366,108 @@ SP 800-185 additions add no migration burden.
 
 Migration: none. All additions, no breaking changes.
 
+### Added (Phase 2 signature work, SLH-DSA + PQ-only hybrids)
+
+- **SLH-DSA primitive.** FIPS 205 Stateless Hash-Based Digital Signature
+  Standard ships as the second post-quantum signature scheme in the
+  library. Three classes, `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`
+  (SHAKE-family fast parameter sets, NIST security categories 1/3/5),
+  share one `slhdsa` WASM module. Pure SLH-DSA exposes `keygen` /
+  `keygenDerand`, hedged `sign` (FIPS 205 §3.4 recommended default),
+  `signDeterministic`, `signDerand` (CAVP / externally-supplied opt_rand),
+  and `verify`. HashSLH-DSA (FIPS 205 §10.2.2) exposes `signHash` /
+  `signHashDeterministic` / `signHashDerand` / `verifyHash` and the
+  caller-supplied-prehash counterparts `signHashPrehashed` /
+  `signHashPrehashedDeterministic` / `signHashPrehashedDerand` /
+  `verifyHashPrehashed`. The pre-hash domain separator byte (0x01) plus
+  the per-function OID DER bytes from NIST CSOR enforce cross-protocol
+  domain separation, signatures from `signHash` cannot verify under
+  `verify` on the same key (FIPS 205 §10.2 narrative). The category-1
+  restriction on SHA2-256 / SHAKE128 prehash (§10.2.2) is enforced at
+  the public surface.
+
+  Initialize via `init({ slhdsa: slhdsaWasm })`; HashSLH-DSA with a SHA-2
+  family pre-hash additionally requires `init({ sha2: sha2Wasm })`; SHA-3
+  or SHAKE pre-hashes additionally require `init({ sha3: sha3Wasm })`.
+  Subpath exports: `leviathan-crypto/slhdsa` and
+  `leviathan-crypto/slhdsa/embedded`. The slhdsa WASM module embeds its
+  own Keccak permutation (verbatim port from sha3-wasm) for the internal
+  F / H / T_l / PRF / PRFmsg / Hmsg primitives, so pure-SLH-DSA usage
+  never touches the sha3 module. The ACVP corpus (keyGen / sigGen /
+  sigVer across all three parameter sets, hedged plus deterministic plus
+  derand modes) is byte-identical to the published vectors. Every WASM
+  region holding a secret or secret-derived intermediate is wiped on the
+  way out (success and failure paths).
+
+- **Six SLH-DSA suite consts.** `SlhDsa128fSuite`, `SlhDsa192fSuite`,
+  `SlhDsa256fSuite` (catalog bytes 0x06, 0x07, 0x08) cover pure SLH-DSA
+  across the three SHAKE-family fast parameter sets.
+  `SlhDsa128fPreHashSuite`, `SlhDsa192fPreHashSuite`,
+  `SlhDsa256fPreHashSuite` (catalog bytes 0x16, 0x17, 0x18) cover the
+  HashSLH-DSA prehash variants. Prehash choices: SHAKE128 (32-byte
+  digest) for the 128f level, SHAKE256 (64-byte digest) for 192f and
+  256f, the category-appropriate algorithms per FIPS 205 §10.2.2. Every
+  suite ships a built-in `slhdsa{Nnnf}-envelope-v3` (or
+  `slhdsa{Nnnf}-prehash-envelope-v3`) ctxDomain so signatures cannot
+  accidentally validate across suites even with identical
+  `(sk, msg, user_ctx)`.
+
+- **Three PQ-only hybrid suite consts.** `MlDsa44SlhDsa128fSuite`,
+  `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite` (catalog bytes
+  0x30, 0x31, 0x32) compose ML-DSA and SLH-DSA at matching NIST security
+  categories (2+1, 3+3, 5+5). Composite encoding is
+  `pk_combined = pk_mldsa || pk_slhdsa` and
+  `sig_combined = sig_mldsa || sig_slhdsa` with sizes catalog-known and
+  no length prefixes. ML-DSA-first ordering by convention. Both
+  sub-signers receive the same `effective_ctx`; the per-hybrid
+  `mldsa{XX}-slhdsa{YYY}f-envelope-v3` ctxDomain blocks cross-suite and
+  cross-hybrid forgery (a standalone `MlDsa44Suite` sig placed as the
+  ML-DSA half of a 0x30 hybrid is rejected). `verifyPrehashed` always
+  runs both sub-verifies (no early return on the first half's boolean).
+  Streaming via `SignStream` / `VerifyStream` is mandatory: hybrids are
+  prehash-only (the SHAKE digest is hashed once and fed to both halves).
+  All three hybrids declare `wasmModules: ['mldsa', 'sha3', 'slhdsa']`.
+
+- **`SHAKE128Stream` and `SHAKE256Stream`** in the sha3 module.
+  Fixed-output streaming SHAKE variants matching the `RunningHash`
+  contract used by `SignStream` / `VerifyStream`. `outputLen` is bound
+  at construction; `update(chunk)` absorbs, `finalize()` pads and
+  squeezes exactly `outputLen` bytes then disposes the instance.
+  Lifecycle mirrors `SHA3_256Stream` / `SHAKE128`: `_acquireModule('sha3')`
+  at construction, `_releaseModule` on `finalize()` / `dispose()`, the
+  same exclusivity guard that protects SHAKE state. The multi-squeeze
+  `SHAKE128` / `SHAKE256` classes remain for the XOF surface; the new
+  Stream classes are the fixed-output cousins. Required by
+  `createRunningHash` for SLH-DSA and PQ-only hybrid prehash suites.
+
+- **`'shake-128'` and `'shake-256'`** cases in `createRunningHash`. The
+  Phase 1 dispatcher in `src/ts/sign/hasher.ts` previously wired only
+  `'sha3-256'` / `'sha3-512'`; the two SHAKE entries now route to
+  `SHAKE128Stream(32)` and `SHAKE256Stream(64)` so the
+  `StreamableSignatureSuite` declarations on SLH-DSA prehash and PQ-only
+  hybrid suites are satisfied end-to-end. The SHA-2 dispatch still
+  throws, those land in Phase 4 (Ed25519ph) / Phase 5 (ECDSA-P256
+  prehash).
+
+- **`--cipher slhdsa` and `--cipher hybrid-pq`** in the independent Rust
+  verifier (`scripts/verify-vectors`). The slhdsa dispatcher cross-checks
+  the ACVP keyGen / sigGen / sigVer corpora against a separate-lineage
+  Rust `slh-dsa` crate; the hybrid-pq dispatcher decomposes composite
+  pk / sig pairs and verifies each half independently to confirm the
+  composite encoding is sound at both ends. Both run in the default
+  `--cipher all --target all` corpus walk, so every PR exercises the new
+  vectors end-to-end against an independent oracle.
+
+- **Docs.** `docs/slhdsa.md` (full SLH-DSA API reference); `docs/slhdsa_audit.md`
+  (xero-reviewed audit doc, internal to the repo, not shipped in the npm
+  package); a PQ-only hybrid composite-encoding section in
+  `docs/signaturesuite.md`; a PQ-only hybrid threat-model section in
+  `SECURITY.md`; the SLH-DSA layer addition in `docs/architecture.md`.
+
+Migration: none. All additions, no breaking changes. The Phase 1 ML-DSA
+surface (six suites, `Sign` / `SignStream` / `VerifyStream`,
+`MlDsa{44,65,87}` classes) is unchanged.
+
 ## v2.1.0
 
 ### Added

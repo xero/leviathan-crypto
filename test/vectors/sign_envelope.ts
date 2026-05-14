@@ -2,9 +2,9 @@
 //
 // Locks the v3 attached envelope byte layout used by Sign.sign /
 // Sign.verify. The signature bytes are produced by an in-test fixture
-// suite (TASK-B), not a real cryptographic primitive, so these vectors
-// are wire-format gates only. Real-suite KAT vectors land in TASK-E /
-// the integration vector suite.
+// suite, not a real cryptographic primitive, so these vectors are
+// wire-format gates only; real-suite KAT vectors live in the
+// per-primitive integration vector files.
 //
 // Wire format:
 //   [suite_byte: u8][ctx_len: u8][ctx: ctx_len bytes]

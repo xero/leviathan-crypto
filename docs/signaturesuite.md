@@ -10,6 +10,7 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > - [Implementations included](#implementations-included)
 > - [Pure-mode suites](#pure-mode-suites)
 > - [Prehash-mode suites](#prehash-mode-suites)
+> - [PQ-only hybrid composite encoding](#pq-only-hybrid-composite-encoding)
 > - [Wire format](#wire-format)
 > - [Interface reference](#interface-reference)
 > - [ctx-domain construction](#ctx-domain-construction)
@@ -26,7 +27,7 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 
 Phase 1 ships six ML-DSA suites. Three are pure-mode, satisfying `SignatureSuite`; three are prehash-mode, satisfying `StreamableSignatureSuite` and usable with `SignStream` / `VerifyStream`.
 
-Phase 2 adds SLH-DSA (FIPS 205) and the leviathan PQ-only hybrids. Phase 4 adds Ed25519 and Ed25519ph. Phase 5 adds ECDSA-P256. Phase 6 adds the composite classical+PQ hybrids that match `draft-ietf-lamps-pq-composite-sigs`. Phase 7 wires the same `SignatureSuite` shape into the Merkle log signed-tree-head surface. The format-byte allocation at the bottom of this doc reserves a wire byte for every catalog entry, shipped or queued.
+Phase 2 adds SLH-DSA (FIPS 205) and the leviathan PQ-only hybrids: six SLH-DSA suites (three pure, three prehash) plus three hybrid composites that combine ML-DSA with SLH-DSA at each NIST security category. Phase 4 adds Ed25519 and Ed25519ph. Phase 5 adds ECDSA-P256. Phase 6 adds the composite classical+PQ hybrids that match `draft-ietf-lamps-pq-composite-sigs`. Phase 7 wires the same `SignatureSuite` shape into the Merkle log signed-tree-head surface. The format-byte allocation at the bottom of this doc reserves a wire byte for every catalog entry, shipped or queued.
 
 ---
 
@@ -91,6 +92,156 @@ Use these when the application cannot buffer the full message before signing, or
 
 > [!IMPORTANT]
 > Pure-mode and prehash-mode signatures are not interchangeable, even on the same key. HashML-DSA's M' uses a different domain-separator byte from pure ML-DSA (FIPS 204 §3.6.4). The wire format encodes which mode produced the signature via `formatEnum`; the receiver must match the suite the sender used.
+
+### SLH-DSA pure-mode suites
+
+The SLH-DSA pure-mode suites cover FIPS 205 §10.1. They satisfy `SignatureSuite` only.
+
+| Field         | `SlhDsa128fSuite`         | `SlhDsa192fSuite`         | `SlhDsa256fSuite`         |
+|---------------|---------------------------|---------------------------|---------------------------|
+| `formatEnum`  | `0x06`                    | `0x07`                    | `0x08`                    |
+| `formatName`  | `'slhdsa128f'`            | `'slhdsa192f'`            | `'slhdsa256f'`            |
+| `ctxDomain`   | `slhdsa128f-envelope-v3`  | `slhdsa192f-envelope-v3`  | `slhdsa256f-envelope-v3`  |
+| `pkSize`      | 32                        | 48                        | 64                        |
+| `skSize`      | 64                        | 96                        | 128                       |
+| `sigSize`     | 17088                     | 35664                     | 49856                     |
+| `wasmModules` | `['slhdsa']`              | `['slhdsa']`              | `['slhdsa']`              |
+
+Pick `SlhDsa192fSuite` (category 3) as a general-purpose default. `SlhDsa128fSuite` is the smallest hash-based signature available; `SlhDsa256fSuite` is the highest assurance variant for long-lived keys. See [slhdsa.md](./slhdsa.md) for the underlying SLH-DSA reference, including the FIPS 205 §3.4 hedged-versus-deterministic discussion and the wipe discipline.
+
+### SLH-DSA prehash-mode suites
+
+| Field              | `SlhDsa128fPreHashSuite`              | `SlhDsa192fPreHashSuite`              | `SlhDsa256fPreHashSuite`              |
+|--------------------|---------------------------------------|---------------------------------------|---------------------------------------|
+| `formatEnum`       | `0x16`                                | `0x17`                                | `0x18`                                |
+| `formatName`       | `'slhdsa128f-prehash'`                | `'slhdsa192f-prehash'`                | `'slhdsa256f-prehash'`                |
+| `ctxDomain`        | `slhdsa128f-prehash-envelope-v3`      | `slhdsa192f-prehash-envelope-v3`      | `slhdsa256f-prehash-envelope-v3`      |
+| `pkSize`           | 32                                    | 48                                    | 64                                    |
+| `skSize`           | 64                                    | 96                                    | 128                                   |
+| `sigSize`          | 17088                                 | 35664                                 | 49856                                 |
+| `prehashAlgorithm` | `'shake-128'`                         | `'shake-256'`                         | `'shake-256'`                         |
+| `prehashSize`      | 32                                    | 64                                    | 64                                    |
+| `wasmModules`      | `['slhdsa', 'sha3']`                  | `['slhdsa', 'sha3']`                  | `['slhdsa', 'sha3']`                  |
+
+The prehash choice tracks FIPS 205 §10.2.2's category restriction: SHAKE128 is only appropriate for category 1, so `SlhDsa128fPreHashSuite` pins it; SHAKE256 covers categories 3 and 5, so `SlhDsa192fPreHashSuite` and `SlhDsa256fPreHashSuite` pin it. The category gate is enforced at the underlying primitive's public surface; calling these suites with the wrong prehash is impossible because each suite has its prehash baked in.
+
+### PQ-only hybrid suites
+
+The three hybrid suites compose ML-DSA with SLH-DSA at each NIST security category. They satisfy `StreamableSignatureSuite` and produce a single combined signature that an attacker would have to forge under both primitives. See [PQ-only hybrid composite encoding](#pq-only-hybrid-composite-encoding) below for the wire format and threat model.
+
+| Field              | `MlDsa44SlhDsa128fSuite`              | `MlDsa65SlhDsa192fSuite`              | `MlDsa87SlhDsa256fSuite`              |
+|--------------------|---------------------------------------|---------------------------------------|---------------------------------------|
+| `formatEnum`       | `0x30`                                | `0x31`                                | `0x32`                                |
+| `formatName`       | `'mldsa44-slhdsa128f'`                | `'mldsa65-slhdsa192f'`                | `'mldsa87-slhdsa256f'`                |
+| `ctxDomain`        | `mldsa44-slhdsa128f-envelope-v3`      | `mldsa65-slhdsa192f-envelope-v3`      | `mldsa87-slhdsa256f-envelope-v3`      |
+| `pkSize`           | 1344                                  | 2000                                  | 2656                                  |
+| `skSize`           | 2624                                  | 4128                                  | 5024                                  |
+| `sigSize`          | 19508                                 | 38973                                 | 54483                                 |
+| `prehashAlgorithm` | `'shake-128'`                         | `'shake-256'`                         | `'shake-256'`                         |
+| `prehashSize`      | 32                                    | 64                                    | 64                                    |
+| `wasmModules`      | `['mldsa', 'sha3', 'slhdsa']`         | `['mldsa', 'sha3', 'slhdsa']`         | `['mldsa', 'sha3', 'slhdsa']`         |
+
+Sizes are additive: `pkSize`, `skSize`, and `sigSize` are the sum of the per-primitive sizes from [mldsa.md](./mldsa.md#parameter-sets) and [slhdsa.md](./slhdsa.md#parameter-sets), with ML-DSA in the upper half of the wire and SLH-DSA in the lower half.
+
+---
+
+## PQ-only hybrid composite encoding
+
+The PQ-only hybrid suites (`0x30`, `0x31`, `0x32`) compose ML-DSA with SLH-DSA at each NIST security category. The wire format is leviathan-defined; the IETF `draft-ietf-lamps-pq-composite-sigs` covers classical+PQ pairs only, so it does not apply here. The Phase 6 classical+PQ hybrids (`0x20`-`0x23`) will use the composite-sigs encoding when they ship.
+
+### Wire format
+
+The hybrid encodes its key pair and signature as straight concatenation, ML-DSA half first:
+
+```
+pk_combined  = pk_mldsa  || pk_slhdsa
+sk_combined  = sk_mldsa  || sk_slhdsa
+sig_combined = sig_mldsa || sig_slhdsa
+```
+
+No length prefix sits between the halves. Each suite's `pkSize`, `skSize`, and `sigSize` is the sum of the two underlying primitives' sizes from the FIPS 204 / FIPS 205 catalogs, so a receiver that already knows the suite (`formatEnum`) can slice the halves at byte offsets fixed by the catalog. The split offset on the wire is `mldsaParams.pkBytes` for pk, `mldsaParams.skBytes` for sk, `mldsaParams.sigBytes` for sig.
+
+| Suite                       | ML-DSA pk | SLH-DSA pk | pk total | ML-DSA sk | SLH-DSA sk | sk total | ML-DSA sig | SLH-DSA sig | sig total |
+|-----------------------------|-----------|------------|----------|-----------|------------|----------|------------|-------------|-----------|
+| `MlDsa44SlhDsa128fSuite`    | 1312      | 32         | 1344     | 2560      | 64         | 2624     | 2420       | 17088       | 19508     |
+| `MlDsa65SlhDsa192fSuite`    | 1952      | 48         | 2000     | 4032      | 96         | 4128     | 3309       | 35664       | 38973     |
+| `MlDsa87SlhDsa256fSuite`    | 2592      | 64         | 2656     | 4896      | 128        | 5024     | 4627       | 49856       | 54483     |
+
+The combined signature lives inside the same attached / detached envelope the Phase 1 ML-DSA suites use; the envelope's `suite_byte` distinguishes a hybrid from a single-primitive signature, and the rest of the wire layout (ctx, payload, sig) follows the [Attached envelope](#attached-envelope) shape with `sigSize` taken from the hybrid suite.
+
+### Prehash and M' construction
+
+Both halves sign the same prehash digest under the same `effective_ctx`. The streaming-and-bundled path computes one digest, passes it to both `signHashPrehashed` calls, then concatenates the two resulting signatures.
+
+The hybrid prehash configuration matches the per-half FIPS 205 §10.2.2 category gate:
+
+| Suite                       | Prehash algorithm | Digest size |
+|-----------------------------|-------------------|-------------|
+| `MlDsa44SlhDsa128fSuite`    | `shake-128`       | 32 bytes    |
+| `MlDsa65SlhDsa192fSuite`    | `shake-256`       | 64 bytes    |
+| `MlDsa87SlhDsa256fSuite`    | `shake-256`       | 64 bytes    |
+
+The two M' constructions are byte-identical across the two primitives. FIPS 204 §5.4 Algorithm 4 builds `M' = 0x01 || |ctx| || ctx || OID(ph) || PH_M`, and FIPS 205 §10.2.2 Algorithm 23 builds the same string. The SHAKE OIDs are registered on the same NIST CSOR branch in both specs (FIPS 204 §5.4.1 = FIPS 205 §10.2.2), so the OID bytes match byte-for-byte. ML-DSA's domain-separator byte is `0x01` and SLH-DSA's is also `0x01` for HashML-DSA / HashSLH-DSA, so both halves see exactly the same M' when called with the same `(digest, ph, ctx)`.
+
+The two primitives still produce different signatures because their internal algorithms are different: ML-DSA's signing reduces to lattice arithmetic over the M' digest while SLH-DSA's signing reduces to hash-based authentication paths over the same digest. The attacker faces two distinct hard problems, both binding the same M'.
+
+### Domain separation
+
+Each hybrid suite carries a unique `ctxDomain`:
+
+- `mldsa44-slhdsa128f-envelope-v3`
+- `mldsa65-slhdsa192f-envelope-v3`
+- `mldsa87-slhdsa256f-envelope-v3`
+
+The hybrid factory passes this `ctxDomain` into `buildEffectiveCtx(ctxDomain, user_ctx)` once and reuses the result for both `signHashPrehashed` calls. Because the same `effective_ctx` reaches both primitives, a forgery against one half is bound to the hybrid's domain, not to a standalone ML-DSA or SLH-DSA suite. Specifically:
+
+- Cross-suite forgery is prevented. An ML-DSA half signed under `mldsa44-envelope-v3` (standalone `MlDsa44Suite`) does NOT verify as the ML-DSA half of the hybrid `0x30` because the `effective_ctx` differs at the byte level.
+- Cross-hybrid forgery is prevented. The ML-DSA half of `0x30` does NOT verify as the ML-DSA half of `0x31` because the suites' `ctxDomain` strings differ.
+
+No per-half `ctxDomain` suffix is needed. ML-DSA pk and SLH-DSA pk are distinct artifacts (different sizes, different formats), so a sig produced for one primitive cannot accidentally verify under the other's pk regardless of `ctxDomain`. The hybrid-level uniqueness is sufficient.
+
+### Threat model summary
+
+PQ-only hybrids defend against the case where one PQ family is broken before the other. If ML-DSA falls to a lattice cryptanalysis advance, the SLH-DSA half holds (an attacker still has to invert SHAKE256 to forge it). If SLH-DSA falls (a SHAKE256 weakness or a structural break in the hypertree), the ML-DSA half holds. The combined signature is secure iff at least one half is unbroken. See [SECURITY.md](../SECURITY.md#pq-only-hybrid-signature-threat-model) for the full threat model including what hybrids do NOT defend against.
+
+### Sign / verify pseudocode
+
+`Sign.sign` and `Sign.verify` route through the hybrid suite's `signPrehashed` / `verifyPrehashed`. The two methods take a precomputed digest; the streaming path (`SignStream` / `VerifyStream`) drives the digest computation internally via the suite's pinned `prehashAlgorithm`.
+
+```text
+suite.signPrehashed(sk, digest, ctx):
+    require digest.length == prehashSize
+    require sk.length     == skSize
+    effective_ctx = buildEffectiveCtx(suite.ctxDomain, ctx)
+    sk_mldsa      = sk[0 .. mldsaParams.skBytes]
+    sk_slhdsa     = sk[mldsaParams.skBytes .. ]
+    sig_mldsa     = MlDsaX.signHashPrehashed(sk_mldsa, digest, ph, effective_ctx)
+    sig_slhdsa    = SlhDsaY.signHashPrehashed(sk_slhdsa, digest, ph, effective_ctx)
+    return sig_mldsa || sig_slhdsa
+```
+
+```text
+suite.verifyPrehashed(pk, digest, sig, ctx):
+    if pk.length     != pkSize:      return false
+    if sig.length    != sigSize:     return false
+    if digest.length != prehashSize: return false
+    effective_ctx = buildEffectiveCtx(suite.ctxDomain, ctx)
+    pk_mldsa   = pk[0 .. mldsaParams.pkBytes]
+    pk_slhdsa  = pk[mldsaParams.pkBytes .. ]
+    sig_mldsa  = sig[0 .. mldsaParams.sigBytes]
+    sig_slhdsa = sig[mldsaParams.sigBytes .. ]
+    mldsa_ok   = MlDsaX.verifyHashPrehashed (pk_mldsa,  digest, sig_mldsa,  ph, effective_ctx)
+    slhdsa_ok  = SlhDsaY.verifyHashPrehashed(pk_slhdsa, digest, sig_slhdsa, ph, effective_ctx)
+    return mldsa_ok AND slhdsa_ok
+```
+
+Notice that both `verifyHashPrehashed` calls run unconditionally before the `AND` reduction. The next subsection covers why.
+
+### Constant-time discipline
+
+`verifyPrehashed` always runs both sub-verifies regardless of intermediate boolean outcomes. The reference implementation declares `mldsaOk` and `slhdsaOk` without initial values so neither variable is readable until both sub-verifies have completed. The trailing `mldsa_ok AND slhdsa_ok` is a boolean AND on values that have already been computed, so JavaScript's short-circuit operator has nothing to short-circuit: total work is the sum of the two sub-verifies regardless of which (if either) fails. Each sub-verify is itself constant-time on attacker-supplied bytes per its FIPS contract. A timing observer cannot distinguish an ML-DSA failure from an SLH-DSA failure from a both-failed case.
+
+The suite never wipes caller-supplied buffers, including `sigMldsa` and `sigSlhdsa` (which are subarray views over the caller's `sig`). The lib-allocated `effective_ctx` is wiped in `finally`.
 
 ---
 
@@ -376,27 +527,27 @@ The full 22-entry catalog. Phase 1 rows are shipped; later phases are queued. Ph
 | 0x03 | `MlDsa44Suite`              | pure    | -                     | `mldsa44-envelope-v3`              | 1     | shipped  |
 | 0x04 | `MlDsa65Suite`              | pure    | -                     | `mldsa65-envelope-v3`              | 1     | shipped  |
 | 0x05 | `MlDsa87Suite`              | pure    | -                     | `mldsa87-envelope-v3`              | 1     | shipped  |
-| 0x06 | `SlhDsa128fSuite`           | pure    | -                     | `slhdsa128f-envelope-v3`           | 2     | queued   |
-| 0x07 | `SlhDsa192fSuite`           | pure    | -                     | `slhdsa192f-envelope-v3`           | 2     | queued   |
-| 0x08 | `SlhDsa256fSuite`           | pure    | -                     | `slhdsa256f-envelope-v3`           | 2     | queued   |
+| 0x06 | `SlhDsa128fSuite`           | pure    | -                     | `slhdsa128f-envelope-v3`           | 2     | shipped  |
+| 0x07 | `SlhDsa192fSuite`           | pure    | -                     | `slhdsa192f-envelope-v3`           | 2     | shipped  |
+| 0x08 | `SlhDsa256fSuite`           | pure    | -                     | `slhdsa256f-envelope-v3`           | 2     | shipped  |
 | 0x11 | `Ed25519PreHashSuite`       | prehash | SHA-512 (Ed25519ph)   | `ed25519-prehash-envelope-v3`      | 4     | queued   |
 | 0x13 | `MlDsa44PreHashSuite`       | prehash | SHA3-256              | `mldsa44-prehash-envelope-v3`      | 1     | shipped  |
 | 0x14 | `MlDsa65PreHashSuite`       | prehash | SHA3-256              | `mldsa65-prehash-envelope-v3`      | 1     | shipped  |
 | 0x15 | `MlDsa87PreHashSuite`       | prehash | SHA3-512              | `mldsa87-prehash-envelope-v3`      | 1     | shipped  |
-| 0x16 | `SlhDsa128fPreHashSuite`    | prehash | SHAKE-128             | `slhdsa128f-prehash-envelope-v3`   | 2     | queued   |
-| 0x17 | `SlhDsa192fPreHashSuite`    | prehash | SHAKE-128             | `slhdsa192f-prehash-envelope-v3`   | 2     | queued   |
-| 0x18 | `SlhDsa256fPreHashSuite`    | prehash | SHAKE-256             | `slhdsa256f-prehash-envelope-v3`   | 2     | queued   |
+| 0x16 | `SlhDsa128fPreHashSuite`    | prehash | SHAKE-128             | `slhdsa128f-prehash-envelope-v3`   | 2     | shipped  |
+| 0x17 | `SlhDsa192fPreHashSuite`    | prehash | SHAKE-256             | `slhdsa192f-prehash-envelope-v3`   | 2     | shipped  |
+| 0x18 | `SlhDsa256fPreHashSuite`    | prehash | SHAKE-256             | `slhdsa256f-prehash-envelope-v3`   | 2     | shipped  |
 | 0x20 | `MlDsa44Ed25519Suite`       | hybrid  | SHA-512               | `mldsa44-ed25519-envelope-v3`      | 6     | queued   |
 | 0x21 | `MlDsa65Ed25519Suite`       | hybrid  | SHA-512               | `mldsa65-ed25519-envelope-v3`      | 6     | queued   |
 | 0x22 | `MlDsa44EcdsaP256Suite`     | hybrid  | SHA-256               | `mldsa44-ecdsa-p256-envelope-v3`   | 6     | queued   |
 | 0x23 | `MlDsa65EcdsaP256Suite`     | hybrid  | SHA-512               | `mldsa65-ecdsa-p256-envelope-v3`   | 6     | queued   |
-| 0x30 | `MlDsa44SlhDsa128fSuite`    | hybrid  | SHAKE-128             | `mldsa44-slhdsa128f-envelope-v3`   | 2     | queued   |
-| 0x31 | `MlDsa65SlhDsa192fSuite`    | hybrid  | SHAKE-256             | `mldsa65-slhdsa192f-envelope-v3`   | 2     | queued   |
-| 0x32 | `MlDsa87SlhDsa256fSuite`    | hybrid  | SHAKE-256             | `mldsa87-slhdsa256f-envelope-v3`   | 2     | queued   |
+| 0x30 | `MlDsa44SlhDsa128fSuite`    | hybrid  | SHAKE-128             | `mldsa44-slhdsa128f-envelope-v3`   | 2     | shipped  |
+| 0x31 | `MlDsa65SlhDsa192fSuite`    | hybrid  | SHAKE-256             | `mldsa65-slhdsa192f-envelope-v3`   | 2     | shipped  |
+| 0x32 | `MlDsa87SlhDsa256fSuite`    | hybrid  | SHAKE-256             | `mldsa87-slhdsa256f-envelope-v3`   | 2     | shipped  |
 
 22 of 64 slots used. Reserved capacity covers Ed448, ECDSA-P384, brainpool curves, FROST suites, ML-DSA-87 classical hybrids, and threshold variants.
 
-The classical+PQ hybrid bytes (`0x20-0x23`) follow the composite-sigs draft `HashMLDSA{44,65}-{Ed25519,ECDSA-P256}-{SHA256,SHA512}` encoding. The PQ-only hybrid bytes (`0x30-0x32`) are leviathan-flavored; the composite encoding spec lands in this document during Phase 2.
+The classical+PQ hybrid bytes (`0x20-0x23`) follow the composite-sigs draft `HashMLDSA{44,65}-{Ed25519,ECDSA-P256}-{SHA256,SHA512}` encoding. The PQ-only hybrid bytes (`0x30-0x32`) are leviathan-flavored; see the [PQ-only hybrid composite encoding](#pq-only-hybrid-composite-encoding) section above for the full wire layout, prehash alignment, and constant-time discipline.
 
 ---
 
@@ -424,6 +575,8 @@ Classical+PQ hybrids defend against the case where the PQ assumption (M-LWE for 
 
 PQ-only hybrids defend against the case where one PQ family is broken while the other holds. ML-DSA pairs with SLH-DSA, which rests on a different cryptanalytic foundation (hash-based, no lattice assumption). Neither half falls to Shor's algorithm; Grover's quadratic speedup only halves SLH-DSA's bit security, well above its design margin. Pick PQ-only hybrids when you need "this signature must verify in 2050."
 
+See the [PQ-only hybrid composite encoding](#pq-only-hybrid-composite-encoding) section above for the wire format and constant-time discipline, and [SECURITY.md](../SECURITY.md#pq-only-hybrid-signature-threat-model) for the full threat model including what these hybrids do NOT defend against.
+
 The library carries both hybrid families because consumer threat models differ. Classical hybrids serve adoption and interop; PQ-only hybrids serve long-horizon assurance.
 
 ---
@@ -436,6 +589,8 @@ The library carries both hybrid families because consumer threat models differ. 
 | [architecture](./architecture.md) | Module overview, build pipeline, and three-tier design |
 | [ciphersuite](./ciphersuite.md) | Symmetric / AEAD counterpart to this document |
 | [mldsa](./mldsa.md) | Underlying ML-DSA reference, including `signHashPrehashed` and the FIPS 204 §5.4 prehash family |
+| [slhdsa](./slhdsa.md) | Underlying SLH-DSA reference, including `signHashPrehashed` and the FIPS 205 §10.2.2 prehash family |
+| [SECURITY.md](../SECURITY.md) | Project security policy and the PQ-only hybrid threat model |
 | [aead](./aead.md) | `Seal`, `SealStream`, `OpenStream` (parallel encryption surface) |
 | [errors](./exports.md) | `SigningError` and `AuthenticationError` export reference |
 | [types](./types.md) | TypeScript interfaces |

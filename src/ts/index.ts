@@ -28,6 +28,7 @@ import { keccakInit } from './keccak/index.js';
 import { kyberInit } from './kyber/index.js';
 import { aesInit } from './aes/index.js';
 import { mldsaInit } from './mldsa/index.js';
+import { slhdsaInit } from './slhdsa/index.js';
 import type { Module } from './init.js';
 import type { WasmSource } from './wasm-source.js';
 import { hasSIMD } from './utils.js';
@@ -41,6 +42,7 @@ const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	kyber: kyberInit,
 	aes: aesInit,
 	mldsa: mldsaInit,
+	slhdsa: slhdsaInit,
 };
 
 /**
@@ -81,13 +83,19 @@ export { AuthenticationError, SigningError } from './errors.js';
 export { serpentInit, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, SerpentGenerator } from './serpent/index.js';
 export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher, ChaCha20Generator } from './chacha20/index.js';
 export { sha2Init, SHA256, SHA224, SHA384, SHA512, SHA512_224, SHA512_256, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash } from './sha2/index.js';
-export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHA3_256Stream, SHA3_512Stream, SHAKE128, SHAKE256, SHA3_256Hash, CSHAKE128, CSHAKE256, KMAC128, KMAC256, KMACXOF128, KMACXOF256 } from './sha3/index.js';
+export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHA3_256Stream, SHA3_512Stream, SHAKE128, SHAKE256, SHAKE128Stream, SHAKE256Stream, SHA3_256Hash, CSHAKE128, CSHAKE256, KMAC128, KMAC256, KMACXOF128, KMACXOF256 } from './sha3/index.js';
 export { keccakInit } from './keccak/index.js';
 export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from './kyber/index.js';
 export { aesInit, AES, AESCbc, AESCtr, AESGCM, AESGCMSIV, AESGenerator, AESGCMSIVCipher } from './aes/index.js';
 export { mldsaInit, MlDsa44, MlDsa65, MlDsa87, MlDsaBase, MLDSA44, MLDSA65, MLDSA87 } from './mldsa/index.js';
+export {
+	slhdsaInit, SlhDsaBase,
+	SlhDsa128f, SlhDsa192f, SlhDsa256f,
+	SLHDSA128F, SLHDSA192F, SLHDSA256F,
+} from './slhdsa/index.js';
 export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
 export type { MlDsaKeyPair, MlDsaParams, PreHashAlgorithm } from './mldsa/index.js';
+export type { SlhDsaKeyPair, SlhDsaParams } from './slhdsa/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';
 export { Sign, SignStream, VerifyStream } from './sign/index.js';
@@ -99,6 +107,9 @@ export type {
 export {
 	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
 	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
+	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,
+	SlhDsa128fPreHashSuite, SlhDsa192fPreHashSuite, SlhDsa256fPreHashSuite,
+	MlDsa44SlhDsa128fSuite, MlDsa65SlhDsa192fSuite, MlDsa87SlhDsa256fSuite,
 } from './sign/index.js';
 export { Fortuna } from './fortuna.js';
 export type { Hash, KeyedHash, Blockcipher, Streamcipher, AEAD, Generator, HashFn } from './types.js';

@@ -52,6 +52,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | Module | Description |
 |--------|-------------|
 | [mldsa.md](./mldsa.md) | `MlDsa44`, `MlDsa65`, `MlDsa87`: ML-DSA digital signatures (FIPS 204), pure mode and HashML-DSA |
+| [slhdsa.md](./slhdsa.md) | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`: SLH-DSA hash-based signatures (FIPS 205), pure mode and HashSLH-DSA |
 
 ### Post-Quantum Ratchet
 
@@ -152,5 +153,7 @@ See the [audit index](./audits.md) for a summary of all reviews.
 | [hmac_audit.md](./hmac_audit.md) | HMAC construction, key processing, RFC 4231 vector coverage |
 | [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, stream key derivation |
 | [kyber_audit.md](./kyber_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
+| [mldsa_audit.md](./mldsa_audit.md) | ML-DSA FIPS 204 prehashed-input surface audit |
+| [slhdsa_audit.md](./slhdsa_audit.md) | SLH-DSA FIPS 205 implementation audit, including PQ-only hybrid factory invariants |
 | [stream_audit.md](./stream_audit.md) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 | [ratchet_audit.md](./ratchet_audit.md) | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |

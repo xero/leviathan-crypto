@@ -23,7 +23,7 @@ import type { WasmSource } from './wasm-source.js';
 import { loadWasm } from './loader.js';
 import { hasSIMD } from './utils.js';
 
-export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa'
+export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa' | 'slhdsa'
 
 // 'keccak' is an alias for 'sha3', same WASM binary, same instance slot
 const ALIASES: Partial<Record<Module, Module>> = { keccak: 'sha3' };

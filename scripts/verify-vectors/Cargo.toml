@@ -61,8 +61,10 @@ aes-gcm          = { version = "=0.10.3", default-features = false, features = [
 # default `from_seed(d || z)` already gives deterministic keygen.
 ml-kem           = { version = "=0.3.0",  default-features = false, features = ["hazmat"] }
 # RustCrypto ML-DSA (FIPS 204 final): independent-lineage oracle for
-# mldsa_keygen.ts, mldsa_siggen.ts, and mldsa_sigver.ts. `rand_core`
-# enables `sign_mu_randomized(mu, &mut rng)` which the verifier feeds a
+# mldsa_keygen.ts, mldsa_siggen.ts, and mldsa_sigver.ts. Also drives the
+# ML-DSA half of the PQ-only hybrid composite verifier in
+# src/hybrid_pq.rs (sign_hybrid_pq.ts). `rand_core` enables
+# `sign_mu_randomized(mu, &mut rng)` which the verifier feeds a
 # deterministic mock RNG so ACVP `rnd` values reproduce hedged
 # externalMu signatures exactly. `pkcs8` and `alloc` are not needed.
 # Note: rc.4 fixed GHSA-5x2r-hc65-25f9 (hint-index acceptance);
@@ -98,6 +100,20 @@ sha3             = { version = "=0.11.0", default-features = false }
 # `sha3`, which keeps the "independent of leviathan-crypto's WASM
 # stack" claim intact for the SP 800-185 corpus.
 tiny-keccak      = { version = "=2.0.2",  default-features = false, features = ["cshake", "kmac"] }
+# RustCrypto SLH-DSA (FIPS 205 final): independent-lineage oracle for
+# slhdsa_keygen.ts, slhdsa_siggen.ts, slhdsa_sigver.ts, and the SLH-DSA
+# half of sign_hybrid_pq.ts (driven by src/hybrid_pq.rs). The crate
+# exposes `SigningKey::slh_keygen_internal(skSeed, skPrf, pkSeed)` and
+# `slh_sign_internal(M', opt_rand)` (both `#[doc(hidden)]` but public)
+# which is the FIPS 205 §9 KAT-validation path. Phase 2 ships the
+# SHAKE-fast variants (Shake128f / Shake192f / Shake256f); SHA-2 family
+# and slow variants are out of scope for the WASM module so the
+# verifier carries the same SHAKE-fast subset. Defaults stay on
+# because the crate's `alloc` feature unconditionally references
+# `der::SecretDocument` / `der::Document` from the pkcs8/alloc path;
+# disabling defaults breaks the build. `zeroize` is a non-correctness
+# extra we deliberately leave off.
+slh-dsa          = { version = "=0.2.0-rc.5" }
 # Hex codec used everywhere we surface bytes in logs (computed/expected
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.

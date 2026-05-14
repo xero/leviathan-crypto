@@ -27,7 +27,7 @@ import { describe, it, expect } from 'vitest';
 import { SigningError } from '../../../src/ts/errors.js';
 
 // sig-phase1.md §4 enumerates 11 discriminator strings (3 suite + 5 envelope
-// + 3 stream). TASK-A's DoD claims "12"; the spec listing is authoritative.
+// + 3 stream); the spec listing is authoritative.
 const KNOWN_DISCRIMINATORS = [
 	// suite layer
 	'sig-key-size',

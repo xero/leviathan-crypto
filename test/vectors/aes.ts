@@ -202,8 +202,8 @@ export const aesKeyExpansionVectors: KeyExpansionVector[] = [
  *   PDF (independent two-pass transcription). Each comment line below
  *   corresponds to one row of Figure 7. The table is a permutation of
  *   the bytes 0x00..0xff (verifiable property: `new Set(aesSboxTable).size
- *   === 256`). Rules in TASK.md forbade derivation from any other source
- *   or any AES implementation in this or another codebase.
+ *   === 256`). Per AGENTS.md §1-3, derivation must come from the FIPS 197
+ *   spec only, not from any other AES implementation.
  */
 export const aesSboxTable: Uint8Array = new Uint8Array([
 	// row 0x0_:
