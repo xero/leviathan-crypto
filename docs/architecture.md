@@ -2,14 +2,14 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture, comprising nine independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
+Overview of Leviathan Crypto's architecture, comprising ten independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
 
 > ### Table of Contents
 >
 > - [Architectural overview](#architectural-overview)
 > - [Scope](#scope)
 > - [Repository Structure](#repository-structure)
-> - [Nine Independent WASM Modules](#nine-independent-wasm-modules)
+> - [Ten Independent WASM Modules](#ten-independent-wasm-modules)
 > - [init() API](#init-api)
 > - [Public API Classes](#public-api-classes)
 > - [Build Pipeline](#build-pipeline)
@@ -49,7 +49,7 @@ Overview of Leviathan Crypto's architecture, comprising nine independent WASM mo
 
 **[AES-256-GCM-SIV](https://github.com/xero/leviathan-crypto/wiki/aes): industry standard, sharpened.** 14 rounds bitsliced into Boolean gates with tower-field S-box with no table lookups. A fresh POLYVAL key per nonce leaves GHASH-key recovery with no target.
 
-**Below the cipher suites sit two hash primitive families:** SHA-2 (SHA-224/256/384/512 and SHA-512/224/256 with HMAC and HKDF variants) and SHA-3 (SHA3-224/256/384/512 and SHAKE128/256). The round permutations are constant-time by algorithm design: pure bit operations with no S-box lookups and no data-dependent branches. SHA-2 powers the seal layer's HKDF key derivation and Serpent's HMAC authentication. SHA-3 is the Keccak sponge ML-KEM and ML-DSA rely on internally. The SHA-512 truncation variants (SHA-512/224, SHA-512/256) and SHA-224 support the twelve HashML-DSA pre-hash functions.
+**Below the cipher suites sit three hash primitive families:** SHA-2 (SHA-224/256/384/512 and SHA-512/224/256 with HMAC and HKDF variants), SHA-3 (SHA3-224/256/384/512 and SHAKE128/256), and BLAKE3 (default-mode hash, keyed_hash, derive_key, plus an unbounded XOF reader). The round permutations are constant-time by algorithm design: pure bit operations with no S-box lookups and no data-dependent branches. SHA-2 powers the seal layer's HKDF key derivation and Serpent's HMAC authentication. SHA-3 is the Keccak sponge ML-KEM and ML-DSA rely on internally. The SHA-512 truncation variants (SHA-512/224, SHA-512/256) and SHA-224 support the twelve HashML-DSA pre-hash functions. BLAKE3 is the SIMD-only tree-mode hash for transcripts, content-addressed storage, and KDF work; it ships a `HashFn` compatible with the Fortuna substrate.
 
 **Above the cipher suites sits a cipher-agnostic AEAD layer:** `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool`. Each takes a `CipherSuite` at construction, and the seal layer handles key derivation, nonce management, and authentication. `Seal` covers one-shot encryption for data that fits in memory. `SealStream` and `OpenStream` handle chunked data too large to buffer. WASM instances are single-threaded by design, so `SealStreamPool` distributes chunks across Web Workers to reach multi-core throughput. Any authentication failure kills the pool. Pending operations reject, workers zero their keys and terminate, and the master copies zero synchronously. No retry, no partial results. All four share one wire format. A `Seal` blob is structurally a single-chunk `SealStream` output, and `OpenStream` decrypts it interchangeably.
 
@@ -83,6 +83,7 @@ Overview of Leviathan Crypto's architecture, comprising nine independent WASM mo
 | [`kyber`](./asm_kyber.md)     | ML-KEM polynomial arithmetic (FIPS 203): SIMD NTT, basemul, CBD, compression, FO comparisons                                                                                      | [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), [`MlKem1024`](./kyber.md#parameter-sets)                                                                                                                                                                                                                                                                                 |
 | [`mldsa`](./asm_mldsa.md)     | ML-DSA polynomial arithmetic (FIPS 204): SIMD NTT over q=8380417, rejection sampling, Power2Round, Decompose, MakeHint, HintBitPack/Unpack with §D.3 SUF-CMA checks, SampleInBall | [`MlDsa44`](./mldsa.md), [`MlDsa65`](./mldsa.md), [`MlDsa87`](./mldsa.md) (pure ML-DSA and HashML-DSA across the twelve §5.4.1 pre-hash functions)                                                                                                                                                                                                                                                         |
 | `slhdsa`                      | SLH-DSA stateless hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition | [`SlhDsa128f`](./slhdsa.md), [`SlhDsa192f`](./slhdsa.md), [`SlhDsa256f`](./slhdsa.md) (pure SLH-DSA and HashSLH-DSA across the twelve §10.2.2 pre-hash functions)                                                                                                                                                                                                                                          |
+| [`blake3`](./asm_blake3.md)   | BLAKE3 tree-mode hash family: v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root, §2.6 XOF, §2.3 keyed_hash and derive_key                  | [`BLAKE3`](./blake3.md), [`BLAKE3Stream`](./blake3.md), [`BLAKE3KeyedHash`](./blake3.md), [`BLAKE3KeyedHashStream`](./blake3.md), [`BLAKE3DeriveKey`](./blake3.md), [`BLAKE3DeriveKeyStream`](./blake3.md), [`BLAKE3OutputReader`](./blake3.md), [`BLAKE3Hash`](./blake3.md) Fortuna HashFn                                                                                                                  |
 | [`ct`](./asm_ct.md)           | Constant-time comparison primitives                                                                                                                                               | [`constantTimeEqual`](./utils.md#constanttimeequal)                                                                                                                                                                                                                                                                                                                                                        |
 
 
@@ -230,6 +231,14 @@ src/asm/
 │   ├── aes-gcm-siv.ts     ← AES-GCM-SIV AEAD (RFC 8452)
 │   ├── wipe.ts            ← module-wide buffer zeroizer
 │   └── buffers.ts
+├── blake3/
+│   ├── index.ts
+│   ├── buffers.ts         ← static linear-memory layout, MUTABLE_START / BUFFER_END
+│   ├── flags.ts           ← BLAKE3 §2.2 Table 3 domain-separation flag constants
+│   ├── compress.ts        ← v128-internal compress, BLAKE3 IV, SIGMA table
+│   ├── compress_simd.ts   ← v128-external lane-parallel compress4
+│   ├── chunk.ts           ← §2.4 chunk state machine (one-block lookahead)
+│   └── tree.ts            ← §2.5 tree assembly + root finalize / XOF snapshot
 ├── chacha20/
 │   ├── index.ts
 │   ├── chacha20.ts          ← block function (RFC 8439)
@@ -320,6 +329,11 @@ src/ts/
 │   ├── ops.ts
 │   ├── pool-worker.ts
 │   └── types.ts
+├── blake3/
+│   ├── embedded.ts
+│   ├── index.ts          ← BLAKE3, BLAKE3Stream, keyed_hash / derive_key flavours, OutputReader, BLAKE3Hash
+│   ├── types.ts          ← Blake3Exports (public), Blake3TestExports (test/Phase 7 only)
+│   └── validate.ts       ← key length, context non-empty, outLen finite-integer caller-side checks
 ├── chacha20/
 │   ├── cipher-suite.ts
 │   ├── embedded.ts
@@ -332,6 +346,7 @@ src/ts/
 ├── embedded/       ← gitignored build artifacts
 │   ├── aes-pool-worker.ts          ← AES pool-worker IIFE source string
 │   ├── aes.ts                      ← aes.wasm gzip+base64 blob
+│   ├── blake3.ts                   ← blake3.wasm gzip+base64 blob
 │   ├── chacha20-pool-worker.ts     ← ChaCha20 pool-worker IIFE source string
 │   ├── chacha20.ts                 ← chacha20.wasm gzip+base64 blob
 │   ├── kyber.ts                    ← kyber.wasm gzip+base64 blob
@@ -497,9 +512,9 @@ The repository root holds project documentation, package metadata, and tool conf
 
 ---
 
-## Nine Independent WASM Modules
+## Ten Independent WASM Modules
 
-Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Eight of the nine modules load through `init()`. The ninth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
+Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Nine of the ten modules load through `init()`. The tenth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
 
 | Module     | Binary          | Primitives                                                                                                                                                                                                                                                                                  |
 | ---------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -511,6 +526,7 @@ Each primitive family compiles to its own `.wasm` binary with fully independent 
 | `kyber`    | `kyber.wasm`    | ML-KEM polynomial arithmetic: SIMD NTT/invNTT (v128 butterflies with scalar tail), basemul, Montgomery/Barrett, CBD, compress, CT verify/cmov                                                                                                                                               |
 | `mldsa`    | `mldsa.wasm`    | ML-DSA polynomial arithmetic: SIMD NTT/invNTT for q=8380417 (v128 i32 butterflies), Montgomery/Barrett over q, rejection sampling (RejNTTPoly, RejBoundedPoly), Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint, HintBitPack/Unpack with the §D.3 SUF-CMA checks, SampleInBall |
 | `slhdsa`   | `slhdsa.wasm`   | SLH-DSA hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, 32-byte ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition, slh_keygen_internal / slh_sign_internal / slh_verify_internal (§9 Algorithms 18 / 19 / 20) |
+| `blake3`   | `blake3.wasm`   | BLAKE3 tree-mode hash family (BLAKE3 spec): v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root finalize (54-deep per §5.1.2), §2.6 XOF squeeze, §2.3 keyed_hash and derive_key. Tree-mode primitives (`_testChunkCV`, `_testParentCV`, `_testDeriveContextCV`) gated for test + Phase 7 substrate use; not part of the consumer-facing exports.                |
 | `ct`       | `ct.wasm`       | SIMD constant-time byte comparison. Backs `constantTimeEqual` and `CT_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page.                                                                                                                                                          |
 
 **Size.** Consumers who only use Serpent don't load the SHA-3 binary.
@@ -549,6 +565,10 @@ Each module's buffer layout starts at offset 0 and is defined in its own `buffer
 
 [The TypeScript module](./slhdsa.md) exports `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f`, signature classes covering NIST security categories 1, 3, and 5. Pure SLH-DSA requires only `slhdsa`. HashSLH-DSA with a SHA-3 or SHAKE pre-hash additionally requires `sha3`; with a SHA-2 pre-hash, additionally `sha2`. The hybrid PQ-only suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) compose `slhdsa` with `mldsa` and `sha3` to produce one combined signature that an attacker would have to forge under both primitives; the streaming `SignStream` path drives the running SHAKE prehash through `sha3`. See [signaturesuite.md](./signaturesuite.md#pq-only-hybrid-composite-encoding) for the wire format.
 
+**`blake3.wasm`** implements the BLAKE3 hash family per the BLAKE3 specification. The v128-internal `compress` runs single-block compressions with one v128 op per state-update step across the four state rows; the v128-external `compress4` runs four independent compressions in parallel with lane K of every v128 op corresponding to compress K (BLAKE3 §5.3 SIMD). The §2.4 chunk machine keeps a one-block lookahead so the `CHUNK_START` / `CHUNK_END` flags ride the correct compress without the caller identifying the last block in advance. The §2.5 tree assembly defers the most-recent chunk CV through a queue-per-level discipline so the §2.5 root compress can carry `PARENT | ROOT`. The §2.6 XOF squeeze snapshots the root-compress input into `ROOT_STATE_*` and re-fires the compress with an incremented counter to lift additional 64-byte blocks. The three §2.3 modes (`hash`, `keyed_hash`, `derive_key`) share the same chunk / tree code; only the starting CV and the per-compress mode-flag bits differ. Test-only exports `_testChunkCV` / `_testParentCV` / `_testDeriveContextCV` are gated for the tree-internals unit suite and the Phase 7 `src/ts/merkle/blake3-log.ts` log-proof substrate. Requires WebAssembly SIMD (`v128` instructions). Uses 2 memory pages (131072 bytes). See: [BLAKE3 WASM Reference](./asm_blake3.md), [BLAKE3 Audit Checklist](./blake3_audit.md).
+
+[The TypeScript module](./blake3.md) exports `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, and `BLAKE3OutputReader`. Each streaming class holds the `blake3` module exclusivity token from construction until `finalize` / `finalizeXof` / `dispose`. `finalizeXof()` transfers the token to a `BLAKE3OutputReader` that squeezes XOF bytes incrementally from the root-compress snapshot until disposed. `BLAKE3Hash` ships as a stateless `HashFn` const (32-byte output, `wasmModules: ['blake3']`) compatible with the Fortuna accumulator slot. The module is independent of `sha2` / `sha3`; pure-BLAKE3 work requires only the `blake3` slot.
+
 **`ct.wasm`** implements constant-time byte array equality with a single SIMD-only primitive. The module exports `compare(aOff, bOff, len)`, which reads both arrays directly from caller-specified offsets in linear memory and returns 1 if all bytes match, 0 otherwise. Comparison is zero-copy: no internal staging buffers, no buffer slots, no `wipeBuffers` export. The implementation is structurally branch-free. A `v128.xor`/`v128.or` accumulator processes 16-byte blocks, a scalar tail handles any remainder, and the final zero-test is an arithmetic shift, not a conditional. Requires WebAssembly SIMD (`v128` instructions); if the runtime lacks SIMD or compilation fails, the first call throws a branded error. See: [Constant-Time WASM Reference](asm_ct.md)
 
 [The TypeScript module](./utils.md#constanttimeequal) exports `constantTimeEqual` and `CT_MAX_BYTES` from the root barrel. The wrapper instantiates the WASM synchronously on first call and caches it for subsequent calls. It writes both arrays into linear memory, calls `compare`, and zeroes both regions in a `finally` block before returning. `CT_MAX_BYTES` is 32 KB per side; the 64 KB page holds two equal-length inputs.
@@ -562,7 +582,7 @@ WASM instantiation is async. [`init()`](./init.md) is the initialization gate, c
 ### Signature
 
 ```typescript
-type Module = 'serpent' | 'chacha20' | 'aes' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa' | 'slhdsa'
+type Module = 'serpent' | 'chacha20' | 'aes' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa' | 'slhdsa' | 'blake3'
 
 type WasmSource =
   | string                  // gzip+base64 embedded blob
@@ -578,7 +598,7 @@ async function init(
 ): Promise<void>
 ```
 
-The loading strategy is inferred from the source type, so there is no need for a mode string. Each module also exports its own init function, such as `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, `mldsaInit(source)`, and `slhdsaInit(source)`, enabling tree-shakeable imports.
+The loading strategy is inferred from the source type, so there is no need for a mode string. Each module also exports its own init function, such as `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, `mldsaInit(source)`, `slhdsaInit(source)`, and `blake3Init(source)`, enabling tree-shakeable imports.
 
 > [!NOTE]
 > **`keccak` is an alias for `sha3`.** Both names are accepted by `init()`, `initModule()`, `getInstance()`, and `isInitialized()`. They share the same WASM binary and the same instance slot. The alias exists so Kyber/ML-KEM consumers can write `init({ keccak: keccakWasm })` using the semantically correct name for the underlying sponge primitive.
@@ -632,6 +652,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `slhdsa`                        | `SlhDsa128fSuite`, `SlhDsa192fSuite`, `SlhDsa256fSuite` (sign-layer pure-mode SLH-DSA suites)            |
 | `slhdsa` + `sha3`               | `SlhDsa128fPreHashSuite`, `SlhDsa192fPreHashSuite`, `SlhDsa256fPreHashSuite` (sign-layer prehash SLH-DSA suites) |
 | `mldsa` + `sha3` + `slhdsa`     | `MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite` (PQ-only hybrid composites) |
+| `blake3`                        | `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, `BLAKE3Hash` (Fortuna HashFn) |
 | `sign`                          | `Sign`, `SignStream`, `VerifyStream` (scheme-agnostic; modules depend on the suite)                    |
 | `sha2`                          | `ratchetInit`, `KDFChain`, `SkippedKeyStore`                                                            |
 | `kyber` + `sha3` + `sha2`       | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair`                                                  |
@@ -642,6 +663,9 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `chacha20` + `sha3`             | `Fortuna` with `ChaCha20Generator` + `SHA3_256Hash`                                                     |
 | `aes` + `sha2`                  | `Fortuna` with `AESGenerator` + `SHA256Hash`                                                            |
 | `aes` + `sha3`                  | `Fortuna` with `AESGenerator` + `SHA3_256Hash`                                                          |
+| `serpent` + `blake3`            | `Fortuna` with `SerpentGenerator` + `BLAKE3Hash`                                                        |
+| `chacha20` + `blake3`           | `Fortuna` with `ChaCha20Generator` + `BLAKE3Hash`                                                       |
+| `aes` + `blake3`                | `Fortuna` with `AESGenerator` + `BLAKE3Hash`                                                            |
 
 >[!NOTE]
 > Class Names match conventional cryptographic notation.
@@ -1048,6 +1072,7 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 | `keccak/index.ts`   | `keccakInit` + re-exports all sha3 classes (alias subpath)                                                                                                                                                                                                 |
 | `kyber/index.ts`    | `kyberInit`, `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024`, `MlKemBase`, `KyberKeyPair`, `KyberEncapsulation`, `KyberParams`, `MLKEM512`, `MLKEM768`, `MLKEM1024`                                                                                      |
 | `mldsa/index.ts`    | `mldsaInit`, `MlDsa44`, `MlDsa65`, `MlDsa87`, `MlDsaBase`, `MLDSA44`, `MLDSA65`, `MLDSA87`, `MlDsaKeyPair`, `MlDsaParams`, `PreHashAlgorithm`                                                                                                              |
+| `blake3/index.ts`   | `blake3Init`, `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, `BLAKE3Hash`                                                                                          |
 | `sign/index.ts`     | `Sign`, `SignStream`, `VerifyStream`, `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`, `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite`, `SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm`, `buildEffectiveCtx`, `prehashAlgoToMldsa`, `USER_CTX_MAX`, `CTX_DOMAIN_MAX` |
 | `stream/index.ts`   | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite`, `DerivedKeys`, `SealStreamOpts`, `PoolOpts`, `FLAG_FRAMED`, `TAG_DATA`, `TAG_FINAL`, `HEADER_SIZE`, `CHUNK_MIN`, `CHUNK_MAX`                                                          |
 | `ratchet/index.ts`  | `KDFChain`, `ratchetInit`, `ratchetReady`, `kemRatchetEncap`, `kemRatchetDecap`, `SkippedKeyStore`, `RatchetKeypair`, `RatchetInitResult`, `KemEncapResult`, `KemDecapResult`, `MlKemLike`, `RatchetMessageHeader`, `ResolveHandle`, `SkippedKeyStoreOpts` |
@@ -1090,6 +1115,8 @@ import { serpentInit, isInitialized } from 'leviathan-crypto/serpent'
     "./kyber/embedded":       "./dist/kyber/embedded.js",
     "./mldsa":                "./dist/mldsa/index.js",
     "./mldsa/embedded":       "./dist/mldsa/embedded.js",
+    "./blake3":               "./dist/blake3/index.js",
+    "./blake3/embedded":      "./dist/blake3/embedded.js",
     "./ratchet":              "./dist/ratchet/index.js"
   }
 }
@@ -1520,6 +1547,9 @@ The architectural defenses compose into protection against specific named attack
 | [slhdsa](./slhdsa.md)                             | SLH-DSA and HashSLH-DSA TypeScript API                                                                 |
 | [signaturesuite](./signaturesuite.md)             | `SignatureSuite`, `Sign`, `SignStream`, `VerifyStream`, ML-DSA / SLH-DSA / PQ-only hybrid suite catalog |
 | [slhdsa_audit](./slhdsa_audit.md)                 | SLH-DSA implementation audit checklist                                                                 |
+| [blake3](./blake3.md)                             | BLAKE3 TypeScript API                                                                                  |
+| [asm_blake3](./asm_blake3.md)                     | BLAKE3 WASM module reference                                                                            |
+| [blake3_audit](./blake3_audit.md)                 | BLAKE3 implementation audit checklist                                                                  |
 | [ratchet](./ratchet.md)                           | SPQR ratchet KDF primitives                                                                            |
 | [fortuna](./fortuna.md)                           | Fortuna CSPRNG with forward secrecy and entropy pooling                                                |
 | [argon2id](./argon2id.md)                         | Argon2id password hashing and key derivation                                                           |

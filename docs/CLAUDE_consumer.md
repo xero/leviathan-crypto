@@ -132,11 +132,12 @@ this is not it.
 
 ## Subpath imports
 
-The eight primitive modules each have a subpath `leviathan-crypto/<mod>`
+The ten primitive modules each have a subpath `leviathan-crypto/<mod>`
 with init function `<mod>Init(source)` and an embedded blob at
 `<mod>/embedded` (exported as `<mod>Wasm`). The modules: `serpent`,
-`chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `kyber`, `mldsa`. `keccak`
-is an alias for `sha3`; same WASM binary, same instance slot.
+`chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `kyber`, `mldsa`, `slhdsa`,
+`blake3`. `keccak` is an alias for `sha3`; same WASM binary, same
+instance slot.
 
 Two subpaths have no `/embedded` companion:
 `leviathan-crypto/ratchet` (KDF over sha2 + kyber + sha3) and
@@ -163,6 +164,7 @@ Read the cited doc before non-trivial work. Files ship under
 | `SHA224/256/384/512`, `HMAC_SHA*`, `HKDF_SHA*` | `sha2` | `sha2.md` |
 | `SHA3_*`, `SHAKE128/256` | `sha3` | `sha3.md` |
 | `CSHAKE128/256`, `KMAC128/256`, `KMACXOF128/256` | `sha3` | `kmac.md` |
+| `BLAKE3` / `BLAKE3KeyedHash` / `BLAKE3DeriveKey` (+ streaming, `BLAKE3OutputReader`, `BLAKE3Hash`) | `blake3` | `blake3.md` |
 | `MlKem512/768/1024` | `kyber`, `sha3` | `kyber.md` |
 | `MlDsa44/65/87` (+HashML-DSA) | `mldsa`, `sha3` (+`sha2` SHA-2 prehash) | `mldsa.md` |
 | `SlhDsa128f/192f/256f` (+HashSLH-DSA) | `slhdsa` (+`sha3` prehash, +`sha2` SHA-2 prehash) | `slhdsa.md` |

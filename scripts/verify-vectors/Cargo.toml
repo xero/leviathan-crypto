@@ -9,6 +9,15 @@ publish     = false
 name = "verify-vectors"
 path = "src/main.rs"
 
+# Single-shot generator for the BLAKE3 large-input regression test
+# (test/unit/blake3/blake3-large-input.test.ts). Emits expected XOF
+# hex for sizes far past the upstream KAT corpus; the values are
+# embedded verbatim in the test file so the cross-check is reproducible
+# without re-running this generator on every CI invocation.
+[[bin]]
+name = "gen-blake3-large"
+path = "src/bin/gen_blake3_large.rs"
+
 # Exact-version pinning. Verifier dependencies are part of the audit surface;
 # we do not silently consume new versions. CI's Cargo.lock plus this exact
 # pin gives belt-and-suspenders reproducibility.
@@ -114,6 +123,17 @@ tiny-keccak      = { version = "=2.0.2",  default-features = false, features = [
 # disabling defaults breaks the build. `zeroize` is a non-correctness
 # extra we deliberately leave off.
 slh-dsa          = { version = "=0.2.0-rc.5" }
+# Official BLAKE3 Rust crate (BLAKE3-team): independent-lineage oracle
+# for blake3.ts. Drives Hasher::new / new_keyed / new_derive_key plus
+# finalize_xof + OutputReader::fill for the full 131-byte XOF output
+# per record. `default-features = false` drops the `std` feature; the
+# core `fill` method on OutputReader does not require std, so the
+# verifier reads XOF bytes without pulling std::io::Read into scope.
+# Same crate as the WASM substrate's source spec but a separate Rust
+# lineage from leviathan-crypto's AssemblyScript port; the agreement
+# between this oracle and the WASM output (verified in TASK-B onward)
+# is the "two independent stacks agree on the bytes" signal.
+blake3           = { version = "=1.8.5",  default-features = false }
 # Hex codec used everywhere we surface bytes in logs (computed/expected
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.

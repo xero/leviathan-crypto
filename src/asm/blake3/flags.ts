@@ -18,36 +18,19 @@
 //  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
-// scripts/lib/modules.ts
 //
-// Canonical ASM modules table and ASC invocation options.
-// Shared by build-asm.ts and lint-asm.ts preventing path drift
+// src/asm/blake3/flags.ts
+//
+// BLAKE3 §2.2 Table 3, domain-separation flag values.
+// Each flag is a power of two so they may be ORed together into the
+// 32-bit `d` field of the compression input. Internal module so chunk
+// and tree code can import without cycling through index.ts; the public
+// surface re-exports the same constants from index.ts.
 
-export interface AsmModule {
-	name: string
-	entry: string
-	memory: string
-	simd: boolean
-	sourceMap: boolean
-}
-
-export const ASM_MODULES: readonly AsmModule[] = [
-	{ name: 'ct',       entry: 'src/asm/ct/index.ts',       memory: '--initialMemory 1 --maximumMemory 1', simd: true,  sourceMap: false },
-	{ name: 'serpent',  entry: 'src/asm/serpent/index.ts',  memory: '--initialMemory 3 --maximumMemory 3', simd: true,  sourceMap: true },
-	{ name: 'chacha20', entry: 'src/asm/chacha20/index.ts', memory: '--initialMemory 3 --maximumMemory 3', simd: true,  sourceMap: true },
-	{ name: 'aes',      entry: 'src/asm/aes/index.ts',      memory: '--initialMemory 4 --maximumMemory 4', simd: true,  sourceMap: true },
-	{ name: 'sha2',     entry: 'src/asm/sha2/index.ts',     memory: '--initialMemory 3 --maximumMemory 3', simd: false, sourceMap: true },
-	{ name: 'sha3',     entry: 'src/asm/sha3/index.ts',     memory: '--initialMemory 3 --maximumMemory 3', simd: false, sourceMap: true },
-	{ name: 'kyber',    entry: 'src/asm/kyber/index.ts',    memory: '--initialMemory 3 --maximumMemory 3', simd: true,  sourceMap: true },
-	{ name: 'mldsa',    entry: 'src/asm/mldsa/index.ts',    memory: '--initialMemory 4 --maximumMemory 4', simd: true,  sourceMap: true },
-	{ name: 'slhdsa',   entry: 'src/asm/slhdsa/index.ts',   memory: '--initialMemory 2 --maximumMemory 2', simd: false, sourceMap: true },
-	{ name: 'blake3',   entry: 'src/asm/blake3/index.ts',   memory: '--initialMemory 2 --maximumMemory 2', simd: true,  sourceMap: true },
-] as const
-
-export const ASC_OPTS = '--runtime stub --noAssert --optimizeLevel 3 --shrinkLevel 1'
-
-// Modules whose .wasm is embedded as gz+b64 (everything except ct).
-export const EMBED_MODULES = ASM_MODULES.filter(m => m.name !== 'ct').map(m => m.name)
-
-// Cipher suites with a pool-worker.ts to bundle into embedded/*-pool-worker.ts
-export const POOL_WORKER_CIPHERS = ['aes', 'chacha20', 'serpent'] as const
+export const FLAG_CHUNK_START:         u32 = 1   // 2^0
+export const FLAG_CHUNK_END:           u32 = 2   // 2^1
+export const FLAG_PARENT:              u32 = 4   // 2^2
+export const FLAG_ROOT:                u32 = 8   // 2^3
+export const FLAG_KEYED_HASH:          u32 = 16  // 2^4
+export const FLAG_DERIVE_KEY_CONTEXT:  u32 = 32  // 2^5
+export const FLAG_DERIVE_KEY_MATERIAL: u32 = 64  // 2^6

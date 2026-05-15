@@ -23,8 +23,12 @@
 		"./kyber/embedded": "./dist/kyber/embedded.js",
 		"./aes": "./dist/aes/index.js",
 		"./aes/embedded": "./dist/aes/embedded.js",
+		"./blake3": "./dist/blake3/index.js",
+		"./blake3/embedded": "./dist/blake3/embedded.js",
 		"./mldsa": "./dist/mldsa/index.js",
 		"./mldsa/embedded": "./dist/mldsa/embedded.js",
+		"./slhdsa": "./dist/slhdsa/index.js",
+		"./slhdsa/embedded": "./dist/slhdsa/embedded.js",
 		"./ratchet": "./dist/ratchet/index.js"
 	},
 	"types": "./dist/index.d.ts",

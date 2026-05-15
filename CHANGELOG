@@ -468,6 +468,92 @@ Migration: none. All additions, no breaking changes. The Phase 1 ML-DSA
 surface (six suites, `Sign` / `SignStream` / `VerifyStream`,
 `MlDsa{44,65,87}` classes) is unchanged.
 
+### Added (Phase 3 signature work, BLAKE3 hash substrate)
+
+- **BLAKE3 substrate.** [BLAKE3](https://github.com/BLAKE3-team/BLAKE3-specs)
+  ships as the tenth WASM binary (`blake3.wasm`, 2 memory pages) and the
+  third hash family in the library, peer to SHA-2 and SHA-3. All three
+  modes from the spec are implemented: default-mode hash (§2.5),
+  keyed_hash with a 32-byte key (§2.6), and the two-pass derive_key
+  (§2.7) for context-bound KDF use. The §2.5 unbounded XOF reader sits
+  on top of every streaming class; `finalizeXof()` returns a
+  `BLAKE3OutputReader` that lifts 64-byte blocks off a root-state
+  snapshot via the WASM `squeezeXofBlock` export until the caller stops
+  reading or disposes the reader.
+
+  Initialize via `init({ blake3: blake3Wasm })`. SIMD-only, joins
+  serpent / chacha20 / aes / kyber / mldsa in the v128-required tier;
+  the init preflight rejects when WebAssembly SIMD is unavailable.
+  Subpath exports: `leviathan-crypto/blake3` and
+  `leviathan-crypto/blake3/embedded`.
+
+- **v128 SIMD compression kernels.** The module ships two:
+  `compress` is the v128-internal single-state §2.2 compression
+  function used everywhere a single chunk or parent node is hashed,
+  and `compress4` is the v128-external lane-parallel form (lane K =
+  compress operation K) that runs four independent compress operations
+  in parallel across distinct CVs, messages, counters, and block_lens.
+  Tree-mode chunk and parent hashing dispatches to `compress4` whenever
+  four siblings are available; the streaming classes' fallback path
+  uses `compress1`. There is no scalar fallback.
+
+- **Seven public classes plus one HashFn const.** `BLAKE3`,
+  `BLAKE3KeyedHash`, `BLAKE3DeriveKey` are the one-shot
+  (`hash` / `derive`) atomic entries; `BLAKE3Stream`,
+  `BLAKE3KeyedHashStream`, `BLAKE3DeriveKeyStream` are the streaming
+  counterparts (`update` / `finalize` / `finalizeXof` / `dispose`);
+  `BLAKE3OutputReader` is the XOF reader returned by `finalizeXof()`.
+  `BLAKE3Hash` is a stateless 32-byte `HashFn` const compatible with
+  the `Fortuna` accumulator slot, peer to `SHA256Hash` and
+  `SHA3_256Hash`. Streaming classes hold the blake3 module
+  exclusively from construction until `finalize()` / `finalizeXof()` /
+  `dispose()` (same exclusivity discipline as `SHA3_256Stream` /
+  `SHAKE128Stream`).
+
+- **Tree-mode internal exports as Phase 7 substrate.** The WASM
+  module exposes `_testChunkCV`, `_testParentCV`, and
+  `_testDeriveContextCV` for the tree-internals unit test surface and
+  the planned `src/ts/merkle/blake3-log.ts` log-proof substrate that
+  Phase 7 (Merkle log + STH) builds on. These are NOT part of the
+  consumer-facing `Blake3Exports` interface; the underscore prefix and
+  `@internal` tag keep them out of the published `.d.ts`.
+
+- **35-record upstream KAT corpus.** The full BLAKE3-team
+  [test_vectors.json](https://github.com/BLAKE3-team/BLAKE3/blob/master/test_vectors/test_vectors.json)
+  corpus (input lengths 0..102400 covering every chunk and CV-stack
+  boundary the §2.3 / §2.4 design exercises) is checked into
+  `test/vectors/blake3.ts` and replayed under all three modes against
+  one-shot, streaming, and full 131-byte XOF paths. The Rust verifier
+  (`scripts/verify-vectors`) gains a `--cipher blake3` dispatcher
+  that cross-checks the corpus against the upstream `blake3` crate as
+  an independent oracle; a `scripts/verify-vectors/src/bin/gen_blake3_large.rs`
+  helper pre-computes the three large-input cross-check expectations
+  (8 KB / 64 KiB / 100 KB) the unit suite uses outside the KAT range.
+
+- **CI test group.** BLAKE3 primitive tests live in the `blake3` CI
+  group in `scripts/lib/test-groups.ts` (5-min timeout, `UNIT_BASE`
+  build targets). The group covers the §2.2 compress KAT gate, the
+  upstream corpus across all three modes, compress4-vs-compress1
+  randomized equivalence, the tree-internals test surface, streaming-
+  vs-one-shot equivalence, full 131-byte XOF output across the 105
+  (35 × 3 modes) corpus replay, large-input cross-check vs the Rust
+  oracle, dispose-time wipe coverage, and every TS validation throw
+  path.
+
+- **Docs.** `docs/blake3.md` (full BLAKE3 API reference, ships in the
+  npm doc bundle via `scripts/copy-docs.ts`); `docs/blake3_audit.md`
+  (xero-reviewed audit doc, internal to the repo, not shipped in the
+  npm package); the BLAKE3 module addition in `docs/architecture.md`
+  and `docs/lexicon.md`. Routing row added to `docs/CLAUDE_consumer.md`
+  so consumer agents pick up the new primitive family. Phase 3 of the
+  v3 signature work plan is now complete; `docs/phase-index.md` flips
+  Phase 3 to ✅.
+
+Migration: none. All additions, no breaking changes. The Phase 1 / 2
+signature surface is unchanged. BLAKE3 sits alongside SHA-2 and SHA-3
+in the hash tier and feeds the Phase 7 Merkle log substrate when that
+phase opens.
+
 ## v2.1.0
 
 ### Added

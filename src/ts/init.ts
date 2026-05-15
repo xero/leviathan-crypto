@@ -23,7 +23,7 @@ import type { WasmSource } from './wasm-source.js';
 import { loadWasm } from './loader.js';
 import { hasSIMD } from './utils.js';
 
-export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa' | 'slhdsa'
+export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa' | 'slhdsa' | 'blake3'
 
 // 'keccak' is an alias for 'sha3', same WASM binary, same instance slot
 const ALIASES: Partial<Record<Module, Module>> = { keccak: 'sha3' };
@@ -48,9 +48,9 @@ export async function initModule(mod: Module, source: WasmSource): Promise<void>
 	if (inflight) {
 		await inflight; return;
 	}
-	if ((resolved === 'serpent' || resolved === 'chacha20' || resolved === 'kyber' || resolved === 'aes' || resolved === 'mldsa') && !hasSIMD())
+	if ((resolved === 'serpent' || resolved === 'chacha20' || resolved === 'kyber' || resolved === 'aes' || resolved === 'mldsa' || resolved === 'blake3') && !hasSIMD())
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD, '
+			'leviathan-crypto: serpent, chacha20, kyber, aes, mldsa, and blake3 require WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 	const p = loadWasm(source);

@@ -105,6 +105,10 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-sign-hybrid.yml
 
+  unit-blake3:
+    needs: [build]
+    uses: ./.github/workflows/unit-blake3.yml
+
   suite-status:
     name: test-suite-status
     if: always()
@@ -131,6 +135,7 @@ jobs:
       - unit-slhdsa
       - unit-slhdsa-acvp
       - unit-sign-hybrid
+      - unit-blake3
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream results

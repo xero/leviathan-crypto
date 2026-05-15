@@ -29,6 +29,7 @@ import { kyberInit } from './kyber/index.js';
 import { aesInit } from './aes/index.js';
 import { mldsaInit } from './mldsa/index.js';
 import { slhdsaInit } from './slhdsa/index.js';
+import { blake3Init } from './blake3/index.js';
 import type { Module } from './init.js';
 import type { WasmSource } from './wasm-source.js';
 import { hasSIMD } from './utils.js';
@@ -43,6 +44,7 @@ const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	aes: aesInit,
 	mldsa: mldsaInit,
 	slhdsa: slhdsaInit,
+	blake3: blake3Init,
 };
 
 /**
@@ -60,10 +62,10 @@ export async function init(
 	sources: Partial<Record<Module, WasmSource>>,
 ): Promise<void> {
 	const entries = Object.entries(sources) as [string, WasmSource][];
-	// SIMD preflight, serpent, chacha20, and kyber modules contain SIMD instructions
-	if (('serpent' in sources || 'chacha20' in sources || 'kyber' in sources || 'aes' in sources || 'mldsa' in sources) && !hasSIMD())
+	// SIMD preflight, serpent, chacha20, kyber, aes, mldsa, and blake3 modules contain SIMD instructions
+	if (('serpent' in sources || 'chacha20' in sources || 'kyber' in sources || 'aes' in sources || 'mldsa' in sources || 'blake3' in sources) && !hasSIMD())
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD, '
+			'leviathan-crypto: serpent, chacha20, kyber, aes, mldsa, and blake3 require WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 	for (const [mod, src] of entries) {
@@ -93,6 +95,13 @@ export {
 	SlhDsa128f, SlhDsa192f, SlhDsa256f,
 	SLHDSA128F, SLHDSA192F, SLHDSA256F,
 } from './slhdsa/index.js';
+export {
+	blake3Init,
+	BLAKE3, BLAKE3KeyedHash, BLAKE3DeriveKey,
+	BLAKE3Stream, BLAKE3KeyedHashStream, BLAKE3DeriveKeyStream,
+	BLAKE3OutputReader,
+	BLAKE3Hash,
+} from './blake3/index.js';
 export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
 export type { MlDsaKeyPair, MlDsaParams, PreHashAlgorithm } from './mldsa/index.js';
 export type { SlhDsaKeyPair, SlhDsaParams } from './slhdsa/index.js';
