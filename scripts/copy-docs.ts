@@ -41,6 +41,7 @@ const INCLUDE = [
 	'aead.md',
 	'aes.md',
 	'argon2id.md',
+	'blake3.md',
 	'cdn.md',
 	'chacha20.md',
 	'ciphersuite.md',

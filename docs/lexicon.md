@@ -10,6 +10,7 @@ A reference glossary for readers new to cryptography. Covers foundational terms,
 > - [Sealing Layer](#sealing-layer)
 > - [Post-Quantum](#post-quantum)
 > - [Session Layer](#session-layer)
+> - [BLAKE3](#blake3)
 
 ---
 
@@ -158,6 +159,77 @@ A reference glossary for readers new to cryptography. Covers foundational terms,
 ---
 
 
+## BLAKE3
+
+The terms below are specific to BLAKE3 and its tree-mode design. They
+crop up in the BLAKE3 spec, in `docs/blake3.md`, `docs/asm_blake3.md`,
+and the BLAKE3 audit doc, and across the AssemblyScript source under
+`src/asm/blake3/`.
+
+**CV (chaining value).** The 32-byte (8 × u32 little-endian) state
+that threads through BLAKE3's compression function. The starting CV
+is the BLAKE3 IV in default-mode hash, the 32-byte key in keyed_hash,
+and the context_chain_value in derive_key pass 2 (BLAKE3 §2.3 Modes).
+Each compress takes a CV in and emits the next CV as the first 32
+bytes of its 64-byte output.
+
+**Chunk.** In BLAKE3, a chunk is exactly 1024 bytes of input (BLAKE3
+§2.4). Each chunk runs through its own §2.4 chunk machine to produce
+a 32-byte chunk CV. Chunks are the leaves of the §2.5 binary tree.
+Inputs ≤ 1024 bytes are single-chunk and apply the ROOT flag on the
+chunk's final compress (§2.4 single-chunk root case); larger inputs
+go through the tree assembly.
+
+**Subtree / parent.** The §2.5 tree-assembly node. A parent is a
+compress over two child CVs (`left || right`) with the PARENT flag.
+A subtree is a balanced binary tree of chunks merged via parent
+compresses. The queue-per-level discipline (leviathan, see tree.ts)
+defers merges until a level's queue reaches 8 entries; the topmost
+merge during finalize is the §2.5 root parent, which carries
+`PARENT | ROOT`.
+
+**Root compress.** The final compress in any BLAKE3 hash. Always
+carries the ROOT flag. For single-chunk inputs, the chunk's last
+compress is the root (§2.4 single-chunk root case); for multi-chunk
+inputs, the topmost parent merge is the root (§2.5). The root
+compress emits 64 bytes, and additional XOF bytes come from re-firing
+the root compress with an incremented counter.
+
+**XOF (Extendable Output Function).** A hash that emits arbitrary-
+length output. BLAKE3's §2.6 squeeze takes the root-compress input,
+captures it as a snapshot, and re-fires the compress with an
+incrementing counter to lift 64-byte blocks off the snapshot. The
+leviathan binding exposes this via `BLAKE3OutputReader`. See also the
+generic XOF entry in [Core Terminology](#core-terminology).
+
+**DERIVE_KEY_CONTEXT / DERIVE_KEY_MATERIAL.** The two §2.3 derive_key mode flags.
+DERIVE_KEY_CONTEXT rides every compress in pass 1 (hashing the
+context string with the BLAKE3 IV as the starting CV).
+DERIVE_KEY_MATERIAL rides every compress in pass 2 (hashing the key
+material with the pass-1 output as the starting CV). The two flags
+are distinct power-of-two bits per BLAKE3 §2.2 Table 3.
+
+**compress1 / compress4.** BLAKE3 SIMD width nomenclature. `compress1`
+(named `compress` in the source) is the v128-internal single-block
+compress that runs one v128 op per state-update step across the four
+state rows. `compress4` (named `compress4` in the source) is the
+v128-external lane-parallel compress that runs four independent
+single-block compressions in parallel, with lane K of every v128 op
+corresponding to compress K. The reference BLAKE3 implementations
+ship up to `compress16` on AVX-512 hosts; leviathan ships
+`compress1` and `compress4` because WebAssembly SIMD is fixed at 128
+bits.
+
+**ROOT_STATE_* (XOF snapshot).** The four memory slots in the BLAKE3
+WASM buffer layout (`ROOT_STATE_CV`, `ROOT_STATE_MSG`,
+`ROOT_STATE_BLEN`, `ROOT_STATE_FLAGS`) that capture the root-compress
+input bytes immediately before the root compress fires. The TS
+`BLAKE3OutputReader` and the WASM `squeezeXofBlock` export re-fire
+the root compress from this snapshot with an incrementing counter to
+produce additional 64-byte XOF blocks.
+
+---
+
 ## Cross-References
 
 | Document | Description |
@@ -170,5 +242,6 @@ A reference glossary for readers new to cryptography. Covers foundational terms,
 | [ratchet](./ratchet.md) | Double Ratchet KDF primitives: `ratchetInit`, `KDFChain`, `kemRatchetEncap`/`kemRatchetDecap`, `SkippedKeyStore` |
 | [serpent](./serpent.md) | Serpent-256 raw primitives |
 | [chacha20](./chacha20.md) | ChaCha20 raw primitives |
+| [blake3](./blake3.md) | BLAKE3 default-mode hash, keyed_hash, derive_key, and XOF reader |
 | [exports](./exports.md) | Complete export reference |
 | [init](./init.md) | WASM loading and `WasmSource` |

@@ -34,6 +34,7 @@
 //   cargo run --release -- --cipher xchacha                   # XChaCha20 v3 only (seal + sealstream)
 //   cargo run --release -- --cipher serpent --target seal     # Serpent v3 single-chunk only
 //   cargo run --release -- --cipher kmac                      # SP 800-185 KMAC and cSHAKE only
+//   cargo run --release -- --cipher blake3                    # BLAKE3 official KAT corpus only
 //
 // Vector paths are computed relative to CARGO_MANIFEST_DIR.
 
@@ -60,6 +61,7 @@ mod mlkem;
 mod mldsa;
 mod slhdsa;
 mod hybrid_pq;
+mod blake3;
 
 const GREEN: &str = "\x1b[32m";
 const RED:   &str = "\x1b[31m";
@@ -461,6 +463,64 @@ fn run_hybrid_pq(use_color: bool) -> bool {
     println!(
         "Hybrid PQ: {} ok, {} failed (out of {} total)",
         count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// BLAKE3 dispatcher, implementation in src/blake3.rs.
+// 35 records × 3 modes (hash, keyed_hash, derive_key) = 105 KAT assertions
+// against the official BLAKE3-team Rust crate as an independent-lineage
+// oracle for blake3.ts.
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_blake3(use_color: bool, mode: blake3::BlakeXofMode) -> bool {
+    let path = vector_path("blake3.ts");
+    let header = match mode {
+        blake3::BlakeXofMode::Prefix32 => "BLAKE3 (BLAKE3-team upstream KAT corpus, hash + keyed_hash + derive_key, 32-byte digest)",
+        blake3::BlakeXofMode::FullXof  => "BLAKE3 (BLAKE3-team upstream KAT corpus, hash + keyed_hash + derive_key, 131-byte XOF)",
+    };
+    print_section(header);
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e)));
+            return false;
+        }
+    };
+
+    let (key, context, vectors) = match blake3::load(&src) {
+        Ok(t)  => t,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ {e}")));
+            return false;
+        }
+    };
+
+    println!("Parsed {} vectors", vectors.len());
+    println!("  blake3Key           = {:?} ({} ASCII bytes)", String::from_utf8_lossy(&key), key.len());
+    println!("  blake3ContextString = {:?} ({} ASCII bytes)", context, context.len());
+    println!("  mode = {:?}\n", mode);
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+    for v in &vectors {
+        let (ok, log) = blake3::verify_vector(v, &key, &context, mode);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
+    }
+    println!(
+        "BLAKE3: {} ok, {} failed (out of {} total, 3 modes × {} records)",
+        count_ok, count_fail, count_ok + count_fail, vectors.len(),
     );
     all_ok
 }
@@ -1075,12 +1135,12 @@ fn run_aes_gcm(use_color: bool) -> bool {
 enum CipherSel {
     Xchacha, Serpent, AesSeal, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
-    Mlkem, Mldsa, Slhdsa, HybridPq, Kmac,
+    Mlkem, Mldsa, Slhdsa, HybridPq, Kmac, Blake3,
     All,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TargetSel { Seal, Sealstream, All }
+enum TargetSel { Seal, Sealstream, Prefix32, FullXof, All }
 
 fn parse_cipher(s: &str) -> Result<CipherSel, String> {
     match s {
@@ -1098,8 +1158,9 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "slhdsa"      => Ok(CipherSel::Slhdsa),
         "hybrid-pq"   => Ok(CipherSel::HybridPq),
         "kmac"        => Ok(CipherSel::Kmac),
+        "blake3"      => Ok(CipherSel::Blake3),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, blake3, all)")),
     }
 }
 
@@ -1107,17 +1168,22 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
     match s {
         "seal"       => Ok(TargetSel::Seal),
         "sealstream" => Ok(TargetSel::Sealstream),
+        "prefix-32"  => Ok(TargetSel::Prefix32),
+        "full-xof"   => Ok(TargetSel::FullXof),
         "all"        => Ok(TargetSel::All),
-        other        => Err(format!("unknown --target value: '{other}' (expected: seal, sealstream, all)")),
+        other        => Err(format!("unknown --target value: '{other}' (expected: seal, sealstream, prefix-32, full-xof, all)")),
     }
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|all]");
-    eprintln!("                       [--target seal|sealstream|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|blake3|all]");
+    eprintln!("                       [--target seal|sealstream|prefix-32|full-xof|all]");
     eprintln!("Defaults: --cipher all --target all");
-    eprintln!("Note: --target is silently ignored for --cipher aes-gcm-siv, polyval, aes,");
-    eprintln!("      aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, and kmac (those corpora have no seal/sealstream split).");
+    eprintln!("Note: --target seal/sealstream apply only to --cipher xchacha / serpent / aes-seal.");
+    eprintln!("      --target prefix-32 / full-xof apply only to --cipher blake3 (32-byte digest");
+    eprintln!("      vs full 131-byte XOF assertion). For aes-gcm-siv, polyval, aes-cbc, aes-ctr,");
+    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac (no seal/sealstream/xof split),");
+    eprintln!("      --target is silently ignored.");
 }
 
 fn main() -> ExitCode {
@@ -1172,6 +1238,7 @@ fn main() -> ExitCode {
     let want_slhdsa      = matches!(cipher, CipherSel::Slhdsa    | CipherSel::All);
     let want_hybrid_pq   = matches!(cipher, CipherSel::HybridPq  | CipherSel::All);
     let want_kmac        = matches!(cipher, CipherSel::Kmac      | CipherSel::All);
+    let want_blake3      = matches!(cipher, CipherSel::Blake3    | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
 
@@ -1196,6 +1263,21 @@ fn main() -> ExitCode {
     if want_slhdsa      { if !run_slhdsa(use_color)      { all_ok = false; } }
     if want_hybrid_pq   { if !run_hybrid_pq(use_color)   { all_ok = false; } }
     if want_kmac        { if !run_kmac(use_color)        { all_ok = false; } }
+    if want_blake3 {
+        // --target full-xof / prefix-32 are blake3-specific. Default
+        // (--target all or omitted) runs the full 131-byte XOF
+        // assertion; --target prefix-32 limits the comparison to the
+        // first 32 default-length digest bytes. --target seal /
+        // sealstream are silently ignored for blake3.
+        let mode = match target {
+            TargetSel::Prefix32 => blake3::BlakeXofMode::Prefix32,
+            TargetSel::FullXof
+            | TargetSel::All
+            | TargetSel::Seal
+            | TargetSel::Sealstream => blake3::BlakeXofMode::FullXof,
+        };
+        if !run_blake3(use_color, mode) { all_ok = false; }
+    }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     if all_ok {

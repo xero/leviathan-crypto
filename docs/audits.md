@@ -18,6 +18,9 @@ Independent correctness and security reviews of every primitive in leviathan-cry
 | [stream_audit](./stream_audit.md) | 2026-04-03 | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 | [ratchet_audit](./ratchet_audit.md) | 2026-04-13 | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |
 | [vector_audit](./vector_audit.md) | 2026-05-04 | Test vector tier classification, independent Rust verifier coverage, CI integration, provenance of pinned KATs |
+| [mldsa_audit](./mldsa_audit.md) | 2026-05-13 | ML-DSA FIPS 204 correctness across ML-DSA-44/65/87, HashML-DSA prehashed-input surface, signing and verification paths, ACVP validation |
+| [slhdsa_audit](./slhdsa_audit.md) | 2026-05-14 | SLH-DSA FIPS 205 correctness for the SHAKE-fast parameter sets (128f/192f/256f) plus the three PQ-only hybrid suites: buffer layout, ADRS, WOTS+/FORS/XMSS/hypertree, top-level §9 algorithms, ACVP validation |
+| [blake3_audit](./blake3_audit.md) | 2026-05-15 | BLAKE3 spec conformance: v128 compress and lane-parallel compress4, chunk machine, subtree stack and root finalize, keyed_hash and derive_key modes, XOF squeeze, memory hygiene |
 
 ---
 

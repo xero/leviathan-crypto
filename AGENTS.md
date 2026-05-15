@@ -205,18 +205,18 @@ that way.
 
 These are decisions already made. Do not relitigate them without raising it first.
 
-- **Nine WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
+- **Ten WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
   `sha3.wasm`, `ct.wasm`, `kyber.wasm`, `aes.wasm`, `mldsa.wasm`,
-  `slhdsa.wasm`. Each is independent: separate linear memory, separate
-  buffer layout, separate AssemblyScript entry point. `ct.wasm` is an
-  internal utility (SIMD constant-time compare, not a user-facing
-  module). `'keccak'` is an alias for `'sha3'` in the TypeScript layer;
-  it is not a separate module. No `keccak.wasm` exists or should be
-  created. `slhdsa.wasm` embeds its own Keccak permutation (verbatim
-  port from sha3-wasm) for the FIPS 205 internal hash primitives
-  (F / H / T_l / PRF / PRFmsg / Hmsg); pure-mode SLH-DSA never touches
-  the sha3 module, prehash SLH-DSA only touches sha3 for the running
-  digest in the sign layer.
+  `slhdsa.wasm`, `blake3.wasm`. Each is independent: separate linear
+  memory, separate buffer layout, separate AssemblyScript entry point.
+  `ct.wasm` is an internal utility (SIMD constant-time compare, not a
+  user-facing module). `'keccak'` is an alias for `'sha3'` in the
+  TypeScript layer; it is not a separate module. No `keccak.wasm`
+  exists or should be created. `slhdsa.wasm` embeds its own Keccak
+  permutation (verbatim port from sha3-wasm) for the FIPS 205 internal
+  hash primitives (F / H / T_l / PRF / PRFmsg / Hmsg); pure-mode
+  SLH-DSA never touches the sha3 module, prehash SLH-DSA only touches
+  sha3 for the running digest in the sign layer.
 - **Static buffers only**: no dynamic allocation (`memory.grow()` is not used).
   All buffers are fixed offsets in linear memory defined in `buffers.ts`.
 - **Buffer layout starts at 0**: each module's layout is independent and starts
@@ -317,6 +317,41 @@ These are decisions already made. Do not relitigate them without raising it firs
   targets, sign-layer SLH-DSA and PQ-only hybrid suite tests). The
   split keeps any single group inside its `timeout-minutes`; consult
   the recorded per-group runtimes before considering consolidation.
+- **blake3 module**: independent WASM module `blake3.wasm` (module id
+  4, 2 memory pages). Implements the BLAKE3 spec across all three
+  modes: default-mode hash (§2.5), keyed_hash (§2.6), derive_key
+  (§2.7). SIMD-only: ships a v128-internal `compress` and a v128-
+  external lane-parallel `compress4`, no scalar fallback. Joins
+  serpent / chacha20 / aes / kyber / mldsa in the v128-required tier;
+  `init({ blake3 })` rejects when WebAssembly SIMD is unavailable.
+  Tree-mode internal exports `_testChunkCV`, `_testParentCV`, and
+  `_testDeriveContextCV` are gated for the tree-internals unit suite
+  and the planned Phase 7 `src/ts/merkle/blake3-log.ts` log-proof
+  substrate; they are NOT part of the consumer-facing `Blake3Exports`
+  interface. The TS surface ships six classes (`BLAKE3`,
+  `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`,
+  `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`) plus
+  `BLAKE3OutputReader` (constructed via `finalizeXof()` on any
+  streaming class, holds module exclusivity for unbounded XOF reads
+  until disposed) and `BLAKE3Hash`, a stateless 32-byte `HashFn` const
+  compatible with the Fortuna accumulator slot. The §2.5 root-state
+  snapshot (`ROOT_STATE_*`) is populated by `chunkFinalize` on the
+  single-chunk path and by `treeFinalizeRoot` on the multi-chunk path;
+  `BLAKE3OutputReader._populate` deliberately does NOT call
+  `wipeBuffers()` (which would clobber the snapshot) and instead
+  relies on its module-exclusivity hold to keep the snapshot intact
+  between sequential `read(n)` calls.
+- **blake3 test group**: BLAKE3 primitive tests live in the `blake3`
+  CI group in `scripts/lib/test-groups.ts` (5-min timeout, `UNIT_BASE`
+  build targets). The group covers the v128-internal compress KAT
+  (gate), the upstream 35-record corpus across all three modes,
+  compress4-vs-compress1 randomized equivalence, the tree-internals
+  test surface, streaming-vs-one-shot equivalence, full 131-byte XOF
+  output across the 105-record corpus, large-input cross-check vs the
+  RustCrypto `blake3` oracle, dispose-time wipe coverage, and every
+  TS validation throw path. There is no separate `blake3-large`
+  group, the large-input cross-check sits inside the main `blake3`
+  group because its runtime fits the 5-minute budget.
 
 ---
 

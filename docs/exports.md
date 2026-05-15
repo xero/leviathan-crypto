@@ -15,6 +15,7 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [SHA-2](#sha-2)
 > - [SHA-3](#sha-3)
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
+> - [BLAKE3](#blake3)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
 > - [ML-DSA (Post-quantum signatures)](#ml-dsa-post-quantum-signatures)
 > - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
@@ -33,7 +34,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa'` |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3'` |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -238,6 +239,25 @@ Subpath: `leviathan-crypto/keccak`.
 
 ---
 
+## BLAKE3
+
+Requires `init({ blake3: blake3Wasm })` or subpath `blake3Init(source)`. v128 SIMD required (the module ships a v128-internal `compress` and a v128-external lane-parallel `compress4`, no scalar fallback).
+Subpath: `leviathan-crypto/blake3`. See [blake3.md](./blake3.md).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `blake3Init` | function | Module-scoped init. `blake3Init(source: WasmSource)` loads only blake3. |
+| `BLAKE3` | class | One-shot default-mode hash (BLAKE3 §2.3 `hash`). `hash(msg, outLen?)` returns `outLen` bytes (default 32, max 1024 per call; use the streaming class plus `finalizeXof()` for unbounded output). Atomic, does not hold module exclusivity. |
+| `BLAKE3Stream` | class | Incremental default-mode hash. `update(chunk)`, `finalize(outLen?)` returns up to 1024 bytes and disposes; `finalizeXof()` returns a `BLAKE3OutputReader` for unbounded output. Holds the blake3 module exclusively from construction until `finalize()` / `finalizeXof()` / `dispose()`. |
+| `BLAKE3KeyedHash` | class | One-shot keyed_hash (BLAKE3 §2.3 `keyed_hash`). `hash(key, msg, outLen?)` requires a 32-byte key; output behaviour matches `BLAKE3.hash`. Atomic. |
+| `BLAKE3KeyedHashStream` | class | Incremental keyed_hash. Constructor takes the 32-byte key; otherwise identical to `BLAKE3Stream`. Holds the blake3 module exclusively until disposed. |
+| `BLAKE3DeriveKey` | class | One-shot derive_key (BLAKE3 §2.3 `derive_key`, two-pass). `derive(context, keyMaterial, outLen?)`: pass 1 hashes the context string with `DERIVE_KEY_CONTEXT`; pass 2 hashes `keyMaterial` with `DERIVE_KEY_MATERIAL` under the context CV. Atomic. |
+| `BLAKE3DeriveKeyStream` | class | Incremental derive_key. Constructor takes the context string; `update(chunk)` feeds key material; `finalize(outLen?)` / `finalizeXof()` as above. Holds the blake3 module exclusively until disposed. |
+| `BLAKE3OutputReader` | class | Unbounded XOF reader returned by any streaming class's `finalizeXof()`. `read(n)` lifts the next `n` bytes off the §2.6 root-state snapshot via the WASM `squeezeXofBlock` export; holds module exclusivity until `dispose()`. |
+| `BLAKE3Hash` | const | `HashFn` const wrapping `BLAKE3.hash` at the default 32-byte digest size. Compatible with the `Fortuna` accumulator slot alongside `SHA256Hash` and `SHA3_256Hash`. `outputSize: 32`, `wasmModules: ['blake3']`. Requires `init({ blake3 })`. |
+
+---
+
 ## ML-KEM (Post-quantum KEM)
 
 Requires `init({ kyber: kyberWasm, sha3: sha3Wasm })`.
@@ -337,7 +357,7 @@ Takes a `Generator` and a `HashFn` at create time. Required `init()` modules dep
 | `SHA256Hash`         | const    | `HashFn` const for `Fortuna`. Stateless SHA-256. Requires `init({ sha2 })`. Re-exported from `'leviathan-crypto/sha2'`. |
 | `SHA3_256Hash`       | const    | `HashFn` const for `Fortuna`. Stateless SHA3-256. Requires `init({ sha3 })`. Re-exported from `'leviathan-crypto/sha3'`. |
 | `Generator`          | type     | Interface implemented by `AESGenerator`, `SerpentGenerator`, and `ChaCha20Generator`. |
-| `HashFn`             | type     | Interface implemented by `SHA256Hash` and `SHA3_256Hash`. |
+| `HashFn`             | type     | Interface implemented by `SHA256Hash`, `SHA3_256Hash`, and `BLAKE3Hash`. |
 
 ---
 
