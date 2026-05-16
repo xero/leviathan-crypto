@@ -60,7 +60,7 @@ const L10: u8 = 0xF7
 const L11: u8 = 0xA2
 const L12: u8 = 0xDE
 const L13: u8 = 0xF9
-const L14: u8 = 0x4D
+const L14: u8 = 0xDE
 const L15: u8 = 0x14
 // L[16..30] = 0
 const L31: u8 = 0x10
@@ -304,14 +304,14 @@ export function scalarMulAdd(out: i32, a: i32, b: i32, c: i32): void {
 			store<u8>(prod + i + j, (tmp & 0xFF) as u8)
 			carry = tmp >> 8
 		}
-		// Propagate final carry into byte i+32.
-		let k: i32 = i + 32
-		while (carry != 0 && k < 64) {
+		// Propagate final carry through remaining bytes. Fixed iteration
+		// (no early-exit on carry == 0) so runtime is independent of
+		// secret operand bytes; adding 0 is a byte no-op and keeps carry 0.
+		for (let k: i32 = i + 32; k < 64; k++) {
 			const pk: u32 = load<u8>(prod + k) as u32
 			const tmp: u32 = pk + carry
 			store<u8>(prod + k, (tmp & 0xFF) as u8)
 			carry = tmp >> 8
-			k++
 		}
 	}
 
@@ -324,14 +324,12 @@ export function scalarMulAdd(out: i32, a: i32, b: i32, c: i32): void {
 		store<u8>(prod + i, (tmp & 0xFF) as u8)
 		carry = tmp >> 8
 	}
-	// Propagate carry into the upper bytes.
-	let k: i32 = 32
-	while (carry != 0 && k < 64) {
+	// Propagate carry into the upper bytes. Fixed iteration for CT.
+	for (let k: i32 = 32; k < 64; k++) {
 		const pk: u32 = load<u8>(prod + k) as u32
 		const tmp: u32 = pk + carry
 		store<u8>(prod + k, (tmp & 0xFF) as u8)
 		carry = tmp >> 8
-		k++
 	}
 
 	// Reduce 64 bytes to 32 mod L.

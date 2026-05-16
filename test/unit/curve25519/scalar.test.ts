@@ -59,7 +59,7 @@ beforeAll(async () => {
 });
 
 // L per RFC 8032 §5.1, 32-byte LE.
-const L_HEX = 'edd3f55c1a631258d69cf7a2def94d1400000000000000000000000000000010';
+const L_HEX = 'edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010';
 
 function hexToBytes(hex: string): Uint8Array {
 	const out = new Uint8Array(hex.length / 2);

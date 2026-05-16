@@ -77,6 +77,24 @@ export {
 	scalarAdd, scalarMulAdd, scalarIsCanonical,
 } from './scalar'
 
+// ── Ed25519 high-level operations (TASK-C) ──────────────────────────────────
+//
+// RFC 8032 §5.1.5 (keygen), §5.1.6 (pure sign), §5.1.7 strict (pure
+// verify and prehash variants). The embedded SHA-512 in ./sha512.ts is
+// the only hash primitive consumed; its module-internal exports
+// (sha512Init / sha512Update / sha512Final / sha512UpdateBytes) are
+// deliberately NOT re-exported here. The curve25519.wasm ABI does not
+// surface a sha512* function. See the head of ./sha512.ts for the
+// embed-not-orchestrate rationale.
+
+export {
+	ed25519Keygen,
+	ed25519Sign,
+	ed25519Verify,
+	ed25519SignPrehashed,
+	ed25519VerifyPrehashed,
+} from './ed25519'
+
 // ── Buffer wipe ─────────────────────────────────────────────────────────────
 
 /**

@@ -104,12 +104,49 @@ export const LADDER_TMP_STRIDE:    i32 = 40
 export const ACC_OFFSET:           i32 = 5856
 export const ACC_SIZE:             i32 = 80
 
+// ── TASK-C appended region: embedded SHA-512 + Ed25519 scratch ─────────────
+//
+// Appended at offset 5936, following the TASK-B substrate buffers. Two
+// sub-regions: (1) SHA-512 state for the verbatim port in `sha512.ts`,
+// (2) Ed25519 scratch slots for the high-level keygen / sign / verify
+// exports in `ed25519.ts`.
+//
+// SHA-512 buffer NAMES mirror `src/asm/sha2/buffers.ts` so the verbatim
+// `sha512.ts` port compiles unchanged after only a buffer-import path
+// rewrite; OFFSETS are local to curve25519's memory layout. Total SHA-512
+// region: 64+128+640+64+128+4+8 = 1036 bytes (5936..6972).
+//
+// Ed25519 scratch holds state that must persist across substrate calls
+// (FIELD_TMP / POINT_TMP get clobbered by every substrate function). Five
+// 32-byte scalar / byte slots plus four 160-byte Edwards point slots.
+// Total Ed25519 scratch: 5*32 + 4*160 = 800 bytes (6972..7772).
+
+// SHA-512 buffer offsets (verbatim names from sha2/buffers.ts)
+export const SHA512_H_OFFSET:       i32 = 5936
+export const SHA512_BLOCK_OFFSET:   i32 = 6000   // 5936 + 64
+export const SHA512_W_OFFSET:       i32 = 6128   // 6000 + 128
+export const SHA512_OUT_OFFSET:     i32 = 6768   // 6128 + 640
+export const SHA512_INPUT_OFFSET:   i32 = 6832   // 6768 + 64
+export const SHA512_PARTIAL_OFFSET: i32 = 6960   // 6832 + 128
+export const SHA512_TOTAL_OFFSET:   i32 = 6964   // 6960 + 4
+
+// Ed25519 scratch buffers (this task). Persistent across substrate calls.
+export const ED25519_SCALAR_A:      i32 = 6972   // 32 bytes (clamped scalar a)
+export const ED25519_PREFIX:        i32 = 7004   // 32 bytes (h[32..64])
+export const ED25519_R_SCALAR:      i32 = 7036   // 32 bytes (r mod L)
+export const ED25519_K_SCALAR:      i32 = 7068   // 32 bytes (k mod L)
+export const ED25519_PK_CHECK:      i32 = 7100   // 32 bytes (derived pk for compare)
+export const ED25519_POINT_A:       i32 = 7132   // 160 bytes (A = [a]B / decompressed pk)
+export const ED25519_POINT_R:       i32 = 7292   // 160 bytes (R_point = [r]B / decompressed R)
+export const ED25519_POINT_TMP1:    i32 = 7452   // 160 bytes
+export const ED25519_POINT_TMP2:    i32 = 7612   // 160 bytes
+
 /**
  * End of the curve25519 module buffer region (exclusive upper bound).
  * Used by `wipeBuffers()` in `index.ts` to clear mutable state without
  * touching the AS data segment.
  */
-export const BUFFER_END:           i32 = 5936
+export const BUFFER_END:           i32 = 7772
 
 // ── Module identity ─────────────────────────────────────────────────────────
 
@@ -127,3 +164,51 @@ export function getPointTmpOffset():     i32 { return POINT_TMP_OFFSET   }
 export function getPointTmpStride():     i32 { return POINT_TMP_STRIDE   }
 export function getLadderTmpOffset():    i32 { return LADDER_TMP_OFFSET  }
 export function getLadderTmpStride():    i32 { return LADDER_TMP_STRIDE  }
+
+// ── Ed25519ph dom2 ASCII prefix (RFC 8032 §5.1) ────────────────────────────
+//
+// The 32-byte ASCII constant `"SigEd25519 no Ed25519 collisions"` defined by
+// RFC 8032 §5.1 as the leading bytes of dom2(F, C). Written via byte-by-byte
+// stores so the source is auditable against the spec text: every byte's
+// trailing comment names the ASCII glyph it encodes.
+//
+// Per AGENTS.md §5, the value is computed from the spec text (the ASCII
+// string itself, defined in RFC 8032 §5.1) at implementation time; this
+// file's bytes are reproducible by re-encoding the spec's string. No value
+// is copied from a planning document.
+
+@inline
+export function loadDom2Prefix(dst: i32): void {
+	store<u8>(dst +  0, 0x53)  // 'S'
+	store<u8>(dst +  1, 0x69)  // 'i'
+	store<u8>(dst +  2, 0x67)  // 'g'
+	store<u8>(dst +  3, 0x45)  // 'E'
+	store<u8>(dst +  4, 0x64)  // 'd'
+	store<u8>(dst +  5, 0x32)  // '2'
+	store<u8>(dst +  6, 0x35)  // '5'
+	store<u8>(dst +  7, 0x35)  // '5'
+	store<u8>(dst +  8, 0x31)  // '1'
+	store<u8>(dst +  9, 0x39)  // '9'
+	store<u8>(dst + 10, 0x20)  // ' '
+	store<u8>(dst + 11, 0x6E)  // 'n'
+	store<u8>(dst + 12, 0x6F)  // 'o'
+	store<u8>(dst + 13, 0x20)  // ' '
+	store<u8>(dst + 14, 0x45)  // 'E'
+	store<u8>(dst + 15, 0x64)  // 'd'
+	store<u8>(dst + 16, 0x32)  // '2'
+	store<u8>(dst + 17, 0x35)  // '5'
+	store<u8>(dst + 18, 0x35)  // '5'
+	store<u8>(dst + 19, 0x31)  // '1'
+	store<u8>(dst + 20, 0x39)  // '9'
+	store<u8>(dst + 21, 0x20)  // ' '
+	store<u8>(dst + 22, 0x63)  // 'c'
+	store<u8>(dst + 23, 0x6F)  // 'o'
+	store<u8>(dst + 24, 0x6C)  // 'l'
+	store<u8>(dst + 25, 0x6C)  // 'l'
+	store<u8>(dst + 26, 0x69)  // 'i'
+	store<u8>(dst + 27, 0x73)  // 's'
+	store<u8>(dst + 28, 0x69)  // 'i'
+	store<u8>(dst + 29, 0x6F)  // 'o'
+	store<u8>(dst + 30, 0x6E)  // 'n'
+	store<u8>(dst + 31, 0x73)  // 's'
+}

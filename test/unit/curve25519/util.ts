@@ -73,6 +73,12 @@ export interface Curve25519Exports {
 	scalarAdd:           (out: number, a: number, b: number) => void;
 	scalarMulAdd:        (out: number, a: number, b: number, c: number) => void;
 	scalarIsCanonical:   (s: number) => number;
+	// Ed25519 (RFC 8032, TASK-C)
+	ed25519Keygen:           (seedOff: number, pkOff: number) => void;
+	ed25519Sign:             (seedOff: number, pkOff: number, msgOff: number, msgLen: number, sigOff: number) => void;
+	ed25519Verify:           (pkOff: number, msgOff: number, msgLen: number, sigOff: number) => number;
+	ed25519SignPrehashed:    (seedOff: number, pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => void;
+	ed25519VerifyPrehashed:  (pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => number;
 	wipeBuffers:         () => void;
 }
 
