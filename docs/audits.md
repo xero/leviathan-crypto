@@ -21,6 +21,8 @@ Independent correctness and security reviews of every primitive in leviathan-cry
 | [mldsa_audit](./mldsa_audit.md) | 2026-05-13 | ML-DSA FIPS 204 correctness across ML-DSA-44/65/87, HashML-DSA prehashed-input surface, signing and verification paths, ACVP validation |
 | [slhdsa_audit](./slhdsa_audit.md) | 2026-05-14 | SLH-DSA FIPS 205 correctness for the SHAKE-fast parameter sets (128f/192f/256f) plus the three PQ-only hybrid suites: buffer layout, ADRS, WOTS+/FORS/XMSS/hypertree, top-level §9 algorithms, ACVP validation |
 | [blake3_audit](./blake3_audit.md) | 2026-05-15 | BLAKE3 spec conformance: v128 compress and lane-parallel compress4, chunk machine, subtree stack and root finalize, keyed_hash and derive_key modes, XOF squeeze, memory hygiene |
+| [ed25519_audit](./ed25519_audit.md) | 2026-05-16 | Ed25519 RFC 8032 plus FIPS 186-5 §7.6.4 strict verification, fault-injection defence, embedded SHA-512 integrity, constant-time discipline, dom2 prehash binding |
+| [x25519_audit](./x25519_audit.md) | 2026-05-16 | X25519 RFC 7748 §5 clamping discipline, constant-time Montgomery ladder, TS-layer all-zero shared-secret rejection, RFC 7748 §6.1 plus iter=1000 vector coverage |
 
 ---
 

@@ -19,44 +19,23 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// src/ts/sign/index.ts
+// src/ts/x25519/validate.ts
 //
-// Public barrel for the v3 sign module.
+// X25519 caller-side input validation. Pure length / type checks. Peer
+// public-key masking happens inside the WASM (feFromBytes masks bit 255
+// per RFC 7748 §5); the all-zero shared-secret rejection happens in the
+// TS X25519.dh method after the WASM returns.
 
-export type {
-	SignatureSuite,
-	StreamableSignatureSuite,
-	PrehashAlgorithm,
-} from './types.js';
+export function validateSecretKey(sk: Uint8Array): void {
+	if (!(sk instanceof Uint8Array))
+		throw new TypeError('leviathan-crypto: x25519 secret key must be a Uint8Array');
+	if (sk.length !== 32)
+		throw new RangeError(`leviathan-crypto: x25519 secret key must be 32 bytes (got ${sk.length})`);
+}
 
-export {
-	buildEffectiveCtx,
-	prehashAlgoToMldsa,
-	USER_CTX_MAX,
-	CTX_DOMAIN_MAX,
-} from './ctx.js';
-
-export { Sign } from './envelope.js';
-
-export { SignStream } from './sign-stream.js';
-export { VerifyStream } from './verify-stream.js';
-
-export {
-	Ed25519Suite, Ed25519PreHashSuite,
-} from './suites/ed25519.js';
-
-export {
-	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
-	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
-} from './suites/mldsa.js';
-
-export {
-	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,
-	SlhDsa128fPreHashSuite, SlhDsa192fPreHashSuite, SlhDsa256fPreHashSuite,
-} from './suites/slhdsa.js';
-
-export {
-	MlDsa44SlhDsa128fSuite,
-	MlDsa65SlhDsa192fSuite,
-	MlDsa87SlhDsa256fSuite,
-} from './suites/hybrid-pq.js';
+export function validatePublicKey(pk: Uint8Array): void {
+	if (!(pk instanceof Uint8Array))
+		throw new TypeError('leviathan-crypto: x25519 public key must be a Uint8Array');
+	if (pk.length !== 32)
+		throw new RangeError(`leviathan-crypto: x25519 public key must be 32 bytes (got ${pk.length})`);
+}

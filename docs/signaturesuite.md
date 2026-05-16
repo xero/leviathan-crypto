@@ -93,6 +93,64 @@ Use these when the application cannot buffer the full message before signing, or
 > [!IMPORTANT]
 > Pure-mode and prehash-mode signatures are not interchangeable, even on the same key. HashML-DSA's M' uses a different domain-separator byte from pure ML-DSA (FIPS 204 §3.6.4). The wire format encodes which mode produced the signature via `formatEnum`; the receiver must match the suite the sender used.
 
+### Ed25519 suites
+
+Phase 4 adds two classical Ed25519 suites that cover RFC 8032 §5.1, Ed25519. `Ed25519Suite` (`0x01`) signs the message bytes directly in pure mode; `Ed25519PreHashSuite` (`0x11`) signs an SHA-512 prehash with the dom2(F=1, ctx) binding. Ed25519 is classical, not post-quantum, so plan for migration to a Phase 6 classical+PQ hybrid (`0x20` / `0x21`) when long-horizon assurance matters. See [SECURITY.md](../SECURITY.md) for the threat model. The full Ed25519 reference lives in [ed25519.md](./ed25519.md); the audit checklist lives in [ed25519_audit.md](./ed25519_audit.md).
+
+| Field              | `Ed25519Suite`         | `Ed25519PreHashSuite`              |
+|--------------------|------------------------|------------------------------------|
+| `formatEnum`       | `0x01`                 | `0x11`                             |
+| `formatName`       | `'ed25519'`            | `'ed25519-prehash'`                |
+| `ctxDomain`        | `ed25519-envelope-v3`  | `ed25519-prehash-envelope-v3`      |
+| `pkSize`           | 32                     | 32                                 |
+| `skSize`           | 32                     | 32                                 |
+| `sigSize`          | 64                     | 64                                 |
+| `prehashAlgorithm` | n/a                    | `'sha-512'`                        |
+| `prehashSize`      | n/a                    | 64                                 |
+| `wasmModules`      | `['curve25519']`       | `['curve25519', 'sha2']`           |
+
+#### Ed25519Suite (pure)
+
+`Ed25519Suite` covers pure Ed25519, RFC 8032 §5.1.6, signature generation. Satisfies `SignatureSuite` only; `SignStream` and `VerifyStream` reject it at the type level because pure Ed25519 has no streaming prehash story (the spec hashes the full message bytes during signing).
+
+Pure Ed25519 has no native context parameter. The suite carries a built-in `ctxDomain` of `'ed25519-envelope-v3'` for `formatName` and display purposes, but the suite rejects any non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Applications that need context-bound signing must use `Ed25519PreHashSuite`, where RFC 8032 §5.1.7, signature verification, defines the dom2(F=1, ctx) construction.
+
+Pure Ed25519 is deterministic per RFC 8032 §5.1.6: the per-signature nonce `r = SHA-512(prefix || M)` is fully determined by the secret seed and the message. Two `Ed25519Suite.sign` calls over the same `(sk, msg)` return byte-identical signatures. This is a property of the spec, not a hedged-vs-deterministic policy choice; the suite cannot be configured to behave otherwise.
+
+#### Ed25519PreHashSuite (prehash, Ed25519ph)
+
+`Ed25519PreHashSuite` covers Ed25519ph, RFC 8032 §5.1.7, signature verification. Satisfies `StreamableSignatureSuite` and plugs into `SignStream` / `VerifyStream`. The prehash algorithm is fixed at SHA-512 (`prehashAlgorithm: 'sha-512'`, `prehashSize: 64`); Ed25519ph permits no other hash function per the spec, so there is no parameterization to expose.
+
+The suite binds context through the WASM substrate's dom2(F=1, effective_ctx) prefix. The factory calls `buildEffectiveCtx(ctxDomain, user_ctx)` once per sign or verify and passes the result to `ed25519SignPrehashed` / `ed25519VerifyPrehashed` as the WASM ctx parameter; the substrate hashes `'SigEd25519 no Ed25519 collisions' || 0x01 || |effective_ctx| || effective_ctx` into both SHA-512 inputs that produce r and k.
+
+The message-taking `sign(sk, msg, ctx)` and `verify(pk, msg, sig, ctx)` paths route through `sha512OneShot(msg)` from `src/ts/sign/hasher.ts`, which drives the sha2 WASM module. The streaming path through `SignStream` / `VerifyStream` uses `createRunningHash('sha-512')`, which constructs a `SHA512Stream` from the sha2 module. Both paths drive sha2, not the curve25519-embedded SHA-512; the embedded copy covers dom2 prefixing inside the WASM and is not exposed at the ABI.
+
+`Ed25519PreHashSuite.wasmModules` is `['curve25519', 'sha2']` so consumers know to call `init({ ed25519: curve25519Wasm, sha2: sha2Wasm })` (or the equivalent subpath inits) before using the suite. `Ed25519Suite.wasmModules` is `['curve25519']` alone; pure mode does not touch sha2.
+
+#### Fault-injection defense
+
+Both Ed25519 suites inherit the curve25519 module's fault-injection defence on the sign path. The suite layer calls `Ed25519.sign(sk, pk, M)` with a `pk` re-derived from sk via `Ed25519.keygenDerand(sk)`; the WASM then re-derives pk a second time internally and aborts via `unreachable` if the value differs from the caller-supplied buffer. The TypeScript wrapper catches the resulting `WebAssembly.RuntimeError` and rethrows as `SigningError('sig-malformed-input', ...)`.
+
+The cost is one extra Edwards scalar multiplication per sign, roughly 5ms at parameter-set sizes. Verifies are unaffected (verify operates on public inputs, no fault-injection surface there). The defence sits between the TypeScript-level `keygenDerand` and the WASM-level re-derivation; a fault that flips bits in the seed-to-prefix derivation has to flip the same bits in both passes to evade the check, which removes any advantage from a sk-only fault.
+
+See [ed25519.md](./ed25519.md#fault-injection-defense) for the underlying threat model and [ed25519_audit.md](./ed25519_audit.md#fault-injection-defense) for the audit checklist.
+
+#### Wire format
+
+Both Ed25519 suites use the standard v3 attached envelope. Per [Attached envelope](#attached-envelope):
+
+```
+byte  0                : suite_byte    (0x01 for Ed25519Suite, 0x11 for Ed25519PreHashSuite)
+byte  1                : ctx_len       (0 for Ed25519Suite, 0..255 for Ed25519PreHashSuite)
+bytes 2 .. 2+ctx_len   : ctx           (raw user_ctx, no domain prefix)
+bytes ... payload_end  : payload       (the message)
+bytes payload_end .. N : sig           (64 bytes, R || s)
+```
+
+`Ed25519Suite` always has `ctx_len = 0` because the suite rejects non-empty user_ctx. `Ed25519PreHashSuite` accepts a per-call `user_ctx` up to 200 bytes (the cap from `src/ts/sign/ctx.ts`, well under the FIPS 204-style 255-byte limit). KAT vectors for both suites live in `test/vectors/sign_ed25519.ts` and verify byte-for-byte against the third-party Ed25519 oracles per [vector_audit.md](./vector_audit.md).
+
+For detached signing, `Sign.signDetached(suite, sk, msg, ctx)` returns exactly 64 bytes (R || s) per RFC 8032 §5.1.6, signature generation; the caller manages `(suite, pk, msg, sig, ctx)` out of band.
+
 ### SLH-DSA pure-mode suites
 
 The SLH-DSA pure-mode suites cover FIPS 205 §10.1. They satisfy `SignatureSuite` only.
@@ -522,7 +580,7 @@ The full 22-entry catalog. Phase 1 rows are shipped; later phases are queued. Ph
 
 | Byte | Suite                       | Mode    | Prehash               | ctxDomain                          | Phase | Status   |
 |------|-----------------------------|---------|-----------------------|------------------------------------|-------|----------|
-| 0x01 | `Ed25519Suite`              | pure    | -                     | `ed25519-envelope-v3`              | 4     | queued   |
+| 0x01 | `Ed25519Suite`              | pure    | -                     | `ed25519-envelope-v3`              | 4     | shipped  |
 | 0x02 | `EcdsaP256Suite`            | single  | SHA-256               | `ecdsa-p256-envelope-v3`           | 5     | queued   |
 | 0x03 | `MlDsa44Suite`              | pure    | -                     | `mldsa44-envelope-v3`              | 1     | shipped  |
 | 0x04 | `MlDsa65Suite`              | pure    | -                     | `mldsa65-envelope-v3`              | 1     | shipped  |
@@ -530,7 +588,7 @@ The full 22-entry catalog. Phase 1 rows are shipped; later phases are queued. Ph
 | 0x06 | `SlhDsa128fSuite`           | pure    | -                     | `slhdsa128f-envelope-v3`           | 2     | shipped  |
 | 0x07 | `SlhDsa192fSuite`           | pure    | -                     | `slhdsa192f-envelope-v3`           | 2     | shipped  |
 | 0x08 | `SlhDsa256fSuite`           | pure    | -                     | `slhdsa256f-envelope-v3`           | 2     | shipped  |
-| 0x11 | `Ed25519PreHashSuite`       | prehash | SHA-512 (Ed25519ph)   | `ed25519-prehash-envelope-v3`      | 4     | queued   |
+| 0x11 | `Ed25519PreHashSuite`       | prehash | SHA-512 (Ed25519ph)   | `ed25519-prehash-envelope-v3`      | 4     | shipped  |
 | 0x13 | `MlDsa44PreHashSuite`       | prehash | SHA3-256              | `mldsa44-prehash-envelope-v3`      | 1     | shipped  |
 | 0x14 | `MlDsa65PreHashSuite`       | prehash | SHA3-256              | `mldsa65-prehash-envelope-v3`      | 1     | shipped  |
 | 0x15 | `MlDsa87PreHashSuite`       | prehash | SHA3-512              | `mldsa87-prehash-envelope-v3`      | 1     | shipped  |

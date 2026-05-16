@@ -47,6 +47,14 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 |--------|-------------|
 | [kyber.md](./kyber.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`: ML-KEM key encapsulation (FIPS 203) |
 
+### Classical Signatures and Key Agreement
+
+| Module | Description |
+|--------|-------------|
+| [ed25519.md](./ed25519.md) | `Ed25519`: classical Ed25519 signatures (RFC 8032), pure and Ed25519ph prehash modes |
+| [x25519.md](./x25519.md) | `X25519`: Curve25519 Diffie-Hellman key agreement (RFC 7748) |
+| [asm_curve25519.md](./asm_curve25519.md) | WASM implementation: field arithmetic, edwards25519, Montgomery ladder, scalar mod L, embedded SHA-512 |
+
 ### Post-Quantum Signatures
 
 | Module | Description |
@@ -155,5 +163,7 @@ See the [audit index](./audits.md) for a summary of all reviews.
 | [kyber_audit.md](./kyber_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
 | [mldsa_audit.md](./mldsa_audit.md) | ML-DSA FIPS 204 prehashed-input surface audit |
 | [slhdsa_audit.md](./slhdsa_audit.md) | SLH-DSA FIPS 205 implementation audit, including PQ-only hybrid factory invariants |
+| [ed25519_audit.md](./ed25519_audit.md) | Ed25519 RFC 8032 plus FIPS 186-5 strict verification, fault-injection defence, embedded SHA-512 integrity, dom2 prehash binding |
+| [x25519_audit.md](./x25519_audit.md) | X25519 RFC 7748 clamping discipline, constant-time Montgomery ladder, TS-layer all-zero rejection |
 | [stream_audit.md](./stream_audit.md) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 | [ratchet_audit.md](./ratchet_audit.md) | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |

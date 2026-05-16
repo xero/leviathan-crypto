@@ -138,11 +138,138 @@
   records carrying NIST-reserved function names exercise the WASM
   sponge end to end; they are not part of the public surface.
 
-Migration: none. All additions; no breaking changes from the AES
-or ML-DSA landing. The v2 → v3 migration items above (Serpent
-byte-order flip, ChaCha salamander defense) are the only breaking
-changes in this release; the cipher suite, generator, signature, and
-SP 800-185 additions add no migration burden.
+- **Ed25519.** RFC 8032 Edwards-Curve Digital Signature
+  Algorithm lands as the first classical signature primitive in
+  the library. The new `Ed25519` class covers both modes:
+  pure Ed25519 (RFC 8032 §5.1.6, signature generation) signs the
+  message bytes directly, and Ed25519ph (RFC 8032 §5.1.7,
+  signature verification, with the dom2(F=1, ctx) prehash
+  binding) signs a caller-supplied SHA-512 digest with an
+  optional context up to 255 bytes. Verification is strict per
+  FIPS 186-5 §7.6.4: non-canonical pk or R encodings, `s >= L`,
+  small-order pk values, and signature-equation mismatches all
+  return `false`. The strict gates close the ACVP
+  `testPassed=false` sigVer malleation paths.
+
+  The sign path carries a fault-injection defence inherited from
+  the dalek discipline: the caller passes pk alongside sk, the
+  WASM re-derives pk from sk internally and compares, and any
+  mismatch aborts via `unreachable` (rethrown by the TypeScript
+  wrapper as `SigningError('sig-malformed-input', ...)`). The
+  defence costs one extra Edwards scalar multiplication per sign,
+  roughly 5ms at parameter-set sizes.
+
+  Initialize via `init({ ed25519: ... })` or the alias
+  `init({ x25519: ... })`; both resolve to the underlying
+  `curve25519` slot, and the init layer de-dupes when given
+  identical sources. Subpath exports:
+  `leviathan-crypto/ed25519`. The full RFC 8032 §7 test corpus
+  plus the NIST ACVP EDDSA keyGen / sigGen / sigVer records
+  verify byte-for-byte. Every WASM region holding a
+  secret-derived intermediate (clamped scalar a, signing prefix,
+  per-signature r and k, the Edwards points A and R) is wiped on
+  every success and failure path.
+
+- **X25519.** RFC 7748 Curve25519 Diffie-Hellman lands as the
+  first classical key-agreement primitive. The new `X25519`
+  class exposes `keygen`, `keygenDerand(sk)`, and `dh(sk,
+  peerPk)`. Clamping (RFC 7748 §5, The X25519 and X448
+  Functions) happens internally on every call; the stored
+  secretKey is the unclamped form so round-tripping preserves
+  byte-equality. The substrate's `feFromBytes` masks bit 255 of
+  the peer pk internally, so callers pass the encoded
+  u-coordinate byte-for-byte.
+
+  Per RFC 7748 §6.1, Curve25519, a small-order peer pk produces
+  an all-zero shared secret that carries no contributory entropy
+  from the local secret. The TypeScript layer rejects with a
+  new `KeyAgreementError` after a constant-time OR-accumulate
+  scan across the 32 output bytes; the throw fires only after
+  the full accumulator is known, so the success path is
+  constant-time and the rejection branches off only on a
+  known-bad outcome. The WASM substrate itself is filter-free
+  so any vector that exercises a small-order peer pk verifies
+  byte-for-byte at the WASM boundary; the TS-layer rejection is
+  the public API contract. This matches the x25519-dalek
+  posture.
+
+  Initialize via `init({ x25519: ... })` or the alias
+  `init({ ed25519: ... })`. Subpath exports:
+  `leviathan-crypto/x25519`. The RFC 7748 §6.1, Curve25519,
+  Alice/Bob vectors plus the §5 iter=1 and iter=1000 chain
+  records verify byte-for-byte; the iter=1,000,000 record is
+  deferred to manual verification per `vector_audit.md`.
+
+- **curve25519.wasm.** The eleventh WASM binary lands as a
+  scalar (no v128) module hosting the substrate for both Ed25519
+  and X25519. The module provides GF(2^255-19) field arithmetic
+  at radix-2^51, the edwards25519 point operations in extended
+  coordinates, the X25519 Montgomery ladder, the scalar
+  arithmetic mod L, and point compression with strict-canonical
+  decompression. The dalek parallel-formulas approach (eprint
+  2018/098) only pays off with a native paired 64x64-to-128
+  multiply, which AssemblyScript's v128 instruction set does not
+  expose; the emulated path through `i64x2.extmul_*` is not
+  measurably faster than two sequential scalar `feMul` calls, so
+  the module ships scalar.
+
+  An embedded SHA-512 ported verbatim from
+  `src/asm/sha2/sha512.ts` keeps the Ed25519 hash chain inside a
+  single WASM call rather than crossing the JS/WASM boundary 6
+  to 12 times per signature for sha2 orchestration. The
+  embedded copy is module-internal; the curve25519 ABI does not
+  surface a sha512* function. Source-pin commit recorded in the
+  `sha512.ts` header; future audits re-diff against
+  `src/asm/sha2/sha512.ts`.
+
+  Module identity: `getModuleId() = 8`. Memory: 2 pages
+  (131072 bytes), mutable footprint under 4 KB. The TypeScript
+  layer claims the region above `BUFFER_END` as the I/O staging
+  region for caller-supplied inputs and outputs; the WASM never
+  reads or writes that region.
+
+- **Ed25519Suite and Ed25519PreHashSuite.** Two new
+  SignatureSuite consts wrap Ed25519 into the v3 sign envelope.
+  `Ed25519Suite` (format byte `0x01`) covers pure Ed25519 and
+  satisfies `SignatureSuite` only; the suite rejects non-empty
+  user_ctx with `SigningError('sig-ctx-unsupported')` because
+  pure Ed25519 has no spec-defined home for ctx, and routes
+  callers to `Ed25519PreHashSuite` for context-bound signatures.
+  `Ed25519PreHashSuite` (format byte `0x11`) covers Ed25519ph,
+  pins the prehash algorithm to SHA-512, and satisfies
+  `StreamableSignatureSuite` so `SignStream` and `VerifyStream`
+  accept it. The dom2(F=1, effective_ctx) binding happens inside
+  the curve25519 WASM; the suite passes
+  `buildEffectiveCtx(ctxDomain, user_ctx)` as the WASM ctx
+  parameter.
+
+  `Ed25519PreHashSuite.wasmModules` is `['curve25519', 'sha2']`
+  because the message-taking `sign(msg)` path and the streaming
+  prehash both drive the sha2 module's SHA-512 (the
+  curve25519-embedded SHA-512 covers dom2 prefixing inside the
+  WASM only). `Ed25519Suite.wasmModules` is `['curve25519']`
+  alone. Per-call WASM lifecycle: each suite method
+  instantiates a fresh `Ed25519` inside a `try / finally
+  { dispose() }` block. KAT vectors live in
+  `test/vectors/sign_ed25519.ts` and verify byte-for-byte
+  against the third-party Ed25519 oracles per
+  `vector_audit.md`.
+
+- **KeyAgreementError.** New error class for the X25519
+  surface. `X25519.dh` throws it when the shared secret is
+  all-zero (peer pk is a small-order point on Curve25519). The
+  class extends `Error` and exists specifically for this code
+  path so callers can branch via `err instanceof
+  KeyAgreementError` and distinguish a degenerate exchange from
+  a caller-side contract violation (`TypeError` on non-
+  `Uint8Array` inputs, `RangeError` on wrong-length inputs).
+
+Migration: none. All additions; no breaking changes from the AES,
+ML-DSA, or curve25519 landings. The v2 → v3 migration items above
+(Serpent byte-order flip, ChaCha salamander defense) are the only
+breaking changes in this release; the cipher suite, generator,
+signature, classical-signature, key-agreement, and SP 800-185
+additions add no migration burden.
 
 ### Breaking Changes
 

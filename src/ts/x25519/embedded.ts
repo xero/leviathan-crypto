@@ -19,44 +19,11 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// src/ts/sign/index.ts
+// src/ts/x25519/embedded.ts
 //
-// Public barrel for the v3 sign module.
-
-export type {
-	SignatureSuite,
-	StreamableSignatureSuite,
-	PrehashAlgorithm,
-} from './types.js';
-
-export {
-	buildEffectiveCtx,
-	prehashAlgoToMldsa,
-	USER_CTX_MAX,
-	CTX_DOMAIN_MAX,
-} from './ctx.js';
-
-export { Sign } from './envelope.js';
-
-export { SignStream } from './sign-stream.js';
-export { VerifyStream } from './verify-stream.js';
-
-export {
-	Ed25519Suite, Ed25519PreHashSuite,
-} from './suites/ed25519.js';
-
-export {
-	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
-	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
-} from './suites/mldsa.js';
-
-export {
-	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,
-	SlhDsa128fPreHashSuite, SlhDsa192fPreHashSuite, SlhDsa256fPreHashSuite,
-} from './suites/slhdsa.js';
-
-export {
-	MlDsa44SlhDsa128fSuite,
-	MlDsa65SlhDsa192fSuite,
-	MlDsa87SlhDsa256fSuite,
-} from './suites/hybrid-pq.js';
+// Exports the gzip+base64 curve25519 WASM blob for use as a WasmSource.
+// Ed25519 and X25519 share the same curve25519 WASM binary; both
+// `leviathan-crypto/ed25519/embedded` and `leviathan-crypto/x25519/embedded`
+// re-export the same blob under the canonical name `curve25519Wasm`.
+// Import via `leviathan-crypto/x25519/embedded`.
+export { WASM_GZ_BASE64 as curve25519Wasm } from '../embedded/curve25519.js';

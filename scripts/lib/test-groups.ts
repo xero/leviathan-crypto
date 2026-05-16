@@ -274,6 +274,10 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/sign/sign-mldsa-suites.test.ts',
 			'test/unit/sign/sign-mldsa-vectors.test.ts',
 			'test/unit/sign/sign-mldsa-integration.test.ts',
+			'test/unit/sign/sign-ed25519-suites.test.ts',
+			'test/unit/sign/sign-ed25519-vectors.test.ts',
+			'test/unit/sign/sign-ed25519-integration.test.ts',
+			'test/unit/sign/sign-stream-equivalence-ed25519.test.ts',
 		],
 	},
 	{
@@ -338,6 +342,22 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/blake3/blake3-large-input.test.ts',
 			'test/unit/blake3/blake3-wipe.test.ts',
 			'test/unit/blake3/blake3-validation.test.ts',
+		],
+	},
+	{
+		name: 'ed25519',
+		buildTargets: UNIT_BASE,
+		timeoutMin: 3,
+		files: [
+			'test/unit/ed25519/ed25519_class.test.ts',
+		],
+	},
+	{
+		name: 'x25519',
+		buildTargets: UNIT_BASE,
+		timeoutMin: 3,
+		files: [
+			'test/unit/x25519/x25519_class.test.ts',
 		],
 	},
 	{

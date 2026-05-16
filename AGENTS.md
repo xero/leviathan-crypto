@@ -205,18 +205,26 @@ that way.
 
 These are decisions already made. Do not relitigate them without raising it first.
 
-- **Ten WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
+- **Eleven WASM binaries**: `serpent.wasm`, `chacha20.wasm`, `sha2.wasm`,
   `sha3.wasm`, `ct.wasm`, `kyber.wasm`, `aes.wasm`, `mldsa.wasm`,
-  `slhdsa.wasm`, `blake3.wasm`. Each is independent: separate linear
-  memory, separate buffer layout, separate AssemblyScript entry point.
-  `ct.wasm` is an internal utility (SIMD constant-time compare, not a
-  user-facing module). `'keccak'` is an alias for `'sha3'` in the
-  TypeScript layer; it is not a separate module. No `keccak.wasm`
-  exists or should be created. `slhdsa.wasm` embeds its own Keccak
+  `slhdsa.wasm`, `blake3.wasm`, `curve25519.wasm`. Each is independent:
+  separate linear memory, separate buffer layout, separate
+  AssemblyScript entry point. `ct.wasm` is an internal utility (SIMD
+  constant-time compare, not a user-facing module). `'keccak'` is an
+  alias for `'sha3'` in the TypeScript layer; it is not a separate
+  module. No `keccak.wasm` exists or should be created. `'ed25519'`
+  and `'x25519'` are aliases for `'curve25519'`; both `Ed25519` and
+  `X25519` share the single `curve25519.wasm` binary, and the top-level
+  `init({ ed25519: ... })` / `init({ x25519: ... })` resolve to the
+  same `curve25519` slot. `slhdsa.wasm` embeds its own Keccak
   permutation (verbatim port from sha3-wasm) for the FIPS 205 internal
   hash primitives (F / H / T_l / PRF / PRFmsg / Hmsg); pure-mode
   SLH-DSA never touches the sha3 module, prehash SLH-DSA only touches
-  sha3 for the running digest in the sign layer.
+  sha3 for the running digest in the sign layer. `curve25519.wasm`
+  embeds its own SHA-512 (verbatim port from sha2-wasm) for the
+  Ed25519 hash chain; pure-mode Ed25519 never touches the sha2 module,
+  and Ed25519PreHashSuite only touches sha2 for the TS-layer SHA-512
+  used by the message-taking and streaming-prehash paths.
 - **Static buffers only**: no dynamic allocation (`memory.grow()` is not used).
   All buffers are fixed offsets in linear memory defined in `buffers.ts`.
 - **Buffer layout starts at 0**: each module's layout is independent and starts
@@ -258,10 +266,10 @@ These are decisions already made. Do not relitigate them without raising it firs
   `src/ts/sign/suites/` instantiate the underlying primitive class per call,
   use it inside a `try`, and `dispose()` it in `finally`. No suite-level
   long-lived instance is held. This matches the static-method posture of
-  KMAC and keeps suites stateless and reentrant. The Phase 2 SLH-DSA pure
-  and prehash suites and the PQ-only hybrid suites follow this pattern;
-  all future phase suite factories (ed25519, ecdsa-p256, hybrid-classical)
-  do the same.
+  KMAC and keeps suites stateless and reentrant. All shipped suite factories
+  follow this pattern (Phase 1 ML-DSA pure and prehash, Phase 2 SLH-DSA pure
+  and prehash, Phase 2 PQ-only hybrids, Phase 4 Ed25519 pure and prehash);
+  future phase factories (ECDSA-P256, classical+PQ hybrids) do the same.
 - **PQ-only hybrid suite factory pattern**: hybrid suite factories under
   `src/ts/sign/suites/hybrid-pq.ts` compose two underlying signature
   primitives (currently ML-DSA + SLH-DSA at matching NIST categories).
@@ -299,10 +307,16 @@ These are decisions already made. Do not relitigate them without raising it firs
   added these alongside the existing one-shot `SHA3_256` / `SHA3_512`.
   Lifecycle mirrors SHAKE128 / SHAKE256: `_acquireModule('sha3')` at
   construction, `_releaseModule` on `dispose()` or `finalize()`, exclusivity
-  enforced via the standard guard. Future phase work that adds streaming
-  prehashes for SHA-2 (Ed25519ph, ECDSA-P256 prehash) should add analogous
-  `SHA256Stream` / `SHA512Stream` to the sha2 module using the same
-  discipline.
+  enforced via the standard guard. Phase 4 Ed25519ph runs its prehash
+  through a buffered shim over the one-shot `SHA512` class
+  (`sha512Buffered` in `src/ts/sign/hasher.ts`) rather than a dedicated
+  stream class, because Ed25519ph is single-variant and the buffered shim
+  matches the one-shot KAT byte-for-byte at finalize. Future phase work
+  that adds streaming prehashes for SHA-2 (ECDSA-P256 prehash) should
+  either add analogous `SHA256Stream` / `SHA512Stream` to the sha2 module
+  with the same exclusivity discipline as SHA3 streaming, or reuse the
+  Phase 4 buffered-shim posture if a true streaming class is not
+  required.
 - **SHAKE streaming classes (`SHAKE128Stream`, `SHAKE256Stream`)**: Phase 2
   added these to the sha3 module alongside the unbounded `SHAKE128` /
   `SHAKE256` XOF classes. `outputLen` is bound at construction; `update`

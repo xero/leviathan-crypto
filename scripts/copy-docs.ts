@@ -45,6 +45,7 @@ const INCLUDE = [
 	'cdn.md',
 	'chacha20.md',
 	'ciphersuite.md',
+	'ed25519.md',
 	'examples.md',
 	'exports.md',
 	'fortuna.md',
@@ -61,6 +62,7 @@ const INCLUDE = [
 	'slhdsa.md',
 	'types.md',
 	'utils.md',
+	'x25519.md',
 ];
 
 // strip SVG img tags that reference absolute GitHub URLs.
