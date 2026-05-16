@@ -79,6 +79,9 @@ export interface Curve25519Exports {
 	ed25519Verify:           (pkOff: number, msgOff: number, msgLen: number, sigOff: number) => number;
 	ed25519SignPrehashed:    (seedOff: number, pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => void;
 	ed25519VerifyPrehashed:  (pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => number;
+	// X25519 high-level (RFC 7748 §6, TASK-D)
+	x25519Keygen:            (skOff: number, pkOff: number) => void;
+	x25519DH:                (skOff: number, peerPkOff: number, sharedOff: number) => void;
 	wipeBuffers:         () => void;
 }
 

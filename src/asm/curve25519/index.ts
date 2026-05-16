@@ -110,6 +110,19 @@ export {
 	ed25519VerifyPrehashed,
 } from './ed25519'
 
+// ── X25519 high-level operations (TASK-D) ──────────────────────────────────
+//
+// RFC 7748 §6: keygen against the Curve25519 basepoint and Diffie-Hellman
+// against a peer's u-coord public key. Both clamp the caller's 32-byte
+// secret on every call per RFC 7748 §5; the all-zero shared-secret
+// rejection (contributory behaviour) is performed at the TypeScript layer
+// in TASK-E, not here. See the head of ./x25519.ts for the full posture.
+
+export {
+	x25519Keygen,
+	x25519DH,
+} from './x25519'
+
 // ── Buffer wipe ─────────────────────────────────────────────────────────────
 
 /**

@@ -357,6 +357,9 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/curve25519/ed25519_signph.test.ts',
 			'test/unit/curve25519/ed25519_verify.test.ts',
 			'test/unit/curve25519/ed25519_verifyph.test.ts',
+			'test/unit/curve25519/x25519_keygen.test.ts',
+			'test/unit/curve25519/x25519_dh.test.ts',
+			'test/unit/curve25519/x25519_iterated.test.ts',
 		],
 	},
 ]

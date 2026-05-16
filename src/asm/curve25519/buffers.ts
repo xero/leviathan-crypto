@@ -141,12 +141,33 @@ export const ED25519_POINT_R:       i32 = 7292   // 160 bytes (R_point = [r]B / 
 export const ED25519_POINT_TMP1:    i32 = 7452   // 160 bytes
 export const ED25519_POINT_TMP2:    i32 = 7612   // 160 bytes
 
+// ── TASK-D appended region: X25519 high-level scratch ──────────────────────
+//
+// Two 32-byte slots used by x25519Keygen / x25519DH (./x25519.ts). Both are
+// wiped by wipeX25519 / wipeBuffers; both live in the mutable region above
+// MUTABLE_START.
+//
+// X25519_SCALAR_CLAMP holds the clamped 32-byte scalar derived from the
+// caller's skOff. Per RFC 7748 §5 the X25519 spec function clamps internally
+// on every call; the high-level wrappers honor that by routing through
+// scalarClamp(X25519_SCALAR_CLAMP, skOff) before invoking the substrate.
+//
+// BASEPOINT_U holds the Curve25519 basepoint u-coordinate (0x09 || 31 zero
+// bytes per RFC 7748 §4.1). The 32-byte value is composed in linear memory
+// via `loadBasepointU` below; the helper plays the same role here that
+// `loadDom2Prefix` plays for the Ed25519ph dom2 ASCII prefix (compose-in-
+// place at a known offset, then consume). x25519Keygen passes BASEPOINT_U
+// as the substrate `u` argument; x25519DH overrides it with the caller's
+// peerPkOff and does NOT touch this slot.
+export const X25519_SCALAR_CLAMP:   i32 = 7772   // 32 bytes (clamped scalar)
+export const BASEPOINT_U:           i32 = 7804   // 32 bytes (basepoint u-coord, RFC 7748 §4.1)
+
 /**
  * End of the curve25519 module buffer region (exclusive upper bound).
  * Used by `wipeBuffers()` in `index.ts` to clear mutable state without
  * touching the AS data segment.
  */
-export const BUFFER_END:           i32 = 7772
+export const BUFFER_END:           i32 = 7836
 
 // ── Module identity ─────────────────────────────────────────────────────────
 
@@ -176,6 +197,24 @@ export function getLadderTmpStride():    i32 { return LADDER_TMP_STRIDE  }
 // string itself, defined in RFC 8032 §5.1) at implementation time; this
 // file's bytes are reproducible by re-encoding the spec's string. No value
 // is copied from a planning document.
+
+// ── Curve25519 basepoint u-coordinate (RFC 7748 §4.1) ──────────────────────
+//
+// The Curve25519 base point is the point on the curve whose u-coordinate is
+// 9 (RFC 7748 §4.1, "The base point is u = 9"). Encoded little-endian as a
+// 32-byte buffer this is `0x09` in byte 0, then 31 zero bytes. Composed via
+// inline u64 stores (the LE encoding of u64 value 9 has byte 0 = 0x09 and
+// bytes 1..7 = 0); written to `dst` by x25519Keygen before invoking the
+// substrate ladder. Cited per AGENTS.md §5: the value 9 is taken directly
+// from the RFC 7748 §4.1 spec text.
+
+@inline
+export function loadBasepointU(dst: i32): void {
+	store<u64>(dst +  0, 9)   // byte 0 = 0x09, bytes 1..7 = 0
+	store<u64>(dst +  8, 0)
+	store<u64>(dst + 16, 0)
+	store<u64>(dst + 24, 0)
+}
 
 @inline
 export function loadDom2Prefix(dst: i32): void {
