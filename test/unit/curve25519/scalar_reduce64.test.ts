@@ -112,9 +112,6 @@ describe('scalarReduce64 BigInt-oracle cross-check', () => {
 		const src = hexToBytes('b6b19cd8e0426f5983fa112d89a143aa97dab8bc5deb8d5b6253c928b65272f4044098c2a990039cde5b6a4818df0bfb6e40dc5dee54248032962323e701352d');
 		const got = computeWasm(src);
 		const expected = leBigToBytes(bytesToLeBig(src) % L, 32);
-		console.log('Input (64 bytes LE):', bytesToHex(src));
-		console.log('Got     :', bytesToHex(got));
-		console.log('Expected:', bytesToHex(expected));
 		expect(bytesToHex(got)).toBe(bytesToHex(expected));
 	});
 

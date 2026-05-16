@@ -2,14 +2,14 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture, comprising ten independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
+Overview of Leviathan Crypto's architecture, comprising eleven independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
 
 > ### Table of Contents
 >
 > - [Architectural overview](#architectural-overview)
 > - [Scope](#scope)
 > - [Repository Structure](#repository-structure)
-> - [Ten Independent WASM Modules](#ten-independent-wasm-modules)
+> - [Eleven Independent WASM Modules](#eleven-independent-wasm-modules)
 > - [init() API](#init-api)
 > - [Public API Classes](#public-api-classes)
 > - [Build Pipeline](#build-pipeline)
@@ -512,9 +512,9 @@ The repository root holds project documentation, package metadata, and tool conf
 
 ---
 
-## Ten Independent WASM Modules
+## Eleven Independent WASM Modules
 
-Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Nine of the ten modules load through `init()`. The tenth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
+Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Ten of the eleven modules load through `init()`. The eleventh, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
 
 | Module     | Binary          | Primitives                                                                                                                                                                                                                                                                                  |
 | ---------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -527,6 +527,7 @@ Each primitive family compiles to its own `.wasm` binary with fully independent 
 | `mldsa`    | `mldsa.wasm`    | ML-DSA polynomial arithmetic: SIMD NTT/invNTT for q=8380417 (v128 i32 butterflies), Montgomery/Barrett over q, rejection sampling (RejNTTPoly, RejBoundedPoly), Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint, HintBitPack/Unpack with the §D.3 SUF-CMA checks, SampleInBall |
 | `slhdsa`   | `slhdsa.wasm`   | SLH-DSA hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, 32-byte ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition, slh_keygen_internal / slh_sign_internal / slh_verify_internal (§9 Algorithms 18 / 19 / 20) |
 | `blake3`   | `blake3.wasm`   | BLAKE3 tree-mode hash family (BLAKE3 spec): v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root finalize (54-deep per §5.1.2), §2.6 XOF squeeze, §2.3 keyed_hash and derive_key. Tree-mode primitives (`_testChunkCV`, `_testParentCV`, `_testDeriveContextCV`) gated for test + Phase 7 substrate use; not part of the consumer-facing exports.                |
+| `curve25519` | `curve25519.wasm` | Ed25519 sign/verify (RFC 8032) and X25519 keygen/DH (RFC 7748) over GF(2^255-19). Scalar (no v128); see header comment in `src/asm/curve25519/index.ts` for the WASM-extmul analysis that motivates the scalar choice. Full architectural description lands in Phase 4 TASK-G.                                                                                                                                          |
 | `ct`       | `ct.wasm`       | SIMD constant-time byte comparison. Backs `constantTimeEqual` and `CT_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page.                                                                                                                                                          |
 
 **Size.** Consumers who only use Serpent don't load the SHA-3 binary.
@@ -568,6 +569,8 @@ Each module's buffer layout starts at offset 0 and is defined in its own `buffer
 **`blake3.wasm`** implements the BLAKE3 hash family per the BLAKE3 specification. The v128-internal `compress` runs single-block compressions with one v128 op per state-update step across the four state rows; the v128-external `compress4` runs four independent compressions in parallel with lane K of every v128 op corresponding to compress K (BLAKE3 §5.3 SIMD). The §2.4 chunk machine keeps a one-block lookahead so the `CHUNK_START` / `CHUNK_END` flags ride the correct compress without the caller identifying the last block in advance. The §2.5 tree assembly defers the most-recent chunk CV through a queue-per-level discipline so the §2.5 root compress can carry `PARENT | ROOT`. The §2.6 XOF squeeze snapshots the root-compress input into `ROOT_STATE_*` and re-fires the compress with an incremented counter to lift additional 64-byte blocks. The three §2.3 modes (`hash`, `keyed_hash`, `derive_key`) share the same chunk / tree code; only the starting CV and the per-compress mode-flag bits differ. Test-only exports `_testChunkCV` / `_testParentCV` / `_testDeriveContextCV` are gated for the tree-internals unit suite and the Phase 7 `src/ts/merkle/blake3-log.ts` log-proof substrate. Requires WebAssembly SIMD (`v128` instructions). Uses 2 memory pages (131072 bytes). See: [BLAKE3 WASM Reference](./asm_blake3.md), [BLAKE3 Audit Checklist](./blake3_audit.md).
 
 [The TypeScript module](./blake3.md) exports `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, and `BLAKE3OutputReader`. Each streaming class holds the `blake3` module exclusivity token from construction until `finalize` / `finalizeXof` / `dispose`. `finalizeXof()` transfers the token to a `BLAKE3OutputReader` that squeezes XOF bytes incrementally from the root-compress snapshot until disposed. `BLAKE3Hash` ships as a stateless `HashFn` const (32-byte output, `wasmModules: ['blake3']`) compatible with the Fortuna accumulator slot. The module is independent of `sha2` / `sha3`; pure-BLAKE3 work requires only the `blake3` slot.
+
+**`curve25519.wasm`** is the eleventh WASM binary, providing the substrate for Ed25519 sign/verify (RFC 8032) and X25519 keygen/DH (RFC 7748): GF(2^255-19) field arithmetic, edwards25519 point operations in extended coordinates, the X25519 Montgomery ladder, scalar arithmetic mod L, and point compression/decompression. Scalar (no v128), in the same bucket as `sha2` / `sha3` / `slhdsa`. The dalek parallel-formulas approach (eprint 2018/098) only pays off with a native paired 64x64→128 multiply, which AssemblyScript's v128 instruction set does not expose; see the header comment in `src/asm/curve25519/index.ts` for the WASM-extmul-split analysis that motivates the scalar choice. The full architectural description (TS surface, buffer layout, test groups) lands in Phase 4 TASK-G.
 
 **`ct.wasm`** implements constant-time byte array equality with a single SIMD-only primitive. The module exports `compare(aOff, bOff, len)`, which reads both arrays directly from caller-specified offsets in linear memory and returns 1 if all bytes match, 0 otherwise. Comparison is zero-copy: no internal staging buffers, no buffer slots, no `wipeBuffers` export. The implementation is structurally branch-free. A `v128.xor`/`v128.or` accumulator processes 16-byte blocks, a scalar tail handles any remainder, and the final zero-test is an arithmetic shift, not a conditional. Requires WebAssembly SIMD (`v128` instructions); if the runtime lacks SIMD or compilation fails, the first call throws a branded error. See: [Constant-Time WASM Reference](asm_ct.md)
 

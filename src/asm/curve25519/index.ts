@@ -31,8 +31,23 @@
 // substrate; TASK-D will compose X25519 keygen / DH.
 //
 // Module ID 8 (the 11th WASM binary; 2 memory pages).
-// SIMD required: v128-internal field arithmetic and 2-way paired
-// Edwards-addition. No scalar fallback.
+//
+// Scalar (no v128). The dalek-cryptography parallel-formulas approach
+// (eprint 2018/098) pairs the eight independent field multiplications
+// of the Hisil-Wong-Carter-Dawson §3.1 extended-coords Edwards
+// addition onto 2-way SIMD lanes. That approach materially helps only
+// with a native paired 64x64→128 multiply. AssemblyScript's v128
+// instruction set does not expose one; the closest primitive is
+// i64x2.extmul_low_i32x4 / extmul_high_i32x4 (paired 32x32→64), and
+// synthesising paired 64x64→128 from it requires a 4-piece split plus
+// carry-tracking via XOR-flip + signed compare (no i64x2 unsigned
+// compare). Empirically that emulated path is not measurably faster
+// than two sequential scalar feMul calls: extmul throughput is not
+// better than i64-mul plus 4-piece split, and the pack / unpack
+// overhead consumes the marginal vector win.
+//
+// Per the SIMD-only-where-it-helps lib posture, curve25519 ships
+// scalar, in the same bucket as sha2 / sha3 / slhdsa.
 
 import { BUFFER_END, MUTABLE_START } from './buffers'
 

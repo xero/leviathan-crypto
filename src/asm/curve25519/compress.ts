@@ -171,6 +171,12 @@ export function edPointDecompress(out: i32, src: i32): i32 {
 
 	loadSqrtM1(sM1)
 	feMul(xAlt, x, sM1)
+	// Conditional move via feCondSwap: when eqNU, x receives xAlt (the
+	// sqrt(-1)-multiplied candidate). This is a conditional move pattern,
+	// not a true swap: the xAlt slot (slot 6) is dead after this line.
+	// Step 6 reads only x, step 7 only the boolean flags, step 8 only x
+	// and y, so the side effect of writing xAlt's slot is inert. Using
+	// feCondSwap here saves a dedicated cmov helper.
 	feCondSwap(x, xAlt, eqNU)
 
 	// ── Step 6: apply sign bit per RFC 8032 §5.1.3 step 4 ────────────
