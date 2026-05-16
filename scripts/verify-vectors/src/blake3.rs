@@ -5,16 +5,15 @@
 // runs each record through the official `blake3` crate. Every mode is
 // driven over `finalize_xof` + `OutputReader::fill` so the full 131-byte
 // XOF output is compared, not just the default-length 32-byte prefix.
-// Vector hex covers the 64-byte XOF block boundary on every case,
-// which is what TASK-F will need when it validates arbitrary-position
-// XOF reads against this corpus.
+// Vector hex covers the 64-byte XOF block boundary on every case, so
+// arbitrary-position XOF reads can be validated against this corpus.
 //
 // Different crate path, same spec. The `blake3` crate is the
-// BLAKE3-team's own implementation, distinct from any AssemblyScript
-// port that lands in TASK-B onward; agreement here proves the vector
-// transcription matches the upstream JSON, and agreement with the
-// future WASM output proves the WASM port matches the upstream
-// implementation byte-for-byte. The two together close the loop.
+// BLAKE3-team's own implementation, distinct from the AssemblyScript
+// port in this repo; agreement here proves the vector transcription
+// matches the upstream JSON, and agreement with the WASM output proves
+// the WASM port matches the upstream implementation byte-for-byte.
+// The two together close the loop.
 //
 // Input pattern:
 //   byte i is (i mod 251). Reproduced by `expand_input` here so the

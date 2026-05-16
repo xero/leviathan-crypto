@@ -138,11 +138,214 @@
   records carrying NIST-reserved function names exercise the WASM
   sponge end to end; they are not part of the public surface.
 
-Migration: none. All additions; no breaking changes from the AES
-or ML-DSA landing. The v2 → v3 migration items above (Serpent
-byte-order flip, ChaCha salamander defense) are the only breaking
-changes in this release; the cipher suite, generator, signature, and
-SP 800-185 additions add no migration burden.
+- **Ed25519.** RFC 8032 Edwards-Curve Digital Signature
+  Algorithm lands as the first classical signature primitive in
+  the library. The new `Ed25519` class covers both modes:
+  pure Ed25519 (RFC 8032 §5.1.6, signature generation) signs the
+  message bytes directly, and Ed25519ph (RFC 8032 §5.1.7,
+  signature verification, with the dom2(F=1, ctx) prehash
+  binding) signs a caller-supplied SHA-512 digest with an
+  optional context up to 255 bytes. Verification is strict per
+  FIPS 186-5 §7.6.4: non-canonical pk or R encodings, `s >= L`,
+  small-order pk values, and signature-equation mismatches all
+  return `false`. The strict gates close the ACVP
+  `testPassed=false` sigVer malleation paths.
+
+  The sign path carries a fault-injection defence inherited from
+  the dalek discipline: the caller passes pk alongside sk, the
+  WASM re-derives pk from sk internally and compares, and any
+  mismatch aborts via `unreachable` (rethrown by the TypeScript
+  wrapper as `SigningError('sig-malformed-input', ...)`). The
+  defence costs one extra Edwards scalar multiplication per sign,
+  roughly 5ms at parameter-set sizes.
+
+  Initialize via `init({ ed25519: ... })` or the alias
+  `init({ x25519: ... })`; both resolve to the underlying
+  `curve25519` slot, and the init layer de-dupes when given
+  identical sources. Subpath exports:
+  `leviathan-crypto/ed25519`. The full RFC 8032 §7 test corpus
+  plus the NIST ACVP EDDSA keyGen / sigGen / sigVer records
+  verify byte-for-byte. Every WASM region holding a
+  secret-derived intermediate (clamped scalar a, signing prefix,
+  per-signature r and k, the Edwards points A and R) is wiped on
+  every success and failure path.
+
+- **X25519.** RFC 7748 Curve25519 Diffie-Hellman lands as the
+  first classical key-agreement primitive. The new `X25519`
+  class exposes `keygen`, `keygenDerand(sk)`, and `dh(sk,
+  peerPk)`. Clamping (RFC 7748 §5, The X25519 and X448
+  Functions) happens internally on every call; the stored
+  secretKey is the unclamped form so round-tripping preserves
+  byte-equality. The substrate's `feFromBytes` masks bit 255 of
+  the peer pk internally, so callers pass the encoded
+  u-coordinate byte-for-byte.
+
+  Per RFC 7748 §6.1, Curve25519, a small-order peer pk produces
+  an all-zero shared secret that carries no contributory entropy
+  from the local secret. The TypeScript layer rejects with a
+  new `KeyAgreementError` after a constant-time OR-accumulate
+  scan across the 32 output bytes; the throw fires only after
+  the full accumulator is known, so the success path is
+  constant-time and the rejection branches off only on a
+  known-bad outcome. The WASM substrate itself is filter-free
+  so any vector that exercises a small-order peer pk verifies
+  byte-for-byte at the WASM boundary; the TS-layer rejection is
+  the public API contract. This matches the x25519-dalek
+  posture.
+
+  Initialize via `init({ x25519: ... })` or the alias
+  `init({ ed25519: ... })`. Subpath exports:
+  `leviathan-crypto/x25519`. The RFC 7748 §6.1, Curve25519,
+  Alice/Bob vectors plus the §5 iter=1 and iter=1000 chain
+  records verify byte-for-byte; the iter=1,000,000 record is
+  deferred to manual verification per `vector_audit.md`.
+
+- **curve25519.wasm.** The eleventh WASM binary lands as a
+  scalar (no v128) module hosting the substrate for both Ed25519
+  and X25519. The module provides GF(2^255-19) field arithmetic
+  at radix-2^51, the edwards25519 point operations in extended
+  coordinates, the X25519 Montgomery ladder, the scalar
+  arithmetic mod L, and point compression with strict-canonical
+  decompression. The dalek parallel-formulas approach (eprint
+  2018/098) only pays off with a native paired 64x64-to-128
+  multiply, which AssemblyScript's v128 instruction set does not
+  expose; the emulated path through `i64x2.extmul_*` is not
+  measurably faster than two sequential scalar `feMul` calls, so
+  the module ships scalar.
+
+  An embedded SHA-512 ported verbatim from
+  `src/asm/sha2/sha512.ts` keeps the Ed25519 hash chain inside a
+  single WASM call rather than crossing the JS/WASM boundary 6
+  to 12 times per signature for sha2 orchestration. The
+  embedded copy is module-internal; the curve25519 ABI does not
+  surface a sha512* function. Source-pin commit recorded in the
+  `sha512.ts` header; future audits re-diff against
+  `src/asm/sha2/sha512.ts`.
+
+  Module identity: `getModuleId() = 8`. Memory: 4 pages
+  (262144 bytes), mutable footprint under 4 KB. The TypeScript
+  layer claims the region above `BUFFER_END` as the I/O staging
+  region for caller-supplied inputs and outputs; the WASM never
+  reads or writes that region. The 4-page sizing gives the
+  pure-mode `Ed25519Suite` a per-call message ceiling of
+  approximately 248 KB; messages above the ceiling throw
+  `RangeError`. Pure-mode signatures are non-streamable by
+  design; larger payloads use `Ed25519PreHashSuite` plus
+  `SignStream` / `VerifyStream`, which compute SHA-512 at the
+  TypeScript layer and only stage the 64-byte digest in WASM.
+
+- **Ed25519Suite and Ed25519PreHashSuite.** Two new
+  SignatureSuite consts wrap Ed25519 into the v3 sign envelope.
+  `Ed25519Suite` (format byte `0x01`) covers pure Ed25519 and
+  satisfies `SignatureSuite` only; the suite rejects non-empty
+  user_ctx with `SigningError('sig-ctx-unsupported')` because
+  pure Ed25519 has no spec-defined home for ctx, and routes
+  callers to `Ed25519PreHashSuite` for context-bound signatures.
+  `Ed25519PreHashSuite` (format byte `0x11`) covers Ed25519ph,
+  pins the prehash algorithm to SHA-512, and satisfies
+  `StreamableSignatureSuite` so `SignStream` and `VerifyStream`
+  accept it. The dom2(F=1, effective_ctx) binding happens inside
+  the curve25519 WASM; the suite passes
+  `buildEffectiveCtx(ctxDomain, user_ctx)` as the WASM ctx
+  parameter.
+
+  `Ed25519PreHashSuite.wasmModules` is `['curve25519', 'sha2']`
+  because the message-taking `sign(msg)` path and the streaming
+  prehash both drive the sha2 module's SHA-512 (the
+  curve25519-embedded SHA-512 covers dom2 prefixing inside the
+  WASM only). `Ed25519Suite.wasmModules` is `['curve25519']`
+  alone. Per-call WASM lifecycle: each suite method
+  instantiates a fresh `Ed25519` inside a `try / finally
+  { dispose() }` block. KAT vectors live in
+  `test/vectors/sign_ed25519.ts` and verify byte-for-byte
+  against the third-party Ed25519 oracles per
+  `vector_audit.md`.
+
+- **KeyAgreementError.** New error class for the X25519
+  surface. `X25519.dh` throws it when the shared secret is
+  all-zero (peer pk is a small-order point on Curve25519). The
+  class extends `Error` and exists specifically for this code
+  path so callers can branch via `err instanceof
+  KeyAgreementError` and distinguish a degenerate exchange from
+  a caller-side contract violation (`TypeError` on non-
+  `Uint8Array` inputs, `RangeError` on wrong-length inputs).
+
+- **Phase 4 follow-up tightening (post-review).** Six review
+  findings against the Phase 4 Ed25519 surface landed in a
+  single coordinated pass. Each lands a rubric-shaped change
+  Phase 5 (ECDSA-P256) and Phase 6 (classical+PQ hybrids) will
+  copy when they start.
+
+  - **Suite-layer sign refactor.** `Ed25519PureSuite.sign`,
+    `Ed25519PrehashSuite.sign`, and
+    `Ed25519PrehashSuite.signPrehashed` previously called
+    `Ed25519.keygenDerand(sk)` followed by
+    `Ed25519.sign(sk, derivedPk, msg)`, which paid one extra
+    basepoint scalar multiplication per call. Two new WASM
+    exports (`ed25519SignInternalPk`,
+    `ed25519SignPrehashedInternalPk`) and unexported class
+    helpers (`_signInternalPk`, `_signPrehashedInternalPk`)
+    derive pk inside the same WASM call and skip the fault-
+    injection cross-check. The cross-check is degenerate at the
+    suite call site (both pk and the comparator come from the
+    same call on the same module), so suite-level performance
+    improves ~30% without changing the effective trust
+    boundary. Direct `Ed25519.sign(sk, pk, msg)` callers
+    continue to get the cross-check intact.
+
+  - **`verifyPrehashed` digest-length contract.** Every shipped
+    suite (`MlDsa*PreHashSuite`, `SlhDsa*PreHashSuite`,
+    `Ed25519PreHashSuite`, the PQ-only hybrids) now throws
+    `SigningError('sig-malformed-input')` on a wrong-length
+    digest, symmetric with `signPrehashed`. Previously
+    `verifyPrehashed` returned `false`; the asymmetry conflated
+    a caller contract violation with a signature outcome and
+    is the locked rule in `docs/signaturesuite.md`. The hybrid-
+    pq factory keeps `pk.length` and `sig.length` on the soft-
+    fail path (those bytes are wire-derived) and only flips the
+    digest check.
+
+  - **`Ed25519Suite` per-call message cap.** Pure-mode Ed25519
+    cannot stream, and `curve25519.wasm` was previously sized
+    at 2 pages, which gave the pure-mode message-staging region
+    a ~120 KB ceiling that surfaced only as a deep
+    `RangeError`. The module is now 4 pages (256 KB), raising
+    the ceiling to approximately 248 KB. The cap is documented
+    loudly in `docs/ed25519.md`, `docs/signaturesuite.md`, and
+    the `Ed25519Suite` JSDoc, with the recommended path
+    (`Ed25519PreHashSuite` plus `SignStream`) called out.
+
+  - **`sig-ctx-unsupported` discriminator catalogued.** The
+    discriminator that `Ed25519Suite` already threw on non-empty
+    user_ctx is now listed in
+    `docs/signaturesuite.md`'s suite-layer discriminator table
+    and `docs/ed25519.md`'s error reference. Pure-only suites
+    that ship in later phases (Ed448 if it lands) reuse the
+    same discriminator.
+
+  - **`Ed25519.signPrehashed` ctx required.** The `ctx?`
+    default-empty parameter on the public
+    `Ed25519.signPrehashed(sk, pk, digest, ctx)` is dropped;
+    callers must pass an explicit `Uint8Array` (use
+    `new Uint8Array(0)` for no context binding). This matches
+    the suite-layer "ctx is required" rule and removes a
+    quietly-different shape between the class and suite APIs.
+
+  - **`ed25519Wasm` / `x25519Wasm` aliases.** The
+    `leviathan-crypto/ed25519/embedded` and
+    `leviathan-crypto/x25519/embedded` subpaths now export the
+    underlying curve25519 blob under three names:
+    `curve25519Wasm` (canonical), `ed25519Wasm`, and
+    `x25519Wasm` (aliases that read more naturally under each
+    subpath). All three resolve to the identical string; tree-
+    shaking is unaffected.
+
+Migration: none. All additions; no breaking changes from the AES,
+ML-DSA, or curve25519 landings. The v2 → v3 migration items above
+(Serpent byte-order flip, ChaCha salamander defense) are the only
+breaking changes in this release; the cipher suite, generator,
+signature, classical-signature, key-agreement, and SP 800-185
+additions add no migration burden.
 
 ### Breaking Changes
 

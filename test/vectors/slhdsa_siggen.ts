@@ -30,7 +30,7 @@
 //   pin: 15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0 (v1.1.0.42, 2026-04-16)
 //   vsId=53, algorithm=SLH-DSA, mode=sigGen, revision=FIPS205, isSample=true
 //
-// Curated SHAKE-fast subset for Phase 2 scope.
+// Curated SHAKE-fast subset.
 // HashSLH-DSA prehash cases are merged into the same JSON via a
 // per-group `preHash` discriminator (none / pure / preHash); we carry
 // both pure (external SLH-DSA.Sign per §10.1) and preHash (HashSLH-DSA

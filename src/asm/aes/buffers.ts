@@ -29,10 +29,9 @@
 // the top of each call.
 //
 // Total: 202688 bytes < 4 × 64KB = 262144 (59456 bytes spare). The 4-page
-// budget (vs the original 3 pages) comes from Phase 4a's 64 KiB
-// AAD_BUFFER for AES-GCM authenticated additional data. Phase 4b adds
-// 64 bytes of AES-GCM-SIV state (POLYVAL auth/enc keys + initial counter)
-// after AAD.
+// budget covers the 64 KiB AAD_BUFFER for AES-GCM authenticated additional
+// data plus 64 bytes of AES-GCM-SIV state (POLYVAL auth/enc keys + initial
+// counter) after AAD.
 //
 // Offset    Size      Name
 // 0         32        KEY_BUFFER (sized for AES-256)
@@ -91,7 +90,7 @@
 // 137088    65536     AAD_BUFFER          (GCM additional authenticated data;
 //                                          single-shot caller writes AAD here
 //                                          before gcmStart)
-// ── AES-GCM-SIV (Phase 4b) ─────────────────────────────────────────────
+// ── AES-GCM-SIV ────────────────────────────────────────────────────────
 // 202624    16        POLYVAL_AUTH_KEY_BUFFER  (per-message authentication
 //                                          key derived from KGK by
 //                                          sivDeriveKeys, RFC 8452 §4)
@@ -106,7 +105,7 @@
 // 202688              END                 (< 262144 = 4 pages ✓; 59456 spare)
 //
 // GHASH_ACC_BUFFER also serves as the POLYVAL accumulator during AES-GCM-SIV
-// operations (Phase 4b). GHASH and POLYVAL are mutually exclusive at runtime
+// operations. GHASH and POLYVAL are mutually exclusive at runtime
 // (atomic AEAD pattern); the alias is safe and saves 16 bytes of layout.
 //
 // Why bitsliced round keys are 128 bytes/round (not 16): per Käsper-Schwabe §4.5,
@@ -148,7 +147,7 @@ export const NR_OFFSET:                   i32 = 136640;
 export const NONCE_OFFSET:                i32 = 136656;
 export const COUNTER_OFFSET:              i32 = 136672;
 export const CBC_IV_OFFSET:               i32 = 136688;
-// ── GCM (Phase 4a) buffers ─────────────────────────────────────────────────
+// ── GCM buffers ────────────────────────────────────────────────────────────
 export const H_OFFSET:                    i32 = 136704;
 export const J0_OFFSET:                   i32 = 136720;
 export const GHASH_ACC_OFFSET:            i32 = 136736;
@@ -159,7 +158,7 @@ export const GCM_SCRATCH_OFFSET:          i32 = 136800;
 export const GCM_CB_OFFSET:               i32 = 136816;
 export const GF128_TABLE_OFFSET:          i32 = 136832;
 export const AAD_OFFSET:                  i32 = 137088;
-// ── AES-GCM-SIV (Phase 4b) buffers ─────────────────────────────────────────
+// ── AES-GCM-SIV buffers ────────────────────────────────────────────────────
 // GHASH_ACC_OFFSET aliases as the POLYVAL accumulator (mutually exclusive
 // at runtime, atomic AEAD pattern), so no new offset is added for it.
 export const POLYVAL_AUTH_KEY_OFFSET:      i32 = 202624;

@@ -24,9 +24,9 @@
 // ML-DSA public API, MlDsa44, MlDsa65, MlDsa87 classes.
 // FIPS 204, Module-Lattice-Based Digital Signature Standard.
 //
-// Phase-4 surface: keygen / keygenDerand only. sign / verify land in
-// phase 5; HashML-DSA in phase 6. Use init({ mldsa, sha3 }) before
-// constructing any class, both modules are required.
+// Public surface: keygen / keygenDerand, sign / verify (pure ML-DSA),
+// and signHash / verifyHash (HashML-DSA). Use init({ mldsa, sha3 })
+// before constructing any class, both modules are required.
 
 import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -539,8 +539,8 @@ export class MlDsaBase {
 		this.mx.wipeBuffers();
 		// MlDsaBase does not own the sha3 module, wiping sha3 here would
 		// clobber any SHAKE128/SHAKE256 instance live at the time of
-		// dispose(). The wipe is not needed: every public mldsa op (only
-		// keygen* in phase 4; sign/verify in subsequent phases) calls
+		// dispose(). The wipe is not needed: every public mldsa op
+		// (keygen, sign, verify and their Hash variants) calls
 		// sx.wipeBuffers() before returning, under the
 		// _assertNotOwned('sha3') guard it holds. sha3 scratch carries no
 		// residue across an mldsa op boundary.

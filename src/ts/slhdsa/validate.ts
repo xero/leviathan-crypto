@@ -111,7 +111,7 @@ export function validateRnd(rnd: Uint8Array, params: SlhDsaParams): void {
 /**
  * Confirms M is a Uint8Array. FIPS 205 places no length restriction on
  * the message; M is absorbed into Hmsg via SHAKE256 / SHA-2 depending on
- * the chosen instantiation (§11.2 SHAKE family for Phase 2 scope), so
+ * the chosen instantiation (§11.2 SHAKE family in the shipped scope), so
  * any byte length is admissible.
  */
 export function validateMessage(M: Uint8Array): void {
@@ -132,8 +132,8 @@ export function validateMessage(M: Uint8Array): void {
  * the sign surface lets the throw propagate (the caller supplied bad
  * input; that is a contract violation).
  *
- * Q2 resolution: duplicated from `src/ts/mldsa/validate.ts:validateDigest`.
- * Phase 3 (BLAKE3) re-evaluates the extraction.
+ * Duplicated from `src/ts/mldsa/validate.ts:validateDigest`; extraction is
+ * deferred until a third consumer materialises.
  */
 export function validateDigest(digest: Uint8Array, algo: PreHashAlgorithm): void {
 	if (!(digest instanceof Uint8Array))

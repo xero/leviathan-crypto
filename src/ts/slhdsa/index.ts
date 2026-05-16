@@ -24,7 +24,7 @@
 // SLH-DSA public API, SlhDsa128f / SlhDsa192f / SlhDsa256f classes.
 // FIPS 205, Stateless Hash-Based Digital Signature Standard.
 //
-// Phase 2 surface: keygen / sign / verify, plus the HashSLH-DSA family
+// Public surface: keygen / sign / verify, plus the HashSLH-DSA family
 // (signHash / verifyHash) and prehashed variants (signHashPrehashed /
 // verifyHashPrehashed). Use init({ slhdsa, ... }) before constructing
 // any class. Pure-mode usage needs only the slhdsa module; HashSLH-DSA

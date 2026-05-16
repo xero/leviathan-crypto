@@ -48,6 +48,7 @@ export class AuthenticationError extends Error {
  *   Suite layer (suite.sign / verify / signPrehashed / verifyPrehashed):
  *     'sig-key-size'             wrong sk or pk size for the suite
  *     'sig-ctx-too-long'         effective_ctx would exceed the FIPS 204 cap
+ *     'sig-ctx-unsupported'      suite has no native context binding (pure Ed25519)
  *     'sig-malformed-input'      primitive validation failure, e.g. wrong digest length
  *
  *   Envelope layer (Sign.sign / verify / signDetached / verifyDetached):
@@ -70,5 +71,20 @@ export class SigningError extends Error {
 		super(message ?? `leviathan-crypto SigningError: ${discriminator}`);
 		this.name = 'SigningError';
 		Object.setPrototypeOf(this, SigningError.prototype);
+	}
+}
+
+/**
+ * Thrown when an X25519 Diffie-Hellman shared secret is all-zero. Per RFC
+ * 7748 §6.1 and §7, an all-zero output indicates that the peer's public key
+ * is a small-order point on Curve25519 and the resulting shared secret
+ * carries no contributory entropy from the local secret. Callers must
+ * reject the exchange rather than proceed with a known-weak key.
+ */
+export class KeyAgreementError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'KeyAgreementError';
+		Object.setPrototypeOf(this, KeyAgreementError.prototype);
 	}
 }

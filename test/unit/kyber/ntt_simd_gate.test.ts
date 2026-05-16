@@ -22,10 +22,9 @@
 // test/unit/kyber/ntt_simd_gate.test.ts
 //
 // Gate tests for the SIMD NTT and polynomial arithmetic vectorizations.
-// Phase 1 gate: ntt_simd / invntt_simd must be byte-identical to scalar
-// ntt / invntt for arbitrary inputs.
-// Phase 2 gate: poly_add, poly_sub, poly_reduce, poly_ntt, poly_invntt
-// (all SIMD) must match their reference semantics.
+// ntt_simd / invntt_simd must be byte-identical to scalar ntt / invntt
+// for arbitrary inputs. poly_add, poly_sub, poly_reduce, poly_ntt,
+// poly_invntt (all SIMD) must match their reference semantics.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import {

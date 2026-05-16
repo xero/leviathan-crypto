@@ -41,7 +41,7 @@
 // and asserts byte-equality against the compress1 concatenation, so
 // generation doubles as a self-consistency check. The corpus is the
 // primary regression gate on compress4, independent of hash() and
-// later TASK-E XOF / TASK-F multi-chunk-parallel transitive paths.
+// the XOF / multi-chunk-parallel transitive paths.
 //
 // All hex strings are lowercase, no separators.
 // Audit status: SELF-GENERATED (gate: BLAKE3 compress4)

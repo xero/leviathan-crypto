@@ -132,12 +132,17 @@ this is not it.
 
 ## Subpath imports
 
-The ten primitive modules each have a subpath `leviathan-crypto/<mod>`
+The eleven primitive modules each have a subpath `leviathan-crypto/<mod>`
 with init function `<mod>Init(source)` and an embedded blob at
 `<mod>/embedded` (exported as `<mod>Wasm`). The modules: `serpent`,
 `chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `kyber`, `mldsa`, `slhdsa`,
-`blake3`. `keccak` is an alias for `sha3`; same WASM binary, same
-instance slot.
+`blake3`, `curve25519`. `keccak` is an alias for `sha3`; same WASM
+binary, same instance slot. `ed25519` and `x25519` are aliases for
+`curve25519`; the top-level `init({ ed25519: ... })` and
+`init({ x25519: ... })` both resolve to the `curve25519` slot, and the
+per-primitive subpaths `leviathan-crypto/ed25519` and
+`leviathan-crypto/x25519` each export their own init function over
+the same WASM binary.
 
 Two subpaths have no `/embedded` companion:
 `leviathan-crypto/ratchet` (KDF over sha2 + kyber + sha3) and
@@ -168,6 +173,9 @@ Read the cited doc before non-trivial work. Files ship under
 | `MlKem512/768/1024` | `kyber`, `sha3` | `kyber.md` |
 | `MlDsa44/65/87` (+HashML-DSA) | `mldsa`, `sha3` (+`sha2` SHA-2 prehash) | `mldsa.md` |
 | `SlhDsa128f/192f/256f` (+HashSLH-DSA) | `slhdsa` (+`sha3` prehash, +`sha2` SHA-2 prehash) | `slhdsa.md` |
+| `Ed25519` (pure + Ed25519ph) | `curve25519` (+`sha2` for prehash via `signPrehashed` from a message, or `Ed25519PreHashSuite`) | `ed25519.md` |
+| `X25519` | `curve25519` | `x25519.md` |
+| `Ed25519Suite` / `Ed25519PreHashSuite` | `curve25519` (+`sha2` for `Ed25519PreHashSuite`) | `signaturesuite.md`, `ed25519.md` |
 | `Sign` / `SignStream` / `VerifyStream` + `*Suite` consts | varies | `signaturesuite.md` |
 | `Fortuna` via `await Fortuna.create({ generator, hash })` | one cipher + one hash | `fortuna.md` |
 | Sparse PQ Ratchet (KDF only, see foot-gun #8) | `sha2`, `kyber`, `sha3` | `ratchet.md` |

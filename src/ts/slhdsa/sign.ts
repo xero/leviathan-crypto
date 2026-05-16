@@ -116,9 +116,8 @@ export function slhSignInternalTs(
  * byte 0x01 inside the M' construction separates HashSLH-DSA signatures
  * from pure-SLH-DSA signatures on the same key per the §10.2 narrative.
  *
- * Q7 resolution: signWithPrehash duplicated from
- * `src/ts/mldsa/sign.ts:signWithPrehash`. Phase 3 (BLAKE3) re-evaluates
- * the extraction.
+ * signWithPrehash is duplicated from `src/ts/mldsa/sign.ts:signWithPrehash`;
+ * extraction is deferred until a third consumer materialises.
  */
 export function signWithPrehash(
 	x:       SlhDsaExports,

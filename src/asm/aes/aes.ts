@@ -921,12 +921,11 @@ function keyExpansion(keyLen: i32): void {
  * InvMixColumns-transformed EqInvCipher schedule at INV_ROUND_KEYS, and
  * persists Nr to NR_BUFFER for the round loops to consume.
  *
- * Phase 4a addition: also derives the GCM hash subkey
- * H = AES_ENC(K, 0^128) into H_BUFFER and builds the GF(2^128) 4-bit
- * windowed multiply table. This adds one AES block encrypt + 16 GF
- * multiplies per loadKey call (≈ a few microseconds); the cost is
- * paid by every consumer of loadKey but read only by AES-GCM. CTR/CBC
- * never touch the GCM-only buffers.
+ * Also derives the GCM hash subkey H = AES_ENC(K, 0^128) into H_BUFFER
+ * and builds the GF(2^128) 4-bit windowed multiply table. This adds one
+ * AES block encrypt + 16 GF multiplies per loadKey call (≈ a few
+ * microseconds); the cost is paid by every consumer of loadKey but read
+ * only by AES-GCM. CTR/CBC never touch the GCM-only buffers.
  *
  * @param keyLen  16, 24, or 32
  * @returns       0 on success, nonzero on any other key length.
@@ -935,8 +934,8 @@ export function loadKey(keyLen: i32): i32 {
 	if (keyLen != 16 && keyLen != 24 && keyLen != 32) return 1;
 	keyExpansion(keyLen);
 
-	// Phase 4a: derive GCM hash subkey H = AES_ENC(K, 0^128) and build
-	// the 4-bit windowed multiply table from H. SP 800-38D §7.1 step 1.
+	// Derive GCM hash subkey H = AES_ENC(K, 0^128) and build the 4-bit
+	// windowed multiply table from H. SP 800-38D §7.1 step 1.
 	store<u64>(BLOCK_PT_OFFSET,     0);
 	store<u64>(BLOCK_PT_OFFSET + 8, 0);
 	encryptBlock();

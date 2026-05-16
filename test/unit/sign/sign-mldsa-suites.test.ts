@@ -232,12 +232,15 @@ describe.each(PREHASH_CASES)('$name prehash digest contracts', (c) => {
 		expect(err.discriminator).toBe('sig-malformed-input');
 	});
 
-	it('verifyPrehashed with wrong-size digest returns false (no throw)', () => {
+	it('verifyPrehashed with wrong-size digest throws sig-malformed-input', () => {
 		const { pk, sk } = c.suite.keygen();
 		const digest = new Uint8Array(c.prehashSize)
 			.map((_, i) => (i * 23 + 1) & 0xff);
 		const sig = c.suite.signPrehashed(sk, digest, EMPTY_CTX);
 		const bad = new Uint8Array(c.prehashSize + 1);
-		expect(c.suite.verifyPrehashed(pk, bad, sig, EMPTY_CTX)).toBe(false);
+		const err = captureSigningError(
+			() => c.suite.verifyPrehashed(pk, bad, sig, EMPTY_CTX),
+		);
+		expect(err.discriminator).toBe('sig-malformed-input');
 	});
 });

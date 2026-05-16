@@ -35,8 +35,8 @@
 //     the published Tag for each Appendix B case (handles 12-byte fast-path
 //     and variable-length-IV slow-path J0 derivations).
 //
-// If this gate fails but Phase 1-3 gates pass, the bug is somewhere in
-// gf128.ts, ghash.ts, or the loadKey integration.
+// If this gate fails while the AES round and key-schedule gates pass,
+// the bug is somewhere in gf128.ts, ghash.ts, or the loadKey integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';

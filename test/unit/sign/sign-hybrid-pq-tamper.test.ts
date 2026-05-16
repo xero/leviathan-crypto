@@ -237,18 +237,6 @@ function timeOne(suite: StreamableSignatureSuite, pk: Uint8Array, sig: Uint8Arra
 	return performance.now() - t0;
 }
 
-function medianTime(
-	suite: StreamableSignatureSuite,
-	pk:    Uint8Array,
-	sig:   Uint8Array,
-	trials: number,
-): number {
-	const samples: number[] = [];
-	for (let i = 0; i < trials; i++) samples.push(timeOne(suite, pk, sig));
-	samples.sort((a, b) => a - b);
-	return samples[Math.floor(samples.length / 2)];
-}
-
 describe('verify timing spot check (0x30)', () => {
 	it('tampered-mldsa-half does not measurably shortcut the verify', () => {
 		const suite = MlDsa44SlhDsa128fSuite;
@@ -256,20 +244,50 @@ describe('verify timing spot check (0x30)', () => {
 		const sig = suite.sign(sk, MSG, CTX);
 		const badMldsa = flipByte(sig, Math.floor(MLDSA44.sigBytes / 2));
 
-		// Warm up to amortise WASM JIT-tier promotion noise.
-		for (let i = 0; i < 5; i++) timeOne(suite, pk, sig);
+		// Warm up both paths to amortise WASM JIT-tier promotion noise.
+		// Both arms must be warmed because some engines tier per call site.
+		for (let i = 0; i < 10; i++) {
+			timeOne(suite, pk, sig);
+			timeOne(suite, pk, badMldsa);
+		}
 
+		// Paired interleaved sampling: each (honest, tampered) pair runs
+		// back-to-back, so any scheduler / GC jitter that hits one usually
+		// hits the other too. Taking the median of per-pair RATIOS cancels
+		// the common-mode load shift that sinks the prior sequential design
+		// (21 honest, then 21 tampered) under parallel `bun check`, where
+		// other concurrent test files can spike CPU between the two batches
+		// and pull the medians apart.
 		const trials = 21;
-		const honest   = medianTime(suite, pk, sig,      trials);
-		const tampered = medianTime(suite, pk, badMldsa, trials);
+		const ratios: number[] = [];
+		const honests:   number[] = [];
+		const tampereds: number[] = [];
+		for (let i = 0; i < trials; i++) {
+			const honest   = timeOne(suite, pk, sig);
+			const tampered = timeOne(suite, pk, badMldsa);
+			honests.push(honest);
+			tampereds.push(tampered);
+			// Skip floor-bucket pairs where `honest` is below
+			// `performance.now()`'s effective resolution; ratios on near-zero
+			// divisors are pure noise.
+			if (honest > 0.1) ratios.push(tampered / honest);
+		}
+		ratios.sort((a, b) => a - b);
+		const medianRatio = ratios[Math.floor(ratios.length / 2)];
 
-		console.log(`hybrid 0x30 verify median: honest=${honest.toFixed(2)}ms tampered-mldsa=${tampered.toFixed(2)}ms ratio=${(tampered / honest).toFixed(2)}`);
+		honests.sort((a, b) => a - b);
+		tampereds.sort((a, b) => a - b);
+		const medHonest   = honests[Math.floor(honests.length / 2)];
+		const medTampered = tampereds[Math.floor(tampereds.length / 2)];
+		console.log(`hybrid 0x30 verify: honest=${medHonest.toFixed(2)}ms tampered-mldsa=${medTampered.toFixed(2)}ms paired-ratio-median=${medianRatio.toFixed(2)} (n=${ratios.length})`);
 
-		// Short-circuit would drop tampered to << 50% of honest. The
-		// implementation passes at ≈100% under load; the threshold is
-		// loose enough to absorb CI jitter and tight enough to catch a
-		// real short-circuit regression.
-		expect(tampered).toBeGreaterThan(honest * 0.5);
-		expect(honest).toBeGreaterThan(0);
+		// Short-circuit on the ML-DSA half failure would skip the SLH-DSA
+		// half, dropping the paired ratio to roughly the ML-DSA share of
+		// total verify cost (~0.05-0.2 for SLH-DSA-128f-f). Honest pairs
+		// run both halves and sit near 1.0. The 0.5 threshold gives a
+		// 2.5x-10x margin while remaining robust to common-mode jitter
+		// (which the paired design largely cancels).
+		expect(medianRatio).toBeGreaterThan(0.5);
+		expect(medHonest).toBeGreaterThan(0);
 	});
 });

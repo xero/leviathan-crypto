@@ -216,8 +216,8 @@ fn extract_bool(body: &str, field: &str) -> Option<bool> {
 // The verifier exercises only (key, nonce, aad, plaintext, result). The
 // other fields (record_auth_key, record_enc_key, polyval_input,
 // polyval_result, polyval_xor_nonce, polyval_masked, tag,
-// initial_counter) are gate-bisection fixtures for Phase 4b-impl unit
-// tests and are intentionally read-but-not-used here.
+// initial_counter) are gate-bisection fixtures for the AES-GCM-SIV
+// unit tests and are intentionally read-but-not-used here.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct AesGcmSivVector {
@@ -293,7 +293,7 @@ fn parse_siv_array(src: &str, export_name: &str) -> Vec<AesGcmSivVector> {
 // ────────────────────────────────────────────────────────────────────────────
 
 // PolyvalFieldOpsVector and PolyvalMulXVector are unit-test-only
-// fixtures for Phase 4b-impl. The verifier reads them so the corpus is
+// fixtures for the POLYVAL primitive. The verifier reads them so the corpus is
 // fully traversed end-to-end, but does not exercise them, RustCrypto's
 // `polyval` crate does not expose dot() / mulX_GHASH directly, and the
 // SIV vectors in aes_gcm_siv.ts transitively cover POLYVAL
@@ -1243,7 +1243,7 @@ pub fn parse_mldsa_sigver_array(src: &str, export_name: &str) -> Vec<MlDsaSigVer
 // ────────────────────────────────────────────────────────────────────────────
 // SLH-DSA vectors (slhdsa_keygen.ts, slhdsa_siggen.ts, slhdsa_sigver.ts).
 //
-// Phase 2 scope: SHAKE-fast variants (128f / 192f / 256f) only. preHash
+// Scope: SHAKE-fast variants (128f / 192f / 256f) only. preHash
 // records carry the original message + hashAlg; the verifier hashes them
 // in-band and builds HashSLH-DSA M' per FIPS 205 §10.2 before calling
 // slh_sign_internal / slh_verify_internal on the slh-dsa crate.
@@ -1426,9 +1426,8 @@ pub fn parse_sign_hybrid_pq_array(src: &str, export_name: &str) -> Vec<SignHybri
 // Four TS interfaces, four Rust structs. Sample vectors carry an ASCII
 // description and inputs as hex; ACVP vectors carry tcId/tgId + the
 // per-record xof/hexCustomization flags. All length fields are in bits,
-// and every pinned record is byte-aligned (the byte-alignment filter ran
-// at Phase 1; bit-level cases were dropped to match leviathan-crypto's
-// byte-oriented WASM API).
+// and every pinned record is byte-aligned (bit-level cases were dropped
+// at transcription time to match leviathan-crypto's byte-oriented WASM API).
 //
 // Customization / function-name strings in KMAC ACVP records can contain
 // literal `'` chars escaped as `\'`. The seal/sealstream parser's
@@ -1610,6 +1609,140 @@ pub fn parse_kmac_acvp_array(src: &str, export_name: &str) -> Vec<KmacAcvpVector
             mac:                hex::decode(extract_hex(&obj, "mac")).unwrap_or_default(),
             mac_len_bits:       extract_int(&obj, "macLenBits").unwrap_or(0),
             test_passed:        extract_bool(&obj, "testPassed"),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Ed25519 vectors (ed25519_keygen.ts, ed25519_siggen.ts, ed25519_sigver.ts).
+//
+// Mirror of the ML-DSA parser shapes: keygen has seed + pk, sigGen has
+// sk + pk + message + context + signature with a preHash discriminator,
+// sigVer adds testPassed + reason. preHash is `null` for pure /
+// Ed25519ctx and the literal string `'SHA-512'` for Ed25519ph, parsed
+// here as `Option<String>` for symmetry with mldsa's `pre_hash: String`
+// (the verifier branches on this).
+// ────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct Ed25519KeyGenVector {
+    pub tc_id: u32,
+    pub seed:  Vec<u8>,
+    pub q:     Vec<u8>,
+}
+
+#[allow(dead_code)] // test_type surfaced for diagnostic logs; verifier
+                    // branches only on pre_hash and the pure-vs-ctx
+                    // distinction (decided by context.is_empty()).
+#[derive(Debug, Clone, Default)]
+pub struct Ed25519SigGenVector {
+    pub tc_id:     u32,
+    pub tg_id:     u32,
+    pub test_type: String,
+    pub pre_hash:  Option<String>, // None = pure, Some("SHA-512") = ph
+    pub sk:        Vec<u8>,
+    pub pk:        Vec<u8>,
+    pub message:   Vec<u8>,
+    pub context:   Vec<u8>,
+    pub signature: Vec<u8>,
+}
+
+#[allow(dead_code)] // test_type + sk + reason surfaced for diagnostic
+                    // logs; verifier exercises only pk + signature +
+                    // message + context + pre_hash + test_passed.
+#[derive(Debug, Clone, Default)]
+pub struct Ed25519SigVerVector {
+    pub tc_id:       u32,
+    pub tg_id:       u32,
+    pub test_type:   String,
+    pub test_passed: bool,
+    pub pre_hash:    Option<String>,
+    pub reason:      String,
+    pub pk:          Vec<u8>,
+    pub sk:          Vec<u8>,
+    pub message:     Vec<u8>,
+    pub context:     Vec<u8>,
+    pub signature:   Vec<u8>,
+}
+
+// Parse `pre_hash: null,` (returns None) or `pre_hash: 'SHA-512',`
+// (returns Some("SHA-512")). The generic `extract_string` cannot tell
+// "field absent / value null" from "value of next field" because it
+// scans forward to the next `'`, which would cross the field boundary
+// into the following `sk: 'd...'` literal. This helper anchors on the
+// next field-terminating `,` or newline before reading quotes.
+fn extract_nullable_string(body: &str, field: &str) -> Option<String> {
+    let needle = format!("{}:", field);
+    let start  = find_field_offset(body, field)? + needle.len();
+    let rest   = body[start..].trim_start();
+    if rest.starts_with("null") { return None; }
+    let bytes = rest.as_bytes();
+    let mut end = bytes.len();
+    let mut in_q = false;
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_q && b == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+        match b {
+            b'\'' => in_q = !in_q,
+            b',' | b'\n' if !in_q => { end = i; break; }
+            _ => {}
+        }
+        i += 1;
+    }
+    let slice = &rest[..end];
+    let q1 = slice.find('\'')?;
+    let after_q = q1 + 1;
+    let q2 = slice[after_q..].find('\'')?;
+    Some(slice[after_q..after_q + q2].to_string())
+}
+
+pub fn parse_ed25519_keygen_array(src: &str, export_name: &str) -> Vec<Ed25519KeyGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| Ed25519KeyGenVector {
+            tc_id: extract_int(&obj, "tcId").unwrap_or(0),
+            seed:  hex::decode(extract_hex(&obj, "seed")).unwrap_or_default(),
+            q:     hex::decode(extract_hex(&obj, "q")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_ed25519_siggen_array(src: &str, export_name: &str) -> Vec<Ed25519SigGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| Ed25519SigGenVector {
+            tc_id:     extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:     extract_int(&obj, "tgId").unwrap_or(0),
+            test_type: extract_string(&obj, "testType"),
+            pre_hash:  extract_nullable_string(&obj, "preHash"),
+            sk:        hex::decode(extract_hex(&obj, "sk")).unwrap_or_default(),
+            pk:        hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            message:   hex::decode(extract_hex(&obj, "message")).unwrap_or_default(),
+            context:   hex::decode(extract_hex(&obj, "context")).unwrap_or_default(),
+            signature: hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_ed25519_sigver_array(src: &str, export_name: &str) -> Vec<Ed25519SigVerVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| Ed25519SigVerVector {
+            tc_id:       extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:       extract_int(&obj, "tgId").unwrap_or(0),
+            test_type:   extract_string(&obj, "testType"),
+            test_passed: extract_bool(&obj, "testPassed").unwrap_or(false),
+            pre_hash:    extract_nullable_string(&obj, "preHash"),
+            reason:      extract_string(&obj, "reason"),
+            pk:          hex::decode(extract_hex(&obj, "pk")).unwrap_or_default(),
+            sk:          hex::decode(extract_hex(&obj, "sk")).unwrap_or_default(),
+            message:     hex::decode(extract_hex(&obj, "message")).unwrap_or_default(),
+            context:     hex::decode(extract_hex(&obj, "context")).unwrap_or_default(),
+            signature:   hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
         })
         .collect()
 }

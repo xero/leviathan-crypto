@@ -277,12 +277,19 @@ function MldsaSlhdsaHybridSuite(
 			ctx:    Uint8Array,
 		): boolean {
 			// Structural rejects: wrong-size inputs short-circuit before any
-			// WASM is touched. FIPS 204 §3.6.2 + FIPS 205 §3 posture: these
-			// map to false rather than throw because the lengths depend on
-			// attacker-observable bytes, not secret state.
-			if (pk.length     !== pkSize)      return false;
-			if (sig.length    !== sigSize)     return false;
-			if (digest.length !== prehashSize) return false;
+			// WASM is touched. Wire-derived lengths (pk_combined and the
+			// composite sig) map to false because they depend on
+			// attacker-observable bytes, not secret state. Digest length
+			// is a caller-side contract (the caller computed it via the
+			// suite's locked prehash algorithm) and throws symmetrically
+			// with `signPrehashed`.
+			if (pk.length  !== pkSize)  return false;
+			if (sig.length !== sigSize) return false;
+			if (digest.length !== prehashSize)
+				throw new SigningError(
+					'sig-malformed-input',
+					`digest length ${digest.length} != ${prehashSize} for ${formatName}`,
+				);
 
 			const effectiveCtx = buildEffectiveCtx(ctxDomain, ctx);
 			const pkMldsa   = pk.subarray(0, mldsaParams.pkBytes);

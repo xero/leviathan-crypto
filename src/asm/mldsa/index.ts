@@ -24,10 +24,10 @@
 // ML-DSA WASM module, public exports.
 // FIPS 204, Module-Lattice-Based Digital Signature Standard.
 //
-// Phase-3 surface: phase-2 reduce/NTT primitives plus the polynomial layer
+// WASM surface: reduce/NTT primitives plus the polynomial layer
 // (poly + polyvec arithmetic, bit-pack/unpack encoding, rounding kernels,
 // rejection-sampling kernels, SampleInBall). Algorithm-level KeyGen / Sign /
-// Verify are TS-orchestrated in phase 4.
+// Verify are TS-orchestrated.
 
 // ── Buffer layout (buffers.ts) ──────────────────────────────────────────────
 

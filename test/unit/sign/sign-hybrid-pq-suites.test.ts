@@ -263,11 +263,18 @@ describe.each(CASES)('$name prehash digest contracts', (c) => {
 		expect((caught as SigningError).discriminator).toBe('sig-key-size');
 	});
 
-	it('verifyPrehashed with wrong-size digest returns false (no throw)', () => {
+	it('verifyPrehashed with wrong-size digest throws sig-malformed-input', () => {
 		const { pk, sk } = c.suite.keygen();
 		const digest = new Uint8Array(c.prehashSize)
 			.map((_, i) => (i * 23 + 1) & 0xff);
 		const sig = c.suite.signPrehashed(sk, digest, EMPTY_CTX);
-		expect(c.suite.verifyPrehashed(pk, new Uint8Array(c.prehashSize + 1), sig, EMPTY_CTX)).toBe(false);
+		let caught: unknown;
+		try {
+			c.suite.verifyPrehashed(pk, new Uint8Array(c.prehashSize + 1), sig, EMPTY_CTX);
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(SigningError);
+		expect((caught as SigningError).discriminator).toBe('sig-malformed-input');
 	});
 });

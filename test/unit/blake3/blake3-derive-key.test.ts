@@ -29,8 +29,7 @@
  * `blake3ContextString` (the UTF-8 context string from the upstream
  * JSON) as the context. The first 32 bytes of the derived output are
  * compared against the first 64 hex characters of the record's
- * `deriveKeyHex`. XOF output past 32 bytes is a TASK-E deliverable and
- * not exercised here.
+ * `deriveKeyHex`. XOF output past 32 bytes is not exercised here.
  *
  * §2.3: derive_key is a two-pass construction. Pass 1 hashes the
  * context string with starting CV = IV and DERIVE_KEY_CONTEXT flag on
@@ -40,9 +39,8 @@
  * output.
  *
  * Expected values are sourced from `test/vectors/blake3.ts` (which
- * sources from the upstream JSON pinned in TASK-A); per AGENTS.md
- * §Ground Rules #2, do not modify the vectors to make a failing test
- * pass.
+ * sources from the upstream JSON); per AGENTS.md §Ground Rules #2, do
+ * not modify the vectors to make a failing test pass.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -69,7 +67,7 @@ const __dirname  = dirname(__filename);
 const WASM_PATH  = resolve(__dirname, '../../../build/blake3.wasm');
 
 // Stage context, material, and output past the BLAKE3 buffer region
-// (BUFFER_END = 26328 after the TASK-J LEVEL_QUEUES expansion) inside
+// (BUFFER_END = 26328, which includes the LEVEL_QUEUES region) inside
 // the 2-page (131072 byte) module memory. blake3ContextString is 48
 // ASCII bytes; the largest material input is 102400 bytes. Place
 // material at 28672 (fills the remainder of the page) and context at

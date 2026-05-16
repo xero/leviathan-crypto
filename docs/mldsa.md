@@ -628,8 +628,7 @@ Behavior](#validation-behavior) for the full split.
 ## SignatureSuites
 
 The mldsa-suites layer wraps `MlDsaBase` into the `SignatureSuite` interface
-for use with `Sign`, `SignStream`, and `VerifyStream`. Six suite consts ship
-in Phase 1:
+for use with `Sign`, `SignStream`, and `VerifyStream`. Six suite consts ship:
 
 - `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite` for pure ML-DSA (FIPS 204 §5.2).
 - `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite` for

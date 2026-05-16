@@ -30,7 +30,7 @@
 //   pin: 15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0 (v1.1.0.42, 2026-04-16)
 //   vsId=53, algorithm=SLH-DSA, mode=keyGen, revision=FIPS205, isSample=true
 //
-// Curated SHAKE-fast subset for Phase 2 scope (128f/192f/256f).
+// Curated SHAKE-fast subset (128f/192f/256f).
 // 5 AFT cases per parameter set, 15 total.
 //
 // FIPS 205 §9 Algorithm 17 slh_keygen_internal: deterministic from

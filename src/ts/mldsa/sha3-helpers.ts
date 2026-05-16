@@ -29,7 +29,7 @@
 // rate-agnostic, keccakAbsorb consumes whatever buffer length the caller
 // hands it as long as length ≤ 168 (the wider rate). One-shot SHAKE256
 // helpers and the incremental SHAKE128 / SHAKE256 squeezers below cover
-// every call shape phase 4-6 needs.
+// every call shape ML-DSA needs.
 
 import type { Sha3Exports } from '../kyber/types.js';
 

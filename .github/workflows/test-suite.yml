@@ -109,6 +109,18 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-blake3.yml
 
+  unit-curve25519:
+    needs: [build]
+    uses: ./.github/workflows/unit-curve25519.yml
+
+  unit-ed25519:
+    needs: [build]
+    uses: ./.github/workflows/unit-ed25519.yml
+
+  unit-x25519:
+    needs: [build]
+    uses: ./.github/workflows/unit-x25519.yml
+
   suite-status:
     name: test-suite-status
     if: always()
@@ -136,6 +148,9 @@ jobs:
       - unit-slhdsa-acvp
       - unit-sign-hybrid
       - unit-blake3
+      - unit-curve25519
+      - unit-ed25519
+      - unit-x25519
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream results

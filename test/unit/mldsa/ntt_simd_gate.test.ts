@@ -212,7 +212,7 @@ describe('Sanity, zetas table & BitRev8', () => {
 	// The round-trip identity (Gate 2) only proves the forward/inverse pair
 	// is internally consistent, it would pass for any internally-consistent
 	// table, including a corrupted one. This test is the only one that
-	// catches a corrupted table before phase-4 ACVP keygen vectors run.
+	// catches a corrupted table before ACVP keygen vectors run.
 	test('zetas[k] = ζ^BitRev₈(k) · 2³² mod q (centered) for k ∈ [1, 256)', () => {
 		const w = getWasm();
 		const qBig = BigInt(Q);

@@ -16,6 +16,7 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [SHA-3](#sha-3)
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
 > - [BLAKE3](#blake3)
+> - [Ed25519 / X25519 (Curve25519 family)](#ed25519--x25519-curve25519-family)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
 > - [ML-DSA (Post-quantum signatures)](#ml-dsa-post-quantum-signatures)
 > - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
@@ -34,7 +35,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3'` |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3' \| 'curve25519'`. The top-level `init()` additionally accepts `'ed25519'` and `'x25519'` as aliases that resolve to the `curve25519` slot. |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -122,6 +123,8 @@ Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
 | `SignatureSuite` | interface | Suite contract for all signature schemes. Fields: `formatEnum`, `formatName`, `ctxDomain`, `pkSize`, `skSize`, `sigSize`, `wasmModules`. Methods: `sign(sk, msg, ctx)`, `verify(pk, msg, sig, ctx)`, `keygen()`. |
 | `StreamableSignatureSuite` | interface | `SignatureSuite` extension for suites usable with `SignStream`/`VerifyStream`. Adds `prehashAlgorithm`, `prehashSize`, `signPrehashed(sk, digest, ctx)`, `verifyPrehashed(pk, digest, sig, ctx)`. |
 | `PrehashAlgorithm` | type | Union of the six prehash function identifiers used across the catalog: `'sha-256' \| 'sha-512' \| 'sha3-256' \| 'sha3-512' \| 'shake-128' \| 'shake-256'`. |
+| `Ed25519Suite` | const | Pure Ed25519 SignatureSuite (RFC 8032 §5.1.6, signature generation). `formatEnum: 0x01`, `ctxDomain: 'ed25519-envelope-v3'`. Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Requires `init({ ed25519 })`. |
+| `Ed25519PreHashSuite` | const | Ed25519ph StreamableSignatureSuite (RFC 8032 §5.1.7, signature verification, dom2 prehash). `formatEnum: 0x11`, `ctxDomain: 'ed25519-prehash-envelope-v3'`, `prehashAlgorithm: 'sha-512'`. Requires `init({ ed25519, sha2 })`. |
 | `MlDsa44Suite` | const | Pure ML-DSA-44 SignatureSuite. `formatEnum: 0x03`, `ctxDomain: 'mldsa44-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
 | `MlDsa65Suite` | const | Pure ML-DSA-65 SignatureSuite. `formatEnum: 0x04`, `ctxDomain: 'mldsa65-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
 | `MlDsa87Suite` | const | Pure ML-DSA-87 SignatureSuite. `formatEnum: 0x05`, `ctxDomain: 'mldsa87-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
@@ -146,6 +149,7 @@ Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
 |--------|------|-------------|
 | `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
 | `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signaturesuite.md](./signaturesuite.md)). |
+| `KeyAgreementError` | class | Thrown by `X25519.dh` when the peer public key produces an all-zero shared secret (small-order point per RFC 7748 §6.1, Curve25519). Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
 
 ---
 
@@ -255,6 +259,28 @@ Subpath: `leviathan-crypto/blake3`. See [blake3.md](./blake3.md).
 | `BLAKE3DeriveKeyStream` | class | Incremental derive_key. Constructor takes the context string; `update(chunk)` feeds key material; `finalize(outLen?)` / `finalizeXof()` as above. Holds the blake3 module exclusively until disposed. |
 | `BLAKE3OutputReader` | class | Unbounded XOF reader returned by any streaming class's `finalizeXof()`. `read(n)` lifts the next `n` bytes off the §2.6 root-state snapshot via the WASM `squeezeXofBlock` export; holds module exclusivity until `dispose()`. |
 | `BLAKE3Hash` | const | `HashFn` const wrapping `BLAKE3.hash` at the default 32-byte digest size. Compatible with the `Fortuna` accumulator slot alongside `SHA256Hash` and `SHA3_256Hash`. `outputSize: 32`, `wasmModules: ['blake3']`. Requires `init({ blake3 })`. |
+
+---
+
+## Ed25519 / X25519 (Curve25519 family)
+
+Requires `init({ ed25519: ed25519Wasm })` (or equivalently `init({ x25519: x25519Wasm })`, or `init({ curve25519: curve25519Wasm })`). All three aliases resolve to the same `curve25519` WASM module, which hosts the Ed25519 (RFC 8032) and X25519 (RFC 7748) substrates plus an embedded SHA-512. Scalar (no SIMD); works on every WASM-capable runtime regardless of SIMD support.
+
+The `leviathan-crypto/ed25519/embedded` and `leviathan-crypto/x25519/embedded` subpaths each re-export the same WASM blob under three names: `curve25519Wasm`, `ed25519Wasm`, and `x25519Wasm`. All three resolve to the identical underlying string; pick whichever reads most naturally in the surrounding code.
+
+Subpaths: `leviathan-crypto/ed25519` and `leviathan-crypto/x25519`. See [ed25519.md](./ed25519.md) and [x25519.md](./x25519.md). The `Ed25519PreHashSuite` envelope path additionally requires `init({ sha2: sha2Wasm })` because the message-taking and streaming SHA-512 hashers drive the sha2 module.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `ed25519Init` | function | Module-scoped init. `ed25519Init(source: WasmSource)` loads the curve25519 WASM under the `curve25519` slot. |
+| `x25519Init` | function | Module-scoped init. `x25519Init(source: WasmSource)` loads the curve25519 WASM under the `curve25519` slot. Calling either `ed25519Init` or `x25519Init` enables both `Ed25519` and `X25519`. |
+| `Ed25519` | class | Ed25519 classical signer (RFC 8032 §5.1, Ed25519). `keygen()`, `keygenDerand(seed)`, `sign(sk, pk, M)`, `signPrehashed(sk, pk, digest, ctx)`, `verify(pk, M, sig)`, `verifyPrehashed(pk, digest, ctx, sig)`, `dispose()`. Strict verification per FIPS 186-5 §7.6.4, Verification. The public sign methods include a fault-injection cross-check that aborts when the caller-supplied pk disagrees with the WASM-derived pk; see [ed25519.md](./ed25519.md#fault-injection-defense). Pure-mode `sign` and `verify` have a per-call message ceiling of approximately 248 KB; use `Ed25519PreHashSuite` plus `SignStream` for larger payloads. |
+| `X25519` | class | X25519 classical Diffie-Hellman (RFC 7748 §5, The X25519 and X448 Functions). `keygen()`, `keygenDerand(sk)`, `dh(sk, peerPk)`, `dispose()`. `dh` throws `KeyAgreementError` on an all-zero shared secret (small-order peer pk per RFC 7748 §6.1, Curve25519). |
+| `Ed25519KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. Both 32 bytes; `secretKey` is the RFC 8032 §5.1.5, key generation, seed. |
+| `X25519KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. Both 32 bytes; `secretKey` is opaque 32 random bytes (not pre-clamped). |
+| `Ed25519Suite` | const | Pure Ed25519 `SignatureSuite` (RFC 8032 §5.1.6, signature generation). `formatEnum: 0x01`, `ctxDomain: 'ed25519-envelope-v3'`, `pkSize: 32`, `skSize: 32`, `sigSize: 64`. Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Requires `init({ ed25519 })`. |
+| `Ed25519PreHashSuite` | const | Ed25519ph `StreamableSignatureSuite` (RFC 8032 §5.1.7, signature verification, dom2(F=1, ctx) prehash). `formatEnum: 0x11`, `ctxDomain: 'ed25519-prehash-envelope-v3'`, `prehashAlgorithm: 'sha-512'`, `prehashSize: 64`, `pkSize: 32`, `skSize: 32`, `sigSize: 64`. Plugs into `SignStream` / `VerifyStream`. Requires `init({ ed25519, sha2 })`. |
+| `KeyAgreementError` | class | Thrown by `X25519.dh` when the resulting shared secret is all-zero, indicating a small-order peer public key. Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
 
 ---
 

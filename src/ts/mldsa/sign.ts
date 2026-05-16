@@ -288,10 +288,11 @@ export function mldsaSignInternal(
 			mx.ntt(polySlot1);
 
 			// Line 17: ⟨cs₁⟩ ← NTT⁻¹(ĉ ∘ ŝ₁) at slot4 (overwrites w₁) ──
-			// Phase 3 has poly_pointwise_montgomery (per-poly) and
-			// polyvec_pointwise_montgomery (per-vec, expects same-length
-			// input). For c·s₁ where c is one polynomial and s₁ is a
-			// length-ℓ vec, drive a TS-side loop over the poly variant.
+			// The WASM polynomial layer exposes poly_pointwise_montgomery
+			// (per-poly) and polyvec_pointwise_montgomery (per-vec,
+			// expects same-length input). For c·s₁ where c is one
+			// polynomial and s₁ is a length-ℓ vec, drive a TS-side loop
+			// over the poly variant.
 			for (let r = 0; r < l; r++) {
 				mx.poly_pointwise_montgomery(
 					slot4 + r * POLY_BYTES,
@@ -304,7 +305,8 @@ export function mldsaSignInternal(
 			// Line 19: z ← y + ⟨cs₁⟩ at slot4 ──────────────────────────
 			mx.polyvec_add(slot4, slot3, slot4, l);
 			// ‖z‖∞ check needs centered residues. polyvec_reduce produces
-			// (-q/2, q/2]; chknorm is correct on that form per phase-3 contract.
+			// (-q/2, q/2]; chknorm is correct on that form per the
+			// WASM polynomial-layer contract.
 			mx.polyvec_reduce(slot4, l);
 
 			// Line 21 (first half): ‖z‖∞ ≥ γ₁ − β ⇒ reject ─────────────

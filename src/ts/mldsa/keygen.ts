@@ -154,7 +154,7 @@ export function mldsaKeygenInternal(
 		//   (e) NTT⁻¹ in place → time-domain Â·s₁.
 		//   (f) Add s₂ coefficient-wise.
 		//   (g) Reduce + caddq so coefficients are canonical [0, q-1],
-		//       required by power2round (per phase 3 contract).
+		//       required by power2round per the WASM polynomial-layer contract.
 		mlMem.copyWithin(s1NttOff, s1Off, s1Off + l * POLY_BYTES);
 		mx.polyvec_ntt(s1NttOff, l);
 		mx.polyvec_tomont(s1NttOff, l);

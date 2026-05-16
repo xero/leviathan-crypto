@@ -25,12 +25,12 @@
 // BLAKE3 specification §2.1-2.6 (tree structure, compression, modes,
 // chunk CVs, parent CVs, extendable output).
 //
-// Phase 3 TASK-D surface: TASK-B's compress + buffers, the §2.4 chunk
-// state machine, §2.5 tree assembly, §5.3 lane-parallel compress4, and
-// three top-level entry points (hash, hashKeyed, deriveKey). The chunk
-// / tree internals consult MODE_FLAGS at every compress site so the
-// hash / keyed_hash / derive_key modes (§2.3) all share the same
-// machinery; only the starting CV and mode-flag bits differ.
+// The module exposes compress + buffers, the §2.4 chunk state machine,
+// §2.5 tree assembly, §5.3 lane-parallel compress4, and three top-level
+// entry points (hash, hashKeyed, deriveKey). The chunk / tree internals
+// consult MODE_FLAGS at every compress site so the hash / keyed_hash /
+// derive_key modes (§2.3) all share the same machinery; only the
+// starting CV and mode-flag bits differ.
 //
 // XOF output past the first root compression (BLAKE3 §2.6) is produced
 // by re-firing the root compress with an incremented counter. The
@@ -203,10 +203,10 @@ function hashCore(inputOff: i32, inputLen: i32, outOff: i32, writeLen: i32): voi
 
 		// 4-chunk batches via compress4. Lane K's chunk CV lands at the
 		// first 32 bytes of its 64-byte slot in COMPRESS4_OUT; using
-		// that slot directly as the deinterleaved scratch (option a in
-		// TASK-I) keeps the dispatch lean, no separate scratch region
-		// needed in buffers.ts. The four CVs sit packed at lane offsets
-		// 0, 32, 64, 96 within COMPRESS4_OUT after chunkBatch4 returns.
+		// that slot directly as the deinterleaved scratch keeps the
+		// dispatch lean, no separate scratch region needed in
+		// buffers.ts. The four CVs sit packed at lane offsets 0, 32,
+		// 64, 96 within COMPRESS4_OUT after chunkBatch4 returns.
 		while (off < batchableBytes) {
 			chunkBatch4(inputOff + off, chunkIdx, COMPRESS4_OUT_OFFSET)
 			for (let k: i32 = 0; k < 4; k++) {
@@ -297,7 +297,7 @@ export function hash(inputOff: i32, inputLen: i32, outOff: i32, outLen: i32): vo
  *
  * `keyOff` must point at 32 bytes. WASM trusts its caller for buffer
  * sizes per the existing slhdsa / mldsa pattern; the TS layer validates
- * key length (lands in TASK-E).
+ * key length.
  */
 export function hashKeyed(
 	keyOff:    i32,
@@ -324,9 +324,8 @@ export function hashKeyed(
  *     = DERIVE_KEY_MATERIAL, writing the requested prefix to outOff.
  *
  * Per §2.3 the context string is conventionally a UTF-8 hardcoded
- * compile-time constant per application, not a runtime value; TS-layer
- * surface validation messaging (TASK-E) and the audit doc (TASK-G)
- * document this nuance.
+ * compile-time constant per application, not a runtime value; the
+ * TS-layer surface and the audit doc document this nuance.
  *
  * CONTEXT_CV is wiped after pass 2 in addition to the dispose-time
  * wipeBuffers() sweep: it is a derived intermediate, treated as
@@ -361,17 +360,16 @@ export function deriveKey(
 
 // ── Test-only WASM exports ──────────────────────────────────────────────────
 //
-// Substrate hooks for the tree-internals unit suite and the Phase 7
+// Substrate hooks for the tree-internals unit suite and the planned
 // `src/ts/merkle/blake3-log.ts` log-proof module. NOT part of the
 // consumer-facing Blake3Exports interface; consumers compute chunk /
 // parent CVs only via hash / hashKeyed / deriveKey. Underscore prefix
 // follows the codebase convention for module-internal exports
 // (e.g. `_acquireModule` on the TS side, `_test*` on the slhdsa WASM).
 //
-// Phase 7 (`src/ts/merkle/blake3-log.ts`) will cast
+// The planned `src/ts/merkle/blake3-log.ts` will cast
 // `Blake3Exports & Blake3TestExports` inside the merkle module the same
-// way slhdsa unit tests cast for `_test*` access today. This task lands
-// the substrate; Phase 7 builds the log primitives on top of it.
+// way slhdsa unit tests cast for `_test*` access today.
 
 /**
  * Compute the chunk CV for the chunk at `chunkIndex` containing `inputLen`
@@ -379,12 +377,12 @@ export function deriveKey(
  * `modeFlags` as the mode-flag bits OR'd onto every compress in the
  * chunk pipeline. BLAKE3 §2.4.
  *
- * Output: 32 bytes at `outCvOff`. Does NOT run ROOT — the chunk CV here
+ * Output: 32 bytes at `outCvOff`. Does NOT run ROOT, the chunk CV here
  * is the value that would be pushed to the §2.5 tree assembly for a
  * multi-chunk input. The §2.4 single-chunk shortcut (ROOT on the last
- * compress) is NOT applied; tests / Phase 7 callers that need the
- * single-chunk root use BLAKE3.hash directly or recompute via the
- * exported `compress` with ROOT set explicitly.
+ * compress) is NOT applied; callers that need the single-chunk root
+ * use BLAKE3.hash directly or recompute via the exported `compress`
+ * with ROOT set explicitly.
  */
 export function _testChunkCV(
 	inputOff:   i32,

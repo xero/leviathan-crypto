@@ -27,7 +27,7 @@
 //       IV slow path across AES-128 / 192 / 256.
 //   (b) NIST CAVP GCMVS encrypt files (~23k vectors total). The taglen
 //       parameter varies (32, 64, 96, 104, 112, 120, 128); we only test
-//       128-bit-tag vectors per phase 4a's spec-faithful API surface.
+//       128-bit-tag vectors per the spec-faithful API surface.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, AESGCM } from '../../../src/ts/index.js';

@@ -522,7 +522,7 @@ With the corrected tool, systematic search was conducted across three parameter 
 
 **Joint biclique nibble search:** 16,384 configurations (64 delta × 64 nabla nibbles × 4 v positions) were evaluated. The best result was delta nibble 0 (byte 0, high nibble of K31), nabla nibble 13, v = state 66 nibbles 8+9, yielding 2^{255.20}. Delta nibble 0 activates fewer S-boxes in the recomputation phase due to favorable key schedule propagation.
 
-Phase 2 improvement summary:
+Improvement summary:
 
 | Step | Configuration | Time | Data |
 |------|--------------|------|------|

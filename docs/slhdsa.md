@@ -35,8 +35,8 @@ search, leaving each parameter set with roughly half its classical bit
 security in the quantum setting (FIPS 205 §1.2 / §11.1).
 
 This module exposes three classes, `SlhDsa128f`, `SlhDsa192f`, and
-`SlhDsa256f`, covering the three FIPS 205 SHAKE fast parameter sets. Phase 2
-ships the fast (`f`) SHAKE variants only; the slow (`s`) variants and the
+`SlhDsa256f`, covering the three FIPS 205 SHAKE fast parameter sets.
+Only the fast (`f`) SHAKE variants ship; the slow (`s`) variants and the
 SHA-2 family from FIPS 205 §11.2 Table 5 are out of scope. Each class
 supports pure SLH-DSA (FIPS 205 §10.1) and HashSLH-DSA (FIPS 205 §10.2, the
 pre-hash variant) across the three signing modes: hedged, deterministic,
@@ -706,7 +706,7 @@ Wrong-length pk / σ / digest also return `false` (FIPS 205 §3.6.2). See
 
 The slhdsa-suites layer wraps `SlhDsaBase` into the `SignatureSuite`
 interface for use with `Sign`, `SignStream`, and `VerifyStream`. Six
-suite consts ship in Phase 2:
+suite consts ship:
 
 - `SlhDsa128fSuite`, `SlhDsa192fSuite`, `SlhDsa256fSuite` for pure
   SLH-DSA (FIPS 205 §10.1).

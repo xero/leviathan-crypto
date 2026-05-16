@@ -22,8 +22,8 @@
 /**
  * sha3 scratch-region wipes across mldsa op boundaries.
  *
- * Every public ML-DSA op that performs sha3 work (phase 4: keygen and
- * keygenDerand; phase 5+: sign, verify, etc.) calls `sx.wipeBuffers()`
+ * Every public ML-DSA op that performs sha3 work (keygen, keygenDerand,
+ * sign, verify, signHash, verifyHash) calls `sx.wipeBuffers()`
  * before returning, under the `_assertNotOwned('sha3')` guard held for
  * the op's duration. After any such op returns, the sha3 module's STATE
  * (200 B @ 0), INPUT (168 B @ 209), and OUT (168 B @ 377) are all zero.

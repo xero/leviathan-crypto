@@ -13,8 +13,8 @@
 //
 // Same carry pattern as polyval's algebraic vectors: the cipher
 // vectors transitively exercise the schedule and round logic; the
-// carried entries are unit-test bisection fixtures for Phase 4b's
-// WASM AES, not verifier load.
+// carried entries are unit-test bisection fixtures for the WASM AES
+// module, not verifier load.
 
 use aes::cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit, array::Array};
 use aes::{Aes128, Aes192, Aes256};
