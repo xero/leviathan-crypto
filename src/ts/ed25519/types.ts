@@ -41,13 +41,15 @@ export interface Ed25519KeyPair {
  * a separate `X25519Exports` view over the same instance.
  */
 export interface Ed25519Exports {
-	memory:                  WebAssembly.Memory
-	getModuleId:             () => number
-	getMemoryPages:          () => number
-	ed25519Keygen:           (seedOff: number, pkOff: number) => void
-	ed25519Sign:             (seedOff: number, pkOff: number, msgOff: number, msgLen: number, sigOff: number) => void
-	ed25519Verify:           (pkOff: number, msgOff: number, msgLen: number, sigOff: number) => number
-	ed25519SignPrehashed:    (seedOff: number, pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => void
-	ed25519VerifyPrehashed:  (pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => number
-	wipeBuffers:             () => void
+	memory:                          WebAssembly.Memory
+	getModuleId:                     () => number
+	getMemoryPages:                  () => number
+	ed25519Keygen:                   (seedOff: number, pkOff: number) => void
+	ed25519Sign:                     (seedOff: number, pkOff: number, msgOff: number, msgLen: number, sigOff: number) => void
+	ed25519Verify:                   (pkOff: number, msgOff: number, msgLen: number, sigOff: number) => number
+	ed25519SignPrehashed:            (seedOff: number, pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => void
+	ed25519VerifyPrehashed:          (pkOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => number
+	ed25519SignInternalPk:           (seedOff: number, msgOff: number, msgLen: number, sigOff: number) => void
+	ed25519SignPrehashedInternalPk:  (seedOff: number, digestOff: number, ctxOff: number, ctxLen: number, sigOff: number) => void
+	wipeBuffers:                     () => void
 }

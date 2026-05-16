@@ -167,8 +167,8 @@ export class Ed25519 {
 		const cap = maxMsgLen(mx.memory);
 		if (M.length > cap)
 			throw new RangeError(
-				`leviathan-crypto: ed25519 message length ${M.length} exceeds the per-call `
-				+ `WASM input scratch (${cap} bytes)`,
+				`leviathan-crypto: ed25519 pure-mode message length ${M.length} exceeds the per-call `
+				+ `WASM input scratch (${cap} bytes); use Ed25519PreHashSuite or SignStream for larger payloads`,
 			);
 		const mem = new Uint8Array(mx.memory.buffer);
 		mem.set(sk, SEED_STAGE);
@@ -202,7 +202,7 @@ export class Ed25519 {
 		sk:     Uint8Array,
 		pk:     Uint8Array,
 		digest: Uint8Array,
-		ctx:    Uint8Array = new Uint8Array(0),
+		ctx:    Uint8Array,
 	): Uint8Array {
 		_assertNotOwned('curve25519');
 		validateSecretKey(sk);
@@ -237,6 +237,72 @@ export class Ed25519 {
 	}
 
 	/**
+	 * Suite-only: pure Ed25519 sign that derives pk internally and skips
+	 * the fault-injection cross-check. Saves one basepoint scalar mult per
+	 * call versus `sign(sk, pk, msg)`. Intended for `Ed25519PureSuite` and
+	 * `Ed25519PrehashSuite.sign` (message-taking path) where the caller
+	 * holds only `sk`. The cross-check is degenerate at those call sites
+	 * because the caller-supplied pk and the WASM-derived pk both come
+	 * from the same call on the same module; direct-class callers who
+	 * hold a stored, known-good pk should keep using `sign(sk, pk, msg)`.
+	 *
+	 * Underscore-prefixed and intentionally undocumented in the public
+	 * API: not part of `docs/ed25519.md`'s API reference.
+	 */
+	_signInternalPk(sk: Uint8Array, M: Uint8Array): Uint8Array {
+		_assertNotOwned('curve25519');
+		validateSecretKey(sk);
+		validateMessage(M);
+		const mx  = this.mx;
+		const cap = maxMsgLen(mx.memory);
+		if (M.length > cap)
+			throw new RangeError(
+				`leviathan-crypto: ed25519 message length ${M.length} exceeds the per-call `
+				+ `WASM input scratch (${cap} bytes); use Ed25519PreHashSuite or SignStream for larger payloads`,
+			);
+		const mem = new Uint8Array(mx.memory.buffer);
+		mem.set(sk, SEED_STAGE);
+		mem.set(M,  MSG_STAGE);
+		try {
+			mx.ed25519SignInternalPk(SEED_STAGE, MSG_STAGE, M.length, SIG_STAGE);
+			return mem.slice(SIG_STAGE, SIG_STAGE + 64);
+		} finally {
+			ioWipe(mx);
+			mx.wipeBuffers();
+		}
+	}
+
+	/**
+	 * Suite-only: Ed25519ph sign that derives pk internally and skips the
+	 * fault-injection cross-check. Companion to `_signInternalPk`; same
+	 * rationale. Intended for `Ed25519PrehashSuite.signPrehashed`.
+	 */
+	_signPrehashedInternalPk(
+		sk:     Uint8Array,
+		digest: Uint8Array,
+		ctx:    Uint8Array,
+	): Uint8Array {
+		_assertNotOwned('curve25519');
+		validateSecretKey(sk);
+		validateDigest(digest);
+		validateContext(ctx);
+		const mx  = this.mx;
+		const mem = new Uint8Array(mx.memory.buffer);
+		mem.set(sk,     SEED_STAGE);
+		mem.set(digest, DIGEST_STAGE);
+		if (ctx.length > 0) mem.set(ctx, CTX_STAGE);
+		try {
+			mx.ed25519SignPrehashedInternalPk(
+				SEED_STAGE, DIGEST_STAGE, CTX_STAGE, ctx.length, SIG_STAGE,
+			);
+			return mem.slice(SIG_STAGE, SIG_STAGE + 64);
+		} finally {
+			ioWipe(mx);
+			mx.wipeBuffers();
+		}
+	}
+
+	/**
 	 * Strict pure Ed25519 verify, RFC 8032 §5.1.7 / FIPS 186-5 §7.6.4.
 	 *
 	 * Returns `true` on success, `false` on every signature failure mode:
@@ -253,8 +319,8 @@ export class Ed25519 {
 		const cap = maxMsgLen(mx.memory);
 		if (M.length > cap)
 			throw new RangeError(
-				`leviathan-crypto: ed25519 message length ${M.length} exceeds the per-call `
-				+ `WASM input scratch (${cap} bytes)`,
+				`leviathan-crypto: ed25519 pure-mode message length ${M.length} exceeds the per-call `
+				+ `WASM input scratch (${cap} bytes); use Ed25519PreHashSuite or SignStream for larger payloads`,
 			);
 		const mem = new Uint8Array(mx.memory.buffer);
 		mem.set(pk,  PK_STAGE);

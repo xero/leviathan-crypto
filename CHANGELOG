@@ -222,11 +222,17 @@
   `sha512.ts` header; future audits re-diff against
   `src/asm/sha2/sha512.ts`.
 
-  Module identity: `getModuleId() = 8`. Memory: 2 pages
-  (131072 bytes), mutable footprint under 4 KB. The TypeScript
+  Module identity: `getModuleId() = 8`. Memory: 4 pages
+  (262144 bytes), mutable footprint under 4 KB. The TypeScript
   layer claims the region above `BUFFER_END` as the I/O staging
   region for caller-supplied inputs and outputs; the WASM never
-  reads or writes that region.
+  reads or writes that region. The 4-page sizing gives the
+  pure-mode `Ed25519Suite` a per-call message ceiling of
+  approximately 248 KB; messages above the ceiling throw
+  `RangeError`. Pure-mode signatures are non-streamable by
+  design; larger payloads use `Ed25519PreHashSuite` plus
+  `SignStream` / `VerifyStream`, which compute SHA-512 at the
+  TypeScript layer and only stage the 64-byte digest in WASM.
 
 - **Ed25519Suite and Ed25519PreHashSuite.** Two new
   SignatureSuite consts wrap Ed25519 into the v3 sign envelope.
@@ -263,6 +269,76 @@
   KeyAgreementError` and distinguish a degenerate exchange from
   a caller-side contract violation (`TypeError` on non-
   `Uint8Array` inputs, `RangeError` on wrong-length inputs).
+
+- **Phase 4 follow-up tightening (post-review).** Six review
+  findings against the Phase 4 Ed25519 surface landed in a
+  single coordinated pass. Each lands a rubric-shaped change
+  Phase 5 (ECDSA-P256) and Phase 6 (classical+PQ hybrids) will
+  copy when they start.
+
+  - **Suite-layer sign refactor.** `Ed25519PureSuite.sign`,
+    `Ed25519PrehashSuite.sign`, and
+    `Ed25519PrehashSuite.signPrehashed` previously called
+    `Ed25519.keygenDerand(sk)` followed by
+    `Ed25519.sign(sk, derivedPk, msg)`, which paid one extra
+    basepoint scalar multiplication per call. Two new WASM
+    exports (`ed25519SignInternalPk`,
+    `ed25519SignPrehashedInternalPk`) and unexported class
+    helpers (`_signInternalPk`, `_signPrehashedInternalPk`)
+    derive pk inside the same WASM call and skip the fault-
+    injection cross-check. The cross-check is degenerate at the
+    suite call site (both pk and the comparator come from the
+    same call on the same module), so suite-level performance
+    improves ~30% without changing the effective trust
+    boundary. Direct `Ed25519.sign(sk, pk, msg)` callers
+    continue to get the cross-check intact.
+
+  - **`verifyPrehashed` digest-length contract.** Every shipped
+    suite (`MlDsa*PreHashSuite`, `SlhDsa*PreHashSuite`,
+    `Ed25519PreHashSuite`, the PQ-only hybrids) now throws
+    `SigningError('sig-malformed-input')` on a wrong-length
+    digest, symmetric with `signPrehashed`. Previously
+    `verifyPrehashed` returned `false`; the asymmetry conflated
+    a caller contract violation with a signature outcome and
+    is the locked rule in `docs/signaturesuite.md`. The hybrid-
+    pq factory keeps `pk.length` and `sig.length` on the soft-
+    fail path (those bytes are wire-derived) and only flips the
+    digest check.
+
+  - **`Ed25519Suite` per-call message cap.** Pure-mode Ed25519
+    cannot stream, and `curve25519.wasm` was previously sized
+    at 2 pages, which gave the pure-mode message-staging region
+    a ~120 KB ceiling that surfaced only as a deep
+    `RangeError`. The module is now 4 pages (256 KB), raising
+    the ceiling to approximately 248 KB. The cap is documented
+    loudly in `docs/ed25519.md`, `docs/signaturesuite.md`, and
+    the `Ed25519Suite` JSDoc, with the recommended path
+    (`Ed25519PreHashSuite` plus `SignStream`) called out.
+
+  - **`sig-ctx-unsupported` discriminator catalogued.** The
+    discriminator that `Ed25519Suite` already threw on non-empty
+    user_ctx is now listed in
+    `docs/signaturesuite.md`'s suite-layer discriminator table
+    and `docs/ed25519.md`'s error reference. Pure-only suites
+    that ship in later phases (Ed448 if it lands) reuse the
+    same discriminator.
+
+  - **`Ed25519.signPrehashed` ctx required.** The `ctx?`
+    default-empty parameter on the public
+    `Ed25519.signPrehashed(sk, pk, digest, ctx)` is dropped;
+    callers must pass an explicit `Uint8Array` (use
+    `new Uint8Array(0)` for no context binding). This matches
+    the suite-layer "ctx is required" rule and removes a
+    quietly-different shape between the class and suite APIs.
+
+  - **`ed25519Wasm` / `x25519Wasm` aliases.** The
+    `leviathan-crypto/ed25519/embedded` and
+    `leviathan-crypto/x25519/embedded` subpaths now export the
+    underlying curve25519 blob under three names:
+    `curve25519Wasm` (canonical), `ed25519Wasm`, and
+    `x25519Wasm` (aliases that read more naturally under each
+    subpath). All three resolve to the identical string; tree-
+    shaking is unaffected.
 
 Migration: none. All additions; no breaking changes from the AES,
 ML-DSA, or curve25519 landings. The v2 → v3 migration items above

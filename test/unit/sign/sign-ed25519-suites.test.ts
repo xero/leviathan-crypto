@@ -247,13 +247,15 @@ describe('Ed25519PreHashSuite digest contract', () => {
 		expect(err.discriminator).toBe('sig-malformed-input');
 	});
 
-	it('verifyPrehashed with wrong-size digest returns false (no throw)', () => {
+	it('verifyPrehashed with wrong-size digest throws sig-malformed-input', () => {
 		const { pk, sk } = Ed25519PreHashSuite.keygen();
 		const digest = new Uint8Array(64).map((_, i) => (i * 23 + 1) & 0xff);
 		const sig = Ed25519PreHashSuite.signPrehashed(sk, digest, EMPTY_CTX);
 		const bad = new Uint8Array(65);
-		expect(Ed25519PreHashSuite.verifyPrehashed(pk, bad, sig, EMPTY_CTX))
-			.toBe(false);
+		const err = captureSigningError(
+			() => Ed25519PreHashSuite.verifyPrehashed(pk, bad, sig, EMPTY_CTX),
+		);
+		expect(err.discriminator).toBe('sig-malformed-input');
 	});
 
 	it('type-level: Ed25519PreHashSuite conforms to StreamableSignatureSuite', () => {

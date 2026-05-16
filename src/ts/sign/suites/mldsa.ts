@@ -213,7 +213,11 @@ function MldsaPrehashSuite(
 			sig:    Uint8Array,
 			ctx:    Uint8Array,
 		): boolean {
-			if (digest.length !== prehashSize) return false;
+			if (digest.length !== prehashSize)
+				throw new SigningError(
+					'sig-malformed-input',
+					`digest length ${digest.length} != expected ${prehashSize} for ${formatName}`,
+				);
 			const effectiveCtx = buildEffectiveCtx(ctxDomain, ctx);
 			const inst = new MlDsaClass();
 			try {

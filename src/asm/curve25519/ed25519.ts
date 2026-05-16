@@ -256,6 +256,63 @@ export function ed25519Sign(seedOff: i32, pkOff: i32, msgOff: i32, msgLen: i32, 
 	wipeAll()
 }
 
+// ── ed25519SignInternalPk pure (RFC 8032 §5.1.6, no fault check) ───────────
+
+/**
+ * Pure-mode sign variant that derives pk from sk internally and uses it
+ * in the hash chain, with NO post-derivation fault-injection comparison.
+ *
+ *   seedOff:  read 32 bytes (Ed25519 secret seed)
+ *   msgOff:   msgLen bytes of message
+ *   msgLen:   message length in bytes
+ *   sigOff:   write 64 bytes (R || s)
+ *
+ * Intended for suite-factory callers (`Ed25519PureSuite`,
+ * `Ed25519PrehashSuite`) where the caller has only `sk` and would otherwise
+ * derive pk in an extra WASM round trip. The public `ed25519Sign` keeps
+ * the fault-injection cross-check; this variant trades that defense for
+ * one fewer basepoint scalar mult per call.
+ *
+ * The cross-check is only meaningful when the caller holds a STORED,
+ * known-good pk (e.g. loaded from disk after a long-term keygen); when
+ * the caller derives pk on the same call from the same sk via the same
+ * WASM module, the comparison is between two outputs of the same
+ * potentially-faulted path and provides no additional defense.
+ *
+ * Wipe coverage identical to ed25519Sign.
+ */
+export function ed25519SignInternalPk(seedOff: i32, msgOff: i32, msgLen: i32, sigOff: i32): void {
+	// Derive (a, prefix); compute pk = compress([a]B) into ED25519_PK_CHECK,
+	// then use that buffer as the pk source in the hash chain. No bytes32Diff.
+	deriveScalarAndPrefix(seedOff)
+	edPointMulBase(ED25519_POINT_A, ED25519_SCALAR_A)
+	edPointCompress(ED25519_PK_CHECK, ED25519_POINT_A)
+
+	// r = SHA-512(prefix || message) mod L
+	sha512Init()
+	sha512UpdateBytes(ED25519_PREFIX, 32)
+	sha512UpdateBytes(msgOff, msgLen)
+	sha512Final()
+	scalarReduce64(ED25519_R_SCALAR, SHA512_OUT_OFFSET)
+
+	// R = [r]B, then encode R into sigOff[0..32]
+	edPointMulBase(ED25519_POINT_R, ED25519_R_SCALAR)
+	edPointCompress(sigOff, ED25519_POINT_R)
+
+	// k = SHA-512(R || pk || message) mod L  (pk from ED25519_PK_CHECK)
+	sha512Init()
+	sha512UpdateBytes(sigOff,           32)
+	sha512UpdateBytes(ED25519_PK_CHECK, 32)
+	sha512UpdateBytes(msgOff,       msgLen)
+	sha512Final()
+	scalarReduce64(ED25519_K_SCALAR, SHA512_OUT_OFFSET)
+
+	// s = (k*a + r) mod L → sigOff[32..64]
+	scalarMulAdd(sigOff + 32, ED25519_K_SCALAR, ED25519_SCALAR_A, ED25519_R_SCALAR)
+
+	wipeAll()
+}
+
 // ── ed25519Verify pure (RFC 8032 §5.1.7 strict) ────────────────────────────
 
 /**
@@ -384,6 +441,55 @@ export function ed25519SignPrehashed(seedOff: i32, pkOff: i32, digestOff: i32, c
 	sha512UpdateBytes(sigOff,    32)
 	sha512UpdateBytes(pkOff,     32)
 	sha512UpdateBytes(digestOff, 64)
+	sha512Final()
+	scalarReduce64(ED25519_K_SCALAR, SHA512_OUT_OFFSET)
+
+	scalarMulAdd(sigOff + 32, ED25519_K_SCALAR, ED25519_SCALAR_A, ED25519_R_SCALAR)
+
+	wipeAll()
+}
+
+// ── ed25519SignPrehashedInternalPk (RFC 8032 §5.1.7, no fault check) ───────
+
+/**
+ * Prehash-mode sign variant that derives pk from sk internally and uses
+ * it in the hash chain, with NO post-derivation fault-injection
+ * comparison. Suite-factory companion to `ed25519SignInternalPk`; same
+ * rationale.
+ *
+ *   seedOff:   read 32 bytes (Ed25519 secret seed)
+ *   digestOff: read 64 bytes (pre-computed SHA-512(message))
+ *   ctxOff:    ctxLen bytes of context (may be empty)
+ *   ctxLen:    0 ≤ ctxLen ≤ 255 (RFC 8032 §5.1 limit); larger aborts
+ *   sigOff:    write 64 bytes (R || s)
+ */
+export function ed25519SignPrehashedInternalPk(seedOff: i32, digestOff: i32, ctxOff: i32, ctxLen: i32, sigOff: i32): void {
+	if (ctxLen > 255) {
+		wipeAll()
+		unreachable()
+	}
+
+	deriveScalarAndPrefix(seedOff)
+	edPointMulBase(ED25519_POINT_A, ED25519_SCALAR_A)
+	edPointCompress(ED25519_PK_CHECK, ED25519_POINT_A)
+
+	// r = SHA-512(dom2(1, ctx) || prefix || digest) mod L
+	sha512Init()
+	dom2Update(ctxOff, ctxLen)
+	sha512UpdateBytes(ED25519_PREFIX, 32)
+	sha512UpdateBytes(digestOff,      64)
+	sha512Final()
+	scalarReduce64(ED25519_R_SCALAR, SHA512_OUT_OFFSET)
+
+	edPointMulBase(ED25519_POINT_R, ED25519_R_SCALAR)
+	edPointCompress(sigOff, ED25519_POINT_R)
+
+	// k = SHA-512(dom2(1, ctx) || R || pk || digest) mod L (pk from ED25519_PK_CHECK)
+	sha512Init()
+	dom2Update(ctxOff, ctxLen)
+	sha512UpdateBytes(sigOff,           32)
+	sha512UpdateBytes(ED25519_PK_CHECK, 32)
+	sha512UpdateBytes(digestOff,        64)
 	sha512Final()
 	scalarReduce64(ED25519_K_SCALAR, SHA512_OUT_OFFSET)
 

@@ -264,7 +264,9 @@ Subpath: `leviathan-crypto/blake3`. See [blake3.md](./blake3.md).
 
 ## Ed25519 / X25519 (Curve25519 family)
 
-Requires `init({ ed25519: curve25519Wasm })` (or equivalently `init({ x25519: curve25519Wasm })`, or `init({ curve25519: curve25519Wasm })`). Both aliases resolve to the same `curve25519` WASM module, which hosts the Ed25519 (RFC 8032) and X25519 (RFC 7748) substrates plus an embedded SHA-512. Scalar (no SIMD); works on every WASM-capable runtime regardless of SIMD support.
+Requires `init({ ed25519: ed25519Wasm })` (or equivalently `init({ x25519: x25519Wasm })`, or `init({ curve25519: curve25519Wasm })`). All three aliases resolve to the same `curve25519` WASM module, which hosts the Ed25519 (RFC 8032) and X25519 (RFC 7748) substrates plus an embedded SHA-512. Scalar (no SIMD); works on every WASM-capable runtime regardless of SIMD support.
+
+The `leviathan-crypto/ed25519/embedded` and `leviathan-crypto/x25519/embedded` subpaths each re-export the same WASM blob under three names: `curve25519Wasm`, `ed25519Wasm`, and `x25519Wasm`. All three resolve to the identical underlying string; pick whichever reads most naturally in the surrounding code.
 
 Subpaths: `leviathan-crypto/ed25519` and `leviathan-crypto/x25519`. See [ed25519.md](./ed25519.md) and [x25519.md](./x25519.md). The `Ed25519PreHashSuite` envelope path additionally requires `init({ sha2: sha2Wasm })` because the message-taking and streaming SHA-512 hashers drive the sha2 module.
 
@@ -272,7 +274,7 @@ Subpaths: `leviathan-crypto/ed25519` and `leviathan-crypto/x25519`. See [ed25519
 |--------|------|-------------|
 | `ed25519Init` | function | Module-scoped init. `ed25519Init(source: WasmSource)` loads the curve25519 WASM under the `curve25519` slot. |
 | `x25519Init` | function | Module-scoped init. `x25519Init(source: WasmSource)` loads the curve25519 WASM under the `curve25519` slot. Calling either `ed25519Init` or `x25519Init` enables both `Ed25519` and `X25519`. |
-| `Ed25519` | class | Ed25519 classical signer (RFC 8032 §5.1, Ed25519). `keygen()`, `keygenDerand(seed)`, `sign(sk, pk, M)`, `signPrehashed(sk, pk, digest, ctx?)`, `verify(pk, M, sig)`, `verifyPrehashed(pk, digest, ctx, sig)`, `dispose()`. Strict verification per FIPS 186-5 §7.6.4, Verification. The sign methods include a fault-injection cross-check; see [ed25519.md](./ed25519.md#fault-injection-defense). |
+| `Ed25519` | class | Ed25519 classical signer (RFC 8032 §5.1, Ed25519). `keygen()`, `keygenDerand(seed)`, `sign(sk, pk, M)`, `signPrehashed(sk, pk, digest, ctx)`, `verify(pk, M, sig)`, `verifyPrehashed(pk, digest, ctx, sig)`, `dispose()`. Strict verification per FIPS 186-5 §7.6.4, Verification. The public sign methods include a fault-injection cross-check that aborts when the caller-supplied pk disagrees with the WASM-derived pk; see [ed25519.md](./ed25519.md#fault-injection-defense). Pure-mode `sign` and `verify` have a per-call message ceiling of approximately 248 KB; use `Ed25519PreHashSuite` plus `SignStream` for larger payloads. |
 | `X25519` | class | X25519 classical Diffie-Hellman (RFC 7748 §5, The X25519 and X448 Functions). `keygen()`, `keygenDerand(sk)`, `dh(sk, peerPk)`, `dispose()`. `dh` throws `KeyAgreementError` on an all-zero shared secret (small-order peer pk per RFC 7748 §6.1, Curve25519). |
 | `Ed25519KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. Both 32 bytes; `secretKey` is the RFC 8032 §5.1.5, key generation, seed. |
 | `X25519KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. Both 32 bytes; `secretKey` is opaque 32 random bytes (not pre-clamped). |

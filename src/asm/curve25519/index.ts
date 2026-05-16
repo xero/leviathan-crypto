@@ -30,7 +30,12 @@
 // TASK-C will compose Ed25519 high-level keygen / sign / verify on this
 // substrate; TASK-D will compose X25519 keygen / DH.
 //
-// Module ID 8 (the 11th WASM binary; 2 memory pages).
+// Module ID 8 (the 11th WASM binary; 4 memory pages). The 4-page sizing
+// gives the TS layer's pure-mode message-staging region enough headroom
+// to handle realistic in-memory pure-Ed25519 messages (cap ~248 KB).
+// Prehash-mode signatures (`Ed25519PreHashSuite` + `SignStream`) never
+// stage the message in WASM at all - the digest is computed at the TS
+// layer and only 64 bytes cross the WASM boundary.
 //
 // Scalar (no v128). The dalek-cryptography parallel-formulas approach
 // (eprint 2018/098) pairs the eight independent field multiplications
@@ -108,6 +113,8 @@ export {
 	ed25519Verify,
 	ed25519SignPrehashed,
 	ed25519VerifyPrehashed,
+	ed25519SignInternalPk,
+	ed25519SignPrehashedInternalPk,
 } from './ed25519'
 
 // ── X25519 high-level operations (TASK-D) ──────────────────────────────────

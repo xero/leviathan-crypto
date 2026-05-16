@@ -270,6 +270,25 @@ These are decisions already made. Do not relitigate them without raising it firs
   follow this pattern (Phase 1 ML-DSA pure and prehash, Phase 2 SLH-DSA pure
   and prehash, Phase 2 PQ-only hybrids, Phase 4 Ed25519 pure and prehash);
   future phase factories (ECDSA-P256, classical+PQ hybrids) do the same.
+  Suite factories that wrap a primitive whose sign path needs pk for the
+  hash chain (RFC 8032 Ed25519, ECDSA-P256, anything that runs `R || pk || M`
+  through a digest) route through an unexported `_signInternalPk` /
+  `_signPrehashedInternalPk` helper on the primitive class that derives pk
+  inside the same WASM call and skips the fault-injection cross-check. The
+  cross-check is degenerate at the suite call site because the caller-supplied
+  pk and the WASM-derived pk both come from the same call on the same
+  potentially-faulted module. Direct-class callers keep the public
+  `sign(sk, pk, ...)` entry point with the fault-injection comparison intact
+  for callers who hold a stored, known-good pk (e.g. loaded from disk).
+- **`verifyPrehashed` digest-length contract**: every suite implementing
+  `StreamableSignatureSuite.verifyPrehashed` throws
+  `SigningError('sig-malformed-input')` on wrong-length digest, symmetric
+  with `signPrehashed`. Digest length is a caller-side contract (the caller
+  computed it via the suite's locked `prehashAlgorithm`), not a
+  signature-validity outcome, so the throw is the locked rule. The hybrid-pq
+  factory keeps wire-derived length checks (`pk.length`, `sig.length`) on the
+  soft-fail path because those bytes are attacker-observable; only the digest
+  check throws.
 - **PQ-only hybrid suite factory pattern**: hybrid suite factories under
   `src/ts/sign/suites/hybrid-pq.ts` compose two underlying signature
   primitives (currently ML-DSA + SLH-DSA at matching NIST categories).

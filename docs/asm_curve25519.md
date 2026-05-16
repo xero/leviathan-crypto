@@ -38,9 +38,13 @@ Key properties of this implementation:
 memory. The AssemblyScript compiler reserves offsets 0..4095 for
 its data segment; mutable regions start at offset 4096
 (`MUTABLE_START`) and end at offset 7836 (`BUFFER_END`). Total
-memory is 2 pages (131072 bytes), with the mutable footprint
+memory is 4 pages (262144 bytes), with the mutable footprint
 under 4 KB and the remainder reserved for the TypeScript layer's
-I/O staging region.
+I/O staging region. The 4-page sizing gives the pure-mode
+`Ed25519Suite` per-call message ceiling of approximately 248 KB;
+the prehash mode (`Ed25519PreHashSuite` plus `SignStream` /
+`VerifyStream`) computes SHA-512 at the TypeScript layer and only
+stages the 64-byte digest in WASM, so it has no message ceiling.
 
 **Scalar (no v128).** Curve25519 ships without WebAssembly SIMD.
 The dalek-cryptography parallel-formulas approach (eprint
@@ -113,7 +117,7 @@ Offset    Size     Region
 7612      160      ED25519_POINT_TMP2
 7772      32       X25519_SCALAR_CLAMP (clamped X25519 scalar)
 7804      32       BASEPOINT_U      (Curve25519 basepoint u-coord, RFC 7748 §4.1)
-BUFFER_END = 7836 (< 65536 = 1 page; module sized at 2 pages for the
+BUFFER_END = 7836 (< 65536 = 1 page; module sized at 4 pages for the
                    TypeScript layer's I/O staging region above)
 ```
 

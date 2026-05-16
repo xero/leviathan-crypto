@@ -22,8 +22,13 @@
 // src/ts/ed25519/embedded.ts
 //
 // Exports the gzip+base64 curve25519 WASM blob for use as a WasmSource.
-// Ed25519 and X25519 share the same curve25519 WASM binary; both
+// Ed25519 and X25519 share the same curve25519 WASM binary; both the
 // `leviathan-crypto/ed25519/embedded` and `leviathan-crypto/x25519/embedded`
-// re-export the same blob under the canonical name `curve25519Wasm`.
-// Import via `leviathan-crypto/ed25519/embedded`.
-export { WASM_GZ_BASE64 as curve25519Wasm } from '../embedded/curve25519.js';
+// subpaths re-export the same blob under three names: `curve25519Wasm`
+// (canonical), `ed25519Wasm`, and `x25519Wasm` (aliases that read more
+// naturally in the matching subpath context). All three resolve to the
+// identical underlying string; tree-shaking is unaffected.
+export {
+	WASM_GZ_BASE64 as curve25519Wasm,
+	WASM_GZ_BASE64 as ed25519Wasm,
+} from '../embedded/curve25519.js';

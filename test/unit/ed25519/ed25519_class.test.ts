@@ -190,7 +190,7 @@ describe('Ed25519ph prehash', () => {
 			const pk     = hexToBytes(phVec.pkHex);
 			const msg    = hexToBytes(phVec.msgHex);
 			const digest = createHash('sha512').update(msg).digest();
-			const sig    = ed.signPrehashed(sk, pk, new Uint8Array(digest));
+			const sig    = ed.signPrehashed(sk, pk, new Uint8Array(digest), new Uint8Array(0));
 			expect(bytesToHex(sig)).toBe(phVec.sigHex);
 		} finally {
 			ed.dispose();
@@ -237,6 +237,60 @@ describe('Ed25519 input validation', () => {
 		try {
 			expect(() => ed.sign('not bytes' as unknown as Uint8Array, new Uint8Array(32), new Uint8Array(0)))
 				.toThrow(TypeError);
+		} finally {
+			ed.dispose();
+		}
+	});
+});
+
+describe('Ed25519 _signInternalPk / _signPrehashedInternalPk (suite helpers)', () => {
+	it('_signInternalPk reproduces RFC 8032 §7.1 TEST 1 byte-for-byte', () => {
+		const ed = new Ed25519();
+		try {
+			const sk  = hexToBytes(pureVecs[0].skHex);
+			const msg = hexToBytes(pureVecs[0].msgHex);
+			const sig = ed._signInternalPk(sk, msg);
+			expect(bytesToHex(sig)).toBe(pureVecs[0].sigHex);
+		} finally {
+			ed.dispose();
+		}
+	});
+
+	it('_signInternalPk output equals sign(sk, derivedPk, msg) for fresh keypairs', () => {
+		const ed = new Ed25519();
+		try {
+			const { publicKey, secretKey } = ed.keygen();
+			const msg = new TextEncoder().encode('internal-pk equivalence');
+			const sigInternal = ed._signInternalPk(secretKey, msg);
+			const sigExternal = ed.sign(secretKey, publicKey, msg);
+			expect(bytesToHex(sigInternal)).toBe(bytesToHex(sigExternal));
+		} finally {
+			ed.dispose();
+		}
+	});
+
+	it('_signPrehashedInternalPk reproduces RFC 8032 §7.3 TEST abc byte-for-byte', () => {
+		const ed = new Ed25519();
+		try {
+			const sk     = hexToBytes(phVec.skHex);
+			const msg    = hexToBytes(phVec.msgHex);
+			const digest = new Uint8Array(createHash('sha512').update(msg).digest());
+			const sig    = ed._signPrehashedInternalPk(sk, digest, new Uint8Array(0));
+			expect(bytesToHex(sig)).toBe(phVec.sigHex);
+		} finally {
+			ed.dispose();
+		}
+	});
+
+	it('_signPrehashedInternalPk output equals signPrehashed(sk, derivedPk, digest, ctx)', () => {
+		const ed = new Ed25519();
+		try {
+			const { publicKey, secretKey } = ed.keygen();
+			const digest = new Uint8Array(64).map((_, i) => (i * 31 + 7) & 0xff);
+			const ctx    = new TextEncoder().encode('ph-equivalence');
+			const sigInternal = ed._signPrehashedInternalPk(secretKey, digest, ctx);
+			const sigExternal = ed.signPrehashed(secretKey, publicKey, digest, ctx);
+			expect(bytesToHex(sigInternal)).toBe(bytesToHex(sigExternal));
 		} finally {
 			ed.dispose();
 		}

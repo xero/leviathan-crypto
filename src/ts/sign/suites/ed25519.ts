@@ -98,8 +98,7 @@ function Ed25519PureSuite(
 				);
 			const inst = new Ed25519();
 			try {
-				const pair = inst.keygenDerand(sk);
-				return inst.sign(pair.secretKey, pair.publicKey, msg);
+				return inst._signInternalPk(sk, msg);
 			} finally {
 				inst.dispose();
 			}
@@ -174,8 +173,7 @@ function Ed25519PrehashSuite(
 			const digest = sha512OneShot(msg);
 			const inst = new Ed25519();
 			try {
-				const pair = inst.keygenDerand(sk);
-				return inst.signPrehashed(pair.secretKey, pair.publicKey, digest, effectiveCtx);
+				return inst._signPrehashedInternalPk(sk, digest, effectiveCtx);
 			} finally {
 				inst.dispose();
 			}
@@ -220,8 +218,7 @@ function Ed25519PrehashSuite(
 			const effectiveCtx = buildEffectiveCtx(ctxDomain, ctx);
 			const inst = new Ed25519();
 			try {
-				const pair = inst.keygenDerand(sk);
-				return inst.signPrehashed(pair.secretKey, pair.publicKey, digest, effectiveCtx);
+				return inst._signPrehashedInternalPk(sk, digest, effectiveCtx);
 			} finally {
 				inst.dispose();
 			}
@@ -233,7 +230,11 @@ function Ed25519PrehashSuite(
 			sig:    Uint8Array,
 			ctx:    Uint8Array,
 		): boolean {
-			if (digest.length !== prehashSize) return false;
+			if (digest.length !== prehashSize)
+				throw new SigningError(
+					'sig-malformed-input',
+					`digest length ${digest.length} != expected ${prehashSize} for ${formatName}`,
+				);
 			const effectiveCtx = buildEffectiveCtx(ctxDomain, ctx);
 			const inst = new Ed25519();
 			try {

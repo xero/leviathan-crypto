@@ -141,9 +141,12 @@ export interface StreamableSignatureSuite extends SignatureSuite {
 	): Uint8Array;
 
 	/**
-	 * Verify a precomputed-digest signature. Returns false on digest
-	 * length mismatch or signature failure. Throws SigningError on
-	 * contract violations (wrong-size key, ctx too long).
+	 * Verify a precomputed-digest signature. Returns false on signature
+	 * failure (including malformed signature encoding). Throws SigningError
+	 * on contract violations: wrong-size key, ctx too long, or wrong-size
+	 * digest (`sig-malformed-input`). The digest length is a caller-side
+	 * contract; symmetric with `signPrehashed` which throws on the same
+	 * condition.
 	 */
 	verifyPrehashed(
 		pk: Uint8Array,

@@ -117,21 +117,24 @@ Pure Ed25519 has no native context parameter. The suite carries a built-in `ctxD
 
 Pure Ed25519 is deterministic per RFC 8032 §5.1.6: the per-signature nonce `r = SHA-512(prefix || M)` is fully determined by the secret seed and the message. Two `Ed25519Suite.sign` calls over the same `(sk, msg)` return byte-identical signatures. This is a property of the spec, not a hedged-vs-deterministic policy choice; the suite cannot be configured to behave otherwise.
 
+> [!IMPORTANT]
+> `Ed25519Suite` has a per-call message ceiling of approximately 248 KB, the WASM module's static input-staging cap. Messages above the ceiling throw `RangeError`. Pure-mode signatures are non-streamable by design (`Ed25519Suite` does not implement `StreamableSignatureSuite`, so `SignStream(Ed25519Suite, ...)` is a compile-time error). Larger payloads must use `Ed25519PreHashSuite` (0x11) with `Sign` or `SignStream`; the prehash path computes SHA-512 at the TypeScript layer and only stages the 64-byte digest in WASM.
+
 #### Ed25519PreHashSuite (prehash, Ed25519ph)
 
 `Ed25519PreHashSuite` covers Ed25519ph, RFC 8032 §5.1.7, signature verification. Satisfies `StreamableSignatureSuite` and plugs into `SignStream` / `VerifyStream`. The prehash algorithm is fixed at SHA-512 (`prehashAlgorithm: 'sha-512'`, `prehashSize: 64`); Ed25519ph permits no other hash function per the spec, so there is no parameterization to expose.
 
 The suite binds context through the WASM substrate's dom2(F=1, effective_ctx) prefix. The factory calls `buildEffectiveCtx(ctxDomain, user_ctx)` once per sign or verify and passes the result to `ed25519SignPrehashed` / `ed25519VerifyPrehashed` as the WASM ctx parameter; the substrate hashes `'SigEd25519 no Ed25519 collisions' || 0x01 || |effective_ctx| || effective_ctx` into both SHA-512 inputs that produce r and k.
 
-The message-taking `sign(sk, msg, ctx)` and `verify(pk, msg, sig, ctx)` paths route through `sha512OneShot(msg)` from `src/ts/sign/hasher.ts`, which drives the sha2 WASM module. The streaming path through `SignStream` / `VerifyStream` uses `createRunningHash('sha-512')`, which constructs a `SHA512Stream` from the sha2 module. Both paths drive sha2, not the curve25519-embedded SHA-512; the embedded copy covers dom2 prefixing inside the WASM and is not exposed at the ABI.
+The message-taking `sign(sk, msg, ctx)` and `verify(pk, msg, sig, ctx)` paths route through `sha512OneShot(msg)` from `src/ts/sign/hasher.ts`, which drives the sha2 WASM module. The streaming path through `SignStream` / `VerifyStream` uses `createRunningHash('sha-512')`, which constructs a buffered shim (`sha512Buffered` in `src/ts/sign/hasher.ts`) over the one-shot `SHA512` class; chunks are copied and concatenated at `finalize()` so the output is byte-identical to a one-shot SHA-512 over the full message. Both paths drive sha2, not the curve25519-embedded SHA-512; the embedded copy covers dom2 prefixing inside the WASM and is not exposed at the ABI.
 
 `Ed25519PreHashSuite.wasmModules` is `['curve25519', 'sha2']` so consumers know to call `init({ ed25519: curve25519Wasm, sha2: sha2Wasm })` (or the equivalent subpath inits) before using the suite. `Ed25519Suite.wasmModules` is `['curve25519']` alone; pure mode does not touch sha2.
 
 #### Fault-injection defense
 
-Both Ed25519 suites inherit the curve25519 module's fault-injection defence on the sign path. The suite layer calls `Ed25519.sign(sk, pk, M)` with a `pk` re-derived from sk via `Ed25519.keygenDerand(sk)`; the WASM then re-derives pk a second time internally and aborts via `unreachable` if the value differs from the caller-supplied buffer. The TypeScript wrapper catches the resulting `WebAssembly.RuntimeError` and rethrows as `SigningError('sig-malformed-input', ...)`.
+The fault-injection defence lives on the direct `Ed25519.sign(sk, pk, M)` and `Ed25519.signPrehashed(sk, pk, digest, ctx)` class entry points, where the WASM re-derives pk from sk and aborts via `unreachable` if it does not match the caller-supplied pk. The TypeScript wrapper catches the resulting `WebAssembly.RuntimeError` and rethrows as `SigningError('sig-malformed-input', ...)`. The defence is meaningful only for callers who hold a stored, known-good pk (loaded from disk after a long-term keygen).
 
-The cost is one extra Edwards scalar multiplication per sign, roughly 5ms at parameter-set sizes. Verifies are unaffected (verify operates on public inputs, no fault-injection surface there). The defence sits between the TypeScript-level `keygenDerand` and the WASM-level re-derivation; a fault that flips bits in the seed-to-prefix derivation has to flip the same bits in both passes to evade the check, which removes any advantage from a sk-only fault.
+The Ed25519 suite consts route through the unexported `_signInternalPk` / `_signPrehashedInternalPk` helpers on the `Ed25519` class, which derive pk inside the same WASM call and skip the cross-check. At the suite call site the comparison would be between two outputs of the same potentially-faulted module on the same call, so the defence collapses to no defence; skipping it saves one basepoint scalar multiplication per sign on the hot path that every `Sign` and `SignStream` invocation traverses. Callers who care about the fault-injection defence should drop down to `Ed25519` directly with their stored pk; callers who are content to derive pk from sk per call (the suite-layer story) accept the same trust boundary as a stored-pk caller who never validated their stored pk.
 
 See [ed25519.md](./ed25519.md#fault-injection-defense) for the underlying threat model and [ed25519_audit.md](./ed25519_audit.md#fault-injection-defense) for the audit checklist.
 
@@ -434,7 +437,8 @@ Every signing-layer failure throws `SigningError(discriminator, message?)`. The 
 |-------------------------|-------------------|---------|
 | `sig-key-size`          | suite             | Wrong-length sk or pk for the suite. |
 | `sig-ctx-too-long`      | suite             | `user_ctx` exceeds 200 bytes. |
-| `sig-malformed-input`   | suite             | Primitive validation failure, for example a wrong-length digest in `signPrehashed`. |
+| `sig-ctx-unsupported`   | suite             | Non-empty `user_ctx` passed to a suite with no native context parameter (`Ed25519Suite`, pure-mode 0x01). Pure RFC 8032 §5.1.6 Ed25519 has no ctx; context-bound signing must use `Ed25519PreHashSuite` (0x11) via dom2(F=1, ctx). Future pure-only suites (e.g. Ed448) reuse the same discriminator. |
+| `sig-malformed-input`   | suite             | Primitive validation failure, for example a wrong-length digest in `signPrehashed` or `verifyPrehashed` (both throw symmetrically). |
 | `sig-blob-too-short`    | envelope          | `Sign.verify` blob shorter than `2 + suite.sigSize`. |
 | `sig-suite-unknown`     | envelope          | Wire `suite_byte` is not in the catalog. Reserved; Phase 1 callers pass the suite explicitly, so this discriminator does not fire today. |
 | `sig-suite-mismatch`    | envelope, stream  | Wire `suite_byte` does not equal the caller's `suite.formatEnum`. |
