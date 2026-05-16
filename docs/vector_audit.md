@@ -78,6 +78,117 @@ Each AES target reads its respective KAT file and asserts byte-for-byte agreemen
 - SigGen: the verifier rebuilds M' per (signatureInterface, preHash, externalMu) per FIPS 204 §6.2 / §5.4 and calls `sign_internal(&[M'], &rnd)` (or `sign_mu_*` for externalMu). Deterministic mode passes the all-zero 32-byte vector as rnd; hedged signing checks against ACVP's published per-record rnd.
 - SigVer: `VerifyingKey::decode(pk_bytes)` plus `Signature::decode(...)`, then `verify_internal(&M', &sig)` (or `verify_mu(mu, &sig)`). The boolean result compares to ACVP `testPassed`. The pinned rc.9 sits on the patched side of GHSA-5x2r-hc65-25f9 (sigVer previously accepted hint vectors with non-strictly-increasing indices), so hint-malleability rejection records validate cleanly.
 
+**Ed25519 and X25519 (RFC 8032 / RFC 7748).** Verified against:
+
+- ed25519-dalek 2.2.0 (dalek-cryptography organisation).
+- x25519-dalek 2.0.1 (dalek-cryptography organisation).
+- curve25519-dalek 4.1.3 (dalek-cryptography organisation), pinned
+  explicitly so the curve arithmetic crate is part of the audit
+  surface rather than left to whatever happens to satisfy the open
+  `^4` bound at build time.
+
+dalek-cryptography is the first verifier lineage outside the RustCrypto
+organisation and outside tiny-keccak. The choice is driven by what
+exists, not preference: ed25519-dalek and x25519-dalek are the de
+facto reference Rust implementations of their respective primitives
+and the only widely-audited independent stacks for Curve25519
+arithmetic. RustCrypto's `ed25519` crate is a trait-only crate (it
+defines `Signer<Signature>` and the encoded-signature shape) and does
+not ship its own EdDSA implementation; RustCrypto has no first-party
+X25519 crate at all. Selecting dalek keeps the verifier on a
+maintained, independently-developed stack while preserving the "no
+shared source with leviathan-crypto's WASM" property that the other
+oracles rely on.
+
+The Ed25519 verifier reads four files: `ed25519.ts` (RFC 8032 §7 KATs,
+4 pure + 1 prehash, transcribed by hand from the RFC text and run
+first as the gate), `ed25519_keygen.ts`, `ed25519_siggen.ts`, and
+`ed25519_sigver.ts` (ACVP EDDSA-1.0 records filtered to the ed25519
+curve only; ed448 is out of scope for v3). Per-record dispatch:
+
+- keyGen: `SigningKey::from_bytes(&seed)` and compare
+  `.verifying_key().to_bytes()` to ACVP `q`.
+- sigGen pure: `SigningKey::sign(&message)` and compare to ACVP
+  `signature`. The ed25519 sigGen corpus has context length 0 in
+  every preHash=false record, so the verifier routes them through
+  the bare `sign` path and never touches the (dalek-2.x-unavailable)
+  Ed25519ctx signing API.
+- sigGen prehash: build a `sha2::Sha512` digest pre-updated with
+  the message and call `SigningKey::sign_prehashed(prehashed,
+  Some(&context))`. Context may be empty.
+- sigVer: `VerifyingKey::verify_strict` (pure) /
+  `VerifyingKey::verify_prehashed_strict` (prehash). The boolean
+  result is compared to ACVP `testPassed`.
+
+**Strict-verification posture.** The verifier uses the `_strict`
+variants exclusively, matching RFC 8032 §5.1.7 cofactored
+verification, FIPS 186-5 §7.6.4, and ACVP `testPassed` semantics.
+`_strict` rejects mixed-order public keys, small-order public keys,
+and non-canonical scalars S; the non-strict `verify` would diverge
+from `testPassed` on records that exercise those edge cases. The
+RFC 8032 §7 gate corpus runs first; if it fails the ACVP corpus is
+skipped (a transcription or oracle problem would otherwise look like
+"signing works for some records but not others", which is a confusing
+failure mode).
+
+The X25519 verifier reads `x25519.ts` (RFC 7748 §5 iterated KATs at
+iter=1 and iter=1000, plus the §6.1 Diffie-Hellman exchange between
+Alice and Bob; iter=1000000 is omitted from the corpus, the runtime
+is too long for a CI-fast verifier and the iter=1000 case already
+catches the same correctness bugs). Per-record dispatch:
+
+- Exchange: both directions of the DH must yield the same shared
+  secret and must equal the RFC value;
+  `StaticSecret::from(alice_sk).diffie_hellman(&PublicKey::from(bob_pk))`
+  and the symmetric Bob-from-Alice path are computed, both compared
+  to `shared`, and the round-trip
+  `StaticSecret::from(alice_sk) → PublicKey` is checked against
+  `alicePk` (and similarly for Bob) so the clamp + scalar-mult path
+  is exercised, not just the final shared-secret bytes.
+- Iterated: implement the RFC 7748 §5.2 loop in Rust over
+  `x25519_dalek::x25519(scalar, u)` (the standalone primitive, not
+  the Diffie-Hellman wrapper).
+
+**X25519 all-zero shared secret.** x25519-dalek does NOT reject the
+all-zero shared secret at the function-call level; the spec's §6
+small-order rejection is the consumer's responsibility, and the RFC
+explicitly allows that check to be performed by the application
+above the primitive. The verifier's job here is byte agreement on
+the raw scalar-mult output. Rejection-of-degenerate-public-keys is
+exercised separately at the TypeScript layer in TASK-E onward, where
+the leviathan-crypto wrapper checks for the all-zero shared secret
+and throws.
+
+Provenance for the five new files is recorded inline:
+
+- RFC 8032: `https://www.rfc-editor.org/rfc/rfc8032.txt` (consumed
+  by `ed25519.ts`; 4 §7.1 records + 1 §7.3 record, hand-transcribed).
+- RFC 7748: `https://www.rfc-editor.org/rfc/rfc7748.txt` (consumed
+  by `x25519.ts`; §6.1 exchange + §5 iter=1 + §5 iter=1000,
+  hand-transcribed).
+- ACVP EDDSA-KeyGen-1.0:
+  `https://github.com/usnistgov/ACVP-Server/tree/15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0/gen-val/json-files/EDDSA-KeyGen-1.0`
+  (consumed by `ed25519_keygen.ts`; 3 ed25519 AFT records;
+  ed448 records filtered out at transcription time).
+- ACVP EDDSA-SigGen-1.0:
+  `https://github.com/usnistgov/ACVP-Server/tree/15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0/gen-val/json-files/EDDSA-SigGen-1.0`
+  (consumed by `ed25519_siggen.ts`; 84 ed25519 records across 4
+  groups: AFT pure 10, AFT prehash 10, BFT pure 32, BFT prehash 32).
+- ACVP EDDSA-SigVer-1.0:
+  `https://github.com/usnistgov/ACVP-Server/tree/15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0/gen-val/json-files/EDDSA-SigVer-1.0`
+  (consumed by `ed25519_sigver.ts`; 10 ed25519 records, mixed
+  pass/fail per `testPassed`, 5 AFT pure + 5 AFT prehash).
+
+The ACVP-Server commit hash `15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0`
+is the same snapshot already pinned for the SLH-DSA corpus
+(slhdsa_keygen.ts, slhdsa_siggen.ts, slhdsa_sigver.ts). The
+internalProjection.json files at this commit declare
+`algorithm=EDDSA mode=keyGen|sigGen|sigVer revision=1.0`. FIPS 186-5
+codifies EdDSA at the standards level but the ACVP-Server checkout
+on disk does not currently expose an `EDDSA-...-FIPS186-5` directory;
+the 1.0 corpus is the on-disk authority. Provenance follows the
+on-disk state.
+
 **KMAC and cSHAKE (SP 800-185).** Verified against:
 - tiny-keccak's KMAC and cSHAKE implementations.
 

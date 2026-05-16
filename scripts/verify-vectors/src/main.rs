@@ -62,6 +62,8 @@ mod mldsa;
 mod slhdsa;
 mod hybrid_pq;
 mod blake3;
+mod ed25519;
+mod x25519;
 
 const GREEN: &str = "\x1b[32m";
 const RED:   &str = "\x1b[31m";
@@ -521,6 +523,180 @@ fn run_blake3(use_color: bool, mode: blake3::BlakeXofMode) -> bool {
     println!(
         "BLAKE3: {} ok, {} failed (out of {} total, 3 modes × {} records)",
         count_ok, count_fail, count_ok + count_fail, vectors.len(),
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Ed25519 dispatcher (RFC 8032 §7 gate + ACVP EDDSA-1.0 ed25519-only).
+// Reads four .ts files: ed25519.ts (gate, 4 pure + 1 ph from RFC 8032),
+// ed25519_keygen.ts, ed25519_siggen.ts, ed25519_sigver.ts. RFC corpus
+// is run first as the gate; the ACVP corpus runs after.
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_ed25519(use_color: bool) -> bool {
+    let rfc_path = vector_path("ed25519.ts");
+    let kg_path  = vector_path("ed25519_keygen.ts");
+    let sg_path  = vector_path("ed25519_siggen.ts");
+    let sv_path  = vector_path("ed25519_sigver.ts");
+    print_section("Ed25519, RFC 8032 §7 gate + ACVP EDDSA-1.0 (keyGen + sigGen + sigVer, ed25519 only)");
+
+    println!("Reading RFC 8032 §7 gate from {}",      rfc_path.display());
+    println!("Reading keygen vectors from   {}",      kg_path.display());
+    println!("Reading sigGen vectors from   {}",      sg_path.display());
+    println!("Reading sigVer vectors from   {}\n",    sv_path.display());
+
+    let rfc_src = match fs::read_to_string(&rfc_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", rfc_path.display(), e))); return false; }
+    };
+    let kg_src = match fs::read_to_string(&kg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", kg_path.display(), e))); return false; }
+    };
+    let sg_src = match fs::read_to_string(&sg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sg_path.display(), e))); return false; }
+    };
+    let sv_src = match fs::read_to_string(&sv_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sv_path.display(), e))); return false; }
+    };
+
+    let rfc_vecs   = ed25519::parse_rfc8032_vectors(&rfc_src);
+    let keygen     = parse::parse_ed25519_keygen_array(&kg_src, "ed25519_keygen");
+    let siggen_tg1 = parse::parse_ed25519_siggen_array(&sg_src, "ed25519_siggen_tg1");
+    let siggen_tg2 = parse::parse_ed25519_siggen_array(&sg_src, "ed25519_siggen_tg2");
+    let siggen_tg5 = parse::parse_ed25519_siggen_array(&sg_src, "ed25519_siggen_tg5");
+    let siggen_tg7 = parse::parse_ed25519_siggen_array(&sg_src, "ed25519_siggen_tg7");
+    let sigver_tg1 = parse::parse_ed25519_sigver_array(&sv_src, "ed25519_sigver_tg1");
+    let sigver_tg2 = parse::parse_ed25519_sigver_array(&sv_src, "ed25519_sigver_tg2");
+
+    println!(
+        "Parsed: RFC §7 = {}, ACVP keygen = {}, sigGen tg1/tg2/tg5/tg7 = {}/{}/{}/{}, sigVer tg1/tg2 = {}/{}\n",
+        rfc_vecs.len(), keygen.len(),
+        siggen_tg1.len(), siggen_tg2.len(), siggen_tg5.len(), siggen_tg7.len(),
+        sigver_tg1.len(), sigver_tg2.len(),
+    );
+
+    // Empty-array guard: a successful parse always returns >0 vectors
+    // for every published export. A zero count means an export-name
+    // mismatch or a corpus shape change and would silently pass
+    // otherwise.
+    let parsed_lens: [(&str, usize); 8] = [
+        ("ed25519Vectors (RFC §7)", rfc_vecs.len()),
+        ("ed25519_keygen",          keygen.len()),
+        ("ed25519_siggen_tg1",      siggen_tg1.len()),
+        ("ed25519_siggen_tg2",      siggen_tg2.len()),
+        ("ed25519_siggen_tg5",      siggen_tg5.len()),
+        ("ed25519_siggen_tg7",      siggen_tg7.len()),
+        ("ed25519_sigver_tg1",      sigver_tg1.len()),
+        ("ed25519_sigver_tg2",      sigver_tg2.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more Ed25519 arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+
+    // Gate first: RFC 8032 §7. If this fails, the ACVP corpus is
+    // exercising the wrong primitive and there is no point continuing.
+    let mut gate_ok = true;
+    for v in &rfc_vecs {
+        let (ok, log) = ed25519::verify_rfc8032(v);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            gate_ok = false;
+        }
+    }
+    if !gate_ok {
+        eprintln!("{}", colorize(use_color, RED, "✗ RFC 8032 §7 gate failed, halting Ed25519 run"));
+        println!(
+            "Ed25519: {} ok, {} failed (out of {} total, gate-only)",
+            count_ok, count_fail, count_ok + count_fail,
+        );
+        return false;
+    }
+
+    {
+        let mut run = |ok: bool, log: Vec<String>| {
+            if !ok {
+                print_log(&log, use_color);
+                println!();
+                count_fail += 1;
+                all_ok = false;
+            } else {
+                count_ok += 1;
+            }
+        };
+
+        for v in &keygen     { let (ok, log) = ed25519::verify_ed25519_keygen(v); run(ok, log); }
+        for v in &siggen_tg1 { let (ok, log) = ed25519::verify_ed25519_siggen(v); run(ok, log); }
+        for v in &siggen_tg2 { let (ok, log) = ed25519::verify_ed25519_siggen(v); run(ok, log); }
+        for v in &siggen_tg5 { let (ok, log) = ed25519::verify_ed25519_siggen(v); run(ok, log); }
+        for v in &siggen_tg7 { let (ok, log) = ed25519::verify_ed25519_siggen(v); run(ok, log); }
+        for v in &sigver_tg1 { let (ok, log) = ed25519::verify_ed25519_sigver(v); run(ok, log); }
+        for v in &sigver_tg2 { let (ok, log) = ed25519::verify_ed25519_sigver(v); run(ok, log); }
+    }
+
+    println!(
+        "Ed25519: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// X25519 dispatcher (RFC 7748 §5 iterated + §6.1 Diffie-Hellman).
+// Reads one .ts file: x25519.ts (Alice/Bob exchange + iter=1 + iter=1000).
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_x25519(use_color: bool) -> bool {
+    let path = vector_path("x25519.ts");
+    print_section("X25519, RFC 7748 §5 iterated + §6.1 Diffie-Hellman");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e)));
+            return false;
+        }
+    };
+    let vectors = x25519::parse_x25519_vectors(&src);
+    println!("Parsed {} vectors\n", vectors.len());
+    if vectors.is_empty() {
+        eprintln!("{}", colorize(use_color, RED, "✗ no x25519 vectors parsed"));
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+    for v in &vectors {
+        let (ok, log) = x25519::verify_one(v);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
+    }
+    println!(
+        "X25519: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
     );
     all_ok
 }
@@ -1136,6 +1312,10 @@ enum CipherSel {
     Xchacha, Serpent, AesSeal, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
     Mlkem, Mldsa, Slhdsa, HybridPq, Kmac, Blake3,
+    // Curve25519 family. `Curve25519` is a meta-selector that runs
+    // both `ed25519` and `x25519`; it does not have a dispatcher of
+    // its own.
+    Ed25519, X25519, Curve25519,
     All,
 }
 
@@ -1159,8 +1339,11 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "hybrid-pq"   => Ok(CipherSel::HybridPq),
         "kmac"        => Ok(CipherSel::Kmac),
         "blake3"      => Ok(CipherSel::Blake3),
+        "ed25519"     => Ok(CipherSel::Ed25519),
+        "x25519"      => Ok(CipherSel::X25519),
+        "curve25519"  => Ok(CipherSel::Curve25519),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, blake3, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, blake3, ed25519, x25519, curve25519, all)")),
     }
 }
 
@@ -1176,14 +1359,15 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|blake3|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|blake3|ed25519|x25519|curve25519|all]");
     eprintln!("                       [--target seal|sealstream|prefix-32|full-xof|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target seal/sealstream apply only to --cipher xchacha / serpent / aes-seal.");
     eprintln!("      --target prefix-32 / full-xof apply only to --cipher blake3 (32-byte digest");
-    eprintln!("      vs full 131-byte XOF assertion). For aes-gcm-siv, polyval, aes-cbc, aes-ctr,");
-    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac (no seal/sealstream/xof split),");
-    eprintln!("      --target is silently ignored.");
+    eprintln!("      vs full 131-byte XOF assertion). --cipher curve25519 is a meta-selector that");
+    eprintln!("      runs both ed25519 and x25519. For aes-gcm-siv, polyval, aes-cbc, aes-ctr,");
+    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, ed25519, x25519, curve25519");
+    eprintln!("      (no seal/sealstream/xof split), --target is silently ignored.");
 }
 
 fn main() -> ExitCode {
@@ -1239,6 +1423,8 @@ fn main() -> ExitCode {
     let want_hybrid_pq   = matches!(cipher, CipherSel::HybridPq  | CipherSel::All);
     let want_kmac        = matches!(cipher, CipherSel::Kmac      | CipherSel::All);
     let want_blake3      = matches!(cipher, CipherSel::Blake3    | CipherSel::All);
+    let want_ed25519     = matches!(cipher, CipherSel::Ed25519   | CipherSel::Curve25519 | CipherSel::All);
+    let want_x25519      = matches!(cipher, CipherSel::X25519    | CipherSel::Curve25519 | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
 
@@ -1278,6 +1464,8 @@ fn main() -> ExitCode {
         };
         if !run_blake3(use_color, mode) { all_ok = false; }
     }
+    if want_ed25519 { if !run_ed25519(use_color) { all_ok = false; } }
+    if want_x25519  { if !run_x25519(use_color)  { all_ok = false; } }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     if all_ok {

@@ -138,6 +138,32 @@ blake3           = { version = "=1.8.5",  default-features = false }
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.
 hex              = { version = "=0.4.3",  default-features = false, features = ["std"] }
+# dalek-cryptography Ed25519 (RFC 8032): independent-lineage oracle for
+# ed25519.ts (RFC §7 KATs), ed25519_keygen.ts, ed25519_siggen.ts, and
+# ed25519_sigver.ts (ACVP EDDSA-1.0). The dalek family shares no source
+# with leviathan-crypto's WASM stack and no source with any RustCrypto
+# crate already pinned in this file; it is a distinct verifier lineage
+# analogous to tiny-keccak's role for SP 800-185. `digest` enables
+# `sign_prehashed` / `verify_prehashed_strict` for the Ed25519ph
+# (§5.1.7) records; `rand_core` enables the trait imports that the
+# prehash path pulls in at this dalek minor. Verification uses the
+# `_strict` variants exclusively (RFC 8032 §5.1.7 cofactored
+# verification, matches FIPS 186-5 §7.6.4 and ACVP `testPassed`); the
+# non-strict `verify` would diverge on records that exercise
+# small-order or mixed-order public keys.
+ed25519-dalek    = { version = "=2.2.0",  default-features = false, features = ["rand_core", "digest"] }
+# dalek-cryptography X25519 (RFC 7748): independent-lineage oracle for
+# x25519.ts. Same lineage note as ed25519-dalek above. The
+# `static_secrets` feature exposes
+# `StaticSecret::from(bytes).diffie_hellman(&pk)`, which is the
+# function the §6.1 KAT is computed against; the §5 iterated KATs go
+# through the standalone `x25519_dalek::x25519(k, u)` function.
+x25519-dalek     = { version = "=2.0.1",  default-features = false, features = ["static_secrets"] }
+# Explicit pin of the curve25519-dalek transitive that both dalek crates
+# depend on. Recorded here so the audit surface includes the curve
+# arithmetic crate at exactly the resolved version, rather than
+# whatever happens to satisfy the open `^4` bound in the future.
+curve25519-dalek = { version = "=4.1.3",  default-features = false }
 
 [profile.release]
 opt-level = 3

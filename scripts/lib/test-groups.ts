@@ -340,4 +340,17 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/blake3/blake3-validation.test.ts',
 		],
 	},
+	{
+		name: 'curve25519',
+		buildTargets: UNIT_BASE,
+		timeoutMin: 5,
+		files: [
+			'test/unit/curve25519/gate.test.ts',
+			'test/unit/curve25519/field.test.ts',
+			'test/unit/curve25519/scalar.test.ts',
+			'test/unit/curve25519/edwards.test.ts',
+			'test/unit/curve25519/scalar_mult.test.ts',
+			'test/unit/curve25519/montgomery.test.ts',
+		],
+	},
 ]
