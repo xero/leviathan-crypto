@@ -45,6 +45,7 @@ const INCLUDE = [
 	'cdn.md',
 	'chacha20.md',
 	'ciphersuite.md',
+	'ecdsa-p256.md',
 	'ed25519.md',
 	'examples.md',
 	'exports.md',

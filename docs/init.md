@@ -54,11 +54,13 @@ auditable.
 ### Types
 
 ```typescript
-type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa'
+type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa' | 'slhdsa' | 'blake3' | 'curve25519' | 'p256'
 ```
 
 The WASM module families. Each one backs a group of related classes.
 `'keccak'` is an alias for `'sha3'`, same WASM binary, same instance slot.
+`'ed25519'` and `'x25519'` are aliases for `'curve25519'`, same WASM
+binary, same instance slot.
 
 | Module | Classes it enables |
 |---|---|
@@ -71,10 +73,16 @@ The WASM module families. Each one backs a group of related classes.
 | `'chacha20'` + `'sha2'` | `XChaCha20Cipher`, `Seal` (with `XChaCha20Cipher`), `SealStream`, `OpenStream`, see [aead.md](./aead.md) |
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
 | `'sha3'` / `'keccak'` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
+| `'blake3'` | `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, see [blake3.md](./blake3.md) |
 | `'kyber'` + `'sha3'` | `MlKem512`, `MlKem768`, `MlKem1024`, see [kyber.md](./kyber.md) |
 | `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite` (hybrid KEM+AEAD factory), see [kyber.md](./kyber.md) |
 | `'mldsa'` + `'sha3'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash), see [mldsa.md](./mldsa.md) |
 | `'mldsa'` + `'sha3'` + `'sha2'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash; sha2 only required when `ph` is `'SHA2-*'`) |
+| `'slhdsa'` (+`'sha3'` / `'sha2'` for prehash) | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f` (pure SLH-DSA + HashSLH-DSA), see [slhdsa.md](./slhdsa.md) |
+| `'curve25519'` / `'ed25519'` / `'x25519'` | `Ed25519` (pure + Ed25519ph), `X25519` (Curve25519 DH), see [ed25519.md](./ed25519.md) and [x25519.md](./x25519.md). `'ed25519'` and `'x25519'` are aliases that resolve to the underlying `curve25519` slot. |
+| `'curve25519'` + `'sha2'` | `Ed25519PreHashSuite` (Ed25519ph via `Sign` / `SignStream` / `VerifyStream`) |
+| `'p256'` | `EcdsaP256` (classical ECDSA over NIST P-256, FIPS 186-5 §6, hedged-or-deterministic K per RFC 6979 §3.2 + `draft-irtf-cfrg-det-sigs-with-noise-05`), see [ecdsa-p256.md](./ecdsa-p256.md) |
+| `'p256'` + `'sha2'` | `EcdsaP256Suite` (via `Sign` / `SignStream` / `VerifyStream`) |
 
 ```typescript
 type WasmSource = string | URL | ArrayBuffer | Uint8Array
@@ -131,6 +139,11 @@ async function sha3Init(source: WasmSource): Promise<void>
 async function keccakInit(source: WasmSource): Promise<void>
 async function kyberInit(source: WasmSource): Promise<void>
 async function mldsaInit(source: WasmSource): Promise<void>
+async function slhdsaInit(source: WasmSource): Promise<void>
+async function blake3Init(source: WasmSource): Promise<void>
+async function ed25519Init(source: WasmSource): Promise<void>  // alias for curve25519
+async function x25519Init(source: WasmSource): Promise<void>   // alias for curve25519
+async function ecdsaP256Init(source: WasmSource): Promise<void>
 ```
 
 Each function initializes only its own WASM module, keeping other modules out
@@ -153,6 +166,11 @@ ready-to-use `WasmSource`:
 | `leviathan-crypto/keccak/embedded` | `keccakWasm` |
 | `leviathan-crypto/kyber/embedded` | `kyberWasm` |
 | `leviathan-crypto/mldsa/embedded` | `mldsaWasm` |
+| `leviathan-crypto/slhdsa/embedded` | `slhdsaWasm` |
+| `leviathan-crypto/blake3/embedded` | `blake3Wasm` |
+| `leviathan-crypto/ed25519/embedded` | `ed25519Wasm` (alias for `curve25519Wasm`) |
+| `leviathan-crypto/x25519/embedded` | `x25519Wasm` (alias for `curve25519Wasm`) |
+| `leviathan-crypto/ecdsa/embedded` | `p256Wasm` / `ecdsaP256Wasm` (both resolve to the same blob) |
 
 `keccakWasm` and `sha3Wasm` are the same gzip+base64 blob. Both point to `sha3.wasm`.
 
@@ -249,6 +267,35 @@ import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
 
 await serpentInit(serpentWasm)
 ```
+
+### ECDSA-P256 init
+
+The `EcdsaP256` class and `EcdsaP256Suite` both need the `p256`
+module; the suite additionally needs `sha2` for the TS-side
+SHA-256 prehash. Pure-class callers who hand a pre-computed
+digest to `EcdsaP256.sign(sk, pk, msgHash, rnd)` only need
+`p256`.
+
+```typescript
+import { init }     from 'leviathan-crypto'
+import { p256Wasm } from 'leviathan-crypto/ecdsa/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ p256: p256Wasm, sha2: sha2Wasm })
+```
+
+Or via the subpath init for tree-shakeable imports:
+
+```typescript
+import { ecdsaP256Init } from 'leviathan-crypto/ecdsa'
+import { p256Wasm }      from 'leviathan-crypto/ecdsa/embedded'
+
+await ecdsaP256Init(p256Wasm)
+```
+
+The embedded subpath exports the same blob under two names
+(`p256Wasm` matches the WASM module name; `ecdsaP256Wasm` reads
+more naturally in the ecdsa subpath context).
 
 ### Keccak alias (for ML-KEM)
 

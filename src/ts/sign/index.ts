@@ -45,6 +45,8 @@ export {
 	Ed25519Suite, Ed25519PreHashSuite,
 } from './suites/ed25519.js';
 
+export { EcdsaP256Suite } from './suites/ecdsa-p256.js';
+
 export {
 	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
 	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,

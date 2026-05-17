@@ -63,6 +63,7 @@ mod slhdsa;
 mod hybrid_pq;
 mod blake3;
 mod ed25519;
+mod ecdsa_p256;
 mod x25519;
 
 const GREEN: &str = "\x1b[32m";
@@ -651,6 +652,147 @@ fn run_ed25519(use_color: bool) -> bool {
 
     println!(
         "Ed25519: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ECDSA-P256 dispatcher (RFC 6979 §A.2.5 gate + ACVP ECDSA-FIPS186-5
+// keyGen / sigGen / sigVer + C2SP Wycheproof p1363).
+// Reads five .ts files: ecdsa_p256.ts (RFC 6979 §A.2.5 gate),
+// ecdsa_p256_keygen.ts, ecdsa_p256_siggen.ts, ecdsa_p256_sigver.ts,
+// ecdsa_p256_wycheproof.ts. RFC 6979 corpus is run first as the gate;
+// the ACVP and Wycheproof corpora run after.
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_ecdsa_p256(use_color: bool) -> bool {
+    let rfc_path  = vector_path("ecdsa_p256.ts");
+    let kg_path   = vector_path("ecdsa_p256_keygen.ts");
+    let sg_path   = vector_path("ecdsa_p256_siggen.ts");
+    let sv_path   = vector_path("ecdsa_p256_sigver.ts");
+    let wp_path   = vector_path("ecdsa_p256_wycheproof.ts");
+    let suite_path = vector_path("sign_ecdsa_p256.ts");
+    print_section("ECDSA-P256, RFC 6979 §A.2.5 gate + ACVP ECDSA-FIPS186-5 (keyGen + sigGen + sigVer) + C2SP Wycheproof p1363 + suite-level envelope KAT");
+
+    println!("Reading RFC 6979 §A.2.5 gate from {}",   rfc_path.display());
+    println!("Reading keygen vectors from      {}",    kg_path.display());
+    println!("Reading sigGen vectors from      {}",    sg_path.display());
+    println!("Reading sigVer vectors from      {}",    sv_path.display());
+    println!("Reading Wycheproof vectors from  {}",    wp_path.display());
+    println!("Reading suite-level KAT from     {}\n",  suite_path.display());
+
+    let rfc_src = match fs::read_to_string(&rfc_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", rfc_path.display(), e))); return false; }
+    };
+    let kg_src = match fs::read_to_string(&kg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", kg_path.display(), e))); return false; }
+    };
+    let sg_src = match fs::read_to_string(&sg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sg_path.display(), e))); return false; }
+    };
+    let sv_src = match fs::read_to_string(&sv_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sv_path.display(), e))); return false; }
+    };
+    let wp_src = match fs::read_to_string(&wp_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", wp_path.display(), e))); return false; }
+    };
+    let suite_src = match fs::read_to_string(&suite_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", suite_path.display(), e))); return false; }
+    };
+
+    let (rfc_key, rfc_vecs) = ecdsa_p256::parse_rfc6979_vectors(&rfc_src);
+    let keygen_tg3   = parse::parse_ecdsa_p256_keygen_array(&kg_src,   "ecdsa_p256_keygen_tg3");
+    let keygen_tg4   = parse::parse_ecdsa_p256_keygen_array(&kg_src,   "ecdsa_p256_keygen_tg4");
+    let siggen_tg14  = parse::parse_ecdsa_p256_siggen_array(&sg_src,   "ecdsa_p256_siggen_tg14");
+    let sigver_tg8   = parse::parse_ecdsa_p256_sigver_array(&sv_src,   "ecdsa_p256_sigver_tg8");
+    let wycheproof   = parse::parse_ecdsa_p256_wycheproof_array(&wp_src, "ecdsa_p256_wycheproof");
+    let suite_vecs   = ecdsa_p256::parse_sign_ecdsa_p256_vectors(&suite_src);
+
+    println!(
+        "Parsed: RFC 6979 §A.2.5 = {}, ACVP keygen tg3/tg4 = {}/{}, ACVP sigGen tg14 = {}, ACVP sigVer tg8 = {}, Wycheproof = {}, suite KAT = {}\n",
+        rfc_vecs.len(),
+        keygen_tg3.len(), keygen_tg4.len(),
+        siggen_tg14.len(),
+        sigver_tg8.len(),
+        wycheproof.len(),
+        suite_vecs.len(),
+    );
+
+    // Empty-array guard: catch silent export-name drift.
+    let parsed_lens: [(&str, usize); 7] = [
+        ("ecdsa_p256_rfc6979",     rfc_vecs.len()),
+        ("ecdsa_p256_keygen_tg3",  keygen_tg3.len()),
+        ("ecdsa_p256_keygen_tg4",  keygen_tg4.len()),
+        ("ecdsa_p256_siggen_tg14", siggen_tg14.len()),
+        ("ecdsa_p256_sigver_tg8",  sigver_tg8.len()),
+        ("ecdsa_p256_wycheproof",  wycheproof.len()),
+        ("signEcdsaP256Vectors",   suite_vecs.len()),
+    ];
+    if parsed_lens.iter().any(|(_, n)| *n == 0) {
+        eprintln!("{}", colorize(use_color, RED, "✗ one or more ECDSA-P256 arrays parsed as empty (export-name mismatch?)"));
+        for (name, n) in &parsed_lens {
+            if *n == 0 { eprintln!("    {}: 0", name); }
+        }
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+
+    // Gate first: RFC 6979 §A.2.5. ACVP supplies k explicitly, so only this
+    // corpus exercises RFC 6979's k-from-(d, H(m)) derivation; if it fails,
+    // the rest of the run is meaningless.
+    let mut gate_ok = true;
+    for v in &rfc_vecs {
+        let (ok, log) = ecdsa_p256::verify_rfc6979(v, &rfc_key);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            gate_ok = false;
+        }
+    }
+    if !gate_ok {
+        eprintln!("{}", colorize(use_color, RED, "✗ RFC 6979 §A.2.5 gate failed, halting ECDSA-P256 run"));
+        println!(
+            "ECDSA-P256: {} ok, {} failed (out of {} total, gate-only)",
+            count_ok, count_fail, count_ok + count_fail,
+        );
+        return false;
+    }
+
+    {
+        let mut run = |ok: bool, log: Vec<String>| {
+            if !ok {
+                print_log(&log, use_color);
+                println!();
+                count_fail += 1;
+                all_ok = false;
+            } else {
+                count_ok += 1;
+            }
+        };
+
+        for v in &keygen_tg3   { let (ok, log) = ecdsa_p256::verify_ecdsa_p256_keygen(v);     run(ok, log); }
+        for v in &keygen_tg4   { let (ok, log) = ecdsa_p256::verify_ecdsa_p256_keygen(v);     run(ok, log); }
+        for v in &siggen_tg14  { let (ok, log) = ecdsa_p256::verify_ecdsa_p256_siggen(v);     run(ok, log); }
+        for v in &sigver_tg8   { let (ok, log) = ecdsa_p256::verify_ecdsa_p256_sigver(v);     run(ok, log); }
+        for v in &wycheproof   { let (ok, log) = ecdsa_p256::verify_ecdsa_p256_wycheproof(v); run(ok, log); }
+        for v in &suite_vecs   { let (ok, log) = ecdsa_p256::verify_sign_ecdsa_p256(v);       run(ok, log); }
+    }
+
+    println!(
+        "ECDSA-P256: {} ok, {} failed (out of {} total)",
         count_ok, count_fail, count_ok + count_fail,
     );
     all_ok
@@ -1316,6 +1458,7 @@ enum CipherSel {
     // both `ed25519` and `x25519`; it does not have a dispatcher of
     // its own.
     Ed25519, X25519, Curve25519,
+    EcdsaP256,
     All,
 }
 
@@ -1342,8 +1485,9 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "ed25519"     => Ok(CipherSel::Ed25519),
         "x25519"      => Ok(CipherSel::X25519),
         "curve25519"  => Ok(CipherSel::Curve25519),
+        "ecdsa-p256"  => Ok(CipherSel::EcdsaP256),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, blake3, ed25519, x25519, curve25519, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, blake3, ed25519, x25519, curve25519, ecdsa-p256, all)")),
     }
 }
 
@@ -1359,15 +1503,15 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|blake3|ed25519|x25519|curve25519|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|blake3|ed25519|x25519|curve25519|ecdsa-p256|all]");
     eprintln!("                       [--target seal|sealstream|prefix-32|full-xof|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target seal/sealstream apply only to --cipher xchacha / serpent / aes-seal.");
     eprintln!("      --target prefix-32 / full-xof apply only to --cipher blake3 (32-byte digest");
     eprintln!("      vs full 131-byte XOF assertion). --cipher curve25519 is a meta-selector that");
     eprintln!("      runs both ed25519 and x25519. For aes-gcm-siv, polyval, aes-cbc, aes-ctr,");
-    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, ed25519, x25519, curve25519");
-    eprintln!("      (no seal/sealstream/xof split), --target is silently ignored.");
+    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, ed25519, x25519, curve25519,");
+    eprintln!("      ecdsa-p256 (no seal/sealstream/xof split), --target is silently ignored.");
 }
 
 fn main() -> ExitCode {
@@ -1425,6 +1569,7 @@ fn main() -> ExitCode {
     let want_blake3      = matches!(cipher, CipherSel::Blake3    | CipherSel::All);
     let want_ed25519     = matches!(cipher, CipherSel::Ed25519   | CipherSel::Curve25519 | CipherSel::All);
     let want_x25519      = matches!(cipher, CipherSel::X25519    | CipherSel::Curve25519 | CipherSel::All);
+    let want_ecdsa_p256  = matches!(cipher, CipherSel::EcdsaP256 | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
 
@@ -1464,8 +1609,9 @@ fn main() -> ExitCode {
         };
         if !run_blake3(use_color, mode) { all_ok = false; }
     }
-    if want_ed25519 { if !run_ed25519(use_color) { all_ok = false; } }
-    if want_x25519  { if !run_x25519(use_color)  { all_ok = false; } }
+    if want_ed25519    { if !run_ed25519(use_color)    { all_ok = false; } }
+    if want_x25519     { if !run_x25519(use_color)     { all_ok = false; } }
+    if want_ecdsa_p256 { if !run_ecdsa_p256(use_color) { all_ok = false; } }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     if all_ok {

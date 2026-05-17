@@ -268,11 +268,11 @@ These are decisions already made. Do not relitigate them without raising it firs
   long-lived instance is held. This matches the static-method posture of
   KMAC and keeps suites stateless and reentrant. All shipped suite factories
   follow this pattern (Phase 1 ML-DSA pure and prehash, Phase 2 SLH-DSA pure
-  and prehash, Phase 2 PQ-only hybrids, Phase 4 Ed25519 pure and prehash);
-  future phase factories (ECDSA-P256, classical+PQ hybrids) do the same.
-  Suite factories that wrap a primitive whose sign path needs pk for the
-  hash chain (RFC 8032 Ed25519, ECDSA-P256, anything that runs `R || pk || M`
-  through a digest) route through an unexported `_signInternalPk` /
+  and prehash, Phase 2 PQ-only hybrids, Phase 4 Ed25519 pure and prehash,
+  Phase 5 ECDSA-P256); future phase factories (classical+PQ hybrids) do
+  the same. Suite factories that wrap a primitive whose sign path needs pk
+  for the hash chain (RFC 8032 Ed25519, ECDSA-P256, anything that runs
+  `R || pk || M` through a digest) route through an unexported `_signInternalPk` /
   `_signPrehashedInternalPk` helper on the primitive class that derives pk
   inside the same WASM call and skips the fault-injection cross-check. The
   cross-check is degenerate at the suite call site because the caller-supplied
@@ -326,16 +326,19 @@ These are decisions already made. Do not relitigate them without raising it firs
   added these alongside the existing one-shot `SHA3_256` / `SHA3_512`.
   Lifecycle mirrors SHAKE128 / SHAKE256: `_acquireModule('sha3')` at
   construction, `_releaseModule` on `dispose()` or `finalize()`, exclusivity
-  enforced via the standard guard. Phase 4 Ed25519ph runs its prehash
-  through a buffered shim over the one-shot `SHA512` class
-  (`sha512Buffered` in `src/ts/sign/hasher.ts`) rather than a dedicated
-  stream class, because Ed25519ph is single-variant and the buffered shim
-  matches the one-shot KAT byte-for-byte at finalize. Future phase work
-  that adds streaming prehashes for SHA-2 (ECDSA-P256 prehash) should
-  either add analogous `SHA256Stream` / `SHA512Stream` to the sha2 module
-  with the same exclusivity discipline as SHA3 streaming, or reuse the
-  Phase 4 buffered-shim posture if a true streaming class is not
-  required.
+  enforced via the standard guard. The `'sha-256'` and `'sha-512'`
+  `PrehashAlgorithm` slots in `src/ts/sign/hasher.ts` both run through
+  buffered shims over the one-shot `SHA256` / `SHA512` classes
+  (`sha256Buffered` and `sha512Buffered`), not through dedicated streaming
+  classes on the sha2 module. Phase 4 Ed25519ph picked the shim posture
+  because Ed25519ph is single-variant; Phase 5 ECDSA-P256 followed the
+  same pattern because ECDSA-P256 + SHA-256 is single-variant too and the
+  shim matches the one-shot KAT byte-for-byte at finalize. The sha2
+  module's streaming-class surface stayed intentionally tight; future
+  phase work that needs true streaming SHA-2 (e.g. multi-consumer
+  exclusivity discipline) can add `SHA256Stream` / `SHA512Stream` to the
+  sha2 module mirroring the SHA3 streaming posture, but neither shipped
+  prehash suite required it.
 - **SHAKE streaming classes (`SHAKE128Stream`, `SHAKE256Stream`)**: Phase 2
   added these to the sha3 module alongside the unbounded `SHAKE128` /
   `SHAKE256` XOF classes. `outputLen` is bound at construction; `update`

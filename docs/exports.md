@@ -17,6 +17,7 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
 > - [BLAKE3](#blake3)
 > - [Ed25519 / X25519 (Curve25519 family)](#ed25519--x25519-curve25519-family)
+> - [ECDSA-P256](#ecdsa-p256)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
 > - [ML-DSA (Post-quantum signatures)](#ml-dsa-post-quantum-signatures)
 > - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
@@ -35,7 +36,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3' \| 'curve25519'`. The top-level `init()` additionally accepts `'ed25519'` and `'x25519'` as aliases that resolve to the `curve25519` slot. |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3' \| 'curve25519' \| 'p256'`. The top-level `init()` additionally accepts `'ed25519'` and `'x25519'` as aliases that resolve to the `curve25519` slot. |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -125,6 +126,7 @@ Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
 | `PrehashAlgorithm` | type | Union of the six prehash function identifiers used across the catalog: `'sha-256' \| 'sha-512' \| 'sha3-256' \| 'sha3-512' \| 'shake-128' \| 'shake-256'`. |
 | `Ed25519Suite` | const | Pure Ed25519 SignatureSuite (RFC 8032 §5.1.6, signature generation). `formatEnum: 0x01`, `ctxDomain: 'ed25519-envelope-v3'`. Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Requires `init({ ed25519 })`. |
 | `Ed25519PreHashSuite` | const | Ed25519ph StreamableSignatureSuite (RFC 8032 §5.1.7, signature verification, dom2 prehash). `formatEnum: 0x11`, `ctxDomain: 'ed25519-prehash-envelope-v3'`, `prehashAlgorithm: 'sha-512'`. Requires `init({ ed25519, sha2 })`. |
+| `EcdsaP256Suite` | const | ECDSA-P256 + SHA-256 StreamableSignatureSuite (FIPS 186-5 §6.4, SP 800-186 §3.2.1.3). `formatEnum: 0x02`, `ctxDomain: 'ecdsa-p256-envelope-v3'`, `pkSize: 33`, `skSize: 32`, `sigSize: 64`, `prehashAlgorithm: 'sha-256'`, `prehashSize: 32`. Single mode with SHA-256 prehash baked in (ECDSA has no native pure mode). Hedged-by-default (`randomBytes(32)` per call per draft-irtf-cfrg-det-sigs-with-noise-05); drop to `EcdsaP256` for deterministic RFC 6979 §3.2 sign. Rejects non-empty user_ctx on every entry point with `SigningError('sig-ctx-unsupported')`; context-bound ECDSA-P256 lives in the classical+PQ hybrid suites (catalog 0x22 / 0x23). Requires `init({ p256, sha2 })`. |
 | `MlDsa44Suite` | const | Pure ML-DSA-44 SignatureSuite. `formatEnum: 0x03`, `ctxDomain: 'mldsa44-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
 | `MlDsa65Suite` | const | Pure ML-DSA-65 SignatureSuite. `formatEnum: 0x04`, `ctxDomain: 'mldsa65-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
 | `MlDsa87Suite` | const | Pure ML-DSA-87 SignatureSuite. `formatEnum: 0x05`, `ctxDomain: 'mldsa87-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
@@ -281,6 +283,25 @@ Subpaths: `leviathan-crypto/ed25519` and `leviathan-crypto/x25519`. See [ed25519
 | `Ed25519Suite` | const | Pure Ed25519 `SignatureSuite` (RFC 8032 §5.1.6, signature generation). `formatEnum: 0x01`, `ctxDomain: 'ed25519-envelope-v3'`, `pkSize: 32`, `skSize: 32`, `sigSize: 64`. Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Requires `init({ ed25519 })`. |
 | `Ed25519PreHashSuite` | const | Ed25519ph `StreamableSignatureSuite` (RFC 8032 §5.1.7, signature verification, dom2(F=1, ctx) prehash). `formatEnum: 0x11`, `ctxDomain: 'ed25519-prehash-envelope-v3'`, `prehashAlgorithm: 'sha-512'`, `prehashSize: 64`, `pkSize: 32`, `skSize: 32`, `sigSize: 64`. Plugs into `SignStream` / `VerifyStream`. Requires `init({ ed25519, sha2 })`. |
 | `KeyAgreementError` | class | Thrown by `X25519.dh` when the resulting shared secret is all-zero, indicating a small-order peer public key. Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
+
+---
+
+## ECDSA-P256
+
+Requires `init({ p256: p256Wasm })`. The p256 WASM module hosts the full ECDSA-P256 substrate per FIPS 186-5 §6, ECDSA over NIST P-256 (SP 800-186 §3.2.1.3), with RFC 6979 §3.2 deterministic K derivation and hedged-deterministic K per draft-irtf-cfrg-det-sigs-with-noise-05. Verification follows the strict-S posture (low-S enforced) symmetric with the Ed25519 substrate. Scalar (no SIMD); works on every WASM-capable runtime regardless of SIMD support.
+
+The `leviathan-crypto/ecdsa/embedded` subpath re-exports the same WASM blob under two names: `p256Wasm` (canonical) and `ecdsaP256Wasm` (alias that reads more naturally in the ecdsa subpath context). Both resolve to the identical underlying string; pick whichever reads most naturally in the surrounding code.
+
+Subpath: `leviathan-crypto/ecdsa`. The class accepts a caller-computed 32-byte SHA-256 digest; it never hashes the raw message internally. DER ↔ raw r||s conversion is a side utility for X.509 / JWS / TLS interop and lives at the same subpath.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `ecdsaP256Init` | function | Module-scoped init. `ecdsaP256Init(source: WasmSource)` loads only the p256 WASM. |
+| `EcdsaP256` | class | ECDSA-P256 signer / verifier (FIPS 186-5 §6, SP 800-186 §3.2.1.3). `keygen()`, `keygenDerand(seed)`, `sign(sk, pk, msgHash, rnd)`, `_signInternalPk(sk, msgHash, rnd)`, `verify(pk, msgHash, sig)`, `dispose()`. Strict-S verification (low-S enforced, RFC 6979 §3.5). `sign` accepts caller-supplied 32-byte entropy `rnd`: all-zero selects RFC 6979 §3.2 deterministic K, non-zero selects the draft hedged variant. The class takes a 32-byte SHA-256 digest, not a raw message; `EcdsaP256Suite` drives SHA-256 on top. Public-key inputs are accepted in both 33-byte compressed (SEC 1 §2.3.3) and 65-byte uncompressed (SEC 1 §2.3.4) form; the wrapper normalises to compressed before staging in WASM. The public `sign` method includes a fault-injection cross-check that aborts when the caller-supplied pk disagrees with the WASM-derived pk; `_signInternalPk` skips the cross-check and is intended for suite-layer callers who hold only `sk`. |
+| `EcdsaP256KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. `publicKey` is 33-byte compressed per SEC 1 §2.3.3; `secretKey` is the 32-byte private scalar d. |
+| `ecdsaSignatureToDer` | function | `ecdsaSignatureToDer(sig: Uint8Array): Uint8Array`. Converts a 64-byte raw r || s signature to the DER form per RFC 3279 §2.2.3, ECDSA Signature Algorithm: `Ecdsa-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }`. Output length is variable, 8 bytes minimum (r = s = 1) and 72 bytes maximum (both components 32 bytes with the high bit set, each picking up a 0x00 sign-pad). |
+| `ecdsaSignatureFromDer` | function | `ecdsaSignatureFromDer(der: Uint8Array): Uint8Array`. Converts a DER signature to 64-byte raw r || s. Throws `SigningError('sig-malformed-input')` on any DER syntax violation: wrong outer / inner tag, long-form length for content under 128 bytes, non-minimal INTEGER encoding (excess leading zero), negative INTEGER, trailing bytes, INTEGER content exceeding 32 bytes. Semantic value rejections (r = 0, s = 0, high-s, off-range) are deferred to the WASM verify path. |
+| `EcdsaP256Suite` | const | ECDSA-P256 + SHA-256 `StreamableSignatureSuite` (FIPS 186-5 §6.4). `formatEnum: 0x02`, `ctxDomain: 'ecdsa-p256-envelope-v3'`, `pkSize: 33`, `skSize: 32`, `sigSize: 64`, `prehashAlgorithm: 'sha-256'`, `prehashSize: 32`. Single mode with SHA-256 prehash baked in; suite-level sign is hedged-by-default (`randomBytes(32)` per call). Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Plugs into `SignStream` / `VerifyStream`. Requires `init({ p256, sha2 })`. |
 
 ---
 

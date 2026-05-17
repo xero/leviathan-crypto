@@ -30,6 +30,7 @@ import { aesInit } from './aes/index.js';
 import { mldsaInit } from './mldsa/index.js';
 import { slhdsaInit } from './slhdsa/index.js';
 import { blake3Init } from './blake3/index.js';
+import { ecdsaP256Init } from './ecdsa/index.js';
 import { initModule } from './init.js';
 import type { Module } from './init.js';
 import type { WasmSource } from './wasm-source.js';
@@ -52,6 +53,7 @@ const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	slhdsa: slhdsaInit,
 	blake3: blake3Init,
 	curve25519: (source: WasmSource) => initModule('curve25519', source),
+	p256: ecdsaP256Init,
 };
 
 /**
@@ -139,6 +141,9 @@ export {
 	BLAKE3OutputReader,
 	BLAKE3Hash,
 } from './blake3/index.js';
+export { ecdsaP256Init, EcdsaP256 } from './ecdsa/index.js';
+export type { EcdsaP256KeyPair } from './ecdsa/index.js';
+export { ecdsaSignatureToDer, ecdsaSignatureFromDer } from './ecdsa/der.js';
 export { ed25519Init, Ed25519 } from './ed25519/index.js';
 export type { Ed25519KeyPair } from './ed25519/index.js';
 export { x25519Init, X25519 } from './x25519/index.js';
@@ -156,6 +161,7 @@ export type {
 } from './sign/index.js';
 export {
 	Ed25519Suite, Ed25519PreHashSuite,
+	EcdsaP256Suite,
 	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
 	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
 	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,

@@ -27,7 +27,7 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 
 Six ML-DSA suites ship. Three are pure-mode, satisfying `SignatureSuite`; three are prehash-mode, satisfying `StreamableSignatureSuite` and usable with `SignStream` / `VerifyStream`.
 
-SLH-DSA (FIPS 205) and the leviathan PQ-only hybrids also ship: six SLH-DSA suites (three pure, three prehash) plus three hybrid composites that combine ML-DSA with SLH-DSA at each NIST security category. Two Ed25519 suites ship (pure plus Ed25519ph). Reserved for future work: ECDSA-P256, the composite classical+PQ hybrids that match `draft-ietf-lamps-pq-composite-sigs`, and the Merkle log signed-tree-head surface that wires the same `SignatureSuite` shape into log proofs. The format-byte allocation at the bottom of this doc reserves a wire byte for every catalog entry, shipped or queued.
+SLH-DSA (FIPS 205) and the leviathan PQ-only hybrids also ship: six SLH-DSA suites (three pure, three prehash) plus three hybrid composites that combine ML-DSA with SLH-DSA at each NIST security category. Two Ed25519 suites ship (pure plus Ed25519ph). One ECDSA-P256 suite ships (`EcdsaP256Suite`, FIPS 186-5 §6 over NIST P-256 with SHA-256, hedged-by-default per `draft-irtf-cfrg-det-sigs-with-noise-05`). Reserved for future work: the composite classical+PQ hybrids that match `draft-ietf-lamps-pq-composite-sigs`, and the Merkle log signed-tree-head surface that wires the same `SignatureSuite` shape into log proofs. The format-byte allocation at the bottom of this doc reserves a wire byte for every catalog entry, shipped or queued.
 
 ---
 
@@ -153,6 +153,63 @@ bytes payload_end .. N : sig           (64 bytes, R || s)
 `Ed25519Suite` always has `ctx_len = 0` because the suite rejects non-empty user_ctx. `Ed25519PreHashSuite` accepts a per-call `user_ctx` up to 200 bytes (the cap from `src/ts/sign/ctx.ts`, well under the FIPS 204-style 255-byte limit). KAT vectors for both suites live in `test/vectors/sign_ed25519.ts` and verify byte-for-byte against the third-party Ed25519 oracles per [vector_audit.md](./vector_audit.md).
 
 For detached signing, `Sign.signDetached(suite, sk, msg, ctx)` returns exactly 64 bytes (R || s) per RFC 8032 §5.1.6, signature generation; the caller manages `(suite, pk, msg, sig, ctx)` out of band.
+
+### ECDSA-P256 suite
+
+One classical ECDSA suite covers FIPS 186-5 §6, ECDSA Signature Algorithm, over the NIST P-256 curve (SP 800-186 §3.2.1.3, P-256). `EcdsaP256Suite` (`0x02`) signs an SHA-256 prehash of the message with hedged-deterministic RFC 6979 nonce derivation per `draft-irtf-cfrg-det-sigs-with-noise-05`. ECDSA-P256 is classical, not post-quantum, so plan for migration to a classical+PQ hybrid (`0x22` / `0x23`, reserved) when long-horizon assurance matters. See [SECURITY.md](../SECURITY.md) for the threat model. The full ECDSA-P256 reference lives in [ecdsa-p256.md](./ecdsa-p256.md); the audit checklist lives in [ecdsa-p256_audit.md](./ecdsa-p256_audit.md).
+
+| Field              | `EcdsaP256Suite`              |
+|--------------------|-------------------------------|
+| `formatEnum`       | `0x02`                        |
+| `formatName`       | `'ecdsa-p256'`                |
+| `ctxDomain`        | `ecdsa-p256-envelope-v3`      |
+| `pkSize`           | 33 (SEC 1 §2.3.3 compressed)  |
+| `skSize`           | 32                            |
+| `sigSize`          | 64 (raw r \|\| s, low-S)      |
+| `prehashAlgorithm` | `'sha-256'`                   |
+| `prehashSize`      | 32                            |
+| `wasmModules`      | `['p256', 'sha2']`            |
+
+#### Single mode with ctx-rejection lock
+
+ECDSA has no native context parameter (FIPS 186-5 §6.4, ECDSA Signature Generation, produces signatures parametrised only by `(d, hash, k)`). The suite carries a built-in `ctxDomain` of `'ecdsa-p256-envelope-v3'` for `formatName` and display purposes, but rejects any non-empty user_ctx with `SigningError('sig-ctx-unsupported')` on every entry point (`sign`, `verify`, `signPrehashed`, `verifyPrehashed`). Applications that need context-bound signing must use a classical+PQ hybrid suite at `0x22` or `0x23` (reserved); the PQ half of those suites carries its own ctxDomain story via FIPS 204 / FIPS 205's native ctx parameter.
+
+Unlike pure Ed25519, ECDSA-P256 conforms to `StreamableSignatureSuite`. Every ECDSA signature internally prehashes the message via SHA-256 (the spec REQUIRES it; ECDSA cannot sign message bytes directly). `SignStream(EcdsaP256Suite, sk, EMPTY_CTX)` is well-defined: the message bytes flow through `sha256Buffered` (from `src/ts/sign/hasher.ts`) into the WASM signature engine which sees only the 32-byte digest. The buffered shim copies and concatenates chunks at `finalize()` so the streamed output's digest is byte-identical to a one-shot SHA-256 over the full message; only the trailing 64-byte signature differs between one-shot and streamed runs over the same `(sk, msg)` because each sign re-rolls hedging entropy.
+
+#### Hedged-by-default
+
+ECDSA's nonce derivation is the most operationally dangerous part of the signature scheme. RFC 6979 §3.2 derives `k` deterministically from `(d, H(m))`; leaking `k` to an attacker lets them recover `d` via the standard ECDSA-with-known-k recovery. Pure-deterministic ECDSA is fully exposed if an attacker can read `d`-derived intermediates across two signatures through a fault-injection channel; hedged ECDSA mixes per-call entropy so each signature has independent nonce-derivation state.
+
+`EcdsaP256Suite.sign` and `EcdsaP256Suite.signPrehashed` generate `rnd = randomBytes(32)` per call, thread it through `EcdsaP256._signInternalPk`, and wipe the buffer in the `finally` block. The hedged construction is `draft-irtf-cfrg-det-sigs-with-noise-05` §4, Hedged-Deterministic Nonce Generation. Two calls to `EcdsaP256Suite.sign(sk, msg, EMPTY_CTX)` over the same `(sk, msg)` return DIFFERENT signatures (the rnd differs). Both verify under the same pk.
+
+Consumers who need byte-deterministic signatures (RFC 6979 §3.2 with empty entropy) must drop down to `EcdsaP256` directly with `rnd = new Uint8Array(32)`. The suite layer does not expose that knob because per-call entropy is the safety-by-default posture for v3 signing.
+
+#### Low-S enforcement
+
+ECDSA has a signature-malleability surface (`(r, s)` and `(r, n - s)` both verify under the same `(pk, msgHash)`). RFC 6979 §3.5 mandates low-S for deterministic ECDSA; the leviathan-crypto suite extends low-S to the hedged path. The WASM signer normalises `s ← min(s, n - s)` before returning; the WASM verifier rejects `s > n/2` before evaluating the signature equation. Wycheproof's `ecdsa_secp256r1_sha256_p1363` corpus exercises every malleability variant and confirms that the strict-gate fires on every spec-defined malleation.
+
+FIPS 186-5 §6.4.4 itself does NOT mandate low-S on verify, so a signature with high-S that fails under `EcdsaP256Suite.verify` might pass under a FIPS 186-5-conformant verifier elsewhere in the ecosystem. The strict-gate posture is leviathan-crypto's choice; see [ecdsa-p256.md §Low-S Enforcement](./ecdsa-p256.md#low-s-enforcement) and [vector_audit.md §ECDSA-P256](./vector_audit.md) for the reconciliation against the ACVP corpus.
+
+#### Fault-injection defense
+
+The fault-injection defence lives on the direct `EcdsaP256.sign(sk, pk, msgHash, rnd)` class entry, where the WASM re-derives pk from sk and aborts via `unreachable` on mismatch against the caller-supplied pk. The TypeScript wrapper catches the resulting `WebAssembly.RuntimeError` and rethrows as `SigningError('sig-malformed-input', ...)`. The defence is meaningful only for callers who hold a stored, known-good pk (loaded from disk after a long-term keygen).
+
+`EcdsaP256Suite` routes through the unexported `_signInternalPk` helper, which derives pk inside the same WASM call and skips the cross-check. At the suite call site the comparison would be between two outputs of the same potentially-faulted module on the same call, so the defence collapses to no defence; skipping it saves one fixed-base scalar multiplication per sign on the hot path that every `Sign` and `SignStream` invocation traverses. Callers who care about the fault-injection defence should drop down to `EcdsaP256` directly with their stored pk; the suite-layer story is identical to Ed25519's.
+
+See [ecdsa-p256.md §Fault-Injection Defense](./ecdsa-p256.md#fault-injection-defense) for the underlying threat model and [ecdsa-p256_audit.md §Fault-Injection Defense](./ecdsa-p256_audit.md#fault-injection-defense) for the audit checklist.
+
+#### Wire format
+
+```
+byte  0                : suite_byte    (0x02)
+byte  1                : ctx_len       (always 0 for EcdsaP256Suite)
+bytes 2 .. payload_end : payload       (the message)
+bytes payload_end .. N : sig           (64 bytes, r || s, low-S)
+```
+
+`EcdsaP256Suite` always has `ctx_len = 0` because the suite rejects non-empty user_ctx. KAT vectors live in `test/vectors/sign_ecdsa_p256.ts` and verify byte-for-byte against the third-party `p256` + `ecdsa` Rust oracles per [vector_audit.md](./vector_audit.md).
+
+For detached signing, `Sign.signDetached(EcdsaP256Suite, sk, msg, ctx)` returns exactly 64 bytes (`r || s`, low-S) per FIPS 186-5 §6.4, ECDSA Signature Generation; the caller manages `(suite, pk, msg, sig, ctx)` out of band. The DER form is available via `ecdsaSignatureToDer` / `ecdsaSignatureFromDer` (RFC 3279 §2.2.3) for X.509 / JWS / TLS interop.
 
 ### SLH-DSA pure-mode suites
 
@@ -585,7 +642,7 @@ The full 22-entry catalog. Shipped rows are wired and tested today; queued rows 
 | Byte | Suite                       | Mode    | Prehash               | ctxDomain                          | Status   |
 |------|-----------------------------|---------|-----------------------|------------------------------------|----------|
 | 0x01 | `Ed25519Suite`              | pure    | -                     | `ed25519-envelope-v3`              | shipped  |
-| 0x02 | `EcdsaP256Suite`            | single  | SHA-256               | `ecdsa-p256-envelope-v3`           | queued   |
+| 0x02 | `EcdsaP256Suite`            | single  | SHA-256               | `ecdsa-p256-envelope-v3`           | shipped  |
 | 0x03 | `MlDsa44Suite`              | pure    | -                     | `mldsa44-envelope-v3`              | shipped  |
 | 0x04 | `MlDsa65Suite`              | pure    | -                     | `mldsa65-envelope-v3`              | shipped  |
 | 0x05 | `MlDsa87Suite`              | pure    | -                     | `mldsa87-envelope-v3`              | shipped  |

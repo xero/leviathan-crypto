@@ -189,6 +189,94 @@ on disk does not currently expose an `EDDSA-...-FIPS186-5` directory;
 the 1.0 corpus is the on-disk authority. Provenance follows the
 on-disk state.
 
+**ECDSA-P256 (FIPS 186-5 §6.4 + RFC 6979).** The ECDSA-P256 corpus is
+a Tier 1 combination: NIST ACVP, C2SP Wycheproof, and RFC 6979 §A.2.5
+are all external authority. The verifier's role is a transcription
+audit identical to the ed25519 framing.
+
+The ECDSA-P256 verifier reads five files: `ecdsa_p256.ts` (RFC 6979
+§A.2.5 deterministic-K gate, 2 records hand-transcribed from the RFC
+text and run first as the gate), `ecdsa_p256_keygen.ts`,
+`ecdsa_p256_siggen.ts`, `ecdsa_p256_sigver.ts` (ACVP
+ECDSA-FIPS186-5 records filtered to the P-256 curve and SHA-256 hash;
+other curves and other hashes are out of scope), and
+`ecdsa_p256_wycheproof.ts` (the strict-gate + malleability corpus
+that NIST ACVP does not exercise). Per-record dispatch:
+
+- keyGen: rederive `q = d*G` via `ProjectivePoint::generator() *
+  d_scalar` and compare the uncompressed SEC1 encoding's `(qx, qy)`
+  to ACVP. The two `secretGenerationMode` paths (FIPS 186-5 §A.2.1
+  'extra bits' and §A.2.2 'testing candidates') produce the same q
+  given the same d; the mode discriminator is surfaced in the audit
+  log but does not branch.
+- sigGen: ACVP supplies an explicit per-record `k`, so the verifier
+  drives `ecdsa::hazmat::sign_prehashed::<NistP256>(d, k, sha256(m))`
+  and compares `(r, s)` byte-for-byte. The ACVP corpus pinned here
+  is componentTest=false for every record; if upstream ever adds
+  componentTest=true P-256 SHA-256 records, the hedged path feeds
+  `rnd` as the `ad` argument to `sign_prehashed_rfc6979`.
+- sigVer: build a `VerifyingKey` from `(qx, qy)` via
+  `from_sec1_bytes`, build a `Signature` from `(r, s)` via
+  `from_slice`, call `verify_prehash(sha256(m), sig)`, compare the
+  boolean to ACVP `testPassed`.
+- Wycheproof: same shape as sigVer. Result discriminator:
+  `'valid'` → verifier MUST return true; `'invalid'` → verifier
+  MUST return false; `'acceptable'` → either outcome counts as ok
+  (the p1363 file pinned here contains only `'valid'` and
+  `'invalid'`, but the parser surface mirrors the upstream schema).
+
+**Verification posture.** The `p256` crate sets `NORMALIZE_S = false`
+for NistP256, so `verify_prehash` does NOT enforce low-S. This
+matches FIPS 186-5 §6.4.4 verbatim (no low-S restriction).
+leviathan-crypto's WASM verifier WILL enforce low-S and reject
+non-canonical encodings; the strict-vs-non-strict divergence is
+exercised by the Wycheproof corpus from the leviathan-crypto side,
+not from this oracle. The Rust oracle's job is to reproduce the
+published `result` byte-for-byte for the non-strict semantics, so
+its bool matches Wycheproof's recorded discriminator. The RFC 6979
+§A.2.5 gate corpus runs first; if it fails, the ACVP and Wycheproof
+corpora are skipped (a transcription or oracle problem would
+otherwise look like "signing works for some records but not others",
+the same confusing failure mode the Ed25519 dispatcher guards
+against).
+
+**RFC 6979 deterministic-K gate.** ACVP supplies an explicit per-record
+`k`, so it cannot exercise RFC 6979's k-from-(d, H(m)) derivation; only
+this corpus does. The verifier runs three paths against every gate
+record: (a)
+`ecdsa::hazmat::sign_prehashed_rfc6979::<NistP256, sha2::Sha256>(d, z,
+&[])` deterministic, (b)
+`ecdsa::hazmat::sign_prehashed::<NistP256>(d, k, z)` with the
+RFC-supplied k, (c) `verify_prehash(z, recorded_sig)` against the
+§A.2.5 fixed public key (Ux, Uy). All three must agree with the
+recorded (r, s); the dual check catches the case where the explicit-k
+arithmetic is right but the deterministic K derivation is wrong, and
+vice versa.
+
+Provenance for the five new files is recorded inline:
+
+- RFC 6979 §A.2.5: `https://www.rfc-editor.org/rfc/rfc6979`
+  (consumed by `ecdsa_p256.ts`; SHA-256 records over messages
+  "sample" and "test", 2 records hand-transcribed).
+- ACVP ECDSA-KeyGen-FIPS186-5:
+  `https://github.com/usnistgov/ACVP-Server/tree/15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0/gen-val/json-files/ECDSA-KeyGen-FIPS186-5`
+  (consumed by `ecdsa_p256_keygen.ts`; 6 P-256 records across 2
+  groups, 3 'testing candidates' + 3 'extra bits'; other curves
+  filtered out at transcription time).
+- ACVP ECDSA-SigGen-FIPS186-5:
+  `https://github.com/usnistgov/ACVP-Server/tree/15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0/gen-val/json-files/ECDSA-SigGen-FIPS186-5`
+  (consumed by `ecdsa_p256_siggen.ts`; 10 P-256 SHA-256 records in
+  tgId 14; other curves, other hashes, and SP 800-106 conformance
+  groups filtered out at transcription time).
+- ACVP ECDSA-SigVer-FIPS186-5:
+  `https://github.com/usnistgov/ACVP-Server/tree/15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0/gen-val/json-files/ECDSA-SigVer-FIPS186-5`
+  (consumed by `ecdsa_p256_sigver.ts`; 7 P-256 SHA-256 records in
+  tgId 8, mixed pass/fail per `testPassed`).
+- C2SP Wycheproof `ecdsa_secp256r1_sha256_p1363`:
+  `https://github.com/C2SP/wycheproof/blob/878e5366008753df2064d40c49f8e2f50f9c6af7/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json`
+  (consumed by `ecdsa_p256_wycheproof.ts`; 262 records flattened
+  from 112 testGroups, raw r‖s wire shape, no DER).
+
 **KMAC and cSHAKE (SP 800-185).** Verified against:
 - tiny-keccak's KMAC and cSHAKE implementations.
 
@@ -230,6 +318,7 @@ The table below is the audit-doc-specific cut: the Tier 2 self-generated files t
 | `sealstream_xchacha_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher xchacha` | full |
 | `sealstream_serpent_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher serpent` | full |
 | `sealstream_aes_v3.ts` | `scripts/gen-sealstream-vectors.ts --cipher aes` | full |
+| `sign_ecdsa_p256.ts` | `scripts/gen-ecdsa-p256-vectors.ts` | full |
 
 If a Tier 1 file needs to be refreshed (upstream errata, format change), download the new file, replace the local copy, regenerate `SHA256SUMS`, update the row in [`../test/vectors/README.md`](../test/vectors/README.md), and confirm the relevant unit-test job in `.github/workflows/` still passes.
 

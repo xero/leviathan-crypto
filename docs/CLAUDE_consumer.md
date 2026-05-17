@@ -132,17 +132,20 @@ this is not it.
 
 ## Subpath imports
 
-The eleven primitive modules each have a subpath `leviathan-crypto/<mod>`
+The twelve primitive modules each have a subpath `leviathan-crypto/<mod>`
 with init function `<mod>Init(source)` and an embedded blob at
 `<mod>/embedded` (exported as `<mod>Wasm`). The modules: `serpent`,
 `chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `kyber`, `mldsa`, `slhdsa`,
-`blake3`, `curve25519`. `keccak` is an alias for `sha3`; same WASM
-binary, same instance slot. `ed25519` and `x25519` are aliases for
+`blake3`, `curve25519`, `p256`. `keccak` is an alias for `sha3`; same
+WASM binary, same instance slot. `ed25519` and `x25519` are aliases for
 `curve25519`; the top-level `init({ ed25519: ... })` and
 `init({ x25519: ... })` both resolve to the `curve25519` slot, and the
 per-primitive subpaths `leviathan-crypto/ed25519` and
 `leviathan-crypto/x25519` each export their own init function over
-the same WASM binary.
+the same WASM binary. The `p256` module backs `EcdsaP256`; its public
+subpath is `leviathan-crypto/ecdsa`, with `ecdsaP256Init(source)` and
+the embedded blob at `leviathan-crypto/ecdsa/embedded` (exported as
+both `p256Wasm` and `ecdsaP256Wasm`).
 
 Two subpaths have no `/embedded` companion:
 `leviathan-crypto/ratchet` (KDF over sha2 + kyber + sha3) and
@@ -175,7 +178,11 @@ Read the cited doc before non-trivial work. Files ship under
 | `SlhDsa128f/192f/256f` (+HashSLH-DSA) | `slhdsa` (+`sha3` prehash, +`sha2` SHA-2 prehash) | `slhdsa.md` |
 | `Ed25519` (pure + Ed25519ph) | `curve25519` (+`sha2` for prehash via `signPrehashed` from a message, or `Ed25519PreHashSuite`) | `ed25519.md` |
 | `X25519` | `curve25519` | `x25519.md` |
+| `EcdsaP256` (classical ECDSA over NIST P-256) | `p256` | `ecdsa-p256.md` |
 | `Ed25519Suite` / `Ed25519PreHashSuite` | `curve25519` (+`sha2` for `Ed25519PreHashSuite`) | `signaturesuite.md`, `ed25519.md` |
+| `EcdsaP256Suite` (hedged-by-default, low-S enforced) | `p256`, `sha2` | `signaturesuite.md`, `ecdsa-p256.md` |
+| `ecdsaSignatureToDer` / `ecdsaSignatureFromDer` (X.509 / JWS DER interop) | none (pure TS, RFC 3279 §2.2.3) | `ecdsa-p256.md` |
+| Classical+PQ hybrid containing ECDSA-P256 (`0x22` / `0x23`) | reserved, not yet shipped | `signaturesuite.md` |
 | `Sign` / `SignStream` / `VerifyStream` + `*Suite` consts | varies | `signaturesuite.md` |
 | `Fortuna` via `await Fortuna.create({ generator, hash })` | one cipher + one hash | `fortuna.md` |
 | Sparse PQ Ratchet (KDF only, see foot-gun #8) | `sha2`, `kyber`, `sha3` | `ratchet.md` |

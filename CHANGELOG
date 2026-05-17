@@ -757,6 +757,222 @@ signature surface is unchanged. BLAKE3 sits alongside SHA-2 and SHA-3
 in the hash tier and feeds the Phase 7 Merkle log substrate when that
 phase opens.
 
+### Added (Phase 5 signature work, ECDSA-P256)
+
+- **ECDSA over NIST P-256.** Classical ECDSA per FIPS 186-5 §6,
+  ECDSA Signature Algorithm, over the NIST P-256 curve from
+  SP 800-186 §3.2.1.3, lands as the second classical signature
+  primitive in the library (peer to Ed25519). The new `EcdsaP256`
+  class covers `keygen()` / `keygenDerand(seed)`,
+  `sign(sk, pk, msgHash, rnd)` with the fault-injection
+  cross-check intact, the suite-only `_signInternalPk(sk, msgHash,
+  rnd)` helper that skips the cross-check, `verify(pk, msgHash,
+  sig)`, and `dispose()`. The class consumes a 32-byte SHA-256
+  digest rather than a raw message; the suite layer drives
+  SHA-256 on top.
+
+  K derivation supports both modes from the spec: pure-
+  deterministic per RFC 6979 §3.2 when `rnd` is all-zero, and
+  hedged-deterministic per `draft-irtf-cfrg-det-sigs-with-noise-05`
+  §4 when `rnd` is non-zero. The two are intentionally NOT
+  byte-equivalent on all-zero `rnd` per the draft's domain
+  separation; the all-zero shortcut routes through the verbatim
+  RFC 6979 path so RFC 6979 §A.2.5 vectors reproduce
+  byte-for-byte. Signer normalises `s` to low-S per RFC 6979 §3.5
+  on both code paths; verifier rejects high-S as part of the
+  leviathan-crypto strict-gate posture.
+
+  Verification is strict per leviathan-crypto convention: pk
+  decompression failure, identity-element pk, `r` or `s` outside
+  `[1, n-1]`, high-S, and signature-equation mismatch all return
+  `false`. Caller-contract violations (wrong-length inputs)
+  throw. The fault-injection defence on the public `sign` entry
+  re-derives pk from sk inside the same WASM call and aborts via
+  `unreachable` on mismatch against the caller-supplied pk;
+  `_signInternalPk` skips the comparison for suite-layer callers
+  whose comparator would otherwise come from the same potentially-
+  faulted module.
+
+  Initialise via `init({ p256: p256Wasm })`. Subpath exports:
+  `leviathan-crypto/ecdsa` and `leviathan-crypto/ecdsa/embedded`
+  (the embedded subpath exports the same blob under two names,
+  `p256Wasm` canonical and `ecdsaP256Wasm` alias). The full
+  RFC 6979 §A.2.5 + NIST ACVP ECDSA-FIPS186-5 keyGen / sigGen /
+  sigVer + C2SP Wycheproof `ecdsa_secp256r1_sha256_p1363`
+  corpora verify byte-for-byte. Every WASM region holding a
+  secret-derived intermediate (scalar d, per-call nonce k,
+  HMAC-DRBG K / V state, embedded SHA-256 streaming state,
+  per-call rnd) is wiped on every success and failure path.
+
+- **`EcdsaP256Suite`.** New `StreamableSignatureSuite` const
+  wraps ECDSA-P256 into the v3 sign envelope at format byte
+  `0x02`. The suite carries `ctxDomain:
+  'ecdsa-p256-envelope-v3'` for `formatName` and display
+  purposes but rejects every non-empty `user_ctx` with
+  `SigningError('sig-ctx-unsupported')` because FIPS 186-5
+  §6.4, ECDSA Signature Generation, has no native ctx
+  parameter; context-bound ECDSA-P256 lives in the
+  classical+PQ hybrid suites at `0x22` / `0x23` (reserved).
+  `prehashAlgorithm: 'sha-256'`, `prehashSize: 32` are
+  constants; the message-taking `sign(msg)` / `verify(msg)`
+  paths route through `sha256OneShot` from
+  `src/ts/sign/hasher.ts`, and the `SignStream` / `VerifyStream`
+  paths route through a buffered `sha256Buffered` shim over
+  the one-shot `SHA256` class (chunks copied and concatenated
+  at `finalize()`, byte-identical to a one-shot SHA-256 over
+  the full message).
+
+  Suite-level sign is hedged-by-default per
+  `draft-irtf-cfrg-det-sigs-with-noise-05`: every call
+  generates `rnd = randomBytes(32)`, threads it through
+  `EcdsaP256._signInternalPk`, and wipes the buffer in
+  `finally`. Two suite-level signs of the same `(sk, msg)`
+  return DIFFERENT signatures; both verify under the same pk.
+  Consumers who need byte-deterministic signatures (RFC 6979
+  §3.2 with empty entropy) must drop down to `EcdsaP256`
+  directly with `rnd = new Uint8Array(32)`; the suite layer
+  does not expose that knob.
+
+  Wire format is the standard v3 attached envelope with
+  `ctx_len = 0` (the suite locks ctx to empty); the 64-byte
+  `r || s` signature is appended after the payload. Per-call
+  WASM lifecycle: every suite method instantiates a fresh
+  `EcdsaP256` inside a `try / finally { dispose() }` block.
+  `wasmModules` is `['p256', 'sha2']`.
+
+- **`ecdsaSignatureToDer` / `ecdsaSignatureFromDer`.** Strict-DER
+  codec exposed at the root barrel for X.509 / JWS / TLS
+  interop per RFC 3279 §2.2.3, ECDSA Signature Algorithm
+  (`Ecdsa-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }`).
+  The encoder strips leading zero bytes to the minimal X.690
+  §8.3.2 encoding and inserts a 0x00 sign-pad when the first
+  content byte has the high bit set so the INTEGER decodes as
+  positive; output length is 8..72 bytes. The decoder is strict
+  DER (not BER) and rejects non-minimal length encodings,
+  excess leading zero bytes, negative INTEGERs (high bit set
+  without a sign-pad), INTEGER content longer than 33 bytes,
+  trailing bytes after the outer SEQUENCE, and wrong tags
+  (outer 0x30 SEQUENCE, inner 0x02 INTEGER) via
+  `SigningError('sig-malformed-input')`. Semantic value
+  rejections (`r = 0`, `s = 0`, high-s, off-range) are
+  deferred to the WASM verify path. The library is zero-
+  dependency, so the codec is hand-rolled rather than pulled
+  from an external ASN.1 parser.
+
+- **`p256.wasm` module (twelfth WASM binary).** New module ID
+  9, 3 memory pages (196608 bytes), scalar (no v128). The
+  Solinas reduction is a fixed sequence of nine limb-shuffling
+  terms; lane packing buys nothing because every term touches
+  a different subset of source limbs, the same WASM-extmul
+  rationale that motivates curve25519's scalar choice. The
+  module hosts: GF(p256) field arithmetic at 8 × u32 saturated
+  radix-2^32 with HMV §2.4.1 Algorithm 2.27 Solinas reduction,
+  scalar arithmetic mod n via bit-by-bit binary division,
+  projective short-Weierstrass points `(X:Y:Z)` (96 bytes
+  each), Renes-Costello-Batina 2016 complete addition formulas
+  (Algorithm 4 add, Algorithm 6 double, specialised for
+  `a = -3`), constant-time double-and-add-always scalar
+  multiplication for both variable and fixed bases, an
+  embedded SHA-256 ported verbatim from
+  `src/asm/sha2/sha256.ts`, an embedded HMAC-SHA-256 ported
+  verbatim from `src/asm/sha2/hmac.ts` (both module-internal,
+  not exposed at the WASM ABI), and the four high-level
+  ECDSA entry points: `ecdsaKeygen`, `ecdsaSign`,
+  `ecdsaSignInternalPk`, `ecdsaVerify`. Mutable footprint
+  under 4 KB; the remainder of the 3-page allocation is the
+  TypeScript layer's I/O staging region.
+
+- **Embedded SHA-256 + HMAC-SHA-256.** The RFC 6979 §3.2
+  K-derivation runs through internal hash primitives so every
+  signing operation stays inside a single WASM call rather
+  than crossing the JS/WASM boundary tens of times per
+  HMAC-DRBG chain iteration. Permitted deviations from the
+  sha2-module source pin: buffer-offset imports rewritten to
+  `./buffers` (p256 local memory layout, offset constant NAMES
+  preserved), SHA-224 IVs and entry points stripped (P-256 +
+  SHA-256 is the only consumer), a module-internal
+  `sha256UpdateBytes(src, len)` helper appended for chunked
+  updates over arbitrary memory offsets. The embedded copies
+  are NOT re-exported from `src/asm/p256/index.ts`; the public
+  ABI exposes ECDSA sign / verify only, mirroring curve25519's
+  embedded-SHA-512 posture.
+
+- **`sha-256` slot in `src/ts/sign/hasher.ts`.** The
+  `PrehashAlgorithm` dispatch in `createRunningHash` now
+  returns a buffered shim (`sha256Buffered`) over the one-shot
+  `SHA256` class for the `'sha-256'` arm, mirroring the
+  Phase 4 `sha512Buffered` posture. The shim copies chunks
+  (so caller-owned buffers can be wiped under it) and
+  concatenates at `finalize()` before driving the sha2 WASM
+  module; the output is byte-identical to a one-shot SHA-256
+  over the concatenated message. A streaming `SHA256Stream`
+  class on the sha2 module was deliberately NOT created;
+  ECDSA-P256ph is single-variant and the buffered shim is
+  byte-equivalent at finalize.
+
+- **Tier 1 vector corpus.** Five new vector files in
+  `test/vectors/`: `ecdsa_p256.ts` (RFC 6979 §A.2.5
+  deterministic-K gate, 2 records hand-transcribed from the
+  RFC text), `ecdsa_p256_keygen.ts` (ACVP ECDSA-KeyGen-FIPS186-5,
+  6 P-256 records across `testing candidates` plus `extra bits`
+  modes), `ecdsa_p256_siggen.ts` (ACVP ECDSA-SigGen-FIPS186-5,
+  10 P-256 SHA-256 records), `ecdsa_p256_sigver.ts` (ACVP
+  ECDSA-SigVer-FIPS186-5, 7 P-256 SHA-256 records mixed
+  pass / fail), and `ecdsa_p256_wycheproof.ts` (C2SP Wycheproof
+  `ecdsa_secp256r1_sha256_p1363`, 262 records flattened from
+  112 testGroups, raw r‖s wire shape). All five tracked by
+  `test/vectors/SHA256SUMS`.
+
+- **Tier 2 suite-level KAT corpus.** `test/vectors/sign_ecdsa_p256.ts`
+  records suite-level envelope blobs covering empty / single-byte /
+  64B / 1024B / RFC 6979 sample+test / 4096B messages, generated
+  by the new `scripts/gen-ecdsa-p256-vectors.ts` and verified by
+  the Rust crate. The corpus exercises `Sign.sign` / `Sign.verify`
+  and the streaming `SignStream` / `VerifyStream` paths
+  end-to-end.
+
+- **Independent Rust verifier coverage.**
+  `scripts/verify-vectors/src/ecdsa_p256.rs` is a new dispatcher
+  that re-runs every ECDSA-P256 vector record against RustCrypto's
+  `p256` + `ecdsa` crates as an independent oracle (separate
+  lineage from leviathan-crypto's WASM stack). The verifier
+  reads the five new vector files plus the suite-level Tier 2
+  KAT and emits `✓ all vectors verified` on success. ACVP
+  sigVer reconciliation accounts for leviathan-crypto's
+  strict-S gate (the `p256` crate sets `NORMALIZE_S = false`
+  and accepts high-S per FIPS 186-5 §6.4.4 verbatim); the
+  Wycheproof corpus exercises the strict-gate directly.
+
+- **New CI test groups.** `p256` and `ecdsa` for the substrate
+  and TypeScript-class tests under `test/unit/p256/` and
+  `test/unit/ecdsa/`. Sign-layer ECDSA-P256 tests
+  (`test/unit/sign/sign-ecdsa-p256-*.test.ts`) live in the
+  existing sign-layer group. The `.github/workflows/unit-p256.yml`
+  workflow wires the p256 group into `test-suite.yml`.
+
+- **Docs.** `docs/ecdsa-p256.md` (full ECDSA-P256 API reference,
+  ships in the npm doc bundle via `scripts/copy-docs.ts`);
+  `docs/ecdsa-p256_audit.md` (xero-reviewed audit doc, internal
+  to the repo, not shipped in the npm package);
+  `docs/asm_p256.md` (low-level WASM module reference);
+  `docs/phase-index.md` (created; Phase 5 flipped to shipped,
+  Phase 6 marked unblocked). The ECDSA-P256 module addition
+  reflected in `docs/architecture.md`, `docs/signaturesuite.md`
+  (catalog row `0x02` flipped from queued to shipped, full
+  suite section added between Ed25519 and SLH-DSA pure-mode
+  suites), `docs/init.md`, `docs/CLAUDE_consumer.md`,
+  `docs/exports.md`, `docs/audits.md`, `docs/README.md`, and
+  the root `README.md` Quick Start. AGENTS.md updated to
+  reflect ECDSA-P256 as shipped in the per-call WASM lifecycle
+  pattern note and the SHA-2 prehash slot note.
+
+Migration: none. All additions, no breaking changes. The
+Phase 1 / 2 / 3 / 4 signature surface is unchanged.
+ECDSA-P256 sits alongside Ed25519 in the classical signature
+tier and unblocks Phase 6 (BLAKE3-derived signature work) by
+resolving the SHA-256 streaming-prehash slot in
+`src/ts/sign/hasher.ts`.
+
 ## v2.1.0
 
 ### Added

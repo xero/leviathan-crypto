@@ -53,7 +53,9 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 |--------|-------------|
 | [ed25519.md](./ed25519.md) | `Ed25519`: classical Ed25519 signatures (RFC 8032), pure and Ed25519ph prehash modes |
 | [x25519.md](./x25519.md) | `X25519`: Curve25519 Diffie-Hellman key agreement (RFC 7748) |
+| [ecdsa-p256.md](./ecdsa-p256.md) | `EcdsaP256`, `EcdsaP256Suite`, `ecdsaSignatureToDer` / `ecdsaSignatureFromDer`: classical ECDSA signatures over NIST P-256 (FIPS 186-5 §6), hedged-by-default per `draft-irtf-cfrg-det-sigs-with-noise-05`, low-S enforced |
 | [asm_curve25519.md](./asm_curve25519.md) | WASM implementation: field arithmetic, edwards25519, Montgomery ladder, scalar mod L, embedded SHA-512 |
+| [asm_p256.md](./asm_p256.md) | p256 WASM implementation: GF(p256) field arithmetic, Renes-Costello-Batina 2016 complete addition, constant-time scalar mult, embedded SHA-256 + HMAC-SHA-256 for RFC 6979 K derivation |
 
 ### Post-Quantum Signatures
 
@@ -165,5 +167,6 @@ See the [audit index](./audits.md) for a summary of all reviews.
 | [slhdsa_audit.md](./slhdsa_audit.md) | SLH-DSA FIPS 205 implementation audit, including PQ-only hybrid factory invariants |
 | [ed25519_audit.md](./ed25519_audit.md) | Ed25519 RFC 8032 plus FIPS 186-5 strict verification, fault-injection defence, embedded SHA-512 integrity, dom2 prehash binding |
 | [x25519_audit.md](./x25519_audit.md) | X25519 RFC 7748 clamping discipline, constant-time Montgomery ladder, TS-layer all-zero rejection |
+| [ecdsa-p256_audit.md](./ecdsa-p256_audit.md) | ECDSA-P256 FIPS 186-5 strict verification, RFC 6979 deterministic-K gate, hedged-by-default posture, low-S enforcement, fault-injection defence, embedded SHA-256 / HMAC-SHA-256 integrity |
 | [stream_audit.md](./stream_audit.md) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 | [ratchet_audit.md](./ratchet_audit.md) | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |
