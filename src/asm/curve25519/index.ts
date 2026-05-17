@@ -24,11 +24,11 @@
 // curve25519 WASM module, public export surface.
 // RFC 7748 (Curve25519 / X25519) and RFC 8032 (edwards25519 / Ed25519).
 //
-// TASK-B substrate: field arithmetic over GF(2^255-19), Edwards point
-// operations on edwards25519 (extended coords), Montgomery ladder for
-// X25519, scalar arithmetic mod L, and point encoding / decoding.
-// TASK-C will compose Ed25519 high-level keygen / sign / verify on this
-// substrate; TASK-D will compose X25519 keygen / DH.
+// Substrate: field arithmetic over GF(2^255-19), Edwards point operations
+// on edwards25519 (extended coords), Montgomery ladder for X25519,
+// scalar arithmetic mod L, and point encoding / decoding. Composed on
+// top: Ed25519 high-level keygen / sign / verify in `./ed25519.ts`, and
+// X25519 keygen / DH in `./x25519.ts`.
 //
 // Module ID 8 (the 11th WASM binary; 4 memory pages). The 4-page sizing
 // gives the TS layer's pure-mode message-staging region enough headroom
@@ -73,14 +73,14 @@ export {
 	feIsZero, feIsNegative, feCondSwap, feCondNeg,
 } from './field'
 
-// ── Edwards points (TASK-B step 7 / 9 for full impls) ───────────────────────
+// ── Edwards points ──────────────────────────────────────────────────────────
 
 export {
 	edPointZero, edPointBasepoint, edPointDouble, edPointAdd, edPointSub,
 	edPointEqual, edPointMul, edPointMulBase, edPointOnCurve,
 } from './edwards'
 
-// ── Point compression (TASK-B step 7 for full impls) ────────────────────────
+// ── Point compression ───────────────────────────────────────────────────────
 
 export {
 	edPointCompress, edPointDecompress,
@@ -97,7 +97,7 @@ export {
 	scalarAdd, scalarMulAdd, scalarIsCanonical,
 } from './scalar'
 
-// ── Ed25519 high-level operations (TASK-C) ──────────────────────────────────
+// ── Ed25519 high-level operations ───────────────────────────────────────────
 //
 // RFC 8032 §5.1.5 (keygen), §5.1.6 (pure sign), §5.1.7 strict (pure
 // verify and prehash variants). The embedded SHA-512 in ./sha512.ts is
@@ -117,13 +117,13 @@ export {
 	ed25519SignPrehashedInternalPk,
 } from './ed25519'
 
-// ── X25519 high-level operations (TASK-D) ──────────────────────────────────
+// ── X25519 high-level operations ────────────────────────────────────────────
 //
 // RFC 7748 §6: keygen against the Curve25519 basepoint and Diffie-Hellman
 // against a peer's u-coord public key. Both clamp the caller's 32-byte
 // secret on every call per RFC 7748 §5; the all-zero shared-secret
-// rejection (contributory behaviour) is performed at the TypeScript layer
-// in TASK-E, not here. See the head of ./x25519.ts for the full posture.
+// rejection (contributory behaviour) is performed at the TypeScript layer,
+// not here. See the head of ./x25519.ts for the full posture.
 
 export {
 	x25519Keygen,

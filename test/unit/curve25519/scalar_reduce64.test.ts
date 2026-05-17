@@ -21,8 +21,8 @@
 //
 /**
  * scalarReduce64 BigInt-oracle cross-check. Regression coverage for the
- * L_LE byte-14 transcription error surfaced by TASK-C ed25519 sign
- * gating: the original substrate hardcoded L14 = 0x4D (wrong) instead of
+ * L_LE byte-14 transcription error surfaced by ed25519 sign gating:
+ * the original substrate hardcoded L14 = 0x4D (wrong) instead of
  * 0xDE (correct, per RFC 8032 §5.1 L = 2^252 + 27742317777372353535851937790883648493).
  * The previous substrate test only covered reduce64(0) = 0, which did
  * not exercise the byte-14 path. These tests touch every non-trivial

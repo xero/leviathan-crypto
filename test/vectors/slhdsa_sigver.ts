@@ -30,7 +30,7 @@
 //   pin: 15c0f3deeefbfa8cb6cd32a99e1ca3b738c66bf0 (v1.1.0.42, 2026-04-16)
 //   vsId=53, algorithm=SLH-DSA, mode=sigVer, revision=FIPS205, isSample=true
 //
-// Curated SHAKE-fast subset for Phase 2 scope.
+// Curated SHAKE-fast subset.
 // Each test carries `testPassed: bool` (whether the signature should
 // verify) and `reason: string` (failure cause for negative tests).
 // HashSLH-DSA preHash cases are merged via the same `preHash` group

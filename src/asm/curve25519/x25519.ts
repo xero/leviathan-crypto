@@ -23,11 +23,11 @@
 //
 // X25519 high-level operations (RFC 7748 §6): keygen against the
 // Curve25519 basepoint and Diffie-Hellman against a peer's u-coord public
-// key. Thin wrappers around the TASK-B substrate `x25519Ladder`: both
+// key. Thin wrappers around the substrate `x25519Ladder`: both
 // exports clamp the caller's 32-byte secret on every call per RFC 7748
 // §5, then drive the constant-time Montgomery ladder.
 //
-// Locked posture (see TASK-D for rationale):
+// Locked posture:
 //
 //   1. Clamping happens internally on every call. The skOff buffer holds
 //      "opaque 32 random bytes" per RFC 7748 §5; the WASM API does NOT
@@ -35,7 +35,7 @@
 //      clamp form (out != src) preserves skOff byte-for-byte.
 //   2. All-zero shared-secret rejection is NOT performed at this layer.
 //      x25519DH returns void; sharedOff is written unconditionally. The
-//      TypeScript `X25519` class in TASK-E performs the constant-time
+//      TypeScript `X25519` class performs the constant-time
 //      all-zero scan and rejects degenerate outputs per RFC 7748 §7 /
 //      the contributory-behaviour interpretation. This matches x25519-
 //      dalek's posture and preserves WASM-vs-oracle byte agreement on
@@ -53,8 +53,8 @@
 // Wipe discipline: each export ends with wipeX25519(), which zeroes
 // X25519_SCALAR_CLAMP (the only secret intermediate, the clamped
 // scalar). The caller-provided buffers (skOff, peerPkOff, pkOff,
-// sharedOff) are NOT touched by wipeX25519; the TS layer in TASK-E
-// manages their lifetimes. The module-level `wipeBuffers()` (index.ts)
+// sharedOff) are NOT touched by wipeX25519; the TS layer manages their
+// lifetimes. The module-level `wipeBuffers()` (index.ts)
 // covers this slot too via the MUTABLE_START..BUFFER_END fill.
 
 import {
@@ -117,7 +117,7 @@ export function x25519Keygen(skOff: i32, pkOff: i32): void {
  *              masks bit 255 internally per RFC 7748 §5.
  *   sharedOff: write 32 bytes (the shared u-coord). NOT checked for
  *              all-zero at the WASM level; the TypeScript `X25519` class
- *              in TASK-E performs the contributory-behaviour check.
+ *              performs the contributory-behaviour check.
  *
  * Returns void: there is no failure mode at the WASM level. A degenerate
  * output (e.g. from a small-order peerPk) is still WRITTEN to sharedOff;

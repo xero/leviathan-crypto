@@ -275,7 +275,7 @@ describe('BLAKE3 compress4 vs compress1, §5.3 lane-parallel equivalence', () =>
 	// the same inputs at generation time and asserts byte-equality, so
 	// the vector file is self-consistent. This test is the primary
 	// regression gate on compress4 independent of hash() and the later
-	// TASK-E XOF / TASK-F multi-chunk-parallel transitive paths.
+	// XOF / multi-chunk-parallel transitive paths.
 	it('compress4 KAT: 4 fixed input sets, expected outputs derived from compress1', () => {
 		const mem = new Uint8Array(wasm.memory.buffer);
 		const dv  = new DataView(wasm.memory.buffer);

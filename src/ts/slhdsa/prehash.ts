@@ -28,9 +28,9 @@
 //   • OID  = the DER encoding of PH's NIST CSOR object identifier
 //
 // The M' construction is BYTE-IDENTICAL to FIPS 204 §5.4 HashML-DSA's M'.
-// Phase 1's src/ts/mldsa/hashvariant.ts:constructMPrimeHash already
-// implements this byte layout. Q7 resolution: duplicate, do not extract.
-// Phase 3 (BLAKE3) re-evaluates if a third consumer materialises.
+// `src/ts/mldsa/hashvariant.ts:constructMPrimeHash` already implements
+// this byte layout; the duplication is intentional and extraction is
+// deferred until a third consumer materialises.
 //
 // All OIDs share the 10-byte DER prefix `06 09 60 86 48 01 65 03 04 02`
 // (joint-iso-itu-t.country(2).us(16).organization(840).gov(1).csor(101)
@@ -135,8 +135,8 @@ export function getOid(algo: PreHashAlgorithm): Uint8Array {
  *  respectively; the SHA-3 and SHA-2 entries return their natural digest
  *  size. Used by `validateDigest` to bound the caller-supplied prehash.
  *
- *  Q2 resolution: duplicated from `src/ts/mldsa/hashvariant.ts:digestSize`.
- *  Phase 3 (BLAKE3) re-evaluates extraction. */
+ *  Duplicated from `src/ts/mldsa/hashvariant.ts:digestSize`; extraction
+ *  is deferred until a third consumer materialises. */
 export function digestSize(algo: PreHashAlgorithm): number {
 	switch (algo) {
 	case 'SHA2-224':     return 28;

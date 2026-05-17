@@ -25,8 +25,8 @@
 // FIPS 204, Module-Lattice-Based Digital Signature Standard.
 //
 // Parameter-set values (k, ℓ, η, γ₁, γ₂, τ, β, ω) are NOT defined here,
-// they live in the TypeScript layer (phase 4). This file holds only the
-// constants common to all ML-DSA parameter sets.
+// they live in the TypeScript layer. This file holds only the constants
+// common to all ML-DSA parameter sets.
 
 // ── Ring parameters ─────────────────────────────────────────────────────────
 

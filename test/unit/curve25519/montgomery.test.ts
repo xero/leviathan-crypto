@@ -28,8 +28,8 @@
  *
  * The iter=1000 record is part of `test/vectors/x25519.ts` but takes
  * 1000 ladder calls (~30 s in this implementation's slow-path scalar
- * arithmetic), so it is deferred to the e2e / heavier test surface in
- * TASK-D rather than run inside the 5-minute unit budget here.
+ * arithmetic), so it is deferred to the e2e / heavier test surface
+ * rather than run inside the 5-minute unit budget here.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

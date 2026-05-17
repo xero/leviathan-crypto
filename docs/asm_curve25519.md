@@ -76,7 +76,7 @@ sha2 module orchestration. The ABI does NOT surface the SHA-512
 exports; they are module-internal helpers only. See [Source
 Files](#source-files) for the diff-disciplined deviation list.
 
-**No protocol logic in the substrate.** The TASK-B field /
+**No protocol logic in the substrate.** The field /
 Edwards / ladder / scalar primitives are pure mathematical
 operations on linear-memory offsets. The Ed25519 protocol
 (RFC 8032 §5.1.5, key generation, through §5.1.7, signature
@@ -141,7 +141,7 @@ region; the wrapper owns it and wipes it explicitly.
 
 ```typescript
 function getModuleId(): i32      // returns 8
-function getMemoryPages(): i32   // returns 2
+function getMemoryPages(): i32   // returns 4
 ```
 
 Module ID 8 in the AsmModule registry. The 11th WASM binary in

@@ -107,7 +107,7 @@ export function poly_pointwise_montgomery(rOff: i32, aOff: i32, bOff: i32): void
 // names MONTSQ). Verified once via BigInt at the keygen-gate level
 // (test/unit/mldsa/mldsa.test.ts) when ACVP keygen vectors round-trip.
 //
-// Used by phase 4 keygen: after NTT(s₁), one factor of the matrix-vector
+// Used by keygen: after NTT(s₁), one factor of the matrix-vector
 // product needs to be in Montgomery form so that the subsequent
 // pointwise_montgomery (which applies an R⁻¹) leaves the regular-form
 // result Â·ŝ₁. The tomont scaling collapses with the post-NTT regular-form

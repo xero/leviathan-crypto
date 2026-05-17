@@ -28,8 +28,7 @@
  * `hashKeyed()` with the corpus-pinned `blake3Key` (the 32-byte ASCII
  * key from the upstream JSON) for a 32-byte output, and asserts the
  * bytes match the first 64 hex characters of the record's
- * `keyedHashHex`. XOF output past 32 bytes is a TASK-E deliverable and
- * not exercised here.
+ * `keyedHashHex`. XOF output past 32 bytes is not exercised here.
  *
  * §2.3: keyed_hash uses the 32 key bytes as the starting CV (loaded as
  * 8 u32 LE words, identical to a memcpy on a LE host), and every
@@ -37,9 +36,8 @@
  * the structural CHUNK_START / CHUNK_END / PARENT / ROOT bits.
  *
  * Expected values are sourced from `test/vectors/blake3.ts` (which
- * sources from the upstream JSON pinned in TASK-A); per AGENTS.md
- * §Ground Rules #2, do not modify the vectors to make a failing test
- * pass.
+ * sources from the upstream JSON); per AGENTS.md §Ground Rules #2, do
+ * not modify the vectors to make a failing test pass.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -65,8 +63,8 @@ const __dirname  = dirname(__filename);
 const WASM_PATH  = resolve(__dirname, '../../../build/blake3.wasm');
 
 // Same staging layout as blake3-kat.test.ts: key, then input, then
-// output, all placed past the BLAKE3 buffer region (BUFFER_END = 26328
-// after the TASK-J LEVEL_QUEUES expansion). The largest KAT input is
+// output, all placed past the BLAKE3 buffer region (BUFFER_END = 26328,
+// including the LEVEL_QUEUES region). The largest KAT input is
 // 102400 bytes; placing input at 28672 fills the remainder of the
 // 2-page (131072 byte) module memory, with the 32-byte key tucked in
 // immediately before at 28640.

@@ -164,7 +164,7 @@ function ctSubL33(a: i32): i32 {
 
 /**
  * Returns 1 if the 32-byte LE scalar s is in [0, L), 0 otherwise.
- * Used by the strict-verification posture in TASK-C.
+ * Used by the strict-verification posture in Ed25519 verify.
  */
 export function scalarIsCanonical(s: i32): i32 {
 	// Build L in a scratch buffer and compare s < L.
@@ -280,8 +280,8 @@ export function scalarAdd(out: i32, a: i32, b: i32): void {
 
 /**
  * out = (a*b + c) mod L. Inputs and output are 32-byte LE.
- * Used by Ed25519 sign: s = (r + k*a) mod L (TASK-C, where r and a are
- * the ephemeral nonce and secret scalar respectively, k = SHA-512(R || A
+ * Used by Ed25519 sign: s = (r + k*a) mod L (where r and a are the
+ * ephemeral nonce and secret scalar respectively, k = SHA-512(R || A
  * || M) reduced).
  *
  * Implementation: byte-level schoolbook multiplication producing a

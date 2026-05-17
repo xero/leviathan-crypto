@@ -83,8 +83,8 @@ export function writeMem(offset: number, data: Uint8Array): void {
 // ── Scratch layout for the tree-internals tests ─────────────────────────────
 //
 // The blake3 WASM module's mutable buffer region runs through
-// `BUFFER_END` (26328 bytes from src/asm/blake3/buffers.ts, after the
-// TASK-J LEVEL_QUEUES expansion). Helpers stage their _test* inputs at
+// `BUFFER_END` (26328 bytes from src/asm/blake3/buffers.ts, which
+// includes the LEVEL_QUEUES region). Helpers stage their _test* inputs at
 // 16384 (which lies inside LEVEL_QUEUES) and read outputs from CV_BUF_*
 // past BUFFER_END at 81920+. This is safe because the `_test*` entries
 // (`_testChunkCV` / `_testParentCV` / `_testDeriveContextCV`) never
@@ -207,8 +207,8 @@ export function resetBatch4CallCount(): void {
  * Number of `parentBatch4` (compress4 4-parent batch) invocations the
  * WASM module has executed since the last `resetParentBatch4CallCount()`.
  * Test-grade instrumentation for the parent-level dispatch suite,
- * parallel to `getBatch4CallCount` / `resetBatch4CallCount` (TASK-I).
- * The parent-dispatch test resets, runs a hash, and asserts this count
+ * parallel to `getBatch4CallCount` / `resetBatch4CallCount`. The
+ * parent-dispatch test resets, runs a hash, and asserts this count
  * matches the predicted cascade for the input size.
  */
 export function getParentBatch4CallCount(): number {

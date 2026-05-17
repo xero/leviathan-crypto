@@ -491,7 +491,7 @@ export function feFromBytes(out: i32, src: i32): void {
  * Fully reduces the field element to its canonical representative
  * (single value in [0, p)) before encoding. Required by RFC 8032
  * §5.1.2 (point encoding canonicality) and by the strict-verification
- * posture TASK-C will adopt.
+ * posture used by Ed25519 verify.
  *
  * Reduction strategy:
  *   1. Propagate any limb-overflow carry within the 5-limb representation

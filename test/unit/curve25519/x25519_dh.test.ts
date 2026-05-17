@@ -29,9 +29,9 @@
  * is an internal-consistency check: x25519DH agrees with the substrate
  * `x25519Ladder` when fed the same clamped scalar and peer u-coord.
  *
- * The all-zero shared-secret rejection (small-order peer-pk) is TS-
- * layer per TASK-D locks (TASK-E adds that test against the wrapped
- * class); this file does not exercise it.
+ * The all-zero shared-secret rejection (small-order peer-pk) is
+ * enforced at the TS layer and exercised against the wrapped class
+ * elsewhere; this file does not exercise it.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { x25519Vectors } from '../../vectors/x25519.js';

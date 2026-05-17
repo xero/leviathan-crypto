@@ -26,13 +26,14 @@
 // other modules per repo §Architecture Constraints).
 //
 // Module 8 in the AsmModule registry (after blake3); 11th WASM binary.
-// 2 memory pages = 131072 bytes; the substrate's mutable buffer usage
+// 4 memory pages = 262144 bytes; the substrate's mutable buffer usage
 // is far smaller (a few KB), pages were rounded up to match the blake3 /
-// slhdsa precedent and leave headroom for TASK-C / TASK-D additions.
+// slhdsa precedent and leave headroom for the SHA-512, Ed25519, and
+// X25519 scratch regions appended below.
 //
 // Field element = 40 bytes (5 × 8-byte i64 limbs, radix 2^51 per RFC 8032
-// §5.1 + TASK-B field-representation lock). Edwards point in extended
-// coords (X:Y:Z:T) = 160 bytes. Scalar = 32 bytes LE.
+// §5.1). Edwards point in extended coords (X:Y:Z:T) = 160 bytes. Scalar
+// = 32 bytes LE.
 //
 // Region map (byte offsets, sizes in bytes):
 //
@@ -49,7 +50,7 @@
 //                                       ladder state x2, z2, x3, z3 plus
 //                                       step temporaries a, aa, b, bb, e,
 //                                       c, d, da+cb)
-//   BUFFER_END = 5856 (< 65536 = 1 page; module sized at 2 pages)
+//   BUFFER_END = 7836 (< 65536 = 1 page; module sized at 4 pages)
 //
 // Constants (basepoint B, curve constants d, 2d, a24 = 121665, curve
 // order L) are NOT stored in mutable linear memory; they live as
@@ -104,9 +105,9 @@ export const LADDER_TMP_STRIDE:    i32 = 40
 export const ACC_OFFSET:           i32 = 5856
 export const ACC_SIZE:             i32 = 80
 
-// ── TASK-C appended region: embedded SHA-512 + Ed25519 scratch ─────────────
+// ── Embedded SHA-512 + Ed25519 scratch ─────────────────────────────────────
 //
-// Appended at offset 5936, following the TASK-B substrate buffers. Two
+// Appended at offset 5936, following the substrate buffers. Two
 // sub-regions: (1) SHA-512 state for the verbatim port in `sha512.ts`,
 // (2) Ed25519 scratch slots for the high-level keygen / sign / verify
 // exports in `ed25519.ts`.
@@ -130,7 +131,7 @@ export const SHA512_INPUT_OFFSET:   i32 = 6832   // 6768 + 64
 export const SHA512_PARTIAL_OFFSET: i32 = 6960   // 6832 + 128
 export const SHA512_TOTAL_OFFSET:   i32 = 6964   // 6960 + 4
 
-// Ed25519 scratch buffers (this task). Persistent across substrate calls.
+// Ed25519 scratch buffers. Persistent across substrate calls.
 export const ED25519_SCALAR_A:      i32 = 6972   // 32 bytes (clamped scalar a)
 export const ED25519_PREFIX:        i32 = 7004   // 32 bytes (h[32..64])
 export const ED25519_R_SCALAR:      i32 = 7036   // 32 bytes (r mod L)
@@ -141,7 +142,7 @@ export const ED25519_POINT_R:       i32 = 7292   // 160 bytes (R_point = [r]B / 
 export const ED25519_POINT_TMP1:    i32 = 7452   // 160 bytes
 export const ED25519_POINT_TMP2:    i32 = 7612   // 160 bytes
 
-// ── TASK-D appended region: X25519 high-level scratch ──────────────────────
+// ── X25519 high-level scratch ──────────────────────────────────────────────
 //
 // Two 32-byte slots used by x25519Keygen / x25519DH (./x25519.ts). Both are
 // wiped by wipeX25519 / wipeBuffers; both live in the mutable region above

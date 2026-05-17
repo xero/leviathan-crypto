@@ -27,7 +27,7 @@
 // This file exports the numeric per-parameter-set constants only; derived
 // constants (len_1, len_2, len, k, a, h, d, h') are computed inside the
 // individual WOTS+ / FORS / XMSS / hypertree modules via per-set lookup.
-// Phase 2 scope ships the SHAKE-family fast variants (128f / 192f / 256f);
+// Current scope is the SHAKE-family fast variants (128f / 192f / 256f);
 // the slow variants (128s/192s/256s) and the SHA-2 family are out of scope.
 //
 //   ┌───────┬────┬────┬────┬────┬────┬────┬────┐

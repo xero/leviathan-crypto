@@ -124,7 +124,7 @@ export interface Blake3Exports {
  * BLAKE3 WASM internal test exports. NOT part of the consumer surface,
  * NOT re-exported from `src/ts/blake3/index.ts`. Wired exclusively for
  * the tree-internals test suite (`test/unit/blake3/blake3-tree-internals
- * .test.ts`) and the Phase 7 log-proof substrate
+ * .test.ts`) and the planned log-proof substrate
  * (`src/ts/merkle/blake3-log.ts`) which will cast
  * `Blake3Exports & Blake3TestExports` inside the merkle module.
  *
@@ -186,7 +186,7 @@ export interface Blake3TestExports {
 	_resetBatch4CallCount: () => void
 
 	// Test-grade instrumentation for parent-level compress4 dispatch
-	// coverage (TASK-J), parallel to `_getBatch4CallCount` /
+	// coverage, parallel to `_getBatch4CallCount` /
 	// `_resetBatch4CallCount` above. Counts the number of `parentBatch4`
 	// invocations on the WASM module since the last
 	// `_resetParentBatch4CallCount()` call. The parent-dispatch unit

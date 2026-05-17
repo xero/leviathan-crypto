@@ -28,7 +28,7 @@
 // validation, deterministic-sign byte-stability, and basic
 // sign/verify round-trip with empty, small, and USER_CTX_MAX ctx.
 // Mirrors sign-mldsa-suites.test.ts adapted for Ed25519's determinism
-// and the pure-mode ctx-unsupported lock from TASK-F.
+// and the pure-mode ctx-unsupported lock.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, utf8ToBytes } from '../../../src/ts/index.js';
@@ -135,7 +135,7 @@ const TEST_MSG  = new Uint8Array(64).map((_, i) => (i * 17 + 3) & 0xff);
 
 // ── Pure suite: ctx rejection lock + round-trip ────────────────────────────
 
-describe('Ed25519Suite pure-mode lock (TASK-F)', () => {
+describe('Ed25519Suite pure-mode lock', () => {
 	it('sign(sk, msg, empty_ctx) succeeds', () => {
 		const { pk, sk } = Ed25519Suite.keygen();
 		const sig = Ed25519Suite.sign(sk, TEST_MSG, EMPTY_CTX);

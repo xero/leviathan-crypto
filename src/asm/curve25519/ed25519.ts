@@ -27,8 +27,8 @@
 // cofactor-eight variant `[8s]G == [8](R + [k]A)` is NOT implemented.
 // Small-order public-key rejection uses three substrate doublings and a
 // single equality check against the identity, no constant-time scan
-// against a hardcoded small-order point table (the no-tables posture
-// continues from TASK-B).
+// against a hardcoded small-order point table (matches the substrate's
+// no-tables posture).
 //
 // Embedded SHA-512 (verbatim port at ./sha512.ts) is the only hash
 // primitive consumed; sha2.wasm is not orchestrated for the reasons

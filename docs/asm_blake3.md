@@ -58,7 +58,7 @@ drives this via the `squeezeXofBlock` export.
 
 **Tree-mode internals gated for test use.** The `_testChunkCV`,
 `_testParentCV`, and `_testDeriveContextCV` exports exist for the
-tree-internals unit tests and the planned Phase 7
+tree-internals unit tests and the planned
 `src/ts/merkle/blake3-log.ts` log-proof substrate. They are NOT part
 of the consumer-facing `Blake3Exports` interface; consumers compute
 chunk / parent CVs only via the top-level hash / hashKeyed / deriveKey
@@ -419,7 +419,7 @@ See [Memory Wiping](#memory-wiping).
 The following exports are NOT part of the consumer-facing
 `Blake3Exports` interface. They are wired exclusively for the
 `test/unit/blake3/blake3-tree-internals.test.ts` test fixture and the
-planned Phase 7 `src/ts/merkle/blake3-log.ts` log-proof substrate,
+planned `src/ts/merkle/blake3-log.ts` log-proof substrate,
 which will cast `Blake3Exports & Blake3TestExports` inside the
 merkle module. Tests obtain these via
 `test/unit/blake3/helpers.ts`. The underscore prefix follows the

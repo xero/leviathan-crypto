@@ -8,9 +8,9 @@
 //   kmacxof{128,256}_appendix_a / _acvp  (xof = true)   → Kmac::into_xof
 //
 // Two of the ACVP exports (kmac256_acvp, kmacxof128_acvp) are
-// deliberately empty: no byte-aligned records survived the Phase 1
-// filter for those slots. The verifier still calls the appropriate
-// parse + iterate path so the wiring exercises both variants.
+// deliberately empty: no byte-aligned records survived the
+// byte-alignment filter for those slots. The verifier still calls the
+// appropriate parse + iterate path so the wiring exercises both variants.
 //
 // Oracle: tiny-keccak. tiny-keccak is the only verifier dep outside the
 // RustCrypto family and lives here because RustCrypto's `kmac` is a
@@ -22,9 +22,10 @@
 //
 // Scope: byte-oriented only. leviathan-crypto's KMAC and cSHAKE WASM
 // surface consumes Uint8Array; bit-level ACVP cases were dropped at
-// Phase 1 to match. Every record pinned in `kmac.ts` is byte-aligned by
-// construction; the assertions below enforce that as a parser sanity
-// check and would fire if a future corpus edit broke the invariant.
+// transcription time to match. Every record pinned in `kmac.ts` is
+// byte-aligned by construction; the assertions below enforce that as
+// a parser sanity check and would fire if a future corpus edit broke
+// the invariant.
 //
 // References: SP 800-185 §3 (cSHAKE), §4 (KMAC). The pinned samples
 // come from the three NIST CSRC sample PDFs (cSHAKE_samples.pdf,
@@ -45,7 +46,7 @@ use crate::parse::{
 
 fn assert_byte_aligned(label: &str, bits: u32, log: &mut Vec<String>) -> Option<usize> {
     if bits % 8 != 0 {
-        log.push(format!("  ✗ {label}: {bits} bits is not byte-aligned (Phase 1 filter bug?)"));
+        log.push(format!("  ✗ {label}: {bits} bits is not byte-aligned (transcription bug?)"));
         return None;
     }
     Some((bits / 8) as usize)

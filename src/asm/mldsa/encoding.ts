@@ -25,8 +25,8 @@
 // FIPS 204 §7.1 Algorithms 16-21.
 //
 // ML-DSA uses bit-pack widths that vary by parameter set and field. Across
-// the three parameter sets (44/65/87) the union of widths used by phase-4
-// orchestration is { 3, 4, 6, 10, 13, 18, 20 }:
+// the three parameter sets (44/65/87) the union of widths used by the
+// orchestration layer is { 3, 4, 6, 10, 13, 18, 20 }:
 //
 //   bitlen   Where used                          Algorithm
 //   ──────── ────────────────────────────────── ─────────
@@ -40,7 +40,7 @@
 //     20     z       (γ₁ = 2^19)                sigEncode / sigDecode
 //
 // The functions in this file accept the width or (a,b) range as a runtime
-// argument; phase-4 wrappers pick the right value per parameter set.
+// argument; TS-layer wrappers pick the right value per parameter set.
 //
 // HintBitUnpack (Alg 21) implements three malformed-input checks (lines 4, 9,
 // 17 of the spec). Skipping any of them breaks SUF-CMA per FIPS 204 §D.3.

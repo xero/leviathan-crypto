@@ -80,8 +80,8 @@ describe('ed25519 sign (pure)', () => {
 	// ACVP EDDSA-SigGen-1.0 pure subset (preHash === null).
 	describe('ACVP EDDSA sigGen (pure)', () => {
 		const pureRecords = ed25519_siggen_all.filter(r => r.preHash === null);
-		// Per TASK-C: Ed25519ctx (pure + non-empty ctx) is NOT a WASM
-		// export. ACVP pure-mode corpus has uniformly-empty context, but
+		// Ed25519ctx (pure + non-empty ctx) is NOT a WASM export.
+		// ACVP pure-mode corpus has uniformly-empty context, but
 		// guard explicitly in case a record slipped in.
 		for (const r of pureRecords) {
 			it(`tcId ${r.tcId} (tgId ${r.tgId}): sign + self-verify`, () => {

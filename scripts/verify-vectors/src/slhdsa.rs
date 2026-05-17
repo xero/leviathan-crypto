@@ -2,7 +2,7 @@
 //
 // Reads `slhdsa_keygen.ts`, `slhdsa_siggen.ts`, and `slhdsa_sigver.ts`
 // (parsed by `parse::parse_slhdsa_*_array`) and runs each record through
-// RustCrypto's `slh-dsa` crate. Phase 2 scope: SHAKE-fast variants
+// RustCrypto's `slh-dsa` crate. Scope: SHAKE-fast variants
 // (SLH-DSA-SHAKE-{128f,192f,256f}) only.
 //
 // The verifier reproduces ACVP's expected outputs byte-for-byte:

@@ -39,7 +39,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Module | Description |
 |--------|-------------|
-| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite`, `Sign`, `SignStream`, `VerifyStream`, plus the Phase 1 `MlDsa{44,65,87}{,PreHash}Suite` consts |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite`, `Sign`, `SignStream`, `VerifyStream`, plus the shipped suite catalog and reserved entries |
 
 ### Post-Quantum KEM
 

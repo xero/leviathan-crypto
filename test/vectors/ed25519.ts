@@ -24,7 +24,7 @@
 //
 // RFC 8032 §7 known-answer test vectors. Five records: four §7.1 Ed25519
 // pure tests (TEST 1, TEST 2, TEST 3, TEST 1024) plus the single §7.3
-// Ed25519ph test (TEST abc). These are the Phase 4 Curve25519 family
+// Ed25519ph test (TEST abc). These are the Curve25519 family
 // gate corpus, transcribed by hand from the RFC text.
 //
 // Source:

@@ -322,7 +322,7 @@ fn run_mldsa(use_color: bool) -> bool {
 
 // ────────────────────────────────────────────────────────────────────────────
 // SLH-DSA (FIPS 205) dispatcher, implementation in src/slhdsa.rs.
-// Phase 2 scope: SHAKE-fast variants only (128f / 192f / 256f).
+// Scope: SHAKE-fast variants only (128f / 192f / 256f).
 // ────────────────────────────────────────────────────────────────────────────
 
 fn run_slhdsa(use_color: bool) -> bool {
@@ -741,7 +741,7 @@ fn run_kmac(use_color: bool) -> bool {
     // Empty-array guard: the four sample exports each carry 2 (cshake128/256)
     // or 3 (kmac128/256, kmacxof128/256) records and must never parse empty.
     // The two acvp exports kmac256_acvp and kmacxof128_acvp are deliberately
-    // empty (Phase 1 byte-alignment filter dropped them all) and are excluded
+    // empty (the byte-alignment filter dropped them all) and are excluded
     // from this guard. cshake128_acvp, cshake256_acvp, kmac128_acvp, and
     // kmacxof256_acvp all carry surviving records and must parse non-empty.
     let nonempty_lens: [(&str, usize); 10] = [

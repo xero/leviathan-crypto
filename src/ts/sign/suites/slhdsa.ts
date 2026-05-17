@@ -66,8 +66,8 @@ import type {
 type SlhDsaCtor = typeof SlhDsa128f | typeof SlhDsa192f | typeof SlhDsa256f;
 
 // Lowercase public sign-surface → uppercase SLH-DSA internal algorithm name.
-// Phase 2 only wires the two SHAKE variants; remaining slh-dsa pre-hash
-// names will join when a hybrid or non-SHAKE suite needs them.
+// Only the two SHAKE variants are wired; remaining slh-dsa pre-hash names
+// will join when a hybrid or non-SHAKE suite needs them.
 function prehashAlgoToSlhdsa(algo: PrehashAlgorithm): SlhPreHashAlgorithm {
 	switch (algo) {
 	case 'shake-128': return 'SHAKE128';

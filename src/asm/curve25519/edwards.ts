@@ -317,8 +317,7 @@ function edPointCondSwap(R: i32, Q: i32, swap: i32): void {
 // after RFC 8032 clamping); the time and addition / doubling count is
 // fixed regardless of scalar value.
 //
-// NO precomputed tables. NO comb. NO sliding window. Per the Phase 4
-// no-tables lock.
+// NO precomputed tables. NO comb. NO sliding window.
 //
 // POINT_TMP slot usage:
 //   slot 0: R    (accumulator, updated each iteration)
@@ -360,7 +359,7 @@ export function edPointMul(out: i32, scalar: i32, p: i32): void {
 //
 // NO precomputed multiples of B. The fixed-base path pays the same ~255
 // doubles + ~255 adds + ~255 selects as the variable-base path. This is
-// intentional per the Phase 4 no-tables lock; the audit surface is
+// intentional under the no-tables posture; the audit surface is
 // smaller and there are no key-bit-indexed table accesses.
 
 export function edPointMulBase(out: i32, scalar: i32): void {

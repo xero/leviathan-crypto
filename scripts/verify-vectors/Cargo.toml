@@ -114,10 +114,10 @@ tiny-keccak      = { version = "=2.0.2",  default-features = false, features = [
 # half of sign_hybrid_pq.ts (driven by src/hybrid_pq.rs). The crate
 # exposes `SigningKey::slh_keygen_internal(skSeed, skPrf, pkSeed)` and
 # `slh_sign_internal(M', opt_rand)` (both `#[doc(hidden)]` but public)
-# which is the FIPS 205 §9 KAT-validation path. Phase 2 ships the
-# SHAKE-fast variants (Shake128f / Shake192f / Shake256f); SHA-2 family
-# and slow variants are out of scope for the WASM module so the
-# verifier carries the same SHAKE-fast subset. Defaults stay on
+# which is the FIPS 205 §9 KAT-validation path. The WASM module ships
+# the SHAKE-fast variants (Shake128f / Shake192f / Shake256f); SHA-2
+# family and slow variants are out of scope so the verifier carries
+# the same SHAKE-fast subset. Defaults stay on
 # because the crate's `alloc` feature unconditionally references
 # `der::SecretDocument` / `der::Document` from the pkcs8/alloc path;
 # disabling defaults breaks the build. `zeroize` is a non-correctness
@@ -131,8 +131,8 @@ slh-dsa          = { version = "=0.2.0-rc.5" }
 # verifier reads XOF bytes without pulling std::io::Read into scope.
 # Same crate as the WASM substrate's source spec but a separate Rust
 # lineage from leviathan-crypto's AssemblyScript port; the agreement
-# between this oracle and the WASM output (verified in TASK-B onward)
-# is the "two independent stacks agree on the bytes" signal.
+# between this oracle and the WASM output is the "two independent
+# stacks agree on the bytes" signal.
 blake3           = { version = "=1.8.5",  default-features = false }
 # Hex codec used everywhere we surface bytes in logs (computed/expected
 # diffs, header dumps). `std` so we can return the standard `String`

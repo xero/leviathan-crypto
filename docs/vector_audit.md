@@ -155,9 +155,9 @@ small-order rejection is the consumer's responsibility, and the RFC
 explicitly allows that check to be performed by the application
 above the primitive. The verifier's job here is byte agreement on
 the raw scalar-mult output. Rejection-of-degenerate-public-keys is
-exercised separately at the TypeScript layer in TASK-E onward, where
-the leviathan-crypto wrapper checks for the all-zero shared secret
-and throws.
+exercised separately at the TypeScript layer, where the
+leviathan-crypto wrapper checks for the all-zero shared secret and
+throws.
 
 Provenance for the five new files is recorded inline:
 

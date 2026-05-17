@@ -41,7 +41,7 @@
  * record and implicitly by `x25519_keygen.test.ts` (X25519(sk, 9) at the
  * basepoint); not re-tested here.
  *
- * iter=1000000 is deliberately not exercised; per the TASK-A
+ * iter=1000000 is deliberately not exercised; per the
  * docs/vector_audit.md note, the marginal correctness coverage at
  * ~5000x the iter=1000 runtime budget is too low.
  */

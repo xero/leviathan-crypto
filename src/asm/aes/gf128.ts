@@ -21,7 +21,7 @@
 //
 // src/asm/aes/gf128.ts
 //
-// GF(2^128) primitive used by AES-GCM (Phase 4a). Implements the
+// GF(2^128) primitive used by AES-GCM. Implements the
 // "multiplication operation on blocks" of NIST SP 800-38D §6.3, exposed as
 // a 4-bit windowed multiply by the fixed hash subkey H.
 //
@@ -52,10 +52,10 @@
 // and table-free schoolbook is too slow for production use. The browser
 // sandbox mitigates direct cross-process cache observation; full mitigation
 // would require either CPU carry-less-multiply support or hardware-tied
-// AES-GCM-SIV (phase 4b).
+// AES-GCM-SIV.
 
 // ──────────────────────────────────────────────────────────────────────────
-// Phase 4b note. AES-GCM-SIV (RFC 8452) uses POLYVAL, a sibling
+// AES-GCM-SIV note. AES-GCM-SIV (RFC 8452) uses POLYVAL, a sibling
 // universal hash in a different field: reduction polynomial
 // x^128 + x^127 + x^126 + x^121 + 1 (vs GHASH's x^128 + x^7 + x^2 + x + 1)
 // and a bit-within-byte ordering where bit 0 of byte 0 is u^0 (vs GHASH's
@@ -72,8 +72,8 @@
 // interpretations of bit order takes care of reversing the bits within
 // each byte, and then reversing the bytes does the rest."
 //
-// Phase 4b chose path (a): a reflection wrapper around the existing
-// gf128MulH multiplier. Per-SIV-operation setup byte-reverses the
+// The implementation uses path (a): a reflection wrapper around the
+// existing gf128MulH multiplier. Per-SIV-operation setup byte-reverses the
 // POLYVAL hash subkey, applies mulX_GHASH (defined in this file as
 // `mulXGhash`), and feeds the result to `gf128InitTable`. Per-block
 // absorption byte-reverses the block into GHASH bit convention, XORs

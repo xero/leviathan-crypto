@@ -25,7 +25,7 @@
 // §6 small-order rejection is the consumer's responsibility); the
 // verifier's job here is byte agreement on the raw scalar-mult output.
 // Rejection-of-degenerate-pks is exercised separately at the
-// TypeScript layer in TASK-E onward.
+// TypeScript layer.
 
 use x25519_dalek::{x25519, PublicKey, StaticSecret};
 

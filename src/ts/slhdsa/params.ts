@@ -31,7 +31,7 @@
 // where w = 16 (the only approved Winternitz parameter in §11.1), so
 // len_1 = ⌈8·n/4⌉, len_2 = 3, len = len_1 + len_2.
 //
-// Phase 2 scope is the SHAKE-family fast variants (128f / 192f / 256f) only;
+// Current scope is the SHAKE-family fast variants (128f / 192f / 256f) only;
 // the slow variants and the SHA-2 family are explicitly out of scope.
 //
 // `securityCategory` (NIST PQC category 1 / 3 / 5) drives the per-set

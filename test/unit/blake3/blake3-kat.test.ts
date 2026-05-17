@@ -28,12 +28,11 @@
  * (byte i = i mod 251), runs `hash()` for a 32-byte output, and asserts
  * the bytes match the first 64 hex characters of the record's
  * `hashHex` (the default-length BLAKE3 hash). XOF output past 32 bytes
- * is a TASK-E deliverable and not exercised here.
+ * is not exercised here.
  *
  * Expected values are sourced from `test/vectors/blake3.ts` (which
- * sources from the upstream JSON pinned in TASK-A); per AGENTS.md
- * §Ground Rules #2, do not modify the vectors to make a failing test
- * pass.
+ * sources from the upstream JSON); per AGENTS.md §Ground Rules #2, do
+ * not modify the vectors to make a failing test pass.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -57,8 +56,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 const WASM_PATH  = resolve(__dirname, '../../../build/blake3.wasm');
 
-// Input is staged past the BLAKE3 buffer region (BUFFER_END = 26328
-// after the TASK-J LEVEL_QUEUES expansion). The largest KAT input is
+// Input is staged past the BLAKE3 buffer region (BUFFER_END = 26328,
+// which includes the LEVEL_QUEUES region). The largest KAT input is
 // 102400 bytes; placing it at 28672 leaves exactly 102400 bytes through
 // the 2-page (131072 byte) module memory end.
 const INPUT_OFF = 28672;

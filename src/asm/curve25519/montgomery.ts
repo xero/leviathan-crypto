@@ -28,7 +28,7 @@
 //
 // Caller contract: scalar MUST be already clamped (low 3 bits zeroed,
 // bit 254 set, bit 255 cleared). The substrate does not re-clamp; the
-// TASK-D x25519Keygen / x25519DH wrapper handles clamping.
+// x25519Keygen / x25519DH wrappers in ./x25519.ts handle clamping.
 
 import {
 	feAdd, feSub, feMul, feSqr, feMul121666,

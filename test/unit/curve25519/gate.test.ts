@@ -28,9 +28,9 @@
  * written. If a gate fails, debug the implementation; do NOT modify the
  * test or the source vector.
  *
- * Vectors are sourced from `test/vectors/x25519.ts` (TASK-A delivered)
- * and from the RFC 8032 §5.1 spec table for the basepoint encoding;
- * never re-transcribed in this file beyond the spec citation.
+ * Vectors are sourced from `test/vectors/x25519.ts` and from the RFC
+ * 8032 §5.1 spec table for the basepoint encoding; never re-transcribed
+ * in this file beyond the spec citation.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { x25519Vectors } from '../../vectors/x25519.js';

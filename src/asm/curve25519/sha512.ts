@@ -36,7 +36,7 @@
 // per signing operation. Embedding keeps the entire signing path
 // inside one WASM call.
 //
-// Deviations from the canonical source (all permitted by TASK-C):
+// Deviations from the canonical source:
 //   1. Buffer offset imports rewritten to ./buffers (curve25519 local
 //      memory layout). Offset constant NAMES preserved.
 //   2. SHA-384 / SHA-512/224 / SHA-512/256 variants stripped: Ed25519

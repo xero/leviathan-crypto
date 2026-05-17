@@ -28,8 +28,8 @@
 // Wires `sha3-256`, `sha3-512`, and the SHAKE pair used by the SLH-DSA
 // prehash suites, plus `sha-512` (buffered shim over the one-shot
 // SHA512 class) used by the Ed25519 prehash suite. The `sha-256`
-// variant still throws; it will land when ECDSA-P256 prehash arrives
-// in Phase 5.
+// variant still throws; it will land when ECDSA-P256 prehash is
+// implemented.
 //
 // SHAKE outputs are fixed per suite: SHAKE128Stream(32) for cat-1, and
 // SHAKE256Stream(64) for cat-3 / cat-5; the lengths track FIPS 204 §5.4.1
@@ -52,7 +52,7 @@ export interface RunningHash {
  * One-shot SHA-512 over `msg`. Used by suite factories whose
  * `sign(sk, msg, ctx)` / `verify(pk, msg, sig, ctx)` paths must compute
  * SHA-512 at the TS layer (the Ed25519 prehash suite is the current
- * caller; ECDSA-P256 prehash will join in Phase 5). Kept here so the
+ * caller; ECDSA-P256 prehash will join when added). Kept here so the
  * sha2 module access point is centralised next to `createRunningHash`.
  */
 export function sha512OneShot(msg: Uint8Array): Uint8Array {
@@ -114,7 +114,7 @@ export function createRunningHash(algo: PrehashAlgorithm): RunningHash {
 	case 'sha-256':
 		throw new Error(
 			`leviathan-crypto: prehash algorithm '${algo}' not implemented `
-			+ 'yet; SHA-2/256 streaming lands in Phase 5 (ECDSA-P256 prehash)',
+			+ 'yet; SHA-2/256 streaming arrives with ECDSA-P256 prehash',
 		);
 	default: {
 		const _exhaustive: never = algo;

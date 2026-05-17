@@ -30,7 +30,7 @@
 //   - FAIL vectors must throw `RangeError('authentication failed')` on
 //     every single one. None may return plaintext.
 //
-// We test only 128-bit-tag vectors per phase 4a's spec-faithful API.
+// We test only 128-bit-tag vectors per the spec-faithful API.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, AESGCM } from '../../../src/ts/index.js';

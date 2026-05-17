@@ -99,8 +99,8 @@ const hashSigVerFilter = (v: SigVerVector): boolean =>
 // ── Gate 8, HashML-DSA round-trip per (paramSet, prehash) ─────────────────
 // GATE: signHash → verifyHash succeeds for every (paramSet, prehash)
 // combination (3 × 12 = 36 tuples). The inner Sign_internal / Verify_internal
-// is already gated by phase 5; this gate exercises that the M' construction,
-// OID dispatch, and pre-hash routing all wire up correctly.
+// is gated by the pure-mode ACVP suite; this gate exercises that the M'
+// construction, OID dispatch, and pre-hash routing all wire up correctly.
 
 describe('Gate 8, HashML-DSA round-trip per (paramSet, prehash)', () => {
 	const cases = [

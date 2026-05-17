@@ -47,8 +47,7 @@
 //   pkHex, skHex        32-byte verifying key + 32-byte sk (= seed)
 //   msgHex              payload bytes
 //   ctxHex              user_ctx bytes (always '' for pure records;
-//                       the pure suite rejects non-empty user_ctx per
-//                       the TASK-F lock)
+//                       the pure suite rejects non-empty user_ctx)
 //   blobHex             attached envelope: [formatEnum, ctxLen, ctx,
 //                       payload, sig]
 //

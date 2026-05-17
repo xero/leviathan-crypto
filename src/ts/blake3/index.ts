@@ -59,8 +59,8 @@ function getExports(): Blake3Exports {
 }
 
 // Input scratch lives past the BLAKE3 module's mutable buffer region
-// (BUFFER_END = 26328 in src/asm/blake3/buffers.ts, after the TASK-J
-// LEVEL_QUEUES expansion). 27648 leaves the module's own buffers
+// (BUFFER_END = 26328 in src/asm/blake3/buffers.ts, which includes the
+// LEVEL_QUEUES region). 27648 leaves the module's own buffers
 // (CV, MSG, CHUNK / TREE state, LEVEL_QUEUES, etc.) untouched and
 // reserves enough headroom for the derive_key path to stage the 47-byte
 // upstream KAT context string concatenated with the 102400-byte largest

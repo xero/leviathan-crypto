@@ -3,8 +3,8 @@
 ### SLH-DSA Cryptographic Audit
 
 Audit of the `leviathan-crypto` WebAssembly SLH-DSA implementation
-(AssemblyScript) against FIPS 205, covering the SHAKE-fast parameter sets
-shipped in Phase 2 (SLH-DSA-SHAKE-128f, -192f, -256f) and the three PQ-only
+(AssemblyScript) against FIPS 205, covering the shipped SHAKE-fast
+parameter sets (SLH-DSA-SHAKE-128f, -192f, -256f) and the three PQ-only
 hybrid suites (`0x30 / 0x31 / 0x32`). Every checkbox is falsifiable by
 reading the cited file and confirming the invariant against the spec
 reference (and, where noted, against an independent reference such as the

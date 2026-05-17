@@ -216,8 +216,8 @@ fn extract_bool(body: &str, field: &str) -> Option<bool> {
 // The verifier exercises only (key, nonce, aad, plaintext, result). The
 // other fields (record_auth_key, record_enc_key, polyval_input,
 // polyval_result, polyval_xor_nonce, polyval_masked, tag,
-// initial_counter) are gate-bisection fixtures for Phase 4b-impl unit
-// tests and are intentionally read-but-not-used here.
+// initial_counter) are gate-bisection fixtures for the AES-GCM-SIV
+// unit tests and are intentionally read-but-not-used here.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct AesGcmSivVector {
@@ -293,7 +293,7 @@ fn parse_siv_array(src: &str, export_name: &str) -> Vec<AesGcmSivVector> {
 // ────────────────────────────────────────────────────────────────────────────
 
 // PolyvalFieldOpsVector and PolyvalMulXVector are unit-test-only
-// fixtures for Phase 4b-impl. The verifier reads them so the corpus is
+// fixtures for the POLYVAL primitive. The verifier reads them so the corpus is
 // fully traversed end-to-end, but does not exercise them, RustCrypto's
 // `polyval` crate does not expose dot() / mulX_GHASH directly, and the
 // SIV vectors in aes_gcm_siv.ts transitively cover POLYVAL
@@ -1243,7 +1243,7 @@ pub fn parse_mldsa_sigver_array(src: &str, export_name: &str) -> Vec<MlDsaSigVer
 // ────────────────────────────────────────────────────────────────────────────
 // SLH-DSA vectors (slhdsa_keygen.ts, slhdsa_siggen.ts, slhdsa_sigver.ts).
 //
-// Phase 2 scope: SHAKE-fast variants (128f / 192f / 256f) only. preHash
+// Scope: SHAKE-fast variants (128f / 192f / 256f) only. preHash
 // records carry the original message + hashAlg; the verifier hashes them
 // in-band and builds HashSLH-DSA M' per FIPS 205 §10.2 before calling
 // slh_sign_internal / slh_verify_internal on the slh-dsa crate.
@@ -1426,9 +1426,8 @@ pub fn parse_sign_hybrid_pq_array(src: &str, export_name: &str) -> Vec<SignHybri
 // Four TS interfaces, four Rust structs. Sample vectors carry an ASCII
 // description and inputs as hex; ACVP vectors carry tcId/tgId + the
 // per-record xof/hexCustomization flags. All length fields are in bits,
-// and every pinned record is byte-aligned (the byte-alignment filter ran
-// at Phase 1; bit-level cases were dropped to match leviathan-crypto's
-// byte-oriented WASM API).
+// and every pinned record is byte-aligned (bit-level cases were dropped
+// at transcription time to match leviathan-crypto's byte-oriented WASM API).
 //
 // Customization / function-name strings in KMAC ACVP records can contain
 // literal `'` chars escaped as `\'`. The seal/sealstream parser's

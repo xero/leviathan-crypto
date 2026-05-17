@@ -22,8 +22,7 @@
 // src/asm/slhdsa/hashes.ts
 //
 // FIPS 205 §11.2 SHAKE-family hash function instantiation.
-// Phase 2 ships SHAKE only; the SHA-2 family from §11.2 Table 5 is out of
-// scope (sig-phase2.md §3, AGENTS.md §4).
+// SHAKE only; the SHA-2 family from §11.2 Table 5 is out of scope.
 //
 // Tweakable hash (§11.2 Table 4):
 //   F(PK.seed, ADRS, M1)        = SHAKE256(PK.seed || ADRS || M1, 8n)

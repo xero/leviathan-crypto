@@ -43,7 +43,7 @@
 // Both suites advertise `wasmModules: ['curve25519']`; the prehash
 // suite additionally requires `'sha2'` because the TS-side SHA-512
 // shim in sign/hasher.ts drives the running prehash through the sha2
-// WASM module. (TASK-C's embedded SHA-512 inside curve25519.wasm is
+// WASM module. (The embedded SHA-512 inside curve25519.wasm is
 // the substrate's own internal hash and is not exposed at the WASM
 // ABI.)
 

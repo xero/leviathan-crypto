@@ -25,9 +25,9 @@
  * Source: NIST ACVP ML-DSA-{keyGen,sigGen,sigVer}-FIPS204
  * Vectors: test/vectors/mldsa_{keygen,siggen,sigver}.ts
  *
- * Phase-5 scope: external interface + pure preHash (signatureInterface=external,
- * preHash=pure). The internal-interface and HashML-DSA subsets are phase-6
- * surface and are filtered out here.
+ * Scope is the external interface plus pure preHash (signatureInterface=
+ * external, preHash=pure). The internal-interface and HashML-DSA subsets
+ * are covered elsewhere and are filtered out here.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -158,12 +158,12 @@ describe('Gate 2, keyGen all ACVP vectors', () => {
 	runAcvpKeygenSuite('ML-DSA-87', () => new MlDsa87(), ml_dsa_87_keygen, MLDSA87);
 });
 
-// ── Phase-5 vector filter ───────────────────────────────────────────────────
+// ── ACVP vector filter ──────────────────────────────────────────────────────
 // External interface, pure preHash. Internal-interface and HashML-DSA tests
-// are phase-6 scope.
-const phase5SigGenFilter = (v: SigGenVector): boolean =>
+// are covered separately.
+const externalPureSigGenFilter = (v: SigGenVector): boolean =>
 	v.signatureInterface === 'external' && v.preHash === 'pure';
-const phase5SigVerFilter = (v: SigVerVector): boolean =>
+const externalPureSigVerFilter = (v: SigVerVector): boolean =>
 	v.signatureInterface === 'external' && v.preHash === 'pure';
 
 function makeDsa(paramSet: string): MlDsa44 | MlDsa65 | MlDsa87 {
@@ -178,7 +178,7 @@ function makeDsa(paramSet: string): MlDsa44 | MlDsa65 | MlDsa87 {
 
 describe('Gate 3, Sign ML-DSA-44 first ACVP vector', () => {
 	it('byte-identical signature for first deterministic external/pure vector', () => {
-		const v = ml_dsa_44_siggen.find(phase5SigGenFilter);
+		const v = ml_dsa_44_siggen.find(externalPureSigGenFilter);
 		if (!v || !v.deterministic) throw new Error('no det external/pure vector found');
 		const sk  = hexToBytes(v.sk);
 		const M   = hexToBytes(v.message ?? '');
@@ -194,14 +194,14 @@ describe('Gate 3, Sign ML-DSA-44 first ACVP vector', () => {
 	});
 });
 
-// ── Gate 4, Sign all parameter sets, all phase-5 ACVP sigGen vectors ──────
+// ── Gate 4, Sign all parameter sets, all ACVP sigGen vectors ──────────────
 // GATE: ML-DSA sigGen full ACVP corpus (external/pure subset) across 44/65/87,
 // driving signDeterministic for det=true and signDerand for det=false.
 
 function runAcvpSigGenSuite(name: string, vectors: SigGenVector[], params: MlDsaParams): void {
-	const phase5 = vectors.filter(phase5SigGenFilter);
+	const filtered = vectors.filter(externalPureSigGenFilter);
 	describe(name, () => {
-		it.each(phase5)('tcId=$tcId det=$deterministic', (v: SigGenVector) => {
+		it.each(filtered)('tcId=$tcId det=$deterministic', (v: SigGenVector) => {
 			const sk  = hexToBytes(v.sk);
 			const M   = hexToBytes(v.message ?? '');
 			const ctx = v.context ? hexToBytes(v.context) : new Uint8Array(0);
@@ -219,7 +219,7 @@ function runAcvpSigGenSuite(name: string, vectors: SigGenVector[], params: MlDsa
 	});
 }
 
-describe('Gate 4, sigGen all phase-5 ACVP vectors', () => {
+describe('Gate 4, sigGen all ACVP vectors', () => {
 	runAcvpSigGenSuite('ML-DSA-44', ml_dsa_44_siggen, MLDSA44);
 	runAcvpSigGenSuite('ML-DSA-65', ml_dsa_65_siggen, MLDSA65);
 	runAcvpSigGenSuite('ML-DSA-87', ml_dsa_87_siggen, MLDSA87);
@@ -229,8 +229,8 @@ describe('Gate 4, sigGen all phase-5 ACVP vectors', () => {
 // GATE: ML-DSA Verify first ACVP test.
 
 describe('Gate 5, Verify ML-DSA-44 first ACVP vector', () => {
-	it('verify returns testPassed for the first phase-5 sigVer vector', () => {
-		const v = ml_dsa_44_sigver.find(phase5SigVerFilter);
+	it('verify returns testPassed for the first sigVer vector', () => {
+		const v = ml_dsa_44_sigver.find(externalPureSigVerFilter);
 		if (!v) throw new Error('no external/pure sigVer vector found');
 		const pk  = hexToBytes(v.pk);
 		const sig = hexToBytes(v.signature);
@@ -245,14 +245,14 @@ describe('Gate 5, Verify ML-DSA-44 first ACVP vector', () => {
 	});
 });
 
-// ── Gate 6, Verify all parameter sets, all phase-5 ACVP sigVer vectors ────
+// ── Gate 6, Verify all parameter sets, all ACVP sigVer vectors ────────────
 // GATE: ML-DSA sigVer full ACVP corpus (external/pure subset). Includes both
 // expected-pass and known-fail cases; verify must return v.testPassed.
 
 function runAcvpSigVerSuite(name: string, vectors: SigVerVector[]): void {
-	const phase5 = vectors.filter(phase5SigVerFilter);
+	const filtered = vectors.filter(externalPureSigVerFilter);
 	describe(name, () => {
-		it.each(phase5)('tcId=$tcId reason=$reason', (v: SigVerVector) => {
+		it.each(filtered)('tcId=$tcId reason=$reason', (v: SigVerVector) => {
 			const pk  = hexToBytes(v.pk);
 			const sig = hexToBytes(v.signature);
 			const M   = hexToBytes(v.message ?? '');
@@ -267,7 +267,7 @@ function runAcvpSigVerSuite(name: string, vectors: SigVerVector[]): void {
 	});
 }
 
-describe('Gate 6, sigVer all phase-5 ACVP vectors', () => {
+describe('Gate 6, sigVer all ACVP vectors', () => {
 	runAcvpSigVerSuite('ML-DSA-44', ml_dsa_44_sigver);
 	runAcvpSigVerSuite('ML-DSA-65', ml_dsa_65_sigver);
 	runAcvpSigVerSuite('ML-DSA-87', ml_dsa_87_sigver);
