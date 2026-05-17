@@ -211,4 +211,4 @@ so the wipe path is correspondingly simpler.
 | [asm_curve25519](./asm_curve25519.md) | curve25519 WASM module reference |
 | [ed25519_audit](./ed25519_audit.md) | Companion Ed25519 audit on the same WASM module |
 | [audits](./audits.md) | Project audit index |
-| [architecture](./architecture.md) | Module structure, buffer layouts, build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

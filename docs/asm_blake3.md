@@ -58,8 +58,8 @@ drives this via the `squeezeXofBlock` export.
 
 **Tree-mode internals gated for test use.** The `_testChunkCV`,
 `_testParentCV`, and `_testDeriveContextCV` exports exist for the
-tree-internals unit tests and the planned
-`src/ts/merkle/blake3-log.ts` log-proof substrate. They are NOT part
+tree-internals unit tests and the
+`src/ts/merkle/blake3-tree.ts` Merkle-tree substrate. They are NOT part
 of the consumer-facing `Blake3Exports` interface; consumers compute
 chunk / parent CVs only via the top-level hash / hashKeyed / deriveKey
 entries.
@@ -70,7 +70,7 @@ entries.
 
 ```typescript
 function getModuleId(): i32      // returns 4
-function getMemoryPages(): i32   // returns 2 (131072 bytes total)
+function getMemoryPages(): i32   // current WASM linear-memory page count (2 pages, 131072 bytes, at module init)
 ```
 
 ---
@@ -419,8 +419,8 @@ See [Memory Wiping](#memory-wiping).
 The following exports are NOT part of the consumer-facing
 `Blake3Exports` interface. They are wired exclusively for the
 `test/unit/blake3/blake3-tree-internals.test.ts` test fixture and the
-planned `src/ts/merkle/blake3-log.ts` log-proof substrate,
-which will cast `Blake3Exports & Blake3TestExports` inside the
+`src/ts/merkle/blake3-tree.ts` Merkle-tree substrate,
+which casts `Blake3Exports & Blake3TestExports` inside the
 merkle module. Tests obtain these via
 `test/unit/blake3/helpers.ts`. The underscore prefix follows the
 codebase convention for module-internal exports (matching slhdsa's
@@ -481,3 +481,16 @@ output against the `blake3` RustCrypto crate for large-input regimes
 verifier shares zero code with the AssemblyScript stack and uses a
 pinned Rust toolchain plus a pinned `Cargo.lock`. See
 [vector_audit.md](./vector_audit.md) for the verifier coverage model.
+
+---
+
+## Cross-References
+
+| Document | Role |
+|----------|------|
+| [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [blake3.md](./blake3.md) | TypeScript API: `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, plus the `BLAKE3Hash` Fortuna HashFn const |
+| [merkle.md](./merkle.md) | `MerkleVerifier`, `MerkleLog`, `SignedLog`, `Sha256Tree`, `Blake3Tree`, `MemoryStorage`: append-only Merkle log substrate with inclusion / consistency proofs, signed tree heads, and the c2sp.org/tlog-cosignature wire format |
+| [blake3_audit.md](./blake3_audit.md) | BLAKE3 tree-mode correctness, compress / compress4 equivalence, flag bits, chunk machine, queue-per-level tree assembly, XOF snapshot integrity |

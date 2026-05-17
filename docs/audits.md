@@ -23,6 +23,7 @@ Independent correctness and security reviews of every primitive in leviathan-cry
 | [blake3_audit](./blake3_audit.md) | 2026-05-15 | BLAKE3 spec conformance: v128 compress and lane-parallel compress4, chunk machine, subtree stack and root finalize, keyed_hash and derive_key modes, XOF squeeze, memory hygiene |
 | [ed25519_audit](./ed25519_audit.md) | 2026-05-16 | Ed25519 RFC 8032 plus FIPS 186-5 §7.6.4 strict verification, fault-injection defence, embedded SHA-512 integrity, constant-time discipline, dom2 prehash binding |
 | [x25519_audit](./x25519_audit.md) | 2026-05-16 | X25519 RFC 7748 §5 clamping discipline, constant-time Montgomery ladder, TS-layer all-zero shared-secret rejection, RFC 7748 §6.1 plus iter=1000 vector coverage |
+| [ecdsa-p256_audit](./ecdsa-p256_audit.md) | 2026-05-17 | ECDSA-P256 FIPS 186-5 §6 strict verification, RFC 6979 §3.2 deterministic-K gate, `draft-irtf-cfrg-det-sigs-with-noise-05` hedged-by-default posture, RFC 6979 §3.5 low-S enforcement on signer and verifier, fault-injection defence, embedded SHA-256 + HMAC-SHA-256 integrity, suite-layer integration |
 
 ---
 
@@ -31,5 +32,4 @@ Independent correctness and security reviews of every primitive in leviathan-cry
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
-
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

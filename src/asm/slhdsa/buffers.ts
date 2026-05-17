@@ -40,8 +40,8 @@
 //   0x1F000   END       124 KB total, fits in 2 WASM pages (128 KB)
 //
 // SCRATCH carries the embedded SHAKE128/SHAKE256 sponge state. Following the
-// per-module-ownership rule (sig-phase2.md §4.3) the Keccak permutation is
-// embedded here rather than cross-linked from sha3.wasm. The sponge sub-layout
+// per-module-ownership rule, the Keccak permutation is embedded here rather
+// than cross-linked from sha3.wasm. The sponge sub-layout
 // mirrors src/asm/sha3/buffers.ts so the verbatim Keccak port below stays
 // readable side-by-side with the sha3 source.
 //

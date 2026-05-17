@@ -405,7 +405,7 @@ interface ResolveHandle {
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [utils](./utils.md) | encoding utilities and `constantTimeEqual` for verifying MACs from `KeyedHash` |
 | [serpent](./serpent.md) | Serpent classes implement `Blockcipher`, `Streamcipher`, and `AEAD` |
 | [chacha20](./chacha20.md) | `XChaCha20Cipher` is a `CipherSuite` for `SealStream`/`OpenStream`/`Seal`; `Seal` provides one-shot AEAD over any `CipherSuite`; `ChaCha20`/`ChaCha20Poly1305`/`XChaCha20Poly1305` are stateless primitives |

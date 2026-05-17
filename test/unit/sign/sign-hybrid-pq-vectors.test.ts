@@ -87,8 +87,8 @@ describe('sign_hybrid_pq KAT replay', () => {
 			expect(peek.suiteByte).toBe(v.formatEnum);
 			expect(peek.payloadLength).toBe(msg.length);
 			expect(Array.from(peek.ctx)).toEqual(Array.from(ctx));
-			expect(peek.payloadOffset).toBe(2 + ctx.length);
-			expect(peek.sigOffset).toBe(blob.length - suite.sigSize);
+			expect(peek.payloadOffset).toBe(2 + ctx.length + 4);
+			expect(peek.sigOffset).toBe(blob.length - suite.sigMaxSize);
 		},
 	);
 
@@ -103,7 +103,7 @@ describe('sign_hybrid_pq KAT replay', () => {
 			const ctx  = hexToBytes(v.ctxHex);
 			expect(pk.length).toBe(suite.pkSize);
 			expect(sk.length).toBe(suite.skSize);
-			expect(blob.length).toBe(2 + ctx.length + msg.length + suite.sigSize);
+			expect(blob.length).toBe(2 + ctx.length + 4 + msg.length + suite.sigMaxSize);
 		},
 	);
 });

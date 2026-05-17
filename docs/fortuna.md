@@ -549,7 +549,7 @@ output from both.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [exports#aes](./exports.md#aes) | AES-256 TypeScript API (the spec-canonical option for the Fortuna generator) |
 | [serpent](./serpent.md) | Serpent-256 TypeScript API (alternative option for the Fortuna generator) |
 | [chacha20](./chacha20.md) | ChaCha20 TypeScript API (alternative option for the Fortuna generator) |

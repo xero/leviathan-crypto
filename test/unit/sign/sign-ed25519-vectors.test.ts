@@ -99,8 +99,8 @@ describe('sign_ed25519 KAT replay', () => {
 			expect(peek.suiteByte).toBe(v.formatEnum);
 			expect(peek.payloadLength).toBe(msg.length);
 			expect(Array.from(peek.ctx)).toEqual(Array.from(ctx));
-			expect(peek.payloadOffset).toBe(2 + ctx.length);
-			expect(peek.sigOffset).toBe(blob.length - suite.sigSize);
+			expect(peek.payloadOffset).toBe(2 + ctx.length + 4);
+			expect(peek.sigOffset).toBe(blob.length - suite.sigMaxSize);
 		},
 	);
 });

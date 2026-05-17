@@ -241,8 +241,9 @@ covering the regions below. The TS wrapper's `dispose()` paths call
 ## Open Audit Items
 
 - **Verified streaming output.** Bao verified streaming (a BLAKE3 §6
-  proof-system extension) is not implemented. Deferred to the planned
-  `src/ts/merkle/blake3-log.ts` log-proof substrate, which will consume
+  proof-system extension) is not implemented. Deferred to a future
+  log-proof substrate layered on top of
+  `src/ts/merkle/blake3-tree.ts`, which would consume
   `_testChunkCV` / `_testParentCV`.
 
 - **OutputReader seek.** The `BLAKE3OutputReader` reads sequentially
@@ -265,7 +266,7 @@ covering the regions below. The TS wrapper's `dispose()` paths call
 | ----------------------------------------- | ---------------------------------------------------------------------------- |
 | [blake3](./blake3.md)                     | BLAKE3 TypeScript API reference.                                              |
 | [asm_blake3](./asm_blake3.md)             | BLAKE3 WASM module reference: buffer layout, exports, SIMD dispatch.          |
-| [architecture](./architecture.md)         | Module structure, init contract, and the cross-module overview.               |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [vector_audit](./vector_audit.md)         | Test-vector tier classification and verifier coverage.                        |
 | [audits](./audits.md)                     | Project audit index.                                                          |
 | [BLAKE3 paper](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf) | The BLAKE3 specification.                       |

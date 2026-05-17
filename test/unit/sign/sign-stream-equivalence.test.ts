@@ -47,7 +47,10 @@ function makeMsg(n: number): Uint8Array {
 }
 
 const MSG_SIZES = [0, 1, 1024, 100 * 1024];
-const CTX_SIZES = [0, 10, 200];
+// 255 = USER_CTX_MAX. The streamable fixture suite does not route through
+// buildEffectiveCtx (its sign is a self-contained XOR), so the full
+// USER_CTX_MAX range is exercisable here.
+const CTX_SIZES = [0, 10, 255];
 
 function ctxOf(n: number): Uint8Array {
 	const c = new Uint8Array(n);
@@ -69,7 +72,7 @@ describe('SignStream is byte-equivalent to Sign.sign', () => {
 				const s = new SignStream(suite, sk, ctx);
 				s.update(msg);
 				const sig = s.finalize();
-				const blobStream = concat(s.preamble, msg, sig);
+				const blobStream = concat(s.buildPreamble(msg.length), msg, sig);
 
 				expect(Array.from(blobStream)).toEqual(Array.from(blobOneShot));
 			});
@@ -90,7 +93,7 @@ describe('SignStream output verifies via both Sign.verify and VerifyStream', () 
 				const s = new SignStream(suite, sk, ctx);
 				s.update(msg);
 				const sig = s.finalize();
-				const blob = concat(s.preamble, msg, sig);
+				const blob = concat(s.buildPreamble(msg.length), msg, sig);
 
 				// Sign.verify path
 				const out1 = Sign.verify(suite, pk, blob, ctx);

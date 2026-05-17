@@ -23,8 +23,8 @@
 //
 // FIPS 202 §3 Keccak-f[1600] permutation.
 // Verbatim port from src/asm/sha3/keccak.ts; embedded here per the
-// per-module-ownership design (sig-phase2.md §4.3) rather than cross-linked
-// from sha3.wasm. The permutation is byte-identical to the sha3 source; only
+// per-module-ownership design rather than cross-linked from sha3.wasm.
+// The permutation is byte-identical to the sha3 source; only
 // the offset symbols are remapped to the slhdsa buffer layout, and a
 // pointer-argument absorb variant is added (`keccakAbsorbAt`) so the SHAKE
 // wrappers in hashes.ts can absorb data from arbitrary memory regions without
@@ -317,7 +317,7 @@ export function keccakAbsorbAt(srcPtr: i32, len: i32): void {
 	store<i32>(ABSORBED_OFFSET, absorbed);
 }
 
-// Apply sponge padding and run first permutation, FIPS 202 §4 squeeze phase.
+// Apply sponge padding and run first permutation; FIPS 202 §4 squeeze step.
 // Pad10*1 with SHAKE's 0x1f domain-separation byte; matches the sha3 source.
 function shakePad(): void {
 	const rate     = load<i32>(RATE_OFFSET);

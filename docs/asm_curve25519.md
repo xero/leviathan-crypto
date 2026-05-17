@@ -16,7 +16,7 @@ consumers should instead use the TypeScript wrappers,
 > - [Source Files](#source-files)
 > - [API Reference](#api-reference)
 > - [Constant-time Posture](#constant-time-posture)
-> - [Cross-references](#cross-references)
+> - [Cross-References](#cross-references)
 
 ---
 
@@ -141,7 +141,7 @@ region; the wrapper owns it and wipes it explicitly.
 
 ```typescript
 function getModuleId(): i32      // returns 8
-function getMemoryPages(): i32   // returns 4
+function getMemoryPages(): i32   // current WASM linear-memory page count (4 pages at module init)
 ```
 
 Module ID 8 in the AsmModule registry. The 11th WASM binary in
@@ -435,15 +435,17 @@ the runtime's and the CPU's responsibility.
 
 ---
 
-## Cross-references
+## Cross-References
 
-- [ed25519.md](./ed25519.md), Ed25519 TypeScript API reference.
-- [x25519.md](./x25519.md), X25519 TypeScript API reference.
-- [ed25519_audit.md](./ed25519_audit.md), Ed25519 audit checklist.
-- [x25519_audit.md](./x25519_audit.md), X25519 audit checklist.
-- [architecture.md](./architecture.md), module structure, init contract,
-  buffer-layout overview.
-- [asm_sha2.md](./asm_sha2.md), sha2 module reference (the SHA-512 in
-  `sha512.ts` is a verbatim port from this module's `sha512.ts`).
-- [signaturesuite.md](./signaturesuite.md#ed25519-suites), envelope
-  wire format and the `Ed25519Suite` / `Ed25519PreHashSuite` consts.
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [ed25519.md](./ed25519.md) | Ed25519 TypeScript API reference. |
+| [x25519.md](./x25519.md) | X25519 TypeScript API reference. |
+| [ed25519_audit.md](./ed25519_audit.md) | Ed25519 audit checklist. |
+| [x25519_audit.md](./x25519_audit.md) | X25519 audit checklist. |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [asm_sha2.md](./asm_sha2.md) | sha2 module reference (the SHA-512 in `sha512.ts` is a verbatim port from this module's `sha512.ts`). |
+| [signaturesuite.md](./signaturesuite.md#ed25519-suites) | envelope wire format and the `Ed25519Suite` / `Ed25519PreHashSuite` consts. |
+

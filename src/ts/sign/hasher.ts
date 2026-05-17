@@ -26,10 +26,9 @@
 // dispatch logic is not duplicated. Not exported from the sign barrel.
 //
 // Wires `sha3-256`, `sha3-512`, and the SHAKE pair used by the SLH-DSA
-// prehash suites, plus `sha-512` (buffered shim over the one-shot
-// SHA512 class) used by the Ed25519 prehash suite. The `sha-256`
-// variant still throws; it will land when ECDSA-P256 prehash is
-// implemented.
+// prehash suites, plus `sha-256` and `sha-512` (buffered shims over
+// the one-shot SHA256 / SHA512 classes) used by the ECDSA-P256 and
+// Ed25519 prehash suites respectively.
 //
 // SHAKE outputs are fixed per suite: SHAKE128Stream(32) for cat-1, and
 // SHAKE256Stream(64) for cat-3 / cat-5; the lengths track FIPS 204 §5.4.1
@@ -39,7 +38,7 @@ import {
 	SHA3_256Stream, SHA3_512Stream,
 	SHAKE128Stream, SHAKE256Stream,
 } from '../sha3/index.js';
-import { SHA512 } from '../sha2/index.js';
+import { SHA256, SHA512 } from '../sha2/index.js';
 import type { PrehashAlgorithm } from './types.js';
 
 export interface RunningHash {
@@ -49,11 +48,27 @@ export interface RunningHash {
 }
 
 /**
+ * One-shot SHA-256 over `msg`. Used by suite factories whose
+ * `sign(sk, msg, ctx)` / `verify(pk, msg, sig, ctx)` paths must compute
+ * SHA-256 at the TS layer (the ECDSA-P256 suite is the current
+ * caller). Kept here so the sha2 module access point is centralised
+ * next to `createRunningHash`.
+ */
+export function sha256OneShot(msg: Uint8Array): Uint8Array {
+	const h = new SHA256();
+	try {
+		return h.hash(msg);
+	} finally {
+		h.dispose();
+	}
+}
+
+/**
  * One-shot SHA-512 over `msg`. Used by suite factories whose
  * `sign(sk, msg, ctx)` / `verify(pk, msg, sig, ctx)` paths must compute
  * SHA-512 at the TS layer (the Ed25519 prehash suite is the current
- * caller; ECDSA-P256 prehash will join when added). Kept here so the
- * sha2 module access point is centralised next to `createRunningHash`.
+ * caller). Kept here so the sha2 module access point is centralised
+ * next to `createRunningHash`.
  */
 export function sha512OneShot(msg: Uint8Array): Uint8Array {
 	const h = new SHA512();
@@ -62,6 +77,46 @@ export function sha512OneShot(msg: Uint8Array): Uint8Array {
 	} finally {
 		h.dispose();
 	}
+}
+
+/**
+ * Buffered shim that exposes a `RunningHash` over the one-shot SHA256
+ * class. Chunks are copied (so caller-owned buffers can be wiped under
+ * us) and concatenated at `finalize()`, then fed to the sha2 module.
+ * The output is byte-identical to `sha256OneShot(concat(...chunks))`,
+ * which is the contract SignStream depends on.
+ */
+function sha256Buffered(): RunningHash {
+	let chunks: Uint8Array[] = [];
+	let total = 0;
+	return {
+		update(chunk: Uint8Array): void {
+			const copy = new Uint8Array(chunk.length);
+			copy.set(chunk);
+			chunks.push(copy);
+			total += copy.length;
+		},
+		finalize(): Uint8Array {
+			const buf = new Uint8Array(total);
+			let off = 0;
+			for (const c of chunks) {
+				buf.set(c, off); off += c.length;
+			}
+			try {
+				return sha256OneShot(buf);
+			} finally {
+				buf.fill(0);
+				for (const c of chunks) c.fill(0);
+				chunks = [];
+				total = 0;
+			}
+		},
+		dispose(): void {
+			for (const c of chunks) c.fill(0);
+			chunks = [];
+			total = 0;
+		},
+	};
 }
 
 /**
@@ -111,11 +166,7 @@ export function createRunningHash(algo: PrehashAlgorithm): RunningHash {
 	case 'shake-128': return new SHAKE128Stream(32);
 	case 'shake-256': return new SHAKE256Stream(64);
 	case 'sha-512':   return sha512Buffered();
-	case 'sha-256':
-		throw new Error(
-			`leviathan-crypto: prehash algorithm '${algo}' not implemented `
-			+ 'yet; SHA-2/256 streaming arrives with ECDSA-P256 prehash',
-		);
+	case 'sha-256':   return sha256Buffered();
 	default: {
 		const _exhaustive: never = algo;
 		throw new Error(

@@ -1421,6 +1421,70 @@ pub fn parse_sign_hybrid_pq_array(src: &str, export_name: &str) -> Vec<SignHybri
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Composite ML-DSA hybrid vectors (sign_hybrid_classical.ts).
+//
+// Source-of-truth bytes are spec-anchored from
+// draft-ietf-lamps-pq-composite-sigs-19 Appendix E; this struct just
+// surfaces them as raw byte vectors for src/hybrid_classical.rs to verify.
+//
+// `tc_id` is the composite-sigs §6 algorithm name
+// (id-MLDSAxx-Ed25519-SHA512 / id-MLDSAxx-ECDSA-P256-SHAxx). `format_enum`
+// is the leviathan suite-byte allocation (0x20-0x23). `mldsa_pk_bytes` and
+// `mldsa_sig_bytes` are the catalog-known fixed sizes the verifier uses
+// to split the composite pk and signature at the ML-DSA / trad boundary
+// (composite-sigs §4.1 / §4.3). `trad_sig_variable` distinguishes the
+// Ed25519 suites (exact 64-byte tradSig) from the ECDSA suites (RFC 3279
+// §2.2.3 Ecdsa-Sig-Value DER, variable length).
+#[derive(Debug, Clone, Default)]
+pub struct SignHybridClassicalVector {
+    pub id:                String,
+    pub tc_id:             String,
+    pub format_enum:       u32,
+    // suite_name is the leviathan const symbol (e.g. "MlDsa44Ed25519Suite");
+    // captured for parity with the .ts record but the verifier dispatches off
+    // format_enum, so the field is read-but-not-exercised here.
+    #[allow(dead_code)]
+    pub suite_name:        String,
+    pub mldsa_pk_bytes:    u32,
+    pub mldsa_sig_bytes:   u32,
+    pub trad_pk_bytes:     u32,
+    pub trad_sig_variable: bool,
+    pub pk:                Vec<u8>,
+    // sk is the spec's composite private key (mldsaSeed || tradSkEncoded
+    // per composite-sigs §4.2). The verifier only exercises the verify
+    // direction, so sk is captured for completeness but unused here.
+    #[allow(dead_code)]
+    pub sk:                Vec<u8>,
+    pub msg:               Vec<u8>,
+    pub ctx:               Vec<u8>,
+    pub sig:               Vec<u8>,
+    pub blob:              Vec<u8>,
+}
+
+pub fn parse_sign_hybrid_classical_array(src: &str, export_name: &str) -> Vec<SignHybridClassicalVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| SignHybridClassicalVector {
+            id:                extract_string(&obj, "id"),
+            tc_id:             extract_string(&obj, "tcId"),
+            format_enum:       extract_hex_int(&obj, "formatEnum").unwrap_or(0),
+            suite_name:        extract_string(&obj, "suiteName"),
+            mldsa_pk_bytes:    extract_int(&obj, "mldsaPkBytes").unwrap_or(0),
+            mldsa_sig_bytes:   extract_int(&obj, "mldsaSigBytes").unwrap_or(0),
+            trad_pk_bytes:     extract_int(&obj, "tradPkBytes").unwrap_or(0),
+            trad_sig_variable: extract_bool(&obj, "tradSigVariable").unwrap_or(false),
+            pk:                hex::decode(extract_hex(&obj, "pkHex")).unwrap_or_default(),
+            sk:                hex::decode(extract_hex(&obj, "skHex")).unwrap_or_default(),
+            msg:               hex::decode(extract_hex(&obj, "msgHex")).unwrap_or_default(),
+            ctx:               hex::decode(extract_hex(&obj, "ctxHex")).unwrap_or_default(),
+            sig:               hex::decode(extract_hex(&obj, "sigHex")).unwrap_or_default(),
+            blob:              hex::decode(extract_hex(&obj, "blobHex")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // KMAC and cSHAKE vectors (kmac.ts).
 //
 // Four TS interfaces, four Rust structs. Sample vectors carry an ASCII
@@ -1745,4 +1809,117 @@ pub fn parse_ed25519_sigver_array(src: &str, export_name: &str) -> Vec<Ed25519Si
             signature:   hex::decode(extract_hex(&obj, "signature")).unwrap_or_default(),
         })
         .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ECDSA-P256 vectors (ecdsa_p256_{keygen,siggen,sigver,wycheproof}.ts).
+// Structs live in src/ecdsa_p256.rs (the parser uses the shared helpers
+// already defined above: extract_int, extract_string, extract_bool,
+// extract_hex, locate_array_body, split_top_level_objects).
+// ────────────────────────────────────────────────────────────────────────────
+
+use crate::ecdsa_p256::{
+    EcdsaP256KeyGenVector, EcdsaP256SigGenVector,
+    EcdsaP256SigVerVector, EcdsaP256WycheproofVector,
+};
+
+pub fn parse_ecdsa_p256_keygen_array(src: &str, export_name: &str) -> Vec<EcdsaP256KeyGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| EcdsaP256KeyGenVector {
+            tc_id: extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id: extract_int(&obj, "tgId").unwrap_or(0),
+            secret_generation_mode: extract_string(&obj, "secretGenerationMode"),
+            d:  hex::decode(extract_hex(&obj, "d")).unwrap_or_default(),
+            qx: hex::decode(extract_hex(&obj, "qx")).unwrap_or_default(),
+            qy: hex::decode(extract_hex(&obj, "qy")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_ecdsa_p256_siggen_array(src: &str, export_name: &str) -> Vec<EcdsaP256SigGenVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| EcdsaP256SigGenVector {
+            tc_id:     extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:     extract_int(&obj, "tgId").unwrap_or(0),
+            test_type: extract_string(&obj, "testType"),
+            d:         hex::decode(extract_hex(&obj, "d")).unwrap_or_default(),
+            qx:        hex::decode(extract_hex(&obj, "qx")).unwrap_or_default(),
+            qy:        hex::decode(extract_hex(&obj, "qy")).unwrap_or_default(),
+            k:         hex::decode(extract_hex(&obj, "k")).unwrap_or_default(),
+            message:   hex::decode(extract_hex(&obj, "message")).unwrap_or_default(),
+            r:         hex::decode(extract_hex(&obj, "r")).unwrap_or_default(),
+            s:         hex::decode(extract_hex(&obj, "s")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_ecdsa_p256_sigver_array(src: &str, export_name: &str) -> Vec<EcdsaP256SigVerVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| EcdsaP256SigVerVector {
+            tc_id:       extract_int(&obj, "tcId").unwrap_or(0),
+            tg_id:       extract_int(&obj, "tgId").unwrap_or(0),
+            test_type:   extract_string(&obj, "testType"),
+            test_passed: extract_bool(&obj, "testPassed").unwrap_or(false),
+            reason:      extract_string(&obj, "reason"),
+            d:           hex::decode(extract_hex(&obj, "d")).unwrap_or_default(),
+            qx:          hex::decode(extract_hex(&obj, "qx")).unwrap_or_default(),
+            qy:          hex::decode(extract_hex(&obj, "qy")).unwrap_or_default(),
+            message:     hex::decode(extract_hex(&obj, "message")).unwrap_or_default(),
+            r:           hex::decode(extract_hex(&obj, "r")).unwrap_or_default(),
+            s:           hex::decode(extract_hex(&obj, "s")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+pub fn parse_ecdsa_p256_wycheproof_array(src: &str, export_name: &str) -> Vec<EcdsaP256WycheproofVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| EcdsaP256WycheproofVector {
+            tc_id:   extract_int(&obj, "tcId").unwrap_or(0),
+            qx:      hex::decode(extract_hex(&obj, "qx")).unwrap_or_default(),
+            qy:      hex::decode(extract_hex(&obj, "qy")).unwrap_or_default(),
+            msg:     hex::decode(extract_hex(&obj, "msgHex")).unwrap_or_default(),
+            sig:     hex::decode(extract_hex(&obj, "sigHex")).unwrap_or_default(),
+            result:  extract_string(&obj, "result"),
+            comment: extract_string(&obj, "comment"),
+            flags:   extract_string_array(&obj, "flags"),
+        })
+        .collect()
+}
+
+// Read a `field: ['a', 'b', 'c']` array of single-quoted string literals.
+// Used by the Wycheproof parser for the per-record `flags` field. Stops at
+// the closing `]` and does not descend into nested arrays (none exist in
+// the upstream JSON).
+fn extract_string_array(body: &str, field: &str) -> Vec<String> {
+    let needle = format!("{}:", field);
+    let Some(start) = find_field_offset(body, field) else { return Vec::new(); };
+    let after = start + needle.len();
+    let rest = &body[after..];
+    let Some(open) = rest.find('[') else { return Vec::new(); };
+    let region = &rest[open + 1..];
+
+    let mut out = Vec::new();
+    let mut in_q = false;
+    let mut chunk = String::new();
+    for ch in region.chars() {
+        match ch {
+            '\'' if !in_q => { in_q = true; }
+            '\'' if in_q  => {
+                in_q = false;
+                out.push(std::mem::take(&mut chunk));
+            }
+            c if in_q => chunk.push(c),
+            ']' => break,
+            _   => {}
+        }
+    }
+    out
 }

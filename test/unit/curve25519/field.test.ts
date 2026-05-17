@@ -70,8 +70,8 @@ beforeAll(async () => {
 	mem  = new Uint8Array(wasm.memory.buffer);
 });
 
-// xorshift32 RNG for reproducibility (no crypto.getRandomValues per
-// curve25519 test-utility guidance in TASK.md).
+// xorshift32 RNG for reproducibility (no crypto.getRandomValues in
+// curve25519 test utilities; keeps these tests deterministic).
 class RNG {
 	private state: number;
 	constructor(seed: number) {

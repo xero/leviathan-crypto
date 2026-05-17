@@ -138,6 +138,12 @@ blake3           = { version = "=1.8.5",  default-features = false }
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.
 hex              = { version = "=0.4.3",  default-features = false, features = ["std"] }
+# Base64 codec for the transparency-dev/merkle testdata corpus, which
+# encodes byte slices through Go's encoding/json default (std-padded
+# base64). The verifier decodes record fields back to bytes before
+# feeding them to the hand-rolled RFC 9162 §2.1.1 walker in
+# src/merkle_sha256.rs.
+base64           = { version = "=0.22.1", default-features = false, features = ["std"] }
 # dalek-cryptography Ed25519 (RFC 8032): independent-lineage oracle for
 # ed25519.ts (RFC §7 KATs), ed25519_keygen.ts, ed25519_siggen.ts, and
 # ed25519_sigver.ts (ACVP EDDSA-1.0). The dalek family shares no source
@@ -164,6 +170,29 @@ x25519-dalek     = { version = "=2.0.1",  default-features = false, features = [
 # arithmetic crate at exactly the resolved version, rather than
 # whatever happens to satisfy the open `^4` bound in the future.
 curve25519-dalek = { version = "=4.1.3",  default-features = false }
+# RustCrypto P-256 substrate: independent-lineage oracle for the
+# ecdsa_p256*.ts vector files. Pure Rust, separate from leviathan-crypto's
+# AssemblyScript WASM stack. Defaults dropped; `arithmetic` enables curve
+# point ops needed by signing/verification, `ecdsa` enables ECDSA-P256
+# specifically. `hash2curve` is NOT needed (no hash-to-curve work here).
+p256 = { version = "=0.14.0-rc.9", default-features = false, features = ["arithmetic", "ecdsa"] }
+# RustCrypto ECDSA generic: provides the deterministic and explicit-k
+# signing entry points the verifier drives. The `algorithm` feature pulls
+# in `hazmat` + `rfc6979` and exposes `sign_prehashed::<C>(d, k, z)` for
+# ACVP SigGen's explicit-k records (FIPS 186-5 §6.4.2, randomized k) and
+# `sign_prehashed_rfc6979::<C, H>` for the deterministic RFC 6979 §A.2.5
+# gate corpus.
+ecdsa = { version = "=0.17.0-rc.18", default-features = false, features = ["algorithm"] }
+# sha2 v0.11 alias for the ECDSA-P256 oracle. The pinned `sha2 = =0.10.9`
+# above feeds HKDF/HMAC on the digest-0.10 ecosystem; `p256 = 0.14.0-rc.9`
+# and `ecdsa = 0.17.0-rc.18` are on the digest-0.11 ecosystem and need
+# `digest::EagerHash`, which the 0.10 `sha2::Sha256` does NOT implement.
+# We pull the 0.11 sha2 in here under a renamed dep so the ECDSA-P256
+# verifier can name `sha2_v11::Sha256` without changing the project-wide
+# sha2 pin. This dep is transparently brought in by p256/slh-dsa already
+# (see `cargo tree -i sha2:0.11.0`); the explicit pin records the audit
+# surface and lets the verifier code import it directly.
+sha2_v11 = { package = "sha2", version = "=0.11.0", default-features = false }
 
 [profile.release]
 opt-level = 3

@@ -30,6 +30,7 @@ import { aesInit } from './aes/index.js';
 import { mldsaInit } from './mldsa/index.js';
 import { slhdsaInit } from './slhdsa/index.js';
 import { blake3Init } from './blake3/index.js';
+import { ecdsaP256Init } from './ecdsa/index.js';
 import { initModule } from './init.js';
 import type { Module } from './init.js';
 import type { WasmSource } from './wasm-source.js';
@@ -52,6 +53,7 @@ const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	slhdsa: slhdsaInit,
 	blake3: blake3Init,
 	curve25519: (source: WasmSource) => initModule('curve25519', source),
+	p256: ecdsaP256Init,
 };
 
 /**
@@ -118,7 +120,7 @@ export async function init(sources: InitInput): Promise<void> {
 
 export type { Module, WasmSource };
 export { isInitialized } from './init.js';
-export { AuthenticationError, SigningError, KeyAgreementError } from './errors.js';
+export { AuthenticationError, SigningError, KeyAgreementError, MerkleCodecError, MerkleLogError } from './errors.js';
 export { serpentInit, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, SerpentGenerator } from './serpent/index.js';
 export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher, ChaCha20Generator } from './chacha20/index.js';
 export { sha2Init, SHA256, SHA224, SHA384, SHA512, SHA512_224, SHA512_256, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash } from './sha2/index.js';
@@ -139,6 +141,13 @@ export {
 	BLAKE3OutputReader,
 	BLAKE3Hash,
 } from './blake3/index.js';
+export {
+	ecdsaP256Init, EcdsaP256,
+	pointDecompress,
+	encodeEcPrivateKey, decodeEcPrivateKey,
+} from './ecdsa/index.js';
+export type { EcdsaP256KeyPair } from './ecdsa/index.js';
+export { ecdsaSignatureToDer, ecdsaSignatureFromDer } from './ecdsa/der.js';
 export { ed25519Init, Ed25519 } from './ed25519/index.js';
 export type { Ed25519KeyPair } from './ed25519/index.js';
 export { x25519Init, X25519 } from './x25519/index.js';
@@ -148,6 +157,34 @@ export type { MlDsaKeyPair, MlDsaParams, PreHashAlgorithm } from './mldsa/index.
 export type { SlhDsaKeyPair, SlhDsaParams } from './slhdsa/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';
+export {
+	MemoryStorage,
+	Sha256Hasher, Sha256Tree,
+	Blake3Hasher, Blake3Tree,
+	splitPoint,
+	verifyInclusionProof, verifyConsistencyProof,
+	buildInclusionProof, buildConsistencyProof,
+	serializeCheckpointBody, parseCheckpointBody,
+	emitSignedNote, parseSignedNote, deriveKeyId,
+	suiteFormatEnumToAlgoByte,
+	lookupAlgoEntryByFormatEnum, lookupAlgoEntryByByte,
+	buildCosigSignedMessage, buildCosignedMessage,
+	emitCosigSignaturePayload, parseCosigSignaturePayload,
+	ALGO_BYTE_ED25519_NOTE, ALGO_BYTE_ED25519_COSIG, ALGO_BYTE_MLDSA44_COSIG,
+	SignedLog,
+	MerkleVerifier, MerkleLog,
+} from './merkle/index.js';
+export type {
+	Hasher, MerkleTree, MerkleStorage,
+	VerifyInclusionInput, VerifyConsistencyInput,
+	BuildInclusionInput, BuildConsistencyInput,
+	GetNode,
+	Checkpoint, SignatureLine, SignedNote, SignedTreeHead,
+	AlgoEntry, MessageConstruction, SignaturePayload,
+	CosignedMessageInput,
+	SignedLogOpts,
+	MerkleVerifierOpts, MerkleLogCreateOpts, MerkleLogGenerateOpts,
+} from './merkle/index.js';
 export { Sign, SignStream, VerifyStream } from './sign/index.js';
 export type {
 	SignatureSuite,
@@ -156,11 +193,14 @@ export type {
 } from './sign/index.js';
 export {
 	Ed25519Suite, Ed25519PreHashSuite,
+	EcdsaP256Suite,
 	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
 	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
 	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,
 	SlhDsa128fPreHashSuite, SlhDsa192fPreHashSuite, SlhDsa256fPreHashSuite,
 	MlDsa44SlhDsa128fSuite, MlDsa65SlhDsa192fSuite, MlDsa87SlhDsa256fSuite,
+	MlDsa44Ed25519Suite, MlDsa65Ed25519Suite,
+	MlDsa44EcdsaP256Suite, MlDsa65EcdsaP256Suite,
 } from './sign/index.js';
 export { Fortuna } from './fortuna.js';
 export type { Hash, KeyedHash, Blockcipher, Streamcipher, AEAD, Generator, HashFn } from './types.js';

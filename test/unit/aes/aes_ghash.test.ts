@@ -104,8 +104,8 @@ function expectedJ0For12ByteIv(iv: Uint8Array): Uint8Array {
 describe('GHASH gate (Gate 12), McGrew-Viega Appendix B', () => {
 	for (const v of aesGcmVectors) {
 		// GATE: tag derivation via standalone GHASH primitive plus a single
-		// AES_ENC of J0. If the AES core is correct (Phases 1-3 verified),
-		// any tag mismatch isolates a bug to GHASH / GF(2^128) multiply.
+		// AES_ENC of J0. With the AES core verified independently, any tag
+		// mismatch isolates a bug to GHASH / GF(2^128) multiply.
 		it(v.description, () => {
 			const x = exports();
 			try {

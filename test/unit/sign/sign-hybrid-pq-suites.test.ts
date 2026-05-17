@@ -64,7 +64,7 @@ interface HybridCase {
 	ctxDomain:        string;
 	pkSize:           number;
 	skSize:           number;
-	sigSize:          number;
+	sigMaxSize:          number;
 	wasmModules:      readonly string[];
 	prehashAlgorithm: 'shake-128' | 'shake-256';
 	prehashSize:      number;
@@ -77,7 +77,7 @@ const CASES: HybridCase[] = [
 		ctxDomain: 'mldsa44-slhdsa128f-envelope-v3',
 		pkSize: MLDSA44.pkBytes  + SLHDSA128F.pkBytes,
 		skSize: MLDSA44.skBytes  + SLHDSA128F.skBytes,
-		sigSize: MLDSA44.sigBytes + SLHDSA128F.sigBytes,
+		sigMaxSize: MLDSA44.sigBytes + SLHDSA128F.sigBytes,
 		wasmModules: ['mldsa', 'sha3', 'slhdsa'],
 		prehashAlgorithm: 'shake-128', prehashSize: 32,
 	},
@@ -87,7 +87,7 @@ const CASES: HybridCase[] = [
 		ctxDomain: 'mldsa65-slhdsa192f-envelope-v3',
 		pkSize: MLDSA65.pkBytes  + SLHDSA192F.pkBytes,
 		skSize: MLDSA65.skBytes  + SLHDSA192F.skBytes,
-		sigSize: MLDSA65.sigBytes + SLHDSA192F.sigBytes,
+		sigMaxSize: MLDSA65.sigBytes + SLHDSA192F.sigBytes,
 		wasmModules: ['mldsa', 'sha3', 'slhdsa'],
 		prehashAlgorithm: 'shake-256', prehashSize: 64,
 	},
@@ -97,7 +97,7 @@ const CASES: HybridCase[] = [
 		ctxDomain: 'mldsa87-slhdsa256f-envelope-v3',
 		pkSize: MLDSA87.pkBytes  + SLHDSA256F.pkBytes,
 		skSize: MLDSA87.skBytes  + SLHDSA256F.skBytes,
-		sigSize: MLDSA87.sigBytes + SLHDSA256F.sigBytes,
+		sigMaxSize: MLDSA87.sigBytes + SLHDSA256F.sigBytes,
 		wasmModules: ['mldsa', 'sha3', 'slhdsa'],
 		prehashAlgorithm: 'shake-256', prehashSize: 64,
 	},
@@ -109,17 +109,17 @@ describe('hybrid catalog numeric gates', () => {
 	it('0x30 sizes match FIPS 204 §4 + FIPS 205 §11.1 Table 2', () => {
 		expect(CASES[0].pkSize).toBe(1344);
 		expect(CASES[0].skSize).toBe(2624);
-		expect(CASES[0].sigSize).toBe(19508);
+		expect(CASES[0].sigMaxSize).toBe(19508);
 	});
 	it('0x31 sizes match FIPS 204 §4 + FIPS 205 §11.1 Table 2', () => {
 		expect(CASES[1].pkSize).toBe(2000);
 		expect(CASES[1].skSize).toBe(4128);
-		expect(CASES[1].sigSize).toBe(38973);
+		expect(CASES[1].sigMaxSize).toBe(38973);
 	});
 	it('0x32 sizes match FIPS 204 §4 + FIPS 205 §11.1 Table 2', () => {
 		expect(CASES[2].pkSize).toBe(2656);
 		expect(CASES[2].skSize).toBe(5024);
-		expect(CASES[2].sigSize).toBe(54483);
+		expect(CASES[2].sigMaxSize).toBe(54483);
 	});
 });
 
@@ -138,7 +138,7 @@ describe('suite catalog surface', () => {
 	it.each(CASES)('$name pk/sk/sig sizes equal sum of half sizes', (c) => {
 		expect(c.suite.pkSize).toBe(c.pkSize);
 		expect(c.suite.skSize).toBe(c.skSize);
-		expect(c.suite.sigSize).toBe(c.sigSize);
+		expect(c.suite.sigMaxSize).toBe(c.sigMaxSize);
 	});
 
 	it.each(CASES)('$name advertises mldsa + sha3 + slhdsa', (c) => {
@@ -160,8 +160,16 @@ describe('suite catalog surface', () => {
 const TEST_MSG  = new Uint8Array(64).map((_, i) => (i * 17 + 3) & 0xff);
 const EMPTY_CTX = new Uint8Array(0);
 const SMALL_CTX = utf8ToBytes('hello');
-const LARGE_CTX = new Uint8Array(200).map((_, i) => (i * 31 + 5) & 0xff);
-const OVER_CTX  = new Uint8Array(201);
+// 223 = 253 - len('mldsa{XX}-slhdsa{NNN}f-envelope-v3' 30 bytes). Effective
+// per-suite user_ctx ceiling for these hybrids, set by buildEffectiveCtx's
+// combined-length cap (FIPS 204 §3.6.1).
+const LARGE_CTX = new Uint8Array(223).map((_, i) => (i * 31 + 5) & 0xff);
+// One past USER_CTX_MAX = 255; trips the absolute cap inside buildEffectiveCtx.
+const OVER_CTX  = new Uint8Array(256);
+// One past the combined effective_ctx ceiling for these hybrids (223). Trips
+// the combined cap inside buildEffectiveCtx without reaching the absolute cap;
+// exercises the second buildEffectiveCtx check.
+const COMBINED_OVER_CTX = new Uint8Array(224).map((_, i) => (i * 23 + 3) & 0xff);
 
 describe.each(CASES)('$name round-trip', (c) => {
 	it('keygen returns correctly-sized composite pk/sk', () => {
@@ -173,7 +181,7 @@ describe.each(CASES)('$name round-trip', (c) => {
 	it('sign + verify with empty ctx', () => {
 		const { pk, sk } = c.suite.keygen();
 		const sig = c.suite.sign(sk, TEST_MSG, EMPTY_CTX);
-		expect(sig.length).toBe(c.sigSize);
+		expect(sig.length).toBe(c.sigMaxSize);
 		expect(c.suite.verify(pk, TEST_MSG, sig, EMPTY_CTX)).toBe(true);
 	});
 
@@ -183,17 +191,32 @@ describe.each(CASES)('$name round-trip', (c) => {
 		expect(c.suite.verify(pk, TEST_MSG, sig, SMALL_CTX)).toBe(true);
 	});
 
-	it('sign + verify with 200-byte ctx (USER_CTX_MAX)', () => {
+	it('sign + verify with 223-byte ctx (combined effective_ctx ceiling)', () => {
 		const { pk, sk } = c.suite.keygen();
 		const sig = c.suite.sign(sk, TEST_MSG, LARGE_CTX);
 		expect(c.suite.verify(pk, TEST_MSG, sig, LARGE_CTX)).toBe(true);
 	});
 
-	it('201-byte ctx throws sig-ctx-too-long', () => {
+	it('256-byte ctx throws sig-ctx-too-long (absolute USER_CTX_MAX cap)', () => {
 		const { sk } = c.suite.keygen();
 		let caught: unknown;
 		try {
 			c.suite.sign(sk, TEST_MSG, OVER_CTX);
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(SigningError);
+		expect((caught as SigningError).discriminator).toBe('sig-ctx-too-long');
+	});
+
+	it('224-byte ctx throws sig-ctx-too-long (combined effective_ctx cap)', () => {
+		// 30-byte ctxDomain + 224-byte user_ctx + 2 length prefixes = 256, one
+		// past the FIPS 204 §3.6.1 ctx cap. Shares the discriminator with the
+		// absolute-cap throw above.
+		const { sk } = c.suite.keygen();
+		let caught: unknown;
+		try {
+			c.suite.sign(sk, TEST_MSG, COMBINED_OVER_CTX);
 		} catch (e) {
 			caught = e;
 		}
@@ -233,7 +256,7 @@ describe.each(CASES)('$name prehash digest contracts', (c) => {
 		const digest = new Uint8Array(c.prehashSize)
 			.map((_, i) => (i * 19 + 11) & 0xff);
 		const sig = c.suite.signPrehashed(sk, digest, SMALL_CTX);
-		expect(sig.length).toBe(c.sigSize);
+		expect(sig.length).toBe(c.sigMaxSize);
 		expect(c.suite.verifyPrehashed(pk, digest, sig, SMALL_CTX)).toBe(true);
 	});
 

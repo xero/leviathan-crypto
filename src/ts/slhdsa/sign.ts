@@ -34,7 +34,7 @@
 //     ctx) and forwards to slhSignInternalTs. Mirrors
 //     src/ts/mldsa/sign.ts:signWithPrehash.
 //
-// Buffer hygiene (sig-phase2.md §11):
+// Buffer hygiene:
 //   - INPUT region zeroed before return (lib wipe; sk + M' + opt_rand all
 //     land there). slhdsa's WASM-side wipeBuffers() handles OUT / STATE /
 //     SCRATCH but NOT INPUT (see src/asm/slhdsa/buffers.ts comment).

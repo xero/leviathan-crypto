@@ -359,7 +359,7 @@ const bytes = rng.get(64)
 | --------------------------------------- | ---------------------------------------------------------------------------- |
 | [asm_blake3](./asm_blake3.md)           | BLAKE3 WASM module reference: buffer layout, exports, SIMD dispatch.         |
 | [blake3_audit](./blake3_audit.md)       | BLAKE3 implementation audit checklist.                                       |
-| [architecture](./architecture.md)       | Module structure, init contract, and the cross-module overview.              |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md)                 | BLAKE3 vocabulary: chunk, CV, XOF, subtree, mode flags.                       |
 | [fortuna](./fortuna.md)                 | Pluggable `HashFn` slot that accepts `BLAKE3Hash`.                            |
 | [BLAKE3 paper](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf) | The BLAKE3 specification.                       |

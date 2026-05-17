@@ -122,7 +122,7 @@ describe.each(PREHASH_CASES)('SignStream + VerifyStream, $name', (c) => {
 			s.update(MSG.subarray(32, 96));
 			s.update(MSG.subarray(96));
 			const sig = s.finalize();
-			const blob = concat(s.preamble, MSG, sig);
+			const blob = concat(s.buildPreamble(MSG.length), MSG, sig);
 			const out  = Sign.verify(c.suite, pk, blob, CTX);
 			expect(out).toEqual(MSG);
 		} finally {
@@ -137,7 +137,7 @@ describe.each(PREHASH_CASES)('SignStream + VerifyStream, $name', (c) => {
 		try {
 			s.update(MSG);
 			const sig = s.finalize();
-			blob = concat(s.preamble, MSG, sig);
+			blob = concat(s.buildPreamble(MSG.length), MSG, sig);
 		} finally {
 			s.dispose();
 		}

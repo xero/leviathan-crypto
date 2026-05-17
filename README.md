@@ -16,7 +16,7 @@
 
 **[AES-256-GCM-SIV](https://github.com/xero/leviathan-crypto/wiki/aes): industry standard, sharpened.** 14 rounds bitsliced into Boolean gates with tower-field S-box with no table lookups. A fresh POLYVAL key per nonce leaves GHASH-key recovery with no target.
 
-**Below the cipher suites sit three hash primitive families:** SHA-2 (SHA-256/384/512 with HMAC and HKDF variants), SHA-3 (SHA3-256/512 and SHAKE128/256), and [BLAKE3](https://github.com/xero/leviathan-crypto/wiki/blake3) (default hash, keyed_hash, derive_key, plus the §2.5 XOF reader). The round permutations are constant-time by algorithm design: pure bit operations with no S-box lookups and no data-dependent branches. SHA-2 powers the seal layer's HKDF key derivation and Serpent's HMAC authentication. SHA-3 is the Keccak sponge ML-KEM relies on internally. BLAKE3 ships a v128-internal `compress` and a v128-external lane-parallel `compress4`, and substrates the Phase 7 Merkle-log work that builds on its §2.3 / §2.4 tree mode. The SP 800-185 family (cSHAKE128/256, KMAC128/256, KMACXOF128/256) builds on the SHA-3 sponge to provide customizable XOFs and a Keccak-based MAC with built-in domain separation.
+**Below the cipher suites sit three hash primitive families:** SHA-2 (SHA-256/384/512 with HMAC and HKDF variants), SHA-3 (SHA3-256/512 and SHAKE128/256), and [BLAKE3](https://github.com/xero/leviathan-crypto/wiki/blake3) (default hash, keyed_hash, derive_key, plus the §2.5 XOF reader). The round permutations are constant-time by algorithm design: pure bit operations with no S-box lookups and no data-dependent branches. SHA-2 powers the seal layer's HKDF key derivation and Serpent's HMAC authentication. SHA-3 is the Keccak sponge ML-KEM relies on internally. BLAKE3 ships a v128-internal `compress` and a v128-external lane-parallel `compress4`, and substrates the planned Merkle-log work that builds on its §2.3 / §2.4 tree mode. The SP 800-185 family (cSHAKE128/256, KMAC128/256, KMACXOF128/256) builds on the SHA-3 sponge to provide customizable XOFs and a Keccak-based MAC with built-in domain separation.
 
 **Above the cipher suites sits a cipher-agnostic AEAD layer:** `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool`. Each takes a `CipherSuite` at construction, and the seal layer handles key derivation, nonce management, and authentication. `Seal` covers one-shot encryption for data that fits in memory. `SealStream` and `OpenStream` handle chunked data too large to buffer. `SealStreamPool` distributes chunks across Web Workers for parallel throughput. All four share one wire format. A `Seal` blob is structurally a single-chunk `SealStream` output, and `OpenStream` decrypts it interchangeably.
 
@@ -114,6 +114,8 @@ await sha3Init(sha3Wasm)
 | `leviathan-crypto/blake3/embedded`   | `./dist/blake3/embedded.js`    |
 | `leviathan-crypto/kyber`             | `./dist/kyber/index.js`        |
 | `leviathan-crypto/kyber/embedded`    | `./dist/kyber/embedded.js`     |
+| `leviathan-crypto/ecdsa`             | `./dist/ecdsa/index.js`        |
+| `leviathan-crypto/ecdsa/embedded`    | `./dist/ecdsa/embedded.js`     |
 | `leviathan-crypto/ratchet`           | `./dist/ratchet/index.js`      |
 
 See the [WASM loading reference](https://github.com/xero/leviathan-crypto/wiki/loader) for details.
@@ -244,9 +246,9 @@ const sig = signer.finalize()
 // wire output is signer.preamble + chunk1 + chunk2 + sig
 ```
 
-Six suites ship in Phase 1: `MlDsa44Suite` / `MlDsa65Suite` / `MlDsa87Suite` for pure ML-DSA, and `MlDsa44PreHashSuite` / `MlDsa65PreHashSuite` / `MlDsa87PreHashSuite` for HashML-DSA. See the [signaturesuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) for the wire format, error reference, and the full 22-entry catalog.
+Six ML-DSA suites ship: `MlDsa44Suite` / `MlDsa65Suite` / `MlDsa87Suite` for pure ML-DSA, and `MlDsa44PreHashSuite` / `MlDsa65PreHashSuite` / `MlDsa87PreHashSuite` for HashML-DSA. See the [signaturesuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) for the wire format, error reference, and the full 22-entry catalog.
 
-**_Want belt-and-suspenders post-quantum signatures?_** Phase 2 adds three PQ-only hybrid suites that pair ML-DSA (lattice) with SLH-DSA (hash-based) at each NIST security category. The combined signature is secure as long as either family holds; a future break in one PQ assumption does not transfer to the other. The wire is one combined byte string the receiver verifies through the same `Sign` entry points.
+**_Want belt-and-suspenders post-quantum signatures?_** Three PQ-only hybrid suites pair ML-DSA (lattice) with SLH-DSA (hash-based) at each NIST security category. The combined signature is secure as long as either family holds; a future break in one PQ assumption does not transfer to the other. The wire is one combined byte string the receiver verifies through the same `Sign` entry points.
 
 ```typescript
 import { init, Sign, MlDsa65SlhDsa192fSuite } from 'leviathan-crypto'
@@ -265,7 +267,26 @@ const payload = Sign.verify(MlDsa65SlhDsa192fSuite, pk, blob, ctx)
 // throws SigningError if either half fails to verify
 ```
 
-Three hybrid suites ship at the matching NIST categories: `MlDsa44SlhDsa128fSuite` (category 1), `MlDsa65SlhDsa192fSuite` (category 3), `MlDsa87SlhDsa256fSuite` (category 5). The Phase 2 PQ-only hybrids complement the Phase 6 classical+PQ hybrids; the two families defend against different threat models and the [signaturesuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) covers when to pick which.
+Three hybrid suites ship at the matching NIST categories: `MlDsa44SlhDsa128fSuite` (category 1), `MlDsa65SlhDsa192fSuite` (category 3), `MlDsa87SlhDsa256fSuite` (category 5). The PQ-only hybrids complement the planned classical+PQ hybrids; the two families defend against different threat models and the [signaturesuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) covers when to pick which.
+
+**_Need classical ECDSA for X.509, JWS, or TLS interop?_** [`EcdsaP256Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ecdsa-p256-suite) wraps ECDSA over NIST P-256 (FIPS 186-5 §6) with SHA-256 prehash baked in. Hedged-by-default per `draft-irtf-cfrg-det-sigs-with-noise-05`, low-S enforced on signer and verifier per RFC 6979 §3.5. Wire bytes are 64-byte raw `r || s`; the [`ecdsaSignatureToDer`](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility) / [`ecdsaSignatureFromDer`](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility) helpers convert between raw and the RFC 3279 §2.2.3 DER form for ecosystem interop.
+
+```typescript
+import { init, Sign, EcdsaP256Suite, ecdsaSignatureToDer } from 'leviathan-crypto'
+import { p256Wasm } from 'leviathan-crypto/ecdsa/embedded'
+import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
+
+await init({ p256: p256Wasm, sha2: sha2Wasm })
+
+const { pk, sk } = EcdsaP256Suite.keygen()
+const msg = new TextEncoder().encode('hello world')
+const sig = Sign.signDetached(EcdsaP256Suite, sk, msg, new Uint8Array(0))
+const ok  = Sign.verifyDetached(EcdsaP256Suite, pk, msg, sig, new Uint8Array(0))
+
+const der = ecdsaSignatureToDer(sig)   // X.509 / JWS / TLS interop
+```
+
+ECDSA-P256 is classical (not post-quantum); pair it with an ML-DSA or SLH-DSA suite when the threat model assumes a future CRQC. ECDSA has no native context parameter, so `EcdsaP256Suite` rejects non-empty `user_ctx`; the reserved classical+PQ hybrid suites at `0x22` / `0x23` will provide context-bound classical+PQ signing.
 
 **_Building a secure messenger?_** The [ratchet module](https://github.com/xero/leviathan-crypto/wiki/ratchet) provides Sparse Post-Quantum Ratchet primitives for consumers who need forward secrecy and post-compromise security at the session layer. [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit) bootstraps the symmetric chains, [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain) derives per-message keys, [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap) perform the ML-KEM ratchet step, and [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) handles out-of-order delivery.
 
@@ -327,8 +348,9 @@ A covert communications application for end-to-end encrypted group conversations
 | Encrypt a stream or large file | [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream) to encrypt, [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead#openstream) to decrypt |
 | Encrypt in parallel | [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) distributes chunks across Web Workers |
 | Add post-quantum security | [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps [`MlKem512`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), [`MlKem768`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), or [`MlKem1024`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets) with any cipher suite |
-| Sign a message | [`Sign`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) with [`MlDsa65Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#pure-mode-suites) for attached or detached signatures |
-| Sign a stream or large file | [`SignStream`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#examples) with [`MlDsa65PreHashSuite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#prehash-mode-suites); [`VerifyStream`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#examples) on the receive side |
+| Sign a message | [`Sign`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite) with [`MlDsa65Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#pure-mode-suites), [`Ed25519Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ed25519-suites), or [`EcdsaP256Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ecdsa-p256-suite) for attached or detached signatures |
+| Sign a stream or large file | [`SignStream`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#examples) with [`MlDsa65PreHashSuite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#prehash-mode-suites), [`Ed25519PreHashSuite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ed25519-suites), or [`EcdsaP256Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ecdsa-p256-suite); [`VerifyStream`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#examples) on the receive side |
+| Convert ECDSA signatures to DER (X.509 / JWS / TLS) | [`ecdsaSignatureToDer`](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility) / [`ecdsaSignatureFromDer`](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility) (RFC 3279 §2.2.3) |
 | Build a forward-secret session | [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit), [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain), [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) |
 | Hash data | [`SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha256), [`SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha384), [`SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha512), [`SHA3_256`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_256), [`SHA3_512`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_512), [`SHAKE256`](https://github.com/xero/leviathan-crypto/wiki/sha3#shake256), [`BLAKE3`](https://github.com/xero/leviathan-crypto/wiki/blake3#blake3), [`BLAKE3KeyedHash`](https://github.com/xero/leviathan-crypto/wiki/blake3#blake3keyedhash), [`BLAKE3DeriveKey`](https://github.com/xero/leviathan-crypto/wiki/blake3#blake3derivekey) ... |
 | Authenticate a message | [`HMAC_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha256), [`HMAC_SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha384), [`HMAC_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha512), or [`KMAC256`](https://github.com/xero/leviathan-crypto/wiki/kmac#kmac256) |

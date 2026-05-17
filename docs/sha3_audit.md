@@ -542,7 +542,7 @@ A cryptanalytic breakthrough against one family does not imply weakness in the o
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha2_audit](./sha2_audit.md) | SHA-2 companion audit (independent construction) |
 | [hmac_audit](./hmac_audit.md) | HMAC uses SHA-2 (not SHA-3) |
 | [hkdf_audit](./hkdf_audit.md) | HKDF uses SHA-2 (not SHA-3) |

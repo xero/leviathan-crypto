@@ -8,7 +8,8 @@
 //
 // Wire format:
 //   [suite_byte: u8][ctx_len: u8][ctx: ctx_len bytes]
-//   [payload: ...][sig: 64 bytes for the fixture suite]
+//   [payload_len: u32 BE][payload: payload_len bytes]
+//   [sig: 64 bytes for the fixture suite]
 //
 // Fixture sk (32 bytes, identical to fixture pk):
 //   00 01 02 ... 1f
@@ -27,7 +28,7 @@ export interface SignEnvelopeVector {
 	formatEnum: number;  // suite_byte
 	ctxHex: string;      // wire ctx bytes
 	payloadHex: string;  // payload bytes
-	sigHex: string;      // signature bytes, exactly suite.sigSize
+	sigHex: string;      // signature bytes, exactly suite.sigMaxSize
 	expectedBlobHex: string; // full envelope blob
 }
 
@@ -48,11 +49,11 @@ export const signEnvelopeVectors: SignEnvelopeVector[] = [
 			'20202020202020202020202020202020' +
 			'20202020202020202020202020202020',
 		expectedBlobHex:
-			'ff00' +
+			'ff000000000000000000000000000000' +
 			'00000000000000000000000000000000' +
-			'00000000000000000000000000000000' +
+			'00000000000020202020202020202020' +
 			'20202020202020202020202020202020' +
-			'20202020202020202020202020202020',
+			'202020202020',
 	},
 	{
 		description: 'V2, 5-byte ctx, 16-byte payload',
@@ -65,16 +66,15 @@ export const signEnvelopeVectors: SignEnvelopeVector[] = [
 			'929296939597959398989898989d9f9d' +
 			'9395929296969297999b999f9c9c9c9c',
 		expectedBlobHex:
-			'ff05' +
-			'1011121314' +
-			'a0a1a2a3a4a5a6a7a8a9aaabacadaeaf' +
-			'b0b0b0b0b0b5b7b5bbbdbababebebabf' +
-			'b1b3b1b7b4b4b4b4bcb9bbb9bfb9bebe' +
-			'929296939597959398989898989d9f9d' +
-			'9395929296969297999b999f9c9c9c9c',
+			'ff05101112131400000010a0a1a2a3a4' +
+			'a5a6a7a8a9aaabacadaeafb0b0b0b0b0' +
+			'b5b7b5bbbdbababebebabfb1b3b1b7b4' +
+			'b4b4b4bcb9bbb9bfb9bebe9292969395' +
+			'97959398989898989d9f9d9395929296' +
+			'969297999b999f9c9c9c9c',
 	},
 	{
-		description: 'V3, 200-byte ctx (USER_CTX_MAX), 128-byte payload',
+		description: 'V3, 200-byte ctx, 128-byte payload',
 		formatEnum: 0xff,
 		ctxHex:
 			'000102030405060708090a0b0c0d0e0f' +
@@ -105,31 +105,30 @@ export const signEnvelopeVectors: SignEnvelopeVector[] = [
 			'dfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf' +
 			'dfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf',
 		expectedBlobHex:
-			'ffc8' +
-			'000102030405060708090a0b0c0d0e0f' +
-			'101112131415161718191a1b1c1d1e1f' +
-			'202122232425262728292a2b2c2d2e2f' +
-			'303132333435363738393a3b3c3d3e3f' +
-			'404142434445464748494a4b4c4d4e4f' +
-			'505152535455565758595a5b5c5d5e5f' +
-			'606162636465666768696a6b6c6d6e6f' +
-			'707172737475767778797a7b7c7d7e7f' +
-			'808182838485868788898a8b8c8d8e8f' +
-			'909192939495969798999a9b9c9d9e9f' +
-			'a0a1a2a3a4a5a6a7a8a9aaabacadaeaf' +
-			'b0b1b2b3b4b5b6b7b8b9babbbcbdbebf' +
-			'c0c1c2c3c4c5c6c7' +
-			'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0' +
-			'efeeedecebeae9e8e7e6e5e4e3e2e1e0' +
-			'dfdedddcdbdad9d8d7d6d5d4d3d2d1d0' +
-			'cfcecdcccbcac9c8c7c6c5c4c3c2c1c0' +
-			'bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0' +
-			'afaeadacabaaa9a8a7a6a5a4a3a2a1a0' +
-			'9f9e9d9c9b9a99989796959493929190' +
-			'8f8e8d8c8b8a89888786858483828180' +
+			'ffc8000102030405060708090a0b0c0d' +
+			'0e0f101112131415161718191a1b1c1d' +
+			'1e1f202122232425262728292a2b2c2d' +
+			'2e2f303132333435363738393a3b3c3d' +
+			'3e3f404142434445464748494a4b4c4d' +
+			'4e4f505152535455565758595a5b5c5d' +
+			'5e5f606162636465666768696a6b6c6d' +
+			'6e6f707172737475767778797a7b7c7d' +
+			'7e7f808182838485868788898a8b8c8d' +
+			'8e8f909192939495969798999a9b9c9d' +
+			'9e9fa0a1a2a3a4a5a6a7a8a9aaabacad' +
+			'aeafb0b1b2b3b4b5b6b7b8b9babbbcbd' +
+			'bebfc0c1c2c3c4c5c6c700000080fffe' +
+			'fdfcfbfaf9f8f7f6f5f4f3f2f1f0efee' +
+			'edecebeae9e8e7e6e5e4e3e2e1e0dfde' +
+			'dddcdbdad9d8d7d6d5d4d3d2d1d0cfce' +
+			'cdcccbcac9c8c7c6c5c4c3c2c1c0bfbe' +
+			'bdbcbbbab9b8b7b6b5b4b3b2b1b0afae' +
+			'adacabaaa9a8a7a6a5a4a3a2a1a09f9e' +
+			'9d9c9b9a999897969594939291908f8e' +
+			'8d8c8b8a89888786858483828180ffff' +
 			'ffffffffffffffffffffffffffffffff' +
-			'ffffffffffffffffffffffffffffffff' +
+			'ffffffffffffffffffffffffffffdfdf' +
 			'dfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf' +
-			'dfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf',
+			'dfdfdfdfdfdfdfdfdfdfdfdfdfdf',
 	},
 ];

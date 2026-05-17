@@ -19,7 +19,7 @@ involved.
 > - [Performance](#performance)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
-> - [Cross-references](#cross-references)
+> - [Cross-References](#cross-references)
 
 ---
 
@@ -560,9 +560,9 @@ FIPS 205 §3.6.2 / §10.3.
 | `sk` length mismatch                     | throw `RangeError`           | n/a                          |
 | `pk` length mismatch                     | n/a                          | return `false`               |
 | `σ` length mismatch                      | n/a                          | return `false`               |
-| `ctx.length > 255`                       | throw `SigningError`         | throw `SigningError`         |
+| `ctx.length > 255`                       | throw `SigningError('sig-ctx-too-long')` | throw `SigningError('sig-ctx-too-long')` |
 | `optRand.length !== n` (signDerand only) | throw `RangeError`           | n/a                          |
-| Wrong-size digest (prehashed sign)       | throw `SigningError`         | n/a                          |
+| Wrong-size digest (prehashed sign)       | throw `SigningError('sig-malformed-input')` | n/a                          |
 | Wrong-size digest (prehashed verify)     | n/a                          | return `false`               |
 | Wrong signature for `(pk, M, ctx)`       | n/a                          | return `false`               |
 | Unsupported `ph` (signHash* / verifyHash)| throw `RangeError`           | throw `RangeError`           |
@@ -737,13 +737,15 @@ every path.
 
 ---
 
-## Cross-references
+## Cross-References
 
-- [Architecture](./architecture.md), module layout and three-tier design.
-- [init.md](./init.md), `init()` API and module-loader contract.
-- [signaturesuite.md](./signaturesuite.md), `SignatureSuite` interface
-  plus the `SlhDsa*Suite` and `MlDsa*SlhDsa*Suite` consts.
-- [slhdsa_audit.md](./slhdsa_audit.md), implementation audit checklist.
-- [mldsa.md](./mldsa.md), the lattice-based post-quantum signature peer.
-- [SECURITY.md](../SECURITY.md), PQ-only hybrid threat model and broader
-  signature-surface security posture.
+| Document | Description |
+|----------|-------------|
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [init.md](./init.md) | `init()` API and module-loader contract |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `SlhDsa*Suite` and `MlDsa*SlhDsa*Suite` consts |
+| [asm_slhdsa.md](./asm_slhdsa.md) | Low-level WASM module reference |
+| [slhdsa_audit.md](./slhdsa_audit.md) | Implementation audit checklist |
+| [mldsa.md](./mldsa.md) | The lattice-based post-quantum signature peer (paired with SLH-DSA in PQ-only hybrid suites) |
+| [SECURITY.md](../SECURITY.md) | PQ-only hybrid threat model and broader signature-surface security posture |
+| [exports.md](./exports.md) | Full export catalog |

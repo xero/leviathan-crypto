@@ -32,7 +32,7 @@
 // segment at low memory. The ML-DSA zetas table is 256 × 4 = 1024 bytes, well
 // within the reserved 4096-byte region. Mutable regions start at 4096.
 //
-// Phase-4 finalized the byte-buffer sizing per FIPS 204 §4 Table 2:
+// Byte-buffer sizing per FIPS 204 §4 Table 2:
 //
 //                 ML-DSA-44  ML-DSA-65  ML-DSA-87
 //   pk bytes        1312       1952       2592

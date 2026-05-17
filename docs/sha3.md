@@ -10,6 +10,7 @@ Covers the SHA-3 hash functions (SHA3-224 through SHA3-512) and the SHAKE extend
 > - [Module Init](#module-init)
 > - [API Reference](#api-reference)
 > - [Incremental XOF API](#incremental-xof-api-absorb--squeeze--reset)
+> - [Streaming Classes](#streaming-classes)
 > - [SHA3_256Hash](#sha3_256hash)
 > - [Usage Examples](#usage-examples)
 > - [Error Conditions](#error-conditions)
@@ -320,6 +321,58 @@ xof.dispose()
 
 ---
 
+## Streaming Classes
+
+`SHA3_256Stream`, `SHA3_512Stream`, `SHAKE128Stream`, and `SHAKE256Stream` mirror the one-shot `SHA3_256`, `SHA3_512`, `SHAKE128`, and `SHAKE256` surfaces for callers who cannot hold the full message in memory. Each takes input incrementally via `update()` and produces the digest from `finalize()`. Construction acquires the `sha3` WASM module exclusively; `finalize()` and `dispose()` both release it.
+
+Used internally by the v3 sign layer's `createRunningHash` factory for prehash and hybrid signature suites with `prehashAlgorithm` set to `'sha3-256'`, `'sha3-512'`, `'shake-128'`, or `'shake-256'`. See [signaturesuite.md](./signaturesuite.md).
+
+### SHA3_256Stream
+
+```typescript
+import { SHA3_256Stream } from 'leviathan-crypto'
+
+const h = new SHA3_256Stream()
+h.update(chunk1).update(chunk2)
+const digest = h.finalize()   // 32 bytes, disposes the instance
+```
+
+| Method | Description |
+|---|---|
+| `new SHA3_256Stream()` | Construct, acquire `sha3` exclusively. Throws if another stateful class currently owns the module. |
+| `.update(chunk)` | Absorb bytes. Returns `this` for chaining. Any chunk size accepted. |
+| `.finalize()` | Pad and squeeze the 32-byte digest, then dispose. Returns `Uint8Array`. |
+| `.dispose()` | Wipe buffers, release the `sha3` module. Idempotent. |
+
+### SHA3_512Stream
+
+Identical lifecycle to `SHA3_256Stream`; `finalize()` returns 64 bytes.
+
+### SHAKE128Stream
+
+```typescript
+import { SHAKE128Stream } from 'leviathan-crypto'
+
+const h = new SHAKE128Stream(64)  // outputLen bound at construction
+h.update(chunk1).update(chunk2)
+const out = h.finalize()           // exactly 64 bytes, disposes the instance
+```
+
+| Method | Description |
+|---|---|
+| `new SHAKE128Stream(outputLen)` | Construct with output length in bytes (`outputLen >= 1`, throws `RangeError` otherwise). |
+| `.update(chunk)` | Absorb bytes. Returns `this` for chaining. |
+| `.finalize()` | Pad and squeeze exactly `outputLen` bytes, then dispose. |
+| `.dispose()` | Wipe buffers, release the `sha3` module. Idempotent. |
+
+`outputLen` is fixed at construction time and `finalize()` returns exactly that many bytes. For multi-call squeeze (extract more output after partial reads, advance the sponge state across calls), use the static `SHAKE128` class with `absorb()` / `squeeze()` instead.
+
+### SHAKE256Stream
+
+Identical lifecycle to `SHAKE128Stream`. Larger sponge capacity (136-byte rate vs 168-byte SHAKE128 rate); slower per byte, higher security margin.
+
+---
+
 ## SHA3_256Hash
 
 Stateless SHA3-256 `HashFn` for Fortuna's accumulator and reseed slots. Plain
@@ -607,7 +660,7 @@ absorbs zero bytes and then squeezes.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha3_audit.md](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
 
 ---

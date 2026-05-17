@@ -51,7 +51,7 @@ const KEY_LEN_256 = 32;
 const NONCE_LEN = 12;
 
 // Single-shot bound: plaintext fits in CHUNK_PT (64 KiB). Larger inputs
-// would need a streaming SIV API; not in scope for this phase.
+// would need a streaming SIV API; not currently in scope.
 const MAX_PT_BYTES = 65536;
 
 // AAD is bounded by the dedicated AAD_BUFFER (64 KiB).

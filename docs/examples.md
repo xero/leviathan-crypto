@@ -144,6 +144,34 @@ pool.destroy()
 
 ---
 
+### [Sign](./signaturesuite.md): one-shot signature envelope
+
+`Sign` parallels `Seal` for signatures: pass a `SignatureSuite` and key material, get back a v3 envelope that any verifier with the public key can authenticate. `Sign.verify` throws `SigningError` on a bad signature (mirroring `Seal.decrypt`); the raw primitive `Ed25519.verify` returns a boolean instead.
+
+```typescript
+import { init, Sign, Ed25519Suite } from 'leviathan-crypto'
+import { ed25519Wasm } from 'leviathan-crypto/ed25519/embedded'
+
+await init({ ed25519: ed25519Wasm })
+
+const { pk, sk } = Ed25519Suite.keygen()
+const msg = new TextEncoder().encode('hello world')
+const ctx = new Uint8Array()                       // empty per-call ctx
+const blob = Sign.sign(Ed25519Suite, sk, msg, ctx)
+//   blob = [suite_byte][ctx_len][ctx][payload_len:u32 BE][payload][sig]
+
+try {
+  const recovered = Sign.verify(Ed25519Suite, pk, blob, ctx)
+  console.log(new TextDecoder().decode(recovered))  // hello world
+} catch {
+  // bad signature, wrong key, or tampered envelope
+}
+```
+
+Streaming over chunked input requires a `StreamableSignatureSuite` (prehash variants like `Ed25519PreHashSuite`, the ML-DSA / SLH-DSA prehash suites, or any hybrid composite). Pure `Ed25519Suite` is rejected by `SignStream` / `VerifyStream` at the type level, by design. For the full 22-suite catalog including ML-DSA, SLH-DSA, ECDSA-P256, classical+PQ hybrids, and PQ-only hybrids, see [signaturesuite.md](./signaturesuite.md).
+
+---
+
 ### Post-quantum key encapsulation with ML-KEM
 
 ML-KEM provides post-quantum key encapsulation. The sender encapsulates a
@@ -767,7 +795,7 @@ shake.dispose()
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [cdn](./cdn.md) | CDN usage: no bundler required |
 

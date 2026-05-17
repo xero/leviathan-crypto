@@ -36,7 +36,7 @@
 // path. The factories are NOT exported: catalog format bytes are reserved
 // and exposing factories would invite custom suites with unmanaged bytes.
 
-import { utf8ToBytes } from '../../utils.js';
+import { utf8ToBytes, wipe } from '../../utils.js';
 import { SigningError } from '../../errors.js';
 import {
 	MlDsa44, MlDsa65, MlDsa87,
@@ -78,7 +78,7 @@ function MldsaPureSuite(
 		ctxDomain,
 		pkSize: params.pkBytes,
 		skSize: params.skBytes,
-		sigSize: params.sigBytes,
+		sigMaxSize: params.sigBytes,
 		wasmModules,
 
 		sign(sk: Uint8Array, msg: Uint8Array, ctx: Uint8Array): Uint8Array {
@@ -88,6 +88,7 @@ function MldsaPureSuite(
 				return inst.sign(sk, msg, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -103,6 +104,7 @@ function MldsaPureSuite(
 				return inst.verify(pk, msg, sig, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -143,7 +145,7 @@ function MldsaPrehashSuite(
 		ctxDomain,
 		pkSize: params.pkBytes,
 		skSize: params.skBytes,
-		sigSize: params.sigBytes,
+		sigMaxSize: params.sigBytes,
 		wasmModules,
 		prehashAlgorithm,
 		prehashSize,
@@ -155,6 +157,7 @@ function MldsaPrehashSuite(
 				return inst.signHash(sk, msg, mldsaHashAlgo, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -170,6 +173,7 @@ function MldsaPrehashSuite(
 				return inst.verifyHash(pk, msg, sig, mldsaHashAlgo, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -204,6 +208,7 @@ function MldsaPrehashSuite(
 				);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -226,6 +231,7 @@ function MldsaPrehashSuite(
 				);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 	};

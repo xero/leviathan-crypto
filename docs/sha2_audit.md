@@ -542,7 +542,7 @@ A comprehensive search of the codebase identified all SHA-2 usage outside the co
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha3_audit](./sha3_audit.md) | SHA-3 companion audit (independent construction) |
 | [hmac_audit](./hmac_audit.md) | HMAC-SHA256 builds on SHA-256 |
 | [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 builds on HMAC-SHA256 |

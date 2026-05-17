@@ -397,7 +397,7 @@ Never attempt to recover plaintext after an `AuthenticationError`. The stream la
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
 | [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
 | [serpent](./serpent.md) | Serpent-256 raw primitives |

@@ -216,7 +216,10 @@ stored keys are 32-byte `Uint8Array` values produced by `KDFChain.step()`.
 const store = new SkippedKeyStore({ maxCacheSize: 100, maxSkipPerResolve: 50 })
 ```
 
-#### `new SkippedKeyStore(opts?)`
+#### `new SkippedKeyStore(opts?: SkippedKeyStoreOpts)`
+
+`SkippedKeyStoreOpts` is exported as a type alias from `leviathan-crypto`
+and `leviathan-crypto/ratchet`, matching the shape below.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -840,7 +843,7 @@ immediately after use.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ratchet_audit](./ratchet_audit.md) | Ratchet KDF implementation audit |
 | [kyber](./kyber.md) | ML-KEM key encapsulation (`MlKem512`, `MlKem768`, `MlKem1024`) |
 | [sha2](./sha2.md) | HKDF-SHA256 (the underlying primitive) |

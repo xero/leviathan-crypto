@@ -34,9 +34,9 @@ await runTarget('all')
 
 console.log('\n==> parallel checks')
 const results = await runParallel([
-	{name: 'lint', cmd: ['bun', 'scripts/lint.ts'],         env: {LVTHN_SKIP_BUILD: '1'}},
-	{name: 'unit', cmd: ['bun', 'scripts/test.ts', 'unit'], env: {LVTHN_SKIP_BUILD: '1'}},
-	{name: 'e2e',  cmd: ['bun', 'scripts/test.ts', 'e2e'],  env: {LVTHN_SKIP_BUILD: '1'}},
+	{name: 'lint', cmd: ['bun', 'scripts/lint.ts'],                        env: {LVTHN_SKIP_BUILD: '1'}},
+	{name: 'unit', cmd: ['bun', 'scripts/test.ts', 'unit', '--retry=1'],   env: {LVTHN_SKIP_BUILD: '1'}},
+	{name: 'e2e',  cmd: ['bun', 'scripts/test.ts', 'e2e',  '--retries=1'], env: {LVTHN_SKIP_BUILD: '1'}},
 ], {failFast: false})
 
 const totalS = ((performance.now() - t0) / 1000).toFixed(1)

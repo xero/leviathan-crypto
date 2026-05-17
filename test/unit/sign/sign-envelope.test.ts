@@ -35,6 +35,9 @@ import {
 	FIXTURE_SIG_SIZE,
 } from './helpers.js';
 
+// v3 envelope fixed header: 1 suite_byte + 1 ctx_len + 4 payload_len.
+const ENVELOPE_HEADER_FIXED = 6;
+
 function captureSigningError(fn: () => unknown): SigningError {
 	let caught: unknown;
 	try {
@@ -65,7 +68,9 @@ describe('Sign.sign / Sign.verify round-trip', () => {
 		const ctx = new Uint8Array(0);
 		const msg = new Uint8Array(0);
 		const blob = Sign.sign(suite, sk, msg, ctx);
-		expect(blob.length).toBe(2 + FIXTURE_SIG_SIZE);
+		expect(blob.length).toBe(ENVELOPE_HEADER_FIXED + FIXTURE_SIG_SIZE);
+		// payload_len bytes are all-zero for an empty payload.
+		expect(Array.from(blob.subarray(2, 6))).toEqual([0, 0, 0, 0]);
 		const out = Sign.verify(suite, pk, blob, ctx);
 		expect(out.length).toBe(0);
 	});
@@ -79,24 +84,26 @@ describe('Sign.sign / Sign.verify round-trip', () => {
 		const msg = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
 		const blob = Sign.sign(suite, sk, msg, ctx);
 		expect(blob[1]).toBe(10);
+		// payload_len encoded as u32 BE at offset 2 + ctxLen.
+		expect(Array.from(blob.subarray(2 + 10, 2 + 10 + 4))).toEqual([0, 0, 0, 4]);
 		const out = Sign.verify(suite, pk, blob, ctx);
 		expect(out).toEqual(msg);
 	});
 
-	it('non-empty ctx (200 bytes, USER_CTX_MAX)', () => {
+	it('non-empty ctx (255 bytes, USER_CTX_MAX)', () => {
 		const suite = makeFixtureSuite();
 		const sk = fixtureSk();
 		const pk = fixtureSk();
-		const ctx = new Uint8Array(200);
-		for (let i = 0; i < 200; i++) ctx[i] = i & 0xff;
+		const ctx = new Uint8Array(255);
+		for (let i = 0; i < 255; i++) ctx[i] = i & 0xff;
 		const msg = new Uint8Array([0xaa, 0xbb]);
 		const blob = Sign.sign(suite, sk, msg, ctx);
-		expect(blob[1]).toBe(200);
+		expect(blob[1]).toBe(255);
 		const out = Sign.verify(suite, pk, blob, ctx);
 		expect(out).toEqual(msg);
 	});
 
-	it('msg larger than sigSize', () => {
+	it('msg larger than sigMaxSize', () => {
 		const suite = makeFixtureSuite();
 		const sk = fixtureSk();
 		const pk = fixtureSk();
@@ -170,27 +177,46 @@ describe('Sign.verify, error discriminators', () => {
 		expect(err.discriminator === 'sig-suite-mismatch').toBe(true);
 	});
 
-	it('blob shorter than 2 + sigSize throws sig-blob-too-short', () => {
+	it('blob shorter than envelope header throws sig-blob-too-short', () => {
 		const suite = makeFixtureSuite();
 		const pk = fixtureSk();
 		const ctx = new Uint8Array(0);
-		const shortBlob = new Uint8Array(2 + FIXTURE_SIG_SIZE - 1);
+		const shortBlob = new Uint8Array(ENVELOPE_HEADER_FIXED - 1);
 		shortBlob[0] = FIXTURE_FORMAT_ENUM;
 		const err = captureSigningError(() => Sign.verify(suite, pk, shortBlob, ctx));
 		expect(err.discriminator === 'sig-blob-too-short').toBe(true);
 	});
 
-	it('ctx_len pushing past sig boundary throws sig-ctx-overflow', () => {
+	it('ctx_len pushing past blob end throws sig-blob-too-short', () => {
 		const suite = makeFixtureSuite();
 		const pk = fixtureSk();
-		// Total blob 70 bytes, payloadEnd = 70 − 64 = 6, ctxLen = 5 → 7 > 6.
-		const blob = new Uint8Array(70);
+		// Blob exactly meets the header minimum (6 bytes), then claims a
+		// 200-byte ctx. The ctx + payload_len header would need 206 bytes,
+		// so parse-header rejects with sig-blob-too-short.
+		const blob = new Uint8Array(ENVELOPE_HEADER_FIXED + FIXTURE_SIG_SIZE);
 		blob[0] = FIXTURE_FORMAT_ENUM;
-		blob[1] = 5;
+		blob[1] = 200;
 		const err = captureSigningError(
-			() => Sign.verify(suite, pk, blob, new Uint8Array(5)),
+			() => Sign.verify(suite, pk, blob, new Uint8Array(200)),
 		);
-		expect(err.discriminator === 'sig-ctx-overflow').toBe(true);
+		expect(err.discriminator === 'sig-blob-too-short').toBe(true);
+	});
+
+	it('payload_len past blob end throws sig-blob-too-short', () => {
+		const suite = makeFixtureSuite();
+		const pk = fixtureSk();
+		const ctx = new Uint8Array(0);
+		// Header claims a 1 MiB payload but the blob is just a header.
+		const blob = new Uint8Array(ENVELOPE_HEADER_FIXED + FIXTURE_SIG_SIZE);
+		blob[0] = FIXTURE_FORMAT_ENUM;
+		blob[1] = 0;
+		// payload_len = 0x00100000 (1 MiB).
+		blob[2] = 0x00;
+		blob[3] = 0x10;
+		blob[4] = 0x00;
+		blob[5] = 0x00;
+		const err = captureSigningError(() => Sign.verify(suite, pk, blob, ctx));
+		expect(err.discriminator === 'sig-blob-too-short').toBe(true);
 	});
 });
 
@@ -237,9 +263,9 @@ describe('Sign.peek', () => {
 		const peek = Sign.peek(blob, suite);
 		expect(peek.suiteByte).toBe(FIXTURE_FORMAT_ENUM);
 		expect(peek.ctx).toEqual(ctx);
-		expect(peek.payloadOffset).toBe(2 + ctx.length);
+		expect(peek.payloadOffset).toBe(2 + ctx.length + 4);
 		expect(peek.payloadLength).toBe(msg.length);
-		expect(peek.sigOffset).toBe(2 + ctx.length + msg.length);
+		expect(peek.sigOffset).toBe(2 + ctx.length + 4 + msg.length);
 		expect(blob.subarray(peek.payloadOffset, peek.sigOffset)).toEqual(msg);
 		expect(blob.subarray(peek.sigOffset).length).toBe(FIXTURE_SIG_SIZE);
 	});
@@ -251,34 +277,35 @@ describe('Sign.peek', () => {
 		const peek = Sign.peek(blob, suite);
 		expect(peek.suiteByte).toBe(FIXTURE_FORMAT_ENUM);
 		expect(peek.ctx.length).toBe(0);
-		expect(peek.payloadOffset).toBe(2);
+		expect(peek.payloadOffset).toBe(ENVELOPE_HEADER_FIXED);
 		expect(peek.payloadLength).toBe(0);
-		expect(peek.sigOffset).toBe(2);
+		expect(peek.sigOffset).toBe(ENVELOPE_HEADER_FIXED);
 	});
 
 	it('throws sig-blob-too-short on truncated blob', () => {
 		const suite = makeFixtureSuite();
-		const tiny = new Uint8Array(2 + FIXTURE_SIG_SIZE - 1);
+		const tiny = new Uint8Array(ENVELOPE_HEADER_FIXED - 1);
 		const err = captureSigningError(() => Sign.peek(tiny, suite));
 		expect(err.discriminator === 'sig-blob-too-short').toBe(true);
 	});
 
-	it('throws sig-ctx-overflow when ctx_len pushes past sig boundary', () => {
+	it('throws sig-blob-too-short when ctx_len pushes past blob end', () => {
 		const suite = makeFixtureSuite();
-		const blob = new Uint8Array(70);
+		const blob = new Uint8Array(ENVELOPE_HEADER_FIXED + FIXTURE_SIG_SIZE);
 		blob[0] = FIXTURE_FORMAT_ENUM;
-		blob[1] = 5;
+		blob[1] = 200;
 		const err = captureSigningError(() => Sign.peek(blob, suite));
-		expect(err.discriminator === 'sig-ctx-overflow').toBe(true);
+		expect(err.discriminator === 'sig-blob-too-short').toBe(true);
 	});
 });
 
 describe('Sign assembleBlob, defensive ctx-too-long', () => {
 	it('Sign.sign throws sig-ctx-too-long when the suite returns ctx ≥ 256 bytes', () => {
-		// The public ctx cap is enforced by buildEffectiveCtx (200 bytes); the
-		// envelope's assembleBlob still defensively rejects ctx >= 256 because
-		// the wire format ctx_len field is u8. Drive that branch via a suite
-		// that skips ctx-length validation, mimicking a hypothetical bypass.
+		// The public ctx cap is enforced by buildEffectiveCtx (USER_CTX_MAX =
+		// 255, FIPS 204 §3.6.1); the envelope's assembleBlob still defensively
+		// rejects ctx >= 256 because the wire format ctx_len field is u8.
+		// Drive that branch via a suite that skips ctx-length validation,
+		// mimicking a hypothetical bypass.
 		const lenientSuite = makeFixtureSuite();
 		const innerSign = lenientSuite.sign;
 		(lenientSuite as { sign: typeof innerSign }).sign = (

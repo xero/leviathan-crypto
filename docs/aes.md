@@ -829,7 +829,7 @@ try {
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_aes](./asm_aes.md) | AES WASM implementation details, buffer layout, and SIMD architecture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `AESGCMSIVCipher` as the suite argument |
 | [ciphersuite](./ciphersuite.md) | `AESGCMSIVCipher` reference: format enum, key derivation, commitment binding |

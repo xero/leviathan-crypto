@@ -72,10 +72,15 @@ export interface SignatureSuite {
 	readonly skSize: number;
 
 	/**
-	 * Signature size in bytes. Constant per suite. Hybrid suites
-	 * precompute `sig_classical + sig_pq` for clear visibility.
+	 * Upper-bound signature size in bytes. For fixed-length signature
+	 * schemes equals the actual size. For variable-length schemes
+	 * (e.g., composite ECDSA whose `Ecdsa-Sig-Value` DER encoding per
+	 * RFC 3279 §2.2.3 varies with leading-zero stripping) is the
+	 * catalog-reserved upper bound, the actual sig may be shorter.
+	 * Hybrid suites precompute `sig_classical + sig_pq` for clear
+	 * visibility.
 	 */
-	readonly sigSize: number;
+	readonly sigMaxSize: number;
 
 	/** WASM modules this suite requires initialized via init(). */
 	readonly wasmModules: readonly string[];
@@ -86,11 +91,14 @@ export interface SignatureSuite {
 	 *
 	 * @param sk  Secret key, must be exactly skSize bytes.
 	 * @param msg Message to sign. Any length.
-	 * @param ctx User context, up to 200 bytes. Empty Uint8Array is
-	 *            legal but must be passed explicitly.
+	 * @param ctx User context, up to USER_CTX_MAX (255) bytes per
+	 *            FIPS 204 §3.6.1. Suites that route ctx through
+	 *            buildEffectiveCtx have a tighter per-call ceiling
+	 *            equal to `253 - len(ctxDomain)`. Empty Uint8Array
+	 *            is legal but must be passed explicitly.
 	 * @throws SigningError on contract violations (wrong-size key,
 	 *         ctx too long).
-	 * @returns Signature bytes, exactly sigSize.
+	 * @returns Signature bytes, length at most sigMaxSize.
 	 */
 	sign(sk: Uint8Array, msg: Uint8Array, ctx: Uint8Array): Uint8Array;
 

@@ -140,9 +140,9 @@ function MldsaSlhdsaHybridSuite(
 			`leviathan-crypto: ctxDomain '${ctxDomain}' too long for ${formatName}`,
 		);
 
-	const pkSize  = mldsaParams.pkBytes  + slhdsaParams.pkBytes;
-	const skSize  = mldsaParams.skBytes  + slhdsaParams.skBytes;
-	const sigSize = mldsaParams.sigBytes + slhdsaParams.sigBytes;
+	const pkSize     = mldsaParams.pkBytes  + slhdsaParams.pkBytes;
+	const skSize     = mldsaParams.skBytes  + slhdsaParams.skBytes;
+	const sigMaxSize = mldsaParams.sigBytes + slhdsaParams.sigBytes;
 
 	const wasmModules   = Object.freeze(['mldsa', 'sha3', 'slhdsa'] as const);
 	const mldsaHashAlgo = prehashAlgoToMldsaLocal(prehashAlgorithm);
@@ -154,7 +154,7 @@ function MldsaSlhdsaHybridSuite(
 		ctxDomain,
 		pkSize,
 		skSize,
-		sigSize,
+		sigMaxSize,
 		wasmModules,
 		prehashAlgorithm,
 		prehashSize,
@@ -283,8 +283,8 @@ function MldsaSlhdsaHybridSuite(
 			// is a caller-side contract (the caller computed it via the
 			// suite's locked prehash algorithm) and throws symmetrically
 			// with `signPrehashed`.
-			if (pk.length  !== pkSize)  return false;
-			if (sig.length !== sigSize) return false;
+			if (pk.length  !== pkSize)     return false;
+			if (sig.length !== sigMaxSize) return false;
 			if (digest.length !== prehashSize)
 				throw new SigningError(
 					'sig-malformed-input',

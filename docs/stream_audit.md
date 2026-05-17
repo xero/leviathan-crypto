@@ -721,7 +721,7 @@ The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `sc
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, three-tier design |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | wire format spec, security model, API reference |
 | [serpent_audit](./serpent_audit.md) | Serpent-256 audit, §2.4 Verify-then-Decrypt |
 | [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 audit, §1.7 AEAD construction |

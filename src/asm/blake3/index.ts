@@ -360,14 +360,14 @@ export function deriveKey(
 
 // ── Test-only WASM exports ──────────────────────────────────────────────────
 //
-// Substrate hooks for the tree-internals unit suite and the planned
-// `src/ts/merkle/blake3-log.ts` log-proof module. NOT part of the
+// Substrate hooks for the tree-internals unit suite and the
+// `src/ts/merkle/blake3-tree.ts` Merkle-tree module. NOT part of the
 // consumer-facing Blake3Exports interface; consumers compute chunk /
 // parent CVs only via hash / hashKeyed / deriveKey. Underscore prefix
 // follows the codebase convention for module-internal exports
 // (e.g. `_acquireModule` on the TS side, `_test*` on the slhdsa WASM).
 //
-// The planned `src/ts/merkle/blake3-log.ts` will cast
+// `src/ts/merkle/blake3-tree.ts` casts
 // `Blake3Exports & Blake3TestExports` inside the merkle module the same
 // way slhdsa unit tests cast for `_test*` access today.
 

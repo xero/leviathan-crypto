@@ -45,6 +45,8 @@ export {
 	Ed25519Suite, Ed25519PreHashSuite,
 } from './suites/ed25519.js';
 
+export { EcdsaP256Suite } from './suites/ecdsa-p256.js';
+
 export {
 	MlDsa44Suite, MlDsa65Suite, MlDsa87Suite,
 	MlDsa44PreHashSuite, MlDsa65PreHashSuite, MlDsa87PreHashSuite,
@@ -60,3 +62,10 @@ export {
 	MlDsa65SlhDsa192fSuite,
 	MlDsa87SlhDsa256fSuite,
 } from './suites/hybrid-pq.js';
+
+export {
+	MlDsa44Ed25519Suite,
+	MlDsa65Ed25519Suite,
+	MlDsa44EcdsaP256Suite,
+	MlDsa65EcdsaP256Suite,
+} from './suites/hybrid-classical.js';

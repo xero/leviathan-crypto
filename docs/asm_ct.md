@@ -170,7 +170,8 @@ The WASM function itself has no error returns. Out-of-bounds memory access traps
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
 | [utils](./utils.md) | `constantTimeEqual`, `hasSIMD`, and other utility exports |
-| [architecture](./architecture.md) | architecture overview, module relationships, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_kyber](./asm_kyber.md) | `ct_verify` and `ct_cmov` in the kyber WASM module (note the inverted return convention) |
 | [asm_chacha](./asm_chacha.md) | ChaCha20-Poly1305 WASM module (uses `constantTimeEqual` for tag verification in the TypeScript wrapper) |

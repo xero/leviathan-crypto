@@ -301,5 +301,4 @@ xc2.dispose();
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
 | [chacha20](./chacha20.md) | XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys) |
 | [utils](./utils.md) | `randomBytes` for generating salts, `constantTimeEqual` for hash verification |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
-
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

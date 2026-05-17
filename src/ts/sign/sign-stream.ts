@@ -24,19 +24,26 @@
 // SignStream class, streaming signature production for StreamableSignatureSuite.
 // Sender writes: preamble + payload bytes + sig (from finalize). Wire format
 // is identical to Sign.sign output.
+//
+// The v3 attached envelope carries `payload_len: u32 BE` between ctx and
+// payload, so the preamble cannot be built up front: streaming sign feeds
+// the digest, not the payload itself, and the payload length is unknown
+// until the stream ends. The caller passes the total payload length to
+// `buildPreamble` at assembly time. The caller already has the payload
+// buffered separately (they fed it to `update` chunk by chunk), so the
+// length is available when they go to compose the wire.
 
 import { SigningError } from '../errors.js';
+import { wipe } from '../utils.js';
 import type { StreamableSignatureSuite } from './types.js';
 import { USER_CTX_MAX } from './ctx.js';
 import { createRunningHash } from './hasher.js';
 import type { RunningHash } from './hasher.js';
 
 export class SignStream {
-	/** Header bytes; write to output first. Available immediately. */
-	readonly preamble: Uint8Array;
-
 	private readonly suite: StreamableSignatureSuite;
 	private readonly sk: Uint8Array;
+	private readonly ctx: Uint8Array;
 	private hasher: RunningHash | undefined;
 	private finalized = false;
 	private disposed = false;
@@ -54,13 +61,44 @@ export class SignStream {
 				'sig-ctx-too-long',
 				`user_ctx length ${ctx.length} > ${USER_CTX_MAX}`,
 			);
-		const preamble = new Uint8Array(2 + ctx.length);
-		preamble[0] = suite.formatEnum;
-		preamble[1] = ctx.length;
-		preamble.set(ctx, 2);
-		this.preamble = preamble;
+		// Copy ctx so a later caller-side mutation cannot retroactively
+		// change the bytes the preamble emits.
+		this.ctx = new Uint8Array(ctx);
 
 		this.hasher = createRunningHash(suite.prehashAlgorithm);
+	}
+
+	/**
+	 * Build the wire-format preamble for a given payload length. Caller
+	 * supplies the length they will write between the preamble and the
+	 * signature, which lets the preamble carry the v3 envelope's
+	 * `payload_len: u32 BE` field. Wire shape:
+	 *   [suite_byte: u8][ctx_len: u8][ctx: ctx_len bytes][payload_len: u32 BE]
+	 *
+	 * Available at any point in the stream lifecycle (the bytes depend
+	 * only on the constructor args plus the caller-supplied length).
+	 */
+	buildPreamble(payloadLength: number): Uint8Array {
+		if (!Number.isInteger(payloadLength) || payloadLength < 0)
+			throw new SigningError(
+				'sig-malformed-input',
+				`payloadLength must be a non-negative integer, got ${payloadLength}`,
+			);
+		if (payloadLength > 0xFFFFFFFF)
+			throw new SigningError(
+				'sig-malformed-input',
+				`payloadLength ${payloadLength} > 2^32 - 1 (wire format payload_len is u32)`,
+			);
+		const out = new Uint8Array(2 + this.ctx.length + 4);
+		let pos = 0;
+		out[pos++] = this.suite.formatEnum;
+		out[pos++] = this.ctx.length;
+		out.set(this.ctx, pos); pos += this.ctx.length;
+		out[pos++] = (payloadLength >>> 24) & 0xFF;
+		out[pos++] = (payloadLength >>> 16) & 0xFF;
+		out[pos++] = (payloadLength >>>  8) & 0xFF;
+		out[pos]   =  payloadLength         & 0xFF;
+		return out;
 	}
 
 	/** Feed a chunk to the running prehash. */
@@ -80,11 +118,12 @@ export class SignStream {
 		this.finalized = true;
 
 		const h = this.hasher as RunningHash;
+		let digest: Uint8Array | undefined;
 		try {
-			const digest = h.finalize();
-			const userCtx = this.preamble.subarray(2);
-			return this.suite.signPrehashed(this.sk, digest, userCtx);
+			digest = h.finalize();
+			return this.suite.signPrehashed(this.sk, digest, this.ctx);
 		} finally {
+			if (digest !== undefined) wipe(digest);
 			h.dispose();
 			this.hasher = undefined;
 		}
@@ -98,5 +137,6 @@ export class SignStream {
 			this.hasher.dispose();
 			this.hasher = undefined;
 		}
+		wipe(this.ctx);
 	}
 }

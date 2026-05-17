@@ -135,10 +135,12 @@ function shakeStreamed(prehash: 'SHAKE128' | 'SHAKE256', chunks: Uint8Array[], o
 }
 
 // Keep the matrix small: real SLH-DSA sign is heavy (~100ms for 256f). Cover
-// the boundary inputs (empty, small, USER_CTX_MAX-200) without sweeping every
-// combo the fixture-suite test does.
+// the boundary inputs (empty, combined-cap ceiling) without sweeping every
+// combo the fixture-suite test does. 223 = 253 - len('slhdsa{NNN}f-prehash-
+// envelope-v3' 30 bytes), the effective per-suite user_ctx ceiling under
+// buildEffectiveCtx's combined-length cap (FIPS 204 §3.6.1).
 const MSG_SIZES = [0, 1024];
-const CTX_SIZES = [0, 200];
+const CTX_SIZES = [0, 223];
 
 describe('SignStream byte-equivalent to buffered sign under deterministic sub-sign', () => {
 	for (const c of CASES) {
@@ -175,12 +177,18 @@ describe('SignStream byte-equivalent to buffered sign under deterministic sub-si
 					expect(Array.from(sigStreamed)).toEqual(Array.from(sigBuffered));
 
 					// Assemble the envelope blob the way Sign.sign would (suite_byte,
-					// ctx_len, ctx, payload, sig) and verify it round-trips through
-					// both Sign.verify and VerifyStream against the real hedged
-					// suite.verify path.
+					// ctx_len, ctx, payload_len u32 BE, payload, sig) and verify it
+					// round-trips through both Sign.verify and VerifyStream against
+					// the real hedged suite.verify path.
+					const payloadLenBe = new Uint8Array([
+						(msg.length >>> 24) & 0xff,
+						(msg.length >>> 16) & 0xff,
+						(msg.length >>>  8) & 0xff,
+						 msg.length         & 0xff,
+					]);
 					const blob = concat(
 						new Uint8Array([c.suite.formatEnum, ctx.length]),
-						ctx, msg, sigBuffered,
+						ctx, payloadLenBe, msg, sigBuffered,
 					);
 					const out1 = Sign.verify(c.suite, pk, blob, ctx);
 					expect(Array.from(out1)).toEqual(Array.from(msg));

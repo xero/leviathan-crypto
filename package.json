@@ -25,6 +25,8 @@
 		"./aes/embedded": "./dist/aes/embedded.js",
 		"./blake3": "./dist/blake3/index.js",
 		"./blake3/embedded": "./dist/blake3/embedded.js",
+		"./ecdsa": "./dist/ecdsa/index.js",
+		"./ecdsa/embedded": "./dist/ecdsa/embedded.js",
 		"./ed25519": "./dist/ed25519/index.js",
 		"./ed25519/embedded": "./dist/ed25519/embedded.js",
 		"./mldsa": "./dist/mldsa/index.js",
@@ -33,7 +35,9 @@
 		"./slhdsa/embedded": "./dist/slhdsa/embedded.js",
 		"./x25519": "./dist/x25519/index.js",
 		"./x25519/embedded": "./dist/x25519/embedded.js",
-		"./ratchet": "./dist/ratchet/index.js"
+		"./ratchet": "./dist/ratchet/index.js",
+		"./sign": "./dist/sign/index.js",
+		"./merkle": "./dist/merkle/index.js"
 	},
 	"types": "./dist/index.d.ts",
 	"files": [
@@ -105,6 +109,11 @@
 		"ml-kem",
 		"mlkem",
 		"mldsa",
+		"ecdsa",
+		"ecdsa-p256",
+		"p256",
+		"prime256v1",
+		"secp256r1",
 		"pqc",
 		"post-quantum",
 		"key-encapsulation",

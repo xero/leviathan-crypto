@@ -605,7 +605,7 @@ cipher.dispose();
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_serpent](./asm_serpent.md) | WASM implementation details and buffer layout |
 | [serpent_reference](./serpent_reference.md) | algorithm specification, S-boxes, linear transform, and known attacks |
 | [serpent_audit](./serpent_audit.md) | security audit findings (correctness, side-channel analysis) |

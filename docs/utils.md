@@ -444,7 +444,7 @@ console.log(combined.length) // 32
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_ct](./asm_ct.md) | WASM module reference for `constantTimeEqual`: SIMD algorithm, zero-copy layout, instantiation model, and memory zeroing |
 | [serpent](./serpent.md) | Serpent modes consume keys from `randomBytes`; wrappers use `wipe` and `constantTimeEqual` |
 | [chacha20](./chacha20.md) | ChaCha20/Poly1305 classes use `randomBytes` for nonce generation |
