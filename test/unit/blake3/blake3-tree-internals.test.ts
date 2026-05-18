@@ -26,8 +26,8 @@
  * exports through `helpers.ts` and verifies that hand-composed chunk +
  * parent CVs reproduce `BLAKE3.hash` / `BLAKE3KeyedHash.hash` /
  * `BLAKE3DeriveKey.derive` byte-for-byte across 1, 2, and 4-chunk inputs
- * for all three modes. This is the gate for the planned blake3-log merkle
- * substrate: if the test exports compose into BLAKE3, the log proofs
+ * for all three modes. This is the gate for the blake3-tree merkle
+ * substrate: if the test exports compose into BLAKE3, the tree proofs
  * will be byte-identical to a BLAKE3 streaming reader's chunk / parent
  * intermediates.
  *
@@ -208,7 +208,7 @@ describe('BLAKE3 tree-internals substrate, §2.4 / §2.5', () => {
 		expect(toHex(viaTest)).toBe(toHex(direct));
 	});
 
-	// GATE: the simplest authoritative composition test for the blake3-log
+	// GATE: the simplest authoritative composition test for the blake3-tree
 	// substrate. For a 2-chunk input, the §2.5 tree assembly collapses
 	// to a single parent compress (which is also the §2.5 root). Building
 	// that parent by hand from two `_chunkCV` outputs must reproduce

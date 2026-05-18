@@ -184,6 +184,7 @@ Read the cited doc before non-trivial work. Files ship under
 | `ecdsaSignatureToDer` / `ecdsaSignatureFromDer` (X.509 / JWS DER interop) | none (pure TS, RFC 3279 §2.2.3) | `ecdsa-p256.md` |
 | Classical+PQ hybrid containing ECDSA-P256 (`0x22` / `0x23`) | reserved, not yet shipped | `signaturesuite.md` |
 | `Sign` / `SignStream` / `VerifyStream` + `*Suite` consts | varies | `signaturesuite.md` |
+| `MerkleVerifier` / `MerkleLog` (transparency log + STH) | `sha2` (always), suite-specific (`curve25519` for `Ed25519Suite` / `sha3`+`mldsa` for `MlDsa44Suite`), `blake3` only with `hashing: 'blake3'` | `merkle.md` |
 | `Fortuna` via `await Fortuna.create({ generator, hash })` | one cipher + one hash | `fortuna.md` |
 | Sparse PQ Ratchet (KDF only, see foot-gun #8) | `sha2`, `kyber`, `sha3` | `ratchet.md` |
 | Argon2id passphrase KDF | see doc | `argon2id.md` |

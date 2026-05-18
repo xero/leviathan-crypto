@@ -124,8 +124,8 @@ export interface Blake3Exports {
  * BLAKE3 WASM internal test exports. NOT part of the consumer surface,
  * NOT re-exported from `src/ts/blake3/index.ts`. Wired exclusively for
  * the tree-internals test suite (`test/unit/blake3/blake3-tree-internals
- * .test.ts`) and the planned log-proof substrate
- * (`src/ts/merkle/blake3-log.ts`) which will cast
+ * .test.ts`) and the Merkle-tree substrate
+ * (`src/ts/merkle/blake3-tree.ts`) which casts
  * `Blake3Exports & Blake3TestExports` inside the merkle module.
  *
  * Tests obtain these via `test/unit/blake3/helpers.ts`, which casts the

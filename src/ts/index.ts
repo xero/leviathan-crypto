@@ -120,7 +120,7 @@ export async function init(sources: InitInput): Promise<void> {
 
 export type { Module, WasmSource };
 export { isInitialized } from './init.js';
-export { AuthenticationError, SigningError, KeyAgreementError } from './errors.js';
+export { AuthenticationError, SigningError, KeyAgreementError, MerkleCodecError, MerkleLogError } from './errors.js';
 export { serpentInit, Serpent, SerpentCtr, SerpentCbc, SerpentCipher, SerpentGenerator } from './serpent/index.js';
 export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, XChaCha20Cipher, ChaCha20Generator } from './chacha20/index.js';
 export { sha2Init, SHA256, SHA224, SHA384, SHA512, SHA512_224, SHA512_256, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash } from './sha2/index.js';
@@ -157,6 +157,34 @@ export type { MlDsaKeyPair, MlDsaParams, PreHashAlgorithm } from './mldsa/index.
 export type { SlhDsaKeyPair, SlhDsaParams } from './slhdsa/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';
 export type { CipherSuite, DerivedKeys, SealStreamOpts, PoolOpts } from './stream/index.js';
+export {
+	MemoryStorage,
+	Sha256Hasher, Sha256Tree,
+	Blake3Hasher, Blake3Tree,
+	splitPoint,
+	verifyInclusionProof, verifyConsistencyProof,
+	buildInclusionProof, buildConsistencyProof,
+	serializeCheckpointBody, parseCheckpointBody,
+	emitSignedNote, parseSignedNote, deriveKeyId,
+	suiteFormatEnumToAlgoByte,
+	lookupAlgoEntryByFormatEnum, lookupAlgoEntryByByte,
+	buildCosigSignedMessage, buildCosignedMessage,
+	emitCosigSignaturePayload, parseCosigSignaturePayload,
+	ALGO_BYTE_ED25519_NOTE, ALGO_BYTE_ED25519_COSIG, ALGO_BYTE_MLDSA44_COSIG,
+	SignedLog,
+	MerkleVerifier, MerkleLog,
+} from './merkle/index.js';
+export type {
+	Hasher, MerkleTree, MerkleStorage,
+	VerifyInclusionInput, VerifyConsistencyInput,
+	BuildInclusionInput, BuildConsistencyInput,
+	GetNode,
+	Checkpoint, SignatureLine, SignedNote, SignedTreeHead,
+	AlgoEntry, MessageConstruction, SignaturePayload,
+	CosignedMessageInput,
+	SignedLogOpts,
+	MerkleVerifierOpts, MerkleLogCreateOpts, MerkleLogGenerateOpts,
+} from './merkle/index.js';
 export { Sign, SignStream, VerifyStream } from './sign/index.js';
 export type {
 	SignatureSuite,

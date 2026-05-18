@@ -66,6 +66,11 @@ mod blake3;
 mod ed25519;
 mod ecdsa_p256;
 mod x25519;
+mod merkle_sha256;
+mod merkle_blake3;
+mod merkle_checkpoint;
+mod merkle_cosig;
+mod sign_sth;
 
 const GREEN: &str = "\x1b[32m";
 const RED:   &str = "\x1b[31m";
@@ -893,6 +898,157 @@ fn run_x25519(use_color: bool) -> bool {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Merkle (RFC 9162 §2.1.1 / §2.1.3 / §2.1.4) dispatcher,
+// implementation in src/merkle_sha256.rs
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_merkle_blake3(use_color: bool) -> bool {
+    let path = vector_path("merkle_blake3.ts");
+    print_section("Merkle BLAKE3, BLAKE3 §2.4 / §2.5 (self-generated KAT corpus, RustCrypto blake3 oracle)");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e))); return false; }
+    };
+
+    let mut log = Vec::new();
+    let ok = merkle_blake3::run(&src, &mut log);
+    print_log(&log, use_color);
+    println!();
+    if ok {
+        println!("{}", colorize(use_color, GREEN, "✓ all merkle BLAKE3 vectors verified"));
+    } else {
+        println!("{}", colorize(use_color, RED, "✗ merkle BLAKE3 verification FAILED"));
+    }
+    ok
+}
+
+fn run_merkle_checkpoint(use_color: bool) -> bool {
+    let cp_path = vector_path("merkle_checkpoint.ts");
+    let sn_path = vector_path("merkle_signed_note.ts");
+    print_section("Merkle Checkpoint, c2sp.org/tlog-checkpoint §Note text + c2sp.org/signed-note §Format");
+    println!("Reading checkpoint vectors from   {}", cp_path.display());
+    println!("Reading signed-note vectors from  {}\n", sn_path.display());
+
+    let cp_src = match fs::read_to_string(&cp_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", cp_path.display(), e))); return false; }
+    };
+    let sn_src = match fs::read_to_string(&sn_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", sn_path.display(), e))); return false; }
+    };
+
+    let mut log = Vec::new();
+    let ok = merkle_checkpoint::run(&cp_src, &sn_src, &mut log);
+    print_log(&log, use_color);
+    println!();
+    if ok {
+        println!("{}", colorize(use_color, GREEN, "✓ all merkle checkpoint vectors verified"));
+    } else {
+        println!("{}", colorize(use_color, RED, "✗ merkle checkpoint verification FAILED"));
+    }
+    ok
+}
+
+fn run_merkle_cosig(use_color: bool) -> bool {
+    let msg_path = vector_path("cosig_message.ts");
+    let pay_path = vector_path("cosig_payload.ts");
+    let cm_path  = vector_path("cosigned_message.ts");
+    print_section("Merkle Cosig, c2sp.org/tlog-cosignature §\"Ed25519 signed message\" + §\"ML-DSA-44 signed message\" + §Format payload codec");
+    println!("Reading cosig message vectors from   {}", msg_path.display());
+    println!("Reading cosig payload vectors from   {}", pay_path.display());
+    println!("Reading cosigned message vectors from {}\n", cm_path.display());
+
+    let msg_src = match fs::read_to_string(&msg_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", msg_path.display(), e))); return false; }
+    };
+    let pay_src = match fs::read_to_string(&pay_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", pay_path.display(), e))); return false; }
+    };
+    let cm_src = match fs::read_to_string(&cm_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", cm_path.display(), e))); return false; }
+    };
+
+    let mut log = Vec::new();
+    let ok = merkle_cosig::run(&msg_src, &pay_src, &cm_src, &mut log);
+    print_log(&log, use_color);
+    println!();
+    if ok {
+        println!("{}", colorize(use_color, GREEN, "✓ all merkle cosig vectors verified"));
+    } else {
+        println!("{}", colorize(use_color, RED, "✗ merkle cosig verification FAILED"));
+    }
+    ok
+}
+
+fn run_merkle_sth(use_color: bool) -> bool {
+    let ed_path = vector_path("sign_sth_ed25519.ts");
+    let ml_path = vector_path("sign_sth_mldsa44.ts");
+    print_section("Merkle STH, SignedLog wire format per c2sp.org/tlog-cosignature §Format + §\"Ed25519 signed message\" + §\"ML-DSA-44 signed message\"");
+    println!("Reading Ed25519 STH vectors from   {}", ed_path.display());
+    println!("Reading ML-DSA-44 STH vectors from {}\n", ml_path.display());
+
+    let ed_src = match fs::read_to_string(&ed_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", ed_path.display(), e))); return false; }
+    };
+    let ml_src = match fs::read_to_string(&ml_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", ml_path.display(), e))); return false; }
+    };
+
+    let mut log = Vec::new();
+    let ok = sign_sth::run(&ed_src, &ml_src, &mut log);
+    print_log(&log, use_color);
+    println!();
+    if ok {
+        println!("{}", colorize(use_color, GREEN, "✓ all merkle STH vectors verified"));
+    } else {
+        println!("{}", colorize(use_color, RED, "✗ merkle STH verification FAILED"));
+    }
+    ok
+}
+
+fn run_merkle_sha256(use_color: bool) -> bool {
+    let kat_path  = vector_path("merkle_sha256.ts");
+    let incl_path = vector_path("merkle_inclusion.ts");
+    let cons_path = vector_path("merkle_consistency.ts");
+    print_section("Merkle SHA-256, RFC 9162 §2.1.1 KAT + §2.1.3 inclusion + §2.1.4 consistency");
+    println!("Reading KAT vectors from        {}",   kat_path.display());
+    println!("Reading inclusion vectors from  {}",   incl_path.display());
+    println!("Reading consistency vectors from {}\n", cons_path.display());
+
+    let kat_src = match fs::read_to_string(&kat_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", kat_path.display(), e))); return false; }
+    };
+    let incl_src = match fs::read_to_string(&incl_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", incl_path.display(), e))); return false; }
+    };
+    let cons_src = match fs::read_to_string(&cons_path) {
+        Ok(s)  => s,
+        Err(e) => { eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", cons_path.display(), e))); return false; }
+    };
+
+    let mut log = Vec::new();
+    let ok = merkle_sha256::run(&kat_src, &incl_src, &cons_src, &mut log);
+    print_log(&log, use_color);
+    println!();
+    if ok {
+        println!("{}", colorize(use_color, GREEN, "✓ all merkle vectors verified"));
+    } else {
+        println!("{}", colorize(use_color, RED, "✗ merkle verification FAILED"));
+    }
+    ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // KMAC and cSHAKE (SP 800-185) dispatcher, implementation in src/kmac.rs
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -1508,11 +1664,12 @@ enum CipherSel {
     // its own.
     Ed25519, X25519, Curve25519,
     EcdsaP256,
+    Merkle,
     All,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TargetSel { Seal, Sealstream, Prefix32, FullXof, All }
+enum TargetSel { Seal, Sealstream, Prefix32, FullXof, Sha256, Blake3, Checkpoint, Cosig, Sth, All }
 
 fn parse_cipher(s: &str) -> Result<CipherSel, String> {
     match s {
@@ -1536,8 +1693,9 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "x25519"      => Ok(CipherSel::X25519),
         "curve25519"  => Ok(CipherSel::Curve25519),
         "ecdsa-p256"  => Ok(CipherSel::EcdsaP256),
+        "merkle"      => Ok(CipherSel::Merkle),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, hybrid-classical, kmac, blake3, ed25519, x25519, curve25519, ecdsa-p256, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, hybrid-classical, kmac, blake3, ed25519, x25519, curve25519, ecdsa-p256, merkle, all)")),
     }
 }
 
@@ -1547,14 +1705,19 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
         "sealstream" => Ok(TargetSel::Sealstream),
         "prefix-32"  => Ok(TargetSel::Prefix32),
         "full-xof"   => Ok(TargetSel::FullXof),
+        "sha256"     => Ok(TargetSel::Sha256),
+        "blake3"     => Ok(TargetSel::Blake3),
+        "checkpoint" => Ok(TargetSel::Checkpoint),
+        "cosig"      => Ok(TargetSel::Cosig),
+        "sth"        => Ok(TargetSel::Sth),
         "all"        => Ok(TargetSel::All),
-        other        => Err(format!("unknown --target value: '{other}' (expected: seal, sealstream, prefix-32, full-xof, all)")),
+        other        => Err(format!("unknown --target value: '{other}' (expected: seal, sealstream, prefix-32, full-xof, sha256, blake3, checkpoint, cosig, sth, all)")),
     }
 }
 
 fn print_usage() {
     eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|hybrid-classical|kmac|blake3|ed25519|x25519|curve25519|ecdsa-p256|all]");
-    eprintln!("                       [--target seal|sealstream|prefix-32|full-xof|all]");
+    eprintln!("                       [--target seal|sealstream|prefix-32|full-xof|sha256|blake3|checkpoint|cosig|sth|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target seal/sealstream apply only to --cipher xchacha / serpent / aes-seal.");
     eprintln!("      --target prefix-32 / full-xof apply only to --cipher blake3 (32-byte digest");
@@ -1622,6 +1785,7 @@ fn main() -> ExitCode {
     let want_ed25519     = matches!(cipher, CipherSel::Ed25519   | CipherSel::Curve25519 | CipherSel::All);
     let want_x25519      = matches!(cipher, CipherSel::X25519    | CipherSel::Curve25519 | CipherSel::All);
     let want_ecdsa_p256  = matches!(cipher, CipherSel::EcdsaP256 | CipherSel::All);
+    let want_merkle      = matches!(cipher, CipherSel::Merkle    | CipherSel::All);
     let want_seal       = matches!(target, TargetSel::Seal       | TargetSel::All);
     let want_sealstream = matches!(target, TargetSel::Sealstream | TargetSel::All);
 
@@ -1652,19 +1816,51 @@ fn main() -> ExitCode {
         // (--target all or omitted) runs the full 131-byte XOF
         // assertion; --target prefix-32 limits the comparison to the
         // first 32 default-length digest bytes. --target seal /
-        // sealstream are silently ignored for blake3.
+        // sealstream / sha256 / blake3 are silently ignored for the
+        // blake3 cipher; the `blake3` target is reserved for the
+        // merkle cipher's BLAKE3 hasher subset.
         let mode = match target {
             TargetSel::Prefix32 => blake3::BlakeXofMode::Prefix32,
             TargetSel::FullXof
             | TargetSel::All
             | TargetSel::Seal
-            | TargetSel::Sealstream => blake3::BlakeXofMode::FullXof,
+            | TargetSel::Sealstream
+            | TargetSel::Sha256
+            | TargetSel::Blake3
+            | TargetSel::Checkpoint
+            | TargetSel::Cosig
+            | TargetSel::Sth => blake3::BlakeXofMode::FullXof,
         };
         if !run_blake3(use_color, mode) { all_ok = false; }
     }
     if want_ed25519    { if !run_ed25519(use_color)    { all_ok = false; } }
     if want_x25519     { if !run_x25519(use_color)     { all_ok = false; } }
     if want_ecdsa_p256 { if !run_ecdsa_p256(use_color) { all_ok = false; } }
+    if want_merkle {
+        // --target selects which Merkle subcorpus to verify.
+        // `sha256` and `blake3` each run one hasher's tree-math corpus;
+        // `checkpoint` runs the c2sp.org/tlog-checkpoint body codec and
+        // signed-note envelope cross-checks; `cosig` runs the
+        // c2sp.org/tlog-cosignature signed-message and payload codec
+        // cross-checks; `all` (the default) runs every subcorpus.
+        // Other target values are silently ignored for the merkle cipher.
+        let only_sha256     = matches!(target, TargetSel::Sha256);
+        let only_blake3     = matches!(target, TargetSel::Blake3);
+        let only_checkpoint = matches!(target, TargetSel::Checkpoint);
+        let only_cosig      = matches!(target, TargetSel::Cosig);
+        let only_sth        = matches!(target, TargetSel::Sth);
+        let any_specific    = only_sha256 || only_blake3 || only_checkpoint || only_cosig || only_sth;
+        let do_sha256     = if any_specific { only_sha256     } else { true };
+        let do_blake3     = if any_specific { only_blake3     } else { true };
+        let do_checkpoint = if any_specific { only_checkpoint } else { true };
+        let do_cosig      = if any_specific { only_cosig      } else { true };
+        let do_sth        = if any_specific { only_sth        } else { true };
+        if do_sha256     && !run_merkle_sha256(use_color)     { all_ok = false; }
+        if do_blake3     && !run_merkle_blake3(use_color)     { all_ok = false; }
+        if do_checkpoint && !run_merkle_checkpoint(use_color) { all_ok = false; }
+        if do_cosig      && !run_merkle_cosig(use_color)      { all_ok = false; }
+        if do_sth        && !run_merkle_sth(use_color)        { all_ok = false; }
+    }
 
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     if all_ok {

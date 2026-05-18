@@ -54,6 +54,7 @@ const INCLUDE = [
 	'kmac.md',
 	'kyber.md',
 	'loader.md',
+	'merkle.md',
 	'mldsa.md',
 	'ratchet.md',
 	'serpent.md',

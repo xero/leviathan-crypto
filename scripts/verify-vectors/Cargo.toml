@@ -138,6 +138,12 @@ blake3           = { version = "=1.8.5",  default-features = false }
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.
 hex              = { version = "=0.4.3",  default-features = false, features = ["std"] }
+# Base64 codec for the transparency-dev/merkle testdata corpus, which
+# encodes byte slices through Go's encoding/json default (std-padded
+# base64). The verifier decodes record fields back to bytes before
+# feeding them to the hand-rolled RFC 9162 §2.1.1 walker in
+# src/merkle_sha256.rs.
+base64           = { version = "=0.22.1", default-features = false, features = ["std"] }
 # dalek-cryptography Ed25519 (RFC 8032): independent-lineage oracle for
 # ed25519.ts (RFC §7 KATs), ed25519_keygen.ts, ed25519_siggen.ts, and
 # ed25519_sigver.ts (ACVP EDDSA-1.0). The dalek family shares no source

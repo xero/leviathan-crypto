@@ -35,7 +35,9 @@
 		"./slhdsa/embedded": "./dist/slhdsa/embedded.js",
 		"./x25519": "./dist/x25519/index.js",
 		"./x25519/embedded": "./dist/x25519/embedded.js",
-		"./ratchet": "./dist/ratchet/index.js"
+		"./ratchet": "./dist/ratchet/index.js",
+		"./sign": "./dist/sign/index.js",
+		"./merkle": "./dist/merkle/index.js"
 	},
 	"types": "./dist/index.d.ts",
 	"files": [

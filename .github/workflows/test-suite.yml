@@ -129,6 +129,10 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-x25519.yml
 
+  unit-merkle:
+    needs: [build]
+    uses: ./.github/workflows/unit-merkle.yml
+
   suite-status:
     name: test-suite-status
     if: always()
@@ -161,6 +165,7 @@ jobs:
       - unit-p256
       - unit-ed25519
       - unit-x25519
+      - unit-merkle
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream results

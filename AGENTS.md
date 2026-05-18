@@ -362,7 +362,7 @@ These are decisions already made. Do not relitigate them without raising it firs
   `init({ blake3 })` rejects when WebAssembly SIMD is unavailable.
   Tree-mode internal exports `_testChunkCV`, `_testParentCV`, and
   `_testDeriveContextCV` are gated for the tree-internals unit suite
-  and the planned `src/ts/merkle/blake3-log.ts` log-proof substrate;
+  and the `src/ts/merkle/blake3-tree.ts` Merkle-tree substrate;
   they are NOT part of the consumer-facing `Blake3Exports`
   interface. The TS surface ships six classes (`BLAKE3`,
   `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`,

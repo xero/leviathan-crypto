@@ -241,8 +241,9 @@ covering the regions below. The TS wrapper's `dispose()` paths call
 ## Open Audit Items
 
 - **Verified streaming output.** Bao verified streaming (a BLAKE3 §6
-  proof-system extension) is not implemented. Deferred to the planned
-  `src/ts/merkle/blake3-log.ts` log-proof substrate, which will consume
+  proof-system extension) is not implemented. Deferred to a future
+  log-proof substrate layered on top of
+  `src/ts/merkle/blake3-tree.ts`, which would consume
   `_testChunkCV` / `_testParentCV`.
 
 - **OutputReader seek.** The `BLAKE3OutputReader` reads sequentially

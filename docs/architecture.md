@@ -332,7 +332,7 @@ src/ts/
 ├── blake3/
 │   ├── embedded.ts
 │   ├── index.ts          ← BLAKE3, BLAKE3Stream, keyed_hash / derive_key flavours, OutputReader, BLAKE3Hash
-│   ├── types.ts          ← Blake3Exports (public), Blake3TestExports (test + blake3-log substrate only)
+│   ├── types.ts          ← Blake3Exports (public), Blake3TestExports (test + blake3-tree substrate only)
 │   └── validate.ts       ← key length, context non-empty, outLen finite-integer caller-side checks
 ├── chacha20/
 │   ├── cipher-suite.ts
@@ -355,7 +355,7 @@ src/ts/
 │   ├── serpent.ts                  ← serpent.wasm gzip+base64 blob
 │   ├── sha2.ts                     ← sha2.wasm gzip+base64 blob
 │   └── sha3.ts                     ← sha3.wasm gzip+base64 blob
-├── errors.ts       ← AuthenticationError, SigningError
+├── errors.ts       ← AuthenticationError, SigningError, KeyAgreementError, MerkleCodecError, MerkleLogError
 ├── fortuna.ts      ← Fortuna CSPRNG (composes pluggable Generator + HashFn)
 ├── index.ts        ← root barrel + dispatching init()
 ├── init.ts         ← initModule(), module cache, isInitialized
@@ -412,6 +412,19 @@ src/ts/
 │   ├── hash.ts
 │   ├── index.ts
 │   └── types.ts
+├── merkle/
+│   ├── blake3-tree.ts       ← Blake3Hasher + Blake3Tree (BLAKE3-native parent compress)
+│   ├── checkpoint.ts        ← serializeCheckpointBody / parseCheckpointBody (c2sp.org/tlog-checkpoint §Note text)
+│   ├── index.ts             ← public barrel
+│   ├── merkle-log.ts        ← MerkleLog (normie producer surface, memory-backed)
+│   ├── merkle-verifier.ts   ← MerkleVerifier (normie verify-only surface)
+│   ├── proof.ts             ← verifyInclusionProof, verifyConsistencyProof, builders (RFC 9162 §2.1.3 / §2.1.4)
+│   ├── sha256-tree.ts       ← Sha256Hasher + Sha256Tree (RFC 9162 §2.1.1 prefix bytes)
+│   ├── signed-log.ts        ← SignedLog<S extends SignatureSuite> (danger-zone composition)
+│   ├── signed-note.ts       ← envelope codec, key-ID derivation, cosignature codec, ALGO_REGISTRY
+│   ├── storage.ts           ← MerkleStorage interface + MemoryStorage backend
+│   ├── sth.ts               ← SignedTreeHead type
+│   └── tree.ts              ← Hasher / MerkleTree interfaces + splitPoint / bit math
 ├── shared/
 │   └── pkcs7.ts     ← canonical PKCS#7 padding helper (used by Serpent CBC + consumer code)
 ├── sign/
@@ -526,7 +539,7 @@ Each primitive family compiles to its own `.wasm` binary with fully independent 
 | `kyber`    | `kyber.wasm`    | ML-KEM polynomial arithmetic: SIMD NTT/invNTT (v128 butterflies with scalar tail), basemul, Montgomery/Barrett, CBD, compress, CT verify/cmov                                                                                                                                               |
 | `mldsa`    | `mldsa.wasm`    | ML-DSA polynomial arithmetic: SIMD NTT/invNTT for q=8380417 (v128 i32 butterflies), Montgomery/Barrett over q, rejection sampling (RejNTTPoly, RejBoundedPoly), Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint, HintBitPack/Unpack with the §D.3 SUF-CMA checks, SampleInBall |
 | `slhdsa`   | `slhdsa.wasm`   | SLH-DSA hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, 32-byte ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition, slh_keygen_internal / slh_sign_internal / slh_verify_internal (§9 Algorithms 18 / 19 / 20) |
-| `blake3`   | `blake3.wasm`   | BLAKE3 tree-mode hash family (BLAKE3 spec): v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root finalize (54-deep per §5.1.2), §2.6 XOF squeeze, §2.3 keyed_hash and derive_key. Tree-mode primitives (`_testChunkCV`, `_testParentCV`, `_testDeriveContextCV`) gated for test + planned blake3-log substrate use; not part of the consumer-facing exports.                |
+| `blake3`   | `blake3.wasm`   | BLAKE3 tree-mode hash family (BLAKE3 spec): v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root finalize (54-deep per §5.1.2), §2.6 XOF squeeze, §2.3 keyed_hash and derive_key. Tree-mode primitives (`_testChunkCV`, `_testParentCV`, `_testDeriveContextCV`) gated for test + blake3-tree substrate use; not part of the consumer-facing exports.                |
 | `curve25519` | `curve25519.wasm` | Ed25519 sign/verify (RFC 8032) and X25519 keygen/DH (RFC 7748) over GF(2^255-19). Scalar (no v128); see header comment in `src/asm/curve25519/index.ts` for the WASM-extmul analysis that motivates the scalar choice.                                                                                                                                          |
 | `p256`     | `p256.wasm`     | ECDSA sign/verify (FIPS 186-5 §6) over NIST P-256 (SP 800-186 §3.2.1.3). Field arithmetic with HMV §2.27 Solinas reduction, Renes-Costello-Batina 2016 complete addition / doubling (Algorithm 4 / 6 specialised for a = -3), RFC 6979 §3.2 deterministic + `draft-irtf-cfrg-det-sigs-with-noise-05` hedged nonce derivation, RFC 6979 §3.5 low-S enforcement on signer and verifier. Embedded SHA-256 + HMAC-SHA-256. Scalar (no v128).                                                                                       |
 | `ct`       | `ct.wasm`       | SIMD constant-time byte comparison. Backs `constantTimeEqual` and `CT_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page.                                                                                                                                                          |
@@ -567,7 +580,7 @@ Each module's buffer layout starts at offset 0 and is defined in its own `buffer
 
 [The TypeScript module](./slhdsa.md) exports `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f`, signature classes covering NIST security categories 1, 3, and 5. Pure SLH-DSA requires only `slhdsa`. HashSLH-DSA with a SHA-3 or SHAKE pre-hash additionally requires `sha3`; with a SHA-2 pre-hash, additionally `sha2`. The hybrid PQ-only suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) compose `slhdsa` with `mldsa` and `sha3` to produce one combined signature that an attacker would have to forge under both primitives; the streaming `SignStream` path drives the running SHAKE prehash through `sha3`. See [signaturesuite.md](./signaturesuite.md#pq-only-hybrid-composite-encoding) for the wire format.
 
-**`blake3.wasm`** implements the BLAKE3 hash family per the BLAKE3 specification. The v128-internal `compress` runs single-block compressions with one v128 op per state-update step across the four state rows; the v128-external `compress4` runs four independent compressions in parallel with lane K of every v128 op corresponding to compress K (BLAKE3 §5.3 SIMD). The §2.4 chunk machine keeps a one-block lookahead so the `CHUNK_START` / `CHUNK_END` flags ride the correct compress without the caller identifying the last block in advance. The §2.5 tree assembly defers the most-recent chunk CV through a queue-per-level discipline so the §2.5 root compress can carry `PARENT | ROOT`. The §2.6 XOF squeeze snapshots the root-compress input into `ROOT_STATE_*` and re-fires the compress with an incremented counter to lift additional 64-byte blocks. The three §2.3 modes (`hash`, `keyed_hash`, `derive_key`) share the same chunk / tree code; only the starting CV and the per-compress mode-flag bits differ. Test-only exports `_testChunkCV` / `_testParentCV` / `_testDeriveContextCV` are gated for the tree-internals unit suite and the planned `src/ts/merkle/blake3-log.ts` log-proof substrate. Requires WebAssembly SIMD (`v128` instructions). Uses 2 memory pages (131072 bytes). See: [BLAKE3 WASM Reference](./asm_blake3.md), [BLAKE3 Audit Checklist](./blake3_audit.md).
+**`blake3.wasm`** implements the BLAKE3 hash family per the BLAKE3 specification. The v128-internal `compress` runs single-block compressions with one v128 op per state-update step across the four state rows; the v128-external `compress4` runs four independent compressions in parallel with lane K of every v128 op corresponding to compress K (BLAKE3 §5.3 SIMD). The §2.4 chunk machine keeps a one-block lookahead so the `CHUNK_START` / `CHUNK_END` flags ride the correct compress without the caller identifying the last block in advance. The §2.5 tree assembly defers the most-recent chunk CV through a queue-per-level discipline so the §2.5 root compress can carry `PARENT | ROOT`. The §2.6 XOF squeeze snapshots the root-compress input into `ROOT_STATE_*` and re-fires the compress with an incremented counter to lift additional 64-byte blocks. The three §2.3 modes (`hash`, `keyed_hash`, `derive_key`) share the same chunk / tree code; only the starting CV and the per-compress mode-flag bits differ. Test-only exports `_testChunkCV` / `_testParentCV` / `_testDeriveContextCV` are gated for the tree-internals unit suite and the `src/ts/merkle/blake3-tree.ts` Merkle-tree substrate. Requires WebAssembly SIMD (`v128` instructions). Uses 2 memory pages (131072 bytes). See: [BLAKE3 WASM Reference](./asm_blake3.md), [BLAKE3 Audit Checklist](./blake3_audit.md).
 
 [The TypeScript module](./blake3.md) exports `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, and `BLAKE3OutputReader`. Each streaming class holds the `blake3` module exclusivity token from construction until `finalize` / `finalizeXof` / `dispose`. `finalizeXof()` transfers the token to a `BLAKE3OutputReader` that squeezes XOF bytes incrementally from the root-compress snapshot until disposed. `BLAKE3Hash` ships as a stateless `HashFn` const (32-byte output, `wasmModules: ['blake3']`) compatible with the Fortuna accumulator slot. The module is independent of `sha2` / `sha3`; pure-BLAKE3 work requires only the `blake3` slot.
 
@@ -664,6 +677,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `mldsa` + `sha3` + `slhdsa`     | `MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite` (PQ-only hybrid composites) |
 | `blake3`                        | `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, `BLAKE3Hash` (Fortuna HashFn) |
 | `sign`                          | `Sign`, `SignStream`, `VerifyStream` (scheme-agnostic; modules depend on the suite)                    |
+| `sha2` (+ suite + hasher modules) | `MerkleVerifier`, `MerkleLog` (normie transparency-log surface); `SignedLog`, `Sha256Tree`, `Blake3Tree`, `MemoryStorage` (danger-zone composition surface) |
 | `sha2`                          | `ratchetInit`, `KDFChain`, `SkippedKeyStore`                                                            |
 | `kyber` + `sha3` + `sha2`       | `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair`                                                  |
 | `stream`                        | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`                                                    |

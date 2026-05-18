@@ -23,6 +23,7 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
 > - [Fortuna CSPRNG](#fortuna-csprng)
 > - [Ratchet (Sparse Post-Quantum Ratchet KDF)](#ratchet-sparse-post-quantum-ratchet-kdf)
+> - [Merkle log substrate](#merkle-log-substrate)
 > - [Types](#types)
 > - [Utilities](#utilities)
 
@@ -156,6 +157,8 @@ Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
 | `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
 | `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signaturesuite.md](./signaturesuite.md)). |
 | `KeyAgreementError` | class | Thrown by `X25519.dh` when the peer public key produces an all-zero shared secret (small-order point per RFC 7748 §6.1, Curve25519). Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
+| `MerkleCodecError` | class | Thrown on wire-format contract violations in the merkle cosignature codec (`buildCosigSignedMessage`, `buildCosignedMessage`, `emitCosigSignaturePayload`, `parseCosigSignaturePayload`) per c2sp.org/tlog-cosignature §Format, §"Ed25519 signed message", and §"ML-DSA-44 signed message". Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'timestamp-out-of-range'`, `'timestamp-exceeds-safe-integer'`, `'cosig-payload-length-mismatch'`, `'cosigner-name-length'`, `'log-origin-length'`, `'cosigned-message-state'`. |
+| `MerkleLogError` | class | Thrown on construction-time contract violations of the normie merkle surface (`MerkleLog`, `MerkleVerifier`). Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, `'module-not-initialized'`. |
 
 ---
 
@@ -436,6 +439,62 @@ Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
 | `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }`, canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
 | `MlKemLike` | interface | Structural interface satisfied by `MlKem512`, `MlKem768`, `MlKem1024`. Used as the `kem` parameter type for `kemRatchetEncap`/`kemRatchetDecap`/`RatchetKeypair`. |
 | `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key`, 32-byte message key (throws after settlement). `commit()`, wipes key, marks settled (call on successful decrypt). `rollback()`, returns key to store, marks settled (call on auth failure). Double-settle throws. |
+
+---
+
+## Merkle log substrate
+
+Requires `init({ sha2: sha2Wasm })` for the SHA-256 specialisation or `init({ blake3: blake3Wasm })` for the BLAKE3 specialisation, plus the suite's WASM modules when using the signed-log surface (`Ed25519Suite` needs `curve25519`; `MlDsa44Suite` needs `mldsa` + `sha3`). See [merkle.md](./merkle.md) for the full normie-first API guide and the danger-zone composition surface.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `Sha256Hasher` | const | `Hasher` implementation over the existing SHA-256 class. Domain separators per RFC 9162 §2.1.1 (leaf prefix `0x00`, internal-node prefix `0x01`). Per-call WASM lifecycle. |
+| `Sha256Tree` | class | Stateful SHA-256 Merkle log. Wraps a `MerkleStorage`, exposes `append(leafBytes)`, `size()`, `rootHash()`, `getInclusionProof(leafIndex, treeSize?)`, `getConsistencyProof(oldSize, newSize)`. |
+| `Blake3Hasher` | const | `Hasher` implementation over the existing BLAKE3 class plus the test-gated `_testParentCV` export. BLAKE3-native domain separation via §2.4 / §2.5 flag bytes (no `0x00` / `0x01` prefix on top); empty-tree value is `BLAKE3()`, leaves are `BLAKE3(leaf)`, internal nodes are the §2.5 parent compress with `modeFlags = 0`, `isRoot = 0`. Per-call WASM lifecycle. |
+| `Blake3Tree` | class | Stateful BLAKE3 Merkle log. Same surface as `Sha256Tree`; only the `hasher` field differs. |
+| `MemoryStorage` | class | In-process `MerkleStorage` backed by a `Map<string, Uint8Array>`. The only storage backend shipped; file and database backends are consumer extension surface. |
+| `Hasher` | interface | Hash-agnostic surface used by the merkle layer: `name`, `outputSize`, `wasmModules`, `hashEmpty()`, `hashLeaf(leaf)`, `hashInternal(left, right)`. |
+| `MerkleTree` | interface | Stateful tree contract: `hasher`, `size()`, `rootHash()`, `append(leafBytes)`, `getInclusionProof(leafIndex, treeSize?)`, `getConsistencyProof(oldSize, newSize)`. |
+| `MerkleStorage` | interface | Backend contract: `size()`, `appendLeaf(leafIndex, leafHash)`, `getLeaf(leafIndex)`, `putNode(level, index, hash)`, `getNode(level, index)`, `hasNode(level, index)`. Sync everywhere. |
+| `splitPoint` | function | `splitPoint(n: number): number`. Largest power of two strictly less than `n`, defined for `n >= 2`. RFC 9162 §2.1.4 `k`. |
+| `verifyInclusionProof` | function | `verifyInclusionProof({ hasher, leafHash, leafIndex, treeSize, proof, rootHash }): boolean`. RFC 9162 §2.1.3. Malformed proofs return `false`; contract violations throw `RangeError`. |
+| `verifyConsistencyProof` | function | `verifyConsistencyProof({ hasher, oldSize, newSize, oldRoot, newRoot, proof }): boolean`. RFC 9162 §2.1.4. |
+| `buildInclusionProof` | function | `buildInclusionProof({ hasher, leafIndex, treeSize, getNode }): Uint8Array[]`. Hash-agnostic builder; the `getNode(level, index)` callback abstracts the storage layer. |
+| `buildConsistencyProof` | function | `buildConsistencyProof({ hasher, oldSize, newSize, getNode }): Uint8Array[]`. |
+| `VerifyInclusionInput`, `VerifyConsistencyInput` | type | Argument-bag types for the verifier free functions. |
+| `BuildInclusionInput`, `BuildConsistencyInput` | type | Argument-bag types for the builder free functions. |
+| `GetNode` | type | `(level: number, index: number) => Uint8Array`. The storage-abstracting callback consumed by the builders. |
+| `serializeCheckpointBody` | function | `serializeCheckpointBody({ origin, treeSize, rootHash }): Uint8Array`. c2sp.org/tlog-checkpoint §Note text canonical body: `utf8(origin) || 0x0A || utf8(decimal(treeSize)) || 0x0A || base64(rootHash) || 0x0A`. RFC 4648 §4 standard alphabet base64; rejects empty / whitespace / plus origins and out-of-range tree sizes. |
+| `parseCheckpointBody` | function | `parseCheckpointBody(bytes, expectedHashLen = 32): Checkpoint`. Inverse of `serializeCheckpointBody`; throws on extension lines, leading-zero / non-decimal tree size, ASCII control bytes, URL-safe / wrong-length base64. |
+| `Checkpoint` | type | `{ origin: string; treeSize: number; rootHash: Uint8Array }`. Decoded body shape, hash-and-algo-agnostic. |
+| `emitSignedNote` | function | `emitSignedNote(body, sigs): Uint8Array`. c2sp.org/signed-note §Format envelope: `body || 0x0A || (— name b64(keyId||sig) 0x0A)+`. Requires `body` to end with 0x0A; rejects empty signature arrays, wrong-size keyIds, and names containing whitespace or plus. |
+| `parseSignedNote` | function | `parseSignedNote(bytes): { body, signatures, ignoredCount }`. Permissive on per-line malformations: lines that fail structural validation are counted in `ignoredCount` and discarded per the signed-note §Signatures "unknown signatures MUST be ignored" rule. Whole-envelope defects (no blank separator, ASCII control bytes) throw `RangeError`. |
+| `deriveKeyId` | function | `deriveKeyId(name, algoByte, pubkey): Uint8Array`. c2sp.org/signed-note §Signatures key ID derivation: `SHA-256(utf8(name) \|\| 0x0A \|\| algoByte \|\| pubkey)[:4]`. Requires `init({ sha2: ... })`. |
+| `suiteFormatEnumToAlgoByte` | function | Maps a leviathan `SignatureSuite.formatEnum` to the corresponding c2sp.org/signed-note algorithm byte. Returns `undefined` for unregistered enums. Thin shim over `lookupAlgoEntryByFormatEnum`. |
+| `lookupAlgoEntryByFormatEnum` | function | `lookupAlgoEntryByFormatEnum(formatEnum): AlgoEntry \| undefined`. Look up the full c2sp.org/tlog-cosignature §Format algo-byte entry by leviathan suite formatEnum (carries algoByte, messageConstruction, signaturePayload, sigSize). |
+| `lookupAlgoEntryByByte` | function | `lookupAlgoEntryByByte(algoByte): AlgoEntry \| undefined`. Reverse lookup by wire-format C2SP algorithm byte; used by verifiers reshaping incoming cosignature payloads. |
+| `buildCosigSignedMessage` | function | `buildCosigSignedMessage(body, timestamp): Uint8Array`. Constructs the bytes a cosigner signs per c2sp.org/tlog-cosignature §"Ed25519 signed message": `cosignature/v1\ntime <decimal>\n` followed by the whole `\n`-terminated checkpoint body. Throws `MerkleCodecError('timestamp-out-of-range')` for non-safe-integer timestamps. |
+| `buildCosignedMessage` | function | `buildCosignedMessage(input: CosignedMessageInput): Uint8Array`. Constructs the bytes an ML-DSA-44 cosigner signs per c2sp.org/tlog-cosignature §"ML-DSA-44 signed message": the `cosigned_message` TLS-Presentation struct (label `subtree/v1\n\0`, length-prefixed cosigner_name + log_origin, BE timestamp / start / end, 32-byte hash). Throws `MerkleCodecError` on safe-integer overflows (`timestamp-out-of-range`), 1..255 length violations (`cosigner-name-length`, `log-origin-length`), or the spec MUST `start != 0 ⇒ timestamp == 0` (`cosigned-message-state`). |
+| `emitCosigSignaturePayload` | function | `emitCosigSignaturePayload(timestamp, signature): Uint8Array`. Builds the `timestamped_signature` struct payload per c2sp.org/tlog-cosignature §Format: `u64_be(timestamp) \|\| signature`. The result is the opaque payload portion of a signed-note signature line (after the 4-byte keyId prefix). |
+| `parseCosigSignaturePayload` | function | `parseCosigSignaturePayload(payload, sigSize): { timestamp, signature }`. Inverse of `emitCosigSignaturePayload`. Throws `MerkleCodecError('cosig-payload-length-mismatch')` on wrong size and `MerkleCodecError('timestamp-exceeds-safe-integer')` on u64 timestamps above `Number.MAX_SAFE_INTEGER`. |
+| `ALGO_BYTE_ED25519_NOTE` | const | `0x01`, c2sp.org/signed-note §Signatures plain Ed25519 over note text. |
+| `ALGO_BYTE_ED25519_COSIG` | const | `0x04`, c2sp.org/tlog-cosignature §Format timestamped Ed25519 cosignature. |
+| `ALGO_BYTE_MLDSA44_COSIG` | const | `0x06`, c2sp.org/tlog-cosignature §Format timestamped ML-DSA-44 cosignature. |
+| `AlgoEntry` | type | `{ formatEnum, algoByte, messageConstruction, signaturePayload, sigSize }`. One row of the c2sp.org/tlog-cosignature §Format algorithm-byte registry. |
+| `MessageConstruction` | type | `'cosig' \| 'cosigned-message'`. Discriminator for the c2sp.org/tlog-cosignature signed-message form: `'cosig'` is the `cosignature/v1` prefixed form (Ed25519, 0x04); `'cosigned-message'` is the TLS-Presentation struct (ML-DSA-44, 0x06; codec deferred). |
+| `SignaturePayload` | type | `'timestamped'`. Discriminator for the per-signature payload encoding on the wire; currently only `'timestamped'` (`u64_be(timestamp) \|\| signature`) is registered by c2sp.org/tlog-cosignature §Format. |
+| `SignatureLine` | type | `{ name: string; keyId: Uint8Array; signature: Uint8Array }`. Decoded signed-note signature line. |
+| `SignedNote` | type | `{ body: Uint8Array; signatures: SignatureLine[]; ignoredCount: number }`. Result of `parseSignedNote`. |
+| `SignedTreeHead` | type | `{ checkpoint: Checkpoint; signatures: readonly SignatureLine[]; timestamp: number }`. In-memory pairing of a parsed `Checkpoint`, its signature lines, and the primary log cosignature's POSIX-seconds timestamp (extracted from the `timestamped_signature` struct in the matching signature line). |
+| `CosignedMessageInput` | type | `{ cosignerName, timestamp, logOrigin, start, end, hash }` input to `buildCosignedMessage`. One named field per `cosigned_message` struct member from c2sp.org/tlog-cosignature §"ML-DSA-44 signed message"; `start`/`end` are non-negative safe integers, `hash` is exactly 32 bytes. |
+| `SignedLog` | class | Signed transparency log substrate. Ties a `MerkleTree` (`Sha256Tree` / `Blake3Tree`), a registered cosignature `SignatureSuite` (currently `Ed25519Suite` or `MlDsa44Suite`), and an origin string into one object. `new SignedLog({ tree, suite, origin, signingKey, pubkey })`; `signCheckpoint({ timestamp? })` emits a signed-note envelope per c2sp.org/tlog-cosignature §Format with the signed-message form dispatched on the algorithm's `messageConstruction` (`'cosig'` for Ed25519, `'cosigned-message'` for ML-DSA-44); `verifyCheckpoint(env)` returns boolean; `parseCheckpoint(env)` returns `SignedTreeHead`; `append`, `size`, `rootHash`, `getInclusionProof`, `getConsistencyProof` passthrough the tree; `dispose()` wipes the stored signing-key copy. Constructor rejects unregistered suites with `SigningError('sig-unsupported-suite')`. |
+| `SignedLogOpts` | type | `{ tree: MerkleTree; suite: S; origin: string; signingKey: Uint8Array; pubkey: Uint8Array }`. Constructor options for `SignedLog<S extends SignatureSuite>`. |
+| `MerkleVerifier` | class | Trust-anchored verifier for c2sp.org/tlog-checkpoint envelopes. Construct with `{ origin, pubkey, hashing: 'sha256' \| 'blake3', suite }`; the suite must be in the c2sp.org/tlog-cosignature §Format algorithm-byte registry (currently `Ed25519Suite` or `MlDsa44Suite`). Exposes `verifyCheckpoint(bytes): boolean`, `verifyInclusion({envelopeBytes, leafBytes, leafIndex, proof}): boolean`, `verifyConsistency({oldEnvelopeBytes, newEnvelopeBytes, proof}): boolean`. Verify methods never throw on input content; construction throws `MerkleLogError` with discriminators `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, or `'module-not-initialized'`. |
+| `MerkleVerifierOpts` | type | `{ origin: string; pubkey: Uint8Array; hashing: 'sha256' \| 'blake3'; suite: SignatureSuite }`. Constructor options for `MerkleVerifier`. |
+| `MerkleLog` | class | Memory-backed signed transparency log. Construct via `await MerkleLog.create({ origin, signingKey, pubkey, hashing?, suite? })` or the keypair-generating `await MerkleLog.generate({ origin, hashing?, suite? })`. Defaults: `hashing: 'sha256'`, `suite: MlDsa44Suite`. Methods: `append(leafBytes)`, `head({ timestamp? })`, `size()`, `rootHash()`, `inclusionProof(leafIndex, treeSize?)`, `consistencyProof(oldSize, newSize)`, `dispose()`. Hot path is synchronous; only `create` / `generate` are async. Unregistered suites raise `MerkleLogError('unsupported-suite')`. Backed by `MemoryStorage`; deployments needing file or database storage use `SignedLog<S>` with a custom `MerkleStorage`. |
+| `MerkleLogCreateOpts` | type | `{ origin, signingKey, pubkey, hashing?, suite? }`. |
+| `MerkleLogGenerateOpts` | type | `{ origin, hashing?, suite? }`. |
+| `MerkleLogError` | class | Thrown on construction-time contract violations of the normie merkle surface (`MerkleLog`, `MerkleVerifier`). Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, `'module-not-initialized'`. |
 
 ---
 
