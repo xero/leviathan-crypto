@@ -78,7 +78,7 @@ function MldsaPureSuite(
 		ctxDomain,
 		pkSize: params.pkBytes,
 		skSize: params.skBytes,
-		sigSize: params.sigBytes,
+		sigMaxSize: params.sigBytes,
 		wasmModules,
 
 		sign(sk: Uint8Array, msg: Uint8Array, ctx: Uint8Array): Uint8Array {
@@ -143,7 +143,7 @@ function MldsaPrehashSuite(
 		ctxDomain,
 		pkSize: params.pkBytes,
 		skSize: params.skBytes,
-		sigSize: params.sigBytes,
+		sigMaxSize: params.sigBytes,
 		wasmModules,
 		prehashAlgorithm,
 		prehashSize,

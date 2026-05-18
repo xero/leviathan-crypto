@@ -59,7 +59,7 @@ interface SuiteCase {
 	ctxDomain:  string;
 	pkSize:     number;
 	skSize:     number;
-	sigSize:    number;
+	sigMaxSize:    number;
 }
 
 const PURE_CASES: SuiteCase[] = [
@@ -67,19 +67,19 @@ const PURE_CASES: SuiteCase[] = [
 		name: 'MlDsa44Suite', suite: MlDsa44Suite,
 		formatEnum: 0x03, formatName: 'mldsa44',
 		ctxDomain: 'mldsa44-envelope-v3',
-		pkSize: 1312, skSize: 2560, sigSize: 2420,
+		pkSize: 1312, skSize: 2560, sigMaxSize: 2420,
 	},
 	{
 		name: 'MlDsa65Suite', suite: MlDsa65Suite,
 		formatEnum: 0x04, formatName: 'mldsa65',
 		ctxDomain: 'mldsa65-envelope-v3',
-		pkSize: 1952, skSize: 4032, sigSize: 3309,
+		pkSize: 1952, skSize: 4032, sigMaxSize: 3309,
 	},
 	{
 		name: 'MlDsa87Suite', suite: MlDsa87Suite,
 		formatEnum: 0x05, formatName: 'mldsa87',
 		ctxDomain: 'mldsa87-envelope-v3',
-		pkSize: 2592, skSize: 4896, sigSize: 4627,
+		pkSize: 2592, skSize: 4896, sigMaxSize: 4627,
 	},
 ];
 
@@ -94,21 +94,21 @@ const PREHASH_CASES: PrehashCase[] = [
 		name: 'MlDsa44PreHashSuite', suite: MlDsa44PreHashSuite,
 		formatEnum: 0x13, formatName: 'mldsa44-prehash',
 		ctxDomain: 'mldsa44-prehash-envelope-v3',
-		pkSize: 1312, skSize: 2560, sigSize: 2420,
+		pkSize: 1312, skSize: 2560, sigMaxSize: 2420,
 		prehashAlgorithm: 'sha3-256', prehashSize: 32,
 	},
 	{
 		name: 'MlDsa65PreHashSuite', suite: MlDsa65PreHashSuite,
 		formatEnum: 0x14, formatName: 'mldsa65-prehash',
 		ctxDomain: 'mldsa65-prehash-envelope-v3',
-		pkSize: 1952, skSize: 4032, sigSize: 3309,
+		pkSize: 1952, skSize: 4032, sigMaxSize: 3309,
 		prehashAlgorithm: 'sha3-256', prehashSize: 32,
 	},
 	{
 		name: 'MlDsa87PreHashSuite', suite: MlDsa87PreHashSuite,
 		formatEnum: 0x15, formatName: 'mldsa87-prehash',
 		ctxDomain: 'mldsa87-prehash-envelope-v3',
-		pkSize: 2592, skSize: 4896, sigSize: 4627,
+		pkSize: 2592, skSize: 4896, sigMaxSize: 4627,
 		prehashAlgorithm: 'sha3-512', prehashSize: 64,
 	},
 ];
@@ -130,7 +130,7 @@ describe('suite catalog surface', () => {
 	it.each(ALL_CASES)('$name has correct key + sig sizes', (c) => {
 		expect(c.suite.pkSize).toBe(c.pkSize);
 		expect(c.suite.skSize).toBe(c.skSize);
-		expect(c.suite.sigSize).toBe(c.sigSize);
+		expect(c.suite.sigMaxSize).toBe(c.sigMaxSize);
 	});
 
 	it.each(ALL_CASES)('$name advertises ["mldsa","sha3"] wasmModules', (c) => {
@@ -150,7 +150,11 @@ describe('suite catalog surface', () => {
 // ── Round-trip per suite (one keygen, sign+verify across ctx shapes) ───────
 
 const SMALL_CTX  = new Uint8Array(10).map((_, i) => (i * 13 + 7) & 0xff);
-const LARGE_CTX  = new Uint8Array(200).map((_, i) => (i * 31 + 5) & 0xff);
+// 226 = 253 - len('mldsa{XX}-prehash-envelope-v3' 27 bytes), the smallest
+// effective per-suite user_ctx ceiling across pure and prehash ML-DSA. Sits
+// under both the FIPS 204 §3.6.1 absolute cap (USER_CTX_MAX = 255) and the
+// combined effective_ctx cap enforced by buildEffectiveCtx.
+const LARGE_CTX  = new Uint8Array(226).map((_, i) => (i * 31 + 5) & 0xff);
 const EMPTY_CTX  = new Uint8Array(0);
 const TEST_MSG   = new Uint8Array(64).map((_, i) => (i * 17 + 3) & 0xff);
 
@@ -169,7 +173,7 @@ describe.each(ALL_CASES)('$name round-trip', (c) => {
 	it('sign + verify with empty ctx', () => {
 		const { pk, sk } = c.suite.keygen();
 		const sig = c.suite.sign(sk, TEST_MSG, EMPTY_CTX);
-		expect(sig.length).toBe(c.sigSize);
+		expect(sig.length).toBe(c.sigMaxSize);
 		expect(c.suite.verify(pk, TEST_MSG, sig, EMPTY_CTX)).toBe(true);
 	});
 
@@ -179,7 +183,7 @@ describe.each(ALL_CASES)('$name round-trip', (c) => {
 		expect(c.suite.verify(pk, TEST_MSG, sig, SMALL_CTX)).toBe(true);
 	});
 
-	it('sign + verify with 200-byte ctx (USER_CTX_MAX)', () => {
+	it('sign + verify with 226-byte ctx (combined effective_ctx ceiling)', () => {
 		const { pk, sk } = c.suite.keygen();
 		const sig = c.suite.sign(sk, TEST_MSG, LARGE_CTX);
 		expect(c.suite.verify(pk, TEST_MSG, sig, LARGE_CTX)).toBe(true);
@@ -219,7 +223,7 @@ describe.each(PREHASH_CASES)('$name prehash digest contracts', (c) => {
 		const digest = new Uint8Array(c.prehashSize)
 			.map((_, i) => (i * 19 + 11) & 0xff);
 		const sig = c.suite.signPrehashed(sk, digest, SMALL_CTX);
-		expect(sig.length).toBe(c.sigSize);
+		expect(sig.length).toBe(c.sigMaxSize);
 		expect(c.suite.verifyPrehashed(pk, digest, sig, SMALL_CTX)).toBe(true);
 	});
 

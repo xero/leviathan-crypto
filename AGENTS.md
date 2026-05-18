@@ -267,10 +267,10 @@ These are decisions already made. Do not relitigate them without raising it firs
   use it inside a `try`, and `dispose()` it in `finally`. No suite-level
   long-lived instance is held. This matches the static-method posture of
   KMAC and keeps suites stateless and reentrant. All shipped suite factories
-  follow this pattern (Phase 1 ML-DSA pure and prehash, Phase 2 SLH-DSA pure
-  and prehash, Phase 2 PQ-only hybrids, Phase 4 Ed25519 pure and prehash,
-  Phase 5 ECDSA-P256); future phase factories (classical+PQ hybrids) do
-  the same. Suite factories that wrap a primitive whose sign path needs pk
+  follow this pattern (ML-DSA pure and prehash, SLH-DSA pure and prehash,
+  PQ-only hybrids, Ed25519 pure and prehash, ECDSA-P256); future factories
+  (classical+PQ hybrids) do the same. Suite factories that wrap a primitive
+  whose sign path needs pk
   for the hash chain (RFC 8032 Ed25519, ECDSA-P256, anything that runs
   `R || pk || M` through a digest) route through an unexported `_signInternalPk` /
   `_signPrehashedInternalPk` helper on the primitive class that derives pk
@@ -322,31 +322,31 @@ These are decisions already made. Do not relitigate them without raising it firs
   `SignatureSuite`) and expose `signPrehashed` / `verifyPrehashed`. The
   type-level wall keeps "sign in pure mode" and "sign via streaming
   prehash" from collapsing into the same call site by accident.
-- **SHA3 streaming classes (`SHA3_256Stream`, `SHA3_512Stream`)**: Phase 1
-  added these alongside the existing one-shot `SHA3_256` / `SHA3_512`.
-  Lifecycle mirrors SHAKE128 / SHAKE256: `_acquireModule('sha3')` at
-  construction, `_releaseModule` on `dispose()` or `finalize()`, exclusivity
-  enforced via the standard guard. The `'sha-256'` and `'sha-512'`
+- **SHA3 streaming classes (`SHA3_256Stream`, `SHA3_512Stream`)**: ship
+  alongside the existing one-shot `SHA3_256` / `SHA3_512`. Lifecycle
+  mirrors SHAKE128 / SHAKE256: `_acquireModule('sha3')` at construction,
+  `_releaseModule` on `dispose()` or `finalize()`, exclusivity enforced
+  via the standard guard. The `'sha-256'` and `'sha-512'`
   `PrehashAlgorithm` slots in `src/ts/sign/hasher.ts` both run through
   buffered shims over the one-shot `SHA256` / `SHA512` classes
   (`sha256Buffered` and `sha512Buffered`), not through dedicated streaming
-  classes on the sha2 module. Phase 4 Ed25519ph picked the shim posture
-  because Ed25519ph is single-variant; Phase 5 ECDSA-P256 followed the
-  same pattern because ECDSA-P256 + SHA-256 is single-variant too and the
-  shim matches the one-shot KAT byte-for-byte at finalize. The sha2
-  module's streaming-class surface stayed intentionally tight; future
-  phase work that needs true streaming SHA-2 (e.g. multi-consumer
-  exclusivity discipline) can add `SHA256Stream` / `SHA512Stream` to the
-  sha2 module mirroring the SHA3 streaming posture, but neither shipped
-  prehash suite required it.
-- **SHAKE streaming classes (`SHAKE128Stream`, `SHAKE256Stream`)**: Phase 2
-  added these to the sha3 module alongside the unbounded `SHAKE128` /
-  `SHAKE256` XOF classes. `outputLen` is bound at construction; `update`
-  / `finalize` shape mirrors `SHA3_256Stream`. Required substrate for
+  classes on the sha2 module. Ed25519ph picked the shim posture because
+  Ed25519ph is single-variant; ECDSA-P256 followed the same pattern
+  because ECDSA-P256 + SHA-256 is single-variant too and the shim matches
+  the one-shot KAT byte-for-byte at finalize. The sha2 module's
+  streaming-class surface stayed intentionally tight; future work that
+  needs true streaming SHA-2 (e.g. multi-consumer exclusivity discipline)
+  can add `SHA256Stream` / `SHA512Stream` to the sha2 module mirroring
+  the SHA3 streaming posture, but neither shipped prehash suite required
+  it.
+- **SHAKE streaming classes (`SHAKE128Stream`, `SHAKE256Stream`)**: live
+  on the sha3 module alongside the unbounded `SHAKE128` / `SHAKE256` XOF
+  classes. `outputLen` is bound at construction; `update` / `finalize`
+  shape mirrors `SHA3_256Stream`. Required substrate for
   `createRunningHash('shake-128' | 'shake-256')` in the sign layer; used
   by SLH-DSA prehash suites and PQ-only hybrid suites.
-- **Phase 2 test groups**: SLH-DSA primitive and signature-layer tests
-  live in three new CI groups in `scripts/lib/test-groups.ts`:
+- **SLH-DSA test groups**: SLH-DSA primitive and signature-layer tests
+  live in three CI groups in `scripts/lib/test-groups.ts`:
   `slhdsa` (10-min timeout, primitive plus prehash/validation),
   `slhdsa-acvp` (20-min timeout, the ACVP corpus, isolated because it
   is the slowest), and `sign-hybrid` (15-min timeout, `UNIT_FULL` build
@@ -362,8 +362,8 @@ These are decisions already made. Do not relitigate them without raising it firs
   `init({ blake3 })` rejects when WebAssembly SIMD is unavailable.
   Tree-mode internal exports `_testChunkCV`, `_testParentCV`, and
   `_testDeriveContextCV` are gated for the tree-internals unit suite
-  and the planned Phase 7 `src/ts/merkle/blake3-log.ts` log-proof
-  substrate; they are NOT part of the consumer-facing `Blake3Exports`
+  and the planned `src/ts/merkle/blake3-log.ts` log-proof substrate;
+  they are NOT part of the consumer-facing `Blake3Exports`
   interface. The TS surface ships six classes (`BLAKE3`,
   `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`,
   `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`) plus

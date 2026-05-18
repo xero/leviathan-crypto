@@ -79,9 +79,8 @@ for (const file of [
 		});
 
 		// GATE: FAIL vectors all throw, none silently produce plaintext.
-		// This is the most security-critical gate in the entire phase. A
-		// single FAIL vector that returns plaintext means GCM authentication
-		// is broken.
+		// The most security-critical gate for GCM. A single FAIL vector
+		// that returns plaintext means GCM authentication is broken.
 		it(`${failing.length} 128-bit-tag FAIL vectors throw`, () => {
 			const aes = new AESGCM();
 			try {

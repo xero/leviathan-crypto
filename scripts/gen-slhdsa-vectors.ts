@@ -72,7 +72,7 @@ const HEADER = `//                  ▄▄▄▄▄▄▄▄▄▄
 //   skHex     signingKey bytes      (params.skBytes).
 //   msgHex    payload bytes (UTF-8 of the per-record message string).
 //   ctxHex    user_ctx bytes        (UTF-8 of "v3-suite-kat").
-//   blobHex   attached envelope: [formatEnum, ctxLen, ctx, payload, sig]
+//   blobHex   attached envelope: [formatEnum, ctxLen, ctx, payload_len (u32 BE), payload, sig]
 //
 // All hex strings are lowercase, no separators.
 
@@ -177,12 +177,16 @@ function seedFor(params: SlhDsaParams, byte: number): Uint8Array {
 }
 
 function assembleBlob(suiteByte: number, ctx: Uint8Array, payload: Uint8Array, sig: Uint8Array): Uint8Array {
-	const out = new Uint8Array(2 + ctx.length + payload.length + sig.length)
+	const out = new Uint8Array(2 + ctx.length + 4 + payload.length + sig.length)
 	let pos = 0
 	out[pos++] = suiteByte
 	out[pos++] = ctx.length
 	out.set(ctx, pos)
 	pos += ctx.length
+	out[pos++] = (payload.length >>> 24) & 0xff
+	out[pos++] = (payload.length >>> 16) & 0xff
+	out[pos++] = (payload.length >>>  8) & 0xff
+	out[pos++] =  payload.length         & 0xff
 	out.set(payload, pos)
 	pos += payload.length
 	out.set(sig, pos)

@@ -115,7 +115,7 @@ describe('SignStream + VerifyStream, Ed25519PreHashSuite', () => {
 			s.update(MSG.subarray(32, 96));
 			s.update(MSG.subarray(96));
 			const sig = s.finalize();
-			const blob = concat(s.preamble, MSG, sig);
+			const blob = concat(s.buildPreamble(MSG.length), MSG, sig);
 			const out  = Sign.verify(Ed25519PreHashSuite, pk, blob, CTX);
 			expect(Array.from(out)).toEqual(Array.from(MSG));
 		} finally {
@@ -130,7 +130,7 @@ describe('SignStream + VerifyStream, Ed25519PreHashSuite', () => {
 		try {
 			s.update(MSG);
 			const sig = s.finalize();
-			blob = concat(s.preamble, MSG, sig);
+			blob = concat(s.buildPreamble(MSG.length), MSG, sig);
 		} finally {
 			s.dispose();
 		}
@@ -208,7 +208,12 @@ describe('ACVP sigGen spot-check, Ed25519PreHashSuite (preHash=SHA-512)', () => 
 			const pk  = hexToBytes(v.pk);
 			const msg = hexToBytes(v.message);
 			const ctx = hexToBytes(v.context);
-			if (ctx.length > 200) return;  // suite caps user_ctx at USER_CTX_MAX
+			// Ed25519PreHashSuite's effective per-call user_ctx ceiling is
+			// 226 = 253 - len('ed25519-prehash-envelope-v3' 27 bytes), set by
+			// buildEffectiveCtx's combined-length cap (FIPS 204 §3.6.1).
+			// Longer ACVP context strings still meet USER_CTX_MAX = 255 in the
+			// abstract but trip the combined cap when wrapped by this suite.
+			if (ctx.length > 226) return;
 			const blob = Sign.sign(Ed25519PreHashSuite, sk, msg, ctx);
 			const out  = Sign.verify(Ed25519PreHashSuite, pk, blob, ctx);
 			expect(Array.from(out)).toEqual(Array.from(msg));

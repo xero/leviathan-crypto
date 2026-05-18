@@ -39,14 +39,19 @@ export interface EcdsaP256KeyPair {
  * The p256 module hosts the full elliptic-curve substrate (field,
  * scalar, point, RFC 6979 K derivation, embedded SHA-256 + HMAC) and
  * the four high-level ECDSA entry points (keygen, sign, signInternalPk,
- * verify). This interface deliberately surfaces only those high-level
- * entries plus the layout / wipe primitives; substrate test hooks live
- * outside the consumer-facing ABI.
+ * verify). The wrapper additionally drives `pointDecompress` + `feToBytes`
+ * for the SEC 1 §2.3.4 uncompressed-pk emission path; those two
+ * substrate exports are public because no high-level ABI covers
+ * "given a compressed pk, return its uncompressed form" without
+ * round-tripping through verify. Substrate test hooks live outside
+ * the consumer-facing ABI.
  */
 export interface EcdsaP256Exports {
 	memory:              WebAssembly.Memory
 	getModuleId:         () => number
 	getMemoryPages:      () => number
+	feToBytes:           (outOff: number, feOff: number) => void
+	pointDecompress:     (outOff: number, srcOff: number) => number
 	ecdsaKeygen:         (seedOff: number, pkOff: number) => void
 	ecdsaSign:           (skOff: number, pkOff: number, msgHashOff: number, rndOff: number, sigOff: number) => void
 	ecdsaSignInternalPk: (skOff: number, msgHashOff: number, rndOff: number, sigOff: number) => void

@@ -65,7 +65,7 @@ describe('EcdsaP256Suite surface', () => {
 	it('has 33-byte pk, 32-byte sk, 64-byte sig', () => {
 		expect(EcdsaP256Suite.pkSize).toBe(33);
 		expect(EcdsaP256Suite.skSize).toBe(32);
-		expect(EcdsaP256Suite.sigSize).toBe(64);
+		expect(EcdsaP256Suite.sigMaxSize).toBe(64);
 	});
 
 	it('advertises ["p256","sha2"] wasmModules, frozen', () => {

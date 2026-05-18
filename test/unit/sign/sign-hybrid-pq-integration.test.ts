@@ -116,8 +116,8 @@ describe.each(CASES)('Sign envelope, $name', (c) => {
 		expect(peek.suiteByte).toBe(c.suite.formatEnum);
 		expect(peek.payloadLength).toBe(MSG.length);
 		expect(Array.from(peek.ctx)).toEqual(Array.from(CTX));
-		expect(peek.payloadOffset).toBe(2 + CTX.length);
-		expect(peek.sigOffset).toBe(blob.length - c.suite.sigSize);
+		expect(peek.payloadOffset).toBe(2 + CTX.length + 4);
+		expect(peek.sigOffset).toBe(blob.length - c.suite.sigMaxSize);
 	});
 });
 
@@ -130,7 +130,7 @@ describe.each(CASES)('SignStream + VerifyStream, $name', (c) => {
 			s.update(MSG.subarray(32, 96));
 			s.update(MSG.subarray(96));
 			const sig = s.finalize();
-			const blob = concat(s.preamble, MSG, sig);
+			const blob = concat(s.buildPreamble(MSG.length), MSG, sig);
 			const out  = Sign.verify(c.suite, pk, blob, CTX);
 			expect(out).toEqual(MSG);
 		} finally {
@@ -145,7 +145,7 @@ describe.each(CASES)('SignStream + VerifyStream, $name', (c) => {
 		try {
 			s.update(MSG);
 			const sig = s.finalize();
-			blob = concat(s.preamble, MSG, sig);
+			blob = concat(s.buildPreamble(MSG.length), MSG, sig);
 		} finally {
 			s.dispose();
 		}

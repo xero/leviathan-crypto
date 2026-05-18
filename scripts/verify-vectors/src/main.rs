@@ -61,6 +61,7 @@ mod mlkem;
 mod mldsa;
 mod slhdsa;
 mod hybrid_pq;
+mod hybrid_classical;
 mod blake3;
 mod ed25519;
 mod ecdsa_p256;
@@ -465,6 +466,54 @@ fn run_hybrid_pq(use_color: bool) -> bool {
     }
     println!(
         "Hybrid PQ: {} ok, {} failed (out of {} total)",
+        count_ok, count_fail, count_ok + count_fail,
+    );
+    all_ok
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Composite ML-DSA hybrid classical+PQ dispatcher
+// (sign_hybrid_classical.ts), implementation in src/hybrid_classical.rs.
+// Eight spec-anchored vectors: four composite-sigs §6 suites times two
+// ctx variants from Appendix E.
+// ────────────────────────────────────────────────────────────────────────────
+
+fn run_hybrid_classical(use_color: bool) -> bool {
+    let path = vector_path("sign_hybrid_classical.ts");
+    print_section("Hybrid classical+PQ (sign_hybrid_classical.ts), composite ML-DSA || (Ed25519|ECDSA-P256) verify");
+    println!("Reading vectors from {}\n", path.display());
+
+    let src = match fs::read_to_string(&path) {
+        Ok(s)  => s,
+        Err(e) => {
+            eprintln!("{}", colorize(use_color, RED, &format!("✗ failed to read {}: {}", path.display(), e)));
+            return false;
+        }
+    };
+
+    let vectors = parse::parse_sign_hybrid_classical_array(&src, "signHybridClassicalVectors");
+    println!("Parsed {} vectors\n", vectors.len());
+    if vectors.is_empty() {
+        eprintln!("{}", colorize(use_color, RED, "✗ no vectors parsed"));
+        return false;
+    }
+
+    let mut all_ok = true;
+    let mut count_ok: usize = 0;
+    let mut count_fail: usize = 0;
+    for v in &vectors {
+        let (ok, log) = hybrid_classical::verify_vector(v);
+        if ok {
+            count_ok += 1;
+        } else {
+            print_log(&log, use_color);
+            println!();
+            count_fail += 1;
+            all_ok = false;
+        }
+    }
+    println!(
+        "Hybrid classical+PQ: {} ok, {} failed (out of {} total)",
         count_ok, count_fail, count_ok + count_fail,
     );
     all_ok
@@ -1453,7 +1502,7 @@ fn run_aes_gcm(use_color: bool) -> bool {
 enum CipherSel {
     Xchacha, Serpent, AesSeal, AesGcmSiv, Polyval,
     Aes, AesCbc, AesCtr, AesGcm,
-    Mlkem, Mldsa, Slhdsa, HybridPq, Kmac, Blake3,
+    Mlkem, Mldsa, Slhdsa, HybridPq, HybridClassical, Kmac, Blake3,
     // Curve25519 family. `Curve25519` is a meta-selector that runs
     // both `ed25519` and `x25519`; it does not have a dispatcher of
     // its own.
@@ -1479,7 +1528,8 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "mlkem"       => Ok(CipherSel::Mlkem),
         "mldsa"       => Ok(CipherSel::Mldsa),
         "slhdsa"      => Ok(CipherSel::Slhdsa),
-        "hybrid-pq"   => Ok(CipherSel::HybridPq),
+        "hybrid-pq"          => Ok(CipherSel::HybridPq),
+        "hybrid-classical"   => Ok(CipherSel::HybridClassical),
         "kmac"        => Ok(CipherSel::Kmac),
         "blake3"      => Ok(CipherSel::Blake3),
         "ed25519"     => Ok(CipherSel::Ed25519),
@@ -1487,7 +1537,7 @@ fn parse_cipher(s: &str) -> Result<CipherSel, String> {
         "curve25519"  => Ok(CipherSel::Curve25519),
         "ecdsa-p256"  => Ok(CipherSel::EcdsaP256),
         "all"         => Ok(CipherSel::All),
-        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, blake3, ed25519, x25519, curve25519, ecdsa-p256, all)")),
+        other         => Err(format!("unknown --cipher value: '{other}' (expected: xchacha, serpent, aes-seal, aes-gcm-siv, polyval, aes, aes-cbc, aes-ctr, aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, hybrid-classical, kmac, blake3, ed25519, x25519, curve25519, ecdsa-p256, all)")),
     }
 }
 
@@ -1503,15 +1553,16 @@ fn parse_target(s: &str) -> Result<TargetSel, String> {
 }
 
 fn print_usage() {
-    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|kmac|blake3|ed25519|x25519|curve25519|ecdsa-p256|all]");
+    eprintln!("Usage: verify-vectors [--cipher xchacha|serpent|aes-seal|aes-gcm-siv|polyval|aes|aes-cbc|aes-ctr|aes-gcm|mlkem|mldsa|slhdsa|hybrid-pq|hybrid-classical|kmac|blake3|ed25519|x25519|curve25519|ecdsa-p256|all]");
     eprintln!("                       [--target seal|sealstream|prefix-32|full-xof|all]");
     eprintln!("Defaults: --cipher all --target all");
     eprintln!("Note: --target seal/sealstream apply only to --cipher xchacha / serpent / aes-seal.");
     eprintln!("      --target prefix-32 / full-xof apply only to --cipher blake3 (32-byte digest");
     eprintln!("      vs full 131-byte XOF assertion). --cipher curve25519 is a meta-selector that");
     eprintln!("      runs both ed25519 and x25519. For aes-gcm-siv, polyval, aes-cbc, aes-ctr,");
-    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, kmac, ed25519, x25519, curve25519,");
-    eprintln!("      ecdsa-p256 (no seal/sealstream/xof split), --target is silently ignored.");
+    eprintln!("      aes-gcm, mlkem, mldsa, slhdsa, hybrid-pq, hybrid-classical, kmac, ed25519,");
+    eprintln!("      x25519, curve25519, ecdsa-p256 (no seal/sealstream/xof split), --target is");
+    eprintln!("      silently ignored.");
 }
 
 fn main() -> ExitCode {
@@ -1564,7 +1615,8 @@ fn main() -> ExitCode {
     let want_mlkem       = matches!(cipher, CipherSel::Mlkem     | CipherSel::All);
     let want_mldsa       = matches!(cipher, CipherSel::Mldsa     | CipherSel::All);
     let want_slhdsa      = matches!(cipher, CipherSel::Slhdsa    | CipherSel::All);
-    let want_hybrid_pq   = matches!(cipher, CipherSel::HybridPq  | CipherSel::All);
+    let want_hybrid_pq        = matches!(cipher, CipherSel::HybridPq        | CipherSel::All);
+    let want_hybrid_classical = matches!(cipher, CipherSel::HybridClassical | CipherSel::All);
     let want_kmac        = matches!(cipher, CipherSel::Kmac      | CipherSel::All);
     let want_blake3      = matches!(cipher, CipherSel::Blake3    | CipherSel::All);
     let want_ed25519     = matches!(cipher, CipherSel::Ed25519   | CipherSel::Curve25519 | CipherSel::All);
@@ -1592,7 +1644,8 @@ fn main() -> ExitCode {
     if want_mlkem       { if !run_mlkem(use_color)       { all_ok = false; } }
     if want_mldsa       { if !run_mldsa(use_color)       { all_ok = false; } }
     if want_slhdsa      { if !run_slhdsa(use_color)      { all_ok = false; } }
-    if want_hybrid_pq   { if !run_hybrid_pq(use_color)   { all_ok = false; } }
+    if want_hybrid_pq        { if !run_hybrid_pq(use_color)        { all_ok = false; } }
+    if want_hybrid_classical { if !run_hybrid_classical(use_color) { all_ok = false; } }
     if want_kmac        { if !run_kmac(use_color)        { all_ok = false; } }
     if want_blake3 {
         // --target full-xof / prefix-32 are blake3-specific. Default

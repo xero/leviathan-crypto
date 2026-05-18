@@ -62,3 +62,10 @@ export {
 	MlDsa65SlhDsa192fSuite,
 	MlDsa87SlhDsa256fSuite,
 } from './suites/hybrid-pq.js';
+
+export {
+	MlDsa44Ed25519Suite,
+	MlDsa65Ed25519Suite,
+	MlDsa44EcdsaP256Suite,
+	MlDsa65EcdsaP256Suite,
+} from './suites/hybrid-classical.js';

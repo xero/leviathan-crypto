@@ -141,7 +141,11 @@ export {
 	BLAKE3OutputReader,
 	BLAKE3Hash,
 } from './blake3/index.js';
-export { ecdsaP256Init, EcdsaP256 } from './ecdsa/index.js';
+export {
+	ecdsaP256Init, EcdsaP256,
+	pointDecompress,
+	encodeEcPrivateKey, decodeEcPrivateKey,
+} from './ecdsa/index.js';
 export type { EcdsaP256KeyPair } from './ecdsa/index.js';
 export { ecdsaSignatureToDer, ecdsaSignatureFromDer } from './ecdsa/der.js';
 export { ed25519Init, Ed25519 } from './ed25519/index.js';
@@ -167,6 +171,8 @@ export {
 	SlhDsa128fSuite, SlhDsa192fSuite, SlhDsa256fSuite,
 	SlhDsa128fPreHashSuite, SlhDsa192fPreHashSuite, SlhDsa256fPreHashSuite,
 	MlDsa44SlhDsa128fSuite, MlDsa65SlhDsa192fSuite, MlDsa87SlhDsa256fSuite,
+	MlDsa44Ed25519Suite, MlDsa65Ed25519Suite,
+	MlDsa44EcdsaP256Suite, MlDsa65EcdsaP256Suite,
 } from './sign/index.js';
 export { Fortuna } from './fortuna.js';
 export type { Hash, KeyedHash, Blockcipher, Streamcipher, AEAD, Generator, HashFn } from './types.js';

@@ -41,8 +41,8 @@
 // no early returns. feIsZero / feIsEqual fold an XOR-accumulate into
 // a single 0/1 result.
 //
-// Non-Montgomery domain (locked design decision per TASK §"What NOT to
-// do"): inputs / outputs are in the natural domain. feFromBytes and
+// Non-Montgomery domain (locked design decision): inputs / outputs
+// are in the natural domain. feFromBytes and
 // feToBytes are simple radix conversions. RustCrypto's `p256` uses a
 // Montgomery domain for performance; leviathan-crypto deliberately
 // stays outside Montgomery to keep the field-arithmetic audit story

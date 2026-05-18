@@ -166,28 +166,29 @@ describe('VerifyStream finalize success and failure', () => {
 		expectSigningError(() => v.finalize(), 'sig-blob-too-short');
 	});
 
-	it('finalize with sigWindow < sigSize throws sig-blob-too-short', () => {
+	it('finalize before any sig bytes throws sig-blob-too-short', () => {
 		const suite = makeStreamableFixtureSuite();
 		const ctx = new Uint8Array(0);
-		// header is 2 bytes; feed those plus only half of a sigSize sig.
+		// Feed only the 6-byte v3 header (empty ctx, payload_len=0).
+		// VerifyStream enters ParsingSig with no sig bytes yet; finalize
+		// rejects rather than verify an empty sig.
 		const v = new VerifyStream(suite, fixtureSk(), ctx);
-		const header = new Uint8Array([suite.formatEnum, 0]);
+		const header = new Uint8Array([suite.formatEnum, 0, 0, 0, 0, 0]);
 		v.update(header);
-		v.update(new Uint8Array(FIXTURE_SIG_SIZE / 2));
 		expectSigningError(() => v.finalize(), 'sig-blob-too-short');
 	});
 });
 
 describe('VerifyStream sliding window', () => {
-	it('correctly identifies last sigSize bytes as the sig', () => {
+	it('correctly identifies trailing bytes as the sig once payload_len is satisfied', () => {
 		const payloadLen = 200;
 		const msg = new Uint8Array(payloadLen);
 		for (let i = 0; i < payloadLen; i++) msg[i] = (i * 13) & 0xff;
 		const ctx = new Uint8Array(0);
 		const blob = signBlob(msg, ctx);
 
-		// Total wire bytes: 2 (header) + payloadLen + FIXTURE_SIG_SIZE.
-		expect(blob.length).toBe(2 + payloadLen + FIXTURE_SIG_SIZE);
+		// Total wire bytes: 6 (suite + ctx_len + payload_len) + payloadLen + sig.
+		expect(blob.length).toBe(6 + payloadLen + FIXTURE_SIG_SIZE);
 
 		// Feed in awkward chunks; verify the recovered payload matches msg.
 		const v = new VerifyStream(makeStreamableFixtureSuite(), fixtureSk(), ctx);
@@ -253,7 +254,7 @@ describe('VerifyStream consumes SignStream output', () => {
 		const signer = new SignStream(suite, sk, ctx);
 		signer.update(msg);
 		const sig = signer.finalize();
-		const blob = concat(signer.preamble, msg, sig);
+		const blob = concat(signer.buildPreamble(msg.length), msg, sig);
 
 		const v = new VerifyStream(suite, sk, ctx);
 		v.update(blob);

@@ -328,6 +328,18 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 		],
 	},
 	{
+		name: 'sign-hybrid-classical',
+		buildTargets: UNIT_FULL,
+		timeoutMin: 15,
+		files: [
+			'test/unit/sign/sign-hybrid-classical-suites.test.ts',
+			'test/unit/sign/sign-hybrid-classical-vectors.test.ts',
+			'test/unit/sign/sign-hybrid-classical-integration.test.ts',
+			'test/unit/sign/sign-hybrid-classical-tamper.test.ts',
+			'test/unit/sign/sign-stream-equivalence-hybrid-classical.test.ts',
+		],
+	},
+	{
 		name: 'blake3',
 		buildTargets: UNIT_BASE,
 		timeoutMin: 5,
@@ -403,6 +415,8 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/p256/ecdsa_sign.test.ts',
 			'test/unit/p256/ecdsa_signhedged.test.ts',
 			'test/unit/p256/ecdsa_verify.test.ts',
+			'test/unit/p256/ecdsa-pk-uncompressed.test.ts',
+			'test/unit/p256/ecdsa-ecprivatekey-der.test.ts',
 			'test/unit/ecdsa/ecdsa_class.test.ts',
 			'test/unit/ecdsa/ecdsa_der.test.ts',
 		],

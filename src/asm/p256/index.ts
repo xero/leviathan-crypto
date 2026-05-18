@@ -49,8 +49,8 @@
 // fixed sequence of 9 limb-shuffling terms; lane packing buys nothing
 // because every term touches a different subset of source limbs).
 //
-// Non-Montgomery domain (locked decision per TASK §"What NOT to do"):
-// inputs / outputs are in the natural field domain. RustCrypto's
+// Non-Montgomery domain (locked decision): inputs / outputs are in
+// the natural field domain. RustCrypto's
 // `p256` uses a Montgomery representation for performance; this
 // module deliberately stays outside Montgomery to keep the field-
 // arithmetic audit story symmetric with curve25519's non-Montgomery

@@ -5,8 +5,8 @@
 This low-level reference details the p256 AssemblyScript source and
 WASM exports, intended for those auditing, contributing to, or
 building against the raw module. The TypeScript wrappers for
-ECDSA-P256 ship in a later phase of work; this document covers the
-substrate only.
+ECDSA-P256 are documented separately in [ecdsa-p256.md](./ecdsa-p256.md);
+this document covers the substrate only.
 
 > ### Table of Contents
 > - [Overview](#overview)

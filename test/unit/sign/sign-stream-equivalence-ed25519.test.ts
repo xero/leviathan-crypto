@@ -57,7 +57,10 @@ function ctxOf(n: number): Uint8Array {
 }
 
 const MSG_SIZES = [0, 1, 100, 10000];
-const CTX_SIZES = [0, 10, 200];
+// 226 = 253 - len('ed25519-prehash-envelope-v3' 27 bytes), the effective
+// per-suite user_ctx ceiling under buildEffectiveCtx's combined-length cap
+// (FIPS 204 §3.6.1).
+const CTX_SIZES = [0, 10, 226];
 
 describe('SignStream byte-equivalent to Sign.sign (Ed25519PreHashSuite)', () => {
 	for (const ctxLen of CTX_SIZES) {
@@ -74,7 +77,7 @@ describe('SignStream byte-equivalent to Sign.sign (Ed25519PreHashSuite)', () => 
 				try {
 					s.update(msg);
 					const sig = s.finalize();
-					blobStream = concat(s.preamble, msg, sig);
+					blobStream = concat(s.buildPreamble(msg.length), msg, sig);
 				} finally {
 					s.dispose();
 				}
@@ -101,7 +104,7 @@ describe('SignStream chunked vs one-shot byte-equivalence', () => {
 			s.update(msg.subarray(250, 499));
 			s.update(msg.subarray(499));
 			const sig = s.finalize();
-			blobStream = concat(s.preamble, msg, sig);
+			blobStream = concat(s.buildPreamble(msg.length), msg, sig);
 		} finally {
 			s.dispose();
 		}
@@ -132,7 +135,7 @@ describe('VerifyStream round-trip and tamper rejection', () => {
 		const blob = Sign.sign(Ed25519PreHashSuite, sk, msg, ctx);
 		const tampered = blob.slice();
 		// Flip a byte well inside the payload (after header, before sig).
-		const payloadStart = 2 + ctx.length;
+		const payloadStart = 2 + ctx.length + 4;
 		tampered[payloadStart + 7] ^= 0x80;
 
 		const v = new VerifyStream(Ed25519PreHashSuite, pk, ctx);

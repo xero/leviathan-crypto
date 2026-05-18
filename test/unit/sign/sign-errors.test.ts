@@ -26,8 +26,7 @@
 import { describe, it, expect } from 'vitest';
 import { SigningError } from '../../../src/ts/errors.js';
 
-// sig-phase1.md §4 enumerates 11 discriminator strings (3 suite + 5 envelope
-// + 3 stream); the spec listing is authoritative.
+// 11 discriminator strings: 3 suite + 5 envelope + 3 stream.
 const KNOWN_DISCRIMINATORS = [
 	// suite layer
 	'sig-key-size',
@@ -52,8 +51,8 @@ describe('SigningError', () => {
 	});
 
 	it('discriminator + custom message uses the custom message verbatim', () => {
-		const e = new SigningError('sig-ctx-too-long', 'user_ctx length 999 > 200');
-		expect(e.message).toBe('user_ctx length 999 > 200');
+		const e = new SigningError('sig-ctx-too-long', 'user_ctx length 999 > 255');
+		expect(e.message).toBe('user_ctx length 999 > 255');
 	});
 
 	it('discriminator field is readable on the instance', () => {

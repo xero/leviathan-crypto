@@ -107,7 +107,7 @@ function EcdsaP256SuiteFactory(
 		ctxDomain,
 		pkSize: 33,
 		skSize: 32,
-		sigSize: 64,
+		sigMaxSize: 64,
 		wasmModules,
 		prehashAlgorithm,
 		prehashSize,

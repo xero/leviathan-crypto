@@ -43,10 +43,10 @@
 //     reviewers do not "constant-time-ify" the loop, which would oversample
 //     and waste entropy without improving security.
 //
-// Both kernels are the inner per-block stage of the sampling pipeline. Phase-4
-// orchestration owns the SHAKE128/SHAKE256 absorb/squeeze loop and calls the
-// kernel repeatedly, advancing the polynomial counter, until 256 coefficients
-// have been accepted.
+// Both kernels are the inner per-block stage of the sampling pipeline. The
+// caller owns the SHAKE128/SHAKE256 absorb/squeeze loop and calls the kernel
+// repeatedly, advancing the polynomial counter, until 256 coefficients have
+// been accepted.
 
 import { Q, N } from './params';
 

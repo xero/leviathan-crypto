@@ -75,7 +75,7 @@ const HEADER = `//                  ▄▄▄▄▄▄▄▄▄▄
 //   rndHex              32-byte per-call entropy fed to the underlying
 //                       EcdsaP256._signInternalPk at generation time;
 //                       all-zero selects RFC 6979 §3.2 deterministic K
-//   blobHex             attached envelope: [0x02, 0x00, msg, sig]
+//   blobHex             attached envelope: [0x02, 0x00, msg_len (u32 BE), msg, sig]
 //   sigHex              64 bytes raw r||s (also the trailing 64 bytes
 //                       of blobHex), surfaced for cross-checks
 //
@@ -164,12 +164,16 @@ function sha256(msg: Uint8Array): Uint8Array {
 }
 
 function assembleBlob(suiteByte: number, ctx: Uint8Array, payload: Uint8Array, sig: Uint8Array): Uint8Array {
-	const out = new Uint8Array(2 + ctx.length + payload.length + sig.length)
+	const out = new Uint8Array(2 + ctx.length + 4 + payload.length + sig.length)
 	let pos = 0
 	out[pos++] = suiteByte
 	out[pos++] = ctx.length
 	out.set(ctx, pos)
 	pos += ctx.length
+	out[pos++] = (payload.length >>> 24) & 0xff
+	out[pos++] = (payload.length >>> 16) & 0xff
+	out[pos++] = (payload.length >>>  8) & 0xff
+	out[pos++] =  payload.length         & 0xff
 	out.set(payload, pos)
 	pos += payload.length
 	out.set(sig, pos)

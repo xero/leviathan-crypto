@@ -81,7 +81,7 @@ function Ed25519PureSuite(
 		ctxDomain,
 		pkSize: 32,
 		skSize: 32,
-		sigSize: 64,
+		sigMaxSize: 64,
 		wasmModules,
 
 		sign(sk: Uint8Array, msg: Uint8Array, ctx: Uint8Array): Uint8Array {
@@ -163,7 +163,7 @@ function Ed25519PrehashSuite(
 		ctxDomain,
 		pkSize: 32,
 		skSize: 32,
-		sigSize: 64,
+		sigMaxSize: 64,
 		wasmModules,
 		prehashAlgorithm,
 		prehashSize,

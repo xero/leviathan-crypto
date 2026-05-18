@@ -83,7 +83,7 @@ describe('SignStream framing matches Sign.sign (EcdsaP256Suite, sig bytes differ
 			try {
 				s.update(msg);
 				const sig = s.finalize();
-				blobStream = concat(s.preamble, msg, sig);
+				blobStream = concat(s.buildPreamble(msg.length), msg, sig);
 			} finally {
 				s.dispose();
 			}
@@ -97,14 +97,17 @@ describe('SignStream framing matches Sign.sign (EcdsaP256Suite, sig bytes differ
 			expect(blobStream[1]).toBe(0x00);
 			expect(blobOneShot[1]).toBe(0x00);
 
-			// 3) Payload bytes match the input msg.
+			// 3) Payload bytes match the input msg. Wire layout for
+			//    EcdsaP256Suite (ctx_len = 0): [suite_byte][ctx_len][payload_len:u32 BE][payload][sig].
+			//    Payload starts at offset 6 = 2 + 0 + 4.
+			const PAYLOAD_OFF = 6;
 			const payloadEndOneShot = blobOneShot.length - 64;
 			const payloadEndStream  = blobStream.length - 64;
-			expect(payloadEndOneShot).toBe(2 + msg.length);
-			expect(payloadEndStream).toBe(2 + msg.length);
-			expect(Array.from(blobOneShot.subarray(2, payloadEndOneShot)))
+			expect(payloadEndOneShot).toBe(PAYLOAD_OFF + msg.length);
+			expect(payloadEndStream).toBe(PAYLOAD_OFF + msg.length);
+			expect(Array.from(blobOneShot.subarray(PAYLOAD_OFF, payloadEndOneShot)))
 				.toEqual(Array.from(msg));
-			expect(Array.from(blobStream.subarray(2, payloadEndStream)))
+			expect(Array.from(blobStream.subarray(PAYLOAD_OFF, payloadEndStream)))
 				.toEqual(Array.from(msg));
 
 			// 4) Both blobs verify against the same pk.
@@ -139,7 +142,7 @@ describe('SignStream chunked feed (EcdsaP256Suite)', () => {
 			s.update(msg.subarray(250, 499));
 			s.update(msg.subarray(499));
 			const sig = s.finalize();
-			blobStream = concat(s.preamble, msg, sig);
+			blobStream = concat(s.buildPreamble(msg.length), msg, sig);
 		} finally {
 			s.dispose();
 		}
@@ -159,7 +162,7 @@ describe('SignStream chunked feed (EcdsaP256Suite)', () => {
 			sA.update(msg.subarray(0, 617));
 			sA.update(msg.subarray(617));
 			const sig = sA.finalize();
-			blobA = concat(sA.preamble, msg, sig);
+			blobA = concat(sA.buildPreamble(msg.length), msg, sig);
 		} finally {
 			sA.dispose();
 		}
@@ -170,7 +173,7 @@ describe('SignStream chunked feed (EcdsaP256Suite)', () => {
 		try {
 			sB.update(msg);
 			const sig = sB.finalize();
-			blobB = concat(sB.preamble, msg, sig);
+			blobB = concat(sB.buildPreamble(msg.length), msg, sig);
 		} finally {
 			sB.dispose();
 		}

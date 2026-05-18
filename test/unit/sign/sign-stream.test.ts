@@ -53,30 +53,47 @@ function expectSigningError(fn: () => unknown, discriminator: string): void {
 	expect((caught as SigningError).discriminator).toBe(discriminator);
 }
 
-describe('SignStream preamble', () => {
-	it('preamble is available immediately after construction', () => {
+describe('SignStream buildPreamble', () => {
+	it('buildPreamble emits the v3 wire shape [suite, ctx_len, ctx, payload_len:u32 BE]', () => {
 		const suite = makeStreamableFixtureSuite();
 		const sk = fixtureSk();
 		const ctx = new Uint8Array([0xaa, 0xbb, 0xcc]);
 		const s = new SignStream(suite, sk, ctx);
 		try {
-			expect(s.preamble.length).toBe(2 + ctx.length);
-			expect(s.preamble[0]).toBe(FIXTURE_STREAM_FORMAT_ENUM);
-			expect(s.preamble[1]).toBe(ctx.length);
-			expect(Array.from(s.preamble.subarray(2))).toEqual(Array.from(ctx));
+			const payloadLen = 0x01020304;
+			const p = s.buildPreamble(payloadLen);
+			// 2 header bytes + ctx + 4 payload_len bytes.
+			expect(p.length).toBe(2 + ctx.length + 4);
+			expect(p[0]).toBe(FIXTURE_STREAM_FORMAT_ENUM);
+			expect(p[1]).toBe(ctx.length);
+			expect(Array.from(p.subarray(2, 2 + ctx.length))).toEqual(Array.from(ctx));
+			expect(Array.from(p.subarray(2 + ctx.length))).toEqual([0x01, 0x02, 0x03, 0x04]);
 		} finally {
 			s.dispose();
 		}
 	});
 
-	it('preamble for empty ctx is exactly 2 bytes', () => {
+	it('preamble for empty ctx + zero payload is 6 bytes', () => {
 		const suite = makeStreamableFixtureSuite();
 		const sk = fixtureSk();
 		const s = new SignStream(suite, sk, new Uint8Array(0));
 		try {
-			expect(s.preamble.length).toBe(2);
-			expect(s.preamble[0]).toBe(FIXTURE_STREAM_FORMAT_ENUM);
-			expect(s.preamble[1]).toBe(0);
+			const p = s.buildPreamble(0);
+			expect(p.length).toBe(6);
+			expect(p[0]).toBe(FIXTURE_STREAM_FORMAT_ENUM);
+			expect(p[1]).toBe(0);
+			expect(Array.from(p.subarray(2))).toEqual([0, 0, 0, 0]);
+		} finally {
+			s.dispose();
+		}
+	});
+
+	it('buildPreamble rejects negative or non-integer payloadLength', () => {
+		const suite = makeStreamableFixtureSuite();
+		const s = new SignStream(suite, fixtureSk(), new Uint8Array(0));
+		try {
+			expectSigningError(() => s.buildPreamble(-1), 'sig-malformed-input');
+			expectSigningError(() => s.buildPreamble(1.5), 'sig-malformed-input');
 		} finally {
 			s.dispose();
 		}

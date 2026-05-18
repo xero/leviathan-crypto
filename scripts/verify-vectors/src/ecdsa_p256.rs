@@ -723,7 +723,7 @@ pub fn verify_sign_ecdsa_p256(v: &SignEcdsaP256Vector) -> (bool, Vec<String>) {
         v.id, v.format_enum, v.description,
     ));
 
-    // (1) Wire format: [0x02, 0x00, msg, sig].
+    // (1) Wire format: [0x02, 0x00, payload_len u32 BE, msg, sig].
     if v.format_enum != 0x02 {
         log.push(format!("  ✗ format_enum 0x{:02x} != 0x02", v.format_enum));
         return (false, log);
@@ -736,10 +736,10 @@ pub fn verify_sign_ecdsa_p256(v: &SignEcdsaP256Vector) -> (bool, Vec<String>) {
         log.push(format!("  ✗ recorded sig length {} != 64", v.sig.len()));
         return (false, log);
     }
-    let expected_blob_len = 2 + v.msg.len() + 64;
+    let expected_blob_len = 2 + 4 + v.msg.len() + 64;
     if v.blob.len() != expected_blob_len {
         log.push(format!(
-            "  ✗ blob length {} != expected {} (2 + {} msg + 64 sig)",
+            "  ✗ blob length {} != expected {} (2 + 4 payload_len + {} msg + 64 sig)",
             v.blob.len(), expected_blob_len, v.msg.len(),
         ));
         return (false, log);
@@ -751,8 +751,20 @@ pub fn verify_sign_ecdsa_p256(v: &SignEcdsaP256Vector) -> (bool, Vec<String>) {
         ));
         return (false, log);
     }
-    let payload = &v.blob[2..2 + v.msg.len()];
-    let blob_sig = &v.blob[2 + v.msg.len()..];
+    let payload_len =
+        ((v.blob[2] as usize) << 24)
+        | ((v.blob[3] as usize) << 16)
+        | ((v.blob[4] as usize) <<  8)
+        |  (v.blob[5] as usize);
+    if payload_len != v.msg.len() {
+        log.push(format!(
+            "  ✗ wire payload_len {} != recorded msg.len() {}",
+            payload_len, v.msg.len(),
+        ));
+        return (false, log);
+    }
+    let payload = &v.blob[6..6 + v.msg.len()];
+    let blob_sig = &v.blob[6 + v.msg.len()..];
     if payload != v.msg.as_slice() {
         log_byte_diff(&mut log, "blob payload", payload, &v.msg);
         log.push("  ✗ blob payload != recorded msg".to_string());

@@ -1421,6 +1421,70 @@ pub fn parse_sign_hybrid_pq_array(src: &str, export_name: &str) -> Vec<SignHybri
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Composite ML-DSA hybrid vectors (sign_hybrid_classical.ts).
+//
+// Source-of-truth bytes are spec-anchored from
+// draft-ietf-lamps-pq-composite-sigs-19 Appendix E; this struct just
+// surfaces them as raw byte vectors for src/hybrid_classical.rs to verify.
+//
+// `tc_id` is the composite-sigs §6 algorithm name
+// (id-MLDSAxx-Ed25519-SHA512 / id-MLDSAxx-ECDSA-P256-SHAxx). `format_enum`
+// is the leviathan suite-byte allocation (0x20-0x23). `mldsa_pk_bytes` and
+// `mldsa_sig_bytes` are the catalog-known fixed sizes the verifier uses
+// to split the composite pk and signature at the ML-DSA / trad boundary
+// (composite-sigs §4.1 / §4.3). `trad_sig_variable` distinguishes the
+// Ed25519 suites (exact 64-byte tradSig) from the ECDSA suites (RFC 3279
+// §2.2.3 Ecdsa-Sig-Value DER, variable length).
+#[derive(Debug, Clone, Default)]
+pub struct SignHybridClassicalVector {
+    pub id:                String,
+    pub tc_id:             String,
+    pub format_enum:       u32,
+    // suite_name is the leviathan const symbol (e.g. "MlDsa44Ed25519Suite");
+    // captured for parity with the .ts record but the verifier dispatches off
+    // format_enum, so the field is read-but-not-exercised here.
+    #[allow(dead_code)]
+    pub suite_name:        String,
+    pub mldsa_pk_bytes:    u32,
+    pub mldsa_sig_bytes:   u32,
+    pub trad_pk_bytes:     u32,
+    pub trad_sig_variable: bool,
+    pub pk:                Vec<u8>,
+    // sk is the spec's composite private key (mldsaSeed || tradSkEncoded
+    // per composite-sigs §4.2). The verifier only exercises the verify
+    // direction, so sk is captured for completeness but unused here.
+    #[allow(dead_code)]
+    pub sk:                Vec<u8>,
+    pub msg:               Vec<u8>,
+    pub ctx:               Vec<u8>,
+    pub sig:               Vec<u8>,
+    pub blob:              Vec<u8>,
+}
+
+pub fn parse_sign_hybrid_classical_array(src: &str, export_name: &str) -> Vec<SignHybridClassicalVector> {
+    let Some(body) = locate_array_body(src, export_name) else { return Vec::new(); };
+    split_top_level_objects(body)
+        .into_iter()
+        .map(|obj| SignHybridClassicalVector {
+            id:                extract_string(&obj, "id"),
+            tc_id:             extract_string(&obj, "tcId"),
+            format_enum:       extract_hex_int(&obj, "formatEnum").unwrap_or(0),
+            suite_name:        extract_string(&obj, "suiteName"),
+            mldsa_pk_bytes:    extract_int(&obj, "mldsaPkBytes").unwrap_or(0),
+            mldsa_sig_bytes:   extract_int(&obj, "mldsaSigBytes").unwrap_or(0),
+            trad_pk_bytes:     extract_int(&obj, "tradPkBytes").unwrap_or(0),
+            trad_sig_variable: extract_bool(&obj, "tradSigVariable").unwrap_or(false),
+            pk:                hex::decode(extract_hex(&obj, "pkHex")).unwrap_or_default(),
+            sk:                hex::decode(extract_hex(&obj, "skHex")).unwrap_or_default(),
+            msg:               hex::decode(extract_hex(&obj, "msgHex")).unwrap_or_default(),
+            ctx:               hex::decode(extract_hex(&obj, "ctxHex")).unwrap_or_default(),
+            sig:               hex::decode(extract_hex(&obj, "sigHex")).unwrap_or_default(),
+            blob:              hex::decode(extract_hex(&obj, "blobHex")).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // KMAC and cSHAKE vectors (kmac.ts).
 //
 // Four TS interfaces, four Rust structs. Sample vectors carry an ASCII

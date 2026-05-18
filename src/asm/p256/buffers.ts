@@ -98,9 +98,9 @@
 //
 // Constants (prime p, curve order n, basepoint G, b) live as `@inline
 // const` u32 values in field.ts / scalar.ts / point.ts, NOT in mutable
-// linear memory. Per task locked decision: inlining constants via the
-// AS data segment risks the segment moving across builds and breaking
-// the buffer-layout audit.
+// linear memory. Locked decision: inlining constants via the AS data
+// segment risks the segment moving across builds and breaking the
+// buffer-layout audit.
 //
 // Per AGENTS.md "Wipe discipline", `wipeBuffers()` in index.ts zeros
 // every byte from MUTABLE_START to BUFFER_END after each public-API

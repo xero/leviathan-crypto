@@ -26,7 +26,7 @@
 // bytes, ctxDomain naming, wasmModules immutability, key and signature
 // sizes, the pure-suite ctx-rejection lock, prehash digest-size
 // validation, deterministic-sign byte-stability, and basic
-// sign/verify round-trip with empty, small, and USER_CTX_MAX ctx.
+// sign/verify round-trip with empty, small, and combined-cap ctx.
 // Mirrors sign-mldsa-suites.test.ts adapted for Ed25519's determinism
 // and the pure-mode ctx-unsupported lock.
 
@@ -67,7 +67,7 @@ describe('Ed25519Suite surface', () => {
 	it('has 32-byte pk/sk and 64-byte sig', () => {
 		expect(Ed25519Suite.pkSize).toBe(32);
 		expect(Ed25519Suite.skSize).toBe(32);
-		expect(Ed25519Suite.sigSize).toBe(64);
+		expect(Ed25519Suite.sigMaxSize).toBe(64);
 	});
 
 	it('advertises ["curve25519"] wasmModules, frozen', () => {
@@ -99,7 +99,7 @@ describe('Ed25519PreHashSuite surface', () => {
 	it('has 32-byte pk/sk and 64-byte sig', () => {
 		expect(Ed25519PreHashSuite.pkSize).toBe(32);
 		expect(Ed25519PreHashSuite.skSize).toBe(32);
-		expect(Ed25519PreHashSuite.sigSize).toBe(64);
+		expect(Ed25519PreHashSuite.sigMaxSize).toBe(64);
 	});
 
 	it('advertises ["curve25519","sha2"] wasmModules, frozen', () => {
@@ -129,8 +129,12 @@ function captureSigningError(fn: () => unknown): SigningError {
 
 const EMPTY_CTX = new Uint8Array(0);
 const SMALL_CTX = new Uint8Array(10).map((_, i) => (i * 13 + 7) & 0xff);
-const LARGE_CTX = new Uint8Array(200).map((_, i) => (i * 31 + 5) & 0xff);
-const OVER_CTX  = new Uint8Array(201).map((_, i) => (i * 17 + 1) & 0xff);
+// 226 = 253 - len('ed25519-prehash-envelope-v3' 27 bytes), the effective
+// per-suite user_ctx ceiling for Ed25519PreHashSuite under buildEffectiveCtx's
+// combined-length cap (FIPS 204 §3.6.1).
+const LARGE_CTX = new Uint8Array(226).map((_, i) => (i * 31 + 5) & 0xff);
+// One past USER_CTX_MAX = 255; trips the absolute cap inside buildEffectiveCtx.
+const OVER_CTX  = new Uint8Array(256).map((_, i) => (i * 17 + 1) & 0xff);
 const TEST_MSG  = new Uint8Array(64).map((_, i) => (i * 17 + 3) & 0xff);
 
 // ── Pure suite: ctx rejection lock + round-trip ────────────────────────────
@@ -197,7 +201,7 @@ describe('Ed25519PreHashSuite round-trip', () => {
 		expect(Ed25519PreHashSuite.verify(pk, TEST_MSG, sig, SMALL_CTX)).toBe(true);
 	});
 
-	it('sign + verify with 200-byte ctx (USER_CTX_MAX)', () => {
+	it('sign + verify with 226-byte ctx (combined effective_ctx ceiling)', () => {
 		const { pk, sk } = Ed25519PreHashSuite.keygen();
 		const sig = Ed25519PreHashSuite.sign(sk, TEST_MSG, LARGE_CTX);
 		expect(Ed25519PreHashSuite.verify(pk, TEST_MSG, sig, LARGE_CTX)).toBe(true);
@@ -219,7 +223,7 @@ describe('Ed25519PreHashSuite round-trip', () => {
 		expect(Array.from(a)).toEqual(Array.from(b));
 	});
 
-	it('sign with 201-byte ctx throws sig-ctx-too-long', () => {
+	it('sign with 256-byte ctx throws sig-ctx-too-long', () => {
 		const { sk } = Ed25519PreHashSuite.keygen();
 		const err = captureSigningError(
 			() => Ed25519PreHashSuite.sign(sk, TEST_MSG, OVER_CTX),

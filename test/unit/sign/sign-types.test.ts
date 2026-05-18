@@ -41,7 +41,7 @@ const pureSuite: SignatureSuite = {
 	ctxDomain: 'stub-envelope-v3',
 	pkSize: 0,
 	skSize: 0,
-	sigSize: 0,
+	sigMaxSize: 0,
 	wasmModules: ['mldsa', 'sha3'] as const,
 	sign: () => STUB_SIG,
 	verify: () => true,
@@ -54,7 +54,7 @@ const streamSuite: StreamableSignatureSuite = {
 	ctxDomain: 'stub-prehash-envelope-v3',
 	pkSize: 0,
 	skSize: 0,
-	sigSize: 0,
+	sigMaxSize: 0,
 	wasmModules: ['mldsa', 'sha3'] as const,
 	prehashAlgorithm: 'sha3-256',
 	prehashSize: 32,
@@ -79,7 +79,7 @@ describe('SignatureSuite type contract', () => {
 			'ctxDomain',
 			'pkSize',
 			'skSize',
-			'sigSize',
+			'sigMaxSize',
 			'wasmModules',
 		]) {
 			expect(keys).toContain(k);

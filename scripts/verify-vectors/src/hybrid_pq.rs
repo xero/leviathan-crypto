@@ -135,15 +135,23 @@ fn parse_envelope_blob<'a>(
     expected_format: u8,
     sig_size: usize,
 ) -> Option<(&'a [u8], &'a [u8], &'a [u8])> {
-    // Wire: [format_byte u8][ctx_len u8][ctx][payload][sig]
-    if blob.len() < 2 + sig_size { return None; }
+    // v3 wire: [format_byte u8][ctx_len u8][ctx][payload_len u32 BE][payload][sig]
+    if blob.len() < 6 + sig_size { return None; }
     if blob[0] != expected_format { return None; }
     let ctx_len = blob[1] as usize;
-    if 2 + ctx_len + sig_size > blob.len() { return None; }
-    let payload_end = blob.len() - sig_size;
+    let payload_len_off = 2 + ctx_len;
+    let payload_off = payload_len_off + 4;
+    if blob.len() < payload_off { return None; }
+    let payload_len =
+        ((blob[payload_len_off] as usize)     << 24)
+        | ((blob[payload_len_off + 1] as usize) << 16)
+        | ((blob[payload_len_off + 2] as usize) <<  8)
+        |  (blob[payload_len_off + 3] as usize);
+    let sig_off = payload_off + payload_len;
+    if sig_off + sig_size != blob.len() { return None; }
     let ctx = &blob[2..2 + ctx_len];
-    let payload = &blob[2 + ctx_len..payload_end];
-    let sig = &blob[payload_end..];
+    let payload = &blob[payload_off..sig_off];
+    let sig = &blob[sig_off..];
     Some((ctx, payload, sig))
 }
 
@@ -177,11 +185,11 @@ pub fn verify_vector(v: &SignHybridPqVector) -> (bool, Vec<String>) {
         log.push(format!("  ✗ sk.len()={} != expected {}", v.sk.len(), sizes.sk()));
         return (false, log);
     }
-    if v.blob.len() != 2 + v.ctx.len() + v.msg.len() + sizes.sig() {
+    if v.blob.len() != 2 + v.ctx.len() + 4 + v.msg.len() + sizes.sig() {
         log.push(format!(
-            "  ✗ blob.len()={} != expected {} (2 + ctx {} + msg {} + sig {})",
+            "  ✗ blob.len()={} != expected {} (2 + ctx {} + 4 payload_len + msg {} + sig {})",
             v.blob.len(),
-            2 + v.ctx.len() + v.msg.len() + sizes.sig(),
+            2 + v.ctx.len() + 4 + v.msg.len() + sizes.sig(),
             v.ctx.len(), v.msg.len(), sizes.sig(),
         ));
         return (false, log);

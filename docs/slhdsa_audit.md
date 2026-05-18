@@ -258,7 +258,7 @@ already pass per AGENTS.md §4).
 - [ ] Format bytes are `MlDsa44SlhDsa128fSuite = 0x30, MlDsa65SlhDsa192fSuite = 0x31, MlDsa87SlhDsa256fSuite = 0x32`.
 - [ ] `ctxDomain` strings are `mldsa44-slhdsa128f-envelope-v3`, `mldsa65-slhdsa192f-envelope-v3`, `mldsa87-slhdsa256f-envelope-v3`; each is ≤ 32 bytes UTF-8.
 - [ ] `wasmModules` is `['mldsa', 'sha3', 'slhdsa']` for every hybrid suite. (sha3 is present because the prehash runs through `createRunningHash` via sha3-streaming.)
-- [ ] `pkSize = mldsaParams.pkBytes + slhdsaParams.pkBytes` and `skSize / sigSize` follow the same additive layout (ML-DSA half FIRST, SLH-DSA half SECOND).
+- [ ] `pkSize = mldsaParams.pkBytes + slhdsaParams.pkBytes` and `skSize / sigMaxSize` follow the same additive layout (ML-DSA half FIRST, SLH-DSA half SECOND).
 - [ ] Prehash algorithm pinning: `MlDsa44SlhDsa128fSuite → shake-128 / 32`, `MlDsa65SlhDsa192fSuite → shake-256 / 64`, `MlDsa87SlhDsa256fSuite → shake-256 / 64`. (Matches the per-half FIPS 205 §10.2.2 category gate.)
 - [ ] `keygen()` instantiates each primitive in its own `try { ... } finally { dispose }` block; the two key pairs are concatenated only after BOTH dispose paths have run.
 - [ ] `signPrehashed` validates `digest.length === prehashSize` and `sk.length === skSize` BEFORE any WASM work; mismatches throw `SigningError('sig-malformed-input')` and `SigningError('sig-key-size')` respectively.
@@ -266,7 +266,7 @@ already pass per AGENTS.md §4).
 - [ ] `signPrehashed` calls `mldsaInst.signHashPrehashed(skMldsa, digest, mldsaHashAlgo, effectiveCtx)` and `slhdsaInst.signHashPrehashed(skSlhdsa, digest, slhdsaHashAlgo, effectiveCtx)` with the SAME `digest` and SAME `effectiveCtx`.
 - [ ] `signPrehashed` concatenates `sigMldsa || sigSlhdsa` (ML-DSA half first).
 - [ ] `signPrehashed` wipes the lib-allocated `effectiveCtx` Uint8Array in `finally`; it does NOT wipe `digest` (caller-owned).
-- [ ] `verifyPrehashed` short-circuits to `false` (no WASM) on `pk.length !== pkSize`, `sig.length !== sigSize`, or `digest.length !== prehashSize`.
+- [ ] `verifyPrehashed` short-circuits to `false` (no WASM) on `pk.length !== pkSize`, `sig.length !== sigMaxSize`, or `digest.length !== prehashSize`.
 - [ ] `verifyPrehashed` ALWAYS runs both sub-verifies regardless of the first half's result. The declaration `let mldsaOk: boolean; let slhdsaOk: boolean;` without an initial value enforces this at the type level (a TypeScript compile error if either declaration is read before its assignment).
 - [ ] `verifyPrehashed` returns `mldsaOk && slhdsaOk` AFTER both sub-verifies have completed. The boolean `&&` is operating on two pre-computed values, so JavaScript's short-circuit operator has nothing to short-circuit.
 - [ ] `verifyPrehashed` does NOT wipe `sigMldsa` / `sigSlhdsa` subarrays on failure (caller-owned data per the hybrid factory contract).

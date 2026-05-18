@@ -36,7 +36,7 @@ export const FIXTURE_PK_SIZE = 32;
 export const FIXTURE_SK_SIZE = 32;
 export const FIXTURE_SIG_SIZE = 64;
 export const FIXTURE_FORMAT_ENUM = 0xff;
-export const FIXTURE_USER_CTX_MAX = 200;
+export const FIXTURE_USER_CTX_MAX = 255;
 
 /**
  * Deterministic mock signature.
@@ -102,7 +102,7 @@ export function makeFixtureSuite(): SignatureSuite {
 		ctxDomain: 'fixture-envelope-v3',
 		pkSize: FIXTURE_PK_SIZE,
 		skSize: FIXTURE_SK_SIZE,
-		sigSize: FIXTURE_SIG_SIZE,
+		sigMaxSize: FIXTURE_SIG_SIZE,
 		wasmModules: [],
 		sign: fixtureSign,
 		verify: fixtureVerify,
@@ -203,7 +203,7 @@ export function makeStreamableFixtureSuite(): StreamableSignatureSuite {
 		ctxDomain: 'fixture-prehash-envelope-v3',
 		pkSize: FIXTURE_PK_SIZE,
 		skSize: FIXTURE_SK_SIZE,
-		sigSize: FIXTURE_SIG_SIZE,
+		sigMaxSize: FIXTURE_SIG_SIZE,
 		wasmModules: ['sha3'],
 		prehashAlgorithm: 'sha3-256',
 		prehashSize: FIXTURE_STREAM_PREHASH_SIZE,

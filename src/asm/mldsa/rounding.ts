@@ -25,8 +25,8 @@
 // FIPS 204 §7.4 Algorithms 35-40 (Power2Round, Decompose, HighBits, LowBits,
 // MakeHint, UseHint).
 //
-// All kernels expect input in canonical [0, q-1] form. Phase-4 wrappers must
-// call poly_caddq before invoking any function from this file.
+// All kernels expect input in canonical [0, q-1] form. Callers must invoke
+// poly_caddq before calling any function from this file.
 //
 // CT posture: Decompose's special-case branch (line 3 of Alg 36) is data-
 // dependent on the input coefficient. Inputs to Decompose come from secret-

@@ -12,6 +12,8 @@ strict verification with low-S enforcement per RFC 6979 §3.5.
 > - [Overview](#overview)
 > - [Init](#init)
 > - [ECDSA-P256 API](#ecdsa-p256-api)
+> - [Point Decompression](#point-decompression)
+> - [ECPrivateKey DER Codec](#ecprivatekey-der-codec)
 > - [DER Utility](#der-utility)
 > - [Hedged vs Deterministic](#hedged-vs-deterministic)
 > - [Validation Behavior](#validation-behavior)
@@ -163,6 +165,35 @@ const { publicKey, secretKey } = ec.keygen()
 ec.dispose()
 ```
 
+### `keygenUncompressed(seed?)`
+
+Variant of `keygen` / `keygenDerand` that returns the public key
+in the 65-byte SEC 1 §2.3.4 uncompressed encoding
+`0x04 || X || Y` rather than the 33-byte compressed form. The
+secret key half is the same 32-byte raw scalar `d`. Pass a seed
+for deterministic derivation (equivalent to `keygenDerand`);
+omit it for random-seed keygen (equivalent to `keygen`).
+
+```typescript
+const ec = new EcdsaP256()
+const { publicKey, secretKey } = ec.keygenUncompressed()
+// publicKey: 65-byte uncompressed pk per SEC 1 §2.3.4 (0x04 || X || Y)
+// secretKey: 32-byte scalar d per FIPS 186-5 §A.2.1
+ec.dispose()
+```
+
+The standalone `EcdsaP256Suite` continues to use the compressed
+form returned by `keygen` / `keygenDerand`. `keygenUncompressed`
+exists for callers whose wire format requires the uncompressed
+encoding, notably the composite ML-DSA + ECDSA-P256 hybrid
+suites whose `SerializePublicKey` routine (composite-sigs §4)
+mandates `0x04 || X || Y`.
+
+Internally calls the existing keygen path then runs
+[`pointDecompress`](#point-decompression) to recover y from the
+compressed result. The compressed intermediate is wiped before
+return.
+
 ### `keygenDerand(seed)`
 
 Deterministic ECDSA-P256 key generation from a 32-byte seed.
@@ -279,6 +310,145 @@ Wipe all p256 WASM scratch memory and the TS-side I/O staging
 region. Idempotent. Safe to call multiple times. Every public
 method already wipes both regions on its own success and throw
 paths; `dispose()` is defence-in-depth at instance teardown.
+
+---
+
+## Point Decompression
+
+A free function on the `leviathan-crypto/ecdsa` subpath converts
+the 33-byte SEC 1 §2.3.3 compressed encoding of a P-256 public
+key into the 65-byte SEC 1 §2.3.4 uncompressed encoding. The
+substrate's `pointDecompress` recovers y by solving
+`y² = x³ - 3x + b mod p` (SP 800-186 §3.2.1.3, P-256 has a = -3)
+via the modular square root shortcut for primes p ≡ 3 (mod 4),
+then selects the y root whose parity matches the compressed
+prefix byte (0x02 for even-y, 0x03 for odd-y).
+
+### `pointDecompress(pk33)`
+
+```typescript
+import { pointDecompress } from 'leviathan-crypto/ecdsa'
+
+const compressed = ...   // 33-byte SEC 1 §2.3.3 encoding
+const uncompressed = pointDecompress(compressed)
+// uncompressed: Uint8Array(65), starts with 0x04
+```
+
+Returns a fresh 65-byte `Uint8Array` of the form
+`0x04 || X || Y` where X and Y are the affine coordinates as
+big-endian 32-byte integers. Throws on any rejection:
+
+| Condition                                          | Throw                                 |
+| -------------------------------------------------- | ------------------------------------- |
+| `pk33` is not a `Uint8Array`                       | `TypeError`                           |
+| `pk33.length !== 33`                               | `RangeError`                          |
+| Prefix byte not in `{0x02, 0x03}`                  | `SigningError('sig-malformed-input')` |
+| x coordinate has no on-curve y (non-residue y²)    | `SigningError('sig-malformed-input')` |
+
+`pointDecompress` is what powers
+[`EcdsaP256.keygenUncompressed`](#keygenuncompressed); it is also
+exported as a free function for callers that hold a 33-byte
+compressed pk and want the uncompressed form directly (e.g. the
+composite ML-DSA + ECDSA-P256 hybrid suites at format byte
+`0x22` / `0x23`, whose wire format follows composite-sigs §4 and
+requires the SEC 1 §2.3.4 encoding).
+
+Requires `init({ p256: ... })`. Concurrency-safe alongside
+non-stateful uses of `EcdsaP256`; the underlying p256 module is
+shared.
+
+> [!IMPORTANT]
+> `pointDecompress` consumes only the 33-byte compressed form.
+> Passing a 65-byte already-uncompressed pk produces a
+> `RangeError`; the leading byte of a 65-byte uncompressed pk is
+> `0x04`, which is not valid as a compressed-form prefix and
+> would not round-trip through this routine anyway.
+
+---
+
+## ECPrivateKey DER Codec
+
+A pair of free functions on the `leviathan-crypto/ecdsa`
+subpath encode and decode the DER `ECPrivateKey` structure per
+RFC 5915 §3, Elliptic Curve Private Key Structure:
+
+```
+ECPrivateKey ::= SEQUENCE {
+    version        INTEGER (1),
+    privateKey     OCTET STRING,
+    parameters [0] EXPLICIT ECParameters OPTIONAL,
+    publicKey  [1] EXPLICIT BIT STRING OPTIONAL
+}
+```
+
+The codec is hand-rolled; leviathan-crypto is zero-dependency, so
+no external ASN.1 parser is imported. The strict-DER rules of
+X.690 §10 (Restrictions on the BER) govern the decoder's
+rejection surface.
+
+### `encodeEcPrivateKey(scalar)`
+
+```typescript
+import { encodeEcPrivateKey } from 'leviathan-crypto/ecdsa'
+
+const scalar = ...   // 32-byte raw P-256 secret scalar d
+const der = encodeEcPrivateKey(scalar)
+// der: Uint8Array(51), DER ECPrivateKey for P-256
+```
+
+Emits exactly 51 bytes with the following structure:
+
+```
+30 31                            SEQUENCE, 49 content bytes
+02 01 01                         INTEGER, version = 1
+04 20 <32 bytes scalar>          OCTET STRING, privateKey
+A0 0A                            [0] EXPLICIT, 10 content bytes
+06 08 2A 86 48 CE 3D 03 01 07    OBJECT IDENTIFIER, secp256r1
+```
+
+The named-curve OID `1.2.840.10045.3.1.7` (SP 800-186 §3.2.1.3)
+is always included; the `publicKey [1]` field is always omitted.
+Byte-stable: the same scalar input produces byte-identical output.
+
+Throws `TypeError` on non-`Uint8Array` input; `RangeError` on
+wrong-length input.
+
+### `decodeEcPrivateKey(der)`
+
+```typescript
+import { decodeEcPrivateKey } from 'leviathan-crypto/ecdsa'
+
+const scalar = decodeEcPrivateKey(der)
+// scalar: Uint8Array(32), raw P-256 secret scalar d
+```
+
+Decodes any conforming RFC 5915 §3 `ECPrivateKey` for P-256 and
+returns the 32-byte raw scalar. Strict DER per X.690 §10. Rejects
+(throws `Error`):
+
+- Wrong outer tag (must be `0x30` SEQUENCE)
+- Long-form length encoding on any field with content under 128
+  bytes (X.690 §10.1, definite-length minimal encoding)
+- Outer SEQUENCE length that does not match input size
+- Wrong version tag, version length other than 1, or version
+  value other than 1
+- Wrong privateKey tag, or privateKey OCTET STRING length other
+  than 32 (P-256 scalar size)
+- `parameters [0]` containing any OID other than secp256r1
+- Any content that extends past the outer SEQUENCE end
+- Trailing bytes after the optional `publicKey [1]` field
+
+Accepts (and ignores) an optional `publicKey [1]` field per
+RFC 5915 §3; some encoders include the derived pk alongside the
+scalar. The scalar is the only return value; callers who need
+the embedded pk should re-derive from the scalar via
+`EcdsaP256.keygenDerand`. Accepts the parameters-omitted minimal
+form (`SEQUENCE { version, privateKey }`).
+
+Throws `TypeError` on non-`Uint8Array` input.
+
+Requires no module init; the codec is pure TypeScript with no
+WASM dependency.
 
 ---
 
@@ -660,6 +830,14 @@ fires on every spec-defined malleation. See
 | `TypeError: leviathan-crypto: ecdsa-p256 raw signature must be a Uint8Array`                           | `ecdsaSignatureToDer` passed a non-`Uint8Array`.                                 |
 | `RangeError: leviathan-crypto: ecdsa-p256 raw signature must be 64 bytes r\|\|s (got N)`               | `ecdsaSignatureToDer` passed a wrong-length sig.                                 |
 | `SigningError('sig-malformed-input', 'leviathan-crypto: ecdsa-p256 DER signature ...')`                | `ecdsaSignatureFromDer` hit a strict-DER syntax violation. See [DER Utility](#der-utility) for the rejection rules. |
+| `TypeError: leviathan-crypto: ecdsa-p256 compressed public key must be a Uint8Array`                   | `pointDecompress` passed a non-`Uint8Array`.                                     |
+| `RangeError: leviathan-crypto: ecdsa-p256 compressed public key must be 33 bytes (got N)`              | `pointDecompress` passed a wrong-length input.                                   |
+| `SigningError('sig-malformed-input', 'leviathan-crypto: ecdsa-p256 compressed public key prefix must be 0x02 or 0x03 ...')` | `pointDecompress` passed a 33-byte input with a prefix byte outside `{0x02, 0x03}`. |
+| `SigningError('sig-malformed-input', 'leviathan-crypto: ecdsa-p256 compressed public key x coordinate has no on-curve y ...')` | `pointDecompress` passed an x whose `y² = x³ - 3x + b` is a non-residue mod p (off-curve). |
+| `TypeError: leviathan-crypto: ecdsa-p256 ECPrivateKey scalar must be a Uint8Array`                     | `encodeEcPrivateKey` passed a non-`Uint8Array`.                                  |
+| `RangeError: leviathan-crypto: ecdsa-p256 ECPrivateKey scalar must be 32 bytes (got N)`                | `encodeEcPrivateKey` passed a wrong-length scalar.                               |
+| `TypeError: leviathan-crypto: ecdsa-p256 ECPrivateKey DER must be a Uint8Array`                        | `decodeEcPrivateKey` passed a non-`Uint8Array`.                                  |
+| `Error: leviathan-crypto: ecdsa-p256 ECPrivateKey DER ...`                                             | `decodeEcPrivateKey` hit a strict-DER violation. See [ECPrivateKey DER Codec](#ecprivatekey-der-codec) for the rejection rules. |
 
 `verify` returns `false` on every signature failure (wrong sig,
 off-curve pk, identity pk, out-of-range r or s, high-S, or the

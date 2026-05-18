@@ -45,9 +45,9 @@
 // (handle identity, P = Q, P = -Q internally), so the substrate
 // never falls into a special-case path.
 //
-// Posture: AGENTS.md §"Constant-time operations" and TASK §"What NOT
-// to do" both prohibit the leaky `if bit: R = R + P` shape; this
-// implementation uses the mask-select form throughout.
+// Posture: AGENTS.md §"Constant-time operations" prohibits the leaky
+// `if bit: R = R + P` shape; this implementation uses the mask-select
+// form throughout.
 
 import {
 	POINT_TMP, POINT_TMP_STRIDE,

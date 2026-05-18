@@ -34,6 +34,15 @@
 // covers the substrate's mutable region (scalars, points, HMAC-DRBG
 // state, embedded SHA-256 streaming state); the TS layer is
 // responsible for wiping its own I/O-staging region.
+//
+// SEC 1 §2.3.4 uncompressed-pk emission: `pointDecompress` is a free
+// function that runs the substrate's `pointDecompress` export over a
+// 33-byte compressed input and writes the 65-byte `0x04 || X || Y`
+// form. `EcdsaP256.keygenUncompressed` is the keygen variant that
+// returns the uncompressed form directly. The standalone
+// `EcdsaP256Suite` continues to use compressed pk; the uncompressed
+// surface exists for callers (notably the composite ML-DSA + ECDSA
+// suites) whose wire format spec requires the uncompressed encoding.
 
 import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -60,6 +69,7 @@ export async function ecdsaP256Init(source: WasmSource): Promise<void> {
 export type { WasmSource };
 export type { EcdsaP256KeyPair, EcdsaP256Exports } from './types.js';
 export { isInitialized };
+export { encodeEcPrivateKey, decodeEcPrivateKey } from './ecprivatekey-der.js';
 
 // ── I/O staging layout ─────────────────────────────────────────────────────
 //
@@ -80,6 +90,8 @@ const PK_STAGE         = IO_BASE + 64;     // 33 bytes (compressed pk, SEC 1 §2
 const SIG_STAGE        = IO_BASE + 128;    // 64 bytes (raw r||s)
 const MSG_HASH_STAGE   = IO_BASE + 192;    // 32 bytes (SHA-256 digest)
 const RND_STAGE        = IO_BASE + 224;    // 32 bytes (per-call entropy Z)
+const POINT_STAGE      = IO_BASE + 256;    // 96 bytes (projective X:Y:Z, decompression output)
+const PK_XY_STAGE      = IO_BASE + 352;    // 64 bytes (BE X || Y, staging for SEC 1 §2.3.4 emit)
 
 function ioWipe(mx: EcdsaP256Exports): void {
 	// Zero the entire TS-managed staging region. wipeBuffers covers
@@ -119,6 +131,79 @@ function normalizePublicKey(pk: Uint8Array): Uint8Array {
 	out[0] = 0x02 | (pk[64] & 0x01);
 	out.set(pk.subarray(1, 33), 1);
 	return out;
+}
+
+/**
+ * Decompress a 33-byte SEC 1 §2.3.3 compressed P-256 public key to the
+ * 65-byte SEC 1 §2.3.4 uncompressed encoding `0x04 || X || Y`.
+ *
+ * The compressed form encodes only the affine x coordinate plus a
+ * single parity bit (in the prefix byte: 0x02 even-y, 0x03 odd-y).
+ * Recovery of y solves the curve equation
+ * `y² = x³ - 3x + b mod p` (SP 800-186 §3.2.1.3, P-256 has a = -3)
+ * and selects the y root whose parity matches the prefix. The
+ * substrate runs the modular square root inside the p256 WASM
+ * (`feSqrt` via the p ≡ 3 (mod 4) shortcut, x^((p+1)/4)); rejecting
+ * invalid inputs that have no square root or whose recovered (x, y)
+ * lies off-curve.
+ *
+ * Rejection cases (all throw `SigningError('sig-malformed-input')`):
+ *   - prefix byte not in {0x02, 0x03}
+ *   - x coordinate is not the x of any on-curve point (no quadratic
+ *     residue exists for `x³ - 3x + b mod p`)
+ *
+ * Length / shape rejections throw `TypeError` / `RangeError` per the
+ * usual leviathan-crypto contract-violation posture.
+ *
+ * Requires `init({ p256: ... })`. Uses the same p256 module singleton
+ * as `EcdsaP256`; concurrency-safe alongside non-stateful uses (the
+ * `_assertNotOwned` check fires if a stateful instance is holding
+ * the module).
+ *
+ * @param pk33 33-byte compressed pk per SEC 1 §2.3.3
+ * @returns    65-byte uncompressed pk per SEC 1 §2.3.4 (0x04 || X || Y)
+ */
+export function pointDecompress(pk33: Uint8Array): Uint8Array {
+	if (!isInitialized('p256'))
+		throw new Error('leviathan-crypto: call init({ p256: ... }) before using pointDecompress');
+	if (!(pk33 instanceof Uint8Array))
+		throw new TypeError('leviathan-crypto: ecdsa-p256 compressed public key must be a Uint8Array');
+	if (pk33.length !== 33)
+		throw new RangeError(
+			`leviathan-crypto: ecdsa-p256 compressed public key must be 33 bytes (got ${pk33.length})`,
+		);
+	if (pk33[0] !== 0x02 && pk33[0] !== 0x03)
+		throw new SigningError(
+			'sig-malformed-input',
+			'leviathan-crypto: ecdsa-p256 compressed public key prefix must be 0x02 or 0x03 per SEC 1 §2.3.3 '
+			+ `(got 0x${pk33[0].toString(16).padStart(2, '0')})`,
+		);
+
+	_assertNotOwned('p256');
+	const mx  = getInstance('p256').exports as unknown as EcdsaP256Exports;
+	const mem = new Uint8Array(mx.memory.buffer);
+	mem.set(pk33, PK_STAGE);
+	try {
+		const ok = mx.pointDecompress(POINT_STAGE, PK_STAGE);
+		if (ok !== 1)
+			throw new SigningError(
+				'sig-malformed-input',
+				'leviathan-crypto: ecdsa-p256 compressed public key x coordinate has no on-curve y '
+				+ '(point decompression failed per SEC 1 §2.3.4)',
+			);
+		// pointDecompress writes (X : Y : Z = 1) in the FE limb form
+		// at POINT_STAGE..+96. feToBytes converts each FE to 32-byte BE
+		// per SP 800-186 §3.2.1.3 coordinate encoding.
+		mx.feToBytes(PK_XY_STAGE,      POINT_STAGE);       // X (32 BE)
+		mx.feToBytes(PK_XY_STAGE + 32, POINT_STAGE + 32);  // Y (32 BE)
+		const out = new Uint8Array(65);
+		out[0] = 0x04;
+		out.set(mem.subarray(PK_XY_STAGE, PK_XY_STAGE + 64), 1);
+		return out;
+	} finally {
+		ioWipe(mx);
+		mx.wipeBuffers();
+	}
 }
 
 export class EcdsaP256 {
@@ -177,6 +262,33 @@ export class EcdsaP256 {
 			return this.keygenDerand(seed);
 		} finally {
 			wipe(seed);
+		}
+	}
+
+	/**
+	 * Key generation that returns the public key in the 65-byte SEC 1
+	 * §2.3.4 uncompressed encoding `0x04 || X || Y`, rather than the
+	 * 33-byte compressed form `keygen` / `keygenDerand` return. The
+	 * secret-key half is the same 32-byte raw scalar `d`.
+	 *
+	 * Internally runs `keygen` (or `keygenDerand` if a seed is supplied)
+	 * to obtain the compressed pk, then `pointDecompress` to expand it.
+	 * The compressed intermediate is wiped before return.
+	 *
+	 * @param seed Optional 32-byte seed; passes through to `keygenDerand`
+	 *             when present, falls back to `keygen` (CSPRNG seed) when
+	 *             omitted.
+	 */
+	keygenUncompressed(seed?: Uint8Array): EcdsaP256KeyPair {
+		const kp = seed === undefined ? this.keygen() : this.keygenDerand(seed);
+		try {
+			const publicKey = pointDecompress(kp.publicKey);
+			return { publicKey, secretKey: kp.secretKey };
+		} catch (err) {
+			wipe(kp.secretKey);
+			throw err;
+		} finally {
+			wipe(kp.publicKey);
 		}
 	}
 

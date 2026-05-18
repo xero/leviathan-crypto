@@ -81,12 +81,17 @@ describe('Sign envelope, EcdsaP256Suite', () => {
 		expect(peek.sigOffset).toBe(blob.length - 64);
 	});
 
-	it('blob layout is [0x02][0x00][payload][sig]', () => {
+	it('blob layout is [0x02][0x00][payload_len u32 BE][payload][sig]', () => {
 		const { sk } = EcdsaP256Suite.keygen();
 		const blob = Sign.sign(EcdsaP256Suite, sk, MSG, EMPTY_CTX);
 		expect(blob[0]).toBe(0x02);
 		expect(blob[1]).toBe(0x00);
-		expect(blob.length).toBe(2 + MSG.length + 64);
+		// payload_len encoded as u32 BE at offset 2.
+		expect(blob[2]).toBe((MSG.length >>> 24) & 0xff);
+		expect(blob[3]).toBe((MSG.length >>> 16) & 0xff);
+		expect(blob[4]).toBe((MSG.length >>>  8) & 0xff);
+		expect(blob[5]).toBe( MSG.length         & 0xff);
+		expect(blob.length).toBe(2 + 4 + MSG.length + 64);
 	});
 });
 
@@ -146,7 +151,7 @@ describe('sign_ecdsa_p256 KAT round-trip through EcdsaP256Suite', () => {
 			expect(peek.suiteByte).toBe(0x02);
 			expect(peek.payloadLength).toBe(msg.length);
 			expect(peek.ctx.length).toBe(0);
-			expect(peek.payloadOffset).toBe(2);
+			expect(peek.payloadOffset).toBe(2 + 4);
 			expect(peek.sigOffset).toBe(blob.length - 64);
 
 			// 3) A fresh suite-level sign on the recorded (sk, msg) still

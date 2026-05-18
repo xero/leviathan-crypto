@@ -973,6 +973,123 @@ tier and unblocks Phase 6 (BLAKE3-derived signature work) by
 resolving the SHA-256 streaming-prehash slot in
 `src/ts/sign/hasher.ts`.
 
+- **Classical+PQ composite hybrid suites
+  (`draft-ietf-lamps-pq-composite-sigs`).** Four new
+  `StreamableSignatureSuite` consts at format bytes
+  `0x20`-`0x23`: `MlDsa44Ed25519Suite`
+  (`id-MLDSA44-Ed25519-SHA512`, OID `1.3.6.1.5.5.7.6.39`),
+  `MlDsa65Ed25519Suite` (`id-MLDSA65-Ed25519-SHA512`, OID
+  `1.3.6.1.5.5.7.6.48`), `MlDsa44EcdsaP256Suite`
+  (`id-MLDSA44-ECDSA-P256-SHA256`, OID `1.3.6.1.5.5.7.6.40`),
+  `MlDsa65EcdsaP256Suite` (`id-MLDSA65-ECDSA-P256-SHA512`,
+  OID `1.3.6.1.5.5.7.6.45`). Each suite pre-hashes the
+  message with its locked algorithm, builds the
+  composite-sigs §3.2 `M' = Prefix || Label || len(ctx) || ctx
+  || PH(M)` construction (32-byte ASCII Prefix
+  `CompositeAlgorithmSignatures2025` per composite-sigs §2.2,
+  per-suite Label per composite-sigs §6), and signs `M'` with
+  both component primitives in parallel. The ML-DSA half uses
+  pure ML-DSA (FIPS 204 §5.2 Algorithm 2, not HashML-DSA per
+  composite-sigs §2.1) with the Label bytes as its native
+  `mldsa_ctx`. The ECDSA half hashes `SHA-256(M')` for both
+  ECDSA suites per composite-sigs §6 `ecdsa-with-SHA256`,
+  regardless of the composite-layer PH. Signature
+  serialisation is PQ-first concatenation per composite-sigs
+  §4.3: `sig = sig_mldsa || sig_trad`, with `sig_trad` raw
+  64-byte `R || S` for Ed25519 and DER-encoded
+  `Ecdsa-Sig-Value` (RFC 3279 §2.2.3) for ECDSA-P256.
+  Composite private keys carry the 32-byte ML-DSA seed only
+  (composite-sigs §4.2); the expanded ML-DSA signing key is
+  re-derived per sign via `keygenDerand` and never
+  serialised, trading one ML-DSA keygen per sign for a clean
+  seed-only sk encoding. All four suites are
+  `StreamableSignatureSuite` and plug into `SignStream` /
+  `VerifyStream` per composite-sigs §10.5 (external
+  pre-hashing). `verifyPrehashed` always runs both
+  sub-verifies regardless of intermediate outcomes (strictly
+  stronger than composite-sigs §3.3's early-fail permission);
+  ECDSA-half high-S signatures are normalised to low-S inside
+  the composite verify path so spec-conformant high-S
+  reference vectors accept without weakening the standalone
+  `EcdsaP256Suite`. Per-suite `wasmModules` declares the
+  required init modules: `['mldsa', 'sha3', 'curve25519',
+  'sha2']` for the Ed25519 pair, `['mldsa', 'sha3', 'p256',
+  'sha2']` for the ECDSA pair.
+
+- **Envelope wire format gains a `payload_len: u32 BE`
+  field.** The v3 attached envelope now carries an explicit
+  4-byte payload length between the ctx and the payload bytes:
+  `[suite_byte][ctx_len][ctx][payload_len][payload][sig]`.
+  Variable-length signature schemes (the composite ECDSA
+  hybrids at `0x22` / `0x23`, whose `Ecdsa-Sig-Value` DER
+  encoding per RFC 3279 §2.2.3 varies 8-72 bytes) require
+  length-aware framing for the parser to locate the sig
+  bytes; the field is uniform across the catalog so every
+  suite shares one parser. Sig fills the remaining envelope
+  tail. Overhead is 4 bytes per signed blob, rounding error
+  on PQ signature sizes. `Sign.peek` continues to return
+  `{ suiteByte, ctx, payloadOffset, payloadLength, sigOffset
+  }`; only the internal derivation changed. Every existing
+  suite's KAT vector file was regenerated against the new
+  wire. `signDetached` is unchanged: it returns the suite's
+  natural sig bytes with no envelope framing.
+
+- **`SignatureSuite.sigSize` renamed to `sigMaxSize`.**
+  Semantics shifted from "exact bytes" to "upper bound
+  bytes". For fixed-length suites (every existing pure /
+  prehash / PQ-only hybrid / Ed25519 / ECDSA-P256 / composite
+  ML-DSA-Ed25519 suite) the upper bound equals the actual
+  size; for variable-length suites (composite ECDSA at
+  `0x22` / `0x23`) the upper bound is the catalog-reserved
+  maximum from composite-sigs Appendix A Table 4 (2492 bytes
+  for `MlDsa44EcdsaP256Suite`, 3381 for
+  `MlDsa65EcdsaP256Suite`). The field rename is mechanical
+  across `src/ts/sign/types.ts`, every suite under
+  `src/ts/sign/suites/`, every test asserting the field,
+  and the docs catalog tables.
+
+- **`USER_CTX_MAX` raised to 255 library-wide.**
+  `src/ts/sign/ctx.ts` exports `USER_CTX_MAX = 255` to match
+  FIPS 204 §3.6.1's native ctx cap and composite-sigs §3.2
+  step 1's user_ctx cap. `buildEffectiveCtx` adds a second
+  check that the combined `effective_ctx` fits the same
+  255-byte FIPS 204 ctx parameter, so the per-call user_ctx
+  ceiling on `buildEffectiveCtx`-using suites is `253 -
+  len(ctxDomain)`, computed at call time. Composite suites
+  skip `buildEffectiveCtx` and enforce the full 255-byte cap
+  inline. Both check sites throw the same
+  `SigningError('sig-ctx-too-long')` discriminator.
+
+- **ECDSA-P256 primitive surface expansion.** Three new
+  exports on the ECDSA module support the composite-sigs §4
+  wire encodings:
+  - `pointDecompress(pk33)`: free function that decompresses
+    a 33-byte SEC 1 §2.3.3 compressed P-256 pk to the
+    65-byte SEC 1 §2.3.4 uncompressed encoding `0x04 || X ||
+    Y`. Solves `y² = x³ - 3x + b mod p` via the substrate's
+    modular square root (p ≡ 3 mod 4 shortcut). Throws
+    `SigningError('sig-malformed-input')` on bad-prefix
+    bytes or off-curve x.
+  - `EcdsaP256.keygenUncompressed(seed?)`: keygen variant
+    that returns pk in the 65-byte uncompressed form
+    directly. The standalone `EcdsaP256Suite` continues to
+    use compressed pk; the uncompressed surface exists for
+    callers (composite ML-DSA + ECDSA suites) whose wire
+    format spec requires the SEC 1 §2.3.4 encoding.
+  - `encodeEcPrivateKey(scalar)` / `decodeEcPrivateKey(der)`:
+    RFC 5915 §3 DER `ECPrivateKey` codec for P-256. Encoder
+    emits exactly 51 bytes (SEQUENCE 2 + version INTEGER 3 +
+    `privateKey OCTET STRING` 34 + `parameters [0] EXPLICIT`
+    12 with the secp256r1 named-curve OID
+    `1.2.840.10045.3.1.7`). Decoder is strict DER per X.690
+    §10: rejects long-form length under 128 bytes,
+    non-minimal INTEGER on version, wrong OCTET STRING
+    length, non-secp256r1 OID, trailing bytes, content
+    extending past the outer SEQUENCE end. Accepts the
+    optional `publicKey [1]` field and the parameters-omitted
+    minimal form. These exports satisfy the composite-sigs
+    §4.2 ECDSA private-key encoding requirement.
+
 ## v2.1.0
 
 ### Added

@@ -41,7 +41,7 @@ import { MSG_OFFSET } from './buffers'
 
 // BLAKE3 §2.2 Table 1, IV constants. Identical to the SHA-256 initial
 // hash values per FIPS 180-4 §5.3.3 (BLAKE3 inherits the BLAKE2s setup).
-// Exported so chunk / parent / XOF code in later tasks can seed CVs.
+// Exported so chunk / parent / XOF code can seed CVs.
 export const BLAKE3_IV0: u32 = 0x6a09e667
 export const BLAKE3_IV1: u32 = 0xbb67ae85
 export const BLAKE3_IV2: u32 = 0x3c6ef372
