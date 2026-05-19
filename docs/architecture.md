@@ -55,9 +55,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 
 **ML-KEM is the post-quantum key encapsulation mechanism.** `KyberSuite` is a fourth `CipherSuite` factory that wraps an ML-KEM parameter set around any of the three ciphers above. The result satisfies the same `CipherSuite` interface and slots into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` unchanged. ML-KEM is a lattice-based key encapsulation mechanism with three security levels: ML-KEM-512, ML-KEM-768, and ML-KEM-1024. Constant-time comparisons for the Fujisaki-Okamoto transform run within the Kyber WASM module, so secret-derived comparisons never cross to JavaScript. The 32-byte shared secret never crosses the wire. It also derives directly from a SHA-3 output rather than a big-integer encoding, so the leading-zero-trim timing leak that hit TLS-DH(E) (the Raccoon attack) has no structural analog here.
 
-**ML-DSA is the post-quantum signature peer.** `MlDsa44`, `MlDsa65`, and `MlDsa87` are FIPS 204 lattice-based signatures at NIST security categories 2, 3, and 5. The ring arithmetic, NTT, and rejection-sampling kernels are constant-time at the algorithm level, and the c̃ comparison in verify routes through the same SIMD `ct.equal` primitive used elsewhere in the library. Signing is hedged by default. HashML-DSA wraps the same Sign and Verify primitives with a per-function OID DER prefix and a 0x01 domain-separator byte for cross-protocol separation. All FIPS 204 hard checks land at runtime, including the three HintBitUnpack malformed-input checks added in §D.3.
-
-**SLH-DSA is the assumption-diverse signature peer.** `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f` are FIPS 205 stateless hash-based signatures at NIST security categories 1, 3, and 5. Security rests on the preimage and collision resistance of SHAKE rather than any lattice or number-theoretic assumption, so a future lattice cryptanalysis advance that compromises ML-DSA does not transfer. The library ships the SHAKE-fast (`128f` / `192f` / `256f`) parameter sets; the slow variants and SHA-2 family are out of scope. HashSLH-DSA mirrors HashML-DSA's M' construction byte-for-byte across the 12 §10.2.2 pre-hash functions. The library also ships three PQ-only hybrid composite suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) that bind both primitives to the same prehash digest under a unique `ctxDomain`, defending against the case where one PQ family breaks before the other.
+**Next to the cipher suites sits a scheme-agnostic signature layer:** `Sign`, `SignStream`, and `VerifyStream`. Each takes a `SignatureSuite` at construction, and the signature layer handles M' formatting, cross-protocol domain separation, hedged-by-default signing, and constant-time verification. `Sign` covers one-shot detached and attached signatures for payloads that fit in memory; `SignStream` and `VerifyStream` chunk through the prehash variants for anything larger. Four primitive families plug in. `MlDsa44`, `MlDsa65`, and `MlDsa87` are FIPS 204 lattice-based signatures at NIST categories 2, 3, and 5. `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f` are FIPS 205 stateless hash-based signatures at categories 1, 3, and 5; security rests on SHAKE preimage and collision resistance, so a future lattice break against ML-DSA does not transfer. `Ed25519` (RFC 8032 pure plus Ed25519ph over GF(2^255-19)) and `EcdsaP256` (FIPS 186-5 §6 over NIST P-256, RFC 6979 deterministic with draft-irtf-cfrg-det-sigs-with-noise-05 hedging) cover the classical curve paths. Every sign path re-derives the public key inside WASM and aborts via `unreachable` on mismatch, defending against fault injection. Three PQ-only hybrid composites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) bind both PQ families to one prehash digest under a unique ctxDomain. Four classical+PQ hybrids (`MlDsa44Ed25519Suite`, `MlDsa65Ed25519Suite`, `MlDsa44EcdsaP256Suite`, `MlDsa65EcdsaP256Suite`) compose lattice with curve under draft-ietf-lamps-pq-composite-sigs. One break does not cascade. Every shipping suite speaks the same `Sign` / `SignStream` / `VerifyStream` interface.
 
 **Fortuna is the library's CSPRNG.** It collects entropy from platform-specific sources (browser input events, timing jitter, Node.js process stats, plus `crypto.getRandomValues()` as a baseline), distributes it across 32 independent pools, and reseeds an internal generator built on a cipher-as-PRF construction. The generator key is replaced after every `get()` call, so state compromise at time T cannot reveal any output produced before T. The primitive pair is pluggable, mirroring `CipherSuite`'s extension-point pattern: any of the three ciphers above plugs into the generator, paired with either SHA-256 or SHA3-256 for hashing.
 
@@ -75,16 +73,18 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 
 | Module                        | Algorithms                                                                                                                                                                        | TypeScript API                                                                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`serpent`](./asm_serpent.md) | Serpent-256 block cipher: ECB, CTR, CBC                                                                                                                                           | [`Serpent`](./serpent.md) (cipher class for mode operations)                                                                                                                                                                                                                                                                                                                                               |
-| [`chacha20`](./asm_chacha.md) | ChaCha20, Poly1305, ChaCha20-Poly1305, XChaCha20-Poly1305                                                                                                                         | [`ChaCha20`](./chacha20.md#chacha20), [`Poly1305`](./chacha20.md#poly1305), [`XChaCha20Poly1305`](./chacha20.md#xchacha20poly1305)                                                                                                                                                                                                                                                                         |
-| [`aes`](./asm_aes.md)         | AES-128/192/256 block cipher (FIPS 197), CBC, CTR, GCM, GCM-SIV (RFC 8452)                                                                                                        | [`AES`](./aes.md), [`AESCbc`](./aes.md), [`AESCtr`](./aes.md), [`AESGCM`](./aes.md), [`AESGCMSIV`](./aes.md), [`AESGenerator`](./aes.md) (Practical Cryptography §9.4 generator for `Fortuna`)                                                                                                                                                                                                             |
-| [`sha2`](./asm_sha2.md)       | SHA-224, SHA-256, SHA-384, SHA-512, SHA-512/224, SHA-512/256, HMAC variants, HKDF variants                                                                                        | [`SHA224`](./sha2.md#sha224), [`SHA256`](./sha2.md#sha256), [`SHA384`](./sha2.md#sha384), [`SHA512`](./sha2.md#sha512), [`SHA512_224`](./sha2.md#sha512_224), [`SHA512_256`](./sha2.md#sha512_256), [`HMAC_SHA256`](./sha2.md#hmac_sha256), [`HMAC_SHA384`](./sha2.md#hmac_sha384), [`HMAC_SHA512`](./sha2.md#hmac_sha512), [`HKDF_SHA256`](./sha2.md#hkdf_sha256), [`HKDF_SHA512`](./sha2.md#hkdf_sha512) |
-| [`sha3`](./asm_sha3.md)       | SHA3-224/256/384/512, SHAKE128, SHAKE256 (XOFs), cSHAKE128/256, KMAC128/256, KMACXOF128/256 (SP 800-185)                                                                            | [`SHA3_224`](./sha3.md#sha3_224), [`SHA3_256`](./sha3.md#sha3_256), [`SHA3_384`](./sha3.md#sha3_384), [`SHA3_512`](./sha3.md#sha3_512), [`SHAKE128`](./sha3.md#shake128), [`SHAKE256`](./sha3.md#shake256), [`CSHAKE128`](./kmac.md#cshake128), [`CSHAKE256`](./kmac.md#cshake256), [`KMAC128`](./kmac.md#kmac128), [`KMAC256`](./kmac.md#kmac256), [`KMACXOF128`](./kmac.md#kmacxof128), [`KMACXOF256`](./kmac.md#kmacxof256) |
-| [`kyber`](./asm_kyber.md)     | ML-KEM polynomial arithmetic (FIPS 203): SIMD NTT, basemul, CBD, compression, FO comparisons                                                                                      | [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), [`MlKem1024`](./kyber.md#parameter-sets)                                                                                                                                                                                                                                                                                 |
-| [`mldsa`](./asm_mldsa.md)     | ML-DSA polynomial arithmetic (FIPS 204): SIMD NTT over q=8380417, rejection sampling, Power2Round, Decompose, MakeHint, HintBitPack/Unpack with §D.3 SUF-CMA checks, SampleInBall | [`MlDsa44`](./mldsa.md), [`MlDsa65`](./mldsa.md), [`MlDsa87`](./mldsa.md) (pure ML-DSA and HashML-DSA across the twelve §5.4.1 pre-hash functions)                                                                                                                                                                                                                                                         |
-| `slhdsa`                      | SLH-DSA stateless hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition | [`SlhDsa128f`](./slhdsa.md), [`SlhDsa192f`](./slhdsa.md), [`SlhDsa256f`](./slhdsa.md) (pure SLH-DSA and HashSLH-DSA across the twelve §10.2.2 pre-hash functions)                                                                                                                                                                                                                                          |
-| [`blake3`](./asm_blake3.md)   | BLAKE3 tree-mode hash family: v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root, §2.6 XOF, §2.3 keyed_hash and derive_key                  | [`BLAKE3`](./blake3.md), [`BLAKE3Stream`](./blake3.md), [`BLAKE3KeyedHash`](./blake3.md), [`BLAKE3KeyedHashStream`](./blake3.md), [`BLAKE3DeriveKey`](./blake3.md), [`BLAKE3DeriveKeyStream`](./blake3.md), [`BLAKE3OutputReader`](./blake3.md), [`BLAKE3Hash`](./blake3.md) Fortuna HashFn                                                                                                                  |
-| [`ct`](./asm_ct.md)           | Constant-time comparison primitives                                                                                                                                               | [`constantTimeEqual`](./utils.md#constanttimeequal)                                                                                                                                                                                                                                                                                                                                                        |
+| [`serpent`](./asm_serpent.md)     | Serpent-256 block cipher: ECB, CTR, CBC                                                                                                                                           | [`Serpent`](./serpent.md#serpent), [`SerpentCtr`](./serpent.md#serpentctr), [`SerpentCbc`](./serpent.md#serpentcbc), `SerpentGenerator` (Practical Cryptography §9.4 generator for `Fortuna`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| [`chacha20`](./asm_chacha.md)     | ChaCha20, Poly1305, ChaCha20-Poly1305, XChaCha20-Poly1305                                                                                                                         | [`ChaCha20`](./chacha20.md#chacha20), [`Poly1305`](./chacha20.md#poly1305), [`ChaCha20Poly1305`](./chacha20.md#chacha20poly1305), [`XChaCha20Poly1305`](./chacha20.md#xchacha20poly1305), [`ChaCha20Generator`](./chacha20.md#chacha20generator)                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [`aes`](./asm_aes.md)             | AES-128/192/256 block cipher (FIPS 197), CBC, CTR, GCM, GCM-SIV (RFC 8452)                                                                                                        | [`AES`](./aes.md#aes), [`AESCbc`](./aes.md#aescbc), [`AESCtr`](./aes.md#aesctr), [`AESGCM`](./aes.md#aesgcm), [`AESGCMSIV`](./aes.md#aesgcmsiv), `AESGenerator` (Practical Cryptography §9.4 generator for `Fortuna`)                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| [`sha2`](./asm_sha2.md)           | SHA-224, SHA-256, SHA-384, SHA-512, SHA-512/224, SHA-512/256, HMAC variants, HKDF variants                                                                                        | [`SHA224`](./sha2.md#sha224), [`SHA256`](./sha2.md#sha256), [`SHA384`](./sha2.md#sha384), [`SHA512`](./sha2.md#sha512), [`SHA512_224`](./sha2.md#sha512_224), [`SHA512_256`](./sha2.md#sha512_256), [`HMAC_SHA256`](./sha2.md#hmac_sha256), [`HMAC_SHA384`](./sha2.md#hmac_sha384), [`HMAC_SHA512`](./sha2.md#hmac_sha512), [`HKDF_SHA256`](./sha2.md#hkdf_sha256), [`HKDF_SHA512`](./sha2.md#hkdf_sha512)                                                                                                                                                                                                                                                                |
+| [`sha3`](./asm_sha3.md)           | SHA3-224/256/384/512, SHAKE128, SHAKE256 (XOFs), cSHAKE128/256, KMAC128/256, KMACXOF128/256 (SP 800-185)                                                                            | [`SHA3_224`](./sha3.md#sha3_224), [`SHA3_256`](./sha3.md#sha3_256), [`SHA3_384`](./sha3.md#sha3_384), [`SHA3_512`](./sha3.md#sha3_512), [`SHAKE128`](./sha3.md#shake128), [`SHAKE256`](./sha3.md#shake256), [`SHA3_256Stream`](./sha3.md#sha3_256stream), [`SHA3_512Stream`](./sha3.md#sha3_512stream), [`SHAKE128Stream`](./sha3.md#shake128stream), [`SHAKE256Stream`](./sha3.md#shake256stream), [`CSHAKE128`](./kmac.md#cshake128), [`CSHAKE256`](./kmac.md#cshake256), [`KMAC128`](./kmac.md#kmac128), [`KMAC256`](./kmac.md#kmac256), [`KMACXOF128`](./kmac.md#kmacxof128), [`KMACXOF256`](./kmac.md#kmacxof256) |
+| [`kyber`](./asm_kyber.md)         | ML-KEM polynomial arithmetic (FIPS 203): SIMD NTT, basemul, CBD, compression, FO comparisons                                                                                      | [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), [`MlKem1024`](./kyber.md#parameter-sets)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| [`mldsa`](./asm_mldsa.md)         | ML-DSA polynomial arithmetic (FIPS 204): SIMD NTT over q=8380417, rejection sampling, Power2Round, Decompose, MakeHint, HintBitPack/Unpack with §D.3 SUF-CMA checks, SampleInBall | [`MlDsa44`](./mldsa.md#mldsa-api), [`MlDsa65`](./mldsa.md#mldsa-api), [`MlDsa87`](./mldsa.md#mldsa-api) (pure ML-DSA and HashML-DSA across the twelve §5.4.1 pre-hash functions)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [`slhdsa`](./asm_slhdsa.md)       | SLH-DSA stateless hash-based signing (FIPS 205): embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition | [`SlhDsa128f`](./slhdsa.md#slhdsa-api), [`SlhDsa192f`](./slhdsa.md#slhdsa-api), [`SlhDsa256f`](./slhdsa.md#slhdsa-api) (pure SLH-DSA and HashSLH-DSA across the twelve §10.2.2 pre-hash functions)                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| [`blake3`](./asm_blake3.md)       | BLAKE3 tree-mode hash family: v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root, §2.6 XOF, §2.3 keyed_hash and derive_key                  | [`BLAKE3`](./blake3.md#blake3), [`BLAKE3Stream`](./blake3.md#blake3stream), [`BLAKE3KeyedHash`](./blake3.md#blake3keyedhash), [`BLAKE3KeyedHashStream`](./blake3.md#blake3keyedhashstream), [`BLAKE3DeriveKey`](./blake3.md#blake3derivekey), [`BLAKE3DeriveKeyStream`](./blake3.md#blake3derivekeystream), [`BLAKE3OutputReader`](./blake3.md#blake3outputreader), [`BLAKE3Hash`](./blake3.md#blake3hash) (Fortuna HashFn)                                                                                                                                                                                                                                              |
+| [`curve25519`](./asm_curve25519.md) | Ed25519 sign/verify (RFC 8032 §5.1) and X25519 keygen/DH (RFC 7748) over GF(2^255-19); embedded SHA-512 for the Ed25519 hash chain                                                | [`Ed25519`](./ed25519.md#ed25519-api) (pure + Ed25519ph), [`X25519`](./x25519.md#x25519-api) (Curve25519 Diffie-Hellman)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| [`p256`](./asm_p256.md)           | ECDSA sign/verify (FIPS 186-5 §6) over NIST P-256 (SP 800-186 §3.2.1.3); Renes-Costello-Batina complete addition; RFC 6979 deterministic + draft-irtf-cfrg-det-sigs-with-noise-05 hedged K-derivation; RFC 6979 §3.5 low-S enforcement on signer and verifier; embedded SHA-256 + HMAC-SHA-256 | [`EcdsaP256`](./ecdsa-p256.md#ecdsa-p256-api), [`pointDecompress`](./ecdsa-p256.md#point-decompression), DER codec helpers ([`ecdsaSignatureToDer`](./ecdsa-p256.md#ecprivatekey-der-codec), [`ecdsaSignatureFromDer`](./ecdsa-p256.md#ecprivatekey-der-codec), [`encodeEcPrivateKey`](./ecdsa-p256.md#ecprivatekey-der-codec), [`decodeEcPrivateKey`](./ecdsa-p256.md#ecprivatekey-der-codec))                                                                                                                                                                                                                                                                          |
+| [`ct`](./asm_ct.md)               | Constant-time comparison primitives                                                                                                                                               | [`constantTimeEqual`](./utils.md#constanttimeequal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 
 **Cipher Suites.** Composition of WASM modules into complete cipher packages.
@@ -675,6 +675,13 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | `slhdsa`                        | `SlhDsa128fSuite`, `SlhDsa192fSuite`, `SlhDsa256fSuite` (sign-layer pure-mode SLH-DSA suites)            |
 | `slhdsa` + `sha3`               | `SlhDsa128fPreHashSuite`, `SlhDsa192fPreHashSuite`, `SlhDsa256fPreHashSuite` (sign-layer prehash SLH-DSA suites) |
 | `mldsa` + `sha3` + `slhdsa`     | `MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite` (PQ-only hybrid composites) |
+| `curve25519`                    | `Ed25519` (pure + Ed25519ph), `X25519` (Curve25519 Diffie-Hellman); `KeyAgreementError` thrown by `X25519.dh` on all-zero shared secret per RFC 7748 §7 |
+| `curve25519`                    | `Ed25519Suite` (`formatEnum: 0x01`, pure mode, rejects non-empty user_ctx)                              |
+| `curve25519` + `sha2`           | `Ed25519PreHashSuite` (`formatEnum: 0x11`, Ed25519ph with SHA-512 prehash and dom2(F=1, ctx) binding)   |
+| `p256`                          | `EcdsaP256` (classical ECDSA over NIST P-256, FIPS 186-5 §6, RFC 6979 deterministic + hedged); pure-TS `ecdsaSignatureToDer` / `ecdsaSignatureFromDer` / `encodeEcPrivateKey` / `decodeEcPrivateKey` / `pointDecompress` for X.509 / JWS / SEC 1 interop |
+| `p256` + `sha2`                 | `EcdsaP256Suite` (`formatEnum: 0x02`, single mode, SHA-256 streaming prehash, hedged-by-default per draft-irtf-cfrg-det-sigs-with-noise-05) |
+| `mldsa` + `sha3` + `curve25519` + `sha2` | `MlDsa44Ed25519Suite`, `MlDsa65Ed25519Suite` (classical+PQ hybrids at format bytes `0x20` / `0x21`, draft-ietf-lamps-pq-composite-sigs `id-MLDSA44-Ed25519-SHA512` / `id-MLDSA65-Ed25519-SHA512`) |
+| `mldsa` + `sha3` + `p256` + `sha2` | `MlDsa44EcdsaP256Suite`, `MlDsa65EcdsaP256Suite` (classical+PQ hybrids at format bytes `0x22` / `0x23`, `id-MLDSA44-ECDSA-P256-SHA256` / `id-MLDSA65-ECDSA-P256-SHA512`) |
 | `blake3`                        | `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, `BLAKE3Hash` (Fortuna HashFn) |
 | `sign`                          | `Sign`, `SignStream`, `VerifyStream` (scheme-agnostic; modules depend on the suite)                    |
 | `sha2` (+ suite + hasher modules) | `MerkleVerifier`, `MerkleLog` (normie transparency-log surface); `SignedLog`, `Sha256Tree`, `Blake3Tree`, `MemoryStorage` (danger-zone composition surface) |
@@ -729,7 +736,7 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 |Encoding|`hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`|
 |Security|`constantTimeEqual`, `CT_MAX_BYTES`, `wipe`, `xor`|
 |Helpers|`concat`, `randomBytes`, `hasSIMD`|
-|Types|`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`|
+|Types|`Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`, `Generator`, `HashFn`, `CipherSuite`, `SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm`|
 
 ---
 
@@ -950,6 +957,153 @@ index.ts
   re-exports: params + buffers + reduce + ntt + ntt_simd + poly + poly_simd + polyvec + rounding + sampling + encoding
 ```
 
+**SLH-DSA (`src/asm/slhdsa/`)**
+
+```
+params.ts
+  <- hashes.ts, wots.ts, fors.ts, xmss.ts, hypertree.ts, slh.ts (n / h / d / h' / a / k / lg_w per parameter set)
+
+buffers.ts
+  <- every other file (INPUT / OUT / STATE / SCRATCH offsets, ADRS_OFFSET, PARAMS_OFFSET)
+
+keccak.ts
+  <- hashes.ts (embedded SHAKE128 / SHAKE256 sponge state; verbatim port from src/asm/sha3/)
+
+address.ts
+  <- hashes.ts, wots.ts, fors.ts, xmss.ts, hypertree.ts (32-byte ADRS struct, BE-32 limbs, FIPS 205 §4.2)
+
+hashes.ts
+  <- wots.ts, fors.ts, xmss.ts, hypertree.ts, slh.ts (F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, §11.2 SHAKE)
+
+wots.ts
+  <- xmss.ts (WOTS+ chains, §5)
+
+fors.ts
+  <- slh.ts (FORS authentication paths, §8)
+
+xmss.ts
+  <- hypertree.ts (XMSS subtrees, §6)
+
+hypertree.ts
+  <- slh.ts (hypertree composition, §7)
+
+slh.ts
+  <- index.ts (slhKeygenInternal / slhSignInternal / slhVerifyInternal, §9 Algorithms 18 / 19 / 20)
+
+index.ts
+  re-exports: buffers + params + address + hashes + wots + fors + xmss + hypertree + slh
+```
+
+**BLAKE3 (`src/asm/blake3/`)**
+
+```
+flags.ts
+  <- compress.ts, chunk.ts, tree.ts (CHUNK_START / CHUNK_END / PARENT / ROOT / KEYED_HASH / DERIVE_KEY_* bits, §2.2 Table 3)
+
+buffers.ts
+  <- every other file (INPUT_STAGING / OUTPUT_STAGING / CV / MSG / COUNTER / FLAGS / LEVEL_QUEUES / ROOT_STATE_* offsets)
+
+compress.ts
+  <- chunk.ts, tree.ts (v128-internal single-block compress, §2.2)
+
+compress_simd.ts
+  <- chunk_simd.ts, tree_simd.ts (v128-external compress4 lane-parallel, §5.3)
+
+chunk.ts
+  <- tree.ts (§2.4 chunk machine with 1-block lookahead)
+
+chunk_simd.ts
+  <- tree.ts (compress4 chunk batching dispatch)
+
+tree.ts
+  <- index.ts (§2.5 tree assembly, queue-per-level, root finalize)
+
+tree_simd.ts
+  <- index.ts (compress4 parent dispatch, §5.3)
+
+index.ts
+  re-exports: buffers + flags + compress + compress_simd + chunk + chunk_simd + tree + tree_simd
+  also exports _testChunkCV / _testParentCV / _testDeriveContextCV (gated for tree-internals tests and src/ts/merkle/blake3-tree.ts)
+```
+
+**Curve25519 (`src/asm/curve25519/`)**
+
+```
+buffers.ts
+  <- every other file (FIELD_TMP / POINT_TMP / LADDER_TMP / ACC / SHA512_* / ED25519_* / X25519_* / BASEPOINT_U offsets)
+
+field.ts
+  <- edwards.ts, montgomery.ts, scalar.ts, compress.ts, ed25519.ts, x25519.ts (GF(2^255-19) radix-2^51 arithmetic, RFC 8032 §5.1)
+
+scalar.ts
+  <- ed25519.ts (scalar arithmetic mod L: clamp, reduce, mulAdd, canonical check)
+
+edwards.ts
+  <- compress.ts, ed25519.ts (edwards25519 in extended (X:Y:Z:T), point add / double, scalar mult)
+
+montgomery.ts
+  <- x25519.ts (X25519 Montgomery ladder over Curve25519 u-coord)
+
+compress.ts
+  <- ed25519.ts (point compression + strict-canonical decompression)
+
+sha512.ts
+  <- ed25519.ts (embedded SHA-512, verbatim port from src/asm/sha2/sha512.ts)
+
+ed25519.ts
+  <- index.ts (RFC 8032 sign / verify, pure + prehash, fault-injection cross-check)
+
+x25519.ts
+  <- index.ts (RFC 7748 keygen / DH against the basepoint u=9 and a peer pk)
+
+index.ts
+  re-exports: buffers + field + scalar + edwards + montgomery + compress + sha512 + ed25519 + x25519
+```
+
+**P-256 (`src/asm/p256/`)**
+
+```
+buffers.ts
+  <- every other file (MUL_INT_* / FIELD_TMP / POINT_TMP / SCALAR_TMP / HMAC_DRBG_* / ECDSA_* / SHA256_* / HMAC256_* offsets)
+
+field.ts
+  <- scalar.ts, point.ts, scalar_mult.ts, ecdsa.ts (GF(p256) at 8 × u32 saturated radix-2^32, HMV §2.4.1 Algorithm 2.27 Solinas reduction)
+
+scalar.ts
+  <- point.ts, scalar_mult.ts, rfc6979.ts, ecdsa.ts (scalar arithmetic mod n via bit-by-bit binary division, FIPS 186-5 §6 BE wire form)
+
+point.ts
+  <- scalar_mult.ts, ecdsa.ts (projective (X:Y:Z) over short Weierstrass, Renes-Costello-Batina 2016 complete add / double specialised for a = -3)
+
+scalar_mult.ts
+  <- ecdsa.ts (constant-time double-and-add-always scalar multiplication, variable + fixed base)
+
+sha256.ts
+  <- hmac_sha256.ts, rfc6979.ts, ecdsa.ts (embedded SHA-256, verbatim port from src/asm/sha2/sha256.ts)
+
+hmac_sha256.ts
+  <- rfc6979.ts (embedded HMAC-SHA-256, verbatim port from src/asm/sha2/hmac.ts)
+
+rfc6979.ts
+  <- ecdsa.ts (RFC 6979 §3.2 deterministic + draft-irtf-cfrg-det-sigs-with-noise-05 §4 hedged HMAC-DRBG K-derivation)
+
+ecdsa.ts
+  <- index.ts (FIPS 186-5 §6.4 sign / §6.4.4 verify entry points, RFC 6979 §3.5 low-S enforcement)
+
+index.ts
+  re-exports: buffers + field + scalar + point + scalar_mult + sha256 + hmac_sha256 + rfc6979 + ecdsa
+```
+
+**Constant-time (`src/asm/ct/`)**
+
+```
+index.ts
+  Single-file module. Exports compare(aOff, bOff, len): i32 only. Uses
+  v128.xor / v128.or accumulator over 16-byte blocks with a scalar tail
+  for the remainder. No staging buffers, no wipeBuffers export, no
+  cross-file imports.
+```
+
 ---
 
 ### TS layer: internal import graph
@@ -1001,8 +1155,11 @@ Each TS wrapper class maps to one WASM module and specific exported functions. T
 | TS Class      | WASM functions called                                                                                                       |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `SHA256`      | `sha256Init`, `sha256Update`, `sha256Final`, `wipeBuffers` + buffer getters                                                 |
+| `SHA224`      | `sha224Init`, `sha256Update`, `sha224Final`, `wipeBuffers` + buffer getters                                                 |
 | `SHA512`      | `sha512Init`, `sha512Update`, `sha512Final`, `wipeBuffers` + buffer getters                                                 |
 | `SHA384`      | `sha384Init`, `sha512Update`, `sha384Final`, `wipeBuffers` + buffer getters                                                 |
+| `SHA512_224`  | `sha512_224Init`, `sha512Update`, `sha512_224Final`, `wipeBuffers` + buffer getters                                         |
+| `SHA512_256`  | `sha512_256Init`, `sha512Update`, `sha512_256Final`, `wipeBuffers` + buffer getters                                         |
 | `HMAC_SHA256` | `hmac256Init`, `hmac256Update`, `hmac256Final`, `sha256Init`, `sha256Update`, `sha256Final`, `wipeBuffers` + buffer getters |
 | `HMAC_SHA512` | `hmac512Init`, `hmac512Update`, `hmac512Final`, `sha512Init`, `sha512Update`, `sha512Final`, `wipeBuffers` + buffer getters |
 | `HMAC_SHA384` | `hmac384Init`, `hmac384Update`, `hmac384Final`, `sha384Init`, `sha512Update`, `sha384Final`, `wipeBuffers` + buffer getters |
@@ -1012,19 +1169,23 @@ Each TS wrapper class maps to one WASM module and specific exported functions. T
 
 | TS Class       | WASM functions called                                                                           |
 | -------------- | ----------------------------------------------------------------------------------------------- |
-| `SHA3_224`     | `sha3_224Init`, `keccakAbsorb`, `sha3_224Final`, `wipeBuffers` + buffer getters                 |
-| `SHA3_256`     | `sha3_256Init`, `keccakAbsorb`, `sha3_256Final`, `wipeBuffers` + buffer getters                 |
-| `SHA3_384`     | `sha3_384Init`, `keccakAbsorb`, `sha3_384Final`, `wipeBuffers` + buffer getters                 |
-| `SHA3_512`     | `sha3_512Init`, `keccakAbsorb`, `sha3_512Final`, `wipeBuffers` + buffer getters                 |
-| `SHAKE128`     | `shake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `SHAKE256`     | `shake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `SHA3_256Hash` | `sha3_256Init`, `keccakAbsorb`, `sha3_256Final`, `wipeBuffers` + buffer getters                 |
-| `CSHAKE128`    | `cshake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `CSHAKE256`    | `cshake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `KMAC128`      | `cshake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `KMAC256`      | `cshake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `KMACXOF128`   | `cshake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
-| `KMACXOF256`   | `cshake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `SHA3_224`        | `sha3_224Init`, `keccakAbsorb`, `sha3_224Final`, `wipeBuffers` + buffer getters                 |
+| `SHA3_256`        | `sha3_256Init`, `keccakAbsorb`, `sha3_256Final`, `wipeBuffers` + buffer getters                 |
+| `SHA3_384`        | `sha3_384Init`, `keccakAbsorb`, `sha3_384Final`, `wipeBuffers` + buffer getters                 |
+| `SHA3_512`        | `sha3_512Init`, `keccakAbsorb`, `sha3_512Final`, `wipeBuffers` + buffer getters                 |
+| `SHA3_256Stream`  | `sha3_256Init`, `keccakAbsorb`, `sha3_256Final`, `wipeBuffers` + buffer getters                 |
+| `SHA3_512Stream`  | `sha3_512Init`, `keccakAbsorb`, `sha3_512Final`, `wipeBuffers` + buffer getters                 |
+| `SHAKE128`        | `shake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `SHAKE256`        | `shake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `SHAKE128Stream`  | `shake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `SHAKE256Stream`  | `shake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `SHA3_256Hash`    | `sha3_256Init`, `keccakAbsorb`, `sha3_256Final`, `wipeBuffers` + buffer getters                 |
+| `CSHAKE128`       | `cshake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `CSHAKE256`       | `cshake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `KMAC128`         | `cshake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `KMAC256`         | `cshake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `KMACXOF128`      | `cshake128Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
+| `KMACXOF256`      | `cshake256Init`, `keccakAbsorb`, `shakePad`, `shakeSqueezeBlock`, `wipeBuffers` + buffer getters |
 
 **kyber/index.ts + kyber/kem.ts + kyber/indcpa.ts → asm/kyber/ (Tier 1)**
 
@@ -1042,6 +1203,40 @@ All MlKem classes also call sha3 WASM via `indcpa.ts`: `sha3_256Init`, `sha3_512
 
 All MlDsa classes also call sha3 WASM via `expand.ts` and `sha3-helpers.ts`: SHAKE128 for `ExpandA` (matrix Â), SHAKE256 for `ExpandS`, `ExpandMask`, message representative μ, ρ'' derivation, and `SampleInBall`. HashML-DSA additionally calls sha2 (or sha3) functions for the §5.4.1 pre-hash before formatting M'.
 
+**slhdsa/index.ts + slhdsa/{keygen,sign,verify}.ts → asm/slhdsa/ (Tier 1)**
+
+| TS Class                                    | WASM functions called                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`    | `slhKeygenInternal` (FIPS 205 Algorithm 18), `slhSignInternal` (Algorithm 19), `slhVerifyInternal` (Algorithm 20), `setParams<128f\|192f\|256f>`, `wipeBuffers` + buffer getters. HashSLH-DSA additionally calls sha3 (SHAKE128 / SHAKE256 / SHA3-256 / SHA3-512) or sha2 functions for the §10.2 pre-hash before building M'. |
+
+The `slhdsa.wasm` binary embeds its own Keccak permutation, so pure-mode SLH-DSA never calls into `sha3.wasm`. Prehash SLH-DSA touches `sha3.wasm` only for the TS-layer running digest in the `SignStream` / `VerifyStream` path. The `_test*` prefixed exports drive individual layers (WOTS+, FORS, XMSS, hypertree) in isolation during unit testing and are not part of `SlhDsaExports`.
+
+**blake3/index.ts → asm/blake3/ (Tier 1)**
+
+| TS Class                                                                                                                              | WASM functions called                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader` | `hashInit`, `keyedHashInit`, `deriveKeyInit`, `chunkUpdate`, `chunkFinalize`, `treeFinalizeRoot`, `squeezeXofBlock`, `wipeBuffers` + buffer getters. SIMD: `compress4` for chunk/parent batches (dispatched internally). |
+| `BLAKE3Hash`                                                                                                                          | `hashInit`, `chunkUpdate`, `chunkFinalize`, `wipeBuffers` + buffer getters (stateless `HashFn` const, 32-byte output for Fortuna).                                                                                     |
+
+The tree-mode test exports `_testChunkCV`, `_testParentCV`, and `_testDeriveContextCV` are not part of the consumer-facing `Blake3Exports` interface; they back `src/ts/merkle/blake3-tree.ts` and the tree-internals unit suite. `BLAKE3OutputReader` holds the `blake3` module exclusivity token until `dispose()` so sequential `read(n)` calls share the §2.6 root-state snapshot.
+
+**curve25519/index.ts (re-exported via ed25519/, x25519/) → asm/curve25519/ (Tier 1)**
+
+| TS Class    | WASM functions called                                                                                                                                                                                                       |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Ed25519`   | `ed25519Keygen`, `ed25519KeygenDerand`, `ed25519Sign`, `ed25519SignPrehashed`, `ed25519Verify`, `ed25519VerifyPrehashed`, `ed25519SignInternalPk`, `ed25519SignPrehashedInternalPk`, `wipeBuffers` + buffer getters         |
+| `X25519`    | `x25519Keygen`, `x25519KeygenDerand`, `x25519Dh`, `wipeBuffers` + buffer getters                                                                                                                                            |
+
+Both classes share `curve25519.wasm`; the init layer aliases `ed25519` and `x25519` to the same instance slot and de-dupes given identical sources. The module embeds its own SHA-512 (verbatim port from `src/asm/sha2/sha512.ts`) for the Ed25519 hash chain so pure-mode Ed25519 never crosses the WASM boundary mid-signature. The `*InternalPk` suite-layer exports skip the fault-injection cross-check; direct-class callers use the public `sign(sk, pk, M)` entry points with the cross-check intact.
+
+**ecdsa/index.ts → asm/p256/ (Tier 1)**
+
+| TS Class    | WASM functions called                                                                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EcdsaP256` | `ecdsaKeygen`, `ecdsaKeygenDerand`, `ecdsaSign`, `ecdsaSignInternalPk`, `ecdsaVerify`, `pointDecompress`, `wipeBuffers` + buffer getters                                                                            |
+
+The `p256.wasm` binary embeds its own SHA-256 + HMAC-SHA-256 (verbatim ports from `src/asm/sha2/`) for the RFC 6979 §3.2 HMAC-DRBG K-derivation chain; signing keeps every chain iteration inside a single WASM call. `EcdsaP256Suite` calls into the same module via `signPrehashed` / `verifyPrehashed`-shaped routing through `_signInternalPk`, plus sha2 (`SHA256`) at the TS layer for the streaming prehash path. DER codec helpers (`ecdsaSignatureToDer`, `ecdsaSignatureFromDer`, `encodeEcPrivateKey`, `decodeEcPrivateKey`) are pure TypeScript (RFC 3279 §2.2.3, RFC 5915) and call no WASM.
+
 **Tier 2: pure TS composition**
 
 | TS Class / Object | Composes                                                                                                                                |
@@ -1055,7 +1250,17 @@ All MlDsa classes also call sha3 WASM via `expand.ts` and `sha3-helpers.ts`: SHA
 | `SealStreamPool`  | `CipherSuite` + `compileWasm()` + Web Workers                                                                                           |
 | `HKDF_SHA256`     | `HMAC_SHA256` (extract + expand per RFC 5869)                                                                                           |
 | `HKDF_SHA512`     | `HMAC_SHA512` (extract + expand per RFC 5869)                                                                                           |
-| `Fortuna`         | `Generator` + `HashFn` (any compatible pair: `SerpentGenerator` / `ChaCha20Generator` / `AESGenerator` × `SHA256Hash` / `SHA3_256Hash`) |
+| `Fortuna`         | `Generator` + `HashFn` (any compatible pair: `SerpentGenerator` / `ChaCha20Generator` / `AESGenerator` × `SHA256Hash` / `SHA3_256Hash` / `BLAKE3Hash`) |
+| `Sign`            | `SignStream` + `VerifyStream` (one-shot degenerates to single-chunk streaming) over any `SignatureSuite`                              |
+| `SignStream`, `VerifyStream` | `StreamableSignatureSuite` (generic, caller provides suite); `createRunningHash` over a `PrehashAlgorithm`                |
+| `Ed25519Suite`, `Ed25519PreHashSuite` | `Ed25519` (`_signInternalPk` / `_signPrehashedInternalPk` per call, `dispose()` in finally)                            |
+| `EcdsaP256Suite`  | `EcdsaP256` (`_signInternalPk` per call) + `SHA256` for streaming prehash                                                              |
+| `MlDsa{44,65,87}Suite`, `MlDsa{44,65,87}PreHashSuite` | `MlDsa{44,65,87}` per call (`dispose()` in finally)                                                  |
+| `SlhDsa{128f,192f,256f}Suite`, `SlhDsa{128f,192f,256f}PreHashSuite` | `SlhDsa{128f,192f,256f}` per call                                                       |
+| `MlDsa{44,65,87}SlhDsa{128f,192f,256f}Suite` | PQ-only hybrid: `MlDsa44/65/87` + `SlhDsa128f/192f/256f` at matched NIST categories; runs both verifies always |
+| `MlDsa{44,65}Ed25519Suite` | Classical+PQ hybrid: `MlDsa44/65` + `Ed25519`; composite M' construction per draft-ietf-lamps-pq-composite-sigs §3.2          |
+| `MlDsa{44,65}EcdsaP256Suite` | Classical+PQ hybrid: `MlDsa44/65` + `EcdsaP256`; composite M' construction with ECDSA-internal SHA-256 per §6              |
+| `MerkleVerifier`, `MerkleLog`, `SignedLog` | `Sha256Tree` or `Blake3Tree` + any `SignatureSuite` for cosignatures (Ed25519Suite or MlDsa44Suite shipping) |
 
 ---
 
@@ -1087,24 +1292,29 @@ The root barrel defines and exports the dispatching `init()` function. It is the
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _(barrel itself)_   | `init` (dispatching function, calls per-module init functions via `Promise.all`)                                                                                                                                                                          |
 | `init.ts`           | `Module`, `WasmSource`, `isInitialized`                                                                                                                                                                                                                    |
-| `errors.ts`         | `AuthenticationError`, `SigningError`                                                                                                                                                                                                                      |
+| `errors.ts`         | `AuthenticationError`, `SigningError`, `KeyAgreementError`, `MerkleLogError`, `MerkleCodecError`                                                                                                                                                          |
 | `serpent/index.ts`  | `Serpent`, `SerpentCtr`, `SerpentCbc`, `SerpentCipher`, `SerpentGenerator`                                                                                                                                                                                 |
 | `chacha20/index.ts` | `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305`, `XChaCha20Cipher`, `ChaCha20Generator`                                                                                                                                                    |
 | `aes/index.ts`      | `AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGCMSIVCipher`, `AESGenerator`                                                                                                                                                                        |
 | `sha2/index.ts`     | `SHA256`, `SHA224`, `SHA512`, `SHA384`, `SHA512_224`, `SHA512_256`, `HMAC_SHA256`, `HMAC_SHA512`, `HMAC_SHA384`, `HKDF_SHA256`, `HKDF_SHA512`, `SHA256Hash`                                                                                                |
-| `sha3/index.ts`     | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `SHA3_256Hash`                                                                                                                                                                     |
+| `sha3/index.ts`     | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, `SHA3_256Stream`, `SHA3_512Stream`, `SHAKE128Stream`, `SHAKE256Stream`, `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256`, `SHA3_256Hash`                  |
 | `keccak/index.ts`   | `keccakInit` + re-exports all sha3 classes (alias subpath)                                                                                                                                                                                                 |
 | `kyber/index.ts`    | `kyberInit`, `KyberSuite`, `MlKem512`, `MlKem768`, `MlKem1024`, `MlKemBase`, `KyberKeyPair`, `KyberEncapsulation`, `KyberParams`, `MLKEM512`, `MLKEM768`, `MLKEM1024`                                                                                      |
 | `mldsa/index.ts`    | `mldsaInit`, `MlDsa44`, `MlDsa65`, `MlDsa87`, `MlDsaBase`, `MLDSA44`, `MLDSA65`, `MLDSA87`, `MlDsaKeyPair`, `MlDsaParams`, `PreHashAlgorithm`                                                                                                              |
+| `slhdsa/index.ts`   | `slhdsaInit`, `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`, `SlhDsaBase`, `SlhDsaKeyPair`, `SlhDsaParams`, `PreHashAlgorithm`                                                                                                                                  |
 | `blake3/index.ts`   | `blake3Init`, `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, `BLAKE3Hash`                                                                                          |
-| `sign/index.ts`     | `Sign`, `SignStream`, `VerifyStream`, `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`, `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite`, `SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm`, `buildEffectiveCtx`, `prehashAlgoToMldsa`, `USER_CTX_MAX`, `CTX_DOMAIN_MAX` |
+| `ed25519/index.ts`  | `ed25519Init`, `Ed25519`, `Ed25519KeyPair` (resolves to the `curve25519` slot via alias)                                                                                                                                                                  |
+| `x25519/index.ts`   | `x25519Init`, `X25519`, `X25519KeyPair` (resolves to the `curve25519` slot via alias)                                                                                                                                                                     |
+| `ecdsa/index.ts`    | `ecdsaP256Init`, `EcdsaP256`, `EcdsaP256KeyPair`, `pointDecompress`, `encodeEcPrivateKey`, `decodeEcPrivateKey`, `ecdsaSignatureToDer`, `ecdsaSignatureFromDer` (resolves to the `p256` slot)                                                              |
+| `merkle/index.ts`   | `MerkleLog`, `MerkleVerifier`, `SignedLog`, `Sha256Tree`, `Blake3Tree`, `Sha256Hasher`, `Blake3Hasher`, `MemoryStorage`, `splitPoint`, proof helpers (`verifyInclusionProof`, `verifyConsistencyProof`, `buildInclusionProof`, `buildConsistencyProof`), signed-note helpers (`emitSignedNote`, `parseSignedNote`, `deriveKeyId`), cosignature helpers (`buildCosignedMessage`, `emitCosigSignaturePayload`, `parseCosigSignaturePayload`), `ALGO_BYTE_ED25519_NOTE`, `ALGO_BYTE_ED25519_COSIG`, `ALGO_BYTE_MLDSA44_COSIG`, plus shape types |
+| `sign/index.ts`     | `Sign`, `SignStream`, `VerifyStream`; pure-mode suites (`Ed25519Suite`, `EcdsaP256Suite`, `MlDsa{44,65,87}Suite`, `SlhDsa{128f,192f,256f}Suite`); prehash suites (`Ed25519PreHashSuite`, `MlDsa{44,65,87}PreHashSuite`, `SlhDsa{128f,192f,256f}PreHashSuite`); PQ-only hybrid suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`); classical+PQ hybrid suites (`MlDsa44Ed25519Suite`, `MlDsa65Ed25519Suite`, `MlDsa44EcdsaP256Suite`, `MlDsa65EcdsaP256Suite`); types (`SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm`); ctx utilities (`buildEffectiveCtx`, `prehashAlgoToMldsa`, `USER_CTX_MAX`, `CTX_DOMAIN_MAX`) |
 | `stream/index.ts`   | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `CipherSuite`, `DerivedKeys`, `SealStreamOpts`, `PoolOpts`, `FLAG_FRAMED`, `TAG_DATA`, `TAG_FINAL`, `HEADER_SIZE`, `CHUNK_MIN`, `CHUNK_MAX`                                                          |
 | `ratchet/index.ts`  | `KDFChain`, `ratchetInit`, `ratchetReady`, `kemRatchetEncap`, `kemRatchetDecap`, `SkippedKeyStore`, `RatchetKeypair`, `RatchetInitResult`, `KemEncapResult`, `KemDecapResult`, `MlKemLike`, `RatchetMessageHeader`, `ResolveHandle`, `SkippedKeyStoreOpts` |
 | `fortuna.ts`        | `Fortuna`                                                                                                                                                                                                                                                  |
 | `types.ts`          | `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`, `Generator`, `HashFn`                                                                                                                                                                          |
 | `utils.ts`          | `hexToBytes`, `bytesToHex`, `utf8ToBytes`, `bytesToUtf8`, `base64ToBytes`, `bytesToBase64`, `constantTimeEqual`, `CT_MAX_BYTES`, `wipe`, `xor`, `concat`, `randomBytes`, `hasSIMD`                                                                         |
 
-Each subpath export also exports its own module-specific init function for tree-shakeable loading: `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, `mldsaInit(source)`.
+Each subpath export also exports its own module-specific init function for tree-shakeable loading: `serpentInit(source)`, `chacha20Init(source)`, `aesInit(source)`, `sha2Init(source)`, `sha3Init(source)`, `keccakInit(source)`, `kyberInit(source)`, `mldsaInit(source)`, `slhdsaInit(source)`, `blake3Init(source)`, `ed25519Init(source)`, `x25519Init(source)`, and `ecdsaP256Init(source)`.
 
 `isInitialized(mod)` is also re-exported from every submodule subpath (in addition to the root barrel and `init.ts`), so tree-shake-friendly imports can pick up the readiness probe alongside the cipher classes:
 
@@ -1123,6 +1333,9 @@ import { serpentInit, isInitialized } from 'leviathan-crypto/serpent'
   "exports": {
     ".":                      "./dist/index.js",
     "./stream":               "./dist/stream/index.js",
+    "./sign":                 "./dist/sign/index.js",
+    "./merkle":               "./dist/merkle/index.js",
+    "./ratchet":              "./dist/ratchet/index.js",
     "./serpent":              "./dist/serpent/index.js",
     "./serpent/embedded":     "./dist/serpent/embedded.js",
     "./chacha20":             "./dist/chacha20/index.js",
@@ -1139,9 +1352,16 @@ import { serpentInit, isInitialized } from 'leviathan-crypto/serpent'
     "./kyber/embedded":       "./dist/kyber/embedded.js",
     "./mldsa":                "./dist/mldsa/index.js",
     "./mldsa/embedded":       "./dist/mldsa/embedded.js",
+    "./slhdsa":               "./dist/slhdsa/index.js",
+    "./slhdsa/embedded":      "./dist/slhdsa/embedded.js",
     "./blake3":               "./dist/blake3/index.js",
     "./blake3/embedded":      "./dist/blake3/embedded.js",
-    "./ratchet":              "./dist/ratchet/index.js"
+    "./ed25519":              "./dist/ed25519/index.js",
+    "./ed25519/embedded":     "./dist/ed25519/embedded.js",
+    "./x25519":               "./dist/x25519/index.js",
+    "./x25519/embedded":      "./dist/x25519/embedded.js",
+    "./ecdsa":                "./dist/ecdsa/index.js",
+    "./ecdsa/embedded":       "./dist/ecdsa/embedded.js"
   }
 }
 ```
@@ -1386,6 +1606,91 @@ Curve25519 stores field elements as 5 i64 limbs at radix 2^51 per RFC 8032 §5.1
 Mutable total: 3740 bytes (4096..7836). `BUFFER_END = 7836` (< 65536 = 1 page); the module is sized at 4 pages so the TypeScript layer claims offsets 8192 through 262144 as the I/O staging region for caller-supplied inputs (seed, sk, pk, message, sig, digest, ctx) and outputs (pk, sig, shared secret). The 4-page sizing puts the pure-mode `Ed25519Suite` per-call message ceiling at approximately 248 KB; `Ed25519PreHashSuite` plus `SignStream` is the chunked path for larger payloads. The WASM never reads or writes that region; the wrapper owns it and wipes it explicitly. `wipeBuffers()` zeroes from `MUTABLE_START` to `BUFFER_END` in one pass, covering every mutable region above; the AS data segment is read-only and is not wiped.
 
 Curve constants (the Edwards d and 2d, the X25519 a24 = 121665, the curve order L, the basepoint B, sqrt(-1)) are NOT stored in mutable linear memory. They live as `@inline const` u64 limb values in `field.ts` / `montgomery.ts` / `scalar.ts` and are materialized into caller-provided offsets via loader helpers (`edPointBasepoint`, `loadD`, `loadTwoD`, `loadSqrtM1`, `loadBasepointU`, `loadDom2Prefix`).
+
+### SLH-DSA module (2 pages, 128 KB)
+
+Source: `src/asm/slhdsa/buffers.ts`
+
+SLH-DSA uses a single co-located staging area for verify inputs because `verify(M, sig, pk)` packs pk + M + sig together; the worst-case input on the ACVP corpus is the SLH-DSA-256f sigVer path at pk (64) + M (8192) + sig (49856) = 58112 bytes. `INPUT_SIZE` is 60 KB to leave slack, `OUT_SIZE` is 52 KB to fit the 49856-byte signature output plus headroom, and the remaining 12 KB carry the algorithm working state plus the embedded SHAKE128 / SHAKE256 sponge state.
+
+| Region    | Offset | Size  | Purpose                                                                                              |
+| --------- | ------ | ----- | ---------------------------------------------------------------------------------------------------- |
+| `INPUT`   | 0x00000 | 60 KB | `sk \|\| M \|\| opt_rand` staging on sign; `pk \|\| M \|\| sig` staging on verify (worst case 58112 B for 256f sigVer) |
+| `OUT`     | 0x0F000 | 52 KB | Signature output (max 49856 B at SLH-DSA-256f per §9 sigEncode + slack)                              |
+| `STATE`   | 0x1C000 | 4 KB  | Working state: 32-byte ADRS scratch, `PARAMS` slot, WOTS+ chains, FORS authentication paths, XMSS authentication paths, hypertree `idx_tree` |
+| `SCRATCH` | 0x1D000 | 8 KB  | Hash-function scratch + embedded SHAKE128 / SHAKE256 sponge state. Sub-layout mirrors `src/asm/sha3/buffers.ts` so the verbatim Keccak port reads side-by-side with the sha3 source |
+| END       | 0x1F000 | -     | 124 KB total, fits inside 2 WASM pages (128 KB)                                                       |
+
+`wipeBuffers()` zeroes every region above. The embedded permutation lives inside `SCRATCH` so pure-mode SLH-DSA does not touch the `sha3` module; only prehash SLH-DSA crosses the boundary, and only for the TS-layer running digest in the sign-stream path.
+
+### BLAKE3 module (2 pages, 128 KB)
+
+Source: `src/asm/blake3/buffers.ts`
+
+BLAKE3's working state covers the §2.2 compression state, the §2.3 mode flags + keyed/derive-key key slots, the §2.4 chunk machine with its 1-block lookahead, the §2.5 tree-mode queue-per-level region sized for the §5.1.2 54-level depth bound, the §5.3 compress4 SIMD batch staging, and the §2.6 root-state snapshot for XOF reads. The first 4096 bytes are reserved for the AS data segment (SIGMA permutation table); mutable buffers start at `MUTABLE_START = 4096`.
+
+| Region                | Offset | Size  | Purpose                                                                                                           |
+| --------------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| AS data segment       | 0      | 4096  | SIGMA tables and other StaticArray (read-only)                                                                    |
+| `INPUT_STAGING`       | 4096   | 4096  | 4-chunk staging (vestigial; chunk machine writes through directly)                                                |
+| `OUTPUT_STAGING`      | 8192   | 1024  | XOF reader output (16 root compressions per fill)                                                                 |
+| `CV`                  | 9216   | 32    | Working 8-word chaining value                                                                                     |
+| `MSG`                 | 9248   | 64    | 16-word message block input                                                                                       |
+| `COUNTER`             | 9312   | 8     | u64 chunk index (lo at +0, hi at +4)                                                                              |
+| `BLOCK_LEN`           | 9320   | 4     | u32 bytes in current block                                                                                        |
+| `FLAGS`               | 9324   | 4     | u32 domain-separation bitfield                                                                                    |
+| `COMPRESS_OUT`        | 9328   | 64    | 64-byte compress output (first 32 = next CV)                                                                      |
+| `KEYED_KEY`           | 9392   | 32    | KEYED_HASH 32-byte key (§2.3)                                                                                     |
+| `DERIVE_CV`           | 9424   | 32    | DERIVE_KEY context CV stage (§2.3)                                                                                |
+| `LEVEL_QUEUES`        | 9456   | 15552 | 54 × 9 × 32 (§2.5 queue-per-level)                                                                                |
+| `LEVEL_COUNTS`        | 25008  | 216   | 54 × 4 (i32 count per level)                                                                                      |
+| `COMPRESS4_*`         | 25224  | 596   | v128-external lane-parallel compress4 staging: CV_IN (128) + MSG_IN (256) + CTR_IN (32) + OUT (256) + BLEN_IN (16) + FLAGS_IN (4) |
+| `MODE_CV`             | 25916  | 32    | chunkInit start CV / parent compress key                                                                          |
+| `CHUNK_INDEX`         | 25948  | 8     | u64 §2.4 chunk counter                                                                                            |
+| `CHUNK_BLOCKS`        | 25956  | 4     | i32 blocks compressed in current chunk                                                                            |
+| `CHUNK_PENDING_LEN`   | 25960  | 4     | i32 1-block lookahead length                                                                                      |
+| `CHUNK_PENDING_BLOCK` | 25964  | 64    | 1-block lookahead buffer                                                                                          |
+| `TREE_PARENT_BLOCK`   | 26028  | 64    | left ‖ right concat for parent compress                                                                           |
+| `CHUNK_CV_SCRATCH`    | 26092  | 32    | 32-byte chunk CV between finalize / push                                                                          |
+| `ROOT_OUT_SCRATCH`    | 26124  | 64    | Root compress output staging                                                                                      |
+| `MODE_FLAGS`          | 26188  | 4     | Mode-flag bits OR'd onto every compress (§2.3)                                                                    |
+| `CONTEXT_CV`          | 26192  | 32    | derive_key pass-1 output CV (§2.3)                                                                                |
+| `ROOT_STATE_*`        | 26224  | 104   | §2.6 XOF snapshot: ROOT_STATE_CV (32) + MSG (64) + BLEN (4) + FLAGS (4)                                            |
+| END                   | 26328  | -     | < 65536 (1 page); module sized at 2 pages (128 KB) for slack                                                       |
+
+`wipeBuffers()` zeroes from `MUTABLE_START = 4096` to `BUFFER_END = 26328` in one pass. The AS data segment is read-only and is not wiped. `BLAKE3OutputReader._populate` deliberately does NOT call `wipeBuffers()` (which would clobber the `ROOT_STATE_*` snapshot); it relies on module exclusivity to keep the snapshot intact between sequential `read(n)` calls until disposed.
+
+### P-256 module (3 pages, 192 KB)
+
+Source: `src/asm/p256/buffers.ts`
+
+P-256 stores field elements as 8 × u32 saturated radix-2^32 (32 bytes per element) so the prime's special-form bit positions (96, 192, 224, 256) all fall on limb boundaries (limbs 3, 6, 7, 8) and the Solinas reduction follows HMV §2.4.1 Algorithm 2.27 line-by-line. Projective points `(X:Y:Z)` are 96 bytes. Scalars are 32 bytes big-endian per FIPS 186-5 §6. The first 4096 bytes are reserved for the AS data segment (no mutable state).
+
+| Region                  | Offset | Size | Purpose                                                                                              |
+| ----------------------- | ------ | ---- | ---------------------------------------------------------------------------------------------------- |
+| AS data segment         | 0      | 4096 | Reserved (no mutable state)                                                                          |
+| `MUL_INT_LO`            | 4096   | 32   | Low half of feMul intermediate (8 × 8 schoolbook sum lo limbs)                                       |
+| `MUL_INT_HI`            | 4128   | 32   | High half of feMul intermediate                                                                      |
+| `FIELD_TMP`             | 4160   | 1024 | 32 × 32 scratch field elements (slots 0..15 reserved for `field.ts`; slots 16..31 for callers)       |
+| `POINT_TMP`             | 5184   | 768  | 8 × 96 scratch projective points (scalar-mult ladder state, fixed-window conditional-select)         |
+| `SCALAR_TMP`            | 5952   | 256  | 8 × 32 scratch scalars (k, kInv, r, s, d, e, u1, u2)                                                  |
+| `HMAC_DRBG_K`           | 6208   | 32   | RFC 6979 §3.2 / SP 800-90A K state                                                                   |
+| `HMAC_DRBG_V`           | 6240   | 32   | RFC 6979 §3.2 / SP 800-90A V state                                                                   |
+| `ECDSA_SIG_TMP`         | 6272   | 64   | Raw r ‖ s signature scratch                                                                          |
+| `ECDSA_PK_CHECK`        | 6336   | 33   | Compressed-pk fault-injection check scratch                                                          |
+| `ECDSA_PK_INPUT`        | 6369   | 33   | Caller-supplied compressed-pk copy                                                                   |
+| `ECDSA_MSG_HASH`        | 6402   | 32   | Caller-supplied SHA-256(M)                                                                           |
+| Embedded SHA-256 region | 6434   | 460  | `SHA256_H` (32) + `BLOCK` (64) + `W` (256) + `OUT` (32) + `INPUT` (64) + `PARTIAL` (4) + `TOTAL` (8)  |
+| Embedded HMAC region    | 6894   | 160  | `HMAC256_IPAD` (64) + `OPAD` (64) + `INNER` (32) for the RFC 6979 HMAC-DRBG chain                    |
+| END                     | 7054   | -    | Mutable footprint < 4 KB; remainder of 3 pages reserved for the TS layer's I/O staging region        |
+
+`wipeBuffers()` zeroes every mutable region above. Curve constants (prime p, curve order n, basepoint G, b) live as `@inline const` u32 values in `field.ts` / `scalar.ts` / `point.ts` and are materialized via loader helpers (e.g. `loadB` to write the SEC P-256 b coefficient into a destination slot for Renes-Costello-Batina); they are not stored in mutable linear memory.
+
+### Constant-time (ct) module (1 page, 64 KB)
+
+Source: `src/asm/ct/index.ts` (no separate `buffers.ts`)
+
+The `ct` module is zero-copy: `compare(aOff, bOff, len)` reads both inputs directly from caller-specified offsets in linear memory and returns 1 if all bytes match, 0 otherwise. There are no internal buffer slots, no staging regions, and no `wipeBuffers()` export. The TypeScript wrapper writes both arrays into the 64 KB page, calls `compare`, and zeroes both regions in a `finally` block before returning. `CT_MAX_BYTES` is 32 KB per side; the single page holds two equal-length inputs back-to-back. SIMD-only: a `v128.xor`/`v128.or` accumulator processes 16-byte blocks with a scalar tail for the remainder, and the final zero-test is an arithmetic shift, not a conditional. No mutable buffer layout.
 
 ---
 

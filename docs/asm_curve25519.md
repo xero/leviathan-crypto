@@ -141,7 +141,7 @@ region; the wrapper owns it and wipes it explicitly.
 
 ```typescript
 function getModuleId(): i32      // returns 8
-function getMemoryPages(): i32   // returns 4
+function getMemoryPages(): i32   // current WASM linear-memory page count (4 pages at module init)
 ```
 
 Module ID 8 in the AsmModule registry. The 11th WASM binary in

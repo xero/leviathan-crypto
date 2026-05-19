@@ -216,7 +216,10 @@ stored keys are 32-byte `Uint8Array` values produced by `KDFChain.step()`.
 const store = new SkippedKeyStore({ maxCacheSize: 100, maxSkipPerResolve: 50 })
 ```
 
-#### `new SkippedKeyStore(opts?)`
+#### `new SkippedKeyStore(opts?: SkippedKeyStoreOpts)`
+
+`SkippedKeyStoreOpts` is exported as a type alias from `leviathan-crypto`
+and `leviathan-crypto/ratchet`, matching the shape below.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

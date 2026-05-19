@@ -75,13 +75,22 @@ The server must respond with `Content-Type: application/wasm`.
 
 **WASM filenames by module:**
 
-| Module     | File            |
-|------------|-----------------|
-| `serpent`  | `serpent.wasm`  |
-| `chacha20` | `chacha20.wasm` |
-| `sha2`     | `sha2.wasm`     |
-| `sha3`     | `sha3.wasm`     |
-| `kyber`    | `kyber.wasm`    |
+| Module       | File              |
+|--------------|-------------------|
+| `serpent`    | `serpent.wasm`    |
+| `chacha20`   | `chacha20.wasm`   |
+| `aes`        | `aes.wasm`        |
+| `sha2`       | `sha2.wasm`       |
+| `sha3`       | `sha3.wasm`       |
+| `kyber`      | `kyber.wasm`      |
+| `blake3`     | `blake3.wasm`     |
+| `mldsa`      | `mldsa.wasm`      |
+| `slhdsa`     | `slhdsa.wasm`     |
+| `curve25519` | `curve25519.wasm` |
+| `p256`       | `p256.wasm`       |
+
+> [!NOTE]
+> `keccak` is an alias for `sha3` and resolves to `sha3.wasm`. `ed25519` and `x25519` are aliases for `curve25519` and both resolve to `curve25519.wasm`. `ecdsa` is the subpath alias for the `p256` module and resolves to `p256.wasm`.
 
 ---
 
@@ -133,11 +142,32 @@ If you want the same import style as the npm docs, add one before your module sc
     "leviathan-crypto/serpent/embedded":   "https://unpkg.com/leviathan-crypto/dist/serpent/embedded.js",
     "leviathan-crypto/chacha20":           "https://unpkg.com/leviathan-crypto/dist/chacha20/index.js",
     "leviathan-crypto/chacha20/embedded":  "https://unpkg.com/leviathan-crypto/dist/chacha20/embedded.js",
+    "leviathan-crypto/aes":                "https://unpkg.com/leviathan-crypto/dist/aes/index.js",
+    "leviathan-crypto/aes/embedded":       "https://unpkg.com/leviathan-crypto/dist/aes/embedded.js",
     "leviathan-crypto/sha2":               "https://unpkg.com/leviathan-crypto/dist/sha2/index.js",
     "leviathan-crypto/sha2/embedded":      "https://unpkg.com/leviathan-crypto/dist/sha2/embedded.js",
     "leviathan-crypto/sha3":               "https://unpkg.com/leviathan-crypto/dist/sha3/index.js",
     "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto/dist/sha3/embedded.js",
-    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto/dist/stream/index.js"
+    "leviathan-crypto/keccak":             "https://unpkg.com/leviathan-crypto/dist/keccak/index.js",
+    "leviathan-crypto/keccak/embedded":    "https://unpkg.com/leviathan-crypto/dist/keccak/embedded.js",
+    "leviathan-crypto/kyber":              "https://unpkg.com/leviathan-crypto/dist/kyber/index.js",
+    "leviathan-crypto/kyber/embedded":     "https://unpkg.com/leviathan-crypto/dist/kyber/embedded.js",
+    "leviathan-crypto/blake3":             "https://unpkg.com/leviathan-crypto/dist/blake3/index.js",
+    "leviathan-crypto/blake3/embedded":    "https://unpkg.com/leviathan-crypto/dist/blake3/embedded.js",
+    "leviathan-crypto/mldsa":              "https://unpkg.com/leviathan-crypto/dist/mldsa/index.js",
+    "leviathan-crypto/mldsa/embedded":     "https://unpkg.com/leviathan-crypto/dist/mldsa/embedded.js",
+    "leviathan-crypto/slhdsa":             "https://unpkg.com/leviathan-crypto/dist/slhdsa/index.js",
+    "leviathan-crypto/slhdsa/embedded":    "https://unpkg.com/leviathan-crypto/dist/slhdsa/embedded.js",
+    "leviathan-crypto/ed25519":            "https://unpkg.com/leviathan-crypto/dist/ed25519/index.js",
+    "leviathan-crypto/ed25519/embedded":   "https://unpkg.com/leviathan-crypto/dist/ed25519/embedded.js",
+    "leviathan-crypto/x25519":             "https://unpkg.com/leviathan-crypto/dist/x25519/index.js",
+    "leviathan-crypto/x25519/embedded":    "https://unpkg.com/leviathan-crypto/dist/x25519/embedded.js",
+    "leviathan-crypto/ecdsa":              "https://unpkg.com/leviathan-crypto/dist/ecdsa/index.js",
+    "leviathan-crypto/ecdsa/embedded":     "https://unpkg.com/leviathan-crypto/dist/ecdsa/embedded.js",
+    "leviathan-crypto/sign":               "https://unpkg.com/leviathan-crypto/dist/sign/index.js",
+    "leviathan-crypto/stream":             "https://unpkg.com/leviathan-crypto/dist/stream/index.js",
+    "leviathan-crypto/ratchet":            "https://unpkg.com/leviathan-crypto/dist/ratchet/index.js",
+    "leviathan-crypto/merkle":             "https://unpkg.com/leviathan-crypto/dist/merkle/index.js"
   }
 }
 </script>

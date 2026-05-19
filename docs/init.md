@@ -107,6 +107,16 @@ Any `PromiseLike<WasmSource>` is accepted, `Promise<ArrayBuffer>`,
 nested thenables up to depth 3 all resolve transparently. See
 [loader.md](./loader.md) for details.
 
+```typescript
+type InitInput = Partial<Record<Module | 'ed25519' | 'x25519', WasmSource>>
+```
+
+The top-level `init()` parameter type. Each key is a module name (any
+`Module` value plus the `'ed25519'` and `'x25519'` aliases); each value is
+the `WasmSource` to load that module from. Keys are optional, only modules
+present in the object are loaded. The two aliases resolve to the underlying
+`curve25519` slot and are de-duped if given identical sources.
+
 ---
 
 ### Functions
@@ -114,9 +124,7 @@ nested thenables up to depth 3 all resolve transparently. See
 #### init()
 
 ```typescript
-async function init(
-  sources: Partial<Record<Module, WasmSource>>,
-): Promise<void>
+async function init(sources: InitInput): Promise<void>
 ```
 
 Initializes one or more WASM modules. Pass an object mapping module names to

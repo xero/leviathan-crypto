@@ -560,9 +560,9 @@ FIPS 205 §3.6.2 / §10.3.
 | `sk` length mismatch                     | throw `RangeError`           | n/a                          |
 | `pk` length mismatch                     | n/a                          | return `false`               |
 | `σ` length mismatch                      | n/a                          | return `false`               |
-| `ctx.length > 255`                       | throw `SigningError`         | throw `SigningError`         |
+| `ctx.length > 255`                       | throw `SigningError('sig-ctx-too-long')` | throw `SigningError('sig-ctx-too-long')` |
 | `optRand.length !== n` (signDerand only) | throw `RangeError`           | n/a                          |
-| Wrong-size digest (prehashed sign)       | throw `SigningError`         | n/a                          |
+| Wrong-size digest (prehashed sign)       | throw `SigningError('sig-malformed-input')` | n/a                          |
 | Wrong-size digest (prehashed verify)     | n/a                          | return `false`               |
 | Wrong signature for `(pk, M, ctx)`       | n/a                          | return `false`               |
 | Unsupported `ph` (signHash* / verifyHash)| throw `RangeError`           | throw `RangeError`           |

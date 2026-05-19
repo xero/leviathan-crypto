@@ -45,10 +45,16 @@ ACVP `testPassed=false` sigVer records and the Wycheproof
 malleability corpus exercise these checks.
 
 - [ ] **Public-key canonicality.** `pointDecompress` rejects pk
-      encodings whose prefix is not `0x02` or `0x03`, whose x
-      component is outside `[0, p)`, or whose `y^2 = x^3 - 3x + b`
-      square root does not exist. `ecdsaVerify` returns 0 on
-      decompression failure.
+      encodings whose prefix is not `0x02` or `0x03`, or whose
+      `y^2 = x^3 - 3x + b` square root does not exist.
+      `ecdsaVerify` returns 0 on decompression failure. The
+      explicit `x < p` check is deferred per the TODO at
+      `src/asm/p256/point.ts:538-544`; `feFromBytes` does not
+      reduce, so an adversarial x in `[p, 2^256)` decodes but is
+      caught indirectly by `pointOnCurve`, because a
+      non-canonical x cannot satisfy `y^2 = x^3 - 3x + b` against
+      a canonical y. The belt-and-suspenders `x < p` rejection is
+      gated on a future test that surfaces the case.
 - [ ] **Identity-element pk rejection.** A decompressed pk equal
       to the curve identity `(0:1:0)` is rejected before the
       signature equation evaluates. The identity check uses

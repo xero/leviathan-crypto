@@ -224,6 +224,7 @@ feInv(out, a):                out = a^(-1) (mod p) via Fermat's little theorem
 feSqrt(out, a):               out = a^((p+1)/4) (mod p); valid sqrt iff a is QR
 feFromBytes(out, src32):      decode 32 BE bytes to limbs
 feToBytes(out, src):          encode limbs as 32 BE bytes
+loadB(dst):                   write the SEC P-256 curve constant b to dst (8 LE limbs)
 feIsZero(a):                  i32 - 1 if a == 0, 0 otherwise
 feIsEqual(a, b):              i32 - 1 if a == b, 0 otherwise
 feIsOdd(a):                   i32 - LSB of canonical encoding (SEC1 parity bit)

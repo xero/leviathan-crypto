@@ -70,7 +70,7 @@ entries.
 
 ```typescript
 function getModuleId(): i32      // returns 4
-function getMemoryPages(): i32   // returns 2 (131072 bytes total)
+function getMemoryPages(): i32   // current WASM linear-memory page count (2 pages, 131072 bytes, at module init)
 ```
 
 ---

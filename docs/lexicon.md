@@ -9,6 +9,7 @@ A reference glossary for readers new to cryptography. Covers foundational terms,
 > - [Context-Specific Terms](#context-specific-terms)
 > - [Sealing Layer](#sealing-layer)
 > - [Post-Quantum](#post-quantum)
+> - [Signature Layer](#signature-layer)
 > - [Session Layer](#session-layer)
 > - [BLAKE3](#blake3)
 
@@ -133,6 +134,60 @@ A reference glossary for readers new to cryptography. Covers foundational terms,
 **Parameter set.** ML-KEM comes in three variants that trade key and ciphertext size for security margin. ML-KEM-512 has the smallest keys; ML-KEM-1024 has the largest and the highest security level. ML-KEM-768 is the recommended default, offering a conservative security margin with reasonable key sizes.
 
 **Hybrid construction.** A scheme that combines a post-quantum KEM with a classical symmetric cipher. The KEM establishes a shared secret; that secret keys a symmetric cipher (XChaCha20-Poly1305 or Serpent-256) for the actual data. Security holds as long as either component remains unbroken. `KyberSuite` implements this pattern and plugs directly into `Seal` and `SealStream`.
+
+---
+
+## Signature Layer
+
+**Digital signature.** A short value that proves a specific message was authorized by the holder of a specific private key. Anyone with the matching public key can verify the signature. Provides authenticity, integrity, and non-repudiation. Distinct from a MAC, which uses one shared secret rather than a public-private key pair.
+
+**Public key / private key.** An asymmetric key pair. The private key signs and stays secret. The public key verifies and ships openly. FIPS 204 and FIPS 205 use `verificationKey` for the public half and `signingKey` for the private half; the leviathan-crypto APIs use `pk` and `sk` for the same two objects.
+
+**Verification.** Checking that a signature is valid for a given message and public key. The verify function returns a boolean: valid or invalid. It never returns a partial result, a probability, or "maybe."
+
+**Signing context (ctx).** A per-call domain separation string bound into the signature computation. Two signatures over the same message produced under different contexts are different signatures and cannot be substituted for each other. Used to scope a signing key to a protocol, a version, or a purpose. Capped at 255 bytes per FIPS 204 §3.6.1, native ctx encoding.
+
+**Domain separation.** Distinguishing one signing context, scheme, or version from another by mixing a unique tag into the signature computation. Prevents a signature produced for context A from verifying as a signature for context B even under the same key. Every leviathan-crypto suite carries a built-in `ctxDomain` string (e.g. `ed25519-prehash-envelope-v3`); `buildEffectiveCtx` wraps the per-call `user_ctx` with this domain before handing it to the underlying primitive.
+
+**Pure mode.** A signing mode that runs the signature computation over the full message bytes rather than over a prehash. Pure-mode signing cannot stream the message in chunks. Pure Ed25519, pure ML-DSA, and pure SLH-DSA all support this. Pure suites in this library implement `SignatureSuite` only and are rejected by `SignStream` at the type level.
+
+**Prehashed signing.** A signing mode that hashes the message to a fixed-size digest before the signature computation. The digest is part of the signed input, so verifiers must use the same hash function. Prehashing lets signers and verifiers stream arbitrarily large inputs without buffering, which pure-mode cannot do. Each scheme's prehash variant binds to a specific hash function: Ed25519ph uses SHA-512 per RFC 8032 §5.1.7, signature verification; HashML-DSA permits twelve hashes per FIPS 204 §5.4.1; HashSLH-DSA pairs hashes with security categories per FIPS 205 §10.2.2. Prehash variants in this library satisfy `StreamableSignatureSuite` and plug into `SignStream` / `VerifyStream`.
+
+**Deterministic signing.** A signing mode where the same `(sk, msg)` pair always produces the same signature byte-for-byte. Pure Ed25519 is intrinsically deterministic per RFC 8032 §5.1.6, signature generation. Pure ECDSA is intrinsically randomized, but RFC 6979 §3.2, generation of k, specifies a deterministic K derivation that makes ECDSA reproducible. Deterministic signing is reproducible and free of RNG dependencies, but vulnerable to fault-injection attacks that perturb the signing computation while K stays fixed.
+
+**Hedged signing.** A signing mode that mixes deterministic K derivation with fresh per-call randomness, defending against both poor RNGs and fault-injection attacks that target a fixed deterministic K. `EcdsaP256Suite` and the PQ signature suites hedge by default; the underlying `EcdsaP256` class can drop down to pure RFC 6979 determinism on demand. `draft-irtf-cfrg-det-sigs-with-noise-05` §4, Hedged-Deterministic Nonce Generation, formalizes the construction.
+
+**Format byte / suite byte.** The 1-byte wire identifier at the start of every v3 signature envelope. Identifies which `SignatureSuite` produced the envelope so verifiers can dispatch to the right verify logic. The catalog at `src/ts/sign/catalog.ts` reserves a fixed byte per shipped suite; consumers cannot mint custom suites with reserved bytes.
+
+**Signature envelope.** The v3 wire format produced by `Sign.sign` and `SignStream.finalize`: `suite_byte || ctx_len || ctx || payload_len || payload || sig`. The same bytes are accepted by `Sign.verify` and `VerifyStream`. The envelope carries everything a verifier needs to dispatch and authenticate, including the raw `user_ctx` (never `effective_ctx`).
+
+**Lattice-based signature.** A signature scheme whose security rests on the hardness of lattice problems such as Module-LWE. ML-DSA (FIPS 204, formerly Dilithium) is NIST's standardized lattice signature. Post-quantum. Public keys and signatures are in the kilobyte range. See [Post-Quantum](#post-quantum) for the broader category.
+
+**Hash-based signature.** A signature scheme whose security rests entirely on the second-preimage and collision resistance of a hash function. SLH-DSA (FIPS 205, formerly SPHINCS+) is NIST's standardized hash-based signature. Post-quantum, stateless, with the most conservative security argument of any standardized signature. Signatures are large, 8-50 kilobytes depending on parameter set. Internally a stateless variant of XMSS, layered as a hypertree of one-time WOTS+ signatures over FORS leaves.
+
+**Hypertree.** The multi-layer tree of one-time signatures inside SLH-DSA, FIPS 205 §7. Each non-leaf node signs the public key of the node below it; the bottom leaf signs a FORS commitment to the message digest. The hypertree is what lets SLH-DSA produce many signatures from one keypair without per-message state.
+
+**WOTS+ (Winternitz One-Time Signature Plus).** The one-time signature scheme used as a leaf in SLH-DSA's hypertree, FIPS 205 §5, WOTS+. Each WOTS+ instance signs at most one message; the hypertree chains WOTS+ leaves upward so the keypair can produce many signatures without rolling state.
+
+**FORS (Forest of Random Subsets).** The hash-tree signature scheme at the bottom of SLH-DSA's hypertree, FIPS 205 §8. FORS signs the message digest itself; the WOTS+ leaves above it sign FORS public keys.
+
+**Composite signature / hybrid signature.** A signature that combines two underlying signature schemes so that forging requires breaking both. The leviathan-crypto catalog ships three PQ-only hybrids (ML-DSA + SLH-DSA at matching security categories) and four classical+PQ hybrids (ML-DSA + Ed25519 or ECDSA-P256). Verification runs both component verifies; a hybrid signature is valid only when both halves verify. Wire format is `sig_a || sig_b` with no length prefixes. `draft-ietf-lamps-pq-composite-sigs` §3.2, signature generation, formalizes the construction.
+
+**Fault-injection defense.** Re-deriving the public key from the secret key during signing and comparing it to a caller-supplied `pk`. Detects glitches that flipped bits during the signing computation. The direct `Ed25519.sign(sk, pk, M)` and `EcdsaP256.sign(sk, pk, M)` class entry points include this cross-check; the suite-layer factories skip it because deriving `pk` inside the same call from the same potentially-faulted module collapses the defense to no defense. See `_signInternalPk` in `src/ts/ed25519/index.ts` and `src/ts/ecdsa/index.ts`.
+
+**Low-S normalization.** A canonicalization step for ECDSA signatures. For every valid `(r, s)` an equivalent `(r, n - s)` also verifies, which means raw ECDSA signatures are malleable. Low-S enforcement requires `s <= n/2` so the canonical half is unique. `EcdsaP256.sign` normalizes on the signer side, and `EcdsaP256.verify` rejects high-S on the verifier side. RFC 6979 §3.5, alternate description of the signature generation step.
+
+**Transparency log.** An append-only Merkle tree of signed entries that exposes inclusion proofs (a specific entry exists in the log at size N) and consistency proofs (the log at size M is a prefix of the log at size N). Operators publish signed tree heads; verifiers and witnesses check them. RFC 6962 (Certificate Transparency) and Sigsum are well-known instances. `MerkleLog`, `MerkleVerifier`, and `SignedLog` provide the substrate.
+
+**Inclusion proof.** A short list of sibling hashes that lets a verifier reconstruct the Merkle root for a tree of given size from a single leaf. If the reconstructed root matches the operator's signed tree head, the entry is proven to be in the log. Sub-linear in the tree size.
+
+**Consistency proof.** A short list of node hashes that lets a verifier confirm a larger tree is an append-only extension of a smaller tree. Both tree heads must verify against the proof. Sub-linear in the tree size.
+
+**Signed tree head (STH).** A signed commitment to the current Merkle root and tree size. The log operator signs the STH; verifiers check the signature before trusting the root for inclusion or consistency proofs.
+
+**Cosignature.** A second signature over a signed tree head, produced by a witness who has seen the STH. Cosignatures aggregate independent observations of the log so verifiers do not need to trust a single operator. c2sp.org/tlog-cosignature defines the wire format.
+
+**Checkpoint.** A textual encoding of a signed tree head plus optional metadata, in the line-oriented format used by Sigsum and the Go ecosystem's tlog. Body lines carry the origin string, tree size, and root hash; signature lines carry the operator and cosigner signatures.
 
 ---
 
