@@ -225,6 +225,6 @@ export type {
 export {
 	hexToBytes, bytesToHex, utf8ToBytes, bytesToUtf8,
 	base64ToBytes, bytesToBase64,
-	constantTimeEqual, CT_MAX_BYTES, wipe, xor, concat,
+	constantTimeEqual, CTE_MAX_BYTES, wipe, xor, concat,
 	randomBytes, hasSIMD,
 } from './utils.js';

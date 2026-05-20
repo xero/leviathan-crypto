@@ -133,7 +133,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | Module | Description |
 |--------|-------------|
 | [utils.md](./utils.md) | `randomBytes`, `constantTimeEqual`, `wipe`, encoding helpers. No `init()` required |
-| [asm_ct.md](./asm_ct.md) | WASM implementation: SIMD constant-time byte comparison backing `constantTimeEqual`. Lazy-loaded, no `init()` |
+| [asm_cte.md](./asm_cte.md) | WASM implementation: SIMD constant-time byte equality backing `constantTimeEqual`, plus the `@inline` source-level `ctEqual` imported by other AS modules. Lazy-loaded, no `init()` |
 | [types.md](./types.md) | TypeScript interfaces: `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`, `Generator`, `HashFn`, `CipherSuite`, `SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm` |
 
 ---

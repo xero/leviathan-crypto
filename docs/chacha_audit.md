@@ -297,7 +297,7 @@ XOR-accumulate pattern with no early return. The loop always executes all 16 ite
 > was removed; the function now throws a branded error on runtimes
 > without WebAssembly SIMD. The constant-time property of the audited
 > verification is preserved and strengthened. See
-> [asm_ct.md](./asm_ct.md).
+> [asm_cte.md](./asm_cte.md).
 
 **XChaCha20-Poly1305 layer** (`ops.ts:164-194`):
 

@@ -72,7 +72,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 
 **Atop the seal layer sits the [ratchet module](./ratchet.md):** KDF primitives from Signal's Sparse Post-Quantum Ratchet (SPQR), the post-quantum extension of the Double Ratchet protocol. `ratchetInit` bootstraps the root and chain keys from an out-of-band shared secret. `KDFChain` advances a symmetric chain key and derives per-message keys with forward secrecy. `kemRatchetEncap` and `kemRatchetDecap` perform the ML-KEM ratchet step for post-compromise security. `SkippedKeyStore` caches message keys for out-of-order delivery; cached keys return through a transactional handle that commits on auth success and rolls back on failure, so a garbage ciphertext at a valid counter cannot consume the legitimate message's slot. The store also bounds memory and per-message HKDF work, so a malicious header with a high counter cannot force unbounded derivations. These are primitives, not a full session: state machines, message counters, header format, and epoch orchestration are application concerns. Consumers compose them with their own transport for forward-secret protocols whose needs outgrow one-shot AEAD.
 
-**Outside the WASM-backed primitives ships a [utility tier](./utils.md).** No `init()` call required, every utility function works immediately on import. Pure-TypeScript encoding converters handle hex, base64, and the common byte-format round-trips. `wipe` and `xor` modules cover byte-buffer zeroing and exclusive OR logical operations. The `ct` module is the constant-time path. It carries its own dedicated WebAssembly binary that compiles synchronously, with a zero-copy v128 SIMD XOR-accumulate kernel. `ct.equal()` is the library's recommended path for any equality check on secret material.
+**Outside the WASM-backed primitives ships a [utility tier](./utils.md).** No `init()` call required, every utility function works immediately on import. Pure-TypeScript encoding converters handle hex, base64, and the common byte-format round-trips. `wipe` and `xor` modules cover byte-buffer zeroing and exclusive OR logical operations. The `cte` module is the constant-time path. It carries its own dedicated WebAssembly binary that compiles synchronously, with a zero-copy v128 SIMD XOR-accumulate kernel. `constantTimeEqual` is the library's recommended path for any equality check on secret material.
 
 **Discipline binds the layers.** Every cipher, hash, KEM, and signature scheme derives independently from its authoritative spec, never ported from another implementation. Known-answer test vectors come from spec authors, and cross-checks run against multiple independent reference implementations. The test suite covers unit tests at the primitive level plus end-to-end tests across three browser engines (Chromium, Firefox, WebKit) and Node.js. Detailed reference documentation ships at the [project wiki](https://github.com/xero/leviathan-crypto/wiki).
 
@@ -96,7 +96,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 | [`blake3`](./asm_blake3.md)       | BLAKE3 tree-mode hash family: v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root, §2.6 XOF, §2.3 keyed_hash and derive_key                  | [`BLAKE3`](./blake3.md#blake3), [`BLAKE3Stream`](./blake3.md#blake3stream), [`BLAKE3KeyedHash`](./blake3.md#blake3keyedhash), [`BLAKE3KeyedHashStream`](./blake3.md#blake3keyedhashstream), [`BLAKE3DeriveKey`](./blake3.md#blake3derivekey), [`BLAKE3DeriveKeyStream`](./blake3.md#blake3derivekeystream), [`BLAKE3OutputReader`](./blake3.md#blake3outputreader), [`BLAKE3Hash`](./blake3.md#blake3hash) (Fortuna HashFn)                                                                                                                                                                                                                                              |
 | [`curve25519`](./asm_curve25519.md) | Ed25519 sign/verify (RFC 8032 §5.1) and X25519 keygen/DH (RFC 7748) over GF(2^255-19); embedded SHA-512 for the Ed25519 hash chain                                                | [`Ed25519`](./ed25519.md#ed25519-api) (pure + Ed25519ph), [`X25519`](./x25519.md#x25519-api) (Curve25519 Diffie-Hellman)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | [`p256`](./asm_p256.md)           | ECDSA sign/verify (FIPS 186-5 §6) over NIST P-256 (SP 800-186 §3.2.1.3); Renes-Costello-Batina complete addition; RFC 6979 deterministic + draft-irtf-cfrg-det-sigs-with-noise-05 hedged K-derivation; RFC 6979 §3.5 low-S enforcement on signer and verifier; embedded SHA-256 + HMAC-SHA-256 | [`EcdsaP256`](./ecdsa-p256.md#ecdsa-p256-api), [`pointDecompress`](./ecdsa-p256.md#point-decompression), DER codec helpers ([`ecdsaSignatureToDer`](./ecdsa-p256.md#ecprivatekey-der-codec), [`ecdsaSignatureFromDer`](./ecdsa-p256.md#ecprivatekey-der-codec), [`encodeEcPrivateKey`](./ecdsa-p256.md#ecprivatekey-der-codec), [`decodeEcPrivateKey`](./ecdsa-p256.md#ecprivatekey-der-codec))                                                                                                                                                                                                                                                                          |
-| [`ct`](./asm_ct.md)               | Constant-time comparison primitives                                                                                                                                               | [`constantTimeEqual`](./utils.md#constanttimeequal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| [`cte`](./asm_cte.md)             | Constant-time equality primitives: SIMD `compare` for the JS boundary, `@inline` source-level `ctEqual` for AS-internal use across other modules                                                                | [`constantTimeEqual`](./utils.md#constanttimeequal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 
 **Cipher Suites.** Composition of WASM modules into complete cipher packages.
@@ -153,7 +153,7 @@ Source lives under `src/`, split between AssemblyScript primitives in `src/asm/`
 
 `src/asm/` holds the AssemblyScript sources for each WASM binary. Every subdirectory compiles to its own `.wasm` with fully independent linear memory and no cross-module imports.
 
-**Per-module conventions.** Every module exposes an `index.ts` as the asc entry point; it re-exports the public surface that becomes the WASM exports. Every module except `ct/` has a `buffers.ts` that defines the static memory layout and the offset getters that all other files in that module import. The `ct/` module is intentionally minimal: a single `index.ts` whose layout is implicit in its single 64 KB page.
+**Per-module conventions.** Every module exposes an `index.ts` as the asc entry point; it re-exports the public surface that becomes the WASM exports. Every module except `cte/` has a `buffers.ts` that defines the static memory layout and the offset getters that all other files in that module import. The `cte/` module is intentionally minimal: an `index.ts` whose layout is implicit in its single 64 KB page, and a sibling `shared.ts` exposing the `@inline` source-level `ctEqual` helper that other modules import.
 
 ```
 src/asm/
@@ -187,8 +187,9 @@ src/asm/
 │   ├── poly1305.ts          ← one-time MAC
 │   ├── wipe.ts              ← module-wide buffer zeroizer
 │   └── buffers.ts
-├── ct/
-│   └── index.ts  ← v128 XOR-accumulate constant-time compare
+├── cte/
+│   ├── index.ts   ← v128 XOR-accumulate constant-time compare (cte.wasm)
+│   └── shared.ts  ← @inline scalar ctEqual, imported by other AS modules
 ├── kyber/
 │   ├── index.ts
 │   ├── ntt.ts        ← scalar NTT/invNTT + zetas table
@@ -254,7 +255,7 @@ src/asm/
 
 **Shared utilities.** `shared/` holds primitives reused across cipher modules without belonging to any one of them. `pkcs7.ts` is the canonical PKCS#7 padding helper used by Serpent CBC and consumer code.
 
-**Build artifacts.** `ct-wasm.ts` and the `embedded/` directory hold auto-generated outputs that only exist after `bun bake`. Both are gitignored. `ct-wasm.ts` is the inline raw byte array of the ct WASM module. `embedded/` holds gzip+base64 blobs of each WASM binary (from `scripts/embed-wasm.ts`) and IIFE source strings for each pool worker (from `scripts/embed-workers.ts`).
+**Build artifacts.** `cte-wasm.ts` and the `embedded/` directory hold auto-generated outputs that only exist after `bun bake`. Both are gitignored. `cte-wasm.ts` is the inline raw byte array of the cte WASM module. `embedded/` holds gzip+base64 blobs of each WASM binary (from `scripts/embed-wasm.ts`) and IIFE source strings for each pool worker (from `scripts/embed-workers.ts`).
 
 ```
 src/ts/
@@ -283,7 +284,7 @@ src/ts/
 │   ├── ops.ts
 │   ├── pool-worker.ts
 │   └── types.ts
-├── ct-wasm.ts      ← gitignored build artifact: raw ct WASM bytes
+├── cte-wasm.ts     ← gitignored build artifact: raw cte WASM bytes
 ├── embedded/       ← gitignored build artifacts
 │   ├── aes-pool-worker.ts          ← AES pool-worker IIFE source string
 │   ├── aes.ts                      ← aes.wasm gzip+base64 blob
@@ -388,7 +389,7 @@ src/ts/
 │   ├── seal.ts              ← Seal (static one-shot AEAD)
 │   └── types.ts
 ├── types.ts        ← shared interfaces: Hash, KeyedHash, Blockcipher, Streamcipher, AEAD, Generator, HashFn
-├── utils.ts        ← encoding, wipe, randomBytes, constantTimeEqual, CT_MAX_BYTES, hasSIMD
+├── utils.ts        ← encoding, wipe, randomBytes, constantTimeEqual, CTE_MAX_BYTES, hasSIMD
 └── wasm-source.ts  ← WasmSource union type
 ```
 
@@ -410,7 +411,7 @@ test/
 ├── unit/
 │   ├── aes/
 │   ├── chacha20/
-│   ├── ct/
+│   ├── cte/
 │   ├── errors.test.ts
 │   ├── fortuna/
 │   ├── fortuna.test.ts
@@ -602,7 +603,7 @@ See [wasm.md](./wasm.md) for a fuller primer on WebAssembly in the context of th
 
 ### Twelve Independent WASM Modules
 
-Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Eleven of the twelve modules load through `init()`. The twelfth, `ct`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The ct module backs the public `constantTimeEqual` and `CT_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
+Each primitive family compiles to its own `.wasm` binary with fully independent linear memory and buffer layouts. No shared state, no cross-module interference. Eleven of the twelve modules load through `init()`. The twelfth, `cte`, sits outside the public `Module` union and the `init()` gate; it occupies a single 64 KB memory page and lazy-loads on the first call to `constantTimeEqual`. The cte module backs the public `constantTimeEqual` and `CTE_MAX_BYTES` exports from the root barrel; neither requires an `init()` call.
 
 | Module                               | Binary                                   | Primitives                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -617,7 +618,7 @@ Each primitive family compiles to its own `.wasm` binary with fully independent 
 | [`blake3`](./blake3.md)              | [`blake3.wasm`](./asm_blake3.md)         | BLAKE3 tree-mode hash family (BLAKE3 spec): v128-internal `compress` and lane-parallel `compress4` (§5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root finalize (54-deep per §5.1.2), §2.6 XOF squeeze, §2.3 keyed_hash and derive_key. Tree-mode primitives (`_testChunkCV`, `_testParentCV`, `_testDeriveContextCV`) gated for test + blake3-tree substrate use; not part of the consumer-facing exports.                       |
 | [`curve25519`](./ed25519.md)         | [`curve25519.wasm`](./asm_curve25519.md) | Ed25519 sign/verify (RFC 8032) and [X25519](./x25519.md) keygen/DH (RFC 7748) over GF(2^255-19). Scalar (no v128); see header comment in `src/asm/curve25519/index.ts` for the WASM-extmul analysis that motivates the scalar choice.                                                                                                                                                                                                    |
 | [`p256`](./ecdsa-p256.md)            | [`p256.wasm`](./asm_p256.md)             | ECDSA sign/verify (FIPS 186-5 §6) over NIST P-256 (SP 800-186 §3.2.1.3). Field arithmetic with HMV §2.27 Solinas reduction, Renes-Costello-Batina 2016 complete addition / doubling (Algorithm 4 / 6 specialised for a = -3), RFC 6979 §3.2 deterministic + `draft-irtf-cfrg-det-sigs-with-noise-05` hedged nonce derivation, RFC 6979 §3.5 low-S enforcement on signer and verifier. Embedded SHA-256 + HMAC-SHA-256. Scalar (no v128). |
-| [`ct`](./utils.md#constanttimeequal) | [`ct.wasm`](./asm_ct.md)                 | SIMD constant-time byte comparison. Backs `constantTimeEqual` and `CT_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page.                                                                                                                                                                                                                                                                                                       |
+| [`cte`](./utils.md#constanttimeequal) | [`cte.wasm`](./asm_cte.md)              | SIMD constant-time byte equality. Backs `constantTimeEqual` and `CTE_MAX_BYTES`, lazy-loaded outside `init()`. Single 64 KB page. Sibling `src/asm/cte/shared.ts` exports the `@inline` scalar `ctEqual` that other AS modules import for in-WASM equality checks.                                                                                                                                                                       |
 
 **Size.** Consumers who only use Serpent don't load the SHA-3 binary.
 
@@ -644,9 +645,9 @@ All offsets start at 0 per module. Independent linear memory. No offsets are sha
 | `blake3`     | 2 pages (128 KB) | [asm_blake3.md#buffer-layout](./asm_blake3.md#buffer-layout)         |
 | `curve25519` | 4 pages (256 KB) | [asm_curve25519.md#buffer-layout](./asm_curve25519.md#buffer-layout) |
 | `p256`       | 3 pages (192 KB) | [asm_p256.md#buffer-layout](./asm_p256.md#buffer-layout)             |
-| `ct`         | 1 page (64 KB)   | [asm_ct.md#memory-layout](./asm_ct.md#memory-layout) ‡               |
+| `cte`        | 1 page (64 KB)   | [asm_cte.md#memory-layout](./asm_cte.md#memory-layout) ‡             |
 
-‡ [`ct`](./utils.md#constanttimeequal) is caller-determined with no static buffers or `wipeBuffers()` export
+‡ [`cte`](./utils.md#constanttimeequal) is caller-determined with no static buffers or `wipeBuffers()` export
 
 ---
 
@@ -789,7 +790,7 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 |Category|Exports|
 |---|---|
 |Encoding|[`hexToBytes`](./utils.md#hextobytes), [`bytesToHex`](./utils.md#bytestohex), [`utf8ToBytes`](./utils.md#utf8tobytes), [`bytesToUtf8`](./utils.md#bytestoutf8), [`base64ToBytes`](./utils.md#base64tobytes), [`bytesToBase64`](./utils.md#bytestobase64)|
-|Security|[`constantTimeEqual`](./utils.md#constanttimeequal), [`CT_MAX_BYTES`](./utils.md#ct_max_bytes), [`wipe`](./utils.md#wipe), [`xor`](./utils.md#xor)|
+|Security|[`constantTimeEqual`](./utils.md#constanttimeequal), [`CTE_MAX_BYTES`](./utils.md#cte_max_bytes), [`wipe`](./utils.md#wipe), [`xor`](./utils.md#xor)|
 |Helpers|[`concat`](./utils.md#concat), [`randomBytes`](./utils.md#randombytes), [`hasSIMD`](./utils.md#hassimd)|
 |Types|[`Hash`](./types.md#hash), [`KeyedHash`](./types.md#keyedhash), [`Blockcipher`](./types.md#blockcipher), [`Streamcipher`](./types.md#streamcipher), [`AEAD`](./types.md#aead), [`Generator`](./types.md#generator), [`HashFn`](./types.md#hashfn), [`CipherSuite`](./types.md#ciphersuite), [`SignatureSuite`](./signaturesuite.md#signaturesuite), [`StreamableSignatureSuite`](./signaturesuite.md#streamablesignaturesuite-extends-signaturesuite), [`PrehashAlgorithm`](./signaturesuite.md#prehashalgorithm)|
 
@@ -1140,7 +1141,9 @@ Three layers compose the library's constant-time posture: primitive algorithm ch
 
 #### TS-layer routing
 
-**Every secret-data equality check in TypeScript routes through [`constantTimeEqual`](./utils.md#constanttimeequal)** from `src/ts/utils.ts`. That function is a thin wrapper over a dedicated SIMD WASM module (`src/asm/ct/`) that does branch-free v128 XOR-accumulate. There is no JavaScript fallback, runtimes without SIMD support throw at init. The routing rule is library-wide: AEAD tag verification (AES-GCM, AES-GCM-SIV, ChaCha20-Poly1305, XChaCha20-Poly1305), HMAC verification (Serpent's Encrypt-then-MAC), seal-layer key commitment, ML-DSA's c̃ comparison, and ML-KEM's public-key hash check all use the central path. The policy is enforced by comments at every call site (e.g. "no tag compare lives inside the AES module itself, this is library-wide policy for atomic AEADs") so the rule stays visible at the point of enforcement.
+**Every secret-data equality check in TypeScript routes through [`constantTimeEqual`](./utils.md#constanttimeequal)** from `src/ts/utils.ts`. That function is a thin wrapper over a dedicated SIMD WASM module (`src/asm/cte/`) that does branch-free v128 XOR-accumulate. There is no JavaScript fallback, runtimes without SIMD support throw at init. The routing rule is library-wide: AEAD tag verification (AES-GCM, AES-GCM-SIV, ChaCha20-Poly1305, XChaCha20-Poly1305), HMAC verification (Serpent's Encrypt-then-MAC), seal-layer key commitment, ML-DSA's c̃ comparison, and ML-KEM's public-key hash check all use the central path. The policy is enforced by comments at every call site (e.g. "no tag compare lives inside the AES module itself, this is library-wide policy for atomic AEADs") so the rule stays visible at the point of enforcement.
+
+In-WASM equality checks inside other modules (kyber FO transform, slhdsa PK.root, ed25519 / ecdsa pk-fault cross-check) cannot cross the JS boundary mid-computation and therefore cannot route through cte.wasm directly. They import `ctEqual` from `src/asm/cte/shared.ts` instead. The AS compiler inlines that helper into each importer's compile unit, so every module shares one audited algorithm without sharing a runtime binary.
 
 #### Documented exceptions
 

@@ -20,9 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * ct.wasm module shape invariants.
+ * cte.wasm module shape invariants.
  *
- * Locks in the structural shape of the ct.wasm module, which follows the
+ * Locks in the structural shape of the cte.wasm module, which follows the
  * same export-memory convention as every other module in the library:
  *   - zero imports
  *   - exports its own single-page (64 KB) linear memory
@@ -32,14 +32,14 @@
  * export, or renames `compare` fails the relevant assertion immediately.
  */
 import { describe, it, expect } from 'vitest';
-import { CT_WASM } from '../../../src/ts/ct-wasm.js';
+import { CTE_WASM } from '../../../src/ts/cte-wasm.js';
 
-describe('ct.wasm module shape invariants', () => {
-	const buf = CT_WASM.buffer.slice(CT_WASM.byteOffset, CT_WASM.byteOffset + CT_WASM.byteLength);
+describe('cte.wasm module shape invariants', () => {
+	const buf = CTE_WASM.buffer.slice(CTE_WASM.byteOffset, CTE_WASM.byteOffset + CTE_WASM.byteLength);
 	const mod = new WebAssembly.Module(buf as ArrayBuffer);
 
 	it('imports nothing', () => {
-		// ct is self-contained like every other module in the library; any
+		// cte is self-contained like every other module in the library; any
 		// future `--importMemory` regression would trip this assertion.
 		expect(WebAssembly.Module.imports(mod)).toEqual([]);
 	});

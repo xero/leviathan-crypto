@@ -23,7 +23,7 @@ compiler from the timing picture. Use this function whenever you compare MACs,
 hashes, authentication tags, or any secret-derived values. Never use `===`,
 `Buffer.equals`, or a manual loop-with-break for security comparisons. Those
 leak timing information that attackers can exploit to recover secrets. Inputs
-are limited to [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side.
+are limited to [`CTE_MAX_BYTES`](#cte_max_bytes) (32768 bytes) per side.
 
 The length check in `constantTimeEqual` is not constant-time, because array
 length is non-secret in all standard protocols. If your use case treats length
@@ -90,10 +90,10 @@ defence-in-depth against timing attacks on tag comparisons, pair this primitive
 with an authenticated construction (`SerpentCipher`, `XChaCha20Cipher`) that
 terminates on mismatch with a generic error message.
 
-Maximum input size is [`CT_MAX_BYTES`](#ct_max_bytes) (32768 bytes) per side.
+Maximum input size is [`CTE_MAX_BYTES`](#cte_max_bytes) (32768 bytes) per side.
 Throws `RangeError` if either array exceeds this limit.
 
-See [asm_ct.md](./asm_ct.md) for the full WASM module reference, including the
+See [asm_cte.md](./asm_cte.md) for the full WASM module reference, including the
 SIMD algorithm, reduction technique, instantiation model, and memory layout.
 
 Use this function when working with lower-level unauthenticated primitives or
@@ -115,10 +115,10 @@ Common cases:
 
 ---
 
-### CT_MAX_BYTES
+### CTE_MAX_BYTES
 
 ```typescript
-const CT_MAX_BYTES: 32768
+const CTE_MAX_BYTES: 32768
 ```
 
 Maximum input size accepted by [`constantTimeEqual`](#constanttimeequal) per
@@ -132,10 +132,10 @@ compare unusually large values. Use this constant to guard your own inputs
 rather than hardcoding the magic number:
 
 ```typescript
-import { constantTimeEqual, CT_MAX_BYTES } from 'leviathan-crypto'
+import { constantTimeEqual, CTE_MAX_BYTES } from 'leviathan-crypto'
 
-if (a.length > CT_MAX_BYTES || b.length > CT_MAX_BYTES) {
-  throw new RangeError(`comparison input exceeds CT_MAX_BYTES (${CT_MAX_BYTES})`)
+if (a.length > CTE_MAX_BYTES || b.length > CTE_MAX_BYTES) {
+  throw new RangeError(`comparison input exceeds CTE_MAX_BYTES (${CTE_MAX_BYTES})`)
 }
 const match = constantTimeEqual(a, b)
 ```
@@ -431,7 +431,7 @@ console.log(combined.length) // 32
 | `hexToBytes` | Invalid hex characters | Throws `RangeError` |
 | `base64ToBytes` | Invalid length or characters | Throws `RangeError` |
 | `constantTimeEqual` | Arrays differ in length | Returns `false` immediately |
-| `constantTimeEqual` | Either array exceeds `CT_MAX_BYTES` | Throws `RangeError` |
+| `constantTimeEqual` | Either array exceeds `CTE_MAX_BYTES` | Throws `RangeError` |
 | `xor` | Arrays differ in length | Throws `RangeError` |
 | `randomBytes` | `crypto` not available | Throws (runtime-dependent) |
 | `hasSIMD` | `WebAssembly` not available | Returns `false` |
@@ -445,7 +445,7 @@ console.log(combined.length) // 32
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
-| [asm_ct](./asm_ct.md) | WASM module reference for `constantTimeEqual`: SIMD algorithm, zero-copy layout, instantiation model, and memory zeroing |
+| [asm_cte](./asm_cte.md) | WASM module reference for `constantTimeEqual`: SIMD algorithm, zero-copy layout, instantiation model, and memory zeroing |
 | [serpent](./serpent.md) | Serpent modes consume keys from `randomBytes`; wrappers use `wipe` and `constantTimeEqual` |
 | [chacha20](./chacha20.md) | ChaCha20/Poly1305 classes use `randomBytes` for nonce generation |
 | [sha2](./sha2.md) | SHA-2 and HMAC classes; output often converted with `bytesToHex` |

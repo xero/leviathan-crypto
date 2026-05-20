@@ -107,7 +107,10 @@ export function edPointDecompress(out: i32, src: i32): i32 {
 
 	// Canonicality: re-encode and compare to (src with top bit cleared).
 	// If equal, the input was a canonical representation of y in [0, p);
-	// if not, y >= p was encoded and decoding fails.
+	// if not, y >= p was encoded and decoding fails. Hand-rolled rather
+	// than calling cte/shared ctEqual because byte 31 must be masked with
+	// 0x7F before the XOR (the high bit is the sign bit, not part of y).
+	// Same XOR-accumulate primitive, just one byte's input differs.
 	const yRe: i32 = FIELD_TMP_OFFSET + 0 * FIELD_TMP_STRIDE  // 32 bytes scratch
 	feToBytes(yRe, y)
 	let canonDiff: u32 = 0

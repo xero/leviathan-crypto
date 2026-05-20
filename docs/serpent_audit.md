@@ -627,7 +627,7 @@ const plaintext = cbc.decrypt(encKey, iv, ct);
 
 `cbc.decrypt` is never called before `constantTimeEqual` returns `true`. There is no code path (no early return, no fallthrough, no branch) that produces plaintext from a chunk that has not passed its MAC. This is the doom principle enforced structurally, not by convention.
 
-The `constantTimeEqual` comparison itself (XOR-accumulate over all 32 bytes, no early exit) prevents a timing oracle on the tag. An attacker cannot distinguish a one-byte tag mismatch from a 32-byte mismatch by measuring response latency. At audit time the comparison ran as a JS loop in `utils.ts`; post-audit it was moved into a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction), with no JS fallback. The constant-time property is preserved and strengthened. See [asm_ct.md](./asm_ct.md).
+The `constantTimeEqual` comparison itself (XOR-accumulate over all 32 bytes, no early exit) prevents a timing oracle on the tag. An attacker cannot distinguish a one-byte tag mismatch from a 32-byte mismatch by measuring response latency. At audit time the comparison ran as a JS loop in `utils.ts`; post-audit it was moved into a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction), with no JS fallback. The constant-time property is preserved and strengthened. See [asm_cte.md](./asm_cte.md).
 
 #### Key derivation and position binding
 

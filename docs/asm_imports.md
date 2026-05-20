@@ -329,14 +329,21 @@ index.ts
   re-exports: buffers + field + scalar + point + scalar_mult + sha256 + hmac_sha256 + rfc6979 + ecdsa
 ```
 
-**Constant-time (`src/asm/ct/`)**
+**Constant-time equality (`src/asm/cte/`)**
 
 ```
 index.ts
-  Single-file module. Exports compare(aOff, bOff, len): i32 only. Uses
+  asc entry point. Exports compare(aOff, bOff, len): i32 only. Uses
   v128.xor / v128.or accumulator over 16-byte blocks with a scalar tail
-  for the remainder. No staging buffers, no wipeBuffers export, no
-  cross-file imports.
+  for the remainder. No staging buffers, no wipeBuffers export.
+
+shared.ts
+  Source-level export only, not compiled to its own WASM binary.
+  Exports @inline ctEqual(aOff, bOff, len): i32. Scalar XOR-accumulate
+  with branch-free reduction. Imported by kyber/verify.ts,
+  slhdsa/hypertree.ts, curve25519/ed25519.ts, and p256/ecdsa.ts; the
+  AS compiler inlines the body at each call site. Never emitted as a
+  WASM export from any consumer binary.
 ```
 
 ---
@@ -347,7 +354,7 @@ index.ts
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
-| [asm_ct.md](./asm_ct.md) | WASM implementation: SIMD constant-time byte comparison backing `constantTimeEqual`. Lazy-loaded, no `init()` |
+| [asm_cte.md](./asm_cte.md) | WASM implementation: SIMD constant-time byte equality backing `constantTimeEqual`, plus the `@inline` source-level `ctEqual` imported by other AS modules. Lazy-loaded, no `init()` |
 | [asm_kyber.md](./asm_kyber.md) | WASM implementation: polynomial arithmetic, SIMD NTT/invNTT, basemul in Z_q[X]/(X²-ζ), CBD sampling, compression, FO transform |
 | [asm_curve25519.md](./asm_curve25519.md) | WASM implementation: field arithmetic, edwards25519, Montgomery ladder, scalar mod L, embedded SHA-512 |
 | [asm_p256.md](./asm_p256.md) | p256 WASM implementation: GF(p256) field arithmetic, Renes-Costello-Batina 2016 complete addition, constant-time scalar mult, embedded SHA-256 + HMAC-SHA-256 for RFC 6979 K derivation |

@@ -87,6 +87,8 @@ import {
 	scalarIsCanonical,
 } from './scalar'
 
+import { ctEqual } from '../cte/shared'
+
 // ── Internal helpers ───────────────────────────────────────────────────────
 
 /**
@@ -98,22 +100,6 @@ import {
 @inline
 function wipeAll(): void {
 	memory.fill(MUTABLE_START, 0, BUFFER_END - MUTABLE_START)
-}
-
-/**
- * Constant-time compare 32 PUBLIC bytes. Used for the post-derivation
- * pk-fault-check in sign: the caller-supplied pk and the freshly
- * derived pk are both PUBLIC values (the seed is secret, but pk = [a]B
- * has no leakage advantage over a fresh derivation), so a plain
- * mismatch-OR loop suffices. Returns 0 if equal, non-zero otherwise.
- */
-@inline
-function bytes32Diff(a: i32, b: i32): i32 {
-	let diff: i32 = 0
-	for (let i: i32 = 0; i < 32; i++) {
-		diff |= (load<u8>(a + i) as i32) ^ (load<u8>(b + i) as i32)
-	}
-	return diff
 }
 
 /**
@@ -226,7 +212,7 @@ export function ed25519Sign(seedOff: i32, pkOff: i32, msgOff: i32, msgLen: i32, 
 	deriveScalarAndPrefix(seedOff)
 	edPointMulBase(ED25519_POINT_A, ED25519_SCALAR_A)
 	edPointCompress(ED25519_PK_CHECK, ED25519_POINT_A)
-	if (bytes32Diff(ED25519_PK_CHECK, pkOff) != 0) {
+	if (ctEqual(ED25519_PK_CHECK, pkOff, 32) == 0) {
 		wipeAll()
 		unreachable()
 	}
@@ -283,7 +269,8 @@ export function ed25519Sign(seedOff: i32, pkOff: i32, msgOff: i32, msgLen: i32, 
  */
 export function ed25519SignInternalPk(seedOff: i32, msgOff: i32, msgLen: i32, sigOff: i32): void {
 	// Derive (a, prefix); compute pk = compress([a]B) into ED25519_PK_CHECK,
-	// then use that buffer as the pk source in the hash chain. No bytes32Diff.
+	// then use that buffer as the pk source in the hash chain. No pk-fault
+	// cross-check, the caller already routes through ED25519_PK_CHECK.
 	deriveScalarAndPrefix(seedOff)
 	edPointMulBase(ED25519_POINT_A, ED25519_SCALAR_A)
 	edPointCompress(ED25519_PK_CHECK, ED25519_POINT_A)
@@ -419,7 +406,7 @@ export function ed25519SignPrehashed(seedOff: i32, pkOff: i32, digestOff: i32, c
 	deriveScalarAndPrefix(seedOff)
 	edPointMulBase(ED25519_POINT_A, ED25519_SCALAR_A)
 	edPointCompress(ED25519_PK_CHECK, ED25519_POINT_A)
-	if (bytes32Diff(ED25519_PK_CHECK, pkOff) != 0) {
+	if (ctEqual(ED25519_PK_CHECK, pkOff, 32) == 0) {
 		wipeAll()
 		unreachable()
 	}

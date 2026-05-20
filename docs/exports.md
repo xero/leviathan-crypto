@@ -524,8 +524,8 @@ No `init()` required. See [utils.md](./utils.md).
 | `bytesToUtf8` | function | `Uint8Array` to UTF-8 string. |
 | `base64ToBytes` | function | Base64/base64url string to `Uint8Array`. Returns `undefined` on invalid input. |
 | `bytesToBase64` | function | `Uint8Array` to base64 string. Pass `url=true` for base64url. |
-| `constantTimeEqual` | function | Constant-time byte-array equality. Runs entirely inside a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction) to eliminate JIT timing leaks. Throws a branded error on runtimes without WebAssembly SIMD; no JS fallback. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CT_MAX_BYTES`. |
-| `CT_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes, one 64 KiB WASM page split between two buffers). |
+| `constantTimeEqual` | function | Constant-time byte-array equality. Runs entirely inside a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction) to eliminate JIT timing leaks. Throws a branded error on runtimes without WebAssembly SIMD; no JS fallback. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CTE_MAX_BYTES`. |
+| `CTE_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes, one 64 KiB WASM page split between two buffers). |
 | `wipe` | function | Zero a typed array in place. |
 | `xor` | function | XOR two equal-length `Uint8Array`s, returns new array. |
 | `concat` | function | Concatenate one or more `Uint8Array`s into a new array. Variadic. |

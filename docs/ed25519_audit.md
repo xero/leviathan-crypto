@@ -75,16 +75,17 @@ requiring the caller to ALSO know the encoded pk.
 - [ ] **Caller pk vs derived pk compare.** `ed25519Sign`
       re-derives `pk_check = compress([a]B)` from the freshly
       clamped scalar and compares it against the caller-supplied
-      `pkOff` via the constant-time `bytes32Diff` helper.
-      Mismatch wipes the mutable region and traps via
+      `pkOff` via the shared constant-time `ctEqual` helper from
+      `cte/shared.ts` (inlined into curve25519.wasm at compile
+      time). Mismatch wipes the mutable region and traps via
       `unreachable`.
 - [ ] **TypeScript rethrow.** The wrapper's `rethrowTrap` helper
       catches `WebAssembly.RuntimeError` and rethrows as
       `SigningError('sig-malformed-input', ...)` so callers can
       branch on the failure.
 - [ ] **Prehash path parity.** `ed25519SignPrehashed` runs the
-      same pk re-derivation and `bytes32Diff` check before
-      computing r. Same wipe and trap discipline.
+      same pk re-derivation and `ctEqual` check before computing
+      r. Same wipe and trap discipline.
 - [ ] **No side effects on caller buffers.** sk, pk, M, digest,
       sig, and ctx buffers passed in are read but NEVER mutated
       by either the TS layer or the WASM.

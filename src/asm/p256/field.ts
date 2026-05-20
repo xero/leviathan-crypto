@@ -58,7 +58,7 @@
 
 import {
 	FIELD_TMP, FIELD_TMP_STRIDE,
-	MUL_INT_LO, MUL_INT_HI,
+	MUL_INT_LO,
 } from './buffers'
 
 // ── Constants: p256, R = 2^256 mod p, helper masks ──────────────────────────
@@ -208,31 +208,6 @@ function loadP(dst: i32): void {
 	st(dst, 4, P4); st(dst, 5, P5); st(dst, 6, P6); st(dst, 7, P7)
 }
 
-// Constant-time conditional subtract: if cond != 0, out = a - P (8 limbs),
-// else out = a. P is materialised on the stack via loadP into a 32-byte
-// scratch slot in FIELD_TMP. Used to drop one canonical adjustment after
-// feAdd / Solinas reduction.
-@inline
-function condSubP(out: i32, a: i32, cond: u32): void {
-	const pBuf: i32 = FIELD_TMP + 14 * FIELD_TMP_STRIDE  // dedicated slot
-	loadP(pBuf)
-	const borrow: u32 = sub8(pBuf + 1024, a, pBuf)
-	// Discard sub result to a temp slot if borrow=1 (i.e. a < P); else keep.
-	// Simpler: only commit when cond=1 AND borrow=0 (we know a < 2P, so
-	// borrow=1 means a < P and we should not subtract).
-	// Actually since cond MUST be set only when a >= P, we can rely on the
-	// caller. Implement a generic ct-select instead.
-	// Path A: subtracted value (a - P) in (pBuf+1024).
-	// Path B: a unchanged.
-	// Select via mask:
-	const mask: u32 = ((-(cond as i32)) as u32)  // 0xFFFF..F if cond=1, 0 if 0
-	for (let i: i32 = 0; i < 8; i++) {
-		const va: u32 = ld(pBuf + 1024, i)
-		const vb: u32 = ld(a, i)
-		st(out, i, (va & mask) | (vb & ~mask))
-	}
-}
-
 // ── feAdd / feSub / feNeg / feHalve ────────────────────────────────────────
 
 /**
@@ -318,8 +293,9 @@ export function feNeg(out: i32, a: i32): void {
 // term in a temporary 8-limb buffer and applying signed updates to
 // a running 9-limb accumulator. The +1 9th limb captures the carry of
 // each partial sum; at the end we apply a final mod-p correction loop
-// that uses condSubP up to k times, where k is the worst-case multiplier
-// (4 in this recipe — three +s terms after the s1 baseline).
+// that subtracts P up to k times via a conditional inline mask-and-XOR,
+// where k is the worst-case multiplier (4 in this recipe, three +s terms
+// after the s1 baseline).
 
 /**
  * out = a * b (mod p). Out may alias a or b safely; operands are read
@@ -358,9 +334,9 @@ function c(i: i32): u32 {
 /**
  * Apply HMV Algorithm 2.27 to MUL_INT_LO (16 × u32) and write the
  * reduced 8 × u32 field element to `out`. Each si lives in a dedicated
- * FIELD_TMP slot; the final accumulator and condSubP fix-ups operate
- * on 9-limb (8 limbs + 1 carry word) buffers to absorb the recipe's
- * coefficient of 2 on s2 / s3.
+ * FIELD_TMP slot; the final accumulator and mod-p correction loop
+ * operate on 9-limb (8 limbs + 1 carry word) buffers to absorb the
+ * recipe's coefficient of 2 on s2 / s3.
  *
  * Term aliasing per HMV §2.4.1 Algorithm 2.27 (P-256):
  *
@@ -442,7 +418,6 @@ function feReduce(out: i32): void {
 
 	// Initialise acc = s1.
 	const acc: i32 = FIELD_TMP + 0 * FIELD_TMP_STRIDE
-	const scratch9: i32 = FIELD_TMP + 1 * FIELD_TMP_STRIDE  // 9-limb scratch
 	for (let i: i32 = 0; i < 8; i++) st(acc, i, ld(s1, i))
 	store<u32>(acc + 32, 0)  // 9th limb = 0
 
@@ -670,27 +645,12 @@ export function feInv(out: i32, a: i32): void {
 		for (let bitIdx: i32 = 31; bitIdx >= 0; bitIdx--) {
 			feSqr(acc, acc)
 			const bit: u32 = (w >> (bitIdx as u32)) & 1
-			// Conditional multiply: tmp = acc * a; if bit, acc = tmp.
-			const tmp: i32 = FIELD_TMP + 7 * FIELD_TMP_STRIDE
-			// Wait — slot 7 is used by feReduce for s1. We need slots that don't
-			// alias with feMul's internal FIELD_TMP usage. feMul uses slots 0..15
-			// inside feReduce. So we cannot place tmp at any of these.
-			// Solution: use an out-of-FIELD_TMP region. Use POINT_TMP slot 0 for tmp,
-			// since point ops are not running during feInv.
-			// Simpler: drop into MUL_INT_HI's 32-byte high half as a scratch field
-			// element (32 bytes, available between feMul calls because feMul rewrites
-			// MUL_INT each call).
-			// Actually the cleanest move is to compute acc*a unconditionally into a
-			// dedicated outside-FIELD_TMP slot, then ct-select.
-			// We use the SCALAR_TMP slot 0 as a 32-byte scratch since SCALAR_TMP
-			// is unused during field operations called from outside the ECDSA flow.
-			// But this couples field.ts to ECDSA scratch — bad. Define a separate
-			// 32-byte slot in buffers if needed.
-			//
-			// For now, use FIELD_TMP slot 15 (last slot, not used between feMul calls).
-			// Hmm, slot 15 = s9 which feReduce overwrites. After feMul returns, slot 15
-			// is junk — but we don't care about junk, we just need a writable spot
-			// that won't be overwritten between now and the ct-select.
+			// Conditional multiply: compute acc * a unconditionally into a
+			// scratch slot, then ct-select between (acc, scratch) on `bit`.
+			// Slot 15 (= s9) is overwritten by feReduce on every feMul call,
+			// so its post-call content is junk we don't care about; we just
+			// need a writable destination that is not aliased by feMul's own
+			// FIELD_TMP slots 0..14.
 			const tmpSlot: i32 = FIELD_TMP + 15 * FIELD_TMP_STRIDE
 			feMul(tmpSlot, acc, aCopy)
 			// ct-select: if bit, acc = tmpSlot; else keep acc.
@@ -837,6 +797,12 @@ export function feIsOdd(a: i32): i32 {
 /**
  * Returns 1 if a == b (canonical), 0 otherwise. Both inputs assumed
  * canonical; folds (a XOR b) into a single 0/1.
+ *
+ * Hand-rolled rather than calling cte/shared ctEqual because the
+ * inputs are 8 × u32 limbs, not a contiguous byte buffer. ld(a, i)
+ * reads the i-th limb via the field-element layout's stride; ctEqual
+ * operates on raw byte offsets. Same XOR-accumulate primitive, same
+ * branch-free reduction, different element representation.
  */
 export function feIsEqual(a: i32, b: i32): i32 {
 	let r: u32 = 0

@@ -1,7 +1,7 @@
 //                  ▄▄▄▄▄▄▄▄▄▄
 //           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
 //        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
-//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒ █ ▒ ▒ ▒ █
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
 //     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
 //     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
 //     ███████▌    ▀██▀         ███
@@ -19,47 +19,30 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// src/asm/kyber/verify.ts
+// constant-time byte equality, AS-internal shared helper
 //
-// ML-KEM (Kyber), constant-time byte comparison and conditional move.
-// FIPS 203 §6.3, used in KEM Decapsulate to prevent decryption oracle attacks.
-// Reference: pq-crystals/kyber main ref/verify.c.
+// Scalar XOR-accumulate, branch-free 0/1 reduction. Imported by other
+// AS modules and inlined into each importer's compile unit; never
+// emitted as a WASM export because the `export` is source-level only
+// (the symbol is not re-exported from any module's entry file).
 //
-// Security note: no early return, no branch on secret-derived values.
-// ct_verify delegates to the shared XOR-accumulate helper. ct_cmov uses
-// mask-and-XOR only.
+// Scalar (not SIMD) so the helper compiles cleanly into binaries that
+// do not enable the SIMD feature (slhdsa, curve25519, p256). Sibling
+// `index.ts` keeps the SIMD `compare()` path for cte.wasm's
+// JS-boundary callers, where buffer sizes are larger.
+//
+// Returns 1 if equal, 0 if not. Caller writes both arrays into the
+// importing module's linear memory before calling.
 
-import { ctEqual } from '../cte/shared';
-
-/**
- * Compare two byte arrays in constant time. FIPS 203 §6.3.
- * Returns 0 if equal, 1 if any byte differs (the "fail" flag the
- * reference C code uses to drive implicit rejection).
- * Body delegates to cte/shared ctEqual and XORs the result with 1 to
- * flip the convention; the XOR is a single instruction with uniform
- * timing, preserves the no-branch-on-secret-data property.
- * @param aOffset first byte array offset
- * @param bOffset second byte array offset
- * @param len     array length in bytes
- */
-export function ct_verify(aOffset: i32, bOffset: i32, len: i32): i32 {
-	return ctEqual(aOffset, bOffset, len) ^ 1;
-}
-
-/**
- * Conditional move: if b==1, copy x to r; if b==0, no-op. FIPS 203 §6.3.
- * Mask-and-XOR pattern, no branch on b or data.
- * @param rOffset destination byte array offset
- * @param xOffset source byte array offset
- * @param len     array length in bytes
- * @param b       condition: must be 0 or 1
- */
-export function ct_cmov(rOffset: i32, xOffset: i32, len: i32, b: i32): void {
-	// mask = -b: 0xFF...FF if b==1, 0x00...00 if b==0
-	const mask: u8 = <u8>-b;
+@inline
+export function ctEqual(aOff: i32, bOff: i32, len: i32): i32 {
+	let diff: i32 = 0;
 	for (let i: i32 = 0; i < len; i++) {
-		const ri: u8 = load<u8>(rOffset + i);
-		const xi: u8 = load<u8>(xOffset + i);
-		store<u8>(rOffset + i, ri ^ (mask & (ri ^ xi)));
+		diff |= (<i32>load<u8>(aOff + i)) ^ (<i32>load<u8>(bOff + i));
 	}
+	// Branch-free "diff == 0 → 1, else 0":
+	//   (diff | -diff) has its sign bit set iff diff != 0; arithmetic
+	//   shift propagates it to all 32 bits. Invert and mask to low bit.
+	//   Avoids relying on the engine's i32.eqz being uniform-timed.
+	return ~((diff | -diff) >> 31) & 1;
 }
