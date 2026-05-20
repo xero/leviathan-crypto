@@ -462,6 +462,23 @@ additions add no migration burden.
   (serpent, chacha20, sha2, sha3, keccak, stream, ratchet); kyber's
   existing re-export is unchanged.
 
+- **`CT_MAX_BYTES` renamed to `CTE_MAX_BYTES`.** The public const that
+  bounds `constantTimeEqual` input length per side keeps its value
+  (32768 bytes) but moves from the `CT_` prefix to `CTE_` to match the
+  renamed constant-time equality module. Consumers who imported it by
+  name need a one-line update:
+  `import { CTE_MAX_BYTES } from 'leviathan-crypto'`. The TS function
+  name `constantTimeEqual` is unchanged.
+
+  The underlying WASM module renames in lockstep: `src/asm/ct/` →
+  `src/asm/cte/`, `ct.wasm` → `cte.wasm`, `src/ts/ct-wasm.ts` →
+  `src/ts/cte-wasm.ts`, `docs/asm_ct.md` → `docs/asm_cte.md`. None of
+  these paths are part of the public npm subpath surface (no
+  `leviathan-crypto/ct/embedded` ever existed), so the rename does
+  not break consumer imports beyond the const above. The module's
+  WASM-export shape (one `compare(aOff, bOff, len): i32` plus the
+  exported single-page `memory`) is preserved exactly.
+
 ### Test Suite
 
 - **`internal-api-stripped.test.ts` invariant inverted for the five probes.**
@@ -512,6 +529,54 @@ additions add no migration burden.
   redundant once the function is type-private. No runtime change; internal
   callers (`init.ts`, `seal-stream-pool.ts`) and tests are unaffected
   (relative source imports, not the published `.d.ts`).
+
+- **`cte/shared.ts ctEqual` for in-WASM byte equality.** New `@inline`
+  AssemblyScript helper at `src/asm/cte/shared.ts` exporting
+  `ctEqual(aOff, bOff, len): i32`. Imported by `kyber/verify.ts`,
+  `slhdsa/hypertree.ts`, `curve25519/ed25519.ts`, and `p256/ecdsa.ts`;
+  the AS compiler inlines the body at each call site so the symbol
+  never appears in any consumer binary's WASM exports table (verified
+  by probe against the resulting wasm). Scalar XOR-accumulate with a
+  branch-free `~((diff | -diff) >> 31) & 1` reduction; avoids relying
+  on the host engine emitting `i32.eqz` with uniform timing.
+
+  Sibling `src/asm/cte/index.ts` keeps the SIMD `compare()` for
+  cte.wasm itself, where JS-boundary callers hand larger buffers (tag,
+  MAC, ctx, keyId, tree root, key-binding hash). Both surfaces
+  implement the same algorithm and share an audit case; the
+  instruction sequences differ because WASM modules cannot share
+  runtime code across separate linear memories.
+
+  Five pre-existing AS-internal CT byte-compare sites collapse onto
+  the shared helper:
+  - kyber `ct_verify` body now delegates to `ctEqual(...) ^ 1` to
+    preserve the FIPS 203 §6.3 "1 if differ" convention used by the
+    reference C as a fail flag
+  - slhdsa hypertree's inline XOR-accumulate at FIPS 205 line 14
+    (PK.root compare) becomes a single `ctEqual` call
+  - the two identical `bytes32Diff` helpers in
+    `curve25519/ed25519.ts` and `p256/ecdsa.ts` are deleted; their
+    four callers flip from `!= 0` to `== 0` on the guard expression
+
+  Two specialty sites stay hand-rolled with new comments documenting
+  why: `curve25519/compress.ts` decompress does a 31-byte equal plus
+  a masked-top-bit comparison on byte 31, and `p256/field.ts feIsEqual`
+  operates on 8 × u32 limbs rather than bytes. Both use the same
+  XOR-accumulate primitive and same branch-free reduction; only the
+  input shape diverges.
+
+- **`p256/field.ts` dead-code cleanup.** Removed an unused import
+  (`MUL_INT_HI`), an unused 23-line `condSubP` function (replaced
+  during development by an inline mask-and-XOR but never deleted),
+  an unused `scratch9` const declaration, and an orphan scratch-slot
+  declaration `tmp` in `feInv`'s loop along with the stream-of-
+  consciousness comment trail that accompanied it. Net -40 lines,
+  zero behavior change, p256.wasm bytes unchanged. The remaining
+  shift-simplification LSP warnings on the same file (`s >> 32`,
+  `d >> 63`, `t >> 32`) are TypeScript false positives caused by
+  the LSP not understanding AssemblyScript's explicit 64-bit types;
+  those shifts are load-bearing carry / sign extractions on u64 /
+  i64 arithmetic and must not be touched.
 
 ### Added (Phase 1 signature work)
 
