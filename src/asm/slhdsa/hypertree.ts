@@ -69,6 +69,7 @@ import {
 import {
 	xmssSign, xmssPkFromSig,
 } from './xmss';
+import { ctEqual } from '../cte/shared';
 
 // ── Working-buffer offset (STATE region) ───────────────────────────────────
 
@@ -218,12 +219,10 @@ export function htVerify(
 		xmssPkFromSig(HT_ROOT_OFFSET, leaf, sigOff, HT_ROOT_OFFSET, pkSeedPtr, adrsPtr);
 	}
 
-	// FIPS 205 lines 13-14: return node = PK.root. Constant-time compare.
-	let acc: i32 = 0;
-	for (let i = 0; i < n; i++) {
-		acc |= (<i32>load<u8>(HT_ROOT_OFFSET + i)) ^ (<i32>load<u8>(pkRootPtr + i));
-	}
-	return acc === 0 ? 1 : 0;
+	// FIPS 205 lines 13-14: return node = PK.root. Constant-time compare
+	// via cte/shared ctEqual (inlined; returns 1 if equal, 0 if differ,
+	// matching this function's caller contract).
+	return ctEqual(HT_ROOT_OFFSET, pkRootPtr, n);
 }
 
 // ── Internal accessors for the unit test bridge ────────────────────────────
