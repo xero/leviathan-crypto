@@ -24,7 +24,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 > - [init() API](#init-api)
 > - [Public API Classes](#public-api-classes)
 > - [Module Relationships](#module-relationships)
-> - [npm Package](#npm-package)
+> - [NPM Package](#npm-package)
 > - [Test Suite](#test-suite)
 > - [Security](#security)
 >     - [Correctness Contract](#correctness-contract)
@@ -42,7 +42,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 
 ## Architectural overview
 
-**Zero runtime dependencies.** No npm graph to audit. No supply chain attack surface.
+**Zero runtime dependencies.** No NPM graph to audit. No supply chain attack surface.
 
 **Tree-shakeable.** Import only what you use. Subpath exports let bundlers exclude everything else.
 
@@ -240,7 +240,7 @@ src/asm/
 
 ### TypeScript layer
 
-`src/ts/` is the public API layer. Each subdirectory is a published npm subpath; top-level files cover cross-cutting concerns and standalone utilities.
+`src/ts/` is the public API layer. Each subdirectory is a published NPM subpath; top-level files cover cross-cutting concerns and standalone utilities.
 
 **Subpath conventions.** Every cipher and hash module has an `index.ts` barrel, a `types.ts` for TypeScript-only declarations, and an `embedded.ts` that re-exports its gzip+base64 WASM blob from `src/ts/embedded/`. The `keccak/` alias subpath omits `types.ts` and re-exports sha3's instead. The `ratchet/` and `stream/` modules have no `embedded.ts` because they compose other modules and ship no WASM of their own.
 
@@ -435,16 +435,16 @@ The repository root holds project documentation, package metadata, and tool conf
 
 **Documentation.** `README.md` is the entry point. `SECURITY.md` covers the vulnerability disclosure policy. `AGENTS.md` is the agent contract that governs how AI agents work in the repo. `CHANGELOG` tracks release history and `LICENSE` is MIT. The `docs/` directory holds the full API reference, audits, benchmarks, and architecture notes (this file lives there).
 
-**Package metadata.** `package.json` declares the npm manifest, subpath exports, and scripts. `package-lock.json` and `bun.lock` are the lockfiles for npm and bun respectively; both ship checked in so either tool can install reproducibly.
+**Package metadata.** `package.json` declares the NPM manifest, subpath exports, and scripts. `package-lock.json` and `bun.lock` are the lockfiles for NPM and bun respectively; both ship checked in so either tool can install reproducibly.
 
 **Tool configs.** `asconfig.json` configures AssemblyScript compilation. `eslint.config.ts` is the active linter, run via `bun fix`. `playwright.config.ts` and `vitest.config.ts` configure the e2e and unit test runners. `tsconfig.json` is the base TypeScript config; `tsconfig.test.json` and `tsconfig.e2e.json` extend it for the test targets. `tslint.json` is a TSLint config (older format).
 
-**Build artifacts** (gitignored; only exist after `bun bake`). `build/` holds the raw `.wasm` outputs from AssemblyScript compilation. `dist/` is the published npm package contents (compiled JS, declarations, copied WASM, embedded blobs, doc subset).
+**Build artifacts** (gitignored; only exist after `bun bake`). `build/` holds the raw `.wasm` outputs from AssemblyScript compilation. `dist/` is the published NPM package contents (compiled JS, declarations, copied WASM, embedded blobs, doc subset).
 
 ```
 .
 ├── build/                ← gitignored: .wasm outputs from AS compilation
-├── dist/                 ← gitignored: published npm package contents
+├── dist/                 ← gitignored: published NPM package contents
 ├── docs/                 ← API reference, audits, benchmarks (this file lives here)
 ├── README.md
 ├── SECURITY.md
@@ -543,7 +543,7 @@ For the developer-facing workflow around these scripts (the iteration loop, sing
 
 **Test vectors.** `verify-vectors.yml` runs two sequenced jobs. `hashsums` reads `test/vectors/SHA256SUMS` and runs `sha256sum --check` against every pinned vector file, catching accidental edits or supply-chain tampering of the corpus. `rust-verify` depends on `hashsums`, builds the [Rust verifier](./vector_audit.md) crate at `scripts/verify-vectors/` with the pinned Rust toolchain (1.95.0) and pinned `Cargo.lock`, and re-derives every Tier 2 KAT byte from RustCrypto primitives that share zero code with leviathan-crypto's WASM stack. The verifier covers ten cipher targets: `xchacha`, `serpent`, `aes-gcm-siv`, `polyval`, `aes`, `aes-cbc`, `aes-ctr`, `aes-gcm`, `mlkem`, and `mldsa`. Cold builds take roughly 60 seconds; cached runs complete in under 15. See [vector_audit.md](./vector_audit.md) for the full tier classification, what the verifier proves, and what it does not.
 
-**Release flow.** Manual `release.yml` bumps the version and creates the tag; the resulting `v*` tag push triggers `publish.yml`, which runs the npm publish with provenance attestations. `npm-remove.yml` is the manual deprecate/unpublish escape hatch.
+**Release flow.** Manual `release.yml` bumps the version and creates the tag; the resulting `v*` tag push triggers `publish.yml`, which runs the NPM publish with provenance attestations. `npm-remove.yml` is the manual deprecate/unpublish escape hatch.
 
 **Wiki.** `wiki.yml` syncs `docs/` to the GitHub Wiki on every merge to main.
 
@@ -960,16 +960,12 @@ The `p256.wasm` binary embeds its own SHA-256 + HMAC-SHA-256 (verbatim ports fro
 | `MlDsa{44,65}EcdsaP256Suite`                                        | Classical+PQ hybrid: `MlDsa44/65` + `EcdsaP256`; composite M' construction with ECDSA-internal SHA-256 per §6                                          |
 | `MerkleVerifier`, `MerkleLog`, `SignedLog`                          | `Sha256Tree` or `Blake3Tree` + any `SignatureSuite` for cosignatures (Ed25519Suite or MlDsa44Suite shipping)                                           |
 
----
-
-### Public API surface
-
 See [exports.md](./exports.md) for the complete export reference, including every class, function, type, per-module init function, and the `isInitialized` re-exports available from every subpath.
 
 ---
 
 
-## npm Package
+## NPM Package
 
 **Subpath exports:**
 
@@ -1020,7 +1016,7 @@ The `/embedded` subpaths provide gzip+base64 WASM blobs for zero-config usage. C
 
 **Tree-shaking:** `"sideEffects": false` is set in `package.json`. Bundlers that support tree-shaking (webpack, Rollup, esbuild) can eliminate unused modules and their embedded WASM binaries from the final bundle.
 
-**Published.** The npm package includes:
+**Published.** The NPM package includes:
 
 - `dist/`: compiled JS, TypeScript declarations, WASM binaries, pool worker source files (build inputs, not runtime spawn entries; see the NOTE above), and a subset of consumer-facing API docs for offline use.
 - `CLAUDE.md`: agent-facing project context.
@@ -1029,7 +1025,6 @@ The `/embedded` subpaths provide gzip+base64 WASM blobs for zero-config usage. C
 **Not published.** `src/`, `test/`, `build/`, `scripts/`, `.github/`, editor configs.
 
 ---
-
 
 ## Test Suite
 
@@ -1189,9 +1184,9 @@ The architecture above commits to a specific threat model. Three adversary class
 
 **Construction adversary.** Spec drift enters through contributor mistakes, ported-from-another-implementation errors, or AI-assisted guesses and unstated assumptions. Defenses include independent derivation from authoritative spec, immutable KAT vectors with SHA256SUMS integrity validated in CI, gate discipline before any test-suite extension, cross-implementation verification across the `verify-vectors` Rust crate plus the TypeScript reference plus external tools, and the [agentic development contracts](#agentic-development-contracts) for AI-assisted work.
 
-**Distribution adversary.** Typosquat variants of `leviathan-crypto` on npm could otherwise install attacker-controlled code under a believable name. Decoy packages claim common variants preemptively, ahead of any observed attack; the [defended attacks](#defended-attacks) section describes the mechanism. Compromise of the npm registry itself, and any supply-chain compromise downstream of the registry, stay out of scope.
+**Distribution adversary.** Typosquat variants of `leviathan-crypto` on NPM could otherwise install attacker-controlled code under a believable name. Decoy packages claim common variants preemptively, ahead of any observed attack; the [defended attacks](#defended-attacks) section describes the mechanism. Compromise of the NPM registry itself, and any supply-chain compromise downstream of the registry, stay out of scope.
 
-**Trust assumptions.** Across all three axes the model assumes a faithful WebAssembly runtime, a working CSPRNG, the browser's same-origin and sandbox boundaries, and npm publishing pipeline integrity. Keys must be properly generated; Argon2id, if used, must be consumer-installed. Consumer code must use the API as documented, with the published [wiki](https://github.com/xero/leviathan-crypto/wiki) and supporting documentation.
+**Trust assumptions.** Across all three axes the model assumes a faithful WebAssembly runtime, a working CSPRNG, the browser's same-origin and sandbox boundaries, and NPM publishing pipeline integrity. Keys must be properly generated; Argon2id, if used, must be consumer-installed. Consumer code must use the API as documented, with the published [wiki](https://github.com/xero/leviathan-crypto/wiki) and supporting documentation.
 
 **Framing constraint.** The whole model lives inside a JavaScript runtime. Side-channel resistance comparable to a native binary with hand-tuned instruction scheduling is not promised; the [honest comparison](#the-honest-comparison) section is explicit about this trade-off.
 
@@ -1199,7 +1194,7 @@ The architecture above commits to a specific threat model. Three adversary class
 
 ### Defended attacks
 
-The architectural defenses compose into protection against specific named attacks and DoS classes. The inventory below pairs each threat with its mechanism, split between runtime adversaries operating against a deployed instance and distribution adversaries operating on the npm namespace.
+The architectural defenses compose into protection against specific named attacks and DoS classes. The inventory below pairs each threat with its mechanism, split between runtime adversaries operating against a deployed instance and distribution adversaries operating on the NPM namespace.
 
 #### Runtime
 
@@ -1235,7 +1230,7 @@ The architectural defenses compose into protection against specific named attack
 
 #### Distribution
 
-**Typosquatting.** Misspellings or punctuation variants of `leviathan-crypto` on npm could otherwise install attacker-controlled code under a believable name. Decoy packages cover common typosquat variants (missing hyphens, character transpositions, and common misspellings); each declares the real `leviathan-crypto` as an optional peer dependency and runs a post-install script that loudly warns the user with the correct package name and install command.
+**Typosquatting.** Misspellings or punctuation variants of `leviathan-crypto` on NPM could otherwise install attacker-controlled code under a believable name. Decoy packages cover common typosquat variants (missing hyphens, character transpositions, and common misspellings); each declares the real `leviathan-crypto` as an optional peer dependency and runs a post-install script that loudly warns the user with the correct package name and install command.
 
 ---
 
@@ -1249,7 +1244,7 @@ The architectural defenses compose into protection against specific named attack
 
 **The defended threat is concrete.** An adversary with read access to WASM linear memory between operations cannot recover key material from previously-completed operations. Authentication failures cannot disclose plaintext to JavaScript callers. Tampered headers, reordered chunks, spliced streams, and cross-stream substitutions fail authentication before decryption. Backward seeks on a decrypting stream throw rather than reuse a consumed counter nonce against new ciphertext. A wrong key under the seal API fails before the AEAD ever runs. Forged ciphertext never returns plaintext bytes to the caller.
 
-**The undefended threats are equally concrete.** JavaScript-side memory disclosure from heap-snapshot exfiltration, eval injection, or prototype pollution is the runtime's responsibility. Host CPU side channels (cache timing on secret-dependent loads, branch prediction, and speculative execution) are the hardware's. Physical device access is the deployment's. Supply chain compromise downstream of the npm registry is the consumer's. None of these is what the library claims to address.
+**The undefended threats are equally concrete.** JavaScript-side memory disclosure from heap-snapshot exfiltration, eval injection, or prototype pollution is the runtime's responsibility. Host CPU side channels (cache timing on secret-dependent loads, branch prediction, and speculative execution) are the hardware's. Physical device access is the deployment's. Supply chain compromise downstream of the NPM registry is the consumer's. None of these is what the library claims to address.
 
 ---
 
