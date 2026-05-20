@@ -86,6 +86,8 @@ import {
 
 import {FIELD_TMP, FIELD_TMP_STRIDE} from './buffers'
 
+import { ctEqual } from '../cte/shared'
+
 // ── Internal wipe helper ───────────────────────────────────────────────────
 //
 // Inlined copy of index.ts wipeBuffers so ecdsa.ts entry points can
@@ -111,16 +113,6 @@ function isAllZero32(buf: i32): i32 {
 	}
 	const x: u32 = r | ((-(r as i32)) as u32)
 	return ((1 as u32) - (x >> 31)) as i32
-}
-
-// Constant-time 32-byte compare. Returns 0 if equal, non-zero otherwise.
-@inline
-function bytes32Diff(a: i32, b: i32): i32 {
-	let diff: i32 = 0
-	for (let i: i32 = 0; i < 32; i++) {
-		diff |= (load<u8>(a + i) as i32) ^ (load<u8>(b + i) as i32)
-	}
-	return diff
 }
 
 // ── ecdsaKeygen ────────────────────────────────────────────────────────────
@@ -181,7 +173,7 @@ export function ecdsaSign(
 	const kG: i32 = POINT_TMP + 3 * POINT_TMP_STRIDE
 	pointMulBase(d, kG)
 	pointCompress(ECDSA_PK_CHECK, kG)
-	if (bytes32Diff(ECDSA_PK_CHECK + 1, ECDSA_PK_INPUT + 1) != 0
+	if (ctEqual(ECDSA_PK_CHECK + 1, ECDSA_PK_INPUT + 1, 32) == 0
 	    || (load<u8>(ECDSA_PK_CHECK) as i32) != (load<u8>(ECDSA_PK_INPUT) as i32)) {
 		wipeAll()
 		unreachable()
@@ -416,7 +408,6 @@ export function ecdsaVerify(pkOff: i32, msgHashOff: i32, sigOff: i32): i32 {
 	const rCheck: i32 = SCALAR_TMP + 3 * SCALAR_TMP_STRIDE
 	scalarReduce(rCheck, xRBytes)
 
-	// Compare r_check to r byte-for-byte.
-	const eq: i32 = (bytes32Diff(rCheck, r) == 0) ? 1 : 0
-	return eq
+	// Compare r_check to r byte-for-byte. ctEqual returns 1 if equal, 0 if not.
+	return ctEqual(rCheck, r, 32)
 }
