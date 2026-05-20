@@ -26,23 +26,24 @@
 // Reference: pq-crystals/kyber main ref/verify.c.
 //
 // Security note: no early return, no branch on secret-derived values.
-// ct_verify uses XOR-accumulate only. ct_cmov uses mask-and-XOR only.
+// ct_verify delegates to the shared XOR-accumulate helper. ct_cmov uses
+// mask-and-XOR only.
+
+import { ctEqual } from '../cte/shared';
 
 /**
  * Compare two byte arrays in constant time. FIPS 203 §6.3.
- * Returns 0 if equal, 1 if any byte differs.
- * XOR-accumulate with no early return, no branch on secret data.
+ * Returns 0 if equal, 1 if any byte differs (the "fail" flag the
+ * reference C code uses to drive implicit rejection).
+ * Body delegates to cte/shared ctEqual and XORs the result with 1 to
+ * flip the convention; the XOR is a single instruction with uniform
+ * timing, preserves the no-branch-on-secret-data property.
  * @param aOffset first byte array offset
  * @param bOffset second byte array offset
  * @param len     array length in bytes
  */
 export function ct_verify(aOffset: i32, bOffset: i32, len: i32): i32 {
-	let r: u8 = 0;
-	for (let i: i32 = 0; i < len; i++) {
-		r |= load<u8>(aOffset + i) ^ load<u8>(bOffset + i);
-	}
-	// (-(u64)r) >> 63: non-zero r gives 1, zero r gives 0
-	return <i32>(<u64>-<u64>r >> 63);
+	return ctEqual(aOffset, bOffset, len) ^ 1;
 }
 
 /**
