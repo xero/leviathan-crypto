@@ -21,64 +21,20 @@
 //
 // src/asm/p256/rfc6979.ts
 //
-// RFC 6979 §3.2 deterministic K derivation and the
-// draft-irtf-cfrg-det-sigs-with-noise-05 §4 hedged variant for P-256
-// + SHA-256.
+// RFC 6979 §3.2 deterministic K and draft-irtf-cfrg-det-sigs-with-noise-05
+// §4 hedged K for P-256 + SHA-256. Reproduces RFC 6979 §A.2.5 byte-for-byte.
 //
-// Public entry points (the two existing helpers; both run the full
-// init-plus-one-extraction sequence and remain byte-compatible with
-// RFC 6979 §A.2.5):
-//
+// Public one-shots:
 //   deriveKDeterministic(d, msgHash, kOut)
-//     RFC 6979 §3.2 verbatim. Drives HMAC-SHA-256 over
-//     (V || 0x00 || int2octets(x) || bits2octets(h1)) and
-//     (V || 0x01 || int2octets(x) || bits2octets(h1)) per steps d/f,
-//     then the inner V = HMAC_K(V) feedback. Reproduces the RFC 6979
-//     §A.2.5 P-256 / SHA-256 expected `k` byte-for-byte.
-//
 //   deriveKHedged(d, msgHash, rnd, kOut)
-//     draft-irtf-cfrg-det-sigs-with-noise-05 §4 updated steps d/f
-//     (described in the hedged section below).
 //
-// Both wrappers delegate to a two-phase API used internally by the
-// ECDSA sign loop:
+// Two-phase API for the ECDSA sign loop:
+//   _drbgInitDeterministic / _drbgInitHedged : establish (K, V)
+//   _drbgNextK(kOut)                          : §3.2 step h, advances V
 //
-//   _drbgInitDeterministic(d, msgHash)
-//   _drbgInitHedged(d, msgHash, rnd)
-//     Run RFC 6979 §3.2 steps b through g (or the hedged equivalent).
-//     Leave the HMAC_DRBG state (K, V) at offsets HMAC_DRBG_K /
-//     HMAC_DRBG_V ready for sampling.
-//
-//   _drbgNextK(kOut)
-//     Run §3.2 step h: produce one candidate k in [1, n-1], advancing
-//     K / V across in-range rejection. The accepted k lives in V on
-//     return, so subsequent calls cleanly produce subsequent k's: the
-//     next hmacKofV() step advances V to HMAC_K(V_accepted), which is
-//     statistically independent of the prior k.
-//
-// The two-phase split is what the §3.4 r=0 / s=0 retry path in
-// ecdsa.ts requires. RFC 6979 §3.4 step 6 says "compute a new k from
-// the next iteration of the loop in step 5"; for deterministic ECDSA
-// this means continue the DRBG, NOT re-initialise it. A naïve
-// re-init produces the same k and infinite-loops; the two-phase API
-// makes the correct sequencing the only one available to the caller.
-//
-// Both extraction paths output k ∈ [1, n-1] in 32-byte BE form to
-// `kOut`. The in-range rejection-sampling loop is constant-time-
-// skipped per RFC 6979 §3.2's informative note: the probability of
-// one extra HMAC iteration is bounded by (2^256 - n) / 2^256 < 2^-128
-// for P-256.
-//
-// Buffer usage:
-//   HMAC_DRBG_K (32 bytes): K state across HMAC calls
-//   HMAC_DRBG_V (32 bytes): V state across HMAC calls
-//   SCALAR_TMP slot 5 (32 bytes): h1 reduced mod n (bits2octets output)
-//   SHA256_INPUT_OFFSET (64 bytes): scratch for HMAC key and message
-//                                   chunks (one block at a time)
-//
-// The embedded SHA-256 + HMAC port (./sha256.ts + ./hmac_sha256.ts)
-// keeps every HMAC call inside one WASM call: zero JS<->WASM boundary
-// crossings during the rejection loop.
+// GOTCHA: the §3.4 r=0 / s=0 retry path MUST continue the DRBG, not
+// re-init it. A naïve re-init re-derives the same k and infinite-loops;
+// the two-phase split makes the correct sequencing the only one available.
 
 import {
 	HMAC_DRBG_K, HMAC_DRBG_V,
@@ -124,12 +80,9 @@ export function deriveKDeterministic(d: i32, msgHash: i32, kOut: i32): void {
 /**
  * d:        32 bytes BE, private scalar
  * msgHash:  32 bytes BE, SHA-256(M)
- * rnd:      32 bytes, additional entropy Z (caller-supplied; all-zero
- *           is a valid input and produces the draft's "Z = 0" variant,
- *           which is NOT byte-equivalent to RFC 6979 §3.2 deterministic
- *           K — the hedged construction zero-pads to a different
- *           HMAC input length per the draft's intentional domain
- *           separation, see §5 of the draft).
+ * rnd:      32 bytes additional entropy Z. All-zero is valid; the
+ *           hedged construction is NOT byte-equivalent to §3.2
+ *           deterministic K (draft §4, §5 intentional domain separation).
  * kOut:     32 bytes BE, output nonce k ∈ [1, n-1]
  *
  * Equivalent to `_drbgInitHedged(d, msgHash, rnd); _drbgNextK(kOut)`.
@@ -221,16 +174,9 @@ export function _drbgInitHedged(d: i32, msgHash: i32, rnd: i32): void {
 
 // ── _drbgNextK: RFC 6979 §3.2 step h ───────────────────────────────────────
 //
-// Draw one k ∈ [1, n-1] from the established DRBG. May iterate
-// internally for k ∉ [1, n-1]: this is the spec's in-range
-// rejection-sampling loop (probability of even one rejection is
-// < 2^-128 for P-256).
-//
-// On accept, V holds the accepted k bytes. The next call to
-// _drbgNextK begins with hmacKofV(), which advances V to
-// HMAC_K(V_accepted), a fresh sample independent of the previous k.
-// This is the §3.4 r=0 / s=0 retry path's required semantics: a new
-// k drawn from the CONTINUED DRBG, never a re-initialisation.
+// Draw one k ∈ [1, n-1]. Iterates internally on the < 2^-128 in-range
+// rejection. Next call advances V via hmacKofV(), satisfying the §3.4
+// retry contract (see module header).
 
 export function _drbgNextK(kOut: i32): void {
 	while (true) {
@@ -242,11 +188,8 @@ export function _drbgNextK(kOut: i32): void {
 		if ((canonical & nonzero) == 1) {
 			return
 		}
-		// In-range reject: K = HMAC_K(V || 0x00), V = HMAC_K(V).
-		// Same shape for the deterministic and hedged paths; the
-		// draft is silent on rejection-loop modifications so the loop
-		// re-keys with K = HMAC_K(V || 0x00) (no Z reuse), matching
-		// the RFC 6979 §3.2 rejection step verbatim.
+		// In-range reject (RFC 6979 §3.2): K = HMAC_K(V || 0x00); V = HMAC_K(V).
+		// Same shape for deterministic and hedged paths (draft is silent here).
 		hmac256InitWithK()
 		hmac256UpdateBytes(HMAC_DRBG_V, 32)
 		stageByte(0x00)

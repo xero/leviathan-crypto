@@ -20,15 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * Validate `ecdsaSign` against RFC 6979 §A.2.5 (deterministic-K shortcut
- * with rnd = all-zero) and against the ACVP keyGen-derived pk path.
- *
- * The deterministic-K shortcut takes the all-zero `rnd` argument and
- * routes to RFC 6979 §3.2 verbatim inside the substrate, reproducing
- * RFC §A.2.5's (r, s) byte-for-byte.
- *
- * Per AGENTS.md §3, RFC 6979 §A.2.5 expected values are sourced from
- * the RFC verbatim and never modified.
+ * Validate `ecdsaSign` against RFC 6979 §A.2.5 + ACVP keyGen.
+ * rnd=0^32 selects RFC 6979 §3.2 deterministic K → byte-exact (r, s).
+ * AGENTS.md §3: vectors immutable.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -41,10 +35,7 @@ import {
 	type P256Exports,
 } from './util.js';
 
-// Normalise s to its low-S equivalent per RFC 6979 §3.5. The library's
-// signing path always emits low-S, so RFC §A.2.5's high-S records must
-// be compared against (n - s) when matched against the library's
-// output. Operates on hex strings; computes via BigInt.
+// Library emits low-S per RFC 6979 §3.5; compare RFC's high-S sigs against (n - s).
 function lowS(sHex: string): string {
 	const n = BigInt('0x' + N_HEX);
 	const s = BigInt('0x' + sHex);
@@ -87,12 +78,7 @@ describe('p256 ecdsaSign (deterministic shortcut)', () => {
 			const r = readBytes(wasm.memory, sigOff, 32);
 			const s = readBytes(wasm.memory, sigOff + 32, 32);
 
-			// The library always emits low-S per RFC 6979 §3.5. The RFC's
-			// §A.2.5 expected s values are the un-normalised k^-1 * (e + r*d)
-			// output, which is high-S for some records ('sample' is high-S,
-			// 'test' is low-S). Compare against the low-S equivalent: the
-			// pair (r, lowS(s)) is the canonical strict-S form of the RFC's
-			// signature.
+			// Library low-S per RFC 6979 §3.5; compare against lowS(§A.2.5 s).
 			expect(bytesToHex(r).toLowerCase()).toBe(vec.rHex.toLowerCase());
 			expect(bytesToHex(s).toLowerCase()).toBe(lowS(vec.sHex).toLowerCase());
 		});

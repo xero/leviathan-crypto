@@ -21,12 +21,7 @@
 //
 // src/ts/ecdsa/embedded.ts
 //
-// Exports the gzip+base64 p256 WASM blob for use as a WasmSource. The
-// `leviathan-crypto/ecdsa/embedded` subpath re-exports the blob under
-// two names: `p256Wasm` (canonical, matches the underlying WASM module
-// name) and `ecdsaP256Wasm` (alias that reads more naturally in the
-// ecdsa subpath context). Both resolve to the identical underlying
-// string; tree-shaking is unaffected.
+// `p256Wasm` canonical, `ecdsaP256Wasm` alias.
 export {
 	WASM_GZ_BASE64 as p256Wasm,
 	WASM_GZ_BASE64 as ecdsaP256Wasm,

@@ -117,9 +117,7 @@ export function mldsaVerifyInternal(
 	const sha3Mem  = new Uint8Array(sx.memory.buffer);
 	const sha3OutOff = sx.getOutOffset();
 
-	// TS-side sensitive buffers, wipe in finally even though MPrime, c̃,
-	// μ are public-derivable (vk, sig, M are public). Keep the surface
-	// uniform with sign so future audits don't have to special-case verify.
+	// Public-derivable but wipe in finally for hygiene + symmetry with sign.
 	let mu:        Uint8Array | undefined;
 	let tr:        Uint8Array | undefined;
 	let cTilde:    Uint8Array | undefined;

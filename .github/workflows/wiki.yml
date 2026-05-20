@@ -39,7 +39,6 @@ jobs:
           cd ..
       - name: sync docs to wiki
         run: |
-          # copy docs to wiki
           cp -r repo/docs/* wiki/
           cp repo/SECURITY.md wiki/security_policy.md
           cd wiki
@@ -52,7 +51,6 @@ jobs:
           awk '/^\[sidebar\]/{f=1;next} f' wiki.ini > _Sidebar.md
           # remove wiki.ini from published output
           rm -f wiki.ini
-          # rename README to index
           mv README.md index.md
           find . -name "*.md" -exec perl -pi -e 's/\]\((?!https?:\/\/)([^)]*?)README\.md([#][^)]+)?\)/](${1}index.md$2)/g' {} \;
           # fix internal markdown links (remove .md extension for github wiki)

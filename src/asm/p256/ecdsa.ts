@@ -21,48 +21,22 @@
 //
 // src/asm/p256/ecdsa.ts
 //
-// High-level ECDSA-P256 entry points per FIPS 186-5 §6.
+// High-level ECDSA-P256 entry points per FIPS 186-5 §6:
+//   ecdsaKeygen          : §A.4.2 seed → (d, pk); SEC1 §2.3.3 compress
+//   ecdsaSign            : §6.4 sign; RFC 6979 §3.2 deterministic or
+//                          draft-irtf-cfrg-det-sigs-with-noise-05 hedged;
+//                          low-S per RFC 6979 §3.5; pk fault-cross-check
+//   ecdsaSignInternalPk  : suite-only sign without the cross-check
+//   ecdsaVerify          : §6.5 strict verify (low-S enforced)
 //
-//   ecdsaKeygen(seedOff, pkOff)
-//     Deterministic key derivation from a 32-byte seed. d = seed mod n
-//     (caller must ensure d != 0; the substrate traps on d == 0).
-//     pk = [d]G compressed to 33 bytes per SEC1 §2.3.3.
-//
-//   ecdsaSign(skOff, pkOff, msgHashOff, rndOff, sigOff)
-//     FIPS 186-5 §6.4 sign with hedged-or-deterministic K per
-//     draft-irtf-cfrg-det-sigs-with-noise-05. If rnd is all-zero, the
-//     deterministic RFC 6979 §3.2 path is used (reproduces RFC 6979
-//     §A.2.5 expected k values); else the hedged path. Always
-//     normalises to low-S per RFC 6979 §3.5. After signing, re-derives
-//     pk = [d]G and compares byte-for-byte against the caller's
-//     pkOff; mismatch wipes the mutable region and traps via
-//     `unreachable`, mirroring the Ed25519 fault-injection defence.
-//
-//   ecdsaSignInternalPk(skOff, msgHashOff, rndOff, sigOff)
-//     Suite-only entry. Derives pk internally and skips the fault-
-//     injection cross-check, saving one fixed-base scalar mult. Used
-//     by the suite-level factory in src/ts/sign/suites/*,
-//     mirrors `ed25519SignInternalPk`.
-//
-//   ecdsaVerify(pkOff, msgHashOff, sigOff) → i32
-//     FIPS 186-5 §6.5 verify with the strict-S posture (§6.5.3 +
-//     low-S enforcement). Returns 1 on accept, 0 on any reject path:
-//       - pk decompression fails
-//       - pk is the identity
-//       - r ∉ [1, n-1] or s ∉ [1, n-1]
-//       - s > n/2 (high-S)
-//       - signature equation fails (R = u1*G + u2*Q, r_check =
-//         x(R) mod n; reject if r_check != r)
-//
-// Wipe discipline: every export ends with wipeBuffersInline() on the
-// success path AND on every early return / trap. Secret intermediates
-// (d, k, kInv, r, s, e, K, V) all live in mutable regions cleared by
-// the BUFFER_END-bounded wipe.
+// Per-export JSDoc below details reject paths and parameter shapes.
+// Wipe discipline: every export ends with wipeAll() on success and on
+// every early return / trap.
 
 import {
 	SCALAR_TMP, SCALAR_TMP_STRIDE,
 	POINT_TMP, POINT_TMP_STRIDE,
-	ECDSA_SIG_TMP, ECDSA_PK_CHECK, ECDSA_PK_INPUT, ECDSA_MSG_HASH,
+	ECDSA_PK_CHECK, ECDSA_PK_INPUT, ECDSA_MSG_HASH,
 	MUTABLE_START, BUFFER_END,
 } from './buffers'
 
@@ -100,11 +74,8 @@ function wipeAll(): void {
 
 // ── 32-byte all-zero detector ──────────────────────────────────────────────
 //
-// Used by ecdsaSign to dispatch between the deterministic and hedged
-// K-derivation paths. `rnd` is caller-supplied entropy and is NOT
-// secret-key dependent, so a branch on isAllZero(rnd) does not leak
-// any secret bits — the dispatcher visibility is limited to the
-// caller's choice of mode (deterministic vs hedged).
+// Dispatches deterministic vs hedged K-derivation. rnd is caller-
+// supplied non-secret entropy; branching on it is safe.
 @inline
 function isAllZero32(buf: i32): i32 {
 	let r: u32 = 0
@@ -183,14 +154,11 @@ export function ecdsaSign(
 }
 
 /**
- * Suite-only sign entry: no pkOff parameter, no fault-injection
- * cross-check. The suite-layer caller (`EcdsaP256Suite`) has
- * already computed pk = [d]G via this same substrate during a prior
- * `keygen()` call (or never crossed the substrate boundary with a
- * known-good pk to compare against), so the cross-check would be
- * degenerate — both the suite's pk and the WASM-derived pk come from
- * the same possibly-faulted module. See AGENTS.md §"Per-call WASM
- * lifecycle in SignatureSuite factories".
+ * Suite-only sign entry: no pkOff, no fault-injection cross-check.
+ * Suite holds only the seed; caller pk and WASM-derived pk come from
+ * the same potentially-faulted module, so the cross-check would be
+ * degenerate. See AGENTS.md §"Per-call WASM lifecycle in
+ * SignatureSuite factories".
  */
 export function ecdsaSignInternalPk(
 	skOff: i32, msgHashOff: i32, rndOff: i32, sigOff: i32,
@@ -217,39 +185,22 @@ function ecdsaSignCore(
 	// of the public entry point covers d.
 	memory.copy(d, skOff, 32)
 
-	// Compute e = bits2int(h1) mod n. For P-256 + SHA-256, qlen = hlen
-	// = 256, so bits2int is a no-op truncation; the reduction mod n
-	// folds the integer into the scalar field. This is the same
-	// reduced value that rfc6979.ts caches at SCALAR_TMP slot 5 as
-	// h1mn; we recompute here so the sign-core is self-contained even
-	// when the K derivation is bypassed (e.g. test-only sign-with-k
-	// entry points in future revisions).
+	// e = bits2int(h1) mod n. qlen = hlen = 256 ⇒ bits2int identity
+	// (RFC 6979 §2.3.4); recompute here so the sign-core is self-contained.
 	scalarReduce(e, msgHashOff)
 
-	// Initialise the RFC 6979 §3.2 HMAC_DRBG (or its hedged equivalent
-	// per draft-irtf-cfrg-det-sigs-with-noise-05 §4) once per sign.
-	// all-zero rnd → RFC 6979 §3.2 deterministic; else → hedged.
+	// Init the HMAC_DRBG (RFC 6979 §3.2 or draft hedged) once per sign.
 	if (isAllZero32(rndOff) == 1) {
 		_drbgInitDeterministic(d, msgHashOff)
 	} else {
 		_drbgInitHedged(d, msgHashOff, rndOff)
 	}
 
-	// Draw the first candidate k. Subsequent draws (on the vanishingly
-	// rare r == 0 / s == 0 rejection inside the loop below) reuse the
-	// same DRBG state so each call cleanly advances V per RFC 6979
-	// §3.2 step h. Re-initialising would re-derive the same k from the
-	// same inputs and infinite-loop; the two-phase API in ./rfc6979.ts
-	// makes the correct sequencing the only one available here.
+	// First k. Retries (r==0 / s==0) reuse the DRBG state per §3.2 step h.
 	_drbgNextK(k)
 
-	// Loop: in the vanishingly unlikely case that r == 0 or s == 0,
-	// the spec (RFC 6979 §3.4 step 6) says "compute a new k from the
-	// next iteration of the loop in step 5", which means continue the
-	// DRBG — a fresh draw from the established (K, V) state. The
-	// probability of one extra iteration is ~2^-256 (r == 0 requires
-	// k*G to land on the y-axis mod n) and s == 0 is similar; under
-	// any realistic adversary model this loop body runs exactly once.
+	// On r == 0 / s == 0, draw next k from the continued DRBG
+	// (RFC 6979 §3.4 step 6). Rejection probability < 2^-256 per branch.
 	while (true) {
 		// R = [k]G.
 		const R: i32 = POINT_TMP + 3 * POINT_TMP_STRIDE
@@ -266,10 +217,6 @@ function ecdsaSignCore(
 		scalarReduce(r, xRBytes)
 
 		if (scalarIsZero(r) == 1) {
-			// Continue the DRBG: draw the next k from the existing
-			// (K, V) state. _drbgNextK's first action is hmacKofV()
-			// which advances V deterministically, so the new k is
-			// guaranteed distinct from the rejected one.
 			_drbgNextK(k)
 			continue
 		}
@@ -313,26 +260,18 @@ function feToBytesInto(out: i32, src: i32): void {
  * FIPS 186-5 §6.5, with the strict-S posture (low-S enforced). 0 on
  * any reject.
  *
- * Reject paths (each returns 0 without distinguishing which condition
- * triggered, by way of the boolean return value):
+ * Reject paths (each returns 0 without distinguishing which fired):
  *   - pk decompression fails (prefix not 0x02/0x03, x not on curve)
- *   - decompressed pk is the identity (Z would be 0)
+ *   - decompressed pk is the identity
  *   - r ∉ [1, n-1] or s ∉ [1, n-1]
- *   - s > n/2 (high-S; FIPS 186-5 itself does not require low-S, but
- *     this library's strict posture rejects high-S to align with the
- *     Wycheproof strict-gate corpus and the Ed25519 substrate's
- *     identical posture)
- *   - signature equation fails: r_check = x(u1*G + u2*Q) mod n
- *     does not equal r
+ *   - s > n/2 (strict low-S; FIPS 186-5 §6.5 accepts both s and n-s
+ *     under the same pk, leviathan rejects high-S for parity with
+ *     Ed25519 and the Wycheproof strict-gate corpus)
+ *   - signature equation fails: r_check ≠ r
  *
- * Timing posture: this function is NOT constant-time across reject
- * branches. Each gate early-returns on rejection, so the wall-clock
- * cost of a reject leaks WHICH gate fired. This is intentional and
- * safe: every input to ecdsaVerify (pk, msgHash, sig) is public, so a
- * timing channel between the gates discloses nothing the attacker
- * cannot already see on the wire. The constant-time discipline that
- * the library enforces elsewhere is for SECRET inputs (d, k, K/V
- * DRBG state); verify inputs do not qualify.
+ * Timing: branches on public inputs (pk, msgHash, sig); NOT
+ * constant-time across reject branches, by design. See
+ * docs/asm_p256.md#verify-timing.
  */
 export function ecdsaVerify(pkOff: i32, msgHashOff: i32, sigOff: i32): i32 {
 	const r: i32 = sigOff

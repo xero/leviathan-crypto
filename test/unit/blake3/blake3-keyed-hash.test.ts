@@ -20,24 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * BLAKE3 keyed_hash KAT, BLAKE3 §2.3 Modes.
- *
- * Drives the WASM `hashKeyed` entry point against all 35 records of the
- * upstream BLAKE3 KAT corpus (`test/vectors/blake3.ts`). For each
- * record, regenerates the input via `expandBlake3Input(inputLen)`, runs
- * `hashKeyed()` with the corpus-pinned `blake3Key` (the 32-byte ASCII
- * key from the upstream JSON) for a 32-byte output, and asserts the
- * bytes match the first 64 hex characters of the record's
- * `keyedHashHex`. XOF output past 32 bytes is not exercised here.
- *
- * §2.3: keyed_hash uses the 32 key bytes as the starting CV (loaded as
- * 8 u32 LE words, identical to a memcpy on a LE host), and every
- * compress in the operation carries the KEYED_HASH flag in addition to
- * the structural CHUNK_START / CHUNK_END / PARENT / ROOT bits.
- *
- * Expected values are sourced from `test/vectors/blake3.ts` (which
- * sources from the upstream JSON); per AGENTS.md §Ground Rules #2, do
- * not modify the vectors to make a failing test pass.
+ * keyed_hash KAT, BLAKE3 §2.3. Drives hashKeyed against every
+ * test/vectors/blake3.ts record. §2.3: 32 key bytes as starting CV
+ * (LE u32), every compress carries KEYED_HASH.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

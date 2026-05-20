@@ -21,18 +21,8 @@
 //
 // test/unit/sign/sign-ecdsa-p256-integration.test.ts
 //
-// Envelope + stream integration coverage for EcdsaP256Suite. The suite
-// is hedged-by-default, so the suite-level KAT records carry only the
-// RECEIVED rnd at generation time; we cannot expect byte-exact envelope
-// reproduction through `Sign.sign`. Instead the integration grades
-// round-trip behaviour: `Sign.verify` accepts every recorded blob,
-// `Sign.peek` reports the documented offsets, and a fresh suite-level
-// sign+verify cycle on the same (sk, msg) succeeds for every vector.
-//
-// Also exercises the detached path (`Sign.signDetached` /
-// `Sign.verifyDetached`), cross-suite tamper (a flipped suite_byte
-// rejects with sig-suite-mismatch), and the suite-bound ctx rejection
-// at the envelope layer.
+// Envelope + stream integration for EcdsaP256Suite. See
+// docs/ecdsa-p256.md#suite-integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, hexToBytes } from '../../../src/ts/index.js';

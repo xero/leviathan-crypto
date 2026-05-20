@@ -36,25 +36,17 @@
 // internal LE limb form. P-256 spec encoding is big-endian; the WASM
 // internal form is little-endian-limb for arithmetic convenience.
 //
-// Constant-time discipline: every operation runs a fixed-length loop
-// with mask-driven conditional selects. No branches on secret limbs,
-// no early returns. feIsZero / feIsEqual fold an XOR-accumulate into
-// a single 0/1 result.
+// Constant-time discipline: fixed-length loops + mask-driven selects.
+// No branches on secret limbs, no early returns.
 //
-// Non-Montgomery domain (locked design decision): inputs / outputs
-// are in the natural domain. feFromBytes and
-// feToBytes are simple radix conversions. RustCrypto's `p256` uses a
-// Montgomery domain for performance; leviathan-crypto deliberately
-// stays outside Montgomery to keep the field-arithmetic audit story
-// symmetric with curve25519's non-Montgomery posture.
+// Non-Montgomery domain (locked). Natural field domain;
+// feFromBytes / feToBytes are radix conversions. Rationale and
+// RustCrypto comparison: docs/asm_p256.md#representation-choice.
 //
-// Reduction reference: Hankerson-Menezes-Vanstone, "Guide to Elliptic
-// Curve Cryptography" (Springer 2004), §2.4.1, Algorithm 2.27, "Fast
-// reduction modulo p256". The algorithm takes a 16 × u32 product
-// c = (c15, c14, ..., c1, c0) and computes c mod p256 via 9 candidate
-// 8 × u32 terms s1..s9, summed / subtracted per the prime's Solinas
-// structure. We implement the recipe verbatim; each per-term aliasing
-// is cited inline at the implementation site.
+// Reduction reference: HMV §2.4.1 Algorithm 2.27 ("Fast reduction
+// modulo p256"). 16 × u32 product → 9 candidate 8 × u32 terms s1..s9,
+// summed / subtracted per the prime's Solinas structure. Per-term
+// aliasing cited inline at the feReduce site.
 
 import {
 	FIELD_TMP, FIELD_TMP_STRIDE,
@@ -163,14 +155,9 @@ export function feToBytes(out: i32, src: i32): void {
 }
 
 // ── Internal: 9-limb sum / subtract helpers ────────────────────────────────
-//
-// The Solinas reduction's per-term arithmetic can carry the result up
-// to one bit above the 8-limb boundary (e.g. 2 * p256 < 2^257). We
-// accumulate with an explicit u32 carry word and apply final mod-p
-// corrections via add9 / sub9 helpers operating on (8 limbs + carry).
-//
-// Layout in scratch: 9 × u32 = 36 bytes. Slot offsets in FIELD_TMP /
-// the dedicated 9-limb scratch region below are bytes [0..35].
+// Solinas per-term arithmetic can spill one bit above 8 limbs (2 * p256
+// < 2^257); 9-limb form is 8 u32 limbs + 1 u32 carry, 36 bytes total in
+// FIELD_TMP / the 9-limb scratch region below.
 
 @inline
 function add8(out: i32, a: i32, b: i32): u32 {
@@ -268,34 +255,23 @@ export function feNeg(out: i32, a: i32): void {
 
 // ── feMul ───────────────────────────────────────────────────────────────────
 //
-// Step 1: 8×8 schoolbook multiplication. Each cross product
-// a[i] * b[j] is u32 × u32 → u64 (native). The 16-limb intermediate is
-// stored in MUL_INT_LO (8 limbs) || MUL_INT_HI (8 limbs).
-//
-// Step 2: Solinas reduction per HMV §2.4.1 Algorithm 2.27. The 16-limb
-// intermediate c = (c15, ..., c0) is reduced to 8 limbs via:
+// Step 1: 8×8 schoolbook into MUL_INT_LO (low 8) || MUL_INT_HI (high 8).
+// Step 2: Solinas reduction, HMV §2.4.1 Algorithm 2.27.
 //
 //   s1 = (c7,  c6,  c5,  c4,  c3,  c2,  c1,  c0 )
-//   s2 = ( 0,  c11, c10, c9,  c8,  0,   0,   0  )  // shifted up by 3 limbs
+//   s2 = ( 0,  c11, c10, c9,  c8,  0,   0,   0  )
 //   s3 = ( 0,  c12, c11, c10, c9,  0,   0,   0  )
 //   s4 = (c8,  c11, c10, c9,  c14, c13, c12, c15)
 //   s5 = (c10, c8,  c15, c14, c13, c12, c11, c9 )
 //   s6 = (c11, c9,  0,   0,   c15, c14, c13, c12)
 //   s7 = (c12, 0,   c10, c9,  c8,  c15, c14, c13)
 //   s8 = (c13, 0,   c11, c10, c9,  0,   c15, c14)
-//   s9 = (c13, 0,   c10, c9,  c8,  0,   c14, c15)  // NOTE: HMV s9 entry
+//   s9 = (c13, 0,   c10, c9,  c8,  0,   c14, c15)
 //
-//   r = s1 + 2 s2 + 2 s3 + s4 + s5 - s6 - s7 - s8 - s9 (mod p)
+//   r = s1 + 2*s2 + 2*s3 + s4 + s5 - s6 - s7 - s8 - s9 (mod p)
 //
-// The aliasing above is sourced VERBATIM from HMV §2.4.1 Algorithm 2.27
-// (the only published Solinas recipe for P-256). The implementation
-// below recomputes the recipe by direct limb addition, capturing each
-// term in a temporary 8-limb buffer and applying signed updates to
-// a running 9-limb accumulator. The +1 9th limb captures the carry of
-// each partial sum; at the end we apply a final mod-p correction loop
-// that subtracts P up to k times via a conditional inline mask-and-XOR,
-// where k is the worst-case multiplier (4 in this recipe, three +s terms
-// after the s1 baseline).
+// k = 4 mod-p corrections (worst-case +s coefficient); applied
+// via condSub9IfGe.
 
 /**
  * out = a * b (mod p). Out may alias a or b safely; operands are read
@@ -520,12 +496,8 @@ function condAdd9(acc: i32, pBuf: i32, cond: u32): void {
 // 9-limb signed. Implementation: compute (acc - p), if the resulting 9th
 // limb is >= 0 (no borrow), commit the difference; else keep acc.
 //
-// IMPORTANT: tmp's 9th limb is NOT written to tmp + 32 (which would
-// land at FIELD_TMP + 128 = slot 4, the offset feSqrt and feInv use
-// for their exponent eTmp / pmTmp). The 9th limb is kept in a local
-// d8 variable across the ct-select. Writing tmp + 32 would silently
-// corrupt the exponent of the calling feSqrt / feInv loop and produce
-// wrong results — that was the bug fixed when this comment was added.
+// GOTCHA: 9th limb is kept in a `d8` local, NOT stored at `tmp + 32`
+// (= FIELD_TMP slot 4, which feSqrt / feInv use for the exponent buffer).
 @inline
 function condSub9IfGe(acc: i32, pBuf: i32): void {
 	const tmp: i32 = FIELD_TMP + 3 * FIELD_TMP_STRIDE  // 8 limbs only; 9th lives in d8 local
@@ -554,52 +526,16 @@ function condSub9IfGe(acc: i32, pBuf: i32): void {
 	store<i32>(acc + 32, ((va8 & (mask as i32)) | (vb8 & (~mask as i32))))
 }
 
-/**
- * out = a^2 (mod p). Implemented as feMul(out, a, a); the schoolbook
- * is already optimal for u32 limbs (16 partial products vs the
- * theoretical 10 with squaring symmetry, but the saved 6 multiplies
- * are dwarfed by the carry-chain overhead). Document the trade-off
- * choice: simplicity beats microoptimisation for the substrate audit.
- */
 export function feSqr(out: i32, a: i32): void {
 	feMul(out, a, a)
 }
 
 // ── feInv: a^(p-2) via Fermat ──────────────────────────────────────────────
 //
-// p - 2 = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFD
-//       = 2^256 - 2^224 + 2^192 + 2^96 - 3
-//
-// Addition chain: 14 multiplications + ~256 squarings. The recipe below
-// is adapted from RustCrypto p256/src/arithmetic/field.rs (BSD-licensed)
-// with the chain re-derived from the bit decomposition of p-2; the
-// concrete sequence of operations is:
-//
-//   z2     = a^2
-//   z4     = z2^4               (a^4)
-//   z3     = z2 * a             (a^3)
-//   z6     = z3^8               (a^24)... actually use cleaner chain
-//
-// Chain (rederived inline; each step is verifiable by hand):
-//
-//   z2      = a^2
-//   z3      = z2 * a               (a^3)
-//   z6      = z3^(2^3) * z3        (a^(2^6 - 1)) = a^63
-//   z12     = z6^(2^6) * z6        (a^(2^12 - 1))
-//   z15     = z12^(2^3) * z3       (a^(2^15 - 1))
-//   z30     = z15^(2^15) * z15     (a^(2^30 - 1))
-//   z32     = z30^(2^2) * z2 * a   ... hmm, complicated
-//
-// I'm going to use a direct square-and-multiply binary chain instead.
-// Iterate over each bit of (p - 2) from MSB to LSB:
-//   r = 1
-//   for bit in bits(p-2) high-to-low:
-//     r = r^2
-//     if bit: r = r * a
-//
-// This is slow (256 squarings + ~150 multiplications) but obviously
-// correct from the spec's hex form of p. A constant-time variant
-// (always multiplying, masking with bit) is what we implement.
+// p - 2 = 2^256 - 2^224 + 2^192 + 2^96 - 3 (SP 800-186 §3.2.1.3).
+// Constant-time square-and-multiply scan over the public exponent;
+// addition-chain exploration and the RustCrypto comparison live in
+// docs/asm_p256.md#feinv-chain.
 
 /**
  * out = a^(-1) mod p, via Fermat (a^(p-2)). Constant-time over the
@@ -668,17 +604,12 @@ export function feInv(out: i32, a: i32): void {
 
 // ── feSqrt: a^((p+1)/4) mod p (square root for p ≡ 3 (mod 4)) ──────────────
 //
-// P-256 is p ≡ 3 (mod 4) (because p ends in ...FFFFFFFF which is 0xFF mod 4
-// = 0x03). Per Fermat: sqrt(x) candidate = x^((p+1)/4) (mod p).
+// P-256 has p ≡ 3 (mod 4); sqrt candidate = a^((p+1)/4) per Fermat.
+// (p+1)/4 = 2^254 - 2^222 + 2^190 + 2^94 (SP 800-186 §3.2.1.3).
+// Bits set: {94, 190, 222..253}. LE limb form below.
 //
-// (p + 1) / 4 = 2^254 - 2^222 + 2^190 + 2^94
-//
-// 32-byte BE encoding of (p+1)/4:
-//   3FFFFFFF C0000000 40000000 00000000 00000000 00000000 00000000 00000000
-//
-// Caller is responsible for verifying that the result actually squares to
-// the input (the function returns x^((p+1)/4) unconditionally; if x is a
-// quadratic non-residue, the result won't square back to x).
+// Caller verifies the candidate squares back to the input; non-residue
+// inputs return junk. Bit-by-bit derivation: docs/asm_p256.md#fesqrt-exponent.
 
 /**
  * out = a^((p+1)/4) mod p. Square-and-multiply over the public
@@ -687,53 +618,6 @@ export function feInv(out: i32, a: i32): void {
 export function feSqrt(out: i32, a: i32): void {
 	// 32-byte LE limb form of (p+1)/4.
 	const eTmp: i32 = FIELD_TMP + 4 * FIELD_TMP_STRIDE
-	// LE limb[0..7]:
-	// (p+1)/4 BE = 3FFFFFFFC000000040000000000000000000000000000000000000000000000000
-	// Wait, that's 8 hex digits per word, 8 words. Let me recompute.
-	// p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
-	// p + 1 = 0xffffffff00000001000000000000000000000001000000000000000000000000... no wait
-	// Adding 1 to ...FFFFFFFFFFFFFFFFFFFFFFFF gives ...FFFFFFFFFFFFFFFF + 1
-	// = 0xffffffff00000001000000000000000000000001000000000000000000000000
-	// Hmm let me redo. p = 2^256 - 2^224 + 2^192 + 2^96 - 1.
-	// p + 1 = 2^256 - 2^224 + 2^192 + 2^96.
-	// (p+1)/4 = 2^254 - 2^222 + 2^190 + 2^94.
-	//
-	// 2^254: bit 254 set, bytes [31] = 0x40 (high byte), bits 254 = bit 6 of byte 31. So byte 31 = 0x40.
-	// 2^222: bit 222 set, byte 27 = 0x40 (bit 222 - 27*8 = 222 - 216 = 6, so bit 6 of byte 27).
-	// 2^190: bit 190 set, byte 23 = 0x40 (190 - 23*8 = 190 - 184 = 6).
-	// 2^94: bit 94 set, byte 11 = 0x40 (94 - 88 = 6).
-	//
-	// (p+1)/4 = 2^254 - 2^222 + 2^190 + 2^94. So bit 254 is set (top), minus bit 222
-	// (borrow propagates from 254..223), plus bit 190, plus bit 94.
-	//
-	// Numerically: 2^254 - 2^222 = bits [221..253] all set + bit 254 set (after borrow propagation).
-	// Hmm wait, 2^254 - 2^222 = 2^222 * (2^32 - 1) = bits [222..253] set.
-	// Then + 2^190 sets bit 190.
-	// Then + 2^94 sets bit 94.
-	//
-	// So bits set: {94, 190, 222, 223, ..., 253} = bits {94, 190} ∪ {222..253}.
-	//
-	// Layout in 32 BE bytes (byte 31 is LSB, byte 0 is MSB):
-	//   byte 0:   bits 248..255 = bits 248, 249, 250, 251, 252, 253 set = 0x3F
-	//   byte 1:   bits 240..247 = 0xFF
-	//   byte 2:   bits 232..239 = 0xFF
-	//   byte 3:   bits 224..231 = 0xFF
-	//   byte 4:   bits 216..223 = bit 222, 223 set (others 224..255 already counted; here 216..221 unset) = 0xC0
-	//   byte 5..7: zero
-	//   byte 8:   bit 190 (byte index 32-1-190/8 = 31-23 = 8); bit 190 = bit 6 of byte 23 BE... wait
-	//
-	// I keep confusing myself with byte indexing. Let me redo with clear convention:
-	//   limbBE[k] for k in 0..31 holds bits [8*(31-k) .. 8*(31-k)+7] of the BE-encoded value
-	//   i.e. limbBE[0] = MSB = bits [248..255]
-	//        limbBE[31] = LSB = bits [0..7]
-	//
-	// Or equivalently with LE limbs (our internal form):
-	//   limb[i] (u32, i in 0..7) holds bits [32i..32i+31]
-	//
-	// Bits set: {94, 190, 222, 223, ..., 253}
-	//   bit 94: limb[2] bit 30 = 0x40000000 contribution
-	//   bit 190: limb[5] bit 30 = 0x40000000 contribution
-	//   bits 222..253: limb[6] bits 30, 31 + limb[7] bits 0..29 = limb[6] = 0xC0000000, limb[7] = 0x3FFFFFFF
 	store<u32>(eTmp +  0, 0)                     // limb[0]
 	store<u32>(eTmp +  4, 0)                     // limb[1]
 	store<u32>(eTmp +  8, 0x40000000)            // limb[2], bit 94
@@ -795,14 +679,9 @@ export function feIsOdd(a: i32): i32 {
 }
 
 /**
- * Returns 1 if a == b (canonical), 0 otherwise. Both inputs assumed
- * canonical; folds (a XOR b) into a single 0/1.
- *
- * Hand-rolled rather than calling cte/shared ctEqual because the
- * inputs are 8 × u32 limbs, not a contiguous byte buffer. ld(a, i)
- * reads the i-th limb via the field-element layout's stride; ctEqual
- * operates on raw byte offsets. Same XOR-accumulate primitive, same
- * branch-free reduction, different element representation.
+ * Returns 1 if a == b (canonical), 0 otherwise. XOR-accumulate over
+ * 8 × u32 limbs read via the field-element stride; hand-rolled rather
+ * than ctEqual because the input is limb-strided, not byte-contiguous.
  */
 export function feIsEqual(a: i32, b: i32): i32 {
 	let r: u32 = 0
@@ -845,25 +724,10 @@ export function feCondNeg(out: i32, a: i32, neg: i32): void {
 	}
 }
 
-// ── Helper exposed to point.ts: feMul by small int (for RCB algorithm) ─────
-//
-// Renes-Costello-Batina 2016 algorithm 4 uses a multiplication by the
-// fixed constant b21 (3*b mod p) and several internal small multipliers.
-// We don't expose a generic feMulSmall here; instead point.ts pre-stages
-// 3*b as a field element constant via loadB3() and uses feMul. The
-// approach keeps field.ts free of point-aware specialisations.
-
 // ── Curve constant b: from SP 800-186 §3.2.1.3 ─────────────────────────────
 //
 // b = 5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B
-//   (32 BE hex digits, FIPS hex form)
-//
-// Internal LE limbs:
-//   limb[0..7] = reverse the 8 BE u32 words.
-//   BE words:  5AC635D8, AA3A93E7, B3EBBD55, 769886BC, 651D06B0, CC53B0F6,
-//              3BCE3C3E, 27D2604B
-//   LE limbs:  27D2604B, 3BCE3C3E, CC53B0F6, 651D06B0, 769886BC, B3EBBD55,
-//              AA3A93E7, 5AC635D8
+//   (32 BE hex digits). LE limbs below reverse the 8 BE u32 words.
 
 @inline
 export function loadB(dst: i32): void {
@@ -877,31 +741,11 @@ export function loadB(dst: i32): void {
 	st(dst, 7, 0x5AC635D8)
 }
 
-// 3*b mod p (used by Renes-Costello-Batina algorithm 4 / 7) is NOT
-// pinned as an inline constant. Computing 3*b mod p offline and
-// transcribing the limb values is the kind of "embed a cryptographic
-// value from a planning step" that AGENTS.md §5 prohibits; instead
-// point.ts derives 3*b at call time via two feAdd operations on the
-// loadB constant above. Cost is two 8-limb adds per point operation,
-// dwarfed by the multiplication count in algorithm 4 / 7.
-
-// ── Curve constant a = p - 3 ───────────────────────────────────────────────
-//
-// SP 800-186 §3.2.1.3 specifies a = -3 mod p (the "Koblitz form").
-// In our representation a = p - 3, but the RCB algorithm 4 in fact
-// hard-codes the a = -3 case as "Algorithm 4" (eprint 2015/1060 Theorem 1
-// specialises to short-Weierstrass curves with a = -3). The algorithm
-// constants we need are -3 (used at line 18 of algorithm 4 in the paper).
-// Materialise -3 mod p = p - 3 as inline limbs:
-//
-//   p - 3 = 2^256 - 2^224 + 2^192 + 2^96 - 4
-//
-// LE limbs:
-//   limb[0] = p0 - 3 = 0xFFFFFFFF - 3 = 0xFFFFFFFC
-//   limb[1..7] = p1..p7 (no borrow because limb[0] -= 3 fits)
-//
-// (We don't currently need this if we expand algorithm 4 with the
-// hard-coded a = -3 substitution inline; kept here for completeness.)
+// 3*b mod p is not pinned; point.ts derives it via two feAdd from loadB
+// (AGENTS.md §5: no embedded derived crypto constants).
+// a = -3 = p - 3 (SP 800-186 §3.2.1.3, Koblitz form) is consumed inline
+// by the RCB algorithm 4 specialisation (eprint 2015/1060 Theorem 1);
+// not materialised as a separate constant.
 
 // ── Internal: exposed feReduce for unit testing the reduction step ─────────
 //

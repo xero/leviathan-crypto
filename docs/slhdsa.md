@@ -19,6 +19,8 @@ involved.
 > - [Performance](#performance)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
+> - [Suite integration](#suite-integration)
+> - [Stream equivalence](#stream-equivalence)
 > - [Cross-References](#cross-references)
 
 ---
@@ -734,6 +736,33 @@ and hybrid suites also satisfy `StreamableSignatureSuite` and plug into
 `SlhDsa{128f,192f,256f}` instance inside a
 `try { ... } finally { dispose() }` block so WASM scratch is wiped on
 every path.
+
+---
+
+## Suite integration
+
+The integration tier exercises the v3 sign layer against the real
+SLH-DSA primitives. It asserts:
+
+- `Sign.sign` / `Sign.verify` round-trip per pure suite.
+- `Sign.sign` / `Sign.verify` round-trip per prehash suite.
+- `SignStream` + `VerifyStream` round-trip via prehash suites,
+  proving the SHAKE128 / SHAKE256 running-hash wiring lines up with
+  the suite's `signPrehashed` / `verifyPrehashed` path.
+- `SignStream` byte-equivalence with the buffered `Sign.sign` output
+  under deterministic sub-sign. Hedged `Sign.sign` cannot be
+  byte-compared.
+
+---
+
+## Stream equivalence
+
+Stream-equivalence covers SLH-DSA prehash suites `0x16` / `0x17` /
+`0x18`. The test drives `signHashPrehashedDeterministic` over the
+buffered and streamed SHAKE digest; both routes must produce the
+same prehash digest and the same signature. The production `Sign`
+path is hedged per FIPS 205 §3.4, so the byte-compare drops to the
+deterministic primitive entry point.
 
 ---
 

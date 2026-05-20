@@ -51,15 +51,8 @@ export function kemKeypairDerand(
 	// indcpaKeypairDerand handles its own sigma wipe
 	const { ekCpa, skCpa } = indcpaKeypairDerand(kx, sx, params, d);
 
-	// Wipe kyber WASM scratch regions that held the CPA secret key and the
-	// keygen noise. After kemKeypairDerand returns, no secret or secret-
-	// derived data persists in kyber linear memory until the next kyber op
-	// or MlKem.dispose(). SK_OFFSET holds skCpa packed via polyvec_tobytes
-	// , same severity class as the decap-side SK_OFFSET residual (R-028):
-	// long-lived key material whose disclosure compromises every ciphertext
-	// under the corresponding ek. POLYVEC_SLOT_1/2 hold ŝ and ê in NTT
-	// domain. XOF_PRF_OFFSET holds the last PRF output block. POLYVEC_SLOT_3
-	// (t̂) and POLYVEC_SLOT_0 (Â rows) are public and intentionally skipped.
+	// Wipe CPA sk + keygen noise + PRF scratch. See
+	// docs/kyber.md#wipe-discipline.
 	const kyberMem = new Uint8Array(kx.memory.buffer);
 	kyberMem.fill(0, kx.getSkOffset(),      kx.getSkOffset()     + params.skCpaBytes);
 	kyberMem.fill(0, kx.getPolyvecSlot1(),  kx.getPolyvecSlot1() + 2048);
@@ -115,17 +108,8 @@ export function kemEncapsulateDerand(
 
 		const c = indcpaEncrypt(kx, sx, params, ek, m, r);
 
-		// Wipe kyber WASM scratch regions that held m / r / e₁ / e₂ / u / v /
-		// m-poly / PRF output. After kemEncapsulateDerand returns, no secret
-		// or secret-derived data persists in kyber linear memory until the
-		// next kyber op or MlKem.dispose(). MSG_OFFSET holds raw m,
-		// reproducing the shared secret K = G(m ‖ H(ek))[0..32] only needs m
-		// plus the public ek, so this is the highest-severity encap residual.
-		// POLYVEC_SLOT_1/2/3 hold r, e₁, and uncompressed u (u compression is
-		// lossy for du ∈ {10,11}, uncompressed u reveals low-order bits the
-		// public ciphertext hides). POLY_SLOT_1/2/3 hold e₂ (full 512B), v,
-		// and the m-polynomial. XOF_PRF_OFFSET holds the last PRF block.
-		// PK_OFFSET, CT_OFFSET, POLYVEC_SLOT_0/4 are public, skipped.
+		// Wipe m + r + e1/e2/u/v + m-poly + PRF scratch. See
+		// docs/kyber.md#wipe-discipline.
 		const kyberMem = new Uint8Array(kx.memory.buffer);
 		kyberMem.fill(0, kx.getMsgOffset(),     kx.getMsgOffset()    + 32);
 		kyberMem.fill(0, kx.getPolyvecSlot1(),  kx.getPolyvecSlot1() + 2048);
@@ -220,13 +204,9 @@ export function kemDecapsulate(
 
 		const sharedSecret = kyberMem.slice(kPrimeOff, kPrimeOff + 32);
 
-		// Wipe kyber WASM scratch regions that held the CPA secret key (skCpa),
-		// m' / K' / K̄ / e₂ / r / e₁ / u, and the PRF output buffer. Without
-		// this, residual secret and secret-derived bytes persist in linear
-		// memory until the next kyber op or MlKem.dispose(), a window during
-		// which any other code with a handle to the kyber exports could read
-		// them. skCpa is the highest-severity residual: it compromises every
-		// ciphertext under the corresponding ek, not just this message.
+		// Wipe CPA sk + m' + K'/K_bar + noise + PRF scratch. skCpa is the
+		// highest-severity residual (compromises every ciphertext under the
+		// corresponding ek). See docs/kyber.md#wipe-discipline.
 		kyberMem.fill(0, kx.getMsgOffset(),     kx.getMsgOffset() + 32);       // m' (bytes)
 		kyberMem.fill(0, kPrimeOff,             kPrimeOff + 32);               // K' (final shared secret)
 		kyberMem.fill(0, kBarOff,               kBarOff + 512);                // K̄ (first 32B) + e₂ poly tail

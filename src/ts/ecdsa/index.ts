@@ -21,28 +21,14 @@
 //
 // src/ts/ecdsa/index.ts
 //
-// ECDSA-P256 public API. FIPS 186-5 §6, ECDSA over the NIST P-256
-// curve (SP 800-186 §3.2.1.3). Hedged-or-deterministic K derivation
-// per RFC 6979 §3.2 and draft-irtf-cfrg-det-sigs-with-noise-05,
-// strict-S verification posture (low-S enforced).
+// ECDSA-P256 public API. FIPS 186-5 §6 over the NIST P-256 curve
+// (SP 800-186 §3.2.1.3). Hedged-or-deterministic K per RFC 6979 §3.2
+// and draft-irtf-cfrg-det-sigs-with-noise-05. Strict-S verify (low-S
+// enforced).
 //
-// Per-call WASM lifecycle: every public method runs against the
-// singleton p256 instance, stages inputs at fixed offsets above the
-// WASM's mutable buffer region, calls the underlying export, copies
-// outputs to fresh `Uint8Array`s, then wipes the staged secret-bearing
-// inputs and the WASM's internal scratch. The WASM-side `wipeBuffers`
-// covers the substrate's mutable region (scalars, points, HMAC-DRBG
-// state, embedded SHA-256 streaming state); the TS layer is
-// responsible for wiping its own I/O-staging region.
-//
-// SEC 1 §2.3.4 uncompressed-pk emission: `pointDecompress` is a free
-// function that runs the substrate's `pointDecompress` export over a
-// 33-byte compressed input and writes the 65-byte `0x04 || X || Y`
-// form. `EcdsaP256.keygenUncompressed` is the keygen variant that
-// returns the uncompressed form directly. The standalone
-// `EcdsaP256Suite` continues to use compressed pk; the uncompressed
-// surface exists for callers (notably the composite ML-DSA + ECDSA
-// suites) whose wire format spec requires the uncompressed encoding.
+// Uncompressed pk per SEC 1 §2.3.4 is available via
+// `pointDecompress` and `EcdsaP256.keygenUncompressed`. The composite
+// ML-DSA + ECDSA suites need the 65-byte `0x04 || X || Y` form.
 
 import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -348,17 +334,10 @@ export class EcdsaP256 {
 	}
 
 	/**
-	 * Suite-only: hedged-or-deterministic ECDSA-P256 sign that derives
-	 * pk internally and skips the fault-injection cross-check, saving
-	 * one fixed-base scalar mult per call. Intended for
-	 * `EcdsaP256Suite` and other suite-layer callers that hold
-	 * only `sk`; the cross-check is degenerate at those call sites
-	 * because the caller-supplied pk and the WASM-derived pk both come
-	 * from the same call on the same module. Direct-class callers who
-	 * hold a stored, known-good pk should keep using `sign(sk, pk, ...)`.
-	 *
-	 * Underscore-prefixed and intentionally undocumented in the public
-	 * API.
+	 * Suite-only: hedged-or-deterministic sign that derives pk
+	 * internally and skips the fault-injection cross-check. See
+	 * AGENTS.md "SignatureSuite lifecycle". Underscore-prefixed,
+	 * not part of the public API.
 	 */
 	_signInternalPk(sk: Uint8Array, msgHash: Uint8Array, rnd: Uint8Array): Uint8Array {
 		_assertNotOwned('p256');
@@ -412,8 +391,7 @@ export class EcdsaP256 {
 	}
 
 	dispose(): void {
-		// Defensive idempotent cleanup; every public method already wipes
-		// on its own success / throw path. Safe to call multiple times.
+		// Idempotent; per-method wipe runs anyway.
 		try {
 			this.mx.wipeBuffers();
 			ioWipe(this.mx);

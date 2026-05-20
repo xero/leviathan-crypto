@@ -95,10 +95,8 @@ function unionModules(...lists: readonly (readonly string[])[]): readonly string
 function validateOriginAtConstruction(origin: string): void {
 	if (origin.length === 0)
 		throw new RangeError('SignedLog: origin must be non-empty');
-	// c2sp.org/tlog-checkpoint §Note text rules, mirrored in the
-	// checkpoint serializer. Catch the violation at construction so
-	// the SignedLog fails before any sign call rather than at
-	// serialize time.
+	// c2sp.org/tlog-checkpoint §Note text MUSTs; fail at construction
+	// not serialize time.
 	if (/\s/.test(origin) || origin.includes('+'))
 		throw new RangeError(
 			'SignedLog: origin must not contain whitespace or plus characters',
@@ -325,11 +323,7 @@ export class SignedLog<S extends SignatureSuite> {
 				const parsed = parseCosigSignaturePayload(matching.signature, this._algoEntry.sigSize);
 				timestamp = parsed.timestamp;
 			} catch (err) {
-				// Malformed timestamped_signature payload on the
-				// matching line. Leave timestamp at 0; verifyCheckpoint
-				// will surface the failure as a verify-false. Swallow
-				// MerkleCodecError specifically; rethrow anything else
-				// (which would indicate a contract bug).
+				// Soft-fail timestamp to 0 on payload codec error; verifyCheckpoint surfaces hard fail.
 				if (!(err instanceof MerkleCodecError)) throw err;
 			}
 		}

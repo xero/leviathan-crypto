@@ -36,11 +36,8 @@ import type { Module } from './init.js';
 import type { WasmSource } from './wasm-source.js';
 import { hasSIMD } from './utils.js';
 
-// curve25519 is the underlying module shared by ed25519 + x25519. Users
-// initialise it via the per-primitive aliases (`init({ ed25519: ... })`
-// or `init({ x25519: ... })`); the alias keys resolve here. The 'curve25519'
-// key is accepted as well for symmetry with the Module type union, but the
-// public docs route consumers to the per-primitive surface.
+// curve25519 backs ed25519 + x25519. Public surface is the
+// per-primitive alias; 'curve25519' key accepted for Module symmetry.
 const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	serpent: serpentInit,
 	chacha20: chacha20Init,
@@ -102,8 +99,8 @@ export async function init(sources: InitInput): Promise<void> {
 		}
 		resolved.set(target, src);
 	}
-	// SIMD preflight: serpent, chacha20, kyber, aes, mldsa, and blake3 contain SIMD instructions.
-	// curve25519 ships scalar (simd:false in scripts/lib/modules.ts), and is excluded here.
+	// SIMD preflight for modules that contain v128 instructions
+	// (see scripts/lib/modules.ts).
 	if (
 		(resolved.has('serpent') || resolved.has('chacha20') || resolved.has('kyber')
 			|| resolved.has('aes') || resolved.has('mldsa') || resolved.has('blake3'))

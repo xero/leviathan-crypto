@@ -84,12 +84,7 @@ export {
 } from './keccak';
 
 // ── Internal test-only WASM exports ────────────────────────────────────────
-// Unit-test fixtures for slhdsa-wots.test.ts / slhdsa-fors.test.ts /
-// slhdsa-xmss.test.ts / slhdsa-hypertree.test.ts. NOT part of the
-// consumer-facing SlhDsaExports interface; consumers drive WOTS+ / FORS /
-// XMSS / hypertree only via slhSignInternal / slhVerifyInternal. Underscore
-// prefix follows the codebase convention for module-internal exports
-// (e.g. _acquireModule, _releaseModule).
+// `_test*` are unit-test fixtures, not consumer ABI.
 
 import {
 	wotsChain, wotsPkGen, wotsSign, wotsPkFromSig,

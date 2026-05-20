@@ -16,6 +16,8 @@ module-lattice signature scheme.
 > - [Key & Signature Format](#key--signature-format)
 > - [Wipe Discipline](#wipe-discipline)
 > - [Error Reference](#error-reference)
+> - [SignatureSuites](#signaturesuites)
+> - [Suite integration](#suite-integration)
 
 ---
 
@@ -589,6 +591,42 @@ Public regions intentionally left alone: the matrix Â (derived from ρ which
 is published in pk), the encoded pk, and t₁ (also published). The sha3
 module's STATE/INPUT/OUT regions are wiped before return.
 
+### Severity ranking
+
+The keygen and sign wipes are not equal-weight. Highest-severity
+residual first for each path.
+
+**Keygen:**
+
+| Region | Holds | Severity |
+|--------|-------|----------|
+| `SEED_OFFSET` (128 B) | ρ ‖ ρ′ ‖ K | Highest. ρ′ expands to s₁/s₂; a ρ′ leak recovers the signing key. K is the per-message signing randomness, so disclosure also breaks deterministic-signing replay protection. |
+| `POLYVEC_SLOT_0/1/4` | s₁, s₂, t₀ (full secret-key state, time-domain) | Secret. |
+| `POLYVEC_SLOT_2` | intermediate t | t₀ exposes low bits of t. |
+| `XOF_PRF_OFFSET` | last SHAKE block | After `ExpandS` it contains ρ′-derived bytes. |
+| `SK_OFFSET` | encoded sk | Already returned to the caller; the wipe shortens in-WASM lifetime without adding marginal secrecy. |
+
+**Sign (per-iteration intermediates):**
+
+| Region | Holds | Severity |
+|--------|-------|----------|
+| `POLYVEC_SLOT` t̂₀ (NTT/Montgomery form) | low bits of t, the secret part of sk | Highest in the sign path. |
+| `POLYVEC_SLOT` y | per-iteration randomness; used to compute z | A y compromise leaks rejection-sampling state across iterations. |
+| Remaining polyvec slots | ŝ₁, ŝ₂, cs₁, cs₂, ct₀, w, w − cs₂, r₀, z, h | Secret or secret-derived intermediates. |
+| `POLY_SLOT_7` | `polyvec_pointwise_acc_montgomery` scratch | Carries a partial product across y_ntt; secret-derived via y. |
+| `XOF_PRF_OFFSET` | last `ExpandMask` block (ρ″-derived) on rejected iterations, `SampleInBall` position bytes (c̃-derived, public) on accepted | Treat as secret on rejected, harmless on accepted. |
+
+Public-or-derivable regions wiped for hygiene: signs scratch
+(`POLY_SLOT_0`, c̃-derived), c polynomial (`POLY_SLOT_1`, derivable
+from c̃), `C_TILDE_OFFSET`, `MSG_REP_OFFSET`. The defensive wipes on
+`SEED_OFFSET` / `TR_OFFSET` / `SK_OFFSET` cover residue from a prior op
+even though the sign path does not actively write them.
+
+The sign wipe runs in `finally`, so it covers the success path and any
+early throw (sk-range violation, loop-bound exceedance, kernel error).
+Without `finally`, an early throw between `skDecode` and `sigEncode`
+would leave sk-derived state in WASM memory.
+
 Every `sign` / `signDeterministic` / `signDerand` call wipes:
 
 - All 6 polyvec slots, ŝ₁ / ŝ₂ / t̂₀ in tomont form, plus per-iteration
@@ -651,6 +689,19 @@ wiped on every path.
 
 See [signaturesuite.md](./signaturesuite.md) for the full `SignatureSuite`
 interface, wire format, error reference, and usage examples.
+
+---
+
+## Suite integration
+
+The integration tier exercises the v3 sign layer against the real
+ML-DSA primitives. It asserts:
+
+- `Sign.sign` / `Sign.verify` round-trip for a pure suite
+  (`MlDsa65Suite`) and a prehash suite (`MlDsa65PreHashSuite`).
+- `SignStream` + `VerifyStream` round-trip via the prehash suite,
+  proving the SHA3-256 running-hash wiring lines up with the suite's
+  `signPrehashed` / `verifyPrehashed` path.
 
 ---
 

@@ -20,23 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * BLAKE3 compress4 chunk-level dispatch coverage, BLAKE3 §2.4 + §5.3.
- *
- * Proves the multi-chunk hash hot path in `hashCore` (src/asm/blake3/
- * index.ts) actually dispatches 4-chunk batches through the v128-external
- * `compress4` kernel for inputs ≥ 4096 bytes, rather than silently falling
- * through to the per-block single-chunk path. The WASM module carries a
- * test-only `chunkBatch4` invocation counter (held as a WASM global, not
- * in linear memory, so wipeBuffers() does not clear it); each assertion
- * resets the counter, fires a hash, and verifies the counter reflects the
- * expected number of 4-chunk batches.
- *
- * Layered on top of the dispatch counter assertions: a KAT regression
- * over every upstream corpus record with inputLen ≥ 4096 confirms the
- * dispatch produces bit-identical output to the previous single-chunk
- * implementation. The 35-case KAT corpus is already gated by
- * blake3-kat.test.ts; the explicit subset here makes the
- * dispatched-via-compress4 coverage legible.
+ * BLAKE3 chunk-level dispatch coverage (§2.4 + §5.3). See
+ * docs/blake3.md#chunk-level-dispatch for the dispatch counter
+ * contract and the KAT regression scope.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -72,10 +58,7 @@ function hashWithDispatchCount(input: Uint8Array): { digest: Uint8Array; batchCo
 }
 
 describe('BLAKE3 compress4 chunk-level dispatch coverage', () => {
-	// GATE: a 4096-byte input is the smallest input that should fire the
-	// compress4 dispatch. The hashCore multi-chunk path computes
-	// batchableBytes = (fullChunkBytes / 4096) * 4096, so inputLen = 4096
-	// drains all four chunks through one chunkBatch4 call.
+	// GATE: 4096B is the smallest input that fires compress4 (one chunkBatch4 call).
 	it('inputLen = 4096 dispatches exactly one 4-chunk batch', () => {
 		// GATE
 		const input = expandBlake3Input(4096);
@@ -89,8 +72,7 @@ describe('BLAKE3 compress4 chunk-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 16384 dispatches four 4-chunk batches', () => {
-		// 16384 bytes = 16 chunks. batchableBytes = 16384, four batches
-		// of four chunks each, no trailing single-chunk work.
+		// 16 chunks → 4 x compress4, no trailing single-chunk work.
 		const input = expandBlake3Input(16384);
 		const { digest, batchCount } = hashWithDispatchCount(input);
 
@@ -100,11 +82,8 @@ describe('BLAKE3 compress4 chunk-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 4095 does NOT dispatch (single-chunk path only)', () => {
-		// inputLen ≤ 1024 takes the single-chunk path (chunkFinalize with
-		// isRootSoloChunk = true); 1025..4095 takes the multi-chunk path
-		// but batchableBytes = 0, so all chunks fall through to the
-		// trailing/partial single-chunk path. Either way, chunkBatch4
-		// never fires.
+		// 1025..4095: multi-chunk path, but batchableBytes=0, all chunks
+		// fall through to single-chunk; chunkBatch4 never fires.
 		const input = expandBlake3Input(4095);
 		const { batchCount } = hashWithDispatchCount(input);
 
@@ -112,9 +91,7 @@ describe('BLAKE3 compress4 chunk-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 5120 dispatches one batch with a trailing full chunk', () => {
-		// 5120 bytes = 5 full chunks. batchableBytes = 4096 (one 4-chunk
-		// batch); trailing full chunk goes through the single-chunk path,
-		// no partial last chunk.
+		// 5 full chunks: one compress4 + trailing full chunk via single-chunk path.
 		const input = expandBlake3Input(5120);
 		const { digest, batchCount } = hashWithDispatchCount(input);
 
@@ -124,8 +101,7 @@ describe('BLAKE3 compress4 chunk-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 1024 does NOT dispatch (single-chunk path)', () => {
-		// Boundary: exactly 1024 bytes is a single chunk per §2.4; no
-		// multi-chunk path, no batch.
+		// Boundary: 1024B is one chunk per §2.4; no multi-chunk path.
 		const input = expandBlake3Input(1024);
 		const { batchCount } = hashWithDispatchCount(input);
 

@@ -20,31 +20,11 @@
 //                           ▀█████▀▀
 //
 /**
- * `@internal` exports are stripped from the shipped .d.ts; removed exports
- * are absent everywhere.
- *
- * `_resetForTesting` (and its `@internal`-tagged peers in init.ts) must not
- * appear in the public type surface. tsconfig.json sets `stripInternal: true`
- * which causes tsc to drop JSDoc-`@internal`-tagged exports from generated
- * .d.ts files. This test guards against:
- *
- *   (a) `stripInternal` being dropped from tsconfig
- *   (b) the `@internal` tag being lost on `_resetForTesting`
- *   (c) a new internal export being added without the tag
- *   (d) the root barrel `src/ts/index.ts` re-exporting an internal by name,
- *       a re-export declaration carries no JSDoc, so `stripInternal` does
- *       not apply at the barrel. This bypasses (a)-(c) and leaks the
- *       symbol into `dist/index.d.ts` and `dist/index.js`.
- *
- * It also guards the v2.1.1 removal of the five `_<module>Ready` probes. They
- * were public type-API in 2.1.x (parallel to the canonical `isInitialized(mod)`
- * helper), removed in 2.1.1 in favour of one source of truth. Asserting their
- * absence across submodule `.d.ts`, submodule `.js`, root barrel `.d.ts`, and
- * root barrel `.js` catches a re-introduction in either source declaration or
- * barrel re-export.
- *
- * The test runs after `bun bake` has emitted dist/. In sessions that haven't
- * built dist/ yet, the test is skipped gracefully instead of failing.
+ * Public type-surface guard. `@internal` JSDoc + `stripInternal: true`
+ * drops symbols from dist/*.d.ts; barrel re-exports bypass that. Test
+ * asserts none leak (submodule .d.ts, submodule .js, barrel .d.ts,
+ * barrel .js). v2.1.1: `_<module>Ready` probes removed; assert absent.
+ * Skipped gracefully if dist/ not built.
  */
 
 import { describe, test, expect } from 'vitest';
@@ -66,10 +46,7 @@ const INTERNAL_SYMBOLS = [
 	'_assertNotOwned',
 ];
 
-// Fortuna `@internal` test-only accessors. These live on the class, not in the
-// init module, so `stripInternal: true` only drops them from `.d.ts`. The
-// runtime method bodies remain in `dist/index.js`, that is expected. We only
-// guard the type surface here.
+// Fortuna `@internal` test-only accessors; stripped from .d.ts only.
 const FORTUNA_INTERNAL_SYMBOLS = [
 	'_createDeterministicForTesting',
 	'_getGenKey',
@@ -78,11 +55,7 @@ const FORTUNA_INTERNAL_SYMBOLS = [
 	'_getPoolHash',
 ];
 
-// Removed in v2.1.1. These were per-module readiness probes parallel to
-// `isInitialized(mod)`. Removal is total: source declarations gone, barrel
-// re-exports gone, runtime exports gone. The test checks all four artifact
-// classes (submodule .d.ts, submodule .js, barrel .d.ts, barrel .js) so a
-// regression in any one of them surfaces immediately.
+// Removed in v2.1.1; assert absent across all four artifact classes.
 const REMOVED_READY_PROBES: { module: string; symbol: string }[] = [
 	{ module: 'serpent',  symbol: '_serpentReady' },
 	{ module: 'chacha20', symbol: '_chachaReady'  },
@@ -91,9 +64,7 @@ const REMOVED_READY_PROBES: { module: string; symbol: string }[] = [
 	{ module: 'kyber',    symbol: '_kyberReady'   },
 ];
 
-// In CI, dist/ artifacts must exist, otherwise this regression guard silently
-// no-ops and stripInternal regressions ship undetected. Locally, skip gracefully
-// for sessions that haven't run `bun run build:ts` yet.
+// CI: dist/ must exist or fail; local: skip gracefully.
 function requireFile(path: string): string {
 	if (!existsSync(path)) {
 		if (process.env.CI)
@@ -197,10 +168,7 @@ describe('removed `_<module>Ready` probes are absent from each submodule (v2.1.1
 });
 
 describe('internal-API strip from Fortuna class (dist/fortuna.d.ts)', () => {
-	// The Fortuna class declaration lives in dist/fortuna.d.ts; the barrel
-	// only re-exports the class name. A dropped `@internal` tag on a method
-	// leaks via the class .d.ts, so check there. Also assert nothing leaks
-	// through an explicit barrel re-export by symbol name.
+	// Class lives in dist/fortuna.d.ts; barrel re-exports the class name only.
 	test('no @internal Fortuna symbol appears in dist/fortuna.d.ts', () => {
 		const dts = requireFile(fortunaDts);
 		if (!dts) return;

@@ -105,10 +105,8 @@ for (const n of TREE_SIZES) {
 		const proof = tree.getInclusionProof(i);
 		inclusionHex.push(proof.map(bytesToHex));
 	}
-	// Consistency proofs to every prior power-of-two size strictly less
-	// than n. RFC 9162 §2.1.4 defines proofs for `oldSize` in [1, newSize];
-	// our gate corpus covers the power-of-two slice because those sizes
-	// are also the prior STH checkpoints in real-world log operations.
+	// Consistency proofs to every prior power-of-2 size strictly less than n.
+	// RFC 9162 §2.1.4 admits oldSize in [1, newSize]; power-of-2 mirrors real-log STH checkpoints.
 	const consistency: { fromSize: number; fromRootHex: string; proofHex: string[] }[] = [];
 	for (let prior = 1; prior < n; prior *= 2) {
 		if (!isPowerOfTwo(prior)) continue;
@@ -131,10 +129,8 @@ for (const n of TREE_SIZES) {
 	console.log(`size ${n}: root ${bytesToHex(root).slice(0, 16)}…  incl=${inclusionHex.length}  cons=${consistency.length}`);
 }
 
-// Round-trip every record through the verifier surface as an in-line
-// sanity check before emitting. Failures here mean the generator and
-// the verifier disagree, which would be a leviathan-internal bug rather
-// than a vector-correctness issue, but we still want it surfaced now.
+// Round-trip every record through the verifier surface before emit;
+// generator / verifier disagreement surfaces here.
 import { verifyInclusionProof, verifyConsistencyProof } from '../src/ts/index.js';
 
 for (const rec of records) {

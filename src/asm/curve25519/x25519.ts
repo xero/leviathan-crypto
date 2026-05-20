@@ -27,35 +27,17 @@
 // exports clamp the caller's 32-byte secret on every call per RFC 7748
 // §5, then drive the constant-time Montgomery ladder.
 //
-// Locked posture:
+// Locked posture (rationale: docs/asm_curve25519.md#x25519-posture):
 //
-//   1. Clamping happens internally on every call. The skOff buffer holds
-//      "opaque 32 random bytes" per RFC 7748 §5; the WASM API does NOT
-//      surface "clamped sk" as a separate type. scalarClamp's copy-and-
-//      clamp form (out != src) preserves skOff byte-for-byte.
-//   2. All-zero shared-secret rejection is NOT performed at this layer.
-//      x25519DH returns void; sharedOff is written unconditionally. The
-//      TypeScript `X25519` class performs the constant-time
-//      all-zero scan and rejects degenerate outputs per RFC 7748 §7 /
-//      the contributory-behaviour interpretation. This matches x25519-
-//      dalek's posture and preserves WASM-vs-oracle byte agreement on
-//      any future test record that exercises a small-order peer pk.
-//   3. No fault-injection cross-check. Unlike ed25519Sign which re-
-//      derives pk from seed and aborts on caller-supplied pk mismatch,
-//      x25519Keygen has no caller-supplied pk to cross-check and
-//      x25519DH's peerPk is genuinely external (the other party's
-//      actual choice).
-//   4. peerPk is NOT masked at this layer. The substrate's `feFromBytes`
-//      masks bit 255 of the encoded u-coord internally per RFC 7748 §5
-//      (montgomery.ts:102-103); callers pass the encoded u-coord
-//      byte-for-byte.
+//   1. Clamp on every call (RFC 7748 §5).
+//   2. All-zero shared-secret rejection lives at the TS layer
+//      (RFC 7748 §7); WASM writes sharedOff unconditionally.
+//   3. No fault-injection cross-check: no caller-supplied pk exists.
+//   4. peerPk is not masked here; feFromBytes masks bit 255 internally.
 //
-// Wipe discipline: each export ends with wipeX25519(), which zeroes
-// X25519_SCALAR_CLAMP (the only secret intermediate, the clamped
-// scalar). The caller-provided buffers (skOff, peerPkOff, pkOff,
-// sharedOff) are NOT touched by wipeX25519; the TS layer manages their
-// lifetimes. The module-level `wipeBuffers()` (index.ts)
-// covers this slot too via the MUTABLE_START..BUFFER_END fill.
+// Wipe: each export ends with wipeX25519() (zeroes X25519_SCALAR_CLAMP).
+// Caller buffers (skOff, peerPkOff, pkOff, sharedOff) are TS-managed.
+// Module-level wipeBuffers() covers the slot via MUTABLE_START..BUFFER_END.
 
 import {
 	X25519_SCALAR_CLAMP,

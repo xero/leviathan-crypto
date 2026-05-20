@@ -30,16 +30,6 @@
 // buffer usage is far smaller (~6 KB), pages sized for headroom and
 // matching the per-call I/O staging idiom.
 //
-// Field element representation: 8 × u32 limbs at radix 2^32, saturated.
-// 32 bytes per element, limb[0] is the LSB (little-endian limb order
-// in memory). This choice maps directly to NIST SP 800-186 §3.2.1.3
-// (P-256 prime hex words, 32-bit chunks) and lets the Solinas
-// reduction follow Hankerson-Menezes-Vanstone "Guide to Elliptic
-// Curve Cryptography" §2.4.1, Algorithm 2.27 byte-for-byte. The
-// prime's special-form bit positions (96, 192, 224, 256) all fall on
-// limb boundaries (limbs 3, 6, 7, 8) which keeps the reduction recipe
-// auditable line-by-line.
-//
 // Multiplication intermediate: 16 × u32 limbs (64 bytes). feMul writes
 // an 8×8 schoolbook sum into MUL_INT, then runs feReduce in place.
 //
@@ -73,7 +63,6 @@
 //                                       r, s, d, e, u1, u2)
 //   6208      32       HMAC_DRBG_K      (RFC 6979 §3.2 / SP 800-90A K state)
 //   6240      32       HMAC_DRBG_V      (RFC 6979 §3.2 / SP 800-90A V state)
-//   6272      64       ECDSA_SIG_TMP    (raw r || s sig scratch, 64 bytes)
 //   6336      33       ECDSA_PK_CHECK   (compressed-pk fault-check scratch)
 //   6369      33       ECDSA_PK_INPUT   (caller-supplied compressed-pk copy)
 //   6402      32       ECDSA_MSG_HASH   (caller-supplied SHA-256(M))
@@ -96,11 +85,8 @@
 //
 //   BUFFER_END = 7054
 //
-// Constants (prime p, curve order n, basepoint G, b) live as `@inline
-// const` u32 values in field.ts / scalar.ts / point.ts, NOT in mutable
-// linear memory. Locked decision: inlining constants via the AS data
-// segment risks the segment moving across builds and breaking the
-// buffer-layout audit.
+// Constants live as inline u32 in field.ts / scalar.ts / point.ts; AS
+// data-segment volatility makes layout-anchored constants brittle.
 //
 // Per AGENTS.md "Wipe discipline", `wipeBuffers()` in index.ts zeros
 // every byte from MUTABLE_START to BUFFER_END after each public-API
@@ -114,13 +100,9 @@ export const MUTABLE_START:        i32 = 4096
 
 // ── Field-arithmetic regions ───────────────────────────────────────────────
 
-// Multiplication intermediate. feMul writes the 8×8 schoolbook sum into
-// MUL_INT_LO (low 8 limbs) and MUL_INT_HI (high 8 limbs), then the
-// Solinas reduction reads MUL_INT_HI to derive the per-NIST-recipe
-// addend / subtrahend terms and writes the final 8-limb result back to
-// MUL_INT_LO. Separated into LO / HI halves so the reduction code can
-// reference high-half limbs by index 0..7 (matching HMV §2.27 notation
-// where "c8..c15" become "h0..h7").
+// feMul writes the 8x8 schoolbook sum into MUL_INT_LO (low 8) +
+// MUL_INT_HI (high 8); LO/HI split lets Solinas index high limbs 0..7
+// as HMV §2.27 h0..h7.
 export const MUL_INT_LO:           i32 = 4096
 export const MUL_INT_HI:           i32 = 4128
 
@@ -165,10 +147,6 @@ export const HMAC_DRBG_K:          i32 = 6208
 export const HMAC_DRBG_V:          i32 = 6240
 
 // ── ECDSA per-call scratch ─────────────────────────────────────────────────
-
-// Raw 64-byte r || s output buffer. The sign path computes r and s in
-// SCALAR_TMP slots, then concatenates here for the caller to copy out.
-export const ECDSA_SIG_TMP:        i32 = 6272
 
 // Compressed-pk fault-check scratch. After signing, ecdsa.ts re-derives
 // pk by pointMulBase(d) and compresses to this slot, then compares

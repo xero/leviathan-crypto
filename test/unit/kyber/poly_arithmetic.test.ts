@@ -118,15 +118,12 @@ describe('Gate 1, instantiation and buffer layout', () => {
 
 	test('wipeBuffers() zeroes all mutable regions', () => {
 		const w = getWasm();
-		// Write known data into mutable region
 		const start = w.getPolySlotBase();  // 4096
 		const fill = new Uint8Array(100).fill(0xAB);
 		mem().set(fill, start);
 		mem().set(fill, w.getPolyvecSlot0());
 		mem().set(fill, w.getSeedOffset());
-		// Wipe
 		w.wipeBuffers();
-		// Verify zeros
 		const after = mem().slice(start, start + 100);
 		expect(Array.from(after).every(b => b === 0)).toBe(true);
 		const pv = mem().slice(w.getPolyvecSlot0(), w.getPolyvecSlot0() + 100);
@@ -156,25 +153,13 @@ describe('Gate 2, modular arithmetic', () => {
 
 	test('montgomery_reduce satisfies a·R^{-1} mod q for valid inputs', () => {
 		const w = getWasm();
-		// R = 2^16, R_sq = R^2 mod q = (2^16)^2 mod 3329.
-		// 2^16 mod 3329 = 2285. 2285^2 mod 3329 = 5220225 mod 3329.
-		// 5220225 / 3329 ≈ 1568. 1568 * 3329 = 5219872. 5220225 - 5219872 = 353.
-		// Verify: 2285 * 2285 = 5218225. Actually let me compute properly.
-		// 2285^2 = 5_221_225. 5_221_225 mod 3329: 5_221_225 / 3329 = 1568.xxx
-		// 1568 * 3329 = 5_219_872. 5_221_225 - 5_219_872 = 1353.
-		// So R^2 mod q = 1353. montgomery_reduce(a * R_sq) == a * R mod q...
-		// Actually: montgomery_reduce(a * R) = a*R * R^{-1} mod q = a mod q.
-		// To test: montgomery_reduce((i32)a * R) should give a mod q for a in [0, q).
-		// But R = 2^16 = 65536 and AS takes i32 input bounded in range.
-		// Test: for a small set of known values.
+		// montgomery_reduce(a * R) ≡ a (mod q) per the FIPS 203 / Montgomery
+		// identity. Test against the spec relation for small a where a * R
+		// fits in i32 range (a < 32768); centered residue output.
 		const _cases: [number, number][] = [
-			[1, 1],           // montgomery_reduce(1 * 2^16) = 1 (if 2^16 mod q = MONT+q)
+			[1, 1],
 			[0, 0],
 		];
-		// Direct test: montgomery_reduce(a * R) mod q == a for a in [0, q)
-		// But R = 65536 and a * R overflows i32 for a > 32767.
-		// Test with small a where a * R fits in i32 range (a * 65536 < 2^31):
-		// a < 32768.
 		const R = (1 << 16);
 		for (let a = 0; a < 50; a++) {
 			const result = i16(w.montgomery_reduce(a * R));

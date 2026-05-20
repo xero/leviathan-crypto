@@ -20,20 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * SealStreamPool wipe-before-terminate ACK handshake.
- *
- * `_killAll` posts `{ type: 'wipe' }` to each worker and waits up to 100 ms
- * for a `{ type: 'wiped' }` reply before calling `terminate()`. On ACK the
- * terminate fires immediately; on timeout the terminate fires anyway.
- *
- * Two cases covered:
- *
- * 1. Happy path, the real pool worker zeros its key material and posts
- *    `{ type: 'wiped' }` back. The main thread observes the ACK and the
- *    worker stops receiving messages afterward.
- * 2. Timeout fallback, a worker stub whose wipe handler deliberately never
- *    replies. After 100 ms the fallback `terminate()` runs, the pool is
- *    dead, and no unhandled rejection escapes.
+ * SealStreamPool wipe → wiped ACK handshake. `_killAll` posts
+ * {type:'wipe'}, waits 100ms for {type:'wiped'}, then terminate;
+ * on timeout, terminate anyway.
  */
 import '@vitest/web-worker';
 import { describe, it, expect, beforeAll } from 'vitest';

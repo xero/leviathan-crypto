@@ -720,6 +720,52 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 **Thread safety.** The main thread uses a single WASM instance per module. `SealStreamPool` provides worker-based parallelism. Each pool worker is spawned from an IIFE bundled at build time and instantiates its own WASM modules with isolated linear memory, bypassing the main-thread cache entirely. For other primitives, create one instance per Worker if Workers are used.
 
+### Pool worker spawn pattern
+
+`SealStreamPool` spawns one Web Worker per pool slot through the cipher
+suite's `createPoolWorker()` method. `SerpentCipher`, `XChaCha20Cipher`,
+and `AESGCMSIVCipher` all implement the same classic-worker-over-blob-URL
+pattern. The IIFE source is bundled at lib build time by
+`scripts/embed-workers.ts` and embedded into each `cipher-suite.ts`
+module as the `WORKER_SOURCE` string constant.
+
+```typescript
+createPoolWorker(): Worker {
+	const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' });
+	const url  = URL.createObjectURL(blob);
+	const w    = new Worker(url);
+	setTimeout(() => URL.revokeObjectURL(url), 0);
+	return w;
+}
+```
+
+The spawn body is short and every choice it encodes is load-bearing.
+
+**Blob URL, not `new URL(..., import.meta.url)`.** Vite's transform hook
+detects the `new Worker(new URL('./pool-worker.ts', import.meta.url))`
+form at parse time and eagerly emits a separate worker chunk into the
+consumer's bundle output, regardless of whether the consumer ever spawns
+a pool. Building the URL from a runtime blob bypasses the eager-emission
+path. Consumers that never instantiate `SealStreamPool` get zero worker
+chunks.
+
+**Classic worker, not module worker.** Chromium rejects module workers
+loaded from `file://` origins (test pages, Electron, packaged docs).
+Classic workers spawn cleanly under V8, SpiderMonkey, and JavaScriptCore
+across every loader the library supports.
+
+**Macrotask revoke, not synchronous revoke.** The Worker spec fetches the
+URL synchronously at construction; revoking before the spawn completes
+drops the spawn on the floor. Revoking on the next macrotask releases
+the ~5 KB blob immediately, instead of leaking it for the document's
+lifetime.
+
+> [!NOTE]
+> Strict-CSP consumers (`worker-src 'self'`, no `blob:`) can supply
+> their own URL-based factory by spread-overriding `createPoolWorker`
+> on the cipher object. See [ciphersuite.md](./ciphersuite.md#interface-reference)
+> for the override pattern.
+
 ---
 
 

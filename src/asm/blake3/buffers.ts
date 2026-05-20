@@ -77,16 +77,11 @@
 //   26324        4     ROOT_STATE_FLAGS (XOF: snapshot of root-compress flag bits)
 //   BUFFER_END = 26328 (< 65536 = 1 page; module sized at 2 pages for slack)
 //
-// LEVEL_QUEUES replaces the prior count-trailing-zeros (ctz) SUBTREE_STACK
-// region. Each level L holds a small queue of pending CVs at offset
+// Each level L holds a small queue of pending CVs at offset
 // `LEVEL_QUEUES_OFFSET + L * LEVEL_QUEUE_STRIDE` (stride 288 = 9 × 32);
-// the count of pending entries is the i32 at
-// `LEVEL_COUNTS_OFFSET + L * 4`. The 9-entry width covers the transient
-// peak of 8 entries (post-push 4 from a prior batch plus 4 finalize-time
-// emissions: 3 pair-emits plus 1 carry from the level below) plus 1 slot
-// of headroom for alignment and future tightening (BLAKE3 §2.5, see
-// tree.ts file header). 54 levels is the BLAKE3 §5.1.2 depth bound for
-// the maximum 2^64-byte input.
+// pending count is i32 at `LEVEL_COUNTS_OFFSET + L * 4`. 9-entry width
+// covers the transient peak of 8 (BLAKE3 §2.5); 54 levels is the §5.1.2
+// depth bound for the maximum 2^64-byte input.
 //
 // ROOT_STATE_* captures the root-compress input the moment before the root
 // compress fires (single-chunk §2.4 path in chunkFinalize, multi-chunk

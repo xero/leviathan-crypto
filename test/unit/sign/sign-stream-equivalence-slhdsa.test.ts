@@ -21,16 +21,9 @@
 //
 // test/unit/sign/sign-stream-equivalence-slhdsa.test.ts
 //
-// Real-suite Sign-vs-SignStream byte-equivalence gate for the three
-// SLH-DSA prehash suites (0x16 / 0x17 / 0x18). The fixture-suite version
-// in sign-stream-equivalence.test.ts exercises the wire-format path; this
-// file exercises the real SHAKE prehash + SLH-DSA sub-sign path. Hedged
-// `sign` cannot be byte-compared, so the gate is driven on a deterministic
-// signature path: a buffered digest from single-shot SHAKE128/256 and a
-// streamed digest from SHAKE128Stream/SHAKE256Stream are fed through the
-// same `signHashPrehashedDeterministic` entry; the produced sigs must be
-// byte-identical, and the assembled envelope blob must round-trip
-// through Sign.verify and VerifyStream.
+// Real-suite Sign-vs-SignStream byte-equivalence for SLH-DSA prehash
+// suites 0x16 / 0x17 / 0x18. Driven on signHashPrehashedDeterministic
+// over buffered vs streamed SHAKE digest.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';

@@ -180,20 +180,14 @@ export class SlhDsaBase {
 		validateMessage(M);
 		validateContext(ctx);
 		const n = this.params.n;
-		// PK.seed slice is sk-derived (not lib-allocated), so we do NOT
-		// wipe it in finally; the caller's sk lifecycle owns it. Using a
-		// subarray view rather than a slice would also work and would
-		// share memory with sk; slice is cheap and keeps the optRand
-		// buffer self-contained for the WASM driver's INPUT staging.
+		// slice() keeps optRand self-contained for WASM INPUT staging.
 		const optRand = sk.slice(2 * n, 3 * n);
 		const MPrime = constructMPrimePure(M, ctx);
 		try {
 			return slhSignInternalTs(this.x, this.params, sk, MPrime, optRand);
 		} finally {
 			wipe(MPrime);
-			// optRand is a copy of PK.seed (which is part of sk and thus
-			// already known to the caller); the slice itself is library
-			// scratch though, so wipe it for hygiene.
+			// optRand is library scratch; wipe even though contents are sk-derivable.
 			wipe(optRand);
 		}
 	}

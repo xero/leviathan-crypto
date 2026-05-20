@@ -21,24 +21,8 @@
 //
 // test/unit/sign/sign-hybrid-pq-tamper.test.ts
 //
-// Security-gate tamper suite for the three PQ-only hybrid suites. Covers
-// the seven documented attack shapes:
-//
-//   1. Tamper sig_mldsa  half        → verify false
-//   2. Tamper sig_slhdsa half        → verify false
-//   3. Swap halves                   → verify false
-//   4. Wrong total length, truncated → verify false
-//   5. Wrong total length, padded    → verify false
-//   6. Wrong pk under correct sig    → verify false (per half + combined)
-//   7. Cross-suite forgery           → verify false
-//
-// Plus a verify-timing spot check that confirms tampering the ML-DSA half
-// vs tampering the SLH-DSA half both still run the full verify cycle,
-// i.e. the implementation does not short-circuit on the first half's
-// boolean outcome. The two means are NOT expected to be equal (SLH-DSA
-// verify is hash-tree dominated, ML-DSA verify is NTT dominated), only
-// that each tampered case roughly matches the corresponding honest case
-// timing for the same hybrid.
+// Tamper-resistance gate for the three PQ-only hybrid suites. See
+// docs/signaturesuite.md#hybrid-pq-only-tamper-coverage.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';

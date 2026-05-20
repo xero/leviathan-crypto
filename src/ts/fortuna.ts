@@ -176,20 +176,16 @@ export class Fortuna {
 	/** Permanently dispose this instance. Wipes key material, stops all collectors. */
 	stop(): void {
 		if (this.disposed) throw new Error('Fortuna instance has been disposed');
-		// Mark disposed FIRST. WASM wipeBuffers can throw if a stateful instance
-		// holds the module; we must not allow get()/addEntropy()/getEntropy() to
-		// run on a partially-disposed instance.
+		// Mark disposed first so partially-disposed reentry throws cleanly.
 		this.disposed = true;
 		this.stopCollectors();
 		wipe(this.genKey);
 		wipe(this.genCnt);
-		// Wipe all 32 pool-hash chain values so residual entropy-bearing
+		// Wipe the 32 pool-hash chain values so residual entropy-bearing
 		// bytes do not outlive the instance.
 		for (const p of this.poolHash) wipe(p);
 		this.reseedCnt = 0;
-		// Best-effort wipe of WASM scratch buffers for every module the chosen
-		// generator and hash touched. Surface the first error so the caller
-		// knows the WASM scratch leak occurred.
+		// Best-effort wipe of WASM scratch; surface the first error.
 		const required = new Set<string>([...this.gen.wasmModules, ...this.hash.wasmModules]);
 		let err: unknown;
 		for (const mod of required) {

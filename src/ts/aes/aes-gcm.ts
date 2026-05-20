@@ -27,25 +27,16 @@
 import { getInstance, _acquireModule, _releaseModule } from '../init.js';
 import { constantTimeEqual } from '../utils.js';
 
-// Maximum plaintext per (key, IV) per SP 800-38D §5.2.1.1: 2^39 - 256 bits
-// = 2^36 - 32 bytes. Practical JS Uint8Array is much smaller, but we still
-// enforce the spec bound explicitly.
-const MAX_PT_BYTES = 0x1000000000 - 32;     // 2^36 - 32
+// SP 800-38D §5.2.1.1: max plaintext = 2^39 - 256 bits = 2^36 - 32 bytes.
+const MAX_PT_BYTES = 0x1000000000 - 32;
 
-// Maximum AAD bytes per buffer-bounded WASM API. The dedicated AAD_BUFFER
-// is 64 KiB; longer AAD requires a streaming API not in scope for v2.2.0.
+// AAD_BUFFER is 64 KiB.
 const MAX_AAD_BYTES = 65536;
 
-// Maximum IV bytes our atomic class accepts. The spec permits any IV up to
-// 2^64 - 1 bits; the typical recommended value is 12 bytes (96 bits). We
-// reuse CHUNK_PT_BUFFER as IV scratch for the variable-length-IV path,
-// which means the IV must fit in 64 KiB. Anyone using IVs longer than
-// that is doing something unusual and can build it themselves.
+// IV reuses CHUNK_PT_BUFFER scratch, 64 KiB cap.
 const MAX_IV_BYTES = 65536;
 
-// Single-call PT/CT cap: the chunk buffer is 64 KiB. Chunked iteration
-// across the WASM boundary works for larger inputs; we wire that into
-// the seal/open methods below.
+// Per-call chunk size; seal/open iterate across this for larger inputs.
 const PT_CHUNK_LIMIT = 65536;
 
 const AUTH_FAILED = 'authentication failed';
@@ -123,11 +114,6 @@ export class AESGCM {
 			throw new Error('AESGCM: instance has been disposed');
 		this._validateInputs(key, iv, aad, pt.length);
 
-		// Once we touch WASM state, wipe on every exit path. The output and
-		// tag are already in the JS-heap result by the time we hit the
-		// `finally`, so plaintext / round keys / GHASH state never outlive
-		// this call inside WASM memory, even if the caller forgets
-		// `dispose()`.
 		try {
 			this._loadKey(key);
 			this._writeIv(iv);
@@ -190,12 +176,6 @@ export class AESGCM {
 			throw new RangeError(AUTH_FAILED);
 		}
 
-		// Once we touch WASM state, wipe on every exit path. The plaintext
-		// is already in the JS-heap output slice by the time we hit the
-		// `finally`, so it never outlives this call inside WASM memory,
-		// even if the caller forgets `dispose()`. Auth-failure paths get
-		// the same wipe for free; we no longer need inline wipes before
-		// each throw.
 		try {
 			this._loadKey(key);
 			this._writeIv(iv);
@@ -214,13 +194,7 @@ export class AESGCM {
 				if (rc !== 0) throw new RangeError(AUTH_FAILED);
 			}
 
-			// Compute tag → TAG_OFFSET, then constant-time compare with sealed[ctLen..].
 			this.x.gcmFinalize();
-			// Slice the computed tag out of WASM memory (defensive copy, the
-			// WASM memory view can be reattached on grow). Compare via the
-			// dedicated `ct` WASM module exposed as `constantTimeEqual` in
-			// `../utils.js`. No tag compare lives inside the AES module
-			// itself, this is library-wide policy for atomic AEADs.
 			const tagOff = this.x.getTagOffset();
 			const expectedTag = this.mem.slice(tagOff, tagOff + 16);
 			const providedTag = sealed.slice(ctLen, ctLen + 16);

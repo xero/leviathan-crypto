@@ -455,6 +455,67 @@ byte-reverses the accumulator back to POLYVAL byte order.
 The accumulator and table buffers alias the GHASH equivalents; only one
 mode can be active at a time.
 
+#### POLYVAL bridge
+
+POLYVAL and GHASH are sibling universal hashes over GF(2¹²⁸). They
+differ in reduction polynomial and bit-within-byte convention. The
+library implements POLYVAL as a reflection wrapper over the existing
+`gf128MulH` multiplier rather than shipping a parallel POLYVAL-native
+multiplier.
+
+| Property | GHASH (SP 800-38D) | POLYVAL (RFC 8452 §3) |
+|---|---|---|
+| Reduction polynomial | `u¹²⁸ + u⁷ + u² + u + 1` | `u¹²⁸ + u¹²⁷ + u¹²⁶ + u¹²¹ + 1` |
+| Bit-within-byte ordering | bit 7 of byte 0 = u⁰ | bit 0 of byte 0 = u⁰ |
+| AEAD home | AES-GCM (RFC 5288) | AES-GCM-SIV (RFC 8452) |
+
+RFC 8452 §3 gives the bridge formula:
+
+```
+POLYVAL(H, X_1..n) = ByteReverse(GHASH(mulX_GHASH(ByteReverse(H)),
+                                       ByteReverse(X_1..n)))
+```
+
+`ByteReverse` reverses byte order in a 16-byte string. RFC 8452 §3:
+"the differing interpretations of bit order takes care of reversing
+the bits within each byte, and then reversing the bytes does the
+rest." The within-byte bit flip is free; the implementation needs only
+the byte-reverse and the `mulX_GHASH` adjustment.
+
+The implementation takes path (a), the reflection wrapper:
+
+1. **Per-SIV-operation setup.** Byte-reverse the POLYVAL authentication
+   key, apply `mulX_GHASH` (defined in `gf128.ts` as `mulXGhash`), and
+   feed the result to `gf128InitTable`. The GF128 table then multiplies
+   by `mulX_GHASH(ByteReverse(H))` in GHASH bit convention.
+2. **Per-block absorption.** Byte-reverse the block into GHASH bit
+   convention, XOR into the running accumulator, multiply by H.
+3. **`polyvalFinalize`.** Byte-reverse the accumulator back to POLYVAL
+   bit convention.
+
+The two helpers required are `byteReverse16` and `mulXGhash`, both in
+`gf128.ts`. The existing GF(2¹²⁸) primitive is unchanged.
+
+Path (b), a POLYVAL-native multiplier with reduction byte `0x87` in
+LSB-first storage, was rejected. Path (b) would have added ~250 lines
+of parallel multiplier and a second 256-byte table for no algorithmic
+benefit on a runtime that lacks PCLMULQDQ (the carry-less-multiply
+instruction that makes a native POLYVAL multiplier competitive on x86).
+
+The POLYVAL accumulator aliases on `GHASH_ACC_OFFSET`. POLYVAL and
+GHASH are runtime-exclusive (an AEAD operation picks one and runs it
+to completion), so the alias is safe and saves 16 bytes of layout.
+`GCM_SCRATCH_OFFSET` doubles as the 16-byte scratch for the per-block
+byte-reverse.
+
+> [!NOTE]
+> Path (a) matches what BoringSSL, OpenSSL, and RustCrypto ship for
+> their pre-PCLMULQDQ paths. PCLMULQDQ is not available in WebAssembly
+> SIMD, and table-free schoolbook GF(2¹²⁸) is too slow for production
+> use; the sandbox mitigates direct cross-process cache observation,
+> but full mitigation would require CPU carry-less-multiply support or
+> hardware-tied AES-GCM-SIV.
+
 ---
 
 ### AES-GCM-SIV
@@ -575,6 +636,32 @@ Two design notes:
   pattern. The alias is safe and saves 16 bytes of layout. The
   `GF128_TABLE_BUFFER` is similarly shared.
 
+### Buffer layout rationale
+
+**Bitsliced round keys are 128 bytes per round, not 16.** Per
+Käsper-Schwabe §4.5, each AES round key is pre-transposed to
+bitsliced form so `AddRoundKey` is 8 plain v128 XORs. The 16
+round-key bytes duplicate across the 8 parallel blocks (all 8 blocks
+share one key schedule) and transpose, yielding `8 × v128 = 128`
+bytes per round key.
+
+**Key schedule scratch is dedicated, not piggy-backed.** An earlier
+layout placed the byte-level scratch at `ROUND_KEYS_OFFSET + 1408`,
+the gap above the AES-128 round keys. At AES-256 the schedule
+expands to `15 × 128 = 1920` bytes of bitsliced round keys; that
+gap vanishes and the scratch collides with rounds 11-13. A dedicated
+256-byte region (`KEY_SCHEDULE_SCRATCH_BUFFER`, 240 bytes used by
+AES-256, padded to 256) keeps the round-key buffer purely about
+round keys.
+
+**Inverse round keys live in a parallel buffer.** FIPS 197 §5.3.5
+Equivalent Inverse Cipher requires round keys `1..Nr - 1` to be
+InvMixColumns-transformed for decrypt; encrypt needs the
+untransformed forward round keys. Storing both sets in parallel
+buffers lets a single AES instance support both directions without
+per-call key-schedule work. Cost is one InvMixColumns per round
+key, paid once at `loadKey()` time.
+
 ---
 
 ## Internal Architecture
@@ -650,6 +737,61 @@ SubBytes runs the bitsliced S-box from `sbox.ts`. ShiftRows is a single
 `encryptBlock_8x` and `decryptBlock_8x` are the primary kernels. The
 atomic `encryptBlock` / `decryptBlock` wrappers broadcast the single
 input across all 8 lanes and discard the duplicates.
+
+### Bitsliced transpose
+
+The 8-block AES kernel runs over a bitsliced state. After
+`transposeIn`, register `state[k]` (`k ∈ {0..7}`) holds bit `k` of
+every byte across all 8 input blocks.
+
+Within `state[k]`, byte position `j ∈ {0..15}` corresponds to AES
+state row `r = j / 4`, column `c = j % 4` (row-major). Within byte
+`j` of `state[k]`, the 8 bits are bit `k` of that state position
+from blocks 0..7.
+
+FIPS 197 §3.4 lays out the AES state as `state[r, c] = in[r + 4c]`,
+so bitsliced byte `j` corresponds to input byte at offset
+`(j % 4) * 4 + j / 4` within each block.
+
+The Käsper-Schwabe §4.1 layout fuses two factors:
+
+- A per-block 4×4 byte transpose, the row-by-row reorder of an AES
+  state square.
+- An 8×8 bit-matrix transpose at every byte position.
+
+The two factors operate on orthogonal axes (byte position vs.
+bit-position-within-byte), so they commute. Both are involutions, so
+a single kernel serves `transposeIn` and `transposeOut`.
+
+**Byte-shuffle stage.** The pattern
+`[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]` is
+self-inverse; it represents the 4×4 transpose of an AES state square.
+
+**Bit-matrix stage.** Three delta-swap stages with strides
+`{4, 2, 1}` and masks `{0x0F, 0x33, 0x55}` (Hacker's Delight §7-2).
+
+Total cost is 92 v128 operations per direction. The kernel replaces
+the roughly 2050 scalar bit-gathers used in the pre-bitsliced
+implementation.
+
+### Single-block transpose
+
+`encryptBlock` and `decryptBlock` sit on the per-block hot path of
+AES-GCM-SIV; `sivCtrXform` calls them once per counter block. The
+[8×8 transpose](#bitsliced-transpose) amortises across 8 parallel
+blocks. The atomic case skips that amortisation.
+
+`transposeIn1` / `transposeOut1` work directly on the 16-byte
+`BLOCK_PT` and `BLOCK_CT` buffers and never touch
+`BLOCK_PT_8X` / `BLOCK_CT_8X`. The bitsliced register `state[k]`
+still holds bit `k` of byte `j` across 8 lanes; the single-block
+path populates lane 0 (bit 0 of each `state[k]` byte) and leaves
+lanes 1..7 zero.
+
+The 8x kernel then runs unchanged. It computes `AES(0)` seven times
+in parallel on the dummy lanes and we ignore that output. The
+savings are the input-side byte-fill and most of the transpose op
+count.
 
 ### cbc.ts
 

@@ -23,6 +23,8 @@ strict verification with low-S enforcement per RFC 6979 §3.5.
 > - [Low-S Enforcement](#low-s-enforcement)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
+> - [Suite integration](#suite-integration)
+> - [Stream equivalence](#stream-equivalence)
 > - [Cross-References](#cross-references)
 
 ---
@@ -892,6 +894,45 @@ byte-deterministic RFC 6979 §3.2 output.
 See [signaturesuite.md](./signaturesuite.md#ecdsa-p256-suite) for
 the full wire format, format-byte allocation, and worked
 examples through `Sign`, `SignStream`, and `VerifyStream`.
+
+---
+
+## Suite integration
+
+`EcdsaP256Suite` is hedged-by-default per
+`draft-irtf-cfrg-det-sigs-with-noise-05`, so the recorded KAT vectors
+in `test/vectors/sign_ecdsa_p256.ts` carry the rnd received at
+generation time. Re-running `Sign.sign` on the same `(sk, msg)`
+produces a fresh envelope; the integration tier grades round-trip
+behaviour, not byte-exact envelope reproduction.
+
+The integration tier asserts:
+
+- `Sign.verify` accepts every recorded blob in the corpus.
+- `Sign.peek` reports the documented envelope offsets (`suite_byte`,
+  `ctx_len`, `ctx`, `payload_len` u32 BE, `payload`, `sig`).
+- A fresh suite-level `sign` + `verify` cycle on the same `(sk, msg)`
+  succeeds for every vector.
+- `Sign.signDetached` / `Sign.verifyDetached` round-trip on the same
+  corpus.
+- Cross-suite tamper: flipping `suite_byte` rejects with
+  `SigningError('sig-suite-mismatch')`.
+- Suite-bound ctx rejection at the envelope layer matches the
+  `sig-ctx-unsupported` discriminator from the suite layer
+  (FIPS 186-5 §6.4 sign inputs are `(d, hash, k)`; no ctx).
+
+---
+
+## Stream equivalence
+
+`EcdsaP256Suite` is hedged-by-default per
+`draft-irtf-cfrg-det-sigs-with-noise-05`, so `Sign.sign` and
+`SignStream` produce different signatures across calls. The
+stream-equivalence test gates the framing invariants instead: the
+payload bytes match, the envelope header matches, round-trip succeeds
+in both directions, and `VerifyStream` accepts a `Sign.sign` blob and
+vice versa. The deterministic-mode `EcdsaP256` class is the
+byte-compare surface.
 
 ---
 

@@ -54,7 +54,7 @@ import {
 
 import {
 	feAdd, feSub, feNeg, feMul, feSqr, feInv, feSqrt, feCopy,
-	feZero, feOne, feIsZero, feIsEqual, feIsOdd,
+	feZero, feOne, feIsEqual, feIsOdd,
 	loadB,
 } from './field'
 
@@ -81,14 +81,9 @@ const XX3_M_ZZ3: i32 = FIELD_TMP + 29 * FIELD_TMP_STRIDE
 const TMP1:      i32 = FIELD_TMP + 30 * FIELD_TMP_STRIDE
 const TMP2:      i32 = FIELD_TMP + 31 * FIELD_TMP_STRIDE
 
-// Three more scratch slots for pointDouble + final-output staging. We
-// pull these from the POINT_TMP region's last slot (slot 7), which is
-// only used as an explicit ladder scratch at higher levels and not
-// during a single point op. 96 bytes = 3 × 32-byte FE.
-//
-// Imported via the buffers.ts offset; see ./buffers.ts for the
-// rationale (point.ts internal scratch must not alias FIELD_TMP slots
-// 0..15 or other concurrently-live point storage).
+// POINT_TMP slot 7 (3 x 32-byte FE) hosts pointDouble X_OUT/Y_OUT/Z_OUT
+// staging. Slot 7 is ladder-only at higher levels, so no aliasing with
+// FIELD_TMP slots 0..15 or live point storage during a single point op.
 
 import {POINT_TMP, POINT_TMP_STRIDE} from './buffers'
 const X_OUT:  i32 = POINT_TMP + 7 * POINT_TMP_STRIDE +  0
@@ -446,23 +441,15 @@ export function pointSub(out: i32, p: i32, q: i32): void {
 // r = x mod n (FIPS 186-5 §6.4 step 4) and at the verify step's
 // u1*G + u2*Q result for r comparison.
 //
-// Caller passes outX, outY as 32-byte field-element offsets. If the
-// input point is the identity (Z == 0), feInv returns the inverse of
-// 0 which is itself 0 (Fermat: 0^(p-2) = 0), so outX = X * 0 = 0,
-// outY = Y * 0 = 0. The caller is responsible for distinguishing the
-// identity case if it matters (the strict-gate rejects identity at
-// verify time so this is normally a non-issue).
+// Caller passes outX, outY as 32-byte field-element offsets. Identity
+// input (Z == 0) produces outX = outY = 0 (Fermat: 0^(p-2) = 0); the
+// strict verify gate rejects identity upstream, so this is normally
+// inert.
 
 /**
  * outX = X / Z (mod p), outY = Y / Z (mod p). One feInv per call.
- *
- * zInv lives in POINT_TMP slot 7's third FE sub-slot (Z_OUT alias).
- * POINT_TMP slot 7 is reserved for pointAdd / pointDouble internal
- * staging; pointAffinify does not call those, so reuse is safe. Using
- * a FIELD_TMP slot (e.g. TMP1) here is unsafe because a caller may
- * pass outX = TMP1 (alias), in which case the first feMul would
- * overwrite zInv before the second feMul reads it, silently producing
- * outY = Y * X * zInv instead of Y * zInv.
+ * zInv MUST live in POINT_TMP slot 7 (Z_OUT alias), not FIELD_TMP.
+ * Aliasing rule: docs/asm_p256.md#aliasing-gotchas.
  */
 export function pointAffinify(p: i32, outX: i32, outY: i32): void {
 	const zInv: i32 = Z_OUT
@@ -482,17 +469,10 @@ export function pointAffinify(p: i32, outX: i32, outY: i32): void {
 import {feToBytes, feFromBytes} from './field'
 
 /**
- * Compress the projective point P to 33 bytes at `out`. Computes the
- * affine (x, y) via one feInv on Z, then writes 0x02 || x or
- * 0x03 || x depending on parity of y. `out` and `p` may not alias the
- * point-FE scratch slots.
- *
- * xAff / yAff are placed in slots XX / YY (FIELD_TMP slots 16, 17)
- * which do NOT alias with the TMP1 slot pointAffinify uses internally
- * for zInv. Using TMP1 / TMP2 here would alias zInv and silently
- * corrupt yAff (the second feMul inside pointAffinify reads zInv from
- * the slot that was already overwritten by the first feMul writing
- * outX).
+ * Compress the projective point P to 33 bytes at `out` (0x02 / 0x03 || x).
+ * xAff / yAff use FIELD_TMP slots 16, 17 (XX / YY); these must not alias
+ * TMP1 / TMP2 (pointAffinify's zInv slot). See
+ * docs/asm_p256.md#aliasing-gotchas.
  */
 export function pointCompress(out: i32, p: i32): void {
 	const xAff: i32 = XX
@@ -535,13 +515,8 @@ export function pointDecompress(out: i32, src: i32): i32 {
 	const x: i32 = pX(out)
 	feFromBytes(x, src + 1)
 
-	// TODO: x < p check. feFromBytes does not reduce, so an adversarial
-	// x in [p, 2^256) would decode but represent a non-canonical field
-	// element. The verify-side strict-gate elsewhere (pointOnCurve)
-	// catches this indirectly — a non-canonical x won't satisfy the
-	// curve equation against a canonical y. For belt-and-suspenders
-	// we could compare x to p here; deferred until the gate test
-	// surfaces the case.
+	// TODO: explicit x < p check. pointOnCurve below catches non-canonical
+	// x indirectly via the curve-equation residue.
 
 	// y² = x³ - 3*x + b
 	const x3: i32 = TMP1

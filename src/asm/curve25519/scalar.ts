@@ -201,19 +201,6 @@ export function scalarReduce(out: i32, src: i32): void {
 
 // ── scalarReduce64 (64-byte input) ──────────────────────────────────────────
 
-/**
- * Reduce a 64-byte LE value mod L (= scalar mod L for hash → scalar
- * derivations: Ed25519 r = SHA-512(prefix || msg) and h = SHA-512(R || A
- * || msg)).
- *
- * Implementation: bit-by-bit binary division (260 iterations). Each
- * iteration shifts the remainder left by 1, brings in the next bit from
- * the high half, then conditionally subtracts L. Constant-time.
- *
- * Slower than the ref10 21-bit-limb Barrett-style reduction, but the
- * algorithm is simple enough to inspect line-by-line and the runtime
- * (260 subtracts, each ~32 bytes) is bounded.
- */
 export function scalarReduce64(out: i32, src: i32): void {
 	// We process bits from the high half (bytes 32..63, msb first) into
 	// a 33-byte accumulator that holds the running remainder.

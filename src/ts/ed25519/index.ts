@@ -21,18 +21,10 @@
 //
 // src/ts/ed25519/index.ts
 //
-// Ed25519 public API. RFC 8032 §5.1 pure + §5.1.7 prehash, strict
-// verification per FIPS 186-5 §7.6.4. Both Ed25519 and X25519 share the
-// curve25519 WASM module; `ed25519Init(source)` and `x25519Init(source)`
-// both target it and de-dupe at the init() layer.
-//
-// Per-call WASM lifecycle: every public method runs against the singleton
-// curve25519 instance, stages inputs at fixed offsets above the WASM's
-// mutable buffer region, calls the underlying export, copies outputs to
-// fresh `Uint8Array`s, then wipes the staged secret-bearing inputs and
-// the WASM's internal scratch. The WASM-side `wipeBuffers` covers the
-// substrate / SHA-512 / ED25519 scratch (MUTABLE_START..BUFFER_END); the
-// TS layer is responsible for wiping its own I/O-staging region.
+// Ed25519 public API. RFC 8032 §5.1 pure + §5.1.7 prehash. Strict
+// verification per FIPS 186-5 §7.6.4. Ed25519 and X25519 share the
+// curve25519 WASM module; `ed25519Init` and `x25519Init` both target it
+// and de-dupe at the init() layer.
 
 import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
 import type { WasmSource } from '../wasm-source.js';
@@ -237,17 +229,10 @@ export class Ed25519 {
 	}
 
 	/**
-	 * Suite-only: pure Ed25519 sign that derives pk internally and skips
-	 * the fault-injection cross-check. Saves one basepoint scalar mult per
-	 * call versus `sign(sk, pk, msg)`. Intended for `Ed25519PureSuite` and
-	 * `Ed25519PrehashSuite.sign` (message-taking path) where the caller
-	 * holds only `sk`. The cross-check is degenerate at those call sites
-	 * because the caller-supplied pk and the WASM-derived pk both come
-	 * from the same call on the same module; direct-class callers who
-	 * hold a stored, known-good pk should keep using `sign(sk, pk, msg)`.
-	 *
-	 * Underscore-prefixed and intentionally undocumented in the public
-	 * API: not part of `docs/ed25519.md`'s API reference.
+	 * Suite-only: pure Ed25519 sign that derives pk internally and
+	 * skips the fault-injection cross-check. See AGENTS.md
+	 * "SignatureSuite lifecycle". Underscore-prefixed, not part of
+	 * the public API.
 	 */
 	_signInternalPk(sk: Uint8Array, M: Uint8Array): Uint8Array {
 		_assertNotOwned('curve25519');
@@ -273,9 +258,8 @@ export class Ed25519 {
 	}
 
 	/**
-	 * Suite-only: Ed25519ph sign that derives pk internally and skips the
-	 * fault-injection cross-check. Companion to `_signInternalPk`; same
-	 * rationale. Intended for `Ed25519PrehashSuite.signPrehashed`.
+	 * Suite-only: Ed25519ph mirror of `_signInternalPk`. See
+	 * AGENTS.md "SignatureSuite lifecycle".
 	 */
 	_signPrehashedInternalPk(
 		sk:     Uint8Array,
@@ -367,8 +351,7 @@ export class Ed25519 {
 	}
 
 	dispose(): void {
-		// Defensive idempotent cleanup; every public method already wipes
-		// on its own success / throw path. Safe to call multiple times.
+		// Idempotent; per-method wipe runs anyway.
 		try {
 			this.mx.wipeBuffers();
 			ioWipe(this.mx);

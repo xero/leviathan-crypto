@@ -20,38 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * BLAKE3 compress4 parent-level dispatch coverage, BLAKE3 §2.5 + §5.3.
- *
- * Proves the multi-chunk hash hot path drives parent merges through
- * the v128-external `compress4` kernel (via `parentBatch4` in
- * `src/asm/blake3/tree_simd.ts`) for inputs producing ≥ 8 chunks.
- * The queue-per-level discipline in `src/asm/blake3/tree.ts` defers
- * push-time merges: a chunk CV lands in level 0's queue, and when a
- * level's queue reaches 8 entries `parentBatch4` batches 4 parent
- * merges in parallel, the 4 outputs propagate to the next level's
- * queue, possibly cascading further batches at upper levels.
- *
- * The WASM module carries a test-only `parentBatch4` invocation
- * counter (held as a WASM global, not in linear memory, so
- * `wipeBuffers()` does not clear it). Each exact-count assertion
- * resets the counter, fires a hash, and verifies the counter equals
- * the predicted cascade depth for that input size.
- *
- * Predicted cascade per input size (chunks = inputLen / 1024 ceil):
- *  - 4096   B,  4 chunks: 0 batches (count[0] stays ≤ 7)
- *  - 7168   B,  7 chunks: 0 batches (count[0] stays ≤ 7)
- *  - 8192   B,  8 chunks: 1 batch at L=0 (push 8 cascades to count[1]=4)
- *  - 16384  B, 16 chunks: 3 batches (2 at L=0 from pushes 8 and 16;
- *                                    1 at L=1 when count[1] reaches 8)
- *  - 32768  B, 32 chunks: 7 batches (4 at L=0; 2 at L=1; 1 at L=2)
- *  - 65536  B, 64 chunks: 15 batches (8 at L=0; 4 at L=1; 2 at L=2;
- *                                     1 at L=3)
- *
- * Layered on top: a KAT regression over every upstream corpus record
- * with `inputLen >= 8192` confirms the queue-per-level discipline
- * produces byte-identical output to the prior ctz-stack implementation.
- * The §2.5 reorganization changes when merges happen, not what they
- * compute — so KAT regression is the bit-correctness gate.
+ * BLAKE3 parent-level dispatch coverage (§2.5 + §5.3). See
+ * docs/blake3.md#tree-level-parent-merge-dispatch for the cascade
+ * table and the queue-per-level discipline.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -122,9 +93,7 @@ describe('BLAKE3 compress4 parent-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 16384 dispatches three parent batches', () => {
-		// 16 chunks: count[0] reaches 8 twice (pushes 8 and 16 → 2 L=0
-		// batches). The second L=0 batch brings count[1] from 4 to 8,
-		// cascading one L=1 batch. Total: 2 + 1 = 3.
+		// 16 chunks: 2 L=0 batches + 1 cascaded L=1.
 		const input = expandBlake3Input(16384);
 		const { digest, batchCount } = hashWithParentDispatchCount(input);
 
@@ -134,8 +103,7 @@ describe('BLAKE3 compress4 parent-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 32768 dispatches seven parent batches', () => {
-		// 32 chunks: 4 L=0 batches; 2 L=1 batches; 1 L=2 batch.
-		// 4 + 2 + 1 = 7.
+		// 32 chunks: 4 + 2 + 1 = 7 batches.
 		const input = expandBlake3Input(32768);
 		const { batchCount } = hashWithParentDispatchCount(input);
 
@@ -143,7 +111,7 @@ describe('BLAKE3 compress4 parent-level dispatch coverage', () => {
 	});
 
 	it('inputLen = 65536 dispatches fifteen parent batches', () => {
-		// 64 chunks: 8 L=0; 4 L=1; 2 L=2; 1 L=3. 8+4+2+1 = 15.
+		// 64 chunks: 8 + 4 + 2 + 1 = 15 batches.
 		const input = expandBlake3Input(65536);
 		const { batchCount } = hashWithParentDispatchCount(input);
 
@@ -181,11 +149,8 @@ describe('BLAKE3 compress4 parent dispatch fires across all three modes', () => 
 	});
 
 	it('derive_key mode dispatches parentBatch4 for ≥ 8-chunk material (pass 2)', () => {
-		// derive_key pass 1 hashes the short context string and never
-		// reaches the multi-chunk batch threshold; pass 2 hashes
-		// `material` through the same tree pipeline as ordinary input,
-		// where an 8192-byte material exercises parentBatch4 with
-		// MODE_FLAGS = FLAG_DERIVE_KEY_MATERIAL.
+		// Pass 1 (short context) skips multi-chunk; pass 2 with FLAG_DERIVE_KEY_MATERIAL
+		// exercises parentBatch4 on 8192B material.
 		resetParentBatch4CallCount();
 		const material = expandBlake3Input(MULTI_BATCH_LEN);
 		const h = new BLAKE3DeriveKey();
@@ -199,12 +164,8 @@ describe('BLAKE3 compress4 parent dispatch fires across all three modes', () => 
 });
 
 describe('BLAKE3 KAT regression for dispatched-via-parentBatch4 cases', () => {
-	// Every upstream corpus record with inputLen ≥ 8192 routes at least
-	// one parent merge through parentBatch4. The queue-per-level
-	// discipline is a tree-shape reorganization that must produce
-	// byte-identical output to the prior ctz implementation. Bit-
-	// identical agreement against the upstream KAT is the correctness
-	// gate for the dispatch refactor.
+	// Bit-identical agreement against upstream KAT is the correctness gate
+	// for the queue-per-level dispatch refactor.
 	const dispatchedVectors = blake3Vectors.filter(v => v.inputLen >= 8192);
 
 	for (const v of dispatchedVectors) {

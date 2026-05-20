@@ -20,27 +20,10 @@
 //                           ▀█████▀▀
 //
 /**
- * BLAKE3 derive_key KAT, BLAKE3 §2.3 Modes.
- *
- * Drives the WASM `deriveKey` entry point against all 35 records of the
- * upstream BLAKE3 KAT corpus (`test/vectors/blake3.ts`). For each
- * record, regenerates the input via `expandBlake3Input(inputLen)` and
- * feeds it as the key material, with the corpus-pinned
- * `blake3ContextString` (the UTF-8 context string from the upstream
- * JSON) as the context. The first 32 bytes of the derived output are
- * compared against the first 64 hex characters of the record's
- * `deriveKeyHex`. XOF output past 32 bytes is not exercised here.
- *
- * §2.3: derive_key is a two-pass construction. Pass 1 hashes the
- * context string with starting CV = IV and DERIVE_KEY_CONTEXT flag on
- * every compress, producing a 32-byte context_chain_value. Pass 2
- * hashes the key material with starting CV = context_chain_value and
- * DERIVE_KEY_MATERIAL flag on every compress, producing the derived
- * output.
- *
- * Expected values are sourced from `test/vectors/blake3.ts` (which
- * sources from the upstream JSON); per AGENTS.md §Ground Rules #2, do
- * not modify the vectors to make a failing test pass.
+ * derive_key KAT, BLAKE3 §2.3. Drives WASM deriveKey against every
+ * record in test/vectors/blake3.ts. §2.3 two-pass construction: pass 1
+ * hashes context with DERIVE_KEY_CONTEXT; pass 2 hashes material with
+ * starting CV = context_chain_value and DERIVE_KEY_MATERIAL.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

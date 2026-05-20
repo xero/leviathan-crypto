@@ -37,22 +37,11 @@
 // stage the message in WASM at all - the digest is computed at the TS
 // layer and only 64 bytes cross the WASM boundary.
 //
-// Scalar (no v128). The dalek-cryptography parallel-formulas approach
-// (eprint 2018/098) pairs the eight independent field multiplications
-// of the Hisil-Wong-Carter-Dawson §3.1 extended-coords Edwards
-// addition onto 2-way SIMD lanes. That approach materially helps only
-// with a native paired 64x64→128 multiply. AssemblyScript's v128
-// instruction set does not expose one; the closest primitive is
-// i64x2.extmul_low_i32x4 / extmul_high_i32x4 (paired 32x32→64), and
-// synthesising paired 64x64→128 from it requires a 4-piece split plus
-// carry-tracking via XOR-flip + signed compare (no i64x2 unsigned
-// compare). Empirically that emulated path is not measurably faster
-// than two sequential scalar feMul calls: extmul throughput is not
-// better than i64-mul plus 4-piece split, and the pack / unpack
-// overhead consumes the marginal vector win.
-//
-// Per the SIMD-only-where-it-helps lib posture, curve25519 ships
-// scalar, in the same bucket as sha2 / sha3 / slhdsa.
+// Scalar (no v128). AssemblyScript's v128 instruction set does not
+// expose a paired 64x64→128 multiply, and the emulated path is not
+// measurably faster than sequential scalar feMul. See
+// docs/asm_curve25519.md#simd-posture for the eprint 2018/098
+// dalek-parallel evaluation.
 
 import { BUFFER_END, MUTABLE_START } from './buffers'
 
@@ -100,12 +89,8 @@ export {
 // ── Ed25519 high-level operations ───────────────────────────────────────────
 //
 // RFC 8032 §5.1.5 (keygen), §5.1.6 (pure sign), §5.1.7 strict (pure
-// verify and prehash variants). The embedded SHA-512 in ./sha512.ts is
-// the only hash primitive consumed; its module-internal exports
-// (sha512Init / sha512Update / sha512Final / sha512UpdateBytes) are
-// deliberately NOT re-exported here. The curve25519.wasm ABI does not
-// surface a sha512* function. See the head of ./sha512.ts for the
-// embed-not-orchestrate rationale.
+// verify and prehash variants). Embedded SHA-512 is module-internal; the
+// curve25519.wasm ABI does not surface sha512*. See ./sha512.ts head.
 
 export {
 	ed25519Keygen,

@@ -21,20 +21,9 @@
 //
 // test/unit/sign/sign-ed25519-integration.test.ts
 //
-// End-to-end envelope path exercising the v3 sign layer against the
-// real Ed25519 primitive. Covers:
-//   - Sign.sign / Sign.verify round-trip for both suites.
-//   - SignStream + VerifyStream round-trip via the prehash suite,
-//     proving the SHA-512 running-hash wiring (sign/hasher.ts) lines
-//     up with the suite's signPrehashed / verifyPrehashed path.
-//   - RFC 8032 §7.1 cross-check: the pure suite's envelope sig bytes
-//     for §7.1 records match the RFC reference signature verbatim
-//     (the envelope's 2-byte preamble simply prefixes them).
-//   - ACVP §7.3 spot-check: a handful of ACVP sigGen records with
-//     empty context flow through the suite layer cleanly.
-//   - Cross-mode tamper: flipping suite_byte 0x01 ↔ 0x11 yields
-//     SigningError('sig-suite-mismatch') from Sign.verify (the
-//     verifier checks the wire byte against the suite's formatEnum).
+// Envelope + stream integration for Ed25519Suite / Ed25519PreHashSuite,
+// with RFC 8032 §7.1 + ACVP §7.3 spot-checks. See
+// docs/ed25519.md#suite-integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, hexToBytes, concat } from '../../../src/ts/index.js';

@@ -106,21 +106,6 @@ export const ACC_OFFSET:           i32 = 5856
 export const ACC_SIZE:             i32 = 80
 
 // ── Embedded SHA-512 + Ed25519 scratch ─────────────────────────────────────
-//
-// Appended at offset 5936, following the substrate buffers. Two
-// sub-regions: (1) SHA-512 state for the verbatim port in `sha512.ts`,
-// (2) Ed25519 scratch slots for the high-level keygen / sign / verify
-// exports in `ed25519.ts`.
-//
-// SHA-512 buffer NAMES mirror `src/asm/sha2/buffers.ts` so the verbatim
-// `sha512.ts` port compiles unchanged after only a buffer-import path
-// rewrite; OFFSETS are local to curve25519's memory layout. Total SHA-512
-// region: 64+128+640+64+128+4+8 = 1036 bytes (5936..6972).
-//
-// Ed25519 scratch holds state that must persist across substrate calls
-// (FIELD_TMP / POINT_TMP get clobbered by every substrate function). Five
-// 32-byte scalar / byte slots plus four 160-byte Edwards point slots.
-// Total Ed25519 scratch: 5*32 + 4*160 = 800 bytes (6972..7772).
 
 // SHA-512 buffer offsets (verbatim names from sha2/buffers.ts)
 export const SHA512_H_OFFSET:       i32 = 5936
@@ -143,23 +128,7 @@ export const ED25519_POINT_TMP1:    i32 = 7452   // 160 bytes
 export const ED25519_POINT_TMP2:    i32 = 7612   // 160 bytes
 
 // ── X25519 high-level scratch ──────────────────────────────────────────────
-//
-// Two 32-byte slots used by x25519Keygen / x25519DH (./x25519.ts). Both are
-// wiped by wipeX25519 / wipeBuffers; both live in the mutable region above
-// MUTABLE_START.
-//
-// X25519_SCALAR_CLAMP holds the clamped 32-byte scalar derived from the
-// caller's skOff. Per RFC 7748 §5 the X25519 spec function clamps internally
-// on every call; the high-level wrappers honor that by routing through
-// scalarClamp(X25519_SCALAR_CLAMP, skOff) before invoking the substrate.
-//
-// BASEPOINT_U holds the Curve25519 basepoint u-coordinate (0x09 || 31 zero
-// bytes per RFC 7748 §4.1). The 32-byte value is composed in linear memory
-// via `loadBasepointU` below; the helper plays the same role here that
-// `loadDom2Prefix` plays for the Ed25519ph dom2 ASCII prefix (compose-in-
-// place at a known offset, then consume). x25519Keygen passes BASEPOINT_U
-// as the substrate `u` argument; x25519DH overrides it with the caller's
-// peerPkOff and does NOT touch this slot.
+
 export const X25519_SCALAR_CLAMP:   i32 = 7772   // 32 bytes (clamped scalar)
 export const BASEPOINT_U:           i32 = 7804   // 32 bytes (basepoint u-coord, RFC 7748 §4.1)
 
@@ -188,26 +157,8 @@ export function getLadderTmpOffset():    i32 { return LADDER_TMP_OFFSET  }
 export function getLadderTmpStride():    i32 { return LADDER_TMP_STRIDE  }
 
 // ── Ed25519ph dom2 ASCII prefix (RFC 8032 §5.1) ────────────────────────────
-//
-// The 32-byte ASCII constant `"SigEd25519 no Ed25519 collisions"` defined by
-// RFC 8032 §5.1 as the leading bytes of dom2(F, C). Written via byte-by-byte
-// stores so the source is auditable against the spec text: every byte's
-// trailing comment names the ASCII glyph it encodes.
-//
-// Per AGENTS.md §5, the value is computed from the spec text (the ASCII
-// string itself, defined in RFC 8032 §5.1) at implementation time; this
-// file's bytes are reproducible by re-encoding the spec's string. No value
-// is copied from a planning document.
 
 // ── Curve25519 basepoint u-coordinate (RFC 7748 §4.1) ──────────────────────
-//
-// The Curve25519 base point is the point on the curve whose u-coordinate is
-// 9 (RFC 7748 §4.1, "The base point is u = 9"). Encoded little-endian as a
-// 32-byte buffer this is `0x09` in byte 0, then 31 zero bytes. Composed via
-// inline u64 stores (the LE encoding of u64 value 9 has byte 0 = 0x09 and
-// bytes 1..7 = 0); written to `dst` by x25519Keygen before invoking the
-// substrate ladder. Cited per AGENTS.md §5: the value 9 is taken directly
-// from the RFC 7748 §4.1 spec text.
 
 @inline
 export function loadBasepointU(dst: i32): void {

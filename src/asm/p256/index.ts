@@ -41,21 +41,12 @@
 // (the TS wrapper computes SHA-256(M) before crossing the WASM
 // boundary, so only the 32-byte digest is passed in).
 //
-// Scalar (no v128). The P-256 scalar math is the same scalar-vs-extmul
-// tradeoff curve25519 faced; the leviathan-crypto posture is "SIMD
-// only where it helps", and AssemblyScript's
-// i64x2.extmul_low_i32x4 / extmul_high_i32x4 does not pay off over
-// scalar i64 for the 256-bit Solinas reduction (the reduction is a
-// fixed sequence of 9 limb-shuffling terms; lane packing buys nothing
-// because every term touches a different subset of source limbs).
-//
-// Non-Montgomery domain (locked decision): inputs / outputs are in
-// the natural field domain. RustCrypto's
-// `p256` uses a Montgomery representation for performance; this
-// module deliberately stays outside Montgomery to keep the field-
-// arithmetic audit story symmetric with curve25519's non-Montgomery
-// posture, and to keep feFromBytes / feToBytes as simple radix
-// conversions rather than Montgomery transforms.
+// Scalar (no v128); the 256-bit Solinas reduction lane-packs poorly.
+// Non-Montgomery domain (locked): natural field domain, feFromBytes /
+// feToBytes are radix conversions. See
+// docs/asm_p256.md#simd-posture and
+// docs/asm_p256.md#representation-choice for the
+// AS extmul evaluation and the RustCrypto-Montgomery comparison.
 
 import {BUFFER_END, MUTABLE_START} from './buffers'
 

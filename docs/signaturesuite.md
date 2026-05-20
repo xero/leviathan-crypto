@@ -12,6 +12,11 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > - [Prehash-mode suites](#prehash-mode-suites)
 > - [PQ-only hybrid composite encoding](#pq-only-hybrid-composite-encoding)
 > - [Classical+PQ hybrid composite encoding](#classicalpq-hybrid-composite-encoding)
+> - [Hybrid classical+PQ integration](#hybrid-classicalpq-integration)
+> - [Hybrid classical+PQ stream-equivalence](#hybrid-classicalpq-stream-equivalence)
+> - [Hybrid classical+PQ tamper coverage](#hybrid-classicalpq-tamper-coverage)
+> - [Hybrid PQ-only integration](#hybrid-pq-only-integration)
+> - [Hybrid PQ-only tamper coverage](#hybrid-pq-only-tamper-coverage)
 > - [Wire format](#wire-format)
 > - [Interface reference](#interface-reference)
 > - [ctx-domain construction](#ctx-domain-construction)
@@ -24,6 +29,19 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > - [Cross-References](#cross-references)
 
 ---
+
+> [!NOTE]
+> **The catalog of shipped signature suites is canonical here, not in
+> source.** The per-suite tables in [Pure-mode suites](#pure-mode-suites),
+> [Prehash-mode suites](#prehash-mode-suites),
+> [SLH-DSA pure-mode suites](#slh-dsa-pure-mode-suites),
+> [SLH-DSA prehash-mode suites](#slh-dsa-prehash-mode-suites),
+> [PQ-only hybrid suites](#pq-only-hybrid-suites), and
+> [Classical+PQ hybrid composite encoding](#classicalpq-hybrid-composite-encoding)
+> cover every shipped suite. [Format byte allocation](#format-byte-allocation)
+> reserves a wire byte for every entry, shipped or queued. Source files
+> under `src/ts/sign/suites/` carry only enough preamble to name what
+> they ship and route the reader here.
 
 ## Implementations included
 
@@ -515,6 +533,35 @@ For the ECDSA hybrids, DER decode failure on the trad-half also folds into `trad
 
 ECDSA-half low-S normalisation: composite-sigs is silent on low-S enforcement; the Appendix E reference signatures include high-S cases that leviathan's strict-S `EcdsaP256.verify` would reject standalone. The composite verify normalises high-S signatures to their equivalent low-S form via `s ← (n - s)` before calling `EcdsaP256.verify` (FIPS 186-5 §6.5 accepts both s and n - s under the same pk), preserving interop with the spec's reference vectors without weakening the standalone suite's strict-S posture.
 
+### Composite ECDSA low-S
+
+The composite-sigs draft is silent on low-S enforcement. §3.2 and
+§3.3 invoke `Trad.Sign` and `Trad.Verify` per FIPS 186-5 §6.4 and
+§6.5, both of which accept `s` and `n - s` under the same `pk`.
+Conforming implementations may emit either form, and composite-sigs
+Appendix E's reference signatures include high-S cases.
+
+leviathan's standalone `EcdsaP256Suite` is strict low-S; the
+WASM-side `ecdsaVerify` rejects high-S to match the Ed25519
+substrate's strict posture and the Wycheproof strict-gate corpus.
+
+The composite ECDSA verify path normalises high-S signatures into
+their equivalent low-S representation via `s ← (n - s)` before
+delegating to `EcdsaP256.verify`. FIPS 186-5 §6.5 guarantees the
+verify outcome is unchanged by the `s ↔ n - s` flip: the verify
+equation depends on `s` only through `s^{-1} mod n`, and
+`(n - s)^{-1} ≡ -s^{-1} (mod n)`. Normalising at the composite
+boundary preserves interop with composite-sigs Appendix E reference
+vectors without weakening the standalone strict-S surface.
+
+`SECP256R1_N` is the group order `n` from SP 800-186 §3.2.1.3.
+
+> [!NOTE]
+> The earlier
+> [Constant-time discipline](#constant-time-discipline-divergence-from-spec)
+> section mentions this normalisation in passing. This H3 carries
+> the full rationale and the constant cite.
+
 ### Streamable surface
 
 All four hybrids implement `StreamableSignatureSuite` and plug into `SignStream` / `VerifyStream`. Composite-sigs §10.5 explicitly permits external pre-hashing, and the suite's `prehashAlgorithm` is precisely the composite Pre-Hash function: a caller-supplied `digest = PH(M)` slots straight into the M' construction as the trailing `PH(M)` field. The streaming path computes `PH(M)` incrementally via `createRunningHash` and feeds the digest to `signPrehashed` on finalize, the same shape as the PQ-only hybrid streaming path.
@@ -528,6 +575,165 @@ Each suite's `Label` ASCII bytes are distinct, so the M' construction binds each
 - A signature produced under any composite ML-DSA suite does NOT verify under standalone `MlDsa44Suite` / `MlDsa65Suite` / `EcdsaP256Suite` because the standalone suites' M' constructions do not include the composite Prefix and Label.
 
 No per-half ctxDomain suffix is needed. The composite Prefix and per-suite Label provide all the separation the construction requires.
+
+### Factory exposure posture
+
+The four `Mldsa{XX}{Trad}Suite` consts (`0x20`, `0x21`, `0x22`,
+`0x23`) are the only supported entry points. The internal Ed25519
+and ECDSA-P256 factories that build them are not exported.
+
+Catalog format bytes are reserved allocations; the
+[Format byte allocation](#format-byte-allocation) table is
+authoritative. Exposing the factories would invite custom suites
+with unmanaged format bytes, which would break the wire-format
+discovery contract and the format-byte allocation guarantees the
+catalog publishes.
+
+---
+
+## Hybrid classical+PQ integration
+
+End-to-end envelope and streaming coverage for the four classical+PQ
+composite hybrid suites (`MlDsa44Ed25519Suite`, `MlDsa65Ed25519Suite`,
+`MlDsa44EcdsaP256Suite`, `MlDsa65EcdsaP256Suite`; format bytes
+`0x20`-`0x23`) under `draft-ietf-lamps-pq-composite-sigs-19`
+(hereafter composite-sigs).
+
+The integration tier asserts:
+
+- `Sign.sign` / `Sign.verify` round-trip per hybrid.
+- `Sign.peek` offsets under the v3 envelope match the documented
+  shape (`suite_byte`, `ctx_len`, `ctx`, `payload_len` u32 BE,
+  `payload`, `sig`).
+- `SignStream` + `VerifyStream` round-trip per hybrid. All four
+  hybrids implement `StreamableSignatureSuite`; composite-sigs §10.5
+  (External Pre-hashing) permits external prehash, and
+  `prehashAlgorithm` is the composite Pre-Hash function from
+  composite-sigs §6 (SHA-512 for `0x20` / `0x21` / `0x23`, SHA-256
+  for `0x22`).
+- Deterministic sub-sign equivalence: hand-build M' via
+  composite-sigs §2.2 / §3.2 step 2, drive each half's deterministic
+  primitive entry point, concat per composite-sigs §4.3 (PQ-first),
+  and assert the resulting composite sig verifies through both
+  `suite.verifyPrehashed` and `suite.verify`. This block is the
+  spec-anchored gate that the suite's M' wiring matches composite-sigs
+  verbatim.
+
+---
+
+## Hybrid classical+PQ stream-equivalence
+
+The four classical+PQ composite hybrid suites are hedged on both
+halves (ML-DSA per FIPS 204 §3.4 default, ECDSA per
+`draft-irtf-cfrg-det-sigs-with-noise-05` default), so two
+`suite.sign` calls over the same `(sk, msg, ctx)` produce different
+bytes. A direct compare of `Sign.sign` vs `SignStream` is not the
+gate; the gate is that the composite construction itself is
+digest-deterministic and wire-stable.
+
+The test drives:
+
+- Buffered SHA-256 / SHA-512 over the whole message.
+- Chunked SHA-256 / SHA-512 produced by concatenating caller-supplied
+  chunks (the same code path `SignStream`'s running-hash uses
+  internally).
+- Both digests fed to the suite's deterministic-sub-sign surface with
+  byte-for-byte identical M', proving the streaming hasher emits a
+  digest identical to the buffered one for every chunk shape.
+
+The byte-equivalence gate runs over the per-half deterministic
+surface; the production hedged path is excluded by construction.
+
+---
+
+## Hybrid classical+PQ tamper coverage
+
+The classical+PQ hybrid suites carry a security-gate tamper suite
+covering eight attack shapes per suite, plus cross-suite forgery
+resistance, plus a verify-timing spot check.
+
+### Attack shapes
+
+| # | Attack | Expected outcome |
+|---|---|---|
+| 1 | Tamper `sig_mldsa` half | `verify` returns `false` |
+| 2 | Tamper `sig_trad` half | `verify` returns `false` |
+| 3 | Swap halves | `verify` returns `false` (lengths differ massively) |
+| 4 | Truncated total length | `verify` returns `false` |
+| 5 | Padded total length | `verify` returns `false` |
+| 6 | Wrong pk (full swap) | `verify` returns `false` |
+| 7 | Wrong pk (ML-DSA half only) | `verify` returns `false` |
+| 8 | Wrong pk (trad half only) | `verify` returns `false` |
+
+### Cross-suite forgery resistance
+
+composite-sigs §3.2 binds the per-suite Label into M' AND feeds it as
+`mldsa_ctx` into the ML-DSA sub-signer (FIPS 204 §5.2 Algorithm 2 ctx
+parameter). A standalone `MlDsa44Suite` signature (which wraps
+ctxDomain `mldsa44-envelope-v3` via `buildEffectiveCtx`, NOT the
+composite Label) cannot substitute for the hybrid's ML-DSA half even
+when byte sizes line up.
+
+The ECDSA half has the equivalent property: standalone
+`EcdsaP256Suite` hashes the user message with SHA-256, the composite
+hashes M' (which carries
+`Prefix || Label || len(ctx) || ctx || PH(M)`) with SHA-256.
+
+### Verify timing
+
+A verify-timing spot check on the cheapest hybrid (`0x20`) confirms
+the AND-reduction of `mldsaOk` and `edOk` has nothing to
+short-circuit; both sub-verifies run on every call. composite-sigs
+§3.3 permits early-fail and leviathan declines. See
+[Constant-time discipline (divergence from spec)](#constant-time-discipline-divergence-from-spec)
+for the rationale.
+
+---
+
+## Hybrid PQ-only integration
+
+End-to-end envelope and streaming coverage for the three PQ-only
+hybrid suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`,
+`MlDsa87SlhDsa256fSuite`; format bytes `0x30`-`0x32`).
+
+The integration tier asserts:
+
+- `Sign.sign` / `Sign.verify` round-trip per hybrid.
+- `SignStream` + `VerifyStream` round-trip per hybrid (hybrids are
+  `StreamableSignatureSuite` by construction; prehash is mandatory).
+- Streamed-blob byte-equality with single-shot `Sign.sign` output
+  under deterministic sub-sign on both halves. The production sign
+  path is hedged, so the direct byte-compare drops to the underlying
+  `signHashPrehashedDeterministic` surface on both primitives.
+
+---
+
+## Hybrid PQ-only tamper coverage
+
+The PQ-only hybrid suites carry a security-gate tamper suite covering
+seven attack shapes per suite, plus a verify-timing spot check.
+
+### Attack shapes
+
+| # | Attack | Expected outcome |
+|---|---|---|
+| 1 | Tamper `sig_mldsa` half | `verify` returns `false` |
+| 2 | Tamper `sig_slhdsa` half | `verify` returns `false` |
+| 3 | Swap halves | `verify` returns `false` |
+| 4 | Wrong total length, truncated | `verify` returns `false` |
+| 5 | Wrong total length, padded | `verify` returns `false` |
+| 6 | Wrong pk under correct sig | `verify` returns `false` (per half + combined) |
+| 7 | Cross-suite forgery | `verify` returns `false` |
+
+### Verify timing
+
+A verify-timing spot check confirms that tampering the ML-DSA half
+vs tampering the SLH-DSA half both still run the full verify cycle;
+the implementation does not short-circuit on the first half's boolean
+outcome. The two means are NOT expected to be equal (SLH-DSA verify
+is hash-tree dominated, ML-DSA verify is NTT dominated); only that
+each tampered case roughly matches the corresponding honest-case
+timing for the same hybrid.
 
 ---
 

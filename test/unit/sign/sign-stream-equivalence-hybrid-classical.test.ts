@@ -22,26 +22,11 @@
 // test/unit/sign/sign-stream-equivalence-hybrid-classical.test.ts
 //
 // One-shot vs streaming byte-equivalence gate for the four classical+PQ
-// composite hybrid suites (draft-ietf-lamps-pq-composite-sigs-19, hereafter
-// composite-sigs). The suite's production sign path is hedged on both
-// halves (ML-DSA per FIPS 204 §3.4 default, ECDSA per
-// draft-irtf-cfrg-det-sigs-with-noise-05 default), so two suite.sign calls
-// over the same (sk, msg, ctx) produce different bytes. Direct compare of
-// Sign.sign vs SignStream is therefore not the gate; the gate is "the
-// composite construction itself is digest-deterministic and wire-stable".
-//
-// The test drives:
-//   - buffered SHA-256/SHA-512 over the whole message
-//   - chunked SHA-256/SHA-512 produced by concatenating caller-supplied
-//     chunks (the same code path SignStream's running-hash uses internally:
-//     `sha256Buffered` / `sha512Buffered` in `src/ts/sign/hasher.ts`
-//     accumulate chunks and call the one-shot at finalize, output
-//     byte-identical to one-shot on the concat)
-// and feeds both digests through deterministic ML-DSA (rnd ← 0³², FIPS 204
-// §3.4) and deterministic trad (Ed25519: deterministic by construction per
-// RFC 8032 §5.1.6; ECDSA: rnd ← 0³² → RFC 6979 §3.2 deterministic K).
-// Both composite sigs MUST be byte-identical; both assembled envelope
-// blobs MUST round-trip through Sign.verify and VerifyStream.
+// composite hybrid suites (composite-sigs; FIPS 204 §3.4,
+// draft-irtf-cfrg-det-sigs-with-noise-05).
+// Deterministic sub-surfaces: ML-DSA (rnd ← 0³², FIPS 204 §3.4),
+// Ed25519 (RFC 8032 §5.1.6), ECDSA (rnd ← 0³² → RFC 6979 §3.2 K).
+// See docs/signaturesuite.md#hybrid-classicalpq-stream-equivalence.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, concat } from '../../../src/ts/index.js';
@@ -164,12 +149,9 @@ function sha2OneShot(algo: 'sha-256' | 'sha-512', msg: Uint8Array): Uint8Array {
 	}
 }
 
-// "Streamed" digest models the buffered shim in `src/ts/sign/hasher.ts`:
-// chunks are accumulated and the one-shot SHA-256/SHA-512 runs once at
-// finalize. The shim's contract (sha256Buffered / sha512Buffered file
-// header) is "output is byte-identical to one-shot on the concat of the
-// chunks". Reproducing the same accumulate-then-one-shot pattern in the
-// test makes the test independent of any SignStream internal refactor.
+// "Streamed" digest models src/ts/sign/hasher.ts: chunks accumulated,
+// one-shot at finalize. Byte-identical to one-shot on concat per the
+// sha256Buffered / sha512Buffered file header.
 function sha2Chunked(algo: 'sha-256' | 'sha-512', chunks: Uint8Array[]): Uint8Array {
 	let total = 0;
 	for (const c of chunks) total += c.length;
@@ -200,12 +182,10 @@ function buildMPrime(
 	return out;
 }
 
-// Hand-drive a deterministic composite sig given a digest. composite-sigs
-// §3.2 step 3 re-derives the expanded ML-DSA sk from the seed (FIPS 204
-// §6.1 KeyGen_internal); step 4 calls
-//   mldsaSig = ML-DSA.Sign(sk_expanded, M', mldsa_ctx=Label)
-//   tradSig  = Trad.Sign(tradSK, M')
-// concat per §4.3 PQ-first.
+// Deterministic composite from digest. composite-sigs §3.2 step 3
+// re-derives expanded ML-DSA sk from seed (FIPS 204 §6.1); step 4
+// emits ML-DSA.Sign(sk, M', mldsa_ctx=Label) and Trad.Sign(tradSK, M'),
+// concatenated PQ-first per §4.3.
 function detComposite(
 	c:        Case,
 	sk:       Uint8Array,
@@ -221,9 +201,7 @@ function detComposite(
 		const inst = new c.MlDsaClass();
 		try {
 			const kp = inst.keygenDerand(seedMldsa);
-			// FIPS 204 §3.4 deterministic (rnd ← 0³²). Pure ML-DSA, NOT
-			// HashML-DSA: composite-sigs §2.1 mandates pure ML-DSA inside
-			// the composite even though the composite itself pre-hashes M.
+			// FIPS 204 §3.4 deterministic; pure ML-DSA per composite-sigs §2.1.
 			sigMldsa = inst.signDeterministic(kp.signingKey, mPrime, c.label);
 		} finally {
 			inst.dispose();
@@ -234,23 +212,20 @@ function detComposite(
 	if (c.tradFamily === 'ed25519') {
 		const inst = new Ed25519();
 		try {
-			// RFC 8032 §5.1.6: r = SHA-512(prefix || M). Deterministic by
-			// construction; no rnd input.
+			// Deterministic-by-construction (RFC 8032 §5.1.6).
 			sigTrad = inst._signInternalPk(tradSk, mPrime);
 		} finally {
 			inst.dispose();
 		}
 	} else {
-		// composite-sigs §6: `ecdsa-with-SHA256` for both 0x22 and 0x23.
-		// The ECDSA-internal hash is SHA-256(M') regardless of composite PH.
+		// composite-sigs §6 ecdsa-with-SHA256: SHA-256(M') regardless of composite PH.
 		const ecDigest = sha2OneShot('sha-256', mPrime);
 		const scalar = decodeEcPrivateKey(tradSk);
 		let sigRaw: Uint8Array;
 		const inst = new EcdsaP256();
 		try {
-			// rnd ← 0³² selects RFC 6979 §3.2 deterministic K. The WASM
-			// side runs FIPS 186-5 §6.5 / RFC 6979 §3.5 low-S
-			// normalisation, so raw r||s is already low-S.
+			// rnd<-0^32 selects RFC 6979 §3.2; WASM runs FIPS 186-5 §6.5 /
+			// RFC 6979 §3.5 low-S normalisation, raw r||s already low-S.
 			sigRaw = inst._signInternalPk(scalar, ecDigest, new Uint8Array(32));
 		} finally {
 			inst.dispose();
@@ -284,11 +259,8 @@ function assembleBlob(
 	);
 }
 
-// Cover the boundary inputs without a Cartesian sweep. The composite
-// suites run two heavy sub-signs per call (ML-DSA hedged-or-deterministic
-// plus Ed25519/ECDSA), so msg_size sweeps stay tight. ctx covers empty,
-// mid-range, and the composite-sigs §3.2 step 1 ceiling of 255 (the new
-// USER_CTX_MAX library-wide cap, HYBRID-CLASSICAL-LOCK §3).
+// Boundary sweep; ctx covers empty / mid / composite-sigs §3.2 step 1
+// ceiling of 255 (USER_CTX_MAX, HYBRID-CLASSICAL-LOCK §3).
 const MSG_SIZES = [0, 1024, 4096];
 const CTX_SIZES = [0, 200, 255];
 

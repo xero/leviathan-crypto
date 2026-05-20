@@ -29,15 +29,8 @@
 // the least-significant byte; increment propagates carry from byte 15
 // downward toward byte 0.
 //
-// This is the canonical AES CTR convention. SP 800-38A §F.5 worked
-// examples validate against big-endian incrementing, the §F.5.1 transition
-// from IC = `f0f1...feff` to IC+1 = `f0f1...ff00` (byte 15 wraps, byte 14
-// increments) confirms it. The Serpent module in this repo uses 128-bit
-// little-endian by historical choice; AES matches the NIST AES convention.
-//
-// `resetCounter()` copies NONCE_BUFFER → COUNTER_BUFFER, the nonce IS
-// the initial counter block, parallel to the Serpent CTR shape but with
-// the increment direction flipped.
+// (Serpent CTR in this repo uses 128-bit little-endian; see
+// src/asm/serpent/ctr.ts.)
 
 import {
 	NONCE_OFFSET,

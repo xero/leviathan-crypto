@@ -51,11 +51,8 @@ import {
 import { FLAG_CHUNK_START, FLAG_CHUNK_END } from './flags'
 import { compress4 } from './compress_simd'
 
-// Test-only batch counter. Held as a WebAssembly global rather than in
-// linear memory so `wipeBuffers()` (which fills MUTABLE_START..BUFFER_END
-// with zero) does not clobber it; the counter is debug-grade and not
-// sensitive, so keeping it across wipes lets tests sample without racing
-// the wipe. Reset between assertions via `_resetBatch4CallCount`.
+// Held in a WASM global so wipeBuffers() does not clobber it
+// (debug-grade, non-sensitive). Reset via _resetBatch4CallCount.
 let batch4CallCount: u32 = 0
 
 /**

@@ -20,16 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * HashSLH-DSA M' construction and end-to-end coverage.
- *
- * Mirror of `test/unit/mldsa/hashvariant.test.ts`. Drives the public
- * `signHash` family across 3 parameter sets × approved pre-hash functions
- * (filtered by FIPS 205 §10.2.2 category restriction on SHA-256 /
- * SHAKE128) plus the M' byte-exact construction.
- *
- * Vector source: the ACVP HashSLH-DSA preHash sub-corpus already imported
- * by `slhdsa-acvp.test.ts`, replayed through the TS class layer so we get
- * byte-equality of signature output for the deterministic vectors.
+ * HashSLH-DSA M' construction + end-to-end coverage. Mirror of
+ * mldsa/hashvariant.test.ts. 3 param sets x approved pre-hash funcs
+ * (FIPS 205 §10.2.2 category restriction). Vectors replayed via TS class.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createHash } from 'node:crypto';

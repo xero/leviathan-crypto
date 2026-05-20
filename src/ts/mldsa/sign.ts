@@ -21,16 +21,9 @@
 //
 // src/ts/mldsa/sign.ts
 //
-// FIPS 204 §6.2 Algorithm 7, ML-DSA.Sign_internal.
-// Drives the rejection-sampling loop. Each iteration produces a candidate
-// (z, h); when all four norm/popcount checks pass the signature is encoded
-// and returned. Implementation is hardened against the four ways an
-// implementer can silently lose SUF-CMA: (a) skipping any of the four
-// reject conditions, (b) re-using rnd between hedged signatures, (c)
-// pre-adding r and z before make_hint (the kernel does the canonical
-// r+z reduction internally), (d) failing to wipe ρ'' / μ / y / ⟨cs1⟩ /
-// ⟨cs2⟩ / ⟨ct0⟩ / r₀ / signing-key NTT residues from WASM memory after
-// returning. See §3.6.3 for the wipe contract.
+// FIPS 204 §6.2 Algorithm 7, ML-DSA.Sign_internal. Drives the
+// rejection-sampling loop; wipe contract per §3.6.3 (see
+// docs/mldsa.md#wipe-discipline).
 //
 // Slot allocation through one iteration body:
 //   POLYVEC_SLOT_0  ŝ₁  (NTT, persistent through loop)
@@ -39,21 +32,12 @@
 //   POLYVEC_SLOT_3  y_time → ⟨cs₂⟩ → r₀ → ⟨ct₀⟩ → h
 //   POLYVEC_SLOT_4  y_ntt → w₁ → ⟨cs₁⟩ → z
 //   POLYVEC_SLOT_5  w_ntt → w_time → (w − ⟨cs₂⟩)
-//   POLY_SLOT_0     signs (8 bytes, sample_in_ball signsOff)
-//   POLY_SLOT_1     c (then ĉ in NTT domain, persistent within iteration)
-//   POLY_SLOT_7     reserved scratch for polyvec_pointwise_acc_montgomery
+//   POLY_SLOT_0     signs (sample_in_ball signsOff)
+//   POLY_SLOT_1     c, then ĉ (NTT-domain)
+//   POLY_SLOT_7     polyvec_pointwise_acc_montgomery scratch
 //
-// XOF/PRF region carries ExpandMask SHAKE squeeze, w1Encode bytes, and
-// SampleInBall position bytes, all single-use within an iteration.
-//
-// CT POSTURE, rejection-sampling loop branches:
-//   The four reject conditions (‖z‖∞, ‖r₀‖∞, ‖⟨ct₀⟩‖∞, popcount(h)) are
-//   data-dependent on secret-derived intermediates. Each `continue` reveals
-//   that this iteration's candidate was out-of-bound, which is the same
-//   statistical signal already exposed by the SHAKE output stream changing
-//   per κ. The leak is the iteration count, not key bits. FIPS 204 §3.6.3
-//   endorses this trade-off; the Dilithium reference does the same. The
-//   constant-time-mandatory comparison (c̃ in verify) lives in verify.ts.
+// XOF/PRF carries ExpandMask, w1Encode, and SampleInBall bytes; each
+// single-use per iteration.
 
 import type { MlDsaExports, Sha3Exports } from './types.js';
 import type { MlDsaParams } from './params.js';
@@ -68,24 +52,8 @@ const D            = 13;
 const Q            = 8380417;
 const SHAKE256_RATE = 136;
 
-// Per FIPS 204 Appendix C, expected iterations are 4-7 across parameter
-// sets (geometric distribution with success probability p ≈ 1/expected ≈
-// 0.20-0.26). Spec minimum bound for implementations that choose to
-// bound: 814.
-//
-// 1000 gives a nominal 20% headroom over the spec minimum, but the actual
-// safety margin is far larger: Pr[fail within 1000 iterations] = (1-p)^1000
-// ≈ 10⁻⁹⁴ to 10⁻¹³¹ across parameter sets, many orders of magnitude past
-// any cryptographic threshold (compare 2⁻¹²⁸ ≈ 10⁻³⁹). The bound exists
-// for liveness (deterministic failure on pathological inputs) rather than
-// as a probability tail-cut; liboqs and the pq-crystals reference make
-// the same engineering choice.
-//
-// Adversarial poisoning of the rejection-sampling rate would require
-// controlling ρ'' = H(K ‖ rnd ‖ μ). K is in sk (private), so an attacker
-// without the signing key cannot bias the iteration count regardless of
-// what they do with the message, ctx, or (in derand mode) caller-supplied
-// rnd. The natural per-iteration success probability holds.
+// FIPS 204 Appendix C: expected 4-7 iterations, spec minimum bound 814.
+// 1000 is a liveness bound, not a probability tail-cut.
 const MAX_SIGN_ITERATIONS = 1000;
 
 function bitlen(n: number): number {
@@ -404,18 +372,9 @@ export function mldsaSignInternal(
 		const sig = mlMem.slice(sigOff, sigOff + sigBytes);
 		return sig;
 	} finally {
-		// ── Wipe scratch (FIPS 204 §3.6.3, Intermediate Values) ────────
-		// Runs on the success path AND on any throw (sk-range violation,
-		// loop-bound exceedance, kernel error). Without this in finally,
-		// an early throw between skDecode and sigEncode would leave
-		// sk-derived state in WASM memory.
-		//
-		// All polyvec slots 0..5 held secret or secret-derived values:
-		// ŝ₁/ŝ₂/t̂₀ are NTT-domain copies of secret-key components;
-		// y, ⟨cs₁⟩/⟨cs₂⟩/⟨ct₀⟩, w − ⟨cs₂⟩, r₀, z, h are all per-iteration
-		// secret-derived intermediates. Highest severity: t̂₀ (recovers
-		// the low bits of t, secret part of sk) and y (used in computing
-		// z; compromise leaks rejection-sampling state).
+		// Wipe scratch per FIPS 204 §3.6.3. Runs in finally so success
+		// and early-throw paths both clear. See
+		// docs/mldsa.md#wipe-discipline.
 		mlMem.fill(0, mx.getPolyvecSlotBase(), mx.getPolyvecSlotBase() + 6 * mx.getPolyvecSlotSize());
 		// Poly slots: signs (POLY_SLOT_0, public, c̃ derived), c (POLY_SLOT_1,
 		// public, derivable from c̃), and POLY_SLOT_7 holding the last

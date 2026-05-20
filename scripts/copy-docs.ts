@@ -67,8 +67,6 @@ const INCLUDE = [
 	'x25519.md',
 ];
 
-// strip SVG img tags that reference absolute GitHub URLs.
-// useless for agents in an installed package context
 const SVG_IMG = /<img[^>]+\.svg[^>]*>/;
 
 export async function run(): Promise<void> {
@@ -85,8 +83,6 @@ export async function run(): Promise<void> {
 
 		let content = readFileSync(src, 'utf8');
 
-		// strip absolute-URL SVG image lines, useless for agents working
-		// offline against the installed package
 		content = content
 			.split('\n')
 			.filter(line => !SVG_IMG.test(line))

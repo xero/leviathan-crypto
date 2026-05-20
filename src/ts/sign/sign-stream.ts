@@ -24,14 +24,6 @@
 // SignStream class, streaming signature production for StreamableSignatureSuite.
 // Sender writes: preamble + payload bytes + sig (from finalize). Wire format
 // is identical to Sign.sign output.
-//
-// The v3 attached envelope carries `payload_len: u32 BE` between ctx and
-// payload, so the preamble cannot be built up front: streaming sign feeds
-// the digest, not the payload itself, and the payload length is unknown
-// until the stream ends. The caller passes the total payload length to
-// `buildPreamble` at assembly time. The caller already has the payload
-// buffered separately (they fed it to `update` chunk by chunk), so the
-// length is available when they go to compose the wire.
 
 import { SigningError } from '../errors.js';
 import { wipe } from '../utils.js';
@@ -69,14 +61,9 @@ export class SignStream {
 	}
 
 	/**
-	 * Build the wire-format preamble for a given payload length. Caller
-	 * supplies the length they will write between the preamble and the
-	 * signature, which lets the preamble carry the v3 envelope's
-	 * `payload_len: u32 BE` field. Wire shape:
-	 *   [suite_byte: u8][ctx_len: u8][ctx: ctx_len bytes][payload_len: u32 BE]
-	 *
-	 * Available at any point in the stream lifecycle (the bytes depend
-	 * only on the constructor args plus the caller-supplied length).
+	 * Build the wire-format preamble for `payloadLength`. Available at
+	 * any point in the stream lifecycle. See
+	 * docs/signaturesuite.md#attached-envelope.
 	 */
 	buildPreamble(payloadLength: number): Uint8Array {
 		if (!Number.isInteger(payloadLength) || payloadLength < 0)

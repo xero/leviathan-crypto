@@ -21,12 +21,9 @@
 //
 // test/unit/sign/sign-stream-equivalence-ed25519.test.ts
 //
-// Real-suite Sign-vs-SignStream byte-equivalence gate for the Ed25519
-// prehash suite (0x11). Ed25519ph is deterministic per RFC 8032
-// §5.1.7, so the buffered `Sign.sign(suite, sk, msg, ctx)` output
-// MUST be byte-identical to `SignStream(suite, sk, ctx).update(...).finalize()`
-// over the same content. Also confirms VerifyStream accepts both and
-// rejects mid-stream tampered payload.
+// Sign vs SignStream byte-equivalence for Ed25519PreHashSuite (0x11).
+// Ed25519ph deterministic per RFC 8032 §5.1.7; one-shot output MUST
+// equal streamed output.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, concat } from '../../../src/ts/index.js';

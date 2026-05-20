@@ -62,29 +62,17 @@ import { gf128InitTable } from './gf128'
 
 // ── Bit transposition (Käsper-Schwabe §4.1) ─────────────────────────────────
 //
-// Input: 128 bytes at `srcOffset`, organised as 8 contiguous 16-byte AES blocks
-// in FIPS 197 input-byte order.
+// Input: 128 bytes (8 × FIPS 197 §3.4 input blocks) at srcOffset.
+// Output: 8 v128 at dstOffset; state[k] holds bit-k across all 64 state
+// positions of the 8 lanes.
 //
-// Output: 8 v128 registers at `dstOffset`. Register state[k] holds bit-k from
-// every byte across all 8 blocks. Within state[k], byte position j ∈ {0..15}
-// corresponds to AES state row r = j/4, column c = j%4 (row-major). Within
-// byte j of state[k], the 8 bits are bit-k of that state-position from blocks
-// 0..7.
+// K-S §4.1 layered transpose: self-inverse byte-shuffle
+// [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15] (4×4 state transpose) +
+// 8×8 bit-matrix delta-swap (Hacker's Delight §7-2, strides {4,2,1},
+// masks {0x0F,0x33,0x55}). Both factors are involutions, so transposeIn
+// and transposeOut share one kernel.
 //
-// FIPS 197 §3.4: state[r,c] = in[r + 4c]. So bitsliced byte j corresponds to
-// plaintext byte at offset (j%4)*4 + j/4 within each block. The K-S layout
-// fuses a per-block 4×4 byte transpose ("row-by-row" reorder) with an 8×8
-// bit-matrix transpose at every byte position. The two factors operate on
-// orthogonal axes, byte position vs. bit-position-within-byte, so they
-// commute, and the K-S transpose is its own inverse: transposeIn and
-// transposeOut share one implementation modulo source/destination offsets.
-//
-// Implementation: K-S §4.1 layered XOR/shuffle. The byte-shuffle pattern
-// [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15] is self-inverse (it represents
-// the 4×4 transpose of an AES state square). The 8×8 bit-matrix transpose
-// uses three delta-swap stages with strides {4, 2, 1} and masks {0x0F, 0x33,
-// 0x55} (Hacker's Delight §7-2). 92 v128 operations total, replaces ~2050
-// scalar bit-gathers from the prior implementation.
+// Derivation, op count, and lane-layout proof: docs/asm_aes.md#bitsliced-transpose.
 
 @inline function transpose8x8(srcOffset: i32, dstOffset: i32): void {
 	// Step A, load 8 input registers and apply the per-register byte-shuffle.
@@ -202,20 +190,11 @@ function transposeOut(): void {
 
 // ── Single-block transpose (BLOCK_PT/CT direct path) ───────────────────────
 //
-// `encryptBlock` / `decryptBlock` sit on the per-block hot path of AES-GCM-SIV
-// (`sivCtrXform` calls them once per counter block). The 8×8 transpose above
-// is amortised across 8 parallel blocks; for the atomic case we previously
-// padded BLOCK_PT_8X with 7 zero blocks and then ran the full 8x transpose,
-// which paid 92 v128 ops per direction plus a 112-byte zero-fill per call.
-//
-// `transposeIn1` / `transposeOut1` work directly on the 16-byte BLOCK_PT
-// and BLOCK_CT buffers and never touch BLOCK_PT_8X / BLOCK_CT_8X. The
-// bitsliced state register state[k] still holds bit-k of byte-j across
-// 8 lanes; the single-block path populates lane 0 (bit 0 of each state[k]
-// byte) and leaves lanes 1..7 of each byte zero. The 8x kernel then runs
-// as before, its work on the dummy lanes is unchanged (it computes
-// AES(0) seven times in parallel and we ignore the result), but we save
-// the input-side byte-fill and 4× the transpose op count.
+// Atomic-path transpose used by encryptBlock / decryptBlock (the
+// AES-GCM-SIV sivCtrXform hot path). Reads BLOCK_PT directly, writes
+// lane 0 of each bitsliced state[k], leaves lanes 1..7 zero so the
+// 8x kernel computes AES(0) seven times in parallel (ignored on
+// output). See docs/asm_aes.md#single-block-transpose.
 
 /**
  * Single-block transposeIn, read BLOCK_PT (16 bytes), produce a bitsliced
@@ -324,17 +303,7 @@ function invShiftRows(): void {
 //   b[1] = (a[0] ⊕ rl32 a[0]) ⊕ (a[7] ⊕ rl32 a[7]) ⊕ rl32 a[1] ⊕ rl64(a[1] ⊕ rl32 a[1])
 //   ... (full table in design notes §4)
 
-/**
- * "Look one row down" byte permutation: dst[p] = src[(p+4) mod 16].
- * Used by K-S MixColumns to bring a_{i+1,j} into position (i,j).
- *
- * Note on K-S' "rl32" notation: the K-S paper writes this as "rotate left by
- * 32 bits", but the operational meaning (per K-S §4.4) is to produce a
- * register where byte at row-major index p reads from row p/4+1's value at
- * column p%4, i.e., shift the indices DOWN by 4. That's what this shuffle
- * implements. Verified against FIPS 197 §5.1.3 by single-bit input
- * cross-check during development.
- */
+/** "Look one row down": dst[p] = src[(p+4) mod 16]. */
 @inline function rl32(x: v128): v128 {
 	return v128.shuffle<i8>(x, x,
 		4, 5, 6, 7,
@@ -427,9 +396,7 @@ function mixColumns(): void {
  * inputs come from rl32 / rl64 / rl96 (= rl32 ∘ rl64) byte rotations of
  * each bit-slice register, mirroring the forward `mixColumns` structure.
  *
- * The inverse mix matrix is denser than the forward mix matrix, so this
- * function is ~3× the size of `mixColumns`. Verified against FIPS 197
- * §B inverse-cipher example via the `aes_decrypt.test.ts` gate.
+ * Verified via aes_decrypt.test.ts (FIPS 197 §B inverse-cipher example).
  */
 function invMixColumns(): void {
 	const a0 = bget(0);
@@ -624,11 +591,8 @@ function addInvRoundKey(roundIdx: i32): void {
  * straight-line program: cs.yale.edu/homes/peralta/CircuitStuff/SLP_AES_113.txt
  * (113 gates: 32 AND, 81 XOR/XNOR; depth 27).
  *
- * Used by `keyExpansion` for the SubWord step. Replaces the previous
- * single-byte path that ran the full 8-block bitsliced pipeline (~380
- * v128 ops + 128-byte memory.fill per byte). The scalar SLP runs once
- * per call regardless of how many of the 4 input bit-positions are
- * populated, so packing 4 bytes per call is essentially free.
+ * Used by `keyExpansion` for the SubWord step (packs 4 bytes per call;
+ * the scalar SLP cost is fixed regardless of populated bit-positions).
  *
  * Layout: each input byte j ∈ {0..3} of `w` is bitsliced across the low
  * 4 bit-positions of 8 i32 SLP registers (U0..U7 in MSB-first AES bit
@@ -820,10 +784,6 @@ function keyExpansion(keyLen: i32): void {
 	const Nr: i32 = Nk + 6;             // 10 / 12 / 14, round count.
 	const totalWords: i32 = (Nr + 1) << 2;  // 44 / 52 / 60, total schedule words.
 
-	// Byte-level scratch lives in its own 256-byte buffer (buffers.ts), sized
-	// for AES-256's 240-byte schedule. The earlier piggy-backing on the tail
-	// of ROUND_KEYS_BUFFER collided with rounds 11-13 once AES-256 lands; the
-	// dedicated buffer eliminates that trap.
 	const SCRATCH = KEY_SCHEDULE_SCRATCH_OFFSET;
 
 	// Step 1, copy the master key as the first Nk words.
@@ -921,12 +881,6 @@ function keyExpansion(keyLen: i32): void {
  * InvMixColumns-transformed EqInvCipher schedule at INV_ROUND_KEYS, and
  * persists Nr to NR_BUFFER for the round loops to consume.
  *
- * Also derives the GCM hash subkey H = AES_ENC(K, 0^128) into H_BUFFER
- * and builds the GF(2^128) 4-bit windowed multiply table. This adds one
- * AES block encrypt + 16 GF multiplies per loadKey call (≈ a few
- * microseconds); the cost is paid by every consumer of loadKey but read
- * only by AES-GCM. CTR/CBC never touch the GCM-only buffers.
- *
  * @param keyLen  16, 24, or 32
  * @returns       0 on success, nonzero on any other key length.
  */
@@ -981,13 +935,11 @@ export function encryptBlock_8x(): void {
 /**
  * AES encrypt a single block at BLOCK_PT_OFFSET, writing to BLOCK_CT_OFFSET.
  *
- * Direct single-block path: `transposeIn1` reads BLOCK_PT into the bitsliced
- * state (lane 0 populated, lanes 1..7 zero), the standard 8x round kernel
- * runs, and `transposeOut1` reconstructs block 0 from the state and writes
- * BLOCK_CT. The 7 dummy lanes still pay AES work in the kernel (it's
- * inherently 8-wide), but BLOCK_PT_8X / BLOCK_CT_8X are never touched,
- * saves the prior 144 bytes of memory ops and ~⅔ of the transpose v128
- * count per call. Hot path for AES-GCM-SIV's `sivCtrXform`.
+ * Direct single-block path: `transposeIn1` reads BLOCK_PT into lane 0 of
+ * the bitsliced state (lanes 1..7 zero), the standard 8x round kernel
+ * runs, and `transposeOut1` writes BLOCK_CT. Lanes 1..7 compute AES(0)
+ * in parallel and are discarded. Hot path for AES-GCM-SIV's
+ * `sivCtrXform`.
  *
  * Reference: FIPS 197 §5.1 Algorithm 1, Nr ∈ {10, 12, 14}. Kernel layout:
  * Käsper-Schwabe 2009 §4. Nr is read from NR_BUFFER (persisted by the most
@@ -1023,7 +975,7 @@ export function encryptBlock(): void {
  *
  * Buffer naming note: BLOCK_PT_8X holds the *ciphertext* input during
  * decrypt and BLOCK_CT_8X holds the *plaintext* output. The buffers are
- * named for the encrypt direction; the convention matches Serpent.
+ * named for the encrypt direction.
  */
 export function decryptBlock_8x(): void {
 	const Nr: i32 = <i32>load<u8>(NR_OFFSET);

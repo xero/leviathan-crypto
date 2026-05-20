@@ -21,33 +21,9 @@
 //
 // test/unit/sign/sign-hybrid-classical-tamper.test.ts
 //
-// Security-gate tamper suite for the four classical+PQ composite hybrid
-// suites (draft-ietf-lamps-pq-composite-sigs-19, hereafter composite-sigs).
-// Covers eight attack shapes per suite:
-//
-//   1. Tamper sig_mldsa half        → verify false
-//   2. Tamper sig_trad  half        → verify false
-//   3. Swap halves                  → verify false (lengths differ massively)
-//   4. Truncated total length       → verify false
-//   5. Padded total length          → verify false
-//   6. Wrong pk (full swap)         → verify false
-//   7. Wrong pk (ML-DSA half only)  → verify false
-//   8. Wrong pk (Trad half only)    → verify false
-//
-// Plus cross-suite forgery resistance: composite-sigs §3.2 binds the
-// per-suite Label into M' AND feeds it as mldsa_ctx into the ML-DSA
-// sub-signer (FIPS 204 §5.2 Algorithm 2 ctx parameter), so a standalone
-// MlDsa44Suite sig (which uses ctxDomain 'mldsa44-envelope-v3' wrapped via
-// buildEffectiveCtx, NOT the composite Label) cannot substitute for the
-// hybrid's ML-DSA half even when byte sizes line up. Equivalent
-// observation for the ECDSA half: standalone EcdsaP256Suite hashes the
-// user message with SHA-256, the composite hashes M' (which carries
-// Prefix || Label || len(ctx) || ctx || PH(M)) with SHA-256.
-//
-// Plus a verify-timing spot check on the cheapest hybrid (0x20) that the
-// AND-reduction of mldsaOk and edOk has nothing to short-circuit, both
-// sub-verifies run on every call (composite-sigs §3.3 permits early-fail;
-// leviathan declines, see hybrid-classical.ts header).
+// Tamper-resistance gate for the four classical+PQ composite hybrid
+// suites (composite-sigs §3.2 / §3.3, FIPS 204 §5.2 ctx parameter).
+// See docs/signaturesuite.md#hybrid-classicalpq-tamper-coverage.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, utf8ToBytes, concat } from '../../../src/ts/index.js';
@@ -92,13 +68,9 @@ interface HybridCase {
 	mldsaPkBytes:   number;
 	tradPkBytes:    number;
 	tradFamily:     TradFamily;
-	// Offset (relative to the start of the trad-half slice) of a byte that
-	// is guaranteed to land inside content bytes for the trad sig. For
-	// Ed25519 trad sig is 64 raw bytes, any offset 0..63 is fine; pick
-	// mid-half (32). For ECDSA the trad slice is DER:
-	// SEQUENCE (2) INTEGER (2) r_len (1) r_content (~32) INTEGER (2) s_len (1) s_content (~32).
-	// Offset 8 lands well inside r_content (after the DER header and the
-	// usual one-byte INTEGER header).
+	// Offset into trad-half guaranteed to land in sig content bytes.
+	// Ed25519 raw 64-byte R||S: 32. ECDSA DER (RFC 3279 §2.2.3): 8,
+	// past SEQUENCE / INTEGER headers, inside r content.
 	tradContentByteOffset: number;
 }
 
@@ -142,8 +114,7 @@ describe.each(CASES)('$name tamper suite', (c) => {
 	it('tamper sig_mldsa half → verify false', () => {
 		const { pk, sk } = c.suite.keygen();
 		const sig = c.suite.sign(sk, MSG, CTX);
-		// Flip a byte mid-half so it does not hit a coincidentally-irrelevant
-		// trailer or a structurally inert position.
+		// Mid-half offset, avoids structurally inert positions.
 		const bad = flipByte(sig, Math.floor(c.mldsaSigBytes / 2));
 		expect(c.suite.verify(pk, MSG, bad, CTX)).toBe(false);
 	});
@@ -151,9 +122,6 @@ describe.each(CASES)('$name tamper suite', (c) => {
 	it('tamper sig_trad half → verify false', () => {
 		const { pk, sk } = c.suite.keygen();
 		const sig = c.suite.sign(sk, MSG, CTX);
-		// For Ed25519 (64-byte raw R||S, RFC 8032 §5.1.6) the offset is
-		// mid-half. For ECDSA (RFC 3279 §2.2.3 DER) the offset lands inside
-		// the r INTEGER content bytes after the DER headers.
 		const offset = c.mldsaSigBytes + c.tradContentByteOffset;
 		const bad = flipByte(sig, offset);
 		expect(c.suite.verify(pk, MSG, bad, CTX)).toBe(false);
@@ -164,10 +132,8 @@ describe.each(CASES)('$name tamper suite', (c) => {
 		const sig = c.suite.sign(sk, MSG, CTX);
 		const sigMldsa = sig.subarray(0, c.mldsaSigBytes);
 		const sigTrad  = sig.subarray(c.mldsaSigBytes);
-		// ML-DSA sig is 2420 / 3309 bytes; trad sig is 64 (Ed25519) or
-		// ~70-72 (ECDSA DER). Sizes always differ massively, so the verify
-		// reads the first c.mldsaSigBytes as the ML-DSA half and that no
-		// longer matches a valid ML-DSA signature.
+		// Sizes always differ across all four hybrids; suite.verify still runs
+		// and asserts false.
 		expect(sigMldsa.length).not.toBe(sigTrad.length);
 		const swapped = concat(sigTrad, sigMldsa);
 		expect(c.suite.verify(pk, MSG, swapped, CTX)).toBe(false);
@@ -220,15 +186,8 @@ describe.each(CASES)('$name tamper suite', (c) => {
 // ── Cross-suite forgery resistance ─────────────────────────────────────────
 
 describe('cross-suite forgery resistance', () => {
-	// Standalone MlDsa44Suite uses ctxDomain 'mldsa44-envelope-v3' and
-	// passes ctx through buildEffectiveCtx before handing M to ML-DSA's
-	// FIPS 204 §5.2 Algorithm 2 M' construction (0x00 || |ctx| || ctx || M).
-	// The composite hybrid uses the per-suite Label 'COMPSIG-MLDSA44-
-	// Ed25519-SHA512' (composite-sigs §6) as the mldsa_ctx parameter AND
-	// builds composite M' = Prefix || Label || len(ctx) || ctx || PH(M)
-	// (composite-sigs §3.2 step 2) as the M handed to ML-DSA. Two
-	// completely different (ctx, M) inputs to ML-DSA → byte-disjoint
-	// signatures → no cross-suite transfer.
+	// Standalone MlDsa44Suite Label/ctx (FIPS 204 §5.2 Algorithm 2) differs
+	// from composite-sigs §3.2 / §6 Label → byte-disjoint sigs.
 	it('MlDsa44Suite sig placed as ML-DSA half of 0x20 hybrid → false', () => {
 		const standaloneCtx = utf8ToBytes('cross-suite');
 		const { sk: standaloneSk } = MlDsa44Suite.keygen();
@@ -251,15 +210,9 @@ describe('cross-suite forgery resistance', () => {
 		expect(MlDsa44Ed25519Suite.verify(hybridPk, MSG, forged, CTX)).toBe(false);
 	});
 
-	// Ed25519Suite emits a raw 64-byte R||S (RFC 8032 §5.1.6). The composite
-	// ECDSA trad-half slot expects DER-encoded Ecdsa-Sig-Value (RFC 3279
-	// §2.2.3) whose first byte is the SEQUENCE tag 0x30. Slotting raw
-	// Ed25519 bytes into the trad slot puts arbitrary bytes where DER
-	// expects 0x30; ecdsaSignatureFromDer in verifyPrehashed catches the
-	// structural mismatch and routes to ecOk = false. mldsaOk also returns
-	// false because the composite ML-DSA half was not produced for a
-	// (msg, ctx) carrying this trad half's ECDSA pk. The composite AND-
-	// reduction returns false.
+	// Ed25519 64-byte R||S (RFC 8032 §5.1.6) in the DER-shaped trad slot
+	// (RFC 3279 §2.2.3) fails ecdsaSignatureFromDer; mldsaOk also false →
+	// composite AND-reduction false.
 	it('Ed25519Suite sig as trad half of 0x22 → false (DER structural mismatch)', () => {
 		const { sk: edSk } = Ed25519Suite.keygen();
 		// Ed25519Suite rejects non-empty ctx (the pure mode has no native
@@ -282,13 +235,8 @@ describe('cross-suite forgery resistance', () => {
 		expect(MlDsa44EcdsaP256Suite.verify(hybridPk, MSG, forged, CTX)).toBe(false);
 	});
 
-	// Standalone EcdsaP256Suite hashes the user message directly with
-	// SHA-256 and signs that digest (FIPS 186-5 §6.4 with
-	// `ecdsa-with-SHA256`). The composite ECDSA path hashes M' (which
-	// includes Prefix || Label || len(ctx) || ctx || PH(M)) with SHA-256.
-	// Different inputs to ECDSA → different sigs. DER-wrap the standalone
-	// sig so the trad slot's structure parses, then assert the verify
-	// fails on the input-mismatch.
+	// Standalone ECDSA hashes M directly; composite hashes M' (FIPS 186-5
+	// §6.4 ecdsa-with-SHA256 in both). Different inputs → different sigs.
 	it('EcdsaP256Suite sig (DER-wrapped) as trad half of 0x22 → false', () => {
 		const { sk: ecSk } = EcdsaP256Suite.keygen();
 		// EcdsaP256Suite rejects non-empty ctx (single-variant, ECDSA-P256
@@ -311,18 +259,9 @@ describe('cross-suite forgery resistance', () => {
 });
 
 // ── Verify-timing spot check (0x20, cheapest hybrid) ───────────────────────
-//
-// verifyPrehashed must always run BOTH sub-verifies (composite-sigs §3.3
-// permits early-fail; the suite declines for parity with hybrid-pq.ts).
-// The gate this test enforces: tampering the ML-DSA half does not
-// measurably shortcut the verify. Honest verify runs ML-DSA verify
-// (FIPS 204 §5.3 Algorithm 3, NTT-dominated) + Ed25519 verify (RFC 8032
-// §5.1.7, fixed-base + variable-base scalar mult); tampered-ML-DSA also
-// runs both. A short-circuit on `if (!mldsaOk) return false` would skip
-// the Ed25519 verify, dropping the tampered/honest ratio below 1.0.
-//
-// 0x20 is picked because both sub-verifies are fast relative to the SLH-DSA
-// hybrids, so the test runs in a few hundred ms even on cold caches.
+// composite-sigs §3.3 permits early-fail; suite declines for parity with
+// hybrid-pq.ts. Gate: median paired ratio > 0.5 catches a short-circuit
+// on the ML-DSA half (drops to 0.05-0.2).
 
 function timeOne(suite: StreamableSignatureSuite, pk: Uint8Array, sig: Uint8Array): number {
 	const t0 = performance.now();
@@ -337,19 +276,13 @@ describe('verify timing spot check (0x20)', () => {
 		const sig = suite.sign(sk, MSG, CTX);
 		const badMldsa = flipByte(sig, Math.floor(MLDSA44.sigBytes / 2));
 
-		// Warm up both paths to amortise WASM JIT-tier promotion noise; some
-		// engines tier per call site, so the honest and tampered arms each
-		// need their own warm-up rounds.
+		// Warm-up amortises WASM JIT-tier promotion noise.
 		for (let i = 0; i < 10; i++) {
 			timeOne(suite, pk, sig);
 			timeOne(suite, pk, badMldsa);
 		}
 
-		// Paired interleaved sampling: each (honest, tampered) pair runs
-		// back-to-back so common-mode jitter (scheduler / GC pause / CPU
-		// frequency drift) hits both arms together. Taking the median of
-		// per-pair RATIOS cancels the common-mode shift that pulls
-		// sequential-batch medians apart under concurrent test load.
+		// Paired interleaved sampling; median of per-pair ratios cancels common-mode jitter.
 		const trials = 21;
 		const ratios: number[] = [];
 		const honests:   number[] = [];
@@ -359,8 +292,6 @@ describe('verify timing spot check (0x20)', () => {
 			const tampered = timeOne(suite, pk, badMldsa);
 			honests.push(honest);
 			tampereds.push(tampered);
-			// Skip pairs where honest time is below performance.now()'s
-			// effective resolution; ratios on near-zero divisors are noise.
 			if (honest > 0.1) ratios.push(tampered / honest);
 		}
 		ratios.sort((a, b) => a - b);
@@ -372,11 +303,7 @@ describe('verify timing spot check (0x20)', () => {
 		const medTampered = tampereds[Math.floor(tampereds.length / 2)];
 		console.log(`hybrid 0x20 verify: honest=${medHonest.toFixed(2)}ms tampered-mldsa=${medTampered.toFixed(2)}ms paired-ratio-median=${medianRatio.toFixed(2)} (n=${ratios.length})`);
 
-		// A short-circuit on the ML-DSA half failure would skip the
-		// Ed25519 verify entirely. The 0.5 threshold absorbs scheduler /
-		// GC jitter under concurrent `bun check` load while still catching
-		// short-circuits, which produce a clearly < 1.0 ratio. Honest pairs
-		// run both halves and sit near 1.0.
+		// 0.5 threshold tolerates CI jitter, catches short-circuits.
 		expect(medianRatio).toBeGreaterThan(0.5);
 		expect(medHonest).toBeGreaterThan(0);
 	});

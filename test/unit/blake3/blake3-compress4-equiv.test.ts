@@ -20,18 +20,8 @@
 //                           ▀█████▀▀
 //
 /**
- * BLAKE3 compress4 vs compress1 bit-equivalence gate, BLAKE3 §2.2 / §5.3.
- *
- * compress4 (v128-external SIMD, lane K = compress operation K) must be
- * bit-identical to four sequential compress1 calls on the same inputs.
- * Equivalence is checked across deterministic randomized inputs from a
- * fixed seed across 64 iterations, exercising independently distributed
- * CV, message, counter, block_len, and flag values.
- *
- * If compress1 has already passed its §2.2 gate against the BLAKE3 KAT
- * (test/unit/blake3/blake3-compress.test.ts), then matching compress4
- * to it under random inputs establishes compress4's correctness without
- * embedding additional cryptographic values in this file.
+ * BLAKE3 compress4 vs compress bit-equivalence (§2.2 / §5.3). See
+ * docs/blake3.md#compress4-equivalence.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

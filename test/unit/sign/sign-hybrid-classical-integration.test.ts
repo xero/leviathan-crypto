@@ -21,23 +21,10 @@
 //
 // test/unit/sign/sign-hybrid-classical-integration.test.ts
 //
-// End-to-end envelope and streaming coverage for the four classical+PQ
-// composite hybrid suites (draft-ietf-lamps-pq-composite-sigs-19, hereafter
-// composite-sigs). Covers:
-//   - Sign.sign / Sign.verify round-trip per hybrid.
-//   - Sign.peek offsets under the v3 envelope (suite_byte / ctx_len / ctx /
-//     payload_len u32 BE / payload / sig).
-//   - SignStream + VerifyStream round-trip per hybrid. All four hybrids
-//     implement StreamableSignatureSuite; composite-sigs §10.5 (External
-//     Pre-hashing) permits external prehash, and `prehashAlgorithm` is the
-//     composite Pre-Hash function from §6 (SHA-512 for 0x20/0x21/0x23,
-//     SHA-256 for 0x22).
-//   - Deterministic sub-sign equivalence: hand-build M' via
-//     composite-sigs §2.2 / §3.2 step 2, drive each half's deterministic
-//     primitive entry point, concat per §4.3 PQ-first, and assert the
-//     resulting composite sig verifies through both suite.verifyPrehashed
-//     and suite.verify. The describe block is the spec-anchored gate that
-//     the suite's M' wiring matches composite-sigs verbatim.
+// Envelope + stream integration for the four classical+PQ composite
+// hybrid suites (draft-ietf-lamps-pq-composite-sigs-19; composite-sigs
+// §10.5 external prehash, §6 Pre-Hash, §2.2 / §3.2 M', §4.3 PQ-first).
+// See docs/signaturesuite.md#hybrid-classicalpq-integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, utf8ToBytes, concat } from '../../../src/ts/index.js';
@@ -287,26 +274,11 @@ describe.each(CASES)('SignStream + VerifyStream, $name', (c) => {
 });
 
 // ── Deterministic sub-sign equivalence ─────────────────────────────────────
-//
-// The suite's production sign path is hedged on both halves (composite-sigs
-// is silent on hedged-vs-deterministic; the leviathan default is hedged for
-// ML-DSA per FIPS 204 §3.4 and for ECDSA per draft-irtf-cfrg-det-sigs-with-
-// noise-05). To gate the M' construction independently from the suite's
-// internal assembly, we hand-build M' with the spec constants
-// (composite-sigs §2.2 / §3.2 step 2), drive each half's deterministic
-// primitive entry point, concatenate per §4.3 PQ-first, and verify the
-// composite sig through the suite's own verify path.
-//
-// Determinism comes from:
-//   - ML-DSA: signDeterministic sets rnd ← 0³² (FIPS 204 §3.4).
-//   - Ed25519: pure Ed25519 is deterministic by construction (RFC 8032
-//     §5.1.6, r = SHA-512(prefix || M)).
-//   - ECDSA: _signInternalPk with rnd ← 0³² selects RFC 6979 §3.2
-//     deterministic K derivation.
-//
-// If this block passes, the suite's M' wiring matches the spec exactly
-// (Prefix bytes, Label bytes, ctx framing, digest position, PQ-first
-// component order). If it fails, the suite's M' construction is wrong.
+// Hand-build M' (composite-sigs §2.2 / §3.2 step 2), drive each half's
+// deterministic primitive, concat per §4.3 PQ-first, verify through the suite.
+// ML-DSA: signDeterministic rnd<-0^32 (FIPS 204 §3.4).
+// Ed25519: deterministic-by-construction (RFC 8032 §5.1.6).
+// ECDSA: rnd<-0^32 selects RFC 6979 §3.2.
 
 describe.each(CASES)('$name deterministic sub-sign equivalence', (c) => {
 	it('hand-driven composite via det. sub-signs verifies through the suite', () => {

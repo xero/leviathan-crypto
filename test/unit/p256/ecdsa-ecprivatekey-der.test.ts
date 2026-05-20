@@ -20,20 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * ECDSA-P256 ECPrivateKey DER codec tests.
- *
- * Round-trip + strict-DER rejection cases for `encodeEcPrivateKey` and
- * `decodeEcPrivateKey` per RFC 5915 §3, ECPrivateKey, and X.690 §10,
- * DER restrictions. The encoder produces a byte-stable 51-byte form;
- * the decoder accepts any conforming RFC 5915 ECPrivateKey for P-256
- * (with optional publicKey [1] tolerated and ignored) and rejects
- * every documented DER syntax violation.
- *
- * Expected encoded bytes are derived from the RFC 5915 §3 structure
- * shape and the secp256r1 named-curve OID (1.2.840.10045.3.1.7,
- * SP 800-186 §3.2.1.3); each test case spells the expected hex
- * verbatim so a reader can compare byte-for-byte against the spec
- * without running the implementation.
+ * ECPrivateKey DER round-trip + strict-DER rejection per RFC 5915 §3
+ * + X.690 §10. secp256r1 OID 1.2.840.10045.3.1.7 (SP 800-186 §3.2.1.3).
+ * Expected hex spelled inline per case for byte-against-spec inspection.
  */
 import { describe, it, expect } from 'vitest';
 import { hexToBytes, bytesToHex } from '../../../src/ts/index.js';

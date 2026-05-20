@@ -21,43 +21,29 @@
 //
 // src/ts/sign/suites/hybrid-pq.ts
 //
-// MldsaSlhdsaHybridSuite factory (internal, not exported) plus the three
-// exported PQ-only hybrid suite consts:
-//   0x30  MlDsa44SlhDsa128fSuite   (cat-1, ML-DSA-44 || SLH-DSA-128f)
-//   0x31  MlDsa65SlhDsa192fSuite   (cat-3, ML-DSA-65 || SLH-DSA-192f)
-//   0x32  MlDsa87SlhDsa256fSuite   (cat-5, ML-DSA-87 || SLH-DSA-256f)
+// MldsaSlhdsaHybridSuite factory (internal). Three exported PQ-only
+// hybrid consts:
+//   0x30  MlDsa44SlhDsa128fSuite   (cat-1)
+//   0x31  MlDsa65SlhDsa192fSuite   (cat-3)
+//   0x32  MlDsa87SlhDsa256fSuite   (cat-5)
 //
-// Wire format is leviathan-defined (no composite-sigs draft entry covers
-// PQ-only pairs): keys and signatures concatenate ML-DSA half first, no
-// length prefixes because each component size is catalog-known per hybrid.
+// Wire is leviathan-defined (no composite-sigs entry covers PQ-only
+// pairs); ML-DSA first, no length prefixes (per-hybrid sizes catalog-
+// fixed).
 //
-//   pk_combined  = pk_mldsa  || pk_slhdsa
-//   sk_combined  = sk_mldsa  || sk_slhdsa
-//   sig_combined = sig_mldsa || sig_slhdsa
-//
-// The two halves sign the SAME prehash digest under the SAME effective_ctx.
+// Both halves sign the same prehash digest under the same effective_ctx.
 // FIPS 204 §5.4 Alg 4 and FIPS 205 §10.2 Alg 22 produce byte-identical
 // M' = toByte(1,1) || toByte(|ctx|,1) || ctx || OID(ph) || PH_M given a
-// common (digest, ph, ctx), and SHAKE128 / SHAKE256 share OIDs across the
-// two specs (FIPS 204 §5.4.1 Table 1 = FIPS 205 §10.2 Table 11). The two
-// sub-signers therefore see byte-identical inputs while the underlying
-// primitives differ.
+// common (digest, ph, ctx); SHAKE128 / SHAKE256 share OIDs across the
+// two specs (FIPS 204 §5.4.1 Table 1 = FIPS 205 §10.2 Table 11).
 //
-// `verifyPrehashed` is constant-time-shaped: it ALWAYS invokes both
-// sub-verifies regardless of intermediate boolean outcomes; no early
-// return on the first half. The `mldsaOk && slhdsaOk` at the tail is a
-// boolean AND on values that have already been computed, so JavaScript's
-// short-circuit operator has nothing to short-circuit. Each sub-verify
-// is itself constant-time per its FIPS contract.
+// verifyPrehashed ALWAYS runs both sub-verifies before AND-reduce
+// (constant-time gate). Per-hybrid ctxDomain prevents cross-suite and
+// cross-hybrid forgery.
 //
-// Domain separation: each hybrid carries a unique ctxDomain string
-// ('mldsa{XX}-slhdsa{YYY}f-envelope-v3'), used by BOTH sub-signers. No
-// per-half suffix is needed because ML-DSA and SLH-DSA are distinct
-// primitives (a sig produced for one cannot verify under the other's pk).
-// The hybrid-level uniqueness prevents both cross-suite forgery (an
-// ML-DSA half of standalone MlDsa44Suite under 'mldsa44-envelope-v3'
-// cannot pass as the ML-DSA half of hybrid 0x30) and cross-hybrid forgery
-// (one hybrid's ML-DSA half cannot be reused as another's).
+// Wire layout, M' construction, ctxDomain table, constant-time
+// discipline, and threat model:
+// docs/signaturesuite.md#pq-only-hybrid-composite-encoding.
 
 import { concat } from '../../utils.js';
 import { wipe, utf8ToBytes } from '../../utils.js';
@@ -160,10 +146,6 @@ function MldsaSlhdsaHybridSuite(
 		prehashSize,
 
 		sign(sk: Uint8Array, msg: Uint8Array, ctx: Uint8Array): Uint8Array {
-			// Hash → signPrehashed. `h.finalize()` disposes the hasher; the
-			// belt-and-suspenders `h.dispose()` in catch handles the "throw
-			// before finalize" path (dispose is idempotent so a redundant
-			// post-finalize call is harmless).
 			const h = createRunningHash(prehashAlgorithm);
 			try {
 				h.update(msg);
@@ -276,13 +258,6 @@ function MldsaSlhdsaHybridSuite(
 			sig:    Uint8Array,
 			ctx:    Uint8Array,
 		): boolean {
-			// Structural rejects: wrong-size inputs short-circuit before any
-			// WASM is touched. Wire-derived lengths (pk_combined and the
-			// composite sig) map to false because they depend on
-			// attacker-observable bytes, not secret state. Digest length
-			// is a caller-side contract (the caller computed it via the
-			// suite's locked prehash algorithm) and throws symmetrically
-			// with `signPrehashed`.
 			if (pk.length  !== pkSize)     return false;
 			if (sig.length !== sigMaxSize) return false;
 			if (digest.length !== prehashSize)
@@ -297,13 +272,6 @@ function MldsaSlhdsaHybridSuite(
 			const sigMldsa  = sig.subarray(0, mldsaParams.sigBytes);
 			const sigSlhdsa = sig.subarray(mldsaParams.sigBytes);
 
-			// Compute both sub-verifies before combining. Do NOT early-return
-			// on the first half's result; the timing-side gate the audit
-			// will measure depends on neither half being skipped. Declare
-			// without an initial value: if either WASM call throws (only
-			// possible on a contract violation, never on bad-sig outcomes),
-			// the exception propagates and `mldsaOk` / `slhdsaOk` are never
-			// read.
 			let mldsaOk:  boolean;
 			let slhdsaOk: boolean;
 
@@ -329,10 +297,7 @@ function MldsaSlhdsaHybridSuite(
 				wipe(effectiveCtx);
 			}
 
-			// Both sub-verifies have already returned by this point; the &&
-			// is a pure boolean reduction with nothing left to short-circuit.
-			// Do NOT wipe sigMldsa / sigSlhdsa; they are subarrays of the
-			// caller's `sig` buffer.
+			// Do NOT wipe sub-sig subarrays; they alias caller-owned `sig`.
 			return mldsaOk && slhdsaOk;
 		},
 	};

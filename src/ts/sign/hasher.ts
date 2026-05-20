@@ -21,18 +21,9 @@
 //
 // src/ts/sign/hasher.ts
 //
-// Internal running-hash abstraction over the prehash hasher classes,
-// keyed on PrehashAlgorithm. Used by SignStream and VerifyStream so the
-// dispatch logic is not duplicated. Not exported from the sign barrel.
-//
-// Wires `sha3-256`, `sha3-512`, and the SHAKE pair used by the SLH-DSA
-// prehash suites, plus `sha-256` and `sha-512` (buffered shims over
-// the one-shot SHA256 / SHA512 classes) used by the ECDSA-P256 and
-// Ed25519 prehash suites respectively.
-//
-// SHAKE outputs are fixed per suite: SHAKE128Stream(32) for cat-1, and
-// SHAKE256Stream(64) for cat-3 / cat-5; the lengths track FIPS 204 §5.4.1
-// (HashML-DSA) and FIPS 205 §10.2.2 (HashSLH-DSA) per-algorithm digest sizes.
+// Internal running-hash abstraction keyed on PrehashAlgorithm, used by
+// SignStream and VerifyStream. SHAKE output sizes track FIPS 204 §5.4.1
+// (HashML-DSA) and FIPS 205 §10.2.2 (HashSLH-DSA).
 
 import {
 	SHA3_256Stream, SHA3_512Stream,
@@ -47,13 +38,6 @@ export interface RunningHash {
 	dispose(): void;
 }
 
-/**
- * One-shot SHA-256 over `msg`. Used by suite factories whose
- * `sign(sk, msg, ctx)` / `verify(pk, msg, sig, ctx)` paths must compute
- * SHA-256 at the TS layer (the ECDSA-P256 suite is the current
- * caller). Kept here so the sha2 module access point is centralised
- * next to `createRunningHash`.
- */
 export function sha256OneShot(msg: Uint8Array): Uint8Array {
 	const h = new SHA256();
 	try {
@@ -63,13 +47,6 @@ export function sha256OneShot(msg: Uint8Array): Uint8Array {
 	}
 }
 
-/**
- * One-shot SHA-512 over `msg`. Used by suite factories whose
- * `sign(sk, msg, ctx)` / `verify(pk, msg, sig, ctx)` paths must compute
- * SHA-512 at the TS layer (the Ed25519 prehash suite is the current
- * caller). Kept here so the sha2 module access point is centralised
- * next to `createRunningHash`.
- */
 export function sha512OneShot(msg: Uint8Array): Uint8Array {
 	const h = new SHA512();
 	try {
@@ -79,13 +56,6 @@ export function sha512OneShot(msg: Uint8Array): Uint8Array {
 	}
 }
 
-/**
- * Buffered shim that exposes a `RunningHash` over the one-shot SHA256
- * class. Chunks are copied (so caller-owned buffers can be wiped under
- * us) and concatenated at `finalize()`, then fed to the sha2 module.
- * The output is byte-identical to `sha256OneShot(concat(...chunks))`,
- * which is the contract SignStream depends on.
- */
 function sha256Buffered(): RunningHash {
 	let chunks: Uint8Array[] = [];
 	let total = 0;
@@ -119,13 +89,6 @@ function sha256Buffered(): RunningHash {
 	};
 }
 
-/**
- * Buffered shim that exposes a `RunningHash` over the one-shot SHA512
- * class. Chunks are copied (so caller-owned buffers can be wiped under
- * us) and concatenated at `finalize()`, then fed to the sha2 module.
- * The output is byte-identical to `sha512OneShot(concat(...chunks))`,
- * which is the contract SignStream depends on.
- */
 function sha512Buffered(): RunningHash {
 	let chunks: Uint8Array[] = [];
 	let total = 0;

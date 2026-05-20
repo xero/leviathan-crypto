@@ -21,32 +21,11 @@
 //
 // src/ts/sign/suites/slhdsa.ts
 //
-// SlhdsaPureSuite and SlhdsaPrehashSuite factories (internal, not exported).
-// Six exported const objects produced by factory calls cover the FIPS 205
-// SHAKE-family fast parameter sets in both pure and prehash variants:
-//   0x06  SlhDsa128fSuite              (pure)
-//   0x07  SlhDsa192fSuite              (pure)
-//   0x08  SlhDsa256fSuite              (pure)
-//   0x16  SlhDsa128fPreHashSuite       (SHAKE128 prehash, 32-byte digest)
-//   0x17  SlhDsa192fPreHashSuite       (SHAKE256 prehash, 64-byte digest)
-//   0x18  SlhDsa256fPreHashSuite       (SHAKE256 prehash, 64-byte digest)
+// Pure (0x06/0x07/0x08) and prehash (0x16/0x17/0x18) SLH-DSA SHAKE-family
+// fast suites, FIPS 205. Hash pinning per §10.2.2: 128f→SHAKE128 cat 1,
+// 192f→SHAKE256 cat 3, 256f→SHAKE256 cat 5.
 //
-// Each method instantiates a fresh SlhDsa{128f,192f,256f} per call inside a
-// try/finally + dispose pattern so WASM key material is wiped on every
-// path. The factories are NOT exported: catalog format bytes are reserved
-// and exposing factories would invite custom suites with unmanaged bytes.
-//
-// Pure variants advertise wasmModules: ['slhdsa']. Prehash variants
-// advertise ['slhdsa', 'sha3'] because the running prehash inside the
-// SignStream layer drives sha3's SHAKE128Stream / SHAKE256Stream. The
-// slhdsa WASM module embeds its own Keccak permutation for internal
-// F / H / T_l / PRF / PRFmsg / Hmsg primitives, so pure mode never
-// touches sha3 directly.
-//
-// Hash-algorithm pinning per FIPS 205 §10.2.2:
-//   128f-prehash → SHAKE128, only valid for category 1
-//   192f-prehash → SHAKE256, valid for category 3 (and 5)
-//   256f-prehash → SHAKE256, valid for category 5
+// Catalog + prehash mapping: docs/signaturesuite.md, docs/slhdsa.md.
 
 import { utf8ToBytes, wipe } from '../../utils.js';
 import { SigningError } from '../../errors.js';
@@ -65,9 +44,6 @@ import type {
 
 type SlhDsaCtor = typeof SlhDsa128f | typeof SlhDsa192f | typeof SlhDsa256f;
 
-// Lowercase public sign-surface → uppercase SLH-DSA internal algorithm name.
-// Only the two SHAKE variants are wired; remaining slh-dsa pre-hash names
-// will join when a hybrid or non-SHAKE suite needs them.
 function prehashAlgoToSlhdsa(algo: PrehashAlgorithm): SlhPreHashAlgorithm {
 	switch (algo) {
 	case 'shake-128': return 'SHAKE128';
@@ -221,9 +197,6 @@ function SlhdsaPrehashSuite(
 			digest: Uint8Array,
 			ctx:    Uint8Array,
 		): Uint8Array {
-			// Belt-and-suspenders: SlhDsaBase.signHashPrehashed also validates
-			// digest length, but checking here keeps the suite contract
-			// surface self-contained and produces the same discriminator.
 			if (digest.length !== prehashSize)
 				throw new SigningError(
 					'sig-malformed-input',
