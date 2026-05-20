@@ -837,6 +837,12 @@ export function feIsOdd(a: i32): i32 {
 /**
  * Returns 1 if a == b (canonical), 0 otherwise. Both inputs assumed
  * canonical; folds (a XOR b) into a single 0/1.
+ *
+ * Hand-rolled rather than calling cte/shared ctEqual because the
+ * inputs are 8 × u32 limbs, not a contiguous byte buffer. ld(a, i)
+ * reads the i-th limb via the field-element layout's stride; ctEqual
+ * operates on raw byte offsets. Same XOR-accumulate primitive, same
+ * branch-free reduction, different element representation.
  */
 export function feIsEqual(a: i32, b: i32): i32 {
 	let r: u32 = 0
