@@ -277,4 +277,4 @@ Ed25519 suites](./signaturesuite.md#ed25519-suites) section.
 | [x25519_audit](./x25519_audit.md) | Companion X25519 audit on the same WASM module |
 | [signaturesuite](./signaturesuite.md) | `Ed25519Suite` / `Ed25519PreHashSuite` consts, envelope wire format |
 | [audits](./audits.md) | Project audit index |
-| [architecture](./architecture.md) | Module structure, buffer layouts, build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

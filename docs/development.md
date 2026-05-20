@@ -142,9 +142,15 @@ bun unit test/unit/stream/seal.test.ts
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md), Project documentation index
-> - [architecture](./architecture.md), Repository structure, module relationships, and build pipeline internals
-> - [test-suite](./test-suite.md), Test corpus structure, vector provenance, and gate discipline
-> - [Agent Instructions](../AGENTS.md), Contract for AI-assisted development on this repository
+## Cross-References
+
+| Document | Description |
+|----------|-------------|
+| [index](./README.md) | Project documentation index |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [test-suite.md](./test-suite.md) | Test corpus structure, vector provenance, and gate discipline |
+| [examples.md](./examples.md) | Worked examples for every primitive |
+| [exports.md](./exports.md) | Complete export reference |
+| [init.md](./init.md) | `init()` API, `WasmSource`, subpath imports, tree-shaking |
+| [audits.md](./audits.md) | Per-primitive audit index |
+| [Agent Instructions](../AGENTS.md) | Contract for AI-assisted development on this repository |

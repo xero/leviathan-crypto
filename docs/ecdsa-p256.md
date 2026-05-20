@@ -23,7 +23,7 @@ strict verification with low-S enforcement per RFC 6979 §3.5.
 > - [Low-S Enforcement](#low-s-enforcement)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
-> - [Cross-references](#cross-references)
+> - [Cross-References](#cross-references)
 
 ---
 
@@ -895,23 +895,26 @@ examples through `Sign`, `SignStream`, and `VerifyStream`.
 
 ---
 
-## Cross-references
+## Cross-References
 
-- [Architecture](./architecture.md), module layout and three-tier design.
-- [init.md](./init.md), `init()` API and module-loader contract.
-- [signaturesuite.md](./signaturesuite.md), `SignatureSuite` interface plus
-  the `EcdsaP256Suite` const, `Sign`, `SignStream`, and `VerifyStream`.
-- [asm_p256.md](./asm_p256.md), low-level WASM module reference.
-- [ecdsa-p256_audit.md](./ecdsa-p256_audit.md), ECDSA-P256 audit checklist.
-- [vector_audit.md](./vector_audit.md), test-vector tier classification and Rust verifier coverage.
-- [ed25519.md](./ed25519.md), companion classical signature primitive.
-- [exports.md](./exports.md), full export catalog.
+| Document | Description |
+|----------|-------------|
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [init.md](./init.md) | `init()` API and module-loader contract |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `EcdsaP256Suite` const, `Sign`, `SignStream`, `VerifyStream` |
+| [asm_p256.md](./asm_p256.md) | Low-level WASM module reference |
+| [ecdsa-p256_audit.md](./ecdsa-p256_audit.md) | ECDSA-P256 audit checklist |
+| [vector_audit.md](./vector_audit.md) | Test-vector tier classification and Rust verifier coverage |
+| [ed25519.md](./ed25519.md) | Companion classical signature primitive |
+| [exports.md](./exports.md) | Full export catalog |
 
-External references:
+### External references
 
-- FIPS 186-5: Digital Signature Standard (DSS), 2023. ECDSA is §6.
-- SP 800-186: Recommendations for Discrete Logarithm-Based Cryptography, 2023. P-256 is §3.2.1.3.
-- SEC 1 v2.0: Elliptic Curve Cryptography. Compressed encoding is §2.3.3; uncompressed is §2.3.4.
-- RFC 3279: Algorithms and Identifiers for the Internet X.509 PKI. ECDSA DER encoding is §2.2.3.
-- RFC 6979: Deterministic Usage of the Digital Signature Algorithm (DSA) and Elliptic Curve Digital Signature Algorithm (ECDSA). K derivation is §3.2; low-S guidance is §3.5; P-256 + SHA-256 test vectors are §A.2.5.
-- `draft-irtf-cfrg-det-sigs-with-noise-05`: Hedged-deterministic nonce generation for ECDSA and EdDSA.
+| Spec | Description |
+|------|-------------|
+| [FIPS 186-5](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf) | Digital Signature Standard (DSS), 2023. ECDSA is §6. |
+| [SP 800-186](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-186.pdf) | Recommendations for Discrete Logarithm-Based Cryptography, 2023. P-256 is §3.2.1.3. |
+| [SEC 1 v2.0](https://www.secg.org/sec1-v2.pdf) | Elliptic Curve Cryptography. Compressed encoding is §2.3.3; uncompressed is §2.3.4. |
+| [RFC 3279](https://www.rfc-editor.org/rfc/rfc3279) | Algorithms and Identifiers for the Internet X.509 PKI. ECDSA DER encoding is §2.2.3. |
+| [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979) | Deterministic Usage of DSA and ECDSA. K derivation is §3.2; low-S guidance is §3.5; P-256 + SHA-256 test vectors are §A.2.5. |
+| [`draft-irtf-cfrg-det-sigs-with-noise-05`](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-det-sigs-with-noise-05) | Hedged-deterministic nonce generation for ECDSA and EdDSA. |

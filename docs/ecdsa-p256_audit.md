@@ -433,4 +433,4 @@ section.
 | [signaturesuite](./signaturesuite.md) | `EcdsaP256Suite` const, envelope wire format |
 | [vector_audit](./vector_audit.md) | Test-vector tier classification and Rust verifier coverage |
 | [audits](./audits.md) | Project audit index |
-| [architecture](./architecture.md) | Module structure, buffer layouts, build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

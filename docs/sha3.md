@@ -660,7 +660,7 @@ absorbs zero bytes and then squeezes.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha3_audit.md](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
 
 ---

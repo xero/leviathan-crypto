@@ -377,7 +377,7 @@ if (!isInitialized('sha2')) {
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [loader](./loader.md) | WASM binary loading strategies (internal details) |
 | [wasm](./wasm.md) | WebAssembly primer: modules, instances, memory, and the init gate |
 

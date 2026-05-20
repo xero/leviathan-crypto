@@ -776,8 +776,9 @@ gf128.ts ─── ghash.ts ─── gcm.ts ───────┘
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
 | [aes](./aes.md) | TypeScript wrapper classes (`AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator`, `AESGCMSIVCipher`) |
 | [aead](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `AESGCMSIVCipher` as the suite argument |
 | [ciphersuite](./ciphersuite.md) | `AESGCMSIVCipher` reference: format enum, key derivation, commitment binding |
 | [asm_sha2](./asm_sha2.md) | SHA-2 WASM module (used together with AES via Fortuna and HKDF) |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

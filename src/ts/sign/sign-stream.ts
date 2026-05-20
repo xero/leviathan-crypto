@@ -34,6 +34,7 @@
 // length is available when they go to compose the wire.
 
 import { SigningError } from '../errors.js';
+import { wipe } from '../utils.js';
 import type { StreamableSignatureSuite } from './types.js';
 import { USER_CTX_MAX } from './ctx.js';
 import { createRunningHash } from './hasher.js';
@@ -134,5 +135,6 @@ export class SignStream {
 			this.hasher.dispose();
 			this.hasher = undefined;
 		}
+		wipe(this.ctx);
 	}
 }

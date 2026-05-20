@@ -276,3 +276,15 @@ linearly with no data-dependent branches.
 
 **Memory wipes.** `wipeBuffers()` issues a single bulk `memory.fill`
 covering the entire mutable region.
+
+---
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [mldsa.md](./mldsa.md) | `MlDsa44`, `MlDsa65`, `MlDsa87`: ML-DSA digital signatures (FIPS 204), pure mode and HashML-DSA |
+| [mldsa_audit.md](./mldsa_audit.md) | ML-DSA FIPS 204 prehashed-input surface audit |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |

@@ -370,7 +370,7 @@ Notes. RustCrypto's `aes` crate matches NIST CAVP byte-exactly with no conventio
 | [audits](./audits.md) | Per-primitive correctness audits |
 | [aead](./aead.md) | Authenticated encryption wire format and security model |
 | [test-suite](./test-suite.md) | Full test inventory and gate structure |
-| [architecture](./architecture.md) | Module layout, build pipeline, buffer layouts |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [architectural-stance](./architectural-stance.md) | Architectural posture: defended threats, layer composition, and the framing constraint |
 | [stream_audit](./stream_audit.md) | Streaming AEAD composition audit |
 | [SECURITY.md](../SECURITY.md) | Security model, threat model, authenticator robustness |

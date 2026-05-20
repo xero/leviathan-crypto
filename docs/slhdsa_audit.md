@@ -303,4 +303,4 @@ already pass per AGENTS.md §4).
 | [SECURITY.md](../SECURITY.md) | PQ-only hybrid threat model |
 | [mldsa_audit](./mldsa_audit.md) | ML-DSA audit (parallel structure for the other PQ signature family) |
 | [audits](./audits.md) | Project audit index |
-| [architecture](./architecture.md) | Module structure, buffer layouts, build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

@@ -463,21 +463,35 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 
 ---
 
-> ## Cross-References
->
-> - [index](./README.md), Project Documentation index
-> - [development](./development.md), Day-to-day developer workflow: build, test, lint commands and the iteration loop
-> - [lexicon](./lexicon.md), Glossary of cryptographic terms
-> - [architecture](./architecture.md), architecture overview, module relationships, buffer layouts, and build pipeline
-> - [init](./init.md), `init()` API, loading modes, subpath imports
-> - [serpent](./serpent.md), Serpent-256 TypeScript API (tested primitives)
-> - [chacha20](./chacha20.md), ChaCha20/Poly1305 TypeScript API (tested primitives)
-> - [sha2](./sha2.md), SHA-2/HMAC/HKDF TypeScript API (tested primitives)
-> - [sha3](./sha3.md), SHA-3/SHAKE TypeScript API (tested primitives)
-> - [kyber](./kyber.md), ML-KEM (FIPS 203) TypeScript API (tested primitive)
-> - [ratchet](./ratchet.md), SPQR ratchet TypeScript API (tested primitive)
-> - [authenticated encryption](./aead.md), `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` (tested primitives)
-> - [loader](./loader.md), WASM binary loading strategies (tested in unit + e2e)
-> - [fortuna](./fortuna.md), Fortuna CSPRNG (tested primitive)
-> - [utils](./utils.md), encoding utilities and `constantTimeEqual` (tested primitives)
-> - [types](./types.md), public interfaces verified by the test suite
+## Cross-References
+
+| Document | Description |
+|----------|-------------|
+| [index](./README.md) | Project Documentation index |
+| [development.md](./development.md) | Day-to-day developer workflow: build, test, lint commands and the iteration loop |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [audits.md](./audits.md) | Per-primitive audit index |
+| [vector_audit.md](./vector_audit.md) | Test-vector tier classification, Rust verifier coverage, SHA256SUMS pinning |
+| [lexicon.md](./lexicon.md) | Glossary of cryptographic terms |
+| [init.md](./init.md) | `init()` API, loading modes, subpath imports |
+| [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` (tested primitives) |
+| [signaturesuite.md](./signaturesuite.md) | `Sign`, `SignStream`, `VerifyStream`, and the 22 shipped `*Suite` consts (tested primitives) |
+| [merkle.md](./merkle.md) | `MerkleLog`, `MerkleVerifier`, `SignedLog` (tested primitives) |
+| [serpent.md](./serpent.md) | Serpent-256 TypeScript API (tested primitives) |
+| [chacha20.md](./chacha20.md) | ChaCha20 / Poly1305 TypeScript API (tested primitives) |
+| [aes.md](./aes.md) | AES-128/192/256 TypeScript API and AES-GCM-SIV (tested primitives) |
+| [sha2.md](./sha2.md) | SHA-2 / HMAC / HKDF TypeScript API (tested primitives) |
+| [sha3.md](./sha3.md) | SHA-3 / SHAKE / streaming classes TypeScript API (tested primitives) |
+| [kmac.md](./kmac.md) | cSHAKE / KMAC / KMACXOF TypeScript API (tested primitives) |
+| [blake3.md](./blake3.md) | BLAKE3 TypeScript API (tested primitive) |
+| [kyber.md](./kyber.md) | ML-KEM (FIPS 203) TypeScript API (tested primitive) |
+| [mldsa.md](./mldsa.md) | ML-DSA (FIPS 204) TypeScript API (tested primitive) |
+| [slhdsa.md](./slhdsa.md) | SLH-DSA (FIPS 205) TypeScript API (tested primitive) |
+| [ed25519.md](./ed25519.md) | Ed25519 (RFC 8032) TypeScript API (tested primitive) |
+| [x25519.md](./x25519.md) | X25519 (RFC 7748) TypeScript API (tested primitive) |
+| [ecdsa-p256.md](./ecdsa-p256.md) | ECDSA-P256 (FIPS 186-5 §6) TypeScript API (tested primitive) |
+| [ratchet.md](./ratchet.md) | SPQR ratchet TypeScript API (tested primitive) |
+| [loader.md](./loader.md) | WASM binary loading strategies (tested in unit + e2e) |
+| [fortuna.md](./fortuna.md) | Fortuna CSPRNG (tested primitive) |
+| [utils.md](./utils.md) | Encoding utilities and `constantTimeEqual` (tested primitives) |
+| [types.md](./types.md) | Public interfaces verified by the test suite |

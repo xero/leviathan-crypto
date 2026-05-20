@@ -16,7 +16,7 @@ this document covers the substrate only.
 > - [Source Files](#source-files)
 > - [API Reference](#api-reference)
 > - [Constant-time Posture](#constant-time-posture)
-> - [Cross-references](#cross-references)
+> - [Cross-References](#cross-references)
 
 ---
 
@@ -351,17 +351,18 @@ Specific dispatchers that branch on PUBLIC (non-secret) inputs:
 
 ---
 
-## Cross-references
+## Cross-References
 
 | Document | Role |
 |----------|------|
-| `docs/architecture.md` | Repo-wide architecture, module table, init API |
-| `docs/test-suite.md` | Test counts and per-file gates |
-| `docs/asm_curve25519.md` | Sister-module substrate reference (pattern source) |
-| `SP 800-186 §3.2.1.3` | P-256 parameter definitions (p, n, a, b, Gx, Gy) |
-| `FIPS 186-5 §6` | ECDSA signature scheme |
-| `RFC 6979` | Deterministic ECDSA |
-| `draft-irtf-cfrg-det-sigs-with-noise-05` | Hedged-deterministic K |
-| `Hankerson-Menezes-Vanstone §2.4.1, Algorithm 2.27` | P-256 Solinas reduction |
-| `Renes-Costello-Batina 2016 (eprint 2015/1060)` | Complete addition formulas |
-| `SEC1 v2.0` | Point encoding (compressed / uncompressed) |
+| [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [`test-suite.md`](./test-suite.md) | Test counts and per-file gates |
+| [`asm_curve25519.md`](./asm_curve25519.md) | Sister-module substrate reference (pattern source) |
+| [`SP 800-186 §3.2.1.3`](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-186.pdf) | P-256 parameter definitions (p, n, a, b, Gx, Gy) |
+| [`FIPS 186-5 §6`](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf) | ECDSA signature scheme |
+| [`RFC 6979`](https://www.rfc-editor.org/rfc/rfc6979) | Deterministic ECDSA |
+| [`draft-irtf-cfrg-det-sigs-with-noise-05`](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-det-sigs-with-noise-05) | Hedged-deterministic K |
+| [`Hankerson-Menezes-Vanstone §2.4.1, Algorithm 2.27`](https://link.springer.com/book/10.1007/b97644) | P-256 Solinas reduction |
+| [`Renes-Costello-Batina 2016 (eprint 2015/1060)`](https://eprint.iacr.org/2015/1060) | Complete addition formulas |
+| [`SEC1 v2.0`](https://www.secg.org/sec1-v2.pdf) | Point encoding (compressed / uncompressed) |

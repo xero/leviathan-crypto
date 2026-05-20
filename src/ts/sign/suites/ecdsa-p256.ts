@@ -124,6 +124,7 @@ function EcdsaP256SuiteFactory(
 				return inst._signInternalPk(sk, digest, rnd);
 			} finally {
 				wipe(rnd);
+				wipe(digest);
 				inst.dispose();
 			}
 		},
@@ -141,6 +142,7 @@ function EcdsaP256SuiteFactory(
 				return inst.verify(pk, digest, sig);
 			} finally {
 				inst.dispose();
+				wipe(digest);
 			}
 		},
 

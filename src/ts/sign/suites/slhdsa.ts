@@ -48,7 +48,7 @@
 //   192f-prehash → SHAKE256, valid for category 3 (and 5)
 //   256f-prehash → SHAKE256, valid for category 5
 
-import { utf8ToBytes } from '../../utils.js';
+import { utf8ToBytes, wipe } from '../../utils.js';
 import { SigningError } from '../../errors.js';
 import {
 	SlhDsa128f, SlhDsa192f, SlhDsa256f,
@@ -117,6 +117,7 @@ function SlhdsaPureSuite(
 				return inst.sign(sk, msg, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -132,6 +133,7 @@ function SlhdsaPureSuite(
 				return inst.verify(pk, msg, sig, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -184,6 +186,7 @@ function SlhdsaPrehashSuite(
 				return inst.signHash(sk, msg, slhHashAlgo, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -199,6 +202,7 @@ function SlhdsaPrehashSuite(
 				return inst.verifyHash(pk, msg, sig, slhHashAlgo, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -231,6 +235,7 @@ function SlhdsaPrehashSuite(
 				return inst.signHashPrehashed(sk, digest, slhHashAlgo, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -253,6 +258,7 @@ function SlhdsaPrehashSuite(
 				);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 	};

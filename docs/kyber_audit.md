@@ -713,7 +713,7 @@ decryption failure or an incorrect `K'`.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | Module structure, kyber buffer layout |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [exports](./exports.md) | `MlKem512`, `MlKem768`, `MlKem1024` export reference |
 | [sha3_audit](./sha3_audit.md) | Keccak audit (sha3 module, used by kyber) |
 | [test-suite](./test-suite.md) | ACVP vector coverage, test counts |

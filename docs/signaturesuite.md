@@ -17,10 +17,11 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > - [ctx-domain construction](#ctx-domain-construction)
 > - [Errors](#errors)
 > - [Examples](#examples)
+> - [Memory hygiene](#memory-hygiene)
 > - [Format byte allocation](#format-byte-allocation)
 > - [Custom suites](#custom-suites)
 > - [Threat model](#threat-model)
-> - [Cross-references](#cross-references)
+> - [Cross-References](#cross-references)
 
 ---
 
@@ -810,6 +811,36 @@ Use `peek` to extract metadata for routing or logging without paying the verify 
 
 ---
 
+## Memory hygiene
+
+Three layers each hold a copy of secret-adjacent state. The library wipes its copies on well-defined boundaries; caller-owned buffers are never touched.
+
+### SignStream
+
+`new SignStream(suite, sk, ctx)` copies `ctx` into a lib-owned `Uint8Array`. `sk` is held by reference and never wiped. The running prehash is disposed in both `finalize()` and `dispose()`.
+
+The ctx copy survives `finalize()` deliberately. `buildPreamble(payloadLength)` is available at any point in the stream lifecycle, and the canonical assembly pattern calls `finalize()`, then `buildPreamble()`, then concatenates the blob. Wiping ctx earlier would zero the preamble's ctx field. `dispose()` wipes the ctx copy, so call it once the blob is assembled.
+
+### VerifyStream
+
+`update(chunk)` copies every payload byte into an internally-owned chunk so a caller-side mutation cannot retroactively change the buffered payload. `pk` and the expected `ctx` are held by reference and never wiped.
+
+`finalize()` wipes `payloadChunks`, `sigBuf`, and `headerBuf` on both the success path and every failure path. The returned payload is a fresh `concat(...)` allocation, so wiping the internal chunks does not corrupt the result. `dispose()` performs the same wipe and is idempotent.
+
+### Suite methods
+
+Each suite call instantiates a fresh primitive class, runs the operation inside a `try`, and calls `dispose()` in `finally`. The primitive's `dispose()` invokes the WASM module's `wipeBuffers()`, so key material does not persist in linear memory between calls.
+
+Lib-allocated temporaries get the same treatment:
+
+- `effective_ctx` (the `{ctxDomain}|{user_ctx}` build) is wiped in `finally` after the primitive returns.
+- One-shot prehash digests inside non-streaming `sign` and `verify` entry points are wiped in `finally`.
+- The hedged-entropy `rnd` buffer inside the ECDSA-P256 sign path is wiped in `finally`.
+
+Caller-owned buffers are never wiped: `sk`, `pk`, `msg`, the `digest` passed to `signPrehashed` and `verifyPrehashed`, `sig`, and the user `ctx`. Hybrid verify paths take subarray views over caller-owned `sig` and `pk`; those views inherit the same rule.
+
+---
+
 ## Format byte allocation
 
 The full 22-entry catalog. Shipped rows are wired and tested today; queued rows reserve the wire byte for future work.
@@ -875,12 +906,12 @@ The library carries both hybrid families because consumer threat models differ. 
 
 ---
 
-## Cross-references
+## Cross-References
 
 | Document | Description |
 |----------|-------------|
 | [README](./README.md) | Documentation index |
-| [architecture](./architecture.md) | Module overview, build pipeline, and three-tier design |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ciphersuite](./ciphersuite.md) | Symmetric / AEAD counterpart to this document |
 | [mldsa](./mldsa.md) | Underlying ML-DSA reference, including `signHashPrehashed` and the FIPS 204 §5.4 prehash family |
 | [slhdsa](./slhdsa.md) | Underlying SLH-DSA reference, including `signHashPrehashed` and the FIPS 205 §10.2.2 prehash family |

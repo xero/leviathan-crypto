@@ -374,3 +374,15 @@ Tree-node hashing uses the same branch-free tweakable hash above.
 **Memory wipes.** `wipeBuffers()` issues three bulk `memory.fill`
 calls covering OUT, STATE, and SCRATCH. INPUT is owned by the caller
 and wiped by the TS wrapper after each operation.
+
+---
+
+## Cross-References
+
+| Document | Role |
+|----------|------|
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [slhdsa_audit.md](./slhdsa_audit.md) | SLH-DSA FIPS 205 implementation audit, including PQ-only hybrid factory invariants |
+| [slhdsa.md](./slhdsa.md) | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`: SLH-DSA hash-based signatures (FIPS 205), pure mode and HashSLH-DSA |

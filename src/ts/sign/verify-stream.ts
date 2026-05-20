@@ -157,7 +157,12 @@ export class VerifyStream {
 				this.wipeBuffers();
 				throw e;
 			}
-			return concat(...this.payloadChunks);
+			// `concat` allocates a fresh buffer, so wiping the chunks here
+			// does not corrupt the returned payload; it just drops the
+			// internal duplicates that would otherwise linger until GC.
+			const out = concat(...this.payloadChunks);
+			this.wipeBuffers();
+			return out;
 		} finally {
 			if (h !== undefined) h.dispose();
 		}

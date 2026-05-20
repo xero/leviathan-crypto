@@ -393,7 +393,7 @@ kem.dispose()
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
 | [ciphersuite](./ciphersuite.md) | `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
 | [kyber_audit](./kyber_audit.md) | ML-KEM implementation audit |

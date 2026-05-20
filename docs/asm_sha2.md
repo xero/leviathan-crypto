@@ -610,7 +610,8 @@ implementation and the TypeScript wrapper:
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha2](./sha2.md) | TypeScript wrapper classes (SHA256, SHA384, SHA512, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF) |
 | [asm_sha3](./asm_sha3.md) | alternative hash family (SHA-3/SHAKE WASM module) |
 | [asm_serpent](./asm_serpent.md) | Serpent block cipher (used together with SHA-256 in Fortuna CSPRNG) |

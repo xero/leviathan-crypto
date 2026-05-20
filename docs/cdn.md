@@ -193,7 +193,7 @@ If you want the same import style as the npm docs, add one before your module sc
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [examples](./examples.md) | Code examples for every primitive |
 

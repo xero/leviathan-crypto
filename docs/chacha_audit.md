@@ -491,7 +491,7 @@ The `SealStream` / `OpenStream` streaming layer uses ChaCha20-Poly1305 AEAD as a
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [serpent_audit](./serpent_audit.md) | Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties) |
 | [sha2_audit](./sha2_audit.md) | SHA-256 / HMAC-SHA256 audit |
 | [sha3_audit](./sha3_audit.md) | SHA-3 companion audit |

@@ -47,7 +47,7 @@
 // the substrate's own internal hash and is not exposed at the WASM
 // ABI.)
 
-import { utf8ToBytes } from '../../utils.js';
+import { utf8ToBytes, wipe } from '../../utils.js';
 import { SigningError } from '../../errors.js';
 import { Ed25519 } from '../../ed25519/index.js';
 import {
@@ -176,6 +176,8 @@ function Ed25519PrehashSuite(
 				return inst._signPrehashedInternalPk(sk, digest, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(digest);
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -192,6 +194,8 @@ function Ed25519PrehashSuite(
 				return inst.verifyPrehashed(pk, digest, effectiveCtx, sig);
 			} finally {
 				inst.dispose();
+				wipe(digest);
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -221,6 +225,7 @@ function Ed25519PrehashSuite(
 				return inst._signPrehashedInternalPk(sk, digest, effectiveCtx);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 
@@ -241,6 +246,7 @@ function Ed25519PrehashSuite(
 				return inst.verifyPrehashed(pk, digest, effectiveCtx, sig);
 			} finally {
 				inst.dispose();
+				wipe(effectiveCtx);
 			}
 		},
 	};

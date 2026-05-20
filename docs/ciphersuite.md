@@ -234,7 +234,7 @@ it unconditionally after finalize.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` |
 | [serpent](./serpent.md) | Serpent-256 TypeScript API and raw primitives |

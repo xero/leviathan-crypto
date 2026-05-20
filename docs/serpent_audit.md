@@ -664,7 +664,7 @@ The error path produces a single observable outcome: `AuthenticationError`. Ther
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha2_audit](./sha2_audit.md) | SHA-256 / SHA-512 / SHA-384 implementation audit |
 | [sha3_audit](./sha3_audit.md) | SHA-3 / Keccak implementation audit |
 | [hmac_audit](./hmac_audit.md) | HMAC-SHA256 audit (used in SerpentCipher) |

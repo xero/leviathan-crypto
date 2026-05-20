@@ -215,7 +215,7 @@ See [init.md](./init.md) for the full API.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [architectural-stance](./architectural-stance.md) | Architectural posture: defended threats, layer composition, and the framing constraint |
 | [init](./init.md) | `init()` API and WasmSource types |
 | [loader](./loader.md) | how WASM binaries are loaded and instantiated |

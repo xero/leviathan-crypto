@@ -776,6 +776,6 @@ cipher.dispose()
 | [serpent](./serpent.md) | `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming |
 | [sha2](./sha2.md) | SHA-2 hashes and HMAC. Needed for Encrypt-then-MAC if using raw ChaCha20 |
 | [types](./types.md) | `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 implementation audit |
 

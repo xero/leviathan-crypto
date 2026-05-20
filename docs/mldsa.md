@@ -7,6 +7,7 @@ module-lattice signature scheme.
 
 > ### Table of Contents
 > - [Overview](#overview)
+> - [Implementation Summary](#implementation-summary)
 > - [Parameter Sets](#parameter-sets)
 > - [Init](#init)
 > - [MlDsa API](#mldsa-api)
@@ -37,6 +38,14 @@ Verification against the full NIST ACVP corpora, 75 keyGen-FIPS204 vectors
 sigVer-FIPS204 external/pure tests including known-fail cases, confirms
 byte-identical pk/sk/σ output and the SUF-CMA-critical malformed-input
 checks (FIPS 204 §D.3 / Algorithm 21).
+
+---
+
+## Implementation Summary
+
+`mldsa.wasm` implements ML-DSA polynomial arithmetic per FIPS 204. It includes Montgomery and Barrett reduction over q = 8380417, an 8-layer SIMD NTT and inverse NTT with v128 i32 butterflies, basemul in T_q, rejection sampling for the public matrix Â (`rej_ntt_poly`) and the secret noise polynomials s₁/s₂ (`rej_bounded_poly`), Power2Round / Decompose / HighBits / LowBits with the parameter-set γ₂, MakeHint / UseHint, HintBitPack and HintBitUnpack with the three SUF-CMA-critical malformed-input checks from FIPS 204 §D.3 (Algorithm 21 lines 4, 9, 17), bit-pack/unpack at every required width, and SampleInBall in resumable form. Requires WebAssembly SIMD (`v128` instructions). Uses 4 memory pages (256 KB) with a matrix slot, eight polynomial vector slots, eight polynomial slots, and dedicated buffers for keys, signatures, and the SHAKE PRF stream. See [asm_mldsa.md](./asm_mldsa.md) for the full WASM reference.
+
+The TypeScript module exports `MlDsa44`, `MlDsa65`, and `MlDsa87`, signature classes covering NIST security categories 2, 3, and 5. All three require both `mldsa` and `sha3` to be initialized; HashML-DSA with a SHA-2 family pre-hash additionally requires `sha2`. The sha3 module provides SHAKE128 (matrix expansion via ExpandA), SHAKE256 (noise expansion via ExpandS, masking expansion via ExpandMask, message representative μ, ρ'' derivation, and SampleInBall), and the SHA3-fixed digests for HashML-DSA pre-hash. The sha2 module covers SHA2-{224, 256, 384, 512, 512/224, 512/256} when HashML-DSA selects a SHA-2 pre-hash.
 
 ---
 
@@ -645,11 +654,15 @@ interface, wire format, error reference, and usage examples.
 
 ---
 
-## Cross-references
+## Cross-References
 
-- [Architecture](./architecture.md), module layout and three-tier design.
-- [init.md](./init.md), `init()` API and module-loader contract.
-- [signaturesuite.md](./signaturesuite.md), `SignatureSuite` interface plus
-  the `MlDsa*Suite` consts, `Sign`, `SignStream`, and `VerifyStream`.
-- [asm_mldsa.md](./asm_mldsa.md), low-level WASM module reference.
-- [kyber.md](./kyber.md), sibling post-quantum module (KEM, not signatures).
+| Document | Description |
+|----------|-------------|
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [init.md](./init.md) | `init()` API and module-loader contract |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `MlDsa*Suite` consts, `Sign`, `SignStream`, `VerifyStream` |
+| [asm_mldsa.md](./asm_mldsa.md) | Low-level WASM module reference |
+| [mldsa_audit.md](./mldsa_audit.md) | ML-DSA audit checklist |
+| [slhdsa.md](./slhdsa.md) | Companion post-quantum signature primitive (hash-based, paired with ML-DSA in PQ-only hybrid suites) |
+| [kyber.md](./kyber.md) | Sibling post-quantum module (KEM, not signatures) |
+| [exports.md](./exports.md) | Full export catalog |

@@ -19,7 +19,7 @@ involved.
 > - [Performance](#performance)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
-> - [Cross-references](#cross-references)
+> - [Cross-References](#cross-references)
 
 ---
 
@@ -737,13 +737,15 @@ every path.
 
 ---
 
-## Cross-references
+## Cross-References
 
-- [Architecture](./architecture.md), module layout and three-tier design.
-- [init.md](./init.md), `init()` API and module-loader contract.
-- [signaturesuite.md](./signaturesuite.md), `SignatureSuite` interface
-  plus the `SlhDsa*Suite` and `MlDsa*SlhDsa*Suite` consts.
-- [slhdsa_audit.md](./slhdsa_audit.md), implementation audit checklist.
-- [mldsa.md](./mldsa.md), the lattice-based post-quantum signature peer.
-- [SECURITY.md](../SECURITY.md), PQ-only hybrid threat model and broader
-  signature-surface security posture.
+| Document | Description |
+|----------|-------------|
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [init.md](./init.md) | `init()` API and module-loader contract |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `SlhDsa*Suite` and `MlDsa*SlhDsa*Suite` consts |
+| [asm_slhdsa.md](./asm_slhdsa.md) | Low-level WASM module reference |
+| [slhdsa_audit.md](./slhdsa_audit.md) | Implementation audit checklist |
+| [mldsa.md](./mldsa.md) | The lattice-based post-quantum signature peer (paired with SLH-DSA in PQ-only hybrid suites) |
+| [SECURITY.md](../SECURITY.md) | PQ-only hybrid threat model and broader signature-surface security posture |
+| [exports.md](./exports.md) | Full export catalog |

@@ -481,3 +481,16 @@ output against the `blake3` RustCrypto crate for large-input regimes
 verifier shares zero code with the AssemblyScript stack and uses a
 pinned Rust toolchain plus a pinned `Cargo.lock`. See
 [vector_audit.md](./vector_audit.md) for the verifier coverage model.
+
+---
+
+## Cross-References
+
+| Document | Role |
+|----------|------|
+| [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [blake3.md](./blake3.md) | TypeScript API: `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, plus the `BLAKE3Hash` Fortuna HashFn const |
+| [merkle.md](./merkle.md) | `MerkleVerifier`, `MerkleLog`, `SignedLog`, `Sha256Tree`, `Blake3Tree`, `MemoryStorage`: append-only Merkle log substrate with inclusion / consistency proofs, signed tree heads, and the c2sp.org/tlog-cosignature wire format |
+| [blake3_audit.md](./blake3_audit.md) | BLAKE3 tree-mode correctness, compress / compress4 equivalence, flag bits, chunk machine, queue-per-level tree assembly, XOF snapshot integrity |

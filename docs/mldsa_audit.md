@@ -48,4 +48,4 @@ Audit of the `leviathan-crypto` WebAssembly ML-DSA implementation (AssemblyScrip
 | -------- | ----------- |
 | [mldsa](./mldsa.md) | ML-DSA public API reference, including the prehashed surface |
 | [audits](./audits.md) | Project audit index |
-| [architecture](./architecture.md) | Module structure, buffer layouts, build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

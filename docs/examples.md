@@ -795,7 +795,7 @@ shake.dispose()
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [cdn](./cdn.md) | CDN usage: no bundler required |
 

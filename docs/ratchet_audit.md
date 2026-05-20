@@ -429,7 +429,7 @@ end: `wipe(nextRk); wipe(bobNextRk)`.
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ratchet](./ratchet.md) | Ratchet KDF public API reference |
 | [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 audit (underlying primitive) |
 | [kyber](./kyber.md) | ML-KEM key encapsulation (KEM ratchet dependency) |
