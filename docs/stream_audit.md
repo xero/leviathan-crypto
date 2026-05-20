@@ -362,7 +362,7 @@ return diff === 0;
 > module (v128 XOR-accumulate with branch-free reduction). The JS path
 > was removed; the function now throws a branded error on runtimes
 > without WebAssembly SIMD. The constant-time property the audit relied
-> on is preserved and strengthened; see [asm_ct.md](./asm_ct.md) for
+> on is preserved and strengthened; see [asm_cte.md](./asm_cte.md) for
 > the current implementation.
 
 The minimum ciphertext size is checked by `OpenStream.pull()` before `openChunk` is ever called: `data.length < cipher.tagSize` → `RangeError` (`open-stream.ts:78-81`). For SerpentCipher, `tagSize = 32`, so chunks shorter than 32 bytes are rejected before reaching the cipher.
@@ -579,7 +579,7 @@ XOR-accumulate with no early return. The loop always executes all iterations. Th
 > without WebAssembly SIMD. The constant-time property is preserved
 > and strengthened: WASM v128 ops bypass the V8/SpiderMonkey scalar
 > JIT passes that the audit's "strongest available in JavaScript"
-> caveat referenced. See [asm_ct.md](./asm_ct.md).
+> caveat referenced. See [asm_cte.md](./asm_cte.md).
 
 **Verify-then-decrypt branching:**
 

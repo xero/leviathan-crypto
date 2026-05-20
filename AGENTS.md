@@ -190,8 +190,11 @@ flag the discrepancy.
 Decisions already made. Don't relitigate without raising it first.
 
 - **Independent WASM binaries** with separate linear memory, buffer
-  layout, AS entry point. `ct.wasm` is internal SIMD constant-time
-  compare.
+  layout, AS entry point. `cte.wasm` is the internal SIMD constant-time
+  equality module backing the TS `constantTimeEqual`. `cte/shared.ts`
+  is the AS source-level `ctEqual` inlined by other modules' compile
+  units (kyber, slhdsa, curve25519, p256) for in-WASM byte equality;
+  never emitted as a WASM export from any consumer binary.
 - **Static buffers only**: no dynamic allocation (`memory.grow()`
   unused). All buffers are fixed offsets in linear memory defined in
   `buffers.ts`.

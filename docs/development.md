@@ -92,7 +92,7 @@ bun run test unit:group aes
 | Target          | Inputs                                    | Outputs                                            | When to use                                                          |
 | --------------- | ----------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
 | `asm`           | `src/asm/*/index.ts`                      | `build/*.wasm`                                     | Edits to AssemblyScript sources                                      |
-| `embed`         | `build/*.wasm`                            | `src/ts/embedded/<module>.ts`, `src/ts/ct-wasm.ts` | After `asm` rebuilds                                                 |
+| `embed`         | `build/*.wasm`                            | `src/ts/embedded/<module>.ts`, `src/ts/cte-wasm.ts` | After `asm` rebuilds                                                 |
 | `embed-workers` | `src/ts/<cipher>/pool-worker.ts`          | `src/ts/embedded/<cipher>-pool-worker.ts`          | Edits to pool worker sources                                         |
 | `ts`            | `src/ts/**`                               | `dist/`                                            | Edits to TypeScript sources without an asm rebuild                   |
 | `wasm-copy`     | `build/*.wasm`                            | `dist/*.wasm`                                      | URL-loaded consumer testing                                          |
@@ -109,11 +109,11 @@ Each target cleans its own outputs before writing. Force is the only mode; there
 build/                 raw .wasm + asc-emitted .js/.d.ts (gitignored)
 dist/                  published npm package contents (gitignored)
 src/ts/embedded/       generated TS thunks: gz+b64 blobs + pool-worker IIFE strings (gitignored)
-src/ts/ct-wasm.ts      generated raw byte array for the ct module (gitignored)
+src/ts/cte-wasm.ts     generated raw byte array for the cte module (gitignored)
 CLAUDE.md              copy of docs/CLAUDE_consumer.md, ships in the npm tarball
 ```
 
-Every generated path is gitignored. Treat them as build artifacts. Never hand-edit anything under `src/ts/embedded/` or `src/ts/ct-wasm.ts`; the next `bun bake` overwrites them.
+Every generated path is gitignored. Treat them as build artifacts. Never hand-edit anything under `src/ts/embedded/` or `src/ts/cte-wasm.ts`; the next `bun bake` overwrites them.
 
 ---
 
@@ -122,7 +122,7 @@ Every generated path is gitignored. Treat them as build artifacts. Never hand-ed
 **Stale output after a branch switch or a partial run.** Nuke the build outputs and rebuild from scratch.
 
 ```sh
-rm -rf build dist src/ts/embedded src/ts/ct-wasm.ts CLAUDE.md
+rm -rf build dist src/ts/embedded src/ts/cte-wasm.ts CLAUDE.md
 bun bake
 ```
 
