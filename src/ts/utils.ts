@@ -136,55 +136,55 @@ export const bytesToBase64 = (bytes: Uint8Array, url = false): string => {
 
 // ── Constant-time comparison ────────────────────────────────────────────────
 
-import { CT_WASM } from './ct-wasm.js';
+import { CTE_WASM } from './cte-wasm.js';
 
-let _ctCompare: ((a: number, b: number, len: number) => number) | null = null;
-let _ctMem: WebAssembly.Memory | null = null;
-let _ctMemView: Uint8Array | null = null;
-let _ctInit = false;
-let _ctInitError: Error | null = null;
+let _cteCompare: ((a: number, b: number, len: number) => number) | null = null;
+let _cteMem: WebAssembly.Memory | null = null;
+let _cteMemView: Uint8Array | null = null;
+let _cteInit = false;
+let _cteInitError: Error | null = null;
 
-// CT WASM module uses 1 page (64KB) of linear memory with both buffers
+// CTE WASM module uses 1 page (64KB) of linear memory with both buffers
 // laid out side-by-side: a at offset 0, b at offset a.length.
-// Max per-side = _ctMem.buffer.byteLength >>> 1 = 32768 bytes.
+// Max per-side = _cteMem.buffer.byteLength >>> 1 = 32768 bytes.
 // In practice the largest comparison is a 32-byte HMAC-SHA-256 tag.
-export const CT_MAX_BYTES = 32768;
+export const CTE_MAX_BYTES = 32768;
 
 /**
- * Compile and instantiate the SIMD WASM ct module. On failure, caches the
+ * Compile and instantiate the SIMD WASM cte module. On failure, caches the
  * branded error and re-throws on every subsequent call; no retries, no
  * fallback. Throws on runtimes without WebAssembly SIMD and on any
  * instantiation error.
  */
-function _initCt(): void {
-	if (_ctInit) {
-		if (_ctInitError) throw _ctInitError;
+function _initCte(): void {
+	if (_cteInit) {
+		if (_cteInitError) throw _cteInitError;
 		return;
 	}
-	_ctInit = true;
+	_cteInit = true;
 	if (!hasSIMD()) {
-		_ctInitError = new Error(
+		_cteInitError = new Error(
 			'leviathan-crypto: constantTimeEqual requires WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
-		throw _ctInitError;
+		throw _cteInitError;
 	}
 	try {
-		const buf = CT_WASM.buffer.slice(CT_WASM.byteOffset, CT_WASM.byteOffset + CT_WASM.byteLength);
+		const buf = CTE_WASM.buffer.slice(CTE_WASM.byteOffset, CTE_WASM.byteOffset + CTE_WASM.byteLength);
 		const mod = new WebAssembly.Module(buf as ArrayBuffer);
 		const inst = new WebAssembly.Instance(mod);
 		const exports = inst.exports as {
 			memory:  WebAssembly.Memory;
 			compare: (a: number, b: number, len: number) => number;
 		};
-		_ctMem     = exports.memory;
-		_ctMemView = new Uint8Array(_ctMem.buffer);
-		_ctCompare = exports.compare;
+		_cteMem     = exports.memory;
+		_cteMemView = new Uint8Array(_cteMem.buffer);
+		_cteCompare = exports.compare;
 	} catch (cause) {
-		_ctInitError = new Error(
-			`leviathan-crypto: ct WASM module failed to instantiate: ${(cause as Error).message}`,
+		_cteInitError = new Error(
+			`leviathan-crypto: cte WASM module failed to instantiate: ${(cause as Error).message}`,
 		);
-		throw _ctInitError;
+		throw _cteInitError;
 	}
 }
 
@@ -197,41 +197,41 @@ function _initCt(): void {
  */
 export const constantTimeEqual = (a: Uint8Array, b: Uint8Array): boolean => {
 	if (a.length !== b.length) return false;
-	if (a.length > CT_MAX_BYTES)
-		throw new RangeError(`constantTimeEqual: max ${CT_MAX_BYTES} bytes (got ${a.length})`);
-	_initCt();
-	// Copy module-level refs to locals. _initCt() either populates all three
+	if (a.length > CTE_MAX_BYTES)
+		throw new RangeError(`constantTimeEqual: max ${CTE_MAX_BYTES} bytes (got ${a.length})`);
+	_initCte();
+	// Copy module-level refs to locals. _initCte() either populates all three
 	// or throws; the null check below is a defensive invariant guard that is
 	// unreachable on a correctly-initialized module.
-	const mem     = _ctMemView;
-	const compare = _ctCompare;
+	const mem     = _cteMemView;
+	const compare = _cteCompare;
 	if (!mem || !compare)
-		throw new Error('leviathan-crypto: ct init invariant violated');
+		throw new Error('leviathan-crypto: cte init invariant violated');
 	mem.set(a, 0);
 	mem.set(b, a.length);
 	try {
 		return compare(0, a.length, a.length) === 1;
 	} finally {
-		// Wipe the full ct memory region, not just the bytes we wrote.
+		// Wipe the full cte memory region, not just the bytes we wrote.
 		// Defense in depth against stale residue from longer prior calls.
 		// The module-private WASM memory is never read from outside this
 		// function, but we keep the surface clean regardless.
-		mem.fill(0, 0, CT_MAX_BYTES * 2);
+		mem.fill(0, 0, CTE_MAX_BYTES * 2);
 	}
 };
 
 /**
- * Reset the internal CT WASM cache, including any cached initialization
+ * Reset the internal CTE WASM cache, including any cached initialization
  * error. Exists so the test suite can force re-instantiation across
  * describe blocks.
  * @internal
  */
-export function _ctResetForTesting(): void {
-	_ctInit = false;
-	_ctCompare = null;
-	_ctMem = null;
-	_ctMemView = null;
-	_ctInitError = null;
+export function _cteResetForTesting(): void {
+	_cteInit = false;
+	_cteCompare = null;
+	_cteMem = null;
+	_cteMemView = null;
+	_cteInitError = null;
 }
 
 /** Zero a typed array in place. */

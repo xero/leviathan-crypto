@@ -29,10 +29,10 @@
  *   - Max-length boundary (32768 pass, 32769 throws RangeError).
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { constantTimeEqual, CT_MAX_BYTES, _ctResetForTesting } from '../../../src/ts/utils.js';
+import { constantTimeEqual, CTE_MAX_BYTES, _cteResetForTesting } from '../../../src/ts/utils.js';
 
-const LENGTHS_EQ = [0, 1, 15, 16, 17, 31, 32, 33, 100, CT_MAX_BYTES] as const;
-const LENGTHS_NEQ = [1, 16, 17, 31, 32, 33, 100, CT_MAX_BYTES] as const;
+const LENGTHS_EQ = [0, 1, 15, 16, 17, 31, 32, 33, 100, CTE_MAX_BYTES] as const;
+const LENGTHS_NEQ = [1, 16, 17, 31, 32, 33, 100, CTE_MAX_BYTES] as const;
 
 function filled(len: number, seed = 0xa5): Uint8Array {
 	const out = new Uint8Array(len);
@@ -85,14 +85,14 @@ function runMatrix(): void {
 
 describe('constantTimeEqual', () => {
 	beforeAll(() => {
-		_ctResetForTesting();
+		_cteResetForTesting();
 	});
 	runMatrix();
 
-	it('max-length boundary: CT_MAX_BYTES passes, CT_MAX_BYTES + 1 throws', () => {
-		const ok = new Uint8Array(CT_MAX_BYTES);
+	it('max-length boundary: CTE_MAX_BYTES passes, CTE_MAX_BYTES + 1 throws', () => {
+		const ok = new Uint8Array(CTE_MAX_BYTES);
 		expect(constantTimeEqual(ok, ok)).toBe(true);
-		const over = new Uint8Array(CT_MAX_BYTES + 1);
+		const over = new Uint8Array(CTE_MAX_BYTES + 1);
 		expect(() => constantTimeEqual(over, over)).toThrow(RangeError);
 	});
 });

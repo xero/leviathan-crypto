@@ -13,7 +13,7 @@ export default defineConfig([
       ".claude/**",
       "src/asm/**",
 			"src/ts/embedded/**",
-			"src/ts/ct-wasm.ts",
+			"src/ts/cte-wasm.ts",
       "tslint.config.ts",
       "vitest.config.ts",
       "eslint.config.ts",
