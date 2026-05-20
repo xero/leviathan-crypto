@@ -21,28 +21,9 @@
 //
 // test/unit/sign/sign-stream-equivalence-ecdsa-p256.test.ts
 //
-// SignStream vs Sign.sign equivalence gate for EcdsaP256Suite. Unlike
-// the Ed25519 prehash equivalence test, ECDSA-P256 cannot match
-// byte-for-byte across one-shot and streamed sign paths because each
-// suite-level sign generates fresh randomBytes(32) per call (hedged
-// per draft-irtf-cfrg-det-sigs-with-noise-05) and so the trailing
-// signature differs every time. The equivalence test instead asserts
-// the framing invariants:
-//
-//   1. Header bytes [suite_byte][ctx_len][ctx] are byte-identical to
-//      `Sign.sign`'s output prefix.
-//   2. The payload region (bytes [2+ctx_len, length-64)) is byte-
-//      identical to the input message.
-//   3. Both blobs verify under the same pk via `Sign.verify`.
-//   4. `VerifyStream` accepts a chunked feed of the streamed blob and
-//      returns the payload.
-//   5. A subsequent `update()` after `finalize()` throws
-//      sig-stream-finalized.
-//
-// The hasher buffering shim (sha256Buffered in src/ts/sign/hasher.ts)
-// is exercised here: SignStream drives it under the hood; a regression
-// (e.g. accidentally re-finalising the buffered shim) would surface as
-// a verify failure on the streamed blob.
+// Sign-vs-SignStream framing-invariants gate for EcdsaP256Suite.
+// Sigs differ per hedged call; payload / header / round-trip / VerifyStream /
+// finalize re-update invariants gated. See docs/ecdsa-p256.md#stream-equivalence.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, concat } from '../../../src/ts/index.js';

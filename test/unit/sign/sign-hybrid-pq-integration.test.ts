@@ -21,15 +21,8 @@
 //
 // test/unit/sign/sign-hybrid-pq-integration.test.ts
 //
-// End-to-end envelope and streaming coverage for the three PQ-only hybrid
-// suites. Covers:
-//   - Sign.sign / Sign.verify round-trip per hybrid.
-//   - SignStream + VerifyStream round-trip per hybrid (hybrids are
-//     StreamableSignatureSuite by construction, prehash is mandatory).
-//   - Streamed-blob byte-equality with single-shot Sign.sign output under
-//     deterministic sub-sign on both halves. The production sign path is
-//     hedged, so a direct byte-compare uses the underlying
-//     signHashPrehashedDeterministic surface on both primitives.
+// Envelope + stream integration for the three PQ-only hybrid suites.
+// See docs/signaturesuite.md#hybrid-pq-only-integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, utf8ToBytes, concat } from '../../../src/ts/index.js';

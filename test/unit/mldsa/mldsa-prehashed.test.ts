@@ -20,16 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * HashML-DSA prehashed-input variants, FIPS 204 §5.4 Algorithms 4 & 5.
- *
- * Drives the four public methods `signHashPrehashed`,
- * `signHashPrehashedDeterministic`, `signHashPrehashedDerand`, and
- * `verifyHashPrehashed`. The existing HashML-DSA ACVP corpus is reused
- * by extracting PH externally with the matching public hash class, then
- * feeding (sk, PH, ph, ctx) to the prehashed sign and asserting
- * byte-identical signatures against the canonical sigGen vector. Same
- * vector list as `hashvariant.test.ts` (preHash branch only), no new
- * vectors are introduced, per the refactor-invariant rule.
+ * HashML-DSA prehashed variants, FIPS 204 §5.4 Algorithms 4 & 5. Drives
+ * signHashPrehashed / Deterministic / Derand / verifyHashPrehashed.
+ * Reuses HashML-DSA ACVP corpus (preHash branch), PH extracted externally.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import {

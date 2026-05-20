@@ -109,13 +109,6 @@ export function pointMul(scalarBE: i32, p: i32, out: i32): void {
 }
 
 // ── pointMulBase: fixed-base scalar multiplication ─────────────────────────
-//
-// Currently a thin wrapper over pointMul with G materialised at call
-// time. Future optimization: precomputed comb table on G (4-bit
-// windows over multiples of G, 2^16 G, 2^32 G, ...) for sign
-// performance. The gate test exercises [n]G = identity (the curve-
-// order check) which is independent of the algorithm shape and will
-// catch any change.
 
 /**
  * out = [scalar]G where G is the SP 800-186 §3.2.1.3 P-256 basepoint.

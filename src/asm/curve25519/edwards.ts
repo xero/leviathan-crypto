@@ -352,15 +352,8 @@ export function edPointMul(out: i32, scalar: i32, p: i32): void {
 }
 
 // ── edPointMulBase ──────────────────────────────────────────────────────────
-//
-// Fixed-base scalar multiplication: out = [scalar] * B. Same straight-
-// line double-and-add loop body as edPointMul, with B written into a
-// POINT_TMP slot once at the start.
-//
-// NO precomputed multiples of B. The fixed-base path pays the same ~255
-// doubles + ~255 adds + ~255 selects as the variable-base path. This is
-// intentional under the no-tables posture; the audit surface is
-// smaller and there are no key-bit-indexed table accesses.
+// Fixed-base: out = [scalar] * B. Same loop as edPointMul with B in
+// POINT_TMP slot 3. No precomputed comb (see edPointMul rule).
 
 export function edPointMulBase(out: i32, scalar: i32): void {
 	// Materialise B into the spare POINT_TMP slot reserved for this, then

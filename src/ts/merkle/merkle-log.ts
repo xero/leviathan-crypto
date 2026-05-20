@@ -21,24 +21,14 @@
 //
 // src/ts/merkle/merkle-log.ts
 //
-// `MerkleLog` is the producer-side normie surface. Memory-backed via
-// `MemoryStorage`; suitable for in-process logs, test fixtures, small
-// embedded uses, and demo code. Real deployments that need file or
-// database storage drop down to `SignedLog<S>` with a custom
-// `MerkleStorage` implementation.
+// `MerkleLog`, the producer-side normie surface. Memory-backed via
+// `MemoryStorage`. Real deployments drop down to `SignedLog<S>` with a
+// custom `MerkleStorage`.
 //
-// Defaults resolve to `hashing: 'sha256'` and `suite: MlDsa44Suite`:
-// SHA-256 is the C2SP-interop choice; ML-DSA-44 is the
-// C2SP-recommended PQ default per c2sp.org/tlog-checkpoint and is the
-// only PQ suite currently registered in the c2sp.org/tlog-cosignature
-// §Format algorithm-byte registry. Users wanting Sigsum interop pass
-// `suite: Ed25519Suite` explicitly.
-//
-// Registry check is the runtime gate. Suites without a registered
-// algorithm byte (`EcdsaP256Suite`, prehash variants, ML-DSA-65/87,
-// SLH-DSA, hybrids) raise `MerkleLogError('unsupported-suite')` at
-// `create` / `generate` time so the failure surfaces before any
-// signing happens.
+// Defaults: `hashing: 'sha256'`, `suite: MlDsa44Suite`. ML-DSA-44 is
+// the PQ default per c2sp.org/tlog-checkpoint, the only PQ suite
+// currently in the c2sp.org/tlog-cosignature §Format algorithm-byte
+// registry. Sigsum interop: pass `suite: Ed25519Suite`.
 
 import { isInitialized } from '../init.js';
 import type { Module } from '../init.js';

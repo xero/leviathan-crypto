@@ -172,31 +172,8 @@ export interface Blake3TestExports {
 		outCcvOff:  number,
 	) => void
 
-	// Test-grade instrumentation, NOT production telemetry. Counts the
-	// number of `chunkBatch4` invocations on the WASM module since the
-	// last `_resetBatch4CallCount()` call. The compress4-dispatch unit
-	// test resets the counter, fires a hash, and asserts the counter
-	// reflects the expected number of 4-chunk batches; this proves
-	// `hashCore` actually dispatches multi-chunk inputs through the
-	// v128-external compress4 kernel rather than silently falling
-	// through to the single-chunk path. Held in a WASM global, so
-	// `wipeBuffers()` does not clear it (the counter is debug-only and
-	// not sensitive).
-	_getBatch4CallCount:   () => number
-	_resetBatch4CallCount: () => void
-
-	// Test-grade instrumentation for parent-level compress4 dispatch
-	// coverage, parallel to `_getBatch4CallCount` /
-	// `_resetBatch4CallCount` above. Counts the number of `parentBatch4`
-	// invocations on the WASM module since the last
-	// `_resetParentBatch4CallCount()` call. The parent-dispatch unit
-	// test resets the counter, fires a hash, and asserts the counter
-	// reflects the expected number of 4-parent batches; this proves
-	// `treePushChunk` actually dispatches parent merges through the
-	// v128-external compress4 kernel for inputs producing ≥ 8 chunks
-	// rather than silently falling back to single-pair `compress`
-	// merges. Held in a WASM global, so `wipeBuffers()` does not
-	// clear it (the counter is debug-only and not sensitive).
+	_getBatch4CallCount:         () => number
+	_resetBatch4CallCount:       () => void
 	_getParentBatch4CallCount:   () => number
 	_resetParentBatch4CallCount: () => void
 }

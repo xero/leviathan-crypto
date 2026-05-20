@@ -20,16 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * Fortuna wipe-lifecycle discipline.
- *
- * Contract:
- *   - Every Uint8Array reassignment wipes the prior buffer before dropping
- *     the reference (pseudoRandomData, reseed, addRandomEvent, pool reset).
- *   - stop() wipes genKey, genCnt, every pool-hash chain, and calls
- *     wipeBuffers() on every WASM module the chosen generator and hash used.
- *
- * These guarantees prevent forward-secrecy-critical bytes from being fished
- * out of leaked memory after reseed or after stop().
+ * Fortuna wipe-lifecycle. Every Uint8Array reassignment wipes prior
+ * buffer; stop() wipes genKey / genCnt / pool hashes + WASM wipeBuffers
+ * across every module used. Forward-secrecy guard. See docs/fortuna.md#wipe-lifecycle.
  */
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { init, Fortuna } from '../../../src/ts/index.js';

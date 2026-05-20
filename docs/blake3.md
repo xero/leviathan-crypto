@@ -15,6 +15,7 @@ BLAKE3-256 into the Fortuna substrate.
 > - [API Reference](#api-reference)
 > - [Usage Examples](#usage-examples)
 > - [Error Conditions](#error-conditions)
+> - [Dispatch coverage](#dispatch-coverage)
 > - [Cross-References](#cross-references)
 
 ---
@@ -350,6 +351,89 @@ const bytes = rng.get(64)
 | `update()` after `finalize()` / `finalizeXof()`            | All `BLAKE3*Stream.update`                                               | `Error: BLAKE3 stream: update() after finalize/finalizeXof`                                  |
 | Any method on a disposed stream                            | All `BLAKE3*Stream` methods                                              | `Error: BLAKE3Stream: instance has been disposed` (or `BLAKE3KeyedHashStream` / `BLAKE3DeriveKeyStream` equivalent) |
 | Any method on a disposed reader                            | `BLAKE3OutputReader.read`                                                | `Error: BLAKE3OutputReader: instance has been disposed`                                       |
+
+---
+
+## Dispatch coverage
+
+The BLAKE3 SIMD hot paths (`compress4` driving chunk-level and
+parent-level batches) carry dispatch-coverage tests that confirm the
+kernel actually fires for inputs that should hit it, not just
+KAT-equivalence on small inputs.
+
+### Tree-level (parent merge) dispatch
+
+`test/unit/blake3/blake3-parent-dispatch.test.ts` proves the
+multi-chunk hash hot path drives parent merges through the
+v128-external `compress4` kernel (via `parentBatch4` in
+`src/asm/blake3/tree_simd.ts`) for inputs producing >= 8 chunks.
+
+The queue-per-level discipline in `src/asm/blake3/tree.ts` defers
+push-time merges: a chunk CV lands in level 0's queue, and when a
+level's queue reaches 8 entries `parentBatch4` batches 4 parent
+merges in parallel. The 4 outputs propagate to the next level's
+queue, possibly cascading further batches at upper levels.
+
+The WASM module carries a test-only `parentBatch4` invocation counter
+held as a WASM global, not in linear memory, so `wipeBuffers()` does
+not clear it. Each exact-count assertion resets the counter, fires a
+hash, and verifies the counter equals the predicted cascade depth for
+that input size.
+
+Predicted cascade per input size (chunks = ceil(inputLen / 1024)):
+
+| Input bytes | Chunks | Batches | Where |
+|---|---|---|---|
+| 4096  | 4  | 0  | count[0] stays <= 7 |
+| 7168  | 7  | 0  | count[0] stays <= 7 |
+| 8192  | 8  | 1  | L=0 (push 8 cascades to count[1]=4) |
+| 16384 | 16 | 3  | 2 at L=0 (pushes 8 and 16), 1 at L=1 when count[1] reaches 8 |
+| 32768 | 32 | 7  | 4 at L=0, 2 at L=1, 1 at L=2 |
+| 65536 | 64 | 15 | 8 at L=0, 4 at L=1, 2 at L=2, 1 at L=3 |
+
+A KAT regression over every upstream corpus record with
+`inputLen >= 8192` confirms the queue-per-level discipline produces
+byte-identical output to the prior ctz-stack implementation. The
+BLAKE3 §2.5 reorganisation changes WHEN merges happen, not WHAT they
+compute, so KAT regression is the bit-correctness gate.
+
+### Chunk-level dispatch
+
+`test/unit/blake3/blake3-compress4-dispatch.test.ts` proves the
+multi-chunk hash hot path in `hashCore` (`src/asm/blake3/index.ts`)
+actually dispatches 4-chunk batches through the v128-external
+`compress4` kernel for inputs >= 4096 bytes, rather than silently
+falling through to the per-block single-chunk path.
+
+The WASM module carries a test-only `chunkBatch4` invocation counter
+held as a WASM global, not in linear memory, so `wipeBuffers()` does
+not clear it. Each assertion resets the counter, fires a hash, and
+verifies the counter reflects the expected number of 4-chunk batches.
+
+A KAT regression over every upstream corpus record with
+`inputLen >= 4096` confirms the dispatch produces bit-identical output
+to the previous single-chunk implementation. The 35-case KAT corpus
+is already gated by `test/unit/blake3/blake3-kat.test.ts`; the
+explicit subset here makes the dispatched-via-compress4 coverage
+legible.
+
+### compress4 equivalence
+
+`test/unit/blake3/blake3-compress4-equiv.test.ts` is the
+bit-equivalence gate between `compress4` and four sequential
+`compress` calls. `compress4` (v128-external SIMD, lane K = compress
+operation K) must be bit-identical to four sequential `compress`
+calls on the same inputs.
+
+Equivalence is checked across deterministic randomised inputs from a
+fixed seed across 64 iterations, exercising independently distributed
+CV, message, counter, block_len, and flag values.
+
+If `compress` has already passed its BLAKE3 §2.2 gate against the
+BLAKE3 KAT (`test/unit/blake3/blake3-compress.test.ts`), matching
+`compress4` to it under random inputs establishes `compress4`'s
+correctness without embedding additional cryptographic values in this
+file.
 
 ---
 

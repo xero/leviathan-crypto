@@ -21,30 +21,19 @@
 //
 // src/ts/merkle/blake3-tree.ts
 //
-// BLAKE3 specialisation of the Hasher / MerkleTree interfaces. Native
-// BLAKE3 tree composition: domain separation between leaves and internal
-// nodes comes from BLAKE3's own flag bytes (BLAKE3 §2.4 CHUNK_START /
-// CHUNK_END / ROOT and §2.5 PARENT), not from RFC 6962-style 0x00 / 0x01
-// prefix bytes. Stacking RFC 6962 prefixes on top of BLAKE3 would be
-// redundant separation and would also discard `compress4` parallelism at
-// the internal-node layer.
+// BLAKE3 Hasher / MerkleTree. Domain separation comes from BLAKE3's own
+// §2.4 CHUNK_START / CHUNK_END / ROOT and §2.5 PARENT flags, not from
+// RFC 6962-style 0x00 / 0x01 prefix bytes (those would be redundant and
+// discard `compress4` parallelism at the internal-node layer).
 //
 // Composition:
 //   hashEmpty()                = BLAKE3()                                §2.5
 //   hashLeaf(leaf)             = BLAKE3(leaf)                            §2.4
 //   hashInternal(left, right)  = _testParentCV(left, right, IV, 0, 0)    §2.5
 //
-// The parent compress is called with modeFlags = 0 (default mode, neither
-// keyed_hash nor derive_key) and isRoot = 0 at every level, including the
-// top of the tree. The root flag is the SignedLog layer's concern; the
-// tree's top hash exits as a plain CV and keeps `hashInternal` symmetric
-// across every internal node.
-//
-// Per-call WASM lifecycle: every method instantiates a fresh module
-// handle inside try / finally + dispose. There is no long-lived module
-// ownership; concurrent users are serialised by the per-module
-// exclusivity guard. This mirrors the Sha256Hasher pattern in
-// `sha256-tree.ts`.
+// Parent compress runs with modeFlags = 0 and isRoot = 0 at every level.
+// The root flag is the SignedLog layer's concern; the tree's top hash
+// exits as a plain CV, keeping `hashInternal` symmetric.
 
 import { BLAKE3 } from '../blake3/index.js';
 import { getInstance } from '../init.js';
@@ -72,14 +61,9 @@ function getBlake3Exports(): Blake3FullExports {
 
 // ── Scratch layout for `_testParentCV` ──────────────────────────────────────
 //
-// `_testParentCV` reads its left / right / startCv inputs from caller-
-// supplied offsets, runs one parent compress (which touches the module's
-// internal CV_OFFSET / MSG_OFFSET / COMPRESS_OUT region only), and writes
-// 32 bytes to the caller-supplied output offset. None of the offsets we
-// pass are touched by the §2.4 chunk pipeline or §2.5 tree-assembly
-// queues, so any region past `BUFFER_END = 26328` (and inside the
-// module's 2 pages = 131072 bytes) is safe to use. We pick offsets in
-// the second page for headroom; the layout fits in 128 bytes.
+// Second-page offsets (past BUFFER_END = 26328 from
+// `src/asm/blake3/buffers.ts`) are untouched by the §2.4 chunk pipeline
+// and §2.5 tree-assembly queues; safe for caller-supplied scratch.
 
 const PARENT_LEFT_OFF  = 65536;
 const PARENT_RIGHT_OFF = PARENT_LEFT_OFF  + 32;

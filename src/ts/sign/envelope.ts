@@ -24,21 +24,7 @@
 // Sign, single-shot signing/verification using the attached envelope wire
 // format. Mirrors the static-only-class pattern from stream/seal.ts.
 //
-// Wire format (v3 attached envelope):
-//
-//   [suite_byte:  u8]                          1 byte
-//   [ctx_len:     u8]                          1 byte
-//   [ctx:         ctx_len bytes]               0-255 bytes
-//   [payload_len: u32 BE]                      4 bytes
-//   [payload:     payload_len bytes]           0-(2^32 - 1) bytes
-//   [sig:         remainder bytes]             variable, <= suite.sigMaxSize
-//
-// Total: 6 + ctx_len + payload_len + sig.length. The explicit payload_len
-// field lets sig length float, which is required for variable-length
-// signature schemes (e.g. composite ECDSA, whose Ecdsa-Sig-Value DER
-// encoding per RFC 3279 §2.2.3 varies with leading-zero stripping). For
-// fixed-length suites the trailing sig fills exactly suite.sigMaxSize
-// bytes; the suite's verify path enforces the exact length.
+// Wire format see: docs/signing.md#attached-envelope.
 
 import { constantTimeEqual } from '../utils.js';
 import { SigningError } from '../errors.js';
@@ -153,12 +139,8 @@ export class Sign {
 }
 
 /**
- * Parse the wire header (suite_byte, ctx_len, ctx, payload_len) and
- * return the derived offsets. Throws sig-blob-too-short on every
- * wire-shape overflow case: short header, ctx_len past blob end,
- * payload_len past blob end. The discriminator stays uniform across
- * the four overflow modes per the v3 envelope spec; callers that want
- * a sharper diagnostic read the `.message` of the thrown SigningError.
+ * Parse the wire header. Throws SigningError('sig-blob-too-short')
+ * on every wire-shape overflow; .message carries the specifics.
  */
 function parseHeader(blob: Uint8Array, suite: SignatureSuite): {
 	suiteByte: number;
@@ -207,9 +189,6 @@ function assembleBlob(
 			'sig-ctx-too-long',
 			`ctx length ${ctx.length} > 255 (wire format ctx_len is u8)`,
 		);
-	// payload.length fits the u32 BE payload_len field. Practical msg
-	// sizes are nowhere near 2^32 - 1, but the cap is the wire-format
-	// invariant rather than a soft policy.
 	if (payload.length > 0xFFFFFFFF)
 		throw new SigningError(
 			'sig-malformed-input',

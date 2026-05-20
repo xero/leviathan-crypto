@@ -21,31 +21,10 @@
 //
 // src/ts/sign/suites/ed25519.ts
 //
-// Ed25519PureSuite and Ed25519PrehashSuite factories (internal, not exported).
-// Two exported const objects cover RFC 8032 Ed25519:
-//   0x01  Ed25519Suite          (pure Ed25519, RFC 8032 §5.1.6)
-//   0x11  Ed25519PreHashSuite   (Ed25519ph,   RFC 8032 §5.1.7)
+// Ed25519Suite (0x01, RFC 8032 §5.1.6) and Ed25519PreHashSuite
+// (0x11, Ed25519ph, RFC 8032 §5.1.7).
 //
-// Each method instantiates a fresh `Ed25519` per call inside a
-// try/finally + dispose pattern so WASM key material is wiped on every
-// path. The factories are NOT exported: catalog format bytes are reserved
-// and exposing factories would invite custom suites with unmanaged bytes.
-//
-// The pure-mode factory deliberately diverges from the mldsa / slhdsa
-// precedents in one place: RFC 8032's pure Ed25519 has no native context
-// parameter, so the suite rejects non-empty user_ctx with
-// `SigningError('sig-ctx-unsupported')`. ctxDomain is set on the suite
-// for `formatName` / display purposes only and is never fed to the
-// underlying primitive. Callers who need context binding must use
-// `Ed25519PreHashSuite`, where the dom2(F=1, ctx) construction (RFC 8032
-// §5.1.7) gives a spec-defined home for it.
-//
-// Both suites advertise `wasmModules: ['curve25519']`; the prehash
-// suite additionally requires `'sha2'` because the TS-side SHA-512
-// shim in sign/hasher.ts drives the running prehash through the sha2
-// WASM module. (The embedded SHA-512 inside curve25519.wasm is
-// the substrate's own internal hash and is not exposed at the WASM
-// ABI.)
+// Catalog + sizes: docs/signaturesuite.md. Suite reference: docs/ed25519.md.
 
 import { utf8ToBytes, wipe } from '../../utils.js';
 import { SigningError } from '../../errors.js';
@@ -85,11 +64,6 @@ function Ed25519PureSuite(
 		wasmModules,
 
 		sign(sk: Uint8Array, msg: Uint8Array, ctx: Uint8Array): Uint8Array {
-			// Pure Ed25519 has no native context (RFC 8032 §5.1.6). ctxDomain
-			// is set on the suite for formatName / display but is never bound
-			// into the signature. Reject non-empty user_ctx; the only way to
-			// bind a context with Ed25519 is the prehash mode
-			// (Ed25519PreHashSuite, formatEnum 0x11) via dom2(F=1, ctx).
 			if (ctx.length > 0)
 				throw new SigningError(
 					'sig-ctx-unsupported',
@@ -148,11 +122,6 @@ function Ed25519PrehashSuite(
 			`leviathan-crypto: ctxDomain '${ctxDomain}' too long for ${formatName}`,
 		);
 
-	// 'sha2' is advertised because the TS-side SHA-512 used by the
-	// message-taking sign / verify paths and by SignStream's running
-	// prehash both drive the sha2 WASM module. The dom2(F=1, ctx)
-	// prefixing happens inside curve25519.wasm with its own embedded
-	// SHA-512; sha2 is purely a TS-layer dependency.
 	const wasmModules = Object.freeze(['curve25519', 'sha2'] as const);
 	const prehashAlgorithm: PrehashAlgorithm = 'sha-512';
 	const prehashSize = 64;

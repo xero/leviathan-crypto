@@ -13,6 +13,7 @@ The extension point for the streaming AEAD layer. `Seal`, `SealStream`, `OpenStr
 >   - [AESGCMSIVCipher](#aesgcmsivcipher)
 > - [KyberSuite](#kybersuite)
 > - [Interface reference](#interface-reference)
+> - [Per-cipher contract tests](#per-cipher-contract-tests)
 > - [Cross-References](#cross-references)
 
 ---
@@ -226,6 +227,44 @@ Your `formatEnum` must not conflict with the built-in values (`0x02`, `0x03`,
 `hkdfInfo` string must be unique to your cipher to prevent key reuse across suites.
 `wipeKeys` must zero every byte of derived key material, the stream layer calls
 it unconditionally after finalize.
+
+---
+
+## Per-cipher contract tests
+
+Per-cipher contract tests cover the behaviours that vary in shape
+across the shipped suites: header binding, commitment field, and the
+cipher's native key-committing properties. They live alongside the
+cipher-agnostic stream contract tests in `test/unit/stream/`.
+
+The cipher-agnostic block (round-trip, AAD, blob format, `OpenStream`
+compat, error handling, wrong-key / tampered-tag / tampered-ct failure
+modes) lives in `test/unit/stream/seal.test.ts` and runs for every
+cipher via parameterisation over `test/unit/stream/_cipher-spec.ts`.
+
+Each shipped cipher carries one `<cipher>-cipher-suite.test.ts`
+implementing the same describe-block shape. Where the cipher's
+behaviour differs (`SerpentCipher` does not header-bind, for example)
+the describe block is still present, but the assertions are the
+inverse and the test name describes the property being verified.
+
+| Describe block | What it covers |
+|---|---|
+| `deriveKeys` | Commitment-or-no-commitment shape, plus header-binding effect on derived keys (or its absence for Serpent). |
+| `Header binding` | Header-tamper effect on decrypt (failure for v3, no-effect for v2). |
+| `Commitment` | Flipping a byte in the commitment region rejects on decrypt (v3 only; Serpent's block asserts the preamble has no commitment region). |
+| Cipher-specific | Per-cipher behaviours below the shared blocks. |
+
+The shipped contract-test files:
+
+| File | Cipher |
+|---|---|
+| `test/unit/stream/serpent-cipher-suite.test.ts` | `SerpentCipher` |
+| `test/unit/stream/xchacha20-cipher-suite.test.ts` | `XChaCha20Cipher` |
+| `test/unit/stream/aes-cipher-suite.test.ts` | `AESGCMSIVCipher` |
+
+Any new `CipherSuite` added to the catalog gets its own contract-test
+file matching the same describe-block shape.
 
 ---
 

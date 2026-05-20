@@ -20,30 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * XChaCha20 cipher-suite contract tests, per-cipher behaviors that
- * vary in shape across ciphers (header binding, commitment field, native
- * key-committing properties).
- *
- * Cipher-agnostic stream contract tests (round-trip, AAD, blob format,
- * OpenStream-compat, error handling, wrong-key/tampered-tag/tampered-ct
- * failure modes) live in test/unit/stream/seal.test.ts and run for every
- * cipher in test/unit/stream/_cipher-spec.ts via parameterization.
- *
- * Every <cipher>-cipher-suite.test.ts file in this directory implements
- * the following describe blocks. Where the cipher's behavior differs in
- * shape (e.g., Serpent does not header-bind), the describe block is
- * still present, but the assertions are the inverse: the test name
- * describes what is being verified, and the body asserts the relevant
- * property holds.
- *
- *   - 'deriveKeys', commitment-or-no-commitment shape, plus header-
- *     binding effect on derived keys (or absence thereof for Serpent).
- *   - 'Header binding', header tamper effect on decrypt (failure for
- *     v3, no-effect for v2).
- *   - 'Commitment', flipping a byte in the commitment region rejects
- *     on decrypt (v3 only; Serpent's describe block asserts the
- *     preamble has no commitment region).
- *   - Cipher-specific behaviors below the shared describe blocks.
+ * XChaCha20Cipher contract tests. See
+ * docs/ciphersuite.md#per-cipher-contract-tests for the per-suite
+ * describe-block contract.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, randomBytes } from '../../../src/ts/index.js';

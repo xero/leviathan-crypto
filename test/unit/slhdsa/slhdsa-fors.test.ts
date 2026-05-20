@@ -21,25 +21,11 @@
 //
 // test/unit/slhdsa/slhdsa-fors.test.ts
 //
-// FIPS 205 §8 FORS unit suite. Drives the internal _test* WASM exports
-// from src/asm/slhdsa/fors.ts.
-//
-//   GATE 1: fors_node at z=0 → equals F(PK.seed, ADRS, fors_skGen(i))
-//   GATE 2: fors_node at z=a → equals the FORS tree root computed
-//           independently by re-running fors_node on the same inputs
-//           (idempotence of the recursion, not a circular check;
-//            it asserts no implicit state leaks across calls)
-//   GATE 3: fors_sign produces k·(a+1)·n bytes; k auth paths of length a
-//   GATE 4: fors_pkGen × fors_pkFromSig round-trip on fixed-seed inputs.
-//           fors_pkGen here = T_k(PK.seed, FORS_ROOTS_ADRS, [root_0..root_{k-1}])
-//           where root_i = fors_node(SK.seed, i, a, PK.seed, ADRS). We derive
-//           it by k calls to fors_node and one T_k compression mirroring
-//           Algorithm 17 lines 21-24.
-//
-// AGENTS.md §3 gate discipline: round-trip tests are NOT a substitute for
-// matching an independent reference; the round-trip only proves
-// pkFromSig inverts the structure used by sign. Cross-checks against
-// slhdsa-c (after the round-trip passes) are recorded in the self-review.
+// FIPS 205 §8 FORS unit suite. Four gates:
+//   1: fors_node(z=0) == F(PK.seed, ADRS, fors_skGen(i)).
+//   2: fors_node(z=a) == independently re-run root (recursion idempotence).
+//   3: fors_sign emits k * (a+1) * n bytes (k auth paths, length a).
+//   4: fors_pkGen / fors_pkFromSig round-trip (Algorithm 17 lines 21-24).
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import {

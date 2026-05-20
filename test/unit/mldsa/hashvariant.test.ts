@@ -20,17 +20,10 @@
 //                           ▀█████▀▀
 //
 /**
- * HashML-DSA validation suite, FIPS 204 §5.4 Algorithms 4 & 5.
- *
- * Drives the new public methods signHash / signHashDeterministic /
- * signHashDerand / verifyHash across the 3 parameter sets × 12 approved
- * pre-hash functions, plus the ACVP HashML-DSA sub-corpus merged into
- * mldsa_siggen.ts / mldsa_sigver.ts via the per-vector preHash discriminator.
- *
- * Pre-hash spelling: the public API uses the FIPS 204 §5.4.1 spelling
- * (no hyphen between SHAKE and the digit). The ACVP corpus uses
- * 'SHAKE-128' / 'SHAKE-256' (with hyphen). normalizeHashAlg() bridges
- * the two without altering the public API.
+ * HashML-DSA validation, FIPS 204 §5.4 Algorithms 4 & 5. Drives signHash /
+ * Deterministic / Derand / verifyHash across 3 param sets x 12 approved
+ * pre-hash funcs. Public API uses §5.4.1 spelling (no hyphen);
+ * normalizeHashAlg bridges ACVP's hyphenated SHAKE labels.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import {

@@ -408,25 +408,6 @@ export class MlDsaBase {
 	}
 
 	// ── HashML-DSA prehashed variants, FIPS 204 §5.4 ──────────────────────
-	//
-	// These four methods are the "caller already computed PH" surface. The
-	// signHash family above runs PH ← Hash(M, ph) internally, then drives
-	// Sign_internal; the prehashed family skips step 1 and accepts PH
-	// directly. Use them when M is not buffered in one place (streaming
-	// signers, protocols that already produced a digest as part of a
-	// transcript) or when a verifier prescribes a specific prehash and
-	// hands you the bytes.
-	//
-	// All four mirror the corresponding signHash family arg order with
-	// `digest` replacing `M`. ph and ctx keep their positions; signDerand's
-	// rnd stays where it is on signHashDerand. Hedged is the default per
-	// FIPS 204 §3.4 recommendation; deterministic / derand exist for the
-	// same testing / CAVP / no-RBG reasons as the non-prehashed forms.
-	//
-	// Wrong-size digest is a contract violation on the sign side (throws
-	// SigningError('sig-malformed-input')) and a structural verdict on the
-	// verify side (returns false, no throw), the same asymmetry §3.6.2
-	// applies to wrong-size pk / σ.
 
 	/**
 	 * Hedged HashML-DSA sign with a caller-supplied prehash, FIPS 204

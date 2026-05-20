@@ -33,7 +33,7 @@
 
 import {
 	BLOCK_PT_OFFSET, BLOCK_CT_OFFSET,
-	SUBKEY_OFFSET, WORK_OFFSET,
+	WORK_OFFSET,
 } from './buffers'
 
 import {
@@ -42,10 +42,6 @@ import {
 	lk, kl, keyXor,
 } from './serpent'
 
-// Working register helpers, identical to those in serpent.ts.
-// With all slot indices hardcoded (compile-time constants), every
-// rget/rset call resolves to a fixed address in linear memory,
-// enabling TurboFan alias analysis and CPU register promotion.
 
 /**
  * Returns word i from the 5-slot working register area.

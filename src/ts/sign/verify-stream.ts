@@ -25,20 +25,7 @@
 // StreamableSignatureSuite. Holds payload chunks internally; on finalize
 // verifies and returns the payload, or throws and wipes.
 //
-// v3 attached envelope wire (parsed in this order):
-//   [suite_byte: u8][ctx_len: u8][ctx: ctx_len bytes]
-//   [payload_len: u32 BE][payload: payload_len bytes][sig: remainder]
-//
-// State machine:
-//   ParsingHeader  -> read suite, ctx_len, ctx, payload_len. payload_len
-//                     is the head-of-payload marker, so we transition
-//                     directly to ParsingPayload once it lands.
-//   ParsingPayload -> read exactly payload_len bytes, driving the running
-//                     prehash on the way. transition to ParsingSig.
-//   ParsingSig     -> accumulate trailing sig bytes (<= suite.sigMaxSize).
-//                     finalize verifies.
-//   Finalized      -> finalize() called; subsequent operations throw.
-//   Disposed       -> dispose() called; everything throws.
+// Wire format and parser flow: docs/signing.md#attached-envelope.
 
 import { constantTimeEqual, concat, wipe } from '../utils.js';
 import { SigningError } from '../errors.js';
@@ -158,9 +145,6 @@ export class VerifyStream {
 					this.wipeBuffers();
 					throw e;
 				}
-				// `concat` allocates a fresh buffer, so wiping the chunks here
-				// does not corrupt the returned payload; it just drops the
-				// internal duplicates that would otherwise linger until GC.
 				const out = concat(...this.payloadChunks);
 				this.wipeBuffers();
 				return out;

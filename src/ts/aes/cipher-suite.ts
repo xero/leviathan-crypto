@@ -197,18 +197,10 @@ export const AESGCMSIVCipher: CipherSuite & { keygen(): Uint8Array } = {
 	 * @returns  Newly constructed `Worker` instance
 	 */
 	createPoolWorker(): Worker {
-		// IIFE source is bundled at lib build time (scripts/embed-workers.ts).
-		// Avoids the syntactic `new Worker(new URL(..., import.meta.url))`
-		// pattern that triggers eager worker-chunk emission in Vite's
-		// transform hook (issue.md). Classic worker via blob URL,
-		// module workers fail on file:// in Chromium (issue2.md).
+		// See docs/architecture.md#pool-worker-spawn-pattern.
 		const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' });
 		const url  = URL.createObjectURL(blob);
 		const w    = new Worker(url);
-		// Worker spec fetches the URL synchronously at construction. Revoke
-		// in a macrotask so the spawn completes first; releases the Blob
-		// (~5 KB per spawn × N workers) instead of leaking it for the
-		// document's lifetime.
 		setTimeout(() => URL.revokeObjectURL(url), 0);
 		return w;
 	},

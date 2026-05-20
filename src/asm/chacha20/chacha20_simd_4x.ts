@@ -101,9 +101,8 @@ function computeBlock_scalar(): void {
 //   bytes 192-255: block 3 keystream (counter = ctr+3)
 //
 // Each v128 register r[w] holds [block0_word_w, block1_word_w, block2_word_w,
-// block3_word_w]. All 16 registers are local variables, locals stay in CPU
-// registers; globals would compile to global.get/global.set and prevent JIT
-// register allocation.
+// block3_word_w]. All 16 state words live in v128 locals so the JIT can
+// keep them in CPU registers.
 //
 // After 10 double rounds, initial state is added back by reconstructing from
 // CHACHA_STATE_OFFSET (no extra v128 locals needed for the initial copy).
@@ -181,9 +180,7 @@ function block4x(ctr: u32): void {
 		r9  = v128.add<i32>(r9,  r14); r4  = v128.xor(r4,  r9);  r4  = v128.or(i32x4.shl(r4,   7), i32x4.shr_u(r4,  25))
 	}
 
-	// Add back initial state, RFC 8439 §2.2
-	// Reconstruct initial values from CHACHA_STATE_OFFSET instead of saving
-	// 16 extra v128 locals (saves register pressure).
+	// Add back initial state, RFC 8439 §2.2.
 	r0  = v128.add<i32>(r0,  i32x4.splat(load<i32>(s +  0)))
 	r1  = v128.add<i32>(r1,  i32x4.splat(load<i32>(s +  4)))
 	r2  = v128.add<i32>(r2,  i32x4.splat(load<i32>(s +  8)))

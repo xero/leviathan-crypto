@@ -81,15 +81,7 @@ export function edPointCompress(out: i32, p: i32): void {
 //   13:     v       (persistent across pow, needed for v*x^2 test)
 //   14:     u*v^3   (persistent across pow, multiplied with pow result)
 //   15:     u*v^7 → pow result → candidate x → final x
-//
-// Slots 0..10 hold:
-//   - pre-pow scratch (one, y^2, d, v^2, v^3, v^4, v^7) before fePow_p58
-//   - fePow_p58 internal scratch during the call (all clobbered)
-//   - post-pow scratch: x^2, v*x^2, vx2 ± u diff buffers, sqrt(-1), xAlt
-//
-// feIsEqual uses slot 15 internally, which would clobber the candidate x.
-// We avoid it by computing differences explicitly via feSub and feAdd
-// into slots in the 0..10 range and calling feIsZero (which uses slot 0).
+//   0..10:  pre-pow scratch + fePow_p58 internals (clobbered each call)
 
 export function edPointDecompress(out: i32, src: i32): i32 {
 	const y:    i32 = FIELD_TMP_OFFSET + 11 * FIELD_TMP_STRIDE
@@ -105,12 +97,9 @@ export function edPointDecompress(out: i32, src: i32): i32 {
 	// Decode y; feFromBytes masks bit 255 automatically.
 	feFromBytes(y, src)
 
-	// Canonicality: re-encode and compare to (src with top bit cleared).
-	// If equal, the input was a canonical representation of y in [0, p);
-	// if not, y >= p was encoded and decoding fails. Hand-rolled rather
-	// than calling cte/shared ctEqual because byte 31 must be masked with
-	// 0x7F before the XOR (the high bit is the sign bit, not part of y).
-	// Same XOR-accumulate primitive, just one byte's input differs.
+	// Canonicality re-encode + compare. Byte 31 high bit is the sign bit
+	// and is masked off before the XOR, so hand-rolled rather than
+	// ctEqual. RFC 8032 §5.1.3.
 	const yRe: i32 = FIELD_TMP_OFFSET + 0 * FIELD_TMP_STRIDE  // 32 bytes scratch
 	feToBytes(yRe, y)
 	let canonDiff: u32 = 0
@@ -174,12 +163,6 @@ export function edPointDecompress(out: i32, src: i32): i32 {
 
 	loadSqrtM1(sM1)
 	feMul(xAlt, x, sM1)
-	// Conditional move via feCondSwap: when eqNU, x receives xAlt (the
-	// sqrt(-1)-multiplied candidate). This is a conditional move pattern,
-	// not a true swap: the xAlt slot (slot 6) is dead after this line.
-	// Step 6 reads only x, step 7 only the boolean flags, step 8 only x
-	// and y, so the side effect of writing xAlt's slot is inert. Using
-	// feCondSwap here saves a dedicated cmov helper.
 	feCondSwap(x, xAlt, eqNU)
 
 	// ── Step 6: apply sign bit per RFC 8032 §5.1.3 step 4 ────────────

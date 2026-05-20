@@ -21,23 +21,9 @@
 //
 // src/ts/merkle/merkle-verifier.ts
 //
-// `MerkleVerifier` is the verify-only normie surface. The class holds
-// a trusted log identity (origin + pubkey + suite + hashing) and
-// exposes three verify methods, all boolean. Every cryptographically
-// meaningful step happens inside the class: signature verification
-// before proof verification, root binding between checkpoint and proof,
-// leaf-bytes hashing before inclusion comparison, origin match between
-// constructor and parsed checkpoint, suite-pubkey size validation at
-// construction.
-//
-// Wire format per c2sp.org/signed-note (Note) §Format,
-// c2sp.org/tlog-checkpoint (Transparency Log Checkpoints) §Note text,
-// and c2sp.org/tlog-cosignature (Transparency Log Cosignatures) §Format.
-//
-// Construction-time contract violations throw `MerkleLogError`. Every
-// verify path returns `boolean`; the methods never throw on envelope or
-// proof content. The convention matches `SignatureSuite.verify` and
-// keeps the normie surface free of soft-fail / hard-fail confusion.
+// `MerkleVerifier`, verify-only normie surface. Wire format per
+// c2sp.org/signed-note §Format, c2sp.org/tlog-checkpoint §Note text,
+// and c2sp.org/tlog-cosignature §Format.
 
 import { isInitialized } from '../init.js';
 import type { Module } from '../init.js';

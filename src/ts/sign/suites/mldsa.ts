@@ -21,20 +21,10 @@
 //
 // src/ts/sign/suites/mldsa.ts
 //
-// MldsaPureSuite and MldsaPrehashSuite factories (internal, not exported).
-// Six exported const objects produced by factory calls cover the FIPS 204
-// parameter sets in both pure and prehash variants:
-//   0x03  MlDsa44Suite              (pure)
-//   0x04  MlDsa65Suite              (pure)
-//   0x05  MlDsa87Suite              (pure)
-//   0x13  MlDsa44PreHashSuite       (SHA3-256 prehash)
-//   0x14  MlDsa65PreHashSuite       (SHA3-256 prehash)
-//   0x15  MlDsa87PreHashSuite       (SHA3-512 prehash)
+// Pure (0x03/0x04/0x05) and prehash (0x13/0x14/0x15) ML-DSA suites,
+// FIPS 204.
 //
-// Each method instantiates a fresh MlDsa{44,65,87} per call inside a
-// try/finally + dispose pattern so WASM key material is wiped on every
-// path. The factories are NOT exported: catalog format bytes are reserved
-// and exposing factories would invite custom suites with unmanaged bytes.
+// Catalog + prehash mapping: docs/signaturesuite.md, docs/mldsa.md.
 
 import { utf8ToBytes, wipe } from '../../utils.js';
 import { SigningError } from '../../errors.js';
@@ -192,9 +182,6 @@ function MldsaPrehashSuite(
 			digest: Uint8Array,
 			ctx:    Uint8Array,
 		): Uint8Array {
-			// Belt-and-suspenders: MlDsaBase.signHashPrehashed also validates
-			// digest length, but checking here keeps the suite's contract
-			// surface self-contained and produces the same discriminator.
 			if (digest.length !== prehashSize)
 				throw new SigningError(
 					'sig-malformed-input',

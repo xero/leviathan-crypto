@@ -21,29 +21,11 @@
 //
 // src/asm/aes/polyval.ts
 //
-// POLYVAL absorber (RFC 8452 §3, Appendix A), sibling of GHASH used by
-// AES-GCM-SIV. Mirrors the API shape of `ghash.ts` (start / absorbBlock /
-// absorbWithLen / finalize).
-//
-// Implementation strategy: reflection wrapper around the existing
-// gf128MulH multiplier. RFC 8452 Appendix A gives the bridge:
-//
-//     POLYVAL(H, X_1..n) = ByteReverse(GHASH(mulX_GHASH(ByteReverse(H)),
-//                                            ByteReverse(X_1..n)))
-//
-// `polyvalStart` byte-reverses the supplied authentication key, applies
-// `mulXGhash`, and feeds the result to `gf128InitTable`, from that point
-// on, the GF128 table multiplies by `mulX_GHASH(ByteReverse(H))` in
-// GHASH bit convention. Each `polyvalAbsorbBlock` byte-reverses the
-// input block before XOR-and-multiply. `polyvalFinalize` byte-reverses
-// the running accumulator back to POLYVAL bit convention. The within-
-// byte bit flip is handled implicitly by the differing GHASH/POLYVAL
-// bit-interpretation conventions (RFC 8452 §3).
-//
-// The accumulator aliases on GHASH_ACC_OFFSET. POLYVAL and GHASH are
-// mutually exclusive at runtime (atomic AEAD pattern), so the alias is
-// safe and saves 16 bytes of layout. GCM_SCRATCH_OFFSET is reused as
-// 16-byte scratch for the per-block byte-reverse.
+// POLYVAL absorber (RFC 8452 §3, Appendix A) for AES-GCM-SIV.
+// Mirrors ghash.ts (start / absorbBlock / absorbWithLen / finalize).
+// Reflection wrapper over gf128MulH; accumulator aliases on
+// GHASH_ACC_OFFSET (POLYVAL and GHASH are runtime-exclusive).
+// See docs/asm_aes.md#polyval-bridge.
 
 import {
 	GHASH_ACC_OFFSET,

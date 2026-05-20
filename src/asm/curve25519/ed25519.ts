@@ -186,26 +186,18 @@ export function ed25519Keygen(seedOff: i32, pkOff: i32): void {
 
 /**
  * Produce a 64-byte (R || s) signature over `msg` for the given seed.
+ * Pure Ed25519 per RFC 8032 §5.1.6 (no dom2 prefix, RFC 8032 §5.1).
  *
- *   seedOff: read 32 bytes (Ed25519 secret seed)
- *   pkOff:   read 32 bytes (encoded verifying key, caller-supplied to
- *            avoid re-derivation cost; verified internally against the
- *            freshly derived pk and abort-on-mismatch to defeat
- *            fault-injection: a caller passing an incorrect pk would
- *            otherwise produce a signature that fails to verify under
- *            the claimed pk)
+ *   seedOff: 32-byte Ed25519 secret seed
+ *   pkOff:   32-byte caller-supplied pk; fault-cross-checked against
+ *            re-derived pk, abort-on-mismatch. See AGENTS.md
+ *            §SignatureSuite for the suite-vs-direct rule.
  *   msgOff:  msgLen bytes of message
- *   sigOff:  write 64 bytes (R || s)
+ *   sigOff:  64 bytes output (R || s)
  *
- * Pure Ed25519 omits the dom2 prefix entirely per RFC 8032 §5.1.
- *
- * Wipe coverage on the success path: SHA-512 state buffers, h, a,
- * prefix, r_hash, k_hash, r, k, point coords of A and R_point. All live
- * in the SHA-512 and ED25519_* regions and are cleared by wipeAll.
- *
- * Fault check: if the freshly-derived pk disagrees with pkOff, wipe and
- * abort (unreachable). The env-provided `abort` shim in the TS layer
- * surfaces this as a thrown error.
+ * Wipes SHA-512 state, h, a, prefix, r_hash, k_hash, r, k, A, R_point
+ * on every exit path. Fault-mismatch traps via unreachable; the env
+ * abort shim surfaces a thrown error.
  */
 export function ed25519Sign(seedOff: i32, pkOff: i32, msgOff: i32, msgLen: i32, sigOff: i32): void {
 	// Derive (a, prefix) and pk_check = compress([a]B); compare to caller's pk.
@@ -245,25 +237,14 @@ export function ed25519Sign(seedOff: i32, pkOff: i32, msgOff: i32, msgLen: i32, 
 // ── ed25519SignInternalPk pure (RFC 8032 §5.1.6, no fault check) ───────────
 
 /**
- * Pure-mode sign variant that derives pk from sk internally and uses it
- * in the hash chain, with NO post-derivation fault-injection comparison.
+ * Pure-mode sign per RFC 8032 §5.1.6, deriving pk internally and skipping
+ * the fault-injection cross-check. Suite-only entry; see AGENTS.md
+ * §SignatureSuite for the rationale.
  *
  *   seedOff:  read 32 bytes (Ed25519 secret seed)
  *   msgOff:   msgLen bytes of message
  *   msgLen:   message length in bytes
  *   sigOff:   write 64 bytes (R || s)
- *
- * Intended for suite-factory callers (`Ed25519PureSuite`,
- * `Ed25519PrehashSuite`) where the caller has only `sk` and would otherwise
- * derive pk in an extra WASM round trip. The public `ed25519Sign` keeps
- * the fault-injection cross-check; this variant trades that defense for
- * one fewer basepoint scalar mult per call.
- *
- * The cross-check is only meaningful when the caller holds a STORED,
- * known-good pk (e.g. loaded from disk after a long-term keygen); when
- * the caller derives pk on the same call from the same sk via the same
- * WASM module, the comparison is between two outputs of the same
- * potentially-faulted path and provides no additional defense.
  *
  * Wipe coverage identical to ed25519Sign.
  */
@@ -313,17 +294,9 @@ export function ed25519SignInternalPk(seedOff: i32, msgOff: i32, msgLen: i32, si
  * Failure paths (each wipes before returning 0):
  *   - pk decode fails (non-canonical y ≥ p, off-curve, or x=0 with sign=1)
  *   - R decode fails  (same conditions on the R component)
- *   - s ≥ L          (strict-S check; the ACVP `testPassed=false`
- *                     "modify s" records hit this path)
- *   - [8]A == identity (small-order public key; A is in the prime-order
- *                       subgroup iff its order is L, in which case [8]A
- *                       is non-identity)
+ *   - s ≥ L          (strict-S check)
+ *   - [8]A == identity (small-order public key)
  *   - [s]B != R + [k]A (signature equation does not hold)
- *
- * Strict semantics matters for ACVP `testPassed` agreement: the
- * cofactor-eight equation `[8s]G == [8](R + [k]A)` is permissive of
- * malleated S and small-order R; FIPS 186-5 requires the strict form
- * implemented here.
  */
 export function ed25519Verify(pkOff: i32, msgOff: i32, msgLen: i32, sigOff: i32): i32 {
 	// Decode pk and R. edPointDecompress returns 0 on:

@@ -22,7 +22,6 @@
 // src/ts/utils.ts
 //
 // Pure TypeScript utilities, no init() dependency.
-// Ported from leviathan/src/base.ts (Convert namespace, Util namespace, constantTimeEqual).
 
 // ── Encoding ────────────────────────────────────────────────────────────────
 
@@ -144,18 +143,8 @@ let _cteMemView: Uint8Array | null = null;
 let _cteInit = false;
 let _cteInitError: Error | null = null;
 
-// CTE WASM module uses 1 page (64KB) of linear memory with both buffers
-// laid out side-by-side: a at offset 0, b at offset a.length.
-// Max per-side = _cteMem.buffer.byteLength >>> 1 = 32768 bytes.
-// In practice the largest comparison is a 32-byte HMAC-SHA-256 tag.
 export const CTE_MAX_BYTES = 32768;
 
-/**
- * Compile and instantiate the SIMD WASM cte module. On failure, caches the
- * branded error and re-throws on every subsequent call; no retries, no
- * fallback. Throws on runtimes without WebAssembly SIMD and on any
- * instantiation error.
- */
 function _initCte(): void {
 	if (_cteInit) {
 		if (_cteInitError) throw _cteInitError;
@@ -200,9 +189,6 @@ export const constantTimeEqual = (a: Uint8Array, b: Uint8Array): boolean => {
 	if (a.length > CTE_MAX_BYTES)
 		throw new RangeError(`constantTimeEqual: max ${CTE_MAX_BYTES} bytes (got ${a.length})`);
 	_initCte();
-	// Copy module-level refs to locals. _initCte() either populates all three
-	// or throws; the null check below is a defensive invariant guard that is
-	// unreachable on a correctly-initialized module.
 	const mem     = _cteMemView;
 	const compare = _cteCompare;
 	if (!mem || !compare)

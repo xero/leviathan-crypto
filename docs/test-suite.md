@@ -475,7 +475,8 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | [lexicon.md](./lexicon.md) | Glossary of cryptographic terms |
 | [init.md](./init.md) | `init()` API, loading modes, subpath imports |
 | [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` (tested primitives) |
-| [signaturesuite.md](./signaturesuite.md) | `Sign`, `SignStream`, `VerifyStream`, and the 22 shipped `*Suite` consts (tested primitives) |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream` (tested user-facing API) |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the 22 shipped `*Suite` consts (tested primitives) |
 | [merkle.md](./merkle.md) | `MerkleLog`, `MerkleVerifier`, `SignedLog` (tested primitives) |
 | [serpent.md](./serpent.md) | Serpent-256 TypeScript API (tested primitives) |
 | [chacha20.md](./chacha20.md) | ChaCha20 / Poly1305 TypeScript API (tested primitives) |

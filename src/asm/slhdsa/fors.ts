@@ -58,13 +58,9 @@
 //                                       z ∈ [1..a]; max a = 9, 2·n = 64
 //                                       → 9·64 = 576 B.
 //
-// The recursion in fors_node uses caller-supplied outPtr for its own
-// result and writes the two child results into FORS_PAIR_BASE + z·2n.
-// At a given depth z the two child calls run sequentially: the first
-// child writes its n-byte result into pair[0..n], the second into
-// pair[n..2n], and once both are present the parent runs H over the
-// concatenation. Each depth has its own slot, so descending into z−1
-// does not clobber z's pair buffer.
+// fors_node recursion: caller's outPtr holds the result; child pairs
+// land at FORS_PAIR_BASE + z*2n (per-depth stride, so descending into
+// z-1 does not clobber z's slot). H runs over pair[0..2n].
 
 import {
 	STATE_OFFSET,

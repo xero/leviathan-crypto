@@ -92,18 +92,9 @@ interface RecordSpec {
 	id: string;
 	desc: string;
 	origin: string;
-	/**
-	 * Deterministic leaves to append to a fresh Sha256Tree. The
-	 * resulting tree size and root hash are derived at generation
-	 * time; the test reproduces them by appending the same leaves to
-	 * the same tree backing.
-	 */
+	/** UTF-8 leaves appended to a fresh Sha256Tree; test reproduces by replay. */
 	leaves: string[];
-	/**
-	 * 32-byte seed for the suite's keygenDerand. Drives both the
-	 * signing key and the public key; the test reproduces them by
-	 * calling keygenDerand with the same seed.
-	 */
+	/** 32-byte seed for keygenDerand; test reproduces by replay. */
 	seedHex: string;
 	timestamp: number;
 }
@@ -158,10 +149,8 @@ function recordLeaves(label: string, leaves: string[]): string {
 	return `\t\t${label}: [\n${items}\n\t\t],`;
 }
 
-// Build a fresh Sha256Tree backed by MemoryStorage, append the given
-// UTF-8 leaves, and return (tree, treeSize, rootHash). The test side
-// will do the same to reproduce the recorded (treeSize, rootHashHex)
-// pair from leaves alone.
+// Build a fresh Sha256Tree backed by MemoryStorage, append leaves,
+// return (tree, size, root). Replayed in tests.
 function buildTree(leaves: string[]): { tree: Sha256Tree; treeSize: number; rootHash: Uint8Array } {
 	const tree = new Sha256Tree(new MemoryStorage());
 	for (const l of leaves) tree.append(utf8ToBytes(l));

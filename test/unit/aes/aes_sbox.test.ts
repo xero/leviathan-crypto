@@ -46,9 +46,7 @@ function getDebugExports(): AesDebugExports {
 }
 
 describe('AES Canright S-box (Gate 2)', () => {
-	// GATE: for every byte 0x00..0xFF, the bitsliced Canright S-box must
-	// produce aesSboxTable[b] for input b. The aesSboxTable constant was
-	// transcribed from FIPS 197 §5.1.1 Figure 7 in test/vectors/aes.ts.
+	// GATE: bitsliced Canright S(b) == aesSboxTable[b] for all 256 inputs (FIPS 197 §5.1.1 Figure 7).
 	it('all 256 byte inputs match FIPS 197 S-box table', () => {
 		const x   = getDebugExports();
 		const mem = new Uint8Array(x.memory.buffer);
@@ -66,20 +64,12 @@ describe('AES Canright S-box (Gate 2)', () => {
 });
 
 describe('AES Boyar-Peralta scalar S-box (key-schedule path)', () => {
-	// GATE: for every byte 0x00..0xFF, the Boyar-Peralta scalar S-box
-	// (used by `keyExpansion` for SubWord) must produce aesSboxTable[b]
-	// for input b. Reference: SLP_AES_113 from Peralta's circuit-minimization
-	// page (cs.yale.edu/homes/peralta/CircuitStuff/SLP_AES_113.txt),
-	// transcribed into `sboxWord` in src/asm/aes/aes.ts. Expected outputs
-	// come from FIPS 197 §5.1.1 Figure 7 via the same `aesSboxTable`
-	// constant used by Gate 2.
+	// GATE: Boyar-Peralta SLP_AES_113 sboxWord (used by keyExpansion SubWord)
+	// matches FIPS 197 §5.1.1 Figure 7 across all 256 inputs per lane.
 	it('all 256 byte inputs in each of 4 lane positions match FIPS 197 S-box table', () => {
 		const x = getDebugExports();
-		// Exhaustive lane-independence: place input b at lane L (others zero)
-		// and verify every output lane independently. Output[L] must be S(b);
-		// the three other output lanes must be S(0) = 0x63. 1024 invocations,
-		// 4096 assertions, proves each of the four scalar circuits is correct
-		// across the full 256-byte input space.
+		// Exhaustive lane-independence: input b at lane L, others zero;
+		// output[L] == S(b), other lanes == S(0) = 0x63.
 		for (let lane = 0; lane < 4; lane++) {
 			const shift = lane * 8;
 			for (let b = 0; b < 256; b++) {
@@ -100,9 +90,7 @@ describe('AES Boyar-Peralta scalar S-box (key-schedule path)', () => {
 
 	it('packed 4-byte inputs match per-byte expectation', () => {
 		const x = getDebugExports();
-		// A handful of packed inputs covering corner cases (zero, one, mixed,
-		// affine boundaries) and a few arbitrary 4-byte words. Each output
-		// byte must independently match aesSboxTable on its source byte.
+		// Packed corner cases + arbitrary 4-byte words; each output byte == aesSboxTable[input byte].
 		const inputs = [
 			0x00000000, 0xffffffff, 0x01020304, 0x53636363,
 			0xdeadbeef, 0xcafebabe, 0x12345678, 0x9abcdef0,

@@ -20,30 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * Serpent cipher-suite contract tests, per-cipher behaviors that vary
- * in shape across ciphers (header binding, commitment field, native
- * key-committing properties).
- *
- * Cipher-agnostic stream contract tests (round-trip, AAD, blob format,
- * OpenStream-compat, error handling, wrong-key/tampered-tag/tampered-ct
- * failure modes) live in test/unit/stream/seal.test.ts and run for every
- * cipher in test/unit/stream/_cipher-spec.ts via parameterization.
- *
- * Every <cipher>-cipher-suite.test.ts file in this directory implements
- * the following describe blocks. Where the cipher's behavior differs in
- * shape (e.g., Serpent does not header-bind), the describe block is
- * still present, but the assertions are the inverse: the test name
- * describes what is being verified, and the body asserts the relevant
- * property holds.
- *
- *   - 'deriveKeys', commitment-or-no-commitment shape, plus header-
- *     binding effect on derived keys (or absence thereof for Serpent).
- *   - 'Header binding', header tamper effect on decrypt (failure for
- *     v3, no-effect for v2).
- *   - 'Commitment', flipping a byte in the commitment region rejects
- *     on decrypt (v3 only; Serpent's describe block asserts the
- *     preamble has no commitment region).
- *   - Cipher-specific behaviors below the shared describe blocks.
+ * SerpentCipher contract tests. See
+ * docs/ciphersuite.md#per-cipher-contract-tests for the per-suite
+ * describe-block contract.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, randomBytes } from '../../../src/ts/index.js';
@@ -84,8 +63,7 @@ describe('Serpent deriveKeys', () => {
 	});
 
 	it('does not throw when header is undefined', () => {
-		// Inverse of v3 ciphers: Serpent ignores the header argument in
-		// deriveKeys (no header-binding). The call must succeed.
+		// Serpent ignores header in deriveKeys (no header-binding); call must succeed.
 		const key = SerpentCipher.keygen();
 		const nonce = randomBytes(16);
 		const dk = SerpentCipher.deriveKeys(key, nonce);
@@ -97,8 +75,7 @@ describe('Serpent deriveKeys', () => {
 	});
 
 	it('produces identical derived keys for different headers (Serpent does not header-bind)', () => {
-		// Pin the not-header-binding contract: same key+nonce, two different
-		// headers → identical bytes. Regression for "Serpent stays unbound".
+		// Serpent does not header-bind; contract pinned here.
 		const key = SerpentCipher.keygen();
 		const nonce = randomBytes(16);
 		const headerA = writeHeader(SerpentCipher.formatEnum, false, nonce, 1024);
@@ -115,15 +92,9 @@ describe('Serpent deriveKeys', () => {
 });
 
 describe('Serpent header binding', () => {
-	// Inverse of AES/XChaCha20: header tampering does NOT break decryption
-	// for Serpent. The contract here is "decryption succeeds when header is
-	// tampered post-encryption, modulo structurally-validated fields."
-	//
-	// Note: byte 0 (formatEnum/framed) IS structurally validated by
-	// OpenStream, flipping cipher nibble triggers format-mismatch, flipping
-	// FLAG_FRAMED makes the decoder strip a length prefix that isn't there.
-	// So we tamper bytes that are NOT structurally validated (chunkSize) and
-	// nonce (which DOES feed deriveKeys via HKDF salt → HMAC fails).
+	// Serpent does not header-bind; decryption succeeds when tampered
+	// header bytes are NOT structurally validated (byte 0, chunkSize).
+	// nonce feeds HKDF salt, so nonce tampering DOES fail HMAC.
 
 	it('flipping a byte in the chunkSize portion of the header does NOT cause decrypt failure', () => {
 		// Serpent does not bind chunkSize into deriveKeys, and Seal.encrypt
@@ -142,11 +113,8 @@ describe('Serpent header binding', () => {
 	});
 
 	it('flipping a byte in the nonce portion of the header DOES cause decrypt failure (HMAC, not commitment)', () => {
-		// Even without header binding, the nonce IS used in deriveKeys (HKDF
-		// salt). Tampering the header's nonce produces different derived
-		// keys → HMAC fails. So this test asserts FAILURE for Serpent too,
-		// but the discriminator is 'serpent' (HMAC tag mismatch), NOT
-		// 'commitment-' anything.
+		// nonce feeds HKDF salt; tamper → different keys → HMAC tag mismatch
+		// ('serpent' discriminator, not 'commitment-').
 		const key  = SerpentCipher.keygen();
 		const pt   = randomBytes(64);
 		const blob = Seal.encrypt(SerpentCipher, key, pt).slice();
@@ -165,15 +133,10 @@ describe('Serpent header binding', () => {
 
 describe('Serpent commitment', () => {
 	it('preamble has no commitment region (commitmentSize === 0)', () => {
-		// Pin the contract that Serpent's preamble length === HEADER_SIZE
-		// (no extra 32 bytes). Distinguishes Serpent from AES + XChaCha20,
-		// which carry a 32-byte commitment between header and ciphertext.
+		// Serpent preamble == HEADER_SIZE (no 32-byte commitment); distinct from AES/XChaCha20.
 		expect(SerpentCipher.commitmentSize).toBe(0);
 
-		// Cross-check: a Serpent blob's first ciphertext byte appears at
-		// offset HEADER_SIZE, with no 32-byte commitment in between. We
-		// verify the preamble length used by OpenStream's reader matches
-		// HEADER_SIZE + 0 (no commitment) + 0 (no kemCt).
+		// Cross-check: first ct byte at offset HEADER_SIZE.
 		const key  = SerpentCipher.keygen();
 		const pt   = randomBytes(64);
 		const blob = Seal.encrypt(SerpentCipher, key, pt);
@@ -184,12 +147,8 @@ describe('Serpent commitment', () => {
 	});
 
 	it('is natively key-committing via HMAC-SHA-256 (wrong key → tag mismatch with serpent discriminator)', () => {
-		// Serpent's "key commitment" property is intrinsic to its
-		// encrypt-then-MAC construction with HMAC. Wrong key → different
-		// mac_key → HMAC tag mismatch for any ct. This is the analogue of
-		// the v3 commitment-fast-fail, just using a different mechanism
-		// (HMAC vs explicit 32-byte commitment field). The failure surface:
-		// 'serpent' discriminator, NOT 'commitment-' anything.
+		// Encrypt-then-MAC key commitment: wrong key → 'serpent' discriminator,
+		// not 'commitment-' (analogue of v3 commitment-fast-fail).
 		const key      = SerpentCipher.keygen();
 		const wrongKey = SerpentCipher.keygen();
 		const pt   = randomBytes(64);

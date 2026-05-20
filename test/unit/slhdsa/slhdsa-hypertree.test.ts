@@ -21,21 +21,14 @@
 //
 // test/unit/slhdsa/slhdsa-hypertree.test.ts
 //
-// FIPS 205 §7 hypertree unit suite. Drives the internal _test* WASM exports
-// from src/asm/slhdsa/hypertree.ts.
+// FIPS 205 §7 hypertree unit suite. Five gates:
+//   1: ht_sign / ht_verify round-trip per parameter set.
+//   2: tampered message → ht_verify == 0.
+//   3: HT signature size = d * (len + h') * n bytes.
+//   4: idx_tree shift trace via xmss_pkFromSig reproduces PK.root.
+//   5: deterministic byte-stability across two ht_sign calls.
 //
-//   GATE 1: ht_sign × ht_verify round-trip per parameter set.
-//   GATE 2: tampered message → ht_verify returns 0.
-//   GATE 3: total HT signature size = d·(len + h')·n bytes (structural).
-//   GATE 4: idx_tree shift trace: a manual layer-by-layer walk using
-//           xmss_pkFromSig with the spec-shifted idx_tree / idx_leaf at
-//           each layer reproduces the same final root as PK.root.
-//   GATE 5: deterministic byte-stability; two ht_sign calls with identical
-//           inputs produce byte-identical sigs (no randomness in ht_sign).
-//
-// idx_tree handling: the WASM API takes idx_tree as two u32 halves to avoid
-// requiring BigInt at the JS boundary. The test computes idx_tree values in
-// BigInt and splits via splitU64.
+// idx_tree split as two u32 halves at the JS boundary (splitU64).
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import {

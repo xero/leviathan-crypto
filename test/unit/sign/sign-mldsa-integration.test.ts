@@ -21,13 +21,8 @@
 //
 // test/unit/sign/sign-mldsa-integration.test.ts
 //
-// End-to-end envelope path exercising the v3 sign layer against REAL
-// ML-DSA primitives. Covers:
-//   - Sign.sign / Sign.verify round-trip for a pure suite (MlDsa65Suite)
-//     and a prehash suite (MlDsa65PreHashSuite).
-//   - SignStream + VerifyStream round-trip via the prehash suite,
-//     proving the SHA3-256 running-hash wiring lines up with the suite's
-//     signPrehashed / verifyPrehashed path.
+// Envelope + stream integration for ML-DSA suites. See
+// docs/mldsa.md#suite-integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';

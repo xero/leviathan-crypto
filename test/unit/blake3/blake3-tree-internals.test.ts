@@ -20,22 +20,10 @@
 //                           ▀█████▀▀
 //
 /**
- * BLAKE3 tree-internals substrate tests, BLAKE3 §2.4 / §2.5.
- *
- * Drives the WASM `_testChunkCV` / `_testParentCV` / `_testDeriveContextCV`
- * exports through `helpers.ts` and verifies that hand-composed chunk +
- * parent CVs reproduce `BLAKE3.hash` / `BLAKE3KeyedHash.hash` /
- * `BLAKE3DeriveKey.derive` byte-for-byte across 1, 2, and 4-chunk inputs
- * for all three modes. This is the gate for the blake3-tree merkle
- * substrate: if the test exports compose into BLAKE3, the tree proofs
- * will be byte-identical to a BLAKE3 streaming reader's chunk / parent
- * intermediates.
- *
- * Expected values come from `test/vectors/blake3.ts` (upstream KAT
- * corpus, audit-status: VERIFIED) by routing the same inputs through
- * BLAKE3.hash and comparing the substrate result against the public
- * API result. The public API path is itself gated by the KAT corpus,
- * so an indirect KAT chain holds.
+ * Tree-internals substrate gate (BLAKE3 §2.4 / §2.5). Hand-composed
+ * _chunkCV + _parentCV must equal BLAKE3.hash for 1, 2, 4-chunk inputs
+ * across all three modes. Expected from test/vectors/blake3.ts via the
+ * public API (itself KAT-gated): indirect KAT chain.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -166,18 +154,9 @@ function composeTreeRoot(mode: ModeSpec, input: Uint8Array, numChunks: 2 | 4): U
 // ────────────────────────────────────────────────────────────────────────────
 // 1-chunk substrate check
 // ────────────────────────────────────────────────────────────────────────────
-//
-// For a 1-chunk input, BLAKE3 §2.4 applies ROOT on the chunk's last
-// compress; _chunkCV does NOT apply ROOT (its contract is "produce the
-// value that would be pushed to the §2.5 tree assembly for a multi-
-// chunk input"). The two values differ by the ROOT flag bit on the
-// last compress, so they aren't directly equal.
-//
-// What we CAN verify cheaply: _chunkCV's chunk-pipeline output for a
-// 1-block single-chunk input matches the public `compress` export
-// driven with CHUNK_START|CHUNK_END (no ROOT) over the same input
-// block, CV, and counter. This proves the chunk machine wiring inside
-// _chunkCV matches the spec.
+// _chunkCV does NOT apply ROOT (§2.4); compare against direct compress
+// with CHUNK_START|CHUNK_END to gate the chunk pipeline wiring. (The
+// next test exercises the 2-chunk path which DOES include ROOT.)
 
 describe('BLAKE3 tree-internals substrate, §2.4 / §2.5', () => {
 	it('_chunkCV: 1-block single-chunk input matches direct compress (CHUNK_START|CHUNK_END, no ROOT)', () => {

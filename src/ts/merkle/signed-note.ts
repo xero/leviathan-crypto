@@ -21,51 +21,28 @@
 //
 // src/ts/merkle/signed-note.ts
 //
-// Envelope codec for c2sp.org/signed-note (Note) §Format and the
-// `key_id = SHA-256(name || 0x0A || algo || pubkey)[:4]` derivation from
-// c2sp.org/tlog-cosignature (Transparency Log Cosignatures) §Format.
+// Envelope codec for c2sp.org/signed-note §Format and the
+// `key_id = SHA-256(name || 0x0A || algo || pubkey)[:4]` derivation
+// from c2sp.org/tlog-cosignature §Format.
 //
-// The codec is intentionally permissive on parse: per signed-note §Format
-// and §Signatures, verifiers MUST ignore signatures from unknown keys
-// rather than rejecting the whole note. Malformed signature lines are
-// counted in `ignoredCount` and discarded; whole-envelope structural
-// errors throw.
+// Algorithm-byte registry, confirmed against C2SP commit
+// 3752ba5b3590dc3754e04fcc8369bd3612897c02 (github.com/C2SP/C2SP,
+// 2026-04-23):
 //
-// The algorithm-byte registry maps SignatureSuite formatEnum values to
-// the C2SP signed-note algorithm bytes that are confirmed by the C2SP
-// spec at commit 3752ba5b3590dc3754e04fcc8369bd3612897c02
-// (github.com/C2SP/C2SP, 2026-04-23):
+//   Ed25519Suite (formatEnum 0x01)  → C2SP algo byte 0x04
+//   MlDsa44Suite (formatEnum 0x03)  → C2SP algo byte 0x06
 //
-//   Ed25519Suite (suite formatEnum 0x01)  → C2SP algo byte 0x04
-//   MlDsa44Suite (suite formatEnum 0x03)  → C2SP algo byte 0x06
+// 0x04 = timestamped Ed25519 cosignatures, 0x06 = timestamped ML-DSA-44
+// (sub)tree cosignatures per c2sp.org/tlog-cosignature §Format. Other
+// registry bytes (0x01 base Ed25519, 0x02 ECDSA witness, 0x05 RFC 6962
+// TreeHeadSignature) are unwired; new suites need an authoritative
+// C2SP byte (raise an issue per AGENTS.md, never mint locally).
 //
-// 0x04 is "timestamped Ed25519 checkpoint cosignatures" and 0x06 is
-// "timestamped ML-DSA-44 (sub)tree cosignatures" per
-// c2sp.org/tlog-cosignature §Format. Additional bytes in the spec
-// registry (0x01 base Ed25519, 0x02 ECDSA witness, 0x05 RFC 6962
-// TreeHeadSignature) are not yet wired to a leviathan suite; any
-// future suite that maps to an existing C2SP byte goes in this table
-// and any leviathan suite without an authoritative C2SP byte requires
-// an issue per AGENTS.md rather than a locally-minted byte.
-//
-// Cosignature signed-message and payload codecs live below the
-// envelope layer. The envelope codec (parseSignedNote, emitSignedNote)
-// only sees opaque payloads; the cosignature-typed payload codec
-// (`emitCosigSignaturePayload`, `parseCosigSignaturePayload`)
-// reshapes those bytes into `(timestamp, signature)` per the
-// `timestamped_signature` struct in `c2sp.org/tlog-cosignature`
-// §Format. The signed message that the suite signs is constructed by
-// `buildCosigSignedMessage` per §"Ed25519 signed message".
-//
-// Per-spec note on the ML-DSA-44 path: §"ML-DSA-44 signed message"
-// defines a separate `cosigned_message` TLS-Presentation struct (label
-// `subtree/v1\n\0`, length-prefixed cosigner_name and log_origin, BE
-// timestamp / start / end, 32-byte hash) that ML-DSA-44 checkpoint
-// cosignatures actually sign; the cosignature/v1 prefix only applies
-// to Ed25519. The ML-DSA-44 registry entry below carries
-// messageConstruction='cosigned-message' so consumers can branch on
-// it; the corresponding codec helper is not implemented in this
-// patch and is tracked as Phase-7 follow-up work.
+// Cosignature signed messages: `buildCosigSignedMessage` builds the
+// Ed25519 form per §"Ed25519 signed message". §"ML-DSA-44 signed
+// message" specifies a separate `cosigned_message` TLS-Presentation
+// struct; the registry entry below carries
+// messageConstruction='cosigned-message' so consumers can branch.
 
 import { MerkleCodecError } from '../errors.js';
 import { SHA256 } from '../sha2/index.js';
@@ -109,41 +86,17 @@ export const ALGO_BYTE_MLDSA44_COSIG = 0x06;
  * How the cosigner constructs the bytes it signs.
  *
  *   'cosig'             c2sp.org/tlog-cosignature §"Ed25519 signed
- *                       message". Two newline-terminated lines
- *                       (`cosignature/v1`, `time <decimal>`) followed
- *                       by the whole note body including its
- *                       terminating newline. Produced by
- *                       `buildCosigSignedMessage`.
- *
+ *                       message". Produced by `buildCosigSignedMessage`.
  *   'cosigned-message'  c2sp.org/tlog-cosignature §"ML-DSA-44 signed
- *                       message". The `cosigned_message` TLS-
- *                       Presentation struct with label
- *                       `subtree/v1\n\0`, length-prefixed
- *                       cosigner_name and log_origin, BE timestamp /
- *                       start / end, and 32-byte hash. Codec helper
- *                       not yet implemented in leviathan; tracked as
- *                       Phase-7 follow-up. Consumers branching on
- *                       this value must defer to the follow-up
- *                       implementation rather than fall through to
- *                       'cosig'.
- *
- * The union is open for future spec additions (e.g. a registered
- * plain signed-note byte, RFC 6962 TreeHeadSignature wrapper).
+ *                       message", `cosigned_message` struct.
  */
 export type MessageConstruction = 'cosig' | 'cosigned-message';
 
 /**
- * How the cosigner encodes the per-signature payload that gets
- * base64-bundled with the 4-byte key ID on the signature line.
+ * Per-signature payload encoding bundled with the 4-byte key ID.
  *
  *   'timestamped'  c2sp.org/tlog-cosignature §Format
- *                  `timestamped_signature` struct: 8-byte big-endian
- *                  u64 timestamp followed by `sigSize` raw signature
- *                  bytes. Shared by both Ed25519 (0x04) and ML-DSA-44
- *                  (0x06) cosignature types; the only registered
- *                  payload shape in the current spec.
- *
- * The union is open for future spec additions.
+ *                  `timestamped_signature` struct, shared by 0x04 and 0x06.
  */
 export type SignaturePayload = 'timestamped';
 
@@ -578,16 +531,10 @@ const COSIG_V1_PREFIX = utf8ToBytes('cosignature/v1\ntime ');
 const TIME_LINE_TERMINATOR = new Uint8Array([LF]);
 
 /**
- * Validate a JavaScript Number as a non-negative POSIX-seconds
- * timestamp safe to round-trip through u64-BE wire encoding without
- * precision loss.
- *
- * c2sp.org/tlog-cosignature §Format mandates `timestamp <= 2^63 - 1`,
- * which exceeds Number.MAX_SAFE_INTEGER (2^53 - 1). The shipped
- * leviathan surface uses Number, so values past 2^53 - 1 are rejected
- * to fail loudly rather than silently truncate. A future BigInt
- * extension can lift the upper bound if a consumer ever needs
- * timestamps beyond ≈285 million years from the epoch.
+ * Reject timestamps that cannot round-trip through u64-BE without
+ * precision loss. Spec allows `<= 2^63 - 1`
+ * (c2sp.org/tlog-cosignature §Format); leviathan uses Number, so the
+ * effective cap is Number.MAX_SAFE_INTEGER (2^53 - 1).
  */
 function assertSafeTimestamp(timestamp: number): void {
 	if (!Number.isInteger(timestamp) || timestamp < 0 || timestamp > Number.MAX_SAFE_INTEGER)
@@ -667,14 +614,6 @@ export function emitCosigSignaturePayload(
 	return out;
 }
 
-/**
- * Write a u64 in big-endian network byte order at `off` inside `out`.
- * RFC 8446 §3.3, Presentation Language: integers serialize MSB first.
- * Split into hi32 / lo32 because JavaScript bitwise ops are 32-bit;
- * `Math.floor(/2^32)` avoids the sign-bit truncation that `>>> 32`
- * would impose on a Number. The caller guarantees `value` is a
- * non-negative safe integer (Number.MAX_SAFE_INTEGER cap upstream).
- */
 function writeU64Be(out: Uint8Array, off: number, value: number): void {
 	const hi = Math.floor(value / 0x100000000);
 	const lo = value >>> 0;
@@ -720,9 +659,6 @@ export function parseCosigSignaturePayload(
 			'cosig-payload-length-mismatch',
 			`payload length ${payload.length} != expected 8 + sigSize (${8 + sigSize})`,
 		);
-	// `(byte << 24) | ...` would set the int32 sign bit when payload[0]
-	// or payload[4] has its high bit set; the trailing `>>> 0`
-	// reinterprets the int32 as a uint32 Number. Standard BE-u32 decode.
 	const tsHi =
 		((payload[0] << 24) |
 		 (payload[1] << 16) |
@@ -733,10 +669,8 @@ export function parseCosigSignaturePayload(
 		 (payload[5] << 16) |
 		 (payload[6] <<  8) |
 		 (payload[7]      )) >>> 0;
-	// 2^53 / 2^32 = 0x200000. Anything at or above that on the high
-	// 32 bits would overflow Number safe-integer precision. The spec
-	// allows up to 2^63 - 1; the leviathan surface uses Number and
-	// rejects beyond 2^53 - 1 rather than silently lose precision.
+	// 0x200000 = 2^53 / 2^32; tsHi at or above this overflows
+	// Number safe-integer precision.
 	if (tsHi >= 0x200000)
 		throw new MerkleCodecError(
 			'timestamp-exceeds-safe-integer',

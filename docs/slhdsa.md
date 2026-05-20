@@ -19,6 +19,8 @@ involved.
 > - [Performance](#performance)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
+> - [Suite integration](#suite-integration)
+> - [Stream equivalence](#stream-equivalence)
 > - [Cross-References](#cross-references)
 
 ---
@@ -737,12 +739,40 @@ every path.
 
 ---
 
+## Suite integration
+
+The integration tier exercises the v3 sign layer against the real
+SLH-DSA primitives. It asserts:
+
+- `Sign.sign` / `Sign.verify` round-trip per pure suite.
+- `Sign.sign` / `Sign.verify` round-trip per prehash suite.
+- `SignStream` + `VerifyStream` round-trip via prehash suites,
+  proving the SHAKE128 / SHAKE256 running-hash wiring lines up with
+  the suite's `signPrehashed` / `verifyPrehashed` path.
+- `SignStream` byte-equivalence with the buffered `Sign.sign` output
+  under deterministic sub-sign. Hedged `Sign.sign` cannot be
+  byte-compared.
+
+---
+
+## Stream equivalence
+
+Stream-equivalence covers SLH-DSA prehash suites `0x16` / `0x17` /
+`0x18`. The test drives `signHashPrehashedDeterministic` over the
+buffered and streamed SHAKE digest; both routes must produce the
+same prehash digest and the same signature. The production `Sign`
+path is hedged per FIPS 205 §3.4, so the byte-compare drops to the
+deterministic primitive entry point.
+
+---
+
 ## Cross-References
 
 | Document | Description |
 |----------|-------------|
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [init.md](./init.md) | `init()` API and module-loader contract |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
 | [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `SlhDsa*Suite` and `MlDsa*SlhDsa*Suite` consts |
 | [asm_slhdsa.md](./asm_slhdsa.md) | Low-level WASM module reference |
 | [slhdsa_audit.md](./slhdsa_audit.md) | Implementation audit checklist |

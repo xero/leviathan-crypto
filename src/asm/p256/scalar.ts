@@ -21,38 +21,18 @@
 //
 // src/asm/p256/scalar.ts
 //
-// Scalar arithmetic modulo n, the order of the P-256 base point.
-// SP 800-186 §3.2.1.3, FIPS 186-5 §6.
-//
-// n (decimal) = 115792089210356248762697446949407573529996955224135760342
-//                422259061068512044369
+// Scalar arithmetic mod n (P-256 base-point order), SP 800-186 §3.2.1.3,
+// FIPS 186-5 §6.
 //
 // n (hex, BE) = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF
 //               BCE6FAAD A7179E84 F3B9CAC2 FC632551
 //
-// Internal representation: 32 bytes big-endian per FIPS 186-5 §6 wire
-// form. All scalar arithmetic operates byte-level on BE buffers,
-// mirroring the curve25519 byte-level scalar reductions (but with n
-// substituted for L and BE substituted for LE byte order).
+// 32-byte BE wire form throughout. Byte-level reductions mirror
+// curve25519/scalar.ts with n substituted for L and BE for LE.
 //
-// Operations:
-//   scalarFromBytes / scalarToBytes : 32-byte BE copy in / out
-//   scalarIsCanonical(s)            : 1 iff s ∈ [0, n)
-//   scalarIsZero(s)                 : 1 iff s == 0
-//   scalarReduce(out, src32)        : reduce a 32-byte BE input mod n
-//   scalarReduce64(out, src64)      : reduce a 64-byte BE input mod n
-//                                      (HMAC chain output, see RFC 6979)
-//   scalarAdd(out, a, b)            : (a + b) mod n
-//   scalarSub(out, a, b)            : (a - b) mod n
-//   scalarMul(out, a, b)            : (a * b) mod n
-//   scalarInv(out, a)               : a^(n-2) mod n (Fermat)
-//   scalarNegate(out, a)            : (-a) mod n = n - a if a != 0 else 0
-//   scalarIsHighS(s)                : 1 iff s > n/2 (RFC 6979 §3.5 low-S)
-//
-// Constant-time discipline: every operation runs a fixed-length loop
-// with mask-driven conditional selects. No branches on secret bytes,
-// no early returns. scalarInv's exponent (n-2) is a public constant,
-// so its bit scan is fixed.
+// Constant-time: every operation is a fixed-length loop with mask-driven
+// selects. scalarInv's exponent (n-2) is a public constant; its bit scan
+// is fixed.
 
 import {FIELD_TMP, FIELD_TMP_STRIDE} from './buffers'
 
@@ -268,20 +248,9 @@ export function scalarReduce(out: i32, src: i32): void {
 // ── scalarReduce64 (64-byte input) ──────────────────────────────────────────
 
 /**
- * Reduce a 64-byte BE value mod n. Bit-by-bit binary division: the
- * high-half byte stream is initialised as the running remainder, then
- * the low half is shifted in MSB-first, with conditional subtract of
- * n after each bit. Constant-time throughout: every bit drives a fixed
- * sequence of subtractions.
- *
- * Mirrors curve25519's scalarReduce64 with byte order flipped (BE) and
- * the modulus substituted (n vs L). Slower than a Barrett / Montgomery
- * reduction but simple enough to inspect line-by-line. The RFC 6979 K
- * derivation only produces 32 bytes at a time per HMAC, so this helper
- * is currently NOT exercised by the production sign path; it is kept
- * for parity with curve25519 and for the scalar-mult product reduction
- * inside ./scalar.ts (scalarMul). See the scalarMul comment for the
- * call sequence that drives it.
+ * Reduce a 64-byte BE value mod n. High half initialises the running
+ * remainder; low half shifts in MSB-first with conditional subtract of n
+ * per bit. Constant-time.
  */
 export function scalarReduce64(out: i32, src: i32): void {
 	const work: i32 = FIELD_TMP + 2 * FIELD_TMP_STRIDE   // 33 bytes
@@ -386,18 +355,9 @@ export function scalarNegate(out: i32, a: i32): void {
 // ── scalarMul ───────────────────────────────────────────────────────────────
 
 /**
- * out = (a * b) mod n. Inputs and output are 32-byte BE.
- *
- * Implementation: byte-level schoolbook multiplication producing a
- * 64-byte BE intermediate, then scalarReduce64. Constant-time
- * throughout (no branches on operand bytes).
- *
- * Mirrors curve25519's scalarMulAdd minus the +c term and with BE
- * indexing throughout. Total cost: 32*32 = 1024 byte multiplies
- * (each fits in u32) plus the ~520 iterations of scalarReduce64
- * (each running 32 byte subtractions). The runtime is dwarfed by
- * the scalar-mult point-mul in any signing operation; no benefit
- * from premature Barrett optimization.
+ * out = (a * b) mod n. 32-byte BE in / out. Byte-level schoolbook
+ * (1024 u32 multiplies) into a 64-byte BE intermediate, then
+ * scalarReduce64. Constant-time.
  */
 export function scalarMul(out: i32, a: i32, b: i32): void {
 	// 64-byte BE product buffer.

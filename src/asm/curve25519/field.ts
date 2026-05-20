@@ -72,11 +72,8 @@ function stL(p: i32, i: i32, v: i64): void {
 }
 
 // ── Accumulator helpers, 128-bit (lo, hi) pairs in ACC region ───────────────
-//
-// ACC_OFFSET holds 5 × 16 = 80 bytes. Slot c (0..4) is at offset c*16
-// with the low u64 at +0 and the high u64 at +8. Each feMul / feSqr
-// zeros the slots on entry, accumulates the cross products, then
-// carries-and-reduces into a 5-limb result.
+// ACC[c] = (lo, hi) u64 pair at offset c*16. feMul / feSqr zero ACC
+// before use.
 
 @inline
 function accClear(): void {
@@ -99,12 +96,9 @@ function accStore(col: i32, lo: u64, hi: u64): void {
 	store<u64>(ACC_OFFSET + (col << 4) + 8, hi)
 }
 
-// Add a 64-bit multiplication a * b (each ≤ 2^54-ish) into the column-c
-// 128-bit accumulator. Implemented via 4-piece split:
-//   aL/aH, bL/bH are the low / high 32-bit halves of the operands.
-//   The full product is ll + (lh + hl) * 2^32 + hh * 2^64, where each
-//   partial is a u32 * u32 → u64 multiplication (no overflow).
-// 128-bit add with manual carry detection (unsigned compare on lo).
+// Add a 64-bit multiplication a * b into the column-c 128-bit accumulator.
+// 4-piece split (u32 × u32 → u64 partials), 128-bit add with unsigned
+// carry detection on lo.
 @inline
 function accAddMul(col: i32, a: i64, b: i64): void {
 	const aU: u64 = a as u64
@@ -115,16 +109,11 @@ function accAddMul(col: i32, a: i64, b: i64): void {
 	const bL: u64 = bU & 0xFFFFFFFF
 	const bH: u64 = bU >> 32
 
-	// Four partial products. Each fits in u64 because the operands fit
-	// in u32, so the product fits in u64.
 	const ll: u64 = aL * bL
 	const lh: u64 = aL * bH
 	const hl: u64 = aH * bL
 	const hh: u64 = aH * bH
 
-	// Combine the two middle terms; mid ≤ 2 * (2^32-1) * (2^32-1) which
-	// can overflow u64. But aH, bH are small (operands ≤ 2^54 → high
-	// halves ≤ 2^22), so mid ≤ 2 * 2^32 * 2^22 = 2^55. Fits u64.
 	const mid: u64 = lh + hl
 
 	// Build product (prodLo, prodHi):
@@ -330,21 +319,14 @@ export function feSqr(out: i32, a: i32): void {
 
 // ── Reduce-and-carry chain ─────────────────────────────────────────────────
 //
-// After feMul / feSqr, each accumulator slot holds a 128-bit value. To
-// extract the canonical 5×51 limb form:
+// Extract canonical 5×51 limb form from the 128-bit acc:
 //   1. limb[k] := acc[k].lo & MASK_51
-//   2. carry := (acc[k].lo >> 51) | (acc[k].hi << 13)  [13 = 64 - 51]
-//   3. carry propagates to acc[k+1] as a 64-bit add (the high bits of the
-//      previous accumulator add to the next column's low half)
-//   4. Column 4 → column 0 wrap uses ×19 multiplier (2^255 ≡ 19 mod p)
+//   2. carry := (acc[k].lo >> 51) | (acc[k].hi << 13)
+//   3. carry propagates to acc[k+1] (64-bit add into lo)
+//   4. column 4 → column 0 wrap uses ×19 (2^255 ≡ 19 mod p)
 //
-// Performed in two stages: a "first pass" that extracts limbs in order
-// 0,1,2,3,4 with carry, then a "second pass" on limbs 0 and 1 to absorb
-// the wraparound carry from limb 4 into limb 0 (which may overflow into
-// limb 1). Two passes suffice because the worst-case carry from column 4
-// is small (~2^60) and the ×19 multiplication produces ≤ 2^60 * 19 ≈ 2^64.3
-// across two limb columns, so a single secondary carry to limb 1
-// finishes the chain.
+// Two passes: first extracts limbs 0..4 with carry; second absorbs the
+// wrap-around carry from limb 4 into limbs 0 and 1.
 
 @inline
 function reduceAndStore(out: i32): void {
@@ -354,11 +336,6 @@ function reduceAndStore(out: i32): void {
 	let limb0: i64 = (lo0 & MASK_51 as u64) as i64
 	let carry: u64 = (lo0 >> 51) | (hi0 << 13)
 
-	// Add carry into column 1 (64-bit add into the low half is enough
-	// because the carry itself is ≤ 2^60 and column 1's accumulator
-	// was filled by feMul/feSqr to ≤ 5 * 2^104 = 2^106.3; adding a
-	// 64-bit carry keeps the hi unchanged here only when the lo add
-	// does not overflow. Re-detect overflow and propagate to hi.)
 	let lo1: u64 = accLo(1)
 	let hi1: u64 = accHi(1)
 	let lo1New: u64 = lo1 + carry
@@ -391,9 +368,6 @@ function reduceAndStore(out: i32): void {
 	let limb4: i64 = (lo4New & MASK_51 as u64) as i64
 	carry = (lo4New >> 51) | (hi4 << 13)
 
-	// Carry from limb 4 wraps to limb 0 with ×19 multiplier. The carry
-	// itself is bounded (≤ 2^60 after typical feMul); 19 * 2^60 ≈ 2^64.3
-	// just barely overflows i64. To be safe, propagate again to limb 1.
 	let limb0New: i64 = limb0 + (carry as i64) * 19
 	limb0 = limb0New & MASK_51
 	limb1 += limb0New >> 51
@@ -412,17 +386,9 @@ function reduceAndStore(out: i32): void {
 
 // ── feMul121666 ─────────────────────────────────────────────────────────────
 //
-// Multiply a field element by the small constant 121665 (≈ 2^17), used
-// by the Montgomery ladder hot path (RFC 7748 §5 ladder-step). Since
-// 121665 < 2^17, each product limb * 121665 fits in i64 (≤ 2^52 * 2^17
-// = 2^69, ouch that overflows; but since input limbs are typically
-// ≤ 2^52 in size, the product limb is ≤ 2^69 and we need a careful
-// reduce that fits within i64 accumulators).
-//
-// Plan: each output limb gets one product (no cross terms; this is a
-// scalar-by-limb multiplication, not a field multiplication). After
-// multiplying, run a carry chain to bring back to 5×51 form, with the
-// limb 4 → limb 0 wrap × 19.
+// Multiply by a24 = 121665 (RFC 7748 §5 ladder-step). Diagonal-only
+// schoolbook (no cross terms), then reduce-and-carry via the shared
+// 128-bit acc path. Output via reduceAndStore.
 
 /** out = a * 121665 (mod p). */
 export function feMul121666(out: i32, a: i32): void {
@@ -487,21 +453,9 @@ export function feFromBytes(out: i32, src: i32): void {
 }
 
 /**
- * out = encode(src), 32-byte LE canonical encoding.
- * Fully reduces the field element to its canonical representative
- * (single value in [0, p)) before encoding. Required by RFC 8032
- * §5.1.2 (point encoding canonicality) and by the strict-verification
- * posture used by Ed25519 verify.
- *
- * Reduction strategy:
- *   1. Propagate any limb-overflow carry within the 5-limb representation
- *      so that each limb is < 2^51 (i.e. ≤ 2^51 - 1).
- *   2. Subtract p conditionally: if the resulting value is ≥ p, subtract;
- *      otherwise leave alone. Done in constant time by adding 19 (which
- *      forces a carry-out of bit 255 iff value ≥ p) and checking the
- *      carry, but a cleaner approach is to compute (value + 19) and use
- *      the top bit of bit-255 as the conditional-subtract mask.
- *   3. Serialize the 5 × 51-bit limbs into 4 × u64 LE words.
+ * out = encode(src), 32-byte LE canonical encoding per RFC 8032 §5.1.2.
+ * Fully reduces to [0, p) before serialising the 5 × 51-bit limbs into
+ * 4 × u64 LE words.
  */
 export function feToBytes(out: i32, src: i32): void {
 	// Step 1: reduce limbs into [0, 2^51) by propagating carry.
@@ -521,14 +475,6 @@ export function feToBytes(out: i32, src: i32): void {
 	// which might exceed 2^51. Propagate once more through 0 → 1.
 	c = h0 >> 51; h0 -= c << 51; h1 += c
 
-	// Step 2: conditionally subtract p. The classical trick:
-	//   compute (value + 19) — this overflows bit 255 iff value >= p.
-	//   Then use bit 255 of the result as a mask: 0 means "value was < p,
-	//   subtract back the 19"; 1 means "value was >= p, the 19 already
-	//   absorbed the underflow at bit 255 so we just clear bit 255".
-	//
-	// Equivalently: add 19 to h0, propagate carry, then mask off bit 255
-	// from h4 and keep the result.
 	let q: i64 = (h0 + 19) >> 51
 	q = (h1 + q) >> 51
 	q = (h2 + q) >> 51

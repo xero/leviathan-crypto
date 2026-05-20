@@ -146,9 +146,8 @@ const SLH_PK_FORS_OFFSET: i32 = STATE_OFFSET + 3472;
 	return (hhd + 7) >> 3;
 }
 
-// ⌈h/(8·d)⌉ = ⌈h'/8⌉ ≡ 1 for all FIPS 205 fast variants. tmp_idx_leaf is
-// therefore a single byte; the digest split loads it directly via load<u8>
-// and the dedicated helper is inlined into the algorithm body.
+// FIPS 205 §11.1 fast variants: ceil(h/(8*d)) = ceil(h'/8) == 1, so
+// tmp_idx_leaf is one byte; the digest split loads it via load<u8>.
 
 /** Big-endian load of `len` ≤ 8 bytes into a u64. Used for idx_tree extraction
  *  from the message digest (FIPS 205 line 9 toInt(tmp_idx_tree, ⌈(h-h/d)/8⌉)). */

@@ -32,13 +32,11 @@ function resolve(mod: Module): Module {
 	return ALIASES[mod] ?? mod;
 }
 
-// Module-scope cache: one WebAssembly.Instance per canonical module
+// Per-canonical-module instance cache.
 const instances = new Map<Module, WebAssembly.Instance>();
-// Pending inits, coalesces concurrent initModule calls for the same module.
+// Coalesces concurrent initModule calls.
 const pending = new Map<Module, Promise<WebAssembly.Instance>>();
-// Exclusivity registry: per-module ownership token held by a stateful wrapper
-// for its entire lifetime. Prevents shared-WASM-state clobber when two
-// instances from the same module would otherwise trample each other's memory.
+// Per-module exclusivity token held by a stateful wrapper.
 const owners = new Map<Module, symbol>();
 
 export async function initModule(mod: Module, source: WasmSource): Promise<void> {
@@ -116,20 +114,8 @@ export function _isModuleBusy(mod: Module): boolean {
 	return owners.has(resolve(mod));
 }
 
-/**
- * Throw if `mod` is currently held by a stateful instance. Called at the top
- * of every atomic WASM-touching method so that cached-exports access paths
- * cannot silently clobber a live stateful instance's WASM state.
- *
- * The error message is intentionally identical to `_acquireModule`'s so that
- * error handlers matching on text work uniformly across construction-time and
- * method-time ownership failures.
- * @internal
- */
+/** @internal */
 export function _assertNotOwned(mod: Module): void {
-	// Deliberately unoptimized. Do not add caching or epoch tracking: the
-	// check must read current ownership on every call so an atomic op cannot
-	// race ahead of a stateful acquirer.
 	const r = resolve(mod);
 	if (owners.has(r))
 		throw new Error(

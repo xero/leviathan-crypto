@@ -98,11 +98,9 @@ const SUITES: SuiteSpec[] = [
 	},
 ]
 
-// Strip Internet-Draft page-header lines that intersperse the base64 fields.
-// Each page ends with `Ounsworth, et al. ... [Page NN]` and the next page
-// begins with `Internet-Draft  Composite ML-DSA  April 2026`. Removing
-// those (plus the surrounding blank lines) lets multi-line base64 values
-// concatenate cleanly.
+// Strip Internet-Draft page-header lines ('Ounsworth, et al. ... [Page NN]'
+// + 'Internet-Draft  Composite ML-DSA  ...'); lets multi-line base64
+// fields concatenate cleanly.
 function stripPageHeaders(text: string): string {
 	return text
 		.split('\n')
@@ -115,11 +113,8 @@ function stripPageHeaders(text: string): string {
 		.join('\n')
 }
 
-// Extract a `"key": "..."` value from the text starting at or after
-// `startOffset`. Base64 alphabet does not include `"`, so the closing
-// quote is found by the next `"` after the opening one. Returns the raw
-// base64 string (whitespace stripped) and the offset just past the
-// closing quote.
+// Extract `"key": "..."` starting at/after startOffset. Base64 alphabet
+// excludes '"', so closing quote = next '"'. Returns {value, after}.
 function extractStringField(
 	text: string,
 	key: string,
@@ -231,9 +226,7 @@ const records: OutRecord[] = []
 
 for (const suite of SUITES) {
 	const anchor = findTcIdAnchor(spec, suite.tcId)
-	// Extract pk, sk, s, sWithContext in document order. x5c and sk_pkcs8
-	// are intentionally not consumed; they are alternative encodings of the
-	// same key material we already capture as raw pk / sk.
+	// Skip x5c / sk_pkcs8: alternative encodings of pk / sk already captured raw.
 	const pkF  = extractStringField(spec, 'pk',           anchor)
 	const skF  = extractStringField(spec, 'sk',           pkF.after)
 	const sF   = extractStringField(spec, 's',            skF.after)

@@ -84,6 +84,32 @@ verification) and the X25519 protocol (RFC 7748 §6,
 Diffie-Hellman) live in `ed25519.ts` and `x25519.ts`, both
 compiled into the same binary.
 
+### SIMD posture
+
+curve25519 ships scalar. The WASM binary emits no v128 instructions.
+
+The dalek-cryptography parallel-formulas approach
+([eprint 2018/098](https://eprint.iacr.org/2018/098)) pairs the
+eight independent field multiplications of the
+Hisil-Wong-Carter-Dawson §3.1 extended-coords Edwards addition onto
+2-way SIMD lanes. That approach pays off only with a native paired
+`64 × 64 → 128` multiply.
+
+AssemblyScript's `v128` instruction set does not expose one. The
+closest primitive is `i64x2.extmul_low_i32x4` / `extmul_high_i32x4`
+(paired `32 × 32 → 64`). Synthesising paired `64 × 64 → 128` from
+that primitive requires a 4-piece split plus carry-tracking via
+XOR-flip and signed compare; there is no `i64x2` unsigned compare.
+
+The emulated path benchmarks no faster than two sequential scalar
+`feMul` calls. `extmul` throughput matches `i64.mul` plus the
+4-piece split, and the pack / unpack overhead consumes the marginal
+vector win.
+
+curve25519 lands in the same scalar bucket as sha2, sha3, and
+slhdsa, consistent with the library's "SIMD only where it
+measurably helps" posture.
+
 ---
 
 ## Buffer Layout
@@ -362,6 +388,36 @@ Both clamp the caller's secret internally on every call. The
 all-zero shared-secret rejection lives at the TypeScript layer
 in `X25519.dh`, not here; see
 [x25519.md](./x25519.md#all-zero-rejection) for the rationale.
+
+### X25519 posture
+
+The X25519 entry points (`x25519Keygen`, `x25519DH`) commit to four
+locked rules. The TypeScript wrapper propagates each rule unchanged.
+
+**Clamp on every call.** The substrate accepts `skOff` as opaque
+32 random bytes per RFC 7748 §5; the WASM ABI does not surface a
+"clamped sk" type. `scalarClamp` uses its copy-and-clamp form
+(`out != src`), so `skOff` survives byte-for-byte at the caller's
+pointer.
+
+**All-zero shared-secret rejection lives at the TS layer.**
+`x25519DH` returns `void` and writes `sharedOff` unconditionally.
+The TypeScript `X25519` class runs the constant-time all-zero scan
+and rejects degenerate outputs per RFC 7748 §7 (the
+contributory-behaviour interpretation). This matches x25519-dalek
+and preserves WASM-vs-oracle byte agreement for any test record
+that exercises a small-order peer pk.
+
+**No fault-injection cross-check.** `ed25519Sign` re-derives `pk`
+from the seed and aborts on caller-supplied mismatch. X25519 has
+nowhere to apply the same defence: `x25519Keygen` takes no
+caller-supplied pk, and `x25519DH`'s `peerPk` is genuinely external,
+the other party's actual choice, not a value re-derived from local
+state.
+
+**peerPk is not masked here.** `feFromBytes` inside the substrate
+masks bit 255 of the encoded u-coord per RFC 7748 §5. Callers pass
+the encoded u-coord byte-for-byte.
 
 ### Buffer wipe
 

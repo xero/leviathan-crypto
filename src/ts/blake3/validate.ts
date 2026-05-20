@@ -45,10 +45,8 @@ export function validateKey(key: Uint8Array): void {
  * conventionally a UTF-8 hardcoded application constant. An empty context
  * defeats the domain separation §2.3 is designed to provide; reject it.
  *
- * Accepts either a JS string (UTF-8 encoded here) or a Uint8Array (passed
- * through). No upper cap on length; xero's substrate-code preference is
- * caller-trust without hard caps. A long context is a design smell but
- * not a spec violation.
+ * Accepts a JS string (UTF-8 encoded here) or a Uint8Array (passed
+ * through). No upper cap on length.
  */
 export function validateContext(context: string | Uint8Array): Uint8Array {
 	let bytes: Uint8Array;

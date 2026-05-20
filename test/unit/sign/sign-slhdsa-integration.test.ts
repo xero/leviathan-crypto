@@ -21,15 +21,8 @@
 //
 // test/unit/sign/sign-slhdsa-integration.test.ts
 //
-// End-to-end envelope path exercising the v3 sign layer against REAL
-// SLH-DSA primitives. Covers:
-//   - Sign.sign / Sign.verify round-trip per pure suite.
-//   - Sign.sign / Sign.verify round-trip per prehash suite.
-//   - SignStream + VerifyStream round-trip via prehash suites, proving
-//     the SHAKE128 / SHAKE256 running-hash wiring lines up with the
-//     suite's signPrehashed / verifyPrehashed path.
-//   - SignStream byte-equivalence with the buffered Sign.sign output under
-//     deterministic sub-sign. Hedged Sign.sign cannot be byte-compared.
+// Envelope + stream integration for SLH-DSA suites. See
+// docs/slhdsa.md#suite-integration.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';

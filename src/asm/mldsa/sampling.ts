@@ -26,22 +26,6 @@
 // Algorithms 14 (CoeffFromThreeBytes) and 15 (CoeffFromHalfByte) used
 // per-byte inside the loops.
 //
-// CT POSTURE, REQUIRED READING:
-//
-//   • RejNTTPoly samples Â from the *public* seed ρ. Data-dependent branching
-//     here does not leak secret information; the matrix Â is a public output
-//     of ExpandA. Same posture as Kyber's rej_uniform.
-//
-//   • RejBoundedPoly samples s₁/s₂ from the *secret* seed ρ′. Despite the
-//     seed being secret, the rejection-sampler's acceptance rate is uniform
-//     over each input byte regardless of seed value (each byte is uniformly
-//     distributed in [0, 256)). The number of iterations leaked through
-//     branching depends only on the public byte stream G/H produced by
-//     SHAKE, it is not a function of the secret seed contents in a way that
-//     reveals the secret. The Dilithium reference implementation makes the
-//     same trade-off and FIPS 204 §7.3 endorses it. Documented here so
-//     reviewers do not "constant-time-ify" the loop, which would oversample
-//     and waste entropy without improving security.
 //
 // Both kernels are the inner per-block stage of the sampling pipeline. The
 // caller owns the SHAKE128/SHAKE256 absorb/squeeze loop and calls the kernel
@@ -129,32 +113,25 @@ export function rej_bounded_poly(polyOff: i32, ctrStart: i32, bufOff: i32, bufLe
 
 // ── sample_in_ball, FIPS 204 Algorithm 29 ──────────────────────────────────
 //
-// CT posture: SampleInBall consumes c̃ (signature commitment hash), derived
-// from H(μ || w₁Encode(w₁)). Both inputs to that hash are public:
-// μ is published in the message representative; w₁Encode(w₁) is reconstructable
-// from the signature itself (Verify_internal recomputes it). The final
-// signature includes c̃ in plaintext. Hence SampleInBall's data-dependent
-// branching reveals only public information. Documented per FIPS 204 §7.3.
+// CT posture: branches on bytes derived from c̃, which is public (FIPS
+// 204 §7.3). See docs/asm_mldsa.md#constant-time-posture.
 //
-// Resumable shape, the orchestration layer pre-squeezes one SHAKE block
-// (typically 136 bytes for SHAKE256) and calls this kernel. If the buffer is
-// exhausted before all τ samples land, the kernel returns the last
-// not-yet-filled index `i`, and the caller squeezes another block and calls
-// again with that `i` as `startI`.
+// Resumable: orchestration pre-squeezes one SHAKE block and calls this
+// kernel; on buffer exhaustion the kernel returns the last unfilled
+// index `i` for the caller to resume with via `startI`.
 //
-// First call contract, caller must:
+// First call contract:
 //   1. Zero `polyOff` (256 × i32 = 1024 bytes).
-//   2. Squeeze 8 bytes of the SHAKE stream into `signsOff`.
-//   3. Squeeze N bytes into `posBytesOff` (any N ≥ 0, caller's choice).
+//   2. Squeeze 8 bytes into `signsOff`.
+//   3. Squeeze N bytes into `posBytesOff`.
 //   4. Call sample_in_ball(polyOff, signsOff, posBytesOff, N, tau, 256-tau).
 //
-// Subsequent calls:
-//   5. Squeeze fresh bytes into `posBytesOff` (replacing the consumed ones).
-//   6. Call again with `startI` set to the previous return value.
+// Resume: squeeze fresh bytes into `posBytesOff`, call again with the
+// previous return value as `startI`.
 //
 // Returns:
-//   256      , success: all τ samples placed, full polynomial populated.
-//   value < 256, buffer exhausted; resume with this value as startI.
+//   256         : all τ samples placed (done).
+//   value < 256 : buffer exhausted; resume with this value as startI.
 export function sample_in_ball(
 	polyOff:    i32,
 	signsOff:   i32,

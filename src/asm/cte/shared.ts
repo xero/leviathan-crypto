@@ -21,18 +21,9 @@
 //
 // constant-time byte equality, AS-internal shared helper
 //
-// Scalar XOR-accumulate, branch-free 0/1 reduction. Imported by other
-// AS modules and inlined into each importer's compile unit; never
-// emitted as a WASM export because the `export` is source-level only
-// (the symbol is not re-exported from any module's entry file).
-//
-// Scalar (not SIMD) so the helper compiles cleanly into binaries that
-// do not enable the SIMD feature (slhdsa, curve25519, p256). Sibling
-// `index.ts` keeps the SIMD `compare()` path for cte.wasm's
-// JS-boundary callers, where buffer sizes are larger.
-//
-// Returns 1 if equal, 0 if not. Caller writes both arrays into the
-// importing module's linear memory before calling.
+// Scalar XOR-accumulate, branch-free 0/1 reduction. `@inline` so
+// importers (kyber, slhdsa, curve25519, p256) inline it into binaries
+// without WASM SIMD; sibling `index.ts` keeps the SIMD path for cte.wasm.
 
 @inline
 export function ctEqual(aOff: i32, bOff: i32, len: i32): i32 {

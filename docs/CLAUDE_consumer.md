@@ -115,7 +115,9 @@ entry, takes any `CipherSuite`).
 
 Docs ship under `node_modules/leviathan-crypto/dist/docs/`. Every
 `*Cipher` cipher suite also needs `ciphersuite.md`; every `*Suite`
-signature type also needs `signaturesuite.md`. Omitted from rows below.
+signature type also needs `signaturesuite.md`, and signing through
+`Sign` / `SignStream` / `VerifyStream` also needs `signing.md`.
+Omitted from rows below.
 
 | Working with | Required modules | Read first |
 |---|---|---|

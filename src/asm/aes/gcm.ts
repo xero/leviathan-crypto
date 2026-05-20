@@ -89,13 +89,8 @@ import {
 // Maximum PT bytes per (key, IV) per SP 800-38D §5.2.1.1: |P| ≤ 2^39 - 256
 // bits = 2^36 - 32 bytes. Equivalently, the 32-bit GCTR counter spans at
 // most 2^32 - 2 increments, each block is 16 bytes, so 16 · (2^32 - 2) =
-// 2^36 - 32 bytes maximum.
-//
-// In our chunked WASM API ctLen is tracked as a single i32-equivalent, but
-// we accumulate in two i32 limbs (low 32 bits of byte length and a
-// "blocks consumed" guard for counter-wrap detection). gcmEncryptChunk
-// rejects when the cumulative block count would push the counter past
-// 2^32 - 2 (the last permitted block index before 32-bit wrap).
+// 2^36 - 32 bytes maximum. Enforced at the TS layer via MAX_PT_BYTES;
+// gctrXform does not detect wrap.
 
 // Bit-length helpers: caller passes byte counts; we shift by 3 to bits.
 @inline function bitsFromBytes(byteLen: u64): u64 {
@@ -293,9 +288,6 @@ function gctrXform(srcOff: i32, dstOff: i32, len: i32): i32 {
 		processed += blockLen;
 	}
 
-	// Counter wrap is enforced at the TS layer via MAX_PT_BYTES = 2^36 - 32.
-	// Callers that bypass that cap can wrap GCM_CB's low-32 unsafely.
-	// Flagged for hardening when 4b (AESGCMSIV) or 5 (AESCipher) reuse it.
 	return 0;
 }
 

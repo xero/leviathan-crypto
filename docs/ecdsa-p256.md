@@ -23,6 +23,8 @@ strict verification with low-S enforcement per RFC 6979 §3.5.
 > - [Low-S Enforcement](#low-s-enforcement)
 > - [Error Reference](#error-reference)
 > - [SignatureSuites](#signaturesuites)
+> - [Suite integration](#suite-integration)
+> - [Stream equivalence](#stream-equivalence)
 > - [Cross-References](#cross-references)
 
 ---
@@ -895,13 +897,53 @@ examples through `Sign`, `SignStream`, and `VerifyStream`.
 
 ---
 
+## Suite integration
+
+`EcdsaP256Suite` is hedged-by-default per
+`draft-irtf-cfrg-det-sigs-with-noise-05`, so the recorded KAT vectors
+in `test/vectors/sign_ecdsa_p256.ts` carry the rnd received at
+generation time. Re-running `Sign.sign` on the same `(sk, msg)`
+produces a fresh envelope; the integration tier grades round-trip
+behaviour, not byte-exact envelope reproduction.
+
+The integration tier asserts:
+
+- `Sign.verify` accepts every recorded blob in the corpus.
+- `Sign.peek` reports the documented envelope offsets (`suite_byte`,
+  `ctx_len`, `ctx`, `payload_len` u32 BE, `payload`, `sig`).
+- A fresh suite-level `sign` + `verify` cycle on the same `(sk, msg)`
+  succeeds for every vector.
+- `Sign.signDetached` / `Sign.verifyDetached` round-trip on the same
+  corpus.
+- Cross-suite tamper: flipping `suite_byte` rejects with
+  `SigningError('sig-suite-mismatch')`.
+- Suite-bound ctx rejection at the envelope layer matches the
+  `sig-ctx-unsupported` discriminator from the suite layer
+  (FIPS 186-5 §6.4 sign inputs are `(d, hash, k)`; no ctx).
+
+---
+
+## Stream equivalence
+
+`EcdsaP256Suite` is hedged-by-default per
+`draft-irtf-cfrg-det-sigs-with-noise-05`, so `Sign.sign` and
+`SignStream` produce different signatures across calls. The
+stream-equivalence test gates the framing invariants instead: the
+payload bytes match, the envelope header matches, round-trip succeeds
+in both directions, and `VerifyStream` accepts a `Sign.sign` blob and
+vice versa. The deterministic-mode `EcdsaP256` class is the
+byte-compare surface.
+
+---
+
 ## Cross-References
 
 | Document | Description |
 |----------|-------------|
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [init.md](./init.md) | `init()` API and module-loader contract |
-| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `EcdsaP256Suite` const, `Sign`, `SignStream`, `VerifyStream` |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `EcdsaP256Suite` const |
 | [asm_p256.md](./asm_p256.md) | Low-level WASM module reference |
 | [ecdsa-p256_audit.md](./ecdsa-p256_audit.md) | ECDSA-P256 audit checklist |
 | [vector_audit.md](./vector_audit.md) | Test-vector tier classification and Rust verifier coverage |

@@ -246,12 +246,7 @@ export function decodeEcPrivateKey(der: Uint8Array): Uint8Array {
 		off += 2 + paramLen;
 	}
 
-	// Optional publicKey [1] EXPLICIT. RFC 5915 §3 leaves this
-	// OPTIONAL; some encoders include it. We skip past after a
-	// minimal-length sanity check; the scalar is the canonical
-	// secret material and the embedded pk is informational at the
-	// codec layer (a caller who needs it should re-derive from the
-	// scalar via keygenDerand for a constant-time-checked match).
+	// RFC 5915 §3 OPTIONAL: skip past after minimal length check.
 	if (off < der.length && der[off] === TAG_PUBLIC_KEY_1) {
 		const pkLen = der[off + 1];
 		if (pkLen & 0x80)

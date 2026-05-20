@@ -2,7 +2,7 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture, comprising twelve independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, classical signatures (Ed25519 / X25519 over curve25519, ECDSA over NIST P-256), the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
+Overview of Leviathan Crypto's architecture, comprising twelve independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, classical signatures (Ed25519 / X25519 over curve25519, ECDSA over NIST P-256), the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakeable, side-effect free.
 
 > ### Table of Contents
 >
@@ -62,7 +62,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 
 **[ML-KEM](./kyber.md): post-quantum handshake.** `KyberSuite` is a fourth `CipherSuite` factory that wraps an ML-KEM parameter set (`MlKem512`, `MlKem768`, `MlKem1024`) around any of the three ciphers above. The result slots into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` unchanged. Constant-time Fujisaki-Okamoto comparisons run inside the Kyber WASM module; the 32-byte shared secret derives directly from a SHA-3 output and never crosses the wire, so the leading-zero-trim timing leak that hit TLS-DH(E) (the Raccoon attack) has no structural analog here.
 
-**Beside the AEAD layer sits a scheme-agnostic [signature layer](./signaturesuite.md):** `Sign`, `SignStream`, and `VerifyStream`. Each takes a `SignatureSuite` at construction, and the signature layer handles M' formatting, cross-protocol domain separation, hedged-by-default signing, and constant-time verification. `Sign` covers one-shot signing over inputs that fit in memory. `SignStream` and `VerifyStream` chunk through the prehash variants for anything larger. The shipping catalog covers ML-DSA, SLH-DSA, Ed25519 (pure and Ed25519ph), and ECDSA P-256, plus PQ-only and classical+PQ hybrid composites. Every suite speaks the same interface.
+**Beside the AEAD layer sits a scheme-agnostic [signature layer](./signing.md):** `Sign`, `SignStream`, and `VerifyStream`. Each takes a `SignatureSuite` at construction, and the signature layer handles M' formatting, cross-protocol domain separation, hedged-by-default signing, and constant-time verification. `Sign` covers one-shot signing over inputs that fit in memory. `SignStream` and `VerifyStream` chunk through the prehash variants for anything larger. The shipping catalog covers ML-DSA, SLH-DSA, Ed25519 (pure and Ed25519ph), and ECDSA P-256, plus PQ-only and classical+PQ hybrid composites. Every suite speaks the same interface.
 
 **[ML-DSA](./mldsa.md): lattice mainline.** `MlDsa44`, `MlDsa65`, and `MlDsa87` are FIPS 204 lattice-based signatures at NIST security categories 2, 3, and 5. Polynomial arithmetic, NTT, and rejection sampling are constant-time at the algorithm level. HashML-DSA covers the streaming path. The implementation lands every FIPS 204 §D.3 SUF-CMA check at runtime.
 
@@ -126,7 +126,7 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 | API                                                                                                                                                                                                                                             | Dependencies                     | Purpose                                            |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------- |
 | [`Seal`](./aead.md#seal) / [`SealStream`](./aead.md#sealstream) / [`OpenStream`](./aead.md#openstream) / [`SealStreamPool`](./aead.md#sealstreampool)                                                                                           | Any CipherSuite                  | One-shot, streaming, decrypting, and parallel AEAD |
-| [`Sign`](./signaturesuite.md) / [`SignStream`](./signaturesuite.md#signstream) / [`VerifyStream`](./signaturesuite.md#verifystream)                                                                                                             | Any SignatureSuite               | One-shot and streaming digital signatures          |
+| [`Sign`](./signing.md#sign) / [`SignStream`](./signing.md#signstream) / [`VerifyStream`](./signing.md#verifystream)                                                                                                                             | Any SignatureSuite               | One-shot and streaming digital signatures          |
 | [`ratchetInit`](./ratchet.md#ratchetinitsk-context), [`KDFChain`](./ratchet.md#kdfchain), [`kemRatchetEncap`](./ratchet.md#kemratchetencapkem-rk-peerek-context)/[`kemRatchetDecap`](./ratchet.md#kemratchetdecapkem-rk-dk-kemct-ownek-context) | `sha2`; `kyber` + `sha3` for KEM | Forward-secret session ratcheting (SPQR)           |
 | [`Fortuna`](./fortuna.md)                                                                                                                                                                                                                       | Cipher PRF + HashFn              | Cryptographically-secure RNG                       |
 
@@ -251,7 +251,7 @@ src/asm/
 
 **Signature module** (`mldsa/`) has no `cipher-suite.ts` or `pool-worker.ts` (signing and verification are not AEAD operations). It splits its surface into `keygen.ts`, `sign.ts`, `verify.ts`, `format.ts` (M' construction with domain separator and OID prefix), `hashvariant.ts` (the twelve §5.4.1 pre-hash dispatch), `expand.ts` (ExpandA, ExpandS, ExpandMask, SampleInBall via SHAKE), `validate.ts` (input validation), and `sha3-helpers.ts` (sponge orchestration).
 
-**Signing surface** (`sign/`) sits beside `stream/` as the signing counterpart to the AEAD layer. `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; they delegate to a `SignatureSuite` object passed at the call site (or to the stream constructor). The `sign/suites/` directory holds the in-tree suite consts. Shipped suites: six ML-DSA (three pure, three prehash), six SLH-DSA (three pure, three prehash), three PQ-only hybrid composites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) that bind both primitives to the same prehash digest, two Ed25519 (pure plus Ed25519ph prehash), and one ECDSA-P256 (`EcdsaP256Suite` at format byte `0x02`, hedged-by-default, low-S enforced). Future work adds the classical+PQ hybrid composites. See [signaturesuite.md](./signaturesuite.md).
+**Signing surface** (`sign/`) sits beside `stream/` as the signing counterpart to the AEAD layer. `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic; they delegate to a `SignatureSuite` object passed at the call site (or to the stream constructor). The `sign/suites/` directory holds the in-tree suite consts. Shipped suites: six ML-DSA (three pure, three prehash), six SLH-DSA (three pure, three prehash), three PQ-only hybrid composites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) that bind both primitives to the same prehash digest, two Ed25519 (pure plus Ed25519ph prehash), and one ECDSA-P256 (`EcdsaP256Suite` at format byte `0x02`, hedged-by-default, low-S enforced). Future work adds the classical+PQ hybrid composites. See [signing.md](./signing.md) for the `Sign` / `SignStream` / `VerifyStream` API and [signaturesuite.md](./signaturesuite.md) for the full suite catalog.
 
 **Shared utilities.** `shared/` holds primitives reused across cipher modules without belonging to any one of them. `pkcs7.ts` is the canonical PKCS#7 padding helper used by Serpent CBC and consumer code.
 
@@ -720,6 +720,52 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 
 **Thread safety.** The main thread uses a single WASM instance per module. `SealStreamPool` provides worker-based parallelism. Each pool worker is spawned from an IIFE bundled at build time and instantiates its own WASM modules with isolated linear memory, bypassing the main-thread cache entirely. For other primitives, create one instance per Worker if Workers are used.
 
+### Pool worker spawn pattern
+
+`SealStreamPool` spawns one Web Worker per pool slot through the cipher
+suite's `createPoolWorker()` method. `SerpentCipher`, `XChaCha20Cipher`,
+and `AESGCMSIVCipher` all implement the same classic-worker-over-blob-URL
+pattern. The IIFE source is bundled at lib build time by
+`scripts/embed-workers.ts` and embedded into each `cipher-suite.ts`
+module as the `WORKER_SOURCE` string constant.
+
+```typescript
+createPoolWorker(): Worker {
+	const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' });
+	const url  = URL.createObjectURL(blob);
+	const w    = new Worker(url);
+	setTimeout(() => URL.revokeObjectURL(url), 0);
+	return w;
+}
+```
+
+The spawn body is short and every choice it encodes is load-bearing.
+
+**Blob URL, not `new URL(..., import.meta.url)`.** Vite's transform hook
+detects the `new Worker(new URL('./pool-worker.ts', import.meta.url))`
+form at parse time and eagerly emits a separate worker chunk into the
+consumer's bundle output, regardless of whether the consumer ever spawns
+a pool. Building the URL from a runtime blob bypasses the eager-emission
+path. Consumers that never instantiate `SealStreamPool` get zero worker
+chunks.
+
+**Classic worker, not module worker.** Chromium rejects module workers
+loaded from `file://` origins (test pages, Electron, packaged docs).
+Classic workers spawn cleanly under V8, SpiderMonkey, and JavaScriptCore
+across every loader the library supports.
+
+**Macrotask revoke, not synchronous revoke.** The Worker spec fetches the
+URL synchronously at construction; revoking before the spawn completes
+drops the spawn on the floor. Revoking on the next macrotask releases
+the ~5 KB blob immediately, instead of leaking it for the document's
+lifetime.
+
+> [!NOTE]
+> Strict-CSP consumers (`worker-src 'self'`, no `blob:`) can supply
+> their own URL-based factory by spread-overriding `createPoolWorker`
+> on the cipher object. See [ciphersuite.md](./ciphersuite.md#interface-reference)
+> for the override pattern.
+
 ---
 
 
@@ -750,7 +796,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 | [`MlDsa44Ed25519Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding), [`MlDsa65Ed25519Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding)                                                                                                                                                                                                                                                         | Classical+PQ hybrid (composite ML-DSA + Ed25519, fmt `0x20`/`0x21`) per `draft-ietf-lamps-pq-composite-sigs`                                                                                          | `mldsa` + `sha3` + `curve25519` + `sha2`          |
 | [`MlDsa44EcdsaP256Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding), [`MlDsa65EcdsaP256Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding)                                                                                                                                                                                                                                                     | Classical+PQ hybrid (composite ML-DSA + ECDSA-P256, fmt `0x22`/`0x23`) per `draft-ietf-lamps-pq-composite-sigs`                                                                                       | `mldsa` + `sha3` + `p256` + `sha2`                |
 | [`BLAKE3`](./blake3.md#blake3), [`BLAKE3Stream`](./blake3.md#blake3stream), [`BLAKE3KeyedHash`](./blake3.md#blake3keyedhash), [`BLAKE3KeyedHashStream`](./blake3.md#blake3keyedhashstream), [`BLAKE3DeriveKey`](./blake3.md#blake3derivekey), [`BLAKE3DeriveKeyStream`](./blake3.md#blake3derivekeystream), [`BLAKE3OutputReader`](./blake3.md#blake3outputreader), [`BLAKE3Hash`](./blake3.md#blake3hash)                     | BLAKE3 tree-mode hash family (hash, keyed_hash, derive_key, XOF reader); `BLAKE3Hash` is a stateless Fortuna `HashFn` const                                                                           | `blake3`                                          |
-| [`Sign`](./signaturesuite.md), [`SignStream`](./signaturesuite.md#signstream), [`VerifyStream`](./signaturesuite.md#verifystream)                                                                                                                                                                                                                                                                                              | Scheme-agnostic signing layer ‡                                                                                                                                                                       | varies (per `SignatureSuite`)                     |
+| [`Sign`](./signing.md#sign), [`SignStream`](./signing.md#signstream), [`VerifyStream`](./signing.md#verifystream)                                                                                                                                                                                                                                                                                                              | Scheme-agnostic signing layer ‡                                                                                                                                                                       | varies (per `SignatureSuite`)                     |
 | [`Seal`](./aead.md#seal), [`SealStream`](./aead.md#sealstream), [`OpenStream`](./aead.md#openstream), [`SealStreamPool`](./aead.md#sealstreampool)                                                                                                                                                                                                                                                                             | Cipher-agnostic AEAD layer; `SealStreamPool` also takes a `WasmSource` in pool opts for worker compilation                                                                                            | varies (per `CipherSuite`)                        |
 | [`MerkleVerifier`](./merkle.md#merkleverifier), [`MerkleLog`](./merkle.md#merklelog), [`SignedLog`](./merkle.md#signedlog), [`Sha256Tree`](./merkle.md#sha256tree-and-blake3tree), [`Blake3Tree`](./merkle.md#sha256tree-and-blake3tree), [`MemoryStorage`](./merkle.md#merklestorage-and-memorystorage)                                                                                                                       | Transparency log: `MerkleVerifier` / `MerkleLog` (normie surface); `SignedLog`, `Sha256Tree`, `Blake3Tree`, `MemoryStorage` (danger-zone composition)                                                 | `sha2` (+ suite + hasher modules for `SignedLog`) |
 | [`ratchetInit`](./ratchet.md#ratchetinitsk-context), [`KDFChain`](./ratchet.md#kdfchain), [`SkippedKeyStore`](./ratchet.md#skippedkeystore)                                                                                                                                                                                                                                                                                    | SPQR KDF primitives ‡                                                                                                                                                                                 | `sha2`                                            |
@@ -762,7 +808,7 @@ await init({ serpent: serpentWasm, sha2: sha2Wasm })
 >
 > † Ratchet exports are KDF primitives from Signal's Sparse Post-Quantum Ratchet spec; session state, message ordering, and header format remain application concerns.
 >
-> ‡ `Sign`, `SignStream`, and `VerifyStream` accept any `SignatureSuite` from the catalog: `MlDsa{44,65,87}{,PreHash}Suite`, `SlhDsa{128f,192f,256f}{,PreHash}Suite`, the PQ-only hybrid composites `MlDsa{44,65,87}SlhDsa{128f,192f,256f}Suite`, `Ed25519{,PreHash}Suite`, `EcdsaP256Suite`, and the classical+PQ hybrids `MlDsa{44,65}{Ed25519,EcdsaP256}Suite`. See [signaturesuite.md](./signaturesuite.md).
+> ‡ `Sign`, `SignStream`, and `VerifyStream` accept any `SignatureSuite` from the catalog: `MlDsa{44,65,87}{,PreHash}Suite`, `SlhDsa{128f,192f,256f}{,PreHash}Suite`, the PQ-only hybrid composites `MlDsa{44,65,87}SlhDsa{128f,192f,256f}Suite`, `Ed25519{,PreHash}Suite`, `EcdsaP256Suite`, and the classical+PQ hybrids `MlDsa{44,65}{Ed25519,EcdsaP256}Suite`. See [signing.md](./signing.md) for the user-facing API and [signaturesuite.md](./signaturesuite.md) for the suite catalog.
 
 ### Usage pattern
 
@@ -1283,7 +1329,8 @@ The architectural defenses compose into protection against specific named attack
 | [init](./init.md)                      | `init()` API, `WasmSource`, and idempotent behavior                                                     |
 | [loader](./loader.md)                  | Internal WASM binary loading strategies                                                                 |
 | [cipher suite](./ciphersuite.md)       | `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `AESGCMSIVCipher`, `KyberSuite`            |
-| [signature suite](./signaturesuite.md) | `SignatureSuite`, `Sign`, `SignStream`, `VerifyStream`, ML-DSA / SLH-DSA / PQ-only hybrid suite catalog |
+| [signing](./signing.md)                | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError`                              |
+| [signature suite](./signaturesuite.md) | `SignatureSuite` interface plus the full ML-DSA / SLH-DSA / Ed25519 / ECDSA-P256 / hybrid catalog       |
 | [test suite](./test-suite.md)          | Testing methodology, vector corpus, and gate discipline                                                 |
 | [types](./types.md)                    | Public TypeScript interfaces and `CipherSuite`                                                          |
 | [utils](./utils.md)                    | Encoding helpers, `constantTimeEqual`, `wipe`, `randomBytes`                                            |

@@ -21,21 +21,9 @@
 //
 // src/ts/blake3/index.ts
 //
-// BLAKE3 public API. One-shot and streaming flavours of hash, keyed_hash
-// and derive_key, plus the XOF reader and a stateless Fortuna-compatible
-// HashFn const. Call `blake3Init(source)` before constructing any class.
-//
-// Pattern: streaming-class lifecycle mirrors `SHA3_256Stream` beat for
-// beat (constructor acquires module exclusivity, finalize / dispose
-// release). XOF semantics follow BLAKE3 §2.6. Keyed-hash and derive_key
-// semantics follow §2.3 Modes.
-//
-// XOF: the WASM `hash` / `hashKeyed` / `deriveKey` entries snapshot the
-// root-compress input into ROOT_STATE_* and emit up to OUTPUT_STAGING
-// bytes in a single call. For unbounded squeezes the OutputReader runs
-// the hash once (capturing the snapshot) and then drives the WASM
-// `squeezeXofBlock` export to lift additional 64-byte XOF blocks off
-// the snapshot until the caller stops reading or disposes the reader.
+// BLAKE3 public API. One-shot and streaming flavours of hash, keyed_hash,
+// derive_key (BLAKE3 §2.3 Modes), and the XOF reader (§2.6). Call
+// `blake3Init(source)` before constructing any class.
 
 import {
 	getInstance, initModule, isInitialized,
@@ -58,24 +46,15 @@ function getExports(): Blake3Exports {
 	return getInstance('blake3').exports as unknown as Blake3Exports;
 }
 
-// Input scratch lives past the BLAKE3 module's mutable buffer region
-// (BUFFER_END = 26328 in src/asm/blake3/buffers.ts, which includes the
-// LEVEL_QUEUES region). 27648 leaves the module's own buffers
-// (CV, MSG, CHUNK / TREE state, LEVEL_QUEUES, etc.) untouched and
-// reserves enough headroom for the derive_key path to stage the 47-byte
-// upstream KAT context string concatenated with the 102400-byte largest
-// upstream material. The blake3 module is sized at 2 pages (131072
-// bytes) so the usable input region is 131072 - 27648 = 103424 bytes.
+// Input scratch sits past BUFFER_END from src/asm/blake3/buffers.ts;
+// usable region is 131072 - INPUT_SCRATCH_OFF bytes.
 const INPUT_SCRATCH_OFF = 27648;
 const INPUT_SCRATCH_MAX = 131072 - INPUT_SCRATCH_OFF;
 
-// Per-call cap on one-shot outLen. The WASM `hash` family writes its
-// output into OUTPUT_STAGING (1024 bytes, see buffers.ts); larger
-// requests must go through `finalizeXof()` and the OutputReader.
+// One-shot output staging cap; larger XOF reads go through OutputReader.
 const OUTPUT_STAGING_SIZE = 1024;
 
-// One BLAKE3 root compress emits 64 bytes; the OutputReader squeezes
-// in 64-byte increments per §2.6.
+// BLAKE3 §2.6: root compress emits 64 bytes per squeeze.
 const ROOT_BLOCK_SIZE = 64;
 
 function tooBigForScratchError(len: number): RangeError {
@@ -277,13 +256,8 @@ export class BLAKE3DeriveKey {
 
 // ── Streaming base ─────────────────────────────────────────────────────────
 //
-// Lifecycle mirrors `SHA3_256Stream` from src/ts/sha3/index.ts: constructor
-// acquires module exclusivity, finalize / dispose release. Implementation
-// strategy for v3 is buffer-all-input then call the corresponding one-shot
-// WASM entry at finalize, rather than driving chunk / tree primitives from
-// TS (which would re-implement crypto in the TS layer, violating the
-// `docs/architecture.md` constraint). The buffer is grown on demand and
-// wiped on dispose / finalize.
+// Buffer input, run one-shot WASM hash at finalize. Lifecycle mirrors
+// SHA3_256Stream. See docs/architecture.md.
 
 class StreamState {
 	chunks: Uint8Array[] = [];
@@ -313,9 +287,8 @@ class StreamState {
 	}
 
 	wipe(): void {
-		// We do not own caller-supplied chunk buffers, so we only drop our
-		// reference to them; the heap-allocated concat buffer is wiped if
-		// the caller-facing class held onto one.
+		// Drop references; we don't own caller buffers. concat() buffers
+		// are wiped by the calling class.
 		this.chunks = [];
 		this.totalLen = 0;
 	}
@@ -626,11 +599,9 @@ export class BLAKE3OutputReader {
 		}
 	}
 
-	// Run the underlying hash once, capturing ROOT_STATE_* inside WASM
-	// and copying the first 64-byte XOF block (counter = 0) into the
-	// local block buffer. Does NOT call wipeBuffers (that would clear
-	// ROOT_STATE_*); the reader owns module exclusivity for its lifetime
-	// and wipes on dispose.
+	// Captures ROOT_STATE_* inside WASM, copies block 0 to _blockBuf.
+	// Does NOT call wipeBuffers; that would clear ROOT_STATE_* and break
+	// subsequent squeezeXofBlock calls. The reader wipes on dispose.
 	private _populate(): void {
 		const x      = this.x;
 		const outOff = x.getOutputStagingOffset();
@@ -681,8 +652,6 @@ export class BLAKE3OutputReader {
 			this._nextCounter = 1n;
 			this._populated   = true;
 		} finally {
-			// Wipe input scratch and output staging, but NOT the full
-			// module buffer region (which would clear ROOT_STATE_*).
 			const inLen = this._mode === 'derive' && this._ctx
 				? this._ctx.length + this._input.length
 				: this._input.length;

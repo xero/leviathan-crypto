@@ -21,34 +21,10 @@
 //
 // test/unit/sign/sign-ecdsa-p256-vectors.test.ts
 //
-// Tier 1 ECDSA-P256 corpus replay through the suite layer.
-//
-//   - RFC 6979 §A.2.5: drives EcdsaP256.signDeterministic with the
-//     RFC-prescribed key and SHA-256 digest of the per-record message;
-//     compares (r || s) byte-for-byte to the RFC expected. The suite
-//     itself is hedged-by-default, so this side drops to the primitive
-//     class for byte-exact reproduction. The suite still verifies the
-//     resulting sig through `verifyPrehashed`.
-//
-//   - ACVP keyGen: drops to `EcdsaP256.keygenDerand(seed=d)` and asserts
-//     the derived pk matches (qx, qy). The suite-level `keygen()` is
-//     hedged from `randomBytes(32)`, so keygen KAT reproduction is the
-//     primitive-class job; the suite is graded for round-trip behaviour.
-//
-//   - ACVP sigVer: drives `EcdsaP256Suite.verifyPrehashed(pk, hash, sig,
-//     EMPTY_CTX)` and compares the boolean against ACVP's `testPassed`.
-//     The library's strict-S posture (FIPS 186-5 §6.4.4 + RFC 6979 §3.5)
-//     rejects high-S even on otherwise-valid records, so test-side
-//     adjusts `testPassed` accordingly.
-//
-//   - Wycheproof: drives `verifyPrehashed` on every record and grades
-//     against the 'valid' / 'invalid' / 'acceptable' discriminator. The
-//     library is strict on signature malleability (low-S enforced and
-//     non-canonical (r, s) encodings rejected), so records flagged
-//     `BER` / `SignatureMalleability` etc. with `result='valid'` are
-//     expected to REJECT under the strict-gate posture; the test
-//     normalises the expectation to match leviathan-crypto's strict
-//     stance.
+// Tier-1 ECDSA-P256 corpus replay (RFC 6979 §A.2.5, ACVP keyGen,
+// ACVP sigVer, Wycheproof) through EcdsaP256Suite. Strict-S posture
+// (FIPS 186-5 §6.4.4 + RFC 6979 §3.5) is applied to expected booleans.
+// Sources detailed in docs/ecdsa-p256.md#test-vectors.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, hexToBytes } from '../../../src/ts/index.js';
@@ -118,15 +94,8 @@ function isHighS(sHex: string): boolean {
 }
 
 // ── RFC 6979 §A.2.5 deterministic-K replay ─────────────────────────────────
-//
-// The RFC's expected (r, s) is the canonical deterministic ECDSA result
-// for SHA-256 over the literal-ASCII per-record message and the
-// RFC §A.2.5 keypair. Reproducing it requires the deterministic-K path,
-// which the EcdsaP256 class selects when rnd is all-zero (FIPS 186-5
-// §6.4.1's conforming construction). The suite is hedged-only at the
-// public API; dropping to the class is the only way to reproduce a
-// byte-exact RFC 6979 r||s. The resulting sig still round-trips through
-// the suite's `verifyPrehashed`.
+// Reproducing byte-exact (r, s) needs the deterministic-K path; rnd=0^32
+// selects it (FIPS 186-5 §6.4.1). Suite verifyPrehashed accepts.
 
 // Compute the low-S form of s. The library enforces low-S on the sign
 // side per RFC 6979 §3.5, so the s byte block in the produced sig is
@@ -215,16 +184,8 @@ describe('ACVP ECDSA-P256 sigVer replay through EcdsaP256Suite.verifyPrehashed',
 });
 
 // ── Wycheproof replay through the suite (strict gate) ─────────────────────
-//
-// Strict posture: leviathan-crypto rejects high-S, non-canonical (r, s)
-// encodings, and any sig whose byte length is not exactly 64. Wycheproof
-// flags records under malleability / range-check categories as
-// `result='valid'` when a non-strict oracle would accept them, so the
-// expected boolean is adjusted: a 'valid' record passes only if its
-// (r, s) are canonical AND s is low-S AND the sig is exactly 64 bytes.
-// An 'invalid' record must always fail. 'acceptable' records (none in
-// the p1363 file at this writing, but accepted by the parser schema)
-// are LOGGED only, no assertion.
+// Strict posture: reject high-S, non-canonical (r, s), len != 64. 'valid'
+// adjusted to canonical+low-S+64B; 'invalid' must fail; 'acceptable' logged only.
 
 describe('Wycheproof ECDSA-P256 replay through EcdsaP256Suite.verifyPrehashed (strict gate)', () => {
 	it.each(ecdsa_p256_wycheproof)(

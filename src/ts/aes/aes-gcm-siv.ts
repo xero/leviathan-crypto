@@ -20,24 +20,6 @@
 //                           ▀█████▀▀
 //
 // src/ts/aes/aes-gcm-siv.ts
-//
-// AESGCMSIV, AES-128/256 in GCM-SIV mode (RFC 8452), nonce-misuse-
-// resistant authenticated encryption with a 128-bit tag. Atomic single-
-// shot AEAD bounded by CHUNK_PT_BUFFER (64 KiB plaintext cap).
-//
-// AES-192 is NOT supported. RFC 8452 §6 fixes K_LEN ∈ {16, 32}; there is
-// no AES-192-GCM-SIV variant. Passing a 24-byte key to the constructor
-// throws.
-//
-// Tag verification routes through `constantTimeEqual` in `../utils.js`
-// (the dedicated `ct` WASM module), per library policy: atomic AEADs do
-// not compare tags inside their own module.
-//
-// On authentication failure, `open()` calls the WASM `sivWipeOnFail`
-// helper before throwing, ensuring the decrypted-but-unauthenticated
-// plaintext at CHUNK_PT_OFFSET is zeroed before any TS code can read it.
-// (The CHUNK_PT staging is required by SIV's verify-after-decrypt flow,
-// the tag is a function of the plaintext.)
 
 import { getInstance, _acquireModule, _releaseModule } from '../init.js';
 import { constantTimeEqual, wipe } from '../utils.js';
@@ -217,10 +199,7 @@ export class AESGCMSIV {
 
 			const ok = constantTimeEqual(expectedTag, providedTagCopy);
 			if (!ok) {
-				// Belt-and-suspenders: surgical wipe of the unauthenticated
-				// plaintext before the broader wipeBuffers in finally fires.
-				// Also wipe JS-heap tag copies to mirror the discipline in
-				// chacha20 ops and serpent cipher-suite.
+				// Wipe before finally; covers JS-heap tag copies.
 				x.sivWipeOnFail();
 				wipe(expectedTag);
 				wipe(providedTagCopy);

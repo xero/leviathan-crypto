@@ -2,12 +2,70 @@
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="100" align="left">
 
-- **[Security Posture](#security-posture)**
-- **[PQ-only Hybrid Signature Threat Model](#pq-only-hybrid-signature-threat-model)**
-- **[Classical+PQ Hybrid Signature Threat Model](#classicalpq-hybrid-signature-threat-model)**
-- **[Cryptanalytic Audits](#cryptanalytic-audits)**
 - **[Supported Versions](#supported-versions)**
-- **[Vulnerability Reporting](#reporting-a-vulnerability)**
+- **[Reporting a Vulnerability](#reporting-a-vulnerability)**
+- **[Security Posture](#security-posture)**
+- **[Cryptanalytic Audits](#cryptanalytic-audits)**
+- **[Signature Threat Models](#signature-threat-models)**
+  - **[PQ-only Hybrid](#pq-only-hybrid-signature-threat-model)**
+  - **[Classical+PQ Hybrid](#classicalpq-hybrid-signature-threat-model)**
+
+---
+
+## Supported versions
+
+Every fix is documented in the full [CHANGELOG](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG). Each version below links to the release notes documenting its fixes.
+
+| Version | Status | Summary |
+| --- | --- | --- |
+| [v3.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v3-0-0) | ✓ supported | Serpent public byte-order convention flipped to NIST natural order (wire-format break against v2); ChaCha salamander defense; AES-128/192/256 raw block cipher; PQ + classical signature catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, PQ-only and classical+PQ hybrids); BLAKE3 hash family; C2SP-conformant merkle log substrate (`MerkleLog`, `MerkleVerifier`) |
+| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Upgrade to v3.0.x; note the Serpent wire-format break |
+| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. Upgrade to v3.0.x |
+| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. Upgrade to v3.0.x |
+
+> [!CAUTION]
+> v2.0.0 has a known silent-corruption bug. `SealStreamPool` with `SerpentCipher` silently produces corrupt plaintext with no authentication error on decrypt for inputs ≥ 65536 bytes. See [v2.0.1 release notes](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) and update to the latest version immediately.
+
+---
+
+## Reporting a vulnerability
+
+> [!IMPORTANT]
+> Do not open a public issue for security vulnerabilities.
+
+### Private advisory (preferred)
+
+Use GitHub's private vulnerability reporting form: [https://github.com/xero/leviathan-crypto/security/advisories/new](https://github.com/xero/leviathan-crypto/security/advisories/new)
+
+This opens a private channel between you and the maintainer, and you will receive a response promptly. If the vulnerability is confirmed, we collaborate to fully understand the issue, including a review of proposed fixes, so you can track and validate firsthand. Before any public advisory publishes, we agree on a coordinated disclosure timeline. After disclosure, you are encouraged to publish your own write-up, blog post, or research notes for full hacker scene credit.
+
+### Direct contact
+
+If you prefer direct contact:
+
+- **Email:** x﹫xero.style · PGP: [0xAC1D0000](https://0w.nz/pgp.pub)
+- **Matrix:** x0﹫rx.haunted.computer
+
+> [!NOTE]
+> Encrypted communication is welcome and preferred for sensitive reports.
+
+### In scope
+
+- Authentication bypass in AEAD constructions
+- Key material exposure or improper zeroing
+- Incorrect entropy or CSPRNG weaknesses in Fortuna
+- Side-channel vulnerabilities (timing, memory access patterns)
+- Correctness bugs in cryptographic implementations (wrong output against test vectors)
+- Platform-specific behavioral differences (WASM execution, binary output, or timing characteristics that differ across operating systems or CPU architectures)
+- Supply chain issues (dependency tampering, workflow compromise)
+- Improper scope of exported symbols
+
+### Out of scope
+
+- Vulnerabilities in third-party packages not maintained by this project. This includes optional peer dependencies such as argon2id. Report those directly to their maintainers.
+- Issues requiring physical access to the user's device
+- Theoretical attacks with no practical exploit path (complexity improvements that remain computationally infeasible)
+- Issues in the demo applications that do not affect the core library. Open an issue in [leviathan-demos](https://github.com/xero/leviathan-demos/) instead.
 
 ---
 
@@ -83,7 +141,7 @@ The stateless AEADs (`ChaCha20Poly1305`, `XChaCha20Poly1305`) enforce strict sin
 
 ### Signature surface threat model
 
-The v3 sign module (`Sign`, `SignStream`, `VerifyStream`, and the six ML-DSA SignatureSuite consts) is built on the same disciplines that protect the seal layer: required-customization construction, constant-time comparison on attacker-supplied bytes, wipe-on-failure, and runtime exclusivity guards on shared WASM state.
+The sign module (`Sign`, `SignStream`, `VerifyStream`, and the six ML-DSA SignatureSuite consts) is built on the same disciplines that protect the seal layer: required-customization construction, constant-time comparison on attacker-supplied bytes, wipe-on-failure, and runtime exclusivity guards on shared WASM state.
 
 **Cross-suite domain separation via `ctxDomain`.** Every SignatureSuite carries a built-in `{scheme}-envelope-v3` (or `{scheme}-prehash-envelope-v3`) string. The suite wraps the caller's user_ctx into an effective ctx of the form `lengthPrefix(suite.ctxDomain) || lengthPrefix(user_ctx)` before handing the ctx to the underlying primitive. A signature produced under `MlDsa65Suite` cannot accidentally validate against `MlDsa65PreHashSuite` even with identical `(sk, msg, user_ctx)`, the M' transcripts differ at the very first bytes. The factory enforces `ctxDomain ≤ 32 bytes`; per-call `user_ctx ≤ 255 bytes` (FIPS 204 §3.6.1 native ctx cap) throws `SigningError('sig-ctx-too-long')`. `buildEffectiveCtx` enforces a second check on the combined output length so the effective per-call user_ctx ceiling on `buildEffectiveCtx`-using suites is `253 - len(ctxDomain)`, keeping the combined effective_ctx inside the FIPS 204 255-byte cap. Composite suites (the classical+PQ hybrids at `0x20`-`0x23`) bind ctx through the M' construction directly and enforce the full 255-byte cap inline; the discriminator is uniform across both check sites.
 
@@ -94,6 +152,57 @@ The v3 sign module (`Sign`, `SignStream`, `VerifyStream`, and the six ML-DSA Sig
 **Wipe hygiene across both stream classes.** `SignStream` holds the SHA3-256 / SHA3-512 running prehash; `finalize()` and `dispose()` zero the hasher state via the underlying `SHA3_*Stream.dispose()` wipe. `VerifyStream` additionally buffers payload chunks for the post-finalize length-known verify pass; on auth failure inside `finalize()` the collected chunks are wiped before the `SigningError` propagates, so partial payload bytes never leak through a thrown error path. Caller-owned signing keys, verification keys, and messages are not wiped by the lib, those remain the caller's responsibility under the same memory-hygiene contract that applies to AEAD keys.
 
 **Concurrency posture.** `SignStream` and `VerifyStream` hold an exclusive ownership token on the `sha3` WASM module from construction until `finalize()` or `dispose()`. Concurrent use of `Sign.sign` on a prehash suite during a live `SignStream`, or vice versa, throws the same `_acquireModule` exclusivity error that protects SHAKE128 from clobber. The sign layer supports single-threaded use only; concurrent multi-signer use cases will ship when the underlying primitive offers worker-pool variants.
+
+### Dependency management
+
+This library has zero runtime dependencies by design. `sideEffects: false` is enforced in `package.json`. Argon2id integration is documented as an _optional_ external dependency. See: [leviathan-crypto/wiki/argon2id](https://github.com/xero/leviathan-crypto/wiki/argon2id).
+
+Build toolchain dependencies use exact version locks in `bun.lock`. GitHub Actions workflows use [SHA-pinned action references](https://github.com/xero/leviathan-crypto/blob/main/scripts/pin-actions.ts) throughout with no floating tags. Supply chain integrity is a first-class concern for a cryptography library.
+
+Decoy packages cover common typosquat variants (missing hyphens, character transpositions, and common misspellings) of `leviathan-crypto` on npm. Each declares the real `leviathan-crypto` as an optional peer dependency and runs a post-install script that loudly warns the user with the correct package name and install command, preempting the typosquat attack class ahead of any observed exploitation.
+
+### Explicit initialization
+
+No class silently auto-initializes. The [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) gate is mandatory and explicit, giving you full control over when WASM modules load and ensuring no hidden initialization costs or race conditions. Classes throw immediately if used before initialization rather than failing silently.
+
+### Agentic development contracts
+
+All AI-assisted development on this repository operates under a strict agentic contract defined in [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md). The contract enforces spec authority over planning documents, immutable test vectors, gate discipline before extending any test suite, independent algorithm derivation from published standards, and constant-time and wipe requirements for all security-sensitive code paths. Agents are explicitly prohibited from guessing cryptographic values or resolving spec ambiguities silently.
+
+The contract has been verified against Claude, GitHub Copilot (VS Code), OpenHands, Kilo Code, Cursor, Windsurf, and Aider. Configuration files for each are in the repository and all route to [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md) as the single source of authority.
+
+A separate `CLAUDE_consumer.md` ships alongside the library, compressing the API surface, design restrictions, and recommended workflows into a map an AI assistant can use when a consumer asks for help writing or reviewing code that uses leviathan-crypto. It does for consumer-side AI work what `AGENTS.md` does for contributor-side AI work.
+
+---
+
+## Cryptanalytic audits
+
+All primitives undergo periodic cryptographic implementation reviews. See the [audit index](https://github.com/xero/leviathan-crypto/wiki/audits) for a full summary.
+
+| Primitive | Audit description |
+| --- | --- |
+| [serpent_audit](https://github.com/xero/leviathan-crypto/wiki/serpent_audit) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
+| [chacha_audit](https://github.com/xero/leviathan-crypto/wiki/chacha_audit) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension, post-auth-fail wipe hygiene |
+| [sha2_audit](https://github.com/xero/leviathan-crypto/wiki/sha2_audit) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
+| [sha3_audit](https://github.com/xero/leviathan-crypto/wiki/sha3_audit) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
+| [blake3_audit](https://github.com/xero/leviathan-crypto/wiki/blake3_audit) | BLAKE3 §2.2 compress / §2.1 compress4 / §2.3 chunk machine / §2.4 subtree stack / §2.5 root + XOF / §2.6 keyed_hash / §2.7 derive_key correctness, lane-parallel SIMD equivalence, XOF snapshot lifecycle, per-class wipe discipline |
+| [hmac_audit](https://github.com/xero/leviathan-crypto/wiki/hmac_audit) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
+| [hkdf_audit](https://github.com/xero/leviathan-crypto/wiki/hkdf_audit) | HKDF extract-then-expand, info field domain separation, stream key derivation |
+| [kyber_audit](https://github.com/xero/leviathan-crypto/wiki/kyber_audit) | ML-KEM FIPS 203 correctness (§7.2/§7.3 direct coefficient-range validation), NTT/Montgomery/Barrett verification, FO transform CT analysis, per-op memory hygiene across keygen/encap/decap, ACVP validation |
+| [stream_audit](https://github.com/xero/leviathan-crypto/wiki/stream_audit) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths, `'failed'` terminal state |
+| [ratchet_audit](https://github.com/xero/leviathan-crypto/wiki/ratchet_audit) | SPQR KDF primitives: HKDF parameter assignments with full transcript binding (peerEk, kemCt, context), wipe coverage, counter encoding, direction slot alignment, transactional `ResolveHandle` DoS mitigation |
+
+### Serpent-256 security margin research
+
+The security margin of Serpent-256 has been independently researched and documented. The best known attack on the full 32-round cipher, _biclique cryptanalysis_, achieves a complexity of 2²⁵⁵·¹⁹ with 2⁴ chosen ciphertexts. This provides less than one bit of advantage over exhaustive key search and has zero practical impact. Independent research conducted against this implementation improved on the published result by −0.20 bits through systematic parameter search, confirming no structural weakness beyond what the published literature describes.
+
+See: [xero/BicliqueFinder/biclique_research.md](https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md)
+
+---
+
+## Signature threat models
+
+Two hybrid signature families ship with different adversary models. PQ-only hybrids (`0x30`-`0x32`) pair ML-DSA with SLH-DSA for assumption diversity between two PQ families. Classical+PQ hybrids (`0x20`-`0x23`) pair ML-DSA with Ed25519 or ECDSA-P256 for ecosystem interop during PQ migration. The sections below cover what each defends against and what it does not.
 
 ### PQ-only hybrid signature threat model
 
@@ -107,7 +216,7 @@ Three PQ-only hybrid suites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`,
 
 **What this does NOT defend against.** A universal cryptographically-relevant quantum computer that breaks lattice and hash-based primitives simultaneously, a discovery that one of the two primitives is fundamentally broken under classical attack (the broken half offers no protection in that case and only the other half's security applies). Neither half of the hybrid is classical, so Shor's algorithm does not apply; the hybrid is PQ-only by design.
 
-**Difference from classical+PQ hybrids (`0x20`-`0x23`, see below).** Classical hybrids exist for ecosystem interop during PQ migration: they bind ML-DSA to Ed25519 or ECDSA-P256 so a receiver with only classical verifier support can still consume the signature. Classical hybrids defend against the case where PQ cryptanalysis has not panned out and the classical primitive carries the security. They do NOT defend against a quantum adversary, because Shor's algorithm breaks the classical half. PQ-only hybrids invert that trade: both halves are quantum-resistant, neither is classical, neither offers interop with pre-PQ verifiers. Different threat models, different designs, different encodings. The library does NOT use the IETF composite-sigs draft for the PQ-only pairs because composite-sigs targets classical+PQ; the PQ-only encoding here is leviathan-defined per [signaturesuite.md](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#wire-format).
+**Difference from classical+PQ hybrids (`0x20`-`0x23`, see below).** Classical hybrids exist for ecosystem interop during PQ migration: they bind ML-DSA to Ed25519 or ECDSA-P256 so a receiver with only classical verifier support can still consume the signature. Classical hybrids defend against the case where PQ cryptanalysis has not panned out and the classical primitive carries the security. They do NOT defend against a quantum adversary, because Shor's algorithm breaks the classical half. PQ-only hybrids invert that trade: both halves are quantum-resistant, neither is classical, neither offers interop with pre-PQ verifiers. Different threat models, different designs, different encodings. The library does NOT use the IETF composite-sigs draft for the PQ-only pairs because composite-sigs targets classical+PQ; the PQ-only encoding here is leviathan-defined per [signaturesuite.md](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#pq-only-hybrid-composite-encoding).
 
 **Domain separation.** Each hybrid suite carries a unique `ctxDomain` (`mldsa44-slhdsa128f-envelope-v3`, `mldsa65-slhdsa192f-envelope-v3`, `mldsa87-slhdsa256f-envelope-v3`). Both halves of a single hybrid see the same `effective_ctx`, so a sig produced for one hybrid cannot reuse against another. Cross-suite forgery (an ML-DSA half from a standalone `MlDsa44Suite` masquerading as the ML-DSA half of hybrid `0x30`) is prevented because the `effective_ctx` differs at the byte level. Cross-hybrid forgery (the ML-DSA half from `0x30` reused inside `0x31`) is prevented by the same mechanism. No per-half suffix is required because ML-DSA pk and SLH-DSA pk are distinct artifacts: a sig produced for one primitive cannot accidentally verify under the other's pk.
 
@@ -151,102 +260,3 @@ The composite signature is therefore non-deterministic for both ECDSA suites and
 The asymmetric posture is emit-strict, verify-lenient: leviathan-produced composite signatures are always low-S (the WASM-side `ecdsaSign` runs FIPS 186-5 §6.5 / RFC 6979 §3.5 normalisation before DER encoding), but the verify side accepts both. Considered in isolation the ECDSA half on the composite-verify path is EUF-CMA, not sEUF-CMA, because the s ↔ n - s symmetry lets an attacker holding a valid composite signature produce a second composite (re-encoded with the high-S equivalent of the ECDSA half) that also verifies. This is a real consequence at the composite level: 0x22 / 0x23 are sEUF-CMA only if the ECDSA half is sEUF-CMA, which it is not under the lenient verify policy. Applications that require sEUF-CMA — Bitcoin-style transaction IDs, Signal-style "this signature uniquely identifies the message", anything that uses a signature as a non-malleable commitment — should use `MlDsa44Ed25519Suite` / `MlDsa65Ed25519Suite` (0x20 / 0x21, sEUF-CMA via RFC 8032 §5.1.7 strict verify on the Ed25519 half) or the standalone `EcdsaP256Suite` (0x02, sEUF-CMA via strict low-S). EUF-CMA — the standard "can't forge a signature on a message the signer never signed" guarantee — holds across all four composite suites and is what most signing use cases actually need.
 
 **Concurrency model.** Single-threaded. A live `SignStream` over a classical+PQ hybrid suite holds the underlying WASM modules exclusively from construction until `finalize()` or `dispose()`. Concurrent `Sign.sign` calls on the same hybrid suite throw the same `_acquireModule` exclusivity error that protects every other stateful WASM consumer.
-
-### Dependency management
-
-This library has zero runtime dependencies by design. `sideEffects: false` is enforced in `package.json`. Argon2id integration is documented as an _optional_ external dependency. See: [leviathan-crypto/wiki/argon2id](https://github.com/xero/leviathan-crypto/wiki/argon2id).
-
-Build toolchain dependencies use exact version locks in `bun.lock`. GitHub Actions workflows use [SHA-pinned action references](https://github.com/xero/leviathan-crypto/blob/main/scripts/pin-actions.ts) throughout with no floating tags. Supply chain integrity is a first-class concern for a cryptography library.
-
-### Explicit initialization
-
-No class silently auto-initializes. The [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) gate is mandatory and explicit, giving you full control over when WASM modules load and ensuring no hidden initialization costs or race conditions. Classes throw immediately if used before initialization rather than failing silently.
-
-### Agentic development contracts
-
-All AI-assisted development on this repository operates under a strict agentic contract defined in [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md). The contract enforces spec authority over planning documents, immutable test vectors, gate discipline before extending any test suite, independent algorithm derivation from published standards, and constant-time and wipe requirements for all security-sensitive code paths. Agents are explicitly prohibited from guessing cryptographic values or resolving spec ambiguities silently.
-
-The contract has been verified against Claude, GitHub Copilot (VS Code), OpenHands, Kilo Code, Cursor, Windsurf, and Aider. Configuration files for each are in the repository and all route to [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md) as the single source of authority.
-
----
-
-## Cryptanalytic audits
-
-All primitives undergo periodic cryptographic implementation reviews. See the [audit index](https://github.com/xero/leviathan-crypto/wiki/audits) for a full summary.
-
-| Primitive | Audit description |
-| --- | --- |
-| [serpent_audit](https://github.com/xero/leviathan-crypto/wiki/serpent_audit) | Correctness verification, side-channel analysis, cryptanalytic attack paper review |
-| [chacha_audit](https://github.com/xero/leviathan-crypto/wiki/chacha_audit) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension, post-auth-fail wipe hygiene |
-| [sha2_audit](https://github.com/xero/leviathan-crypto/wiki/sha2_audit) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
-| [sha3_audit](https://github.com/xero/leviathan-crypto/wiki/sha3_audit) | Keccak permutation correctness, θ/ρ/π/χ/ι step verification, round constant derivation |
-| [blake3_audit](https://github.com/xero/leviathan-crypto/wiki/blake3_audit) | BLAKE3 §2.2 compress / §2.1 compress4 / §2.3 chunk machine / §2.4 subtree stack / §2.5 root + XOF / §2.6 keyed_hash / §2.7 derive_key correctness, lane-parallel SIMD equivalence, XOF snapshot lifecycle, per-class wipe discipline |
-| [hmac_audit](https://github.com/xero/leviathan-crypto/wiki/hmac_audit) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
-| [hkdf_audit](https://github.com/xero/leviathan-crypto/wiki/hkdf_audit) | HKDF extract-then-expand, info field domain separation, stream key derivation |
-| [kyber_audit](https://github.com/xero/leviathan-crypto/wiki/kyber_audit) | ML-KEM FIPS 203 correctness (§7.2/§7.3 direct coefficient-range validation), NTT/Montgomery/Barrett verification, FO transform CT analysis, per-op memory hygiene across keygen/encap/decap, ACVP validation |
-| [stream_audit](https://github.com/xero/leviathan-crypto/wiki/stream_audit) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths, `'failed'` terminal state |
-| [ratchet_audit](https://github.com/xero/leviathan-crypto/wiki/ratchet_audit) | SPQR KDF primitives: HKDF parameter assignments with full transcript binding (peerEk, kemCt, context), wipe coverage, counter encoding, direction slot alignment, transactional `ResolveHandle` DoS mitigation |
-
-### Serpent-256 security margin research
-
-The security margin of Serpent-256 has been independently researched and documented. The best known attack on the full 32-round cipher, _biclique cryptanalysis_, achieves a complexity of 2²⁵⁵·¹⁹ with 2⁴ chosen ciphertexts. This provides less than one bit of advantage over exhaustive key search and has zero practical impact. Independent research conducted against this implementation improved on the published result by −0.20 bits through systematic parameter search, confirming no structural weakness beyond what the published literature describes.
-
-See: [xero/BicliqueFinder/biclique_research.md](https://github.com/xero/BicliqueFinder/blob/main/biclique-research.md)
-
----
-
-## Supported versions
-
-Every fix is documented in the full [CHANGELOG](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG). Each version below links to the release notes documenting its fixes.
-
-| Version | Status | Summary |
-| --- | --- | --- |
-| [v3.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v3-0-0) | ✓ supported | Serpent public byte-order convention flipped to NIST natural order (wire-format break against v2); ChaCha salamander defense; AES-128/192/256 raw block cipher; PQ + classical signature catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, PQ-only and classical+PQ hybrids); BLAKE3 hash family; C2SP-conformant merkle log substrate (`MerkleLog`, `MerkleVerifier`) |
-| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Upgrade to v3.0.x; note the Serpent wire-format break |
-| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. Upgrade to v3.0.x |
-| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. Upgrade to v3.0.x |
-
-> [!CAUTION]
-> v2.0.0 has a known silent-corruption bug. `SealStreamPool` with `SerpentCipher` silently produces corrupt plaintext with no authentication error on decrypt for inputs ≥ 65536 bytes. See [v2.0.1 release notes](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) and update to the latest version immediately.
-
----
-
-## Reporting a vulnerability
-
-> [!IMPORTANT]
-> Do not open a public issue for security vulnerabilities.
-
-### Private advisory (preferred)
-
-Use GitHub's private vulnerability reporting form: [https://github.com/xero/leviathan-crypto/security/advisories/new](https://github.com/xero/leviathan-crypto/security/advisories/new)
-
-This opens a private channel between you and the maintainer, and you will receive a response promptly. If the vulnerability is confirmed, we collaborate to fully understand the issue, including a review of proposed fixes, so you can track and validate firsthand. Before any public advisory publishes, we agree on a coordinated disclosure timeline. After disclosure, you are encouraged to publish your own write-up, blog post, or research notes for full hacker scene credit.
-
-### Direct contact
-
-If you prefer direct contact:
-
-- **Email:** x﹫xero.style · PGP: [0xAC1D0000](https://0w.nz/pgp.pub)
-- **Matrix:** x0﹫rx.haunted.computer
-
-> [!NOTE]
-> Encrypted communication is welcome and preferred for sensitive reports.
-
-### In scope
-
-- Authentication bypass in AEAD constructions
-- Key material exposure or improper zeroing
-- Incorrect entropy or CSPRNG weaknesses in Fortuna
-- Side-channel vulnerabilities (timing, memory access patterns)
-- Correctness bugs in cryptographic implementations (wrong output against test vectors)
-- Platform-specific behavioral differences (WASM execution, binary output, or timing characteristics that differ across operating systems or CPU architectures)
-- Supply chain issues (dependency tampering, workflow compromise)
-- Improper scope of exported symbols
-
-### Out of scope
-
-- Vulnerabilities in third-party packages not maintained by this project. This includes optional peer dependencies such as argon2id. Report those directly to their maintainers.
-- Issues requiring physical access to the user's device
-- Theoretical attacks with no practical exploit path (complexity improvements that remain computationally infeasible)
-- Issues in the demo applications that do not affect the core library. Open an issue in [leviathan-demos](https://github.com/xero/leviathan-demos/) instead.
-
