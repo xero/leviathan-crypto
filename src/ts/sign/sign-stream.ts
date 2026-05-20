@@ -118,10 +118,12 @@ export class SignStream {
 		this.finalized = true;
 
 		const h = this.hasher as RunningHash;
+		let digest: Uint8Array | undefined;
 		try {
-			const digest = h.finalize();
+			digest = h.finalize();
 			return this.suite.signPrehashed(this.sk, digest, this.ctx);
 		} finally {
+			if (digest !== undefined) wipe(digest);
 			h.dispose();
 			this.hasher = undefined;
 		}

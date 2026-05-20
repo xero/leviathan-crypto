@@ -40,7 +40,7 @@
 //   Finalized      -> finalize() called; subsequent operations throw.
 //   Disposed       -> dispose() called; everything throws.
 
-import { constantTimeEqual, concat } from '../utils.js';
+import { constantTimeEqual, concat, wipe } from '../utils.js';
 import { SigningError } from '../errors.js';
 import type { StreamableSignatureSuite } from './types.js';
 import { createRunningHash } from './hasher.js';
@@ -147,22 +147,26 @@ export class VerifyStream {
 			}
 
 			const digest = (h as RunningHash).finalize();
-			const sig = this.sigBuf;
 			try {
-				if (!this.suite.verifyPrehashed(this.pk, digest, sig, this.expectedCtx)) {
+				const sig = this.sigBuf;
+				try {
+					if (!this.suite.verifyPrehashed(this.pk, digest, sig, this.expectedCtx)) {
+						this.wipeBuffers();
+						throw new SigningError('verify-failed');
+					}
+				} catch (e) {
 					this.wipeBuffers();
-					throw new SigningError('verify-failed');
+					throw e;
 				}
-			} catch (e) {
+				// `concat` allocates a fresh buffer, so wiping the chunks here
+				// does not corrupt the returned payload; it just drops the
+				// internal duplicates that would otherwise linger until GC.
+				const out = concat(...this.payloadChunks);
 				this.wipeBuffers();
-				throw e;
+				return out;
+			} finally {
+				wipe(digest);
 			}
-			// `concat` allocates a fresh buffer, so wiping the chunks here
-			// does not corrupt the returned payload; it just drops the
-			// internal duplicates that would otherwise linger until GC.
-			const out = concat(...this.payloadChunks);
-			this.wipeBuffers();
-			return out;
 		} finally {
 			if (h !== undefined) h.dispose();
 		}
