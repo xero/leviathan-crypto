@@ -21,22 +21,9 @@
 //
 // test/unit/aes/aes_ghash.test.ts
 //
-// Gate 12, standalone GHASH validation. Walks each McGrew-Viega Appendix B
-// test case through GHASH directly (not through full AES-GCM), validating
-// the GF(2^128) multiply primitive against the published intermediate values
-// and the published tag.
-//
-// What this gate proves:
-//   - H = AES_ENC(K, 0^128) is correctly derived inside loadKey.
-//   - The 4-bit windowed multiply table is correctly built from H.
-//   - GHASH absorbs zero, AAD, and CT blocks correctly across all three
-//     AES key sizes.
-//   - The tag derivation T = GHASH_H(...) XOR AES_ENC(K, J0) reproduces
-//     the published Tag for each Appendix B case (handles 12-byte fast-path
-//     and variable-length-IV slow-path J0 derivations).
-//
-// If this gate fails but Phase 1-3 gates pass, the bug is somewhere in
-// gf128.ts, ghash.ts, or the loadKey integration.
+// Standalone GHASH gate, McGrew-Viega Appendix B. Tag derivation
+// T = GHASH_H(...) XOR AES_ENC(K, J0); proves H derivation +
+// 4-bit windowed multiply table + GHASH absorb.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init } from '../../../src/ts/index.js';
@@ -88,11 +75,7 @@ function writeBytes(bytes: Uint8Array, off: number): void {
 	memBytes().set(bytes, off);
 }
 
-/** Manually compute J0 in TS (independent witness for the WASM path).
- * 96-bit IV: J0 = IV || 0x00000001.
- * Other-length IV: J0 = GHASH_H(IV || 0^{s+64} || [|IV|]_64), but we let
- * WASM compute that path via gcmStart and just read J0 back.
- */
+/** TS witness for J0 on 12-byte IV: J0 = IV || 0x00000001. */
 function expectedJ0For12ByteIv(iv: Uint8Array): Uint8Array {
 	if (iv.length !== 12) throw new Error('not 12-byte IV');
 	const j0 = new Uint8Array(16);
@@ -104,8 +87,8 @@ function expectedJ0For12ByteIv(iv: Uint8Array): Uint8Array {
 describe('GHASH gate (Gate 12), McGrew-Viega Appendix B', () => {
 	for (const v of aesGcmVectors) {
 		// GATE: tag derivation via standalone GHASH primitive plus a single
-		// AES_ENC of J0. If the AES core is correct (Phases 1-3 verified),
-		// any tag mismatch isolates a bug to GHASH / GF(2^128) multiply.
+		// AES_ENC of J0. With the AES core verified independently, any tag
+		// mismatch isolates a bug to GHASH / GF(2^128) multiply.
 		it(v.description, () => {
 			const x = exports();
 			try {
@@ -114,32 +97,26 @@ describe('GHASH gate (Gate 12), McGrew-Viega Appendix B', () => {
 				const aad = fromHex(v.aad);
 				const ct  = fromHex(v.ct);
 
-				// 1. Load key, derives H = AES_ENC(K, 0^128) inside loadKey.
+				// 1. Load key (derives H = AES_ENC(K, 0^128)).
 				writeBytes(key, x.getKeyOffset());
 				expect(x.loadKey(key.length)).toBe(0);
 
 				// 2. Derive J0.
 				let j0: Uint8Array;
 				if (iv.length === 12) {
-					// Fast path; verify in TS.
 					j0 = expectedJ0For12ByteIv(iv);
 				} else {
-					// Slow path: drive gcmStart on (iv, empty aad) so it runs the
-					// variable-IV GHASH path; gcmStart reads IV from CHUNK_PT.
 					writeBytes(iv, x.getChunkPtOffset());
 					expect(x.gcmStart(iv.length, 0)).toBe(0);
 					j0 = readBytes(x.getJ0Offset(), 16);
 				}
 
-				// 3. Compute E(K, J0) by encrypting J0 directly.
+				// 3. j0e = E(K, J0).
 				writeBytes(j0, x.getBlockPtOffset());
 				x.encryptBlock();
 				const j0e = readBytes(x.getBlockCtOffset(), 16);
 
-				// 4. Build the GHASH input ourselves (TS side) and call ghashStart
-				//    + ghashAbsorbBlock to walk it through. The format is
-				//      A || pad_a (zeros to 16 bytes) || C || pad_c || lengths.
-				//    `lengths` = [|A| in bits]_64 BE || [|C| in bits]_64 BE.
+				// 4. Build GHASH input: A || pad_a || C || pad_c || [|A|]_64 BE || [|C|]_64 BE.
 				const aadPadLen = (16 - (aad.length % 16)) % 16;
 				const ctPadLen  = (16 - (ct.length  % 16)) % 16;
 				const totalLen  = aad.length + aadPadLen + ct.length + ctPadLen + 16;
@@ -151,19 +128,16 @@ describe('GHASH gate (Gate 12), McGrew-Viega Appendix B', () => {
 				aadBitsView.setBigUint64(0, BigInt(aad.length) * 8n, false);
 				aadBitsView.setBigUint64(8, BigInt(ct.length)  * 8n, false);
 
-				// Place GHASH input in CHUNK_PT (it's just a scratch read region for
-				// this isolated call; the AES key schedule is preserved and the
-				// GHASH state is reset by ghashStart).
 				writeBytes(ghashIn, x.getChunkPtOffset());
 
-				// 5. Reset GHASH and absorb the full input (16-byte stride).
+				// 5. Reset and absorb.
 				x.ghashStart();
 				x.ghashAbsorbWithLen(x.getChunkPtOffset(), totalLen);
 
-				// 6. Final S = GHASH_H(...).
+				// 6. S = GHASH_H(...).
 				const s = readBytes(x.getGhashAccOffset(), 16);
 
-				// 7. T = J0E XOR S.
+				// 7. T = j0e XOR S.
 				const t = new Uint8Array(16);
 				for (let i = 0; i < 16; i++) t[i] = j0e[i] ^ s[i];
 				expect(toHex(t)).toBe(v.tag);

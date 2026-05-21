@@ -9,14 +9,21 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [Serpent-256](#serpent-256)
 > - [AES](#aes)
 > - [Stream](#stream)
+> - [Sign](#sign)
 > - [Errors](#errors)
 > - [XChaCha20 / Poly1305](#xchacha20--poly1305)
 > - [SHA-2](#sha-2)
 > - [SHA-3](#sha-3)
 > - [Keccak (alias for SHA-3)](#keccak-alias-for-sha-3)
+> - [BLAKE3](#blake3)
+> - [Ed25519 / X25519 (Curve25519 family)](#ed25519--x25519-curve25519-family)
+> - [ECDSA-P256](#ecdsa-p256)
 > - [ML-KEM (Post-quantum KEM)](#ml-kem-post-quantum-kem)
+> - [ML-DSA (Post-quantum signatures)](#ml-dsa-post-quantum-signatures)
+> - [SLH-DSA (Post-quantum signatures)](#slh-dsa-post-quantum-signatures)
 > - [Fortuna CSPRNG](#fortuna-csprng)
 > - [Ratchet (Sparse Post-Quantum Ratchet KDF)](#ratchet-sparse-post-quantum-ratchet-kdf)
+> - [Merkle log substrate](#merkle-log-substrate)
 > - [Types](#types)
 > - [Utilities](#utilities)
 
@@ -30,7 +37,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa'` |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3' \| 'curve25519' \| 'p256'`. The top-level `init()` additionally accepts `'ed25519'` and `'x25519'` as aliases that resolve to the `curve25519` slot. |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -105,11 +112,53 @@ Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 
 ---
 
+## Sign
+
+Cipher-agnostic signature envelope and streaming layer over the v3 SignatureSuite abstraction.
+Subpath: `leviathan-crypto/sign`. See [signing.md](./signing.md) for the `Sign` / `SignStream` / `VerifyStream` API and [signaturesuite.md](./signaturesuite.md) for the `SignatureSuite` interface and full suite catalog.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `Sign` | class (static) | One-shot signature envelope. `Sign.sign(suite, sk, msg, ctx)`, `Sign.verify(suite, pk, blob, ctx)`, `Sign.signDetached(suite, sk, msg, ctx)`, `Sign.verifyDetached(suite, pk, msg, sig, ctx)`, `Sign.peek(blob, suite)`. Never instantiated. |
+| `SignStream` | class | Streaming signature production over a `StreamableSignatureSuite`. `new SignStream(suite, sk, ctx)`, `update(chunk)`, `finalize()`, `dispose()`. `finalize()` returns wire bytes byte-identical to `Sign.sign` for the same inputs. |
+| `VerifyStream` | class | Streaming signature consumption over a `StreamableSignatureSuite`. `new VerifyStream(suite, pk, ctx)`, `update(chunk)`, `finalize()` returns verified payload or throws `SigningError`. Buffered payload chunks are wiped on auth failure. |
+| `SignatureSuite` | interface | Suite contract for all signature schemes. Fields: `formatEnum`, `formatName`, `ctxDomain`, `pkSize`, `skSize`, `sigMaxSize`, `wasmModules`. Methods: `sign(sk, msg, ctx)`, `verify(pk, msg, sig, ctx)`, `keygen()`. |
+| `StreamableSignatureSuite` | interface | `SignatureSuite` extension for suites usable with `SignStream`/`VerifyStream`. Adds `prehashAlgorithm`, `prehashSize`, `signPrehashed(sk, digest, ctx)`, `verifyPrehashed(pk, digest, sig, ctx)`. |
+| `PrehashAlgorithm` | type | Union of the six prehash function identifiers used across the catalog: `'sha-256' \| 'sha-512' \| 'sha3-256' \| 'sha3-512' \| 'shake-128' \| 'shake-256'`. |
+| `Ed25519Suite` | const | Pure Ed25519 SignatureSuite (RFC 8032 §5.1.6, signature generation). `formatEnum: 0x01`, `ctxDomain: 'ed25519-envelope-v3'`. Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Requires `init({ ed25519 })`. |
+| `Ed25519PreHashSuite` | const | Ed25519ph StreamableSignatureSuite (RFC 8032 §5.1.7, signature verification, dom2 prehash). `formatEnum: 0x11`, `ctxDomain: 'ed25519-prehash-envelope-v3'`, `prehashAlgorithm: 'sha-512'`. Requires `init({ ed25519, sha2 })`. |
+| `EcdsaP256Suite` | const | ECDSA-P256 + SHA-256 StreamableSignatureSuite (FIPS 186-5 §6.4, SP 800-186 §3.2.1.3). `formatEnum: 0x02`, `ctxDomain: 'ecdsa-p256-envelope-v3'`, `pkSize: 33`, `skSize: 32`, `sigMaxSize: 64`, `prehashAlgorithm: 'sha-256'`, `prehashSize: 32`. Single mode with SHA-256 prehash baked in (ECDSA has no native pure mode). Hedged-by-default (`randomBytes(32)` per call per draft-irtf-cfrg-det-sigs-with-noise-05); drop to `EcdsaP256` for deterministic RFC 6979 §3.2 sign. Rejects non-empty user_ctx on every entry point with `SigningError('sig-ctx-unsupported')`; context-bound ECDSA-P256 lives in the classical+PQ hybrid suites (catalog 0x22 / 0x23). Requires `init({ p256, sha2 })`. |
+| `MlDsa44Suite` | const | Pure ML-DSA-44 SignatureSuite. `formatEnum: 0x03`, `ctxDomain: 'mldsa44-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa65Suite` | const | Pure ML-DSA-65 SignatureSuite. `formatEnum: 0x04`, `ctxDomain: 'mldsa65-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa87Suite` | const | Pure ML-DSA-87 SignatureSuite. `formatEnum: 0x05`, `ctxDomain: 'mldsa87-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa44PreHashSuite` | const | ML-DSA-44 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x13`, `ctxDomain: 'mldsa44-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa65PreHashSuite` | const | ML-DSA-65 + SHA3-256 prehash StreamableSignatureSuite. `formatEnum: 0x14`, `ctxDomain: 'mldsa65-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `MlDsa87PreHashSuite` | const | ML-DSA-87 + SHA3-512 prehash StreamableSignatureSuite. `formatEnum: 0x15`, `ctxDomain: 'mldsa87-prehash-envelope-v3'`. Requires `init({ mldsa, sha3 })`. |
+| `SlhDsa128fSuite` | const | Pure SLH-DSA-SHAKE-128f SignatureSuite. `formatEnum: 0x06`, `ctxDomain: 'slhdsa128f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa192fSuite` | const | Pure SLH-DSA-SHAKE-192f SignatureSuite. `formatEnum: 0x07`, `ctxDomain: 'slhdsa192f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa256fSuite` | const | Pure SLH-DSA-SHAKE-256f SignatureSuite. `formatEnum: 0x08`, `ctxDomain: 'slhdsa256f-envelope-v3'`. Requires `init({ slhdsa })`. |
+| `SlhDsa128fPreHashSuite` | const | SLH-DSA-SHAKE-128f + SHAKE128(32) prehash StreamableSignatureSuite. `formatEnum: 0x16`, `ctxDomain: 'slhdsa128f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `SlhDsa192fPreHashSuite` | const | SLH-DSA-SHAKE-192f + SHAKE256(64) prehash StreamableSignatureSuite. `formatEnum: 0x17`, `ctxDomain: 'slhdsa192f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `SlhDsa256fPreHashSuite` | const | SLH-DSA-SHAKE-256f + SHAKE256(64) prehash StreamableSignatureSuite. `formatEnum: 0x18`, `ctxDomain: 'slhdsa256f-prehash-envelope-v3'`. Requires `init({ slhdsa, sha3 })`. |
+| `MlDsa44SlhDsa128fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-44 + SLH-DSA-128f (NIST cat-2 + cat-1). `formatEnum: 0x30`, `ctxDomain: 'mldsa44-slhdsa128f-envelope-v3'`. Composite `pk = pk_mldsa \|\| pk_slhdsa`, `sig = sig_mldsa \|\| sig_slhdsa`, ML-DSA-first, no length prefixes. Prehash SHAKE128(32). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa65SlhDsa192fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-65 + SLH-DSA-192f (cat-3 + cat-3). `formatEnum: 0x31`, `ctxDomain: 'mldsa65-slhdsa192f-envelope-v3'`. Prehash SHAKE256(64). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa87SlhDsa256fSuite` | const | PQ-only hybrid StreamableSignatureSuite composing ML-DSA-87 + SLH-DSA-256f (cat-5 + cat-5). `formatEnum: 0x32`, `ctxDomain: 'mldsa87-slhdsa256f-envelope-v3'`. Prehash SHAKE256(64). Requires `init({ mldsa, sha3, slhdsa })`. |
+| `MlDsa44Ed25519Suite` | const | Classical+PQ composite hybrid StreamableSignatureSuite composing ML-DSA-44 + Ed25519, `draft-ietf-lamps-pq-composite-sigs` `id-MLDSA44-Ed25519-SHA512` (OID `1.3.6.1.5.5.7.6.39`). `formatEnum: 0x20`, `ctxDomain: 'mldsa44-ed25519-envelope-v3'`, `pkSize: 1344`, `skSize: 64`, `sigMaxSize: 2484`, `prehashAlgorithm: 'sha-512'`, `prehashSize: 64`. M' construction binds the user_ctx per composite-sigs §3.2; the ML-DSA half uses the per-suite Label as its native ctx (pure ML-DSA, not HashML-DSA). Composite sk is `mldsaSeed (32) \|\| ed25519Seed (32)`; signing re-derives the expanded ML-DSA sk per call via `keygenDerand`. Hedged-by-default for the ML-DSA half; Ed25519 is deterministic by RFC 8032 §5.1.6. Requires `init({ mldsa, sha3, ed25519, sha2 })`. |
+| `MlDsa65Ed25519Suite` | const | Classical+PQ composite hybrid StreamableSignatureSuite composing ML-DSA-65 + Ed25519, `draft-ietf-lamps-pq-composite-sigs` `id-MLDSA65-Ed25519-SHA512` (OID `1.3.6.1.5.5.7.6.48`). `formatEnum: 0x21`, `ctxDomain: 'mldsa65-ed25519-envelope-v3'`, `pkSize: 1984`, `skSize: 64`, `sigMaxSize: 3373`, `prehashAlgorithm: 'sha-512'`, `prehashSize: 64`. Same construction and module requirements as `MlDsa44Ed25519Suite`. |
+| `MlDsa44EcdsaP256Suite` | const | Classical+PQ composite hybrid StreamableSignatureSuite composing ML-DSA-44 + ECDSA-P256, `draft-ietf-lamps-pq-composite-sigs` `id-MLDSA44-ECDSA-P256-SHA256` (OID `1.3.6.1.5.5.7.6.40`). `formatEnum: 0x22`, `ctxDomain: 'mldsa44-ecdsa-p256-envelope-v3'`, `pkSize: 1377`, `skSize: 83`, `sigMaxSize: 2492` (upper bound; ECDSA-half DER-encoded `Ecdsa-Sig-Value` per RFC 3279 §2.2.3 varies 8-72 bytes), `prehashAlgorithm: 'sha-256'`, `prehashSize: 32`. The ECDSA half hashes `SHA-256(M')` per composite-sigs §6 `ecdsa-with-SHA256`. Composite pk carries the 65-byte SEC 1 §2.3.4 uncompressed ECDSA pk; composite sk is `mldsaSeed (32) \|\| ecPrivateKeyDer (51)` (RFC 5915 §3). Both halves hedged-by-default. Requires `init({ mldsa, sha3, p256, sha2 })`. |
+| `MlDsa65EcdsaP256Suite` | const | Classical+PQ composite hybrid StreamableSignatureSuite composing ML-DSA-65 + ECDSA-P256, `draft-ietf-lamps-pq-composite-sigs` `id-MLDSA65-ECDSA-P256-SHA512` (OID `1.3.6.1.5.5.7.6.45`). `formatEnum: 0x23`, `ctxDomain: 'mldsa65-ecdsa-p256-envelope-v3'`, `pkSize: 2017`, `skSize: 83`, `sigMaxSize: 3381` (upper bound; ECDSA-half DER variable). `prehashAlgorithm: 'sha-512'`, `prehashSize: 64` for the composite layer; the ECDSA-internal hash is still SHA-256(M') per composite-sigs §6 `ecdsa-with-SHA256` and §10.1. Same module requirements as `MlDsa44EcdsaP256Suite`. |
+
+---
+
 ## Errors
 
 | Export | Kind | Description |
 |--------|------|-------------|
 | `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
+| `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signing.md](./signing.md#signingerror)). |
+| `KeyAgreementError` | class | Thrown by `X25519.dh` when the peer public key produces an all-zero shared secret (small-order point per RFC 7748 §6.1, Curve25519). Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
+| `MerkleCodecError` | class | Thrown on wire-format contract violations in the merkle cosignature codec (`buildCosigSignedMessage`, `buildCosignedMessage`, `emitCosigSignaturePayload`, `parseCosigSignaturePayload`) per c2sp.org/tlog-cosignature §Format, §"Ed25519 signed message", and §"ML-DSA-44 signed message". Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'timestamp-out-of-range'`, `'timestamp-exceeds-safe-integer'`, `'cosig-payload-length-mismatch'`, `'cosigner-name-length'`, `'log-origin-length'`, `'cosigned-message-state'`. |
+| `MerkleLogError` | class | Thrown on construction-time contract violations of the normie merkle surface (`MerkleLog`, `MerkleVerifier`). Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, `'module-not-initialized'`. |
 
 ---
 
@@ -163,8 +212,12 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 | `SHA3_256` | class | SHA3-256 hash (FIPS 202). `hash(msg)` returns 32 bytes. |
 | `SHA3_384` | class | SHA3-384 hash (FIPS 202). `hash(msg)` returns 48 bytes. |
 | `SHA3_512` | class | SHA3-512 hash (FIPS 202). `hash(msg)` returns 64 bytes. |
+| `SHA3_256Stream` | class | Incremental SHA3-256. `update(chunk)`, `finalize()` returns 32 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
+| `SHA3_512Stream` | class | Incremental SHA3-512. `update(chunk)`, `finalize()` returns 64 bytes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. |
 | `SHAKE128` | class | SHAKE128 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
 | `SHAKE256` | class | SHAKE256 XOF (FIPS 202). Unbounded output. `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. |
+| `SHAKE128Stream` | class | Fixed-output streaming SHAKE128. `new SHAKE128Stream(outputLen)`, `update(chunk)`, `finalize()` returns exactly `outputLen` bytes and disposes. Holds the sha3 module exclusively from construction until `finalize()` or `dispose()`. Substrate for `createRunningHash('shake-128')` in the sign layer. |
+| `SHAKE256Stream` | class | Fixed-output streaming SHAKE256. Same shape as `SHAKE128Stream`. Substrate for `createRunningHash('shake-256')`. |
 | `CSHAKE128` | class | cSHAKE128 customizable XOF (SP 800-185 §3). `new CSHAKE128(customization)`, `hash(msg, outputLength)`, `absorb(msg)`, `squeeze(n)`, `reset()`. Throws if customization is empty (use SHAKE128 instead). |
 | `CSHAKE256` | class | cSHAKE256 customizable XOF (SP 800-185 §3). Same shape as CSHAKE128 with the 256-bit-strength rate. |
 | `KMAC128` | class | KMAC128 keyed Keccak MAC, fixed-output (SP 800-185 §4). `new KMAC128(key, outLen, customization)`, `update(chunk)`, `finalize()`, `mac(msg)`, static `verify(tag, key, msg, customization)` (throws `AuthenticationError('kmac128')` on mismatch). |
@@ -196,6 +249,69 @@ Subpath: `leviathan-crypto/keccak`.
 | `KMAC256` | class | Re-exported from `leviathan-crypto/sha3`. |
 | `KMACXOF128` | class | Re-exported from `leviathan-crypto/sha3`. |
 | `KMACXOF256` | class | Re-exported from `leviathan-crypto/sha3`. |
+
+---
+
+## BLAKE3
+
+Requires `init({ blake3: blake3Wasm })` or subpath `blake3Init(source)`. v128 SIMD required (the module ships a v128-internal `compress` and a v128-external lane-parallel `compress4`, no scalar fallback).
+Subpath: `leviathan-crypto/blake3`. See [blake3.md](./blake3.md).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `blake3Init` | function | Module-scoped init. `blake3Init(source: WasmSource)` loads only blake3. |
+| `BLAKE3` | class | One-shot default-mode hash (BLAKE3 §2.3 `hash`). `hash(msg, outLen?)` returns `outLen` bytes (default 32, max 1024 per call; use the streaming class plus `finalizeXof()` for unbounded output). Atomic, does not hold module exclusivity. |
+| `BLAKE3Stream` | class | Incremental default-mode hash. `update(chunk)`, `finalize(outLen?)` returns up to 1024 bytes and disposes; `finalizeXof()` returns a `BLAKE3OutputReader` for unbounded output. Holds the blake3 module exclusively from construction until `finalize()` / `finalizeXof()` / `dispose()`. |
+| `BLAKE3KeyedHash` | class | One-shot keyed_hash (BLAKE3 §2.3 `keyed_hash`). `hash(key, msg, outLen?)` requires a 32-byte key; output behaviour matches `BLAKE3.hash`. Atomic. |
+| `BLAKE3KeyedHashStream` | class | Incremental keyed_hash. Constructor takes the 32-byte key; otherwise identical to `BLAKE3Stream`. Holds the blake3 module exclusively until disposed. |
+| `BLAKE3DeriveKey` | class | One-shot derive_key (BLAKE3 §2.3 `derive_key`, two-pass). `derive(context, keyMaterial, outLen?)`: pass 1 hashes the context string with `DERIVE_KEY_CONTEXT`; pass 2 hashes `keyMaterial` with `DERIVE_KEY_MATERIAL` under the context CV. Atomic. |
+| `BLAKE3DeriveKeyStream` | class | Incremental derive_key. Constructor takes the context string; `update(chunk)` feeds key material; `finalize(outLen?)` / `finalizeXof()` as above. Holds the blake3 module exclusively until disposed. |
+| `BLAKE3OutputReader` | class | Unbounded XOF reader returned by any streaming class's `finalizeXof()`. `read(n)` lifts the next `n` bytes off the §2.6 root-state snapshot via the WASM `squeezeXofBlock` export; holds module exclusivity until `dispose()`. |
+| `BLAKE3Hash` | const | `HashFn` const wrapping `BLAKE3.hash` at the default 32-byte digest size. Compatible with the `Fortuna` accumulator slot alongside `SHA256Hash` and `SHA3_256Hash`. `outputSize: 32`, `wasmModules: ['blake3']`. Requires `init({ blake3 })`. |
+
+---
+
+## Ed25519 / X25519 (Curve25519 family)
+
+Requires `init({ ed25519: ed25519Wasm })` (or equivalently `init({ x25519: x25519Wasm })`, or `init({ curve25519: curve25519Wasm })`). All three aliases resolve to the same `curve25519` WASM module, which hosts the Ed25519 (RFC 8032) and X25519 (RFC 7748) substrates plus an embedded SHA-512. Scalar (no SIMD); works on every WASM-capable runtime regardless of SIMD support.
+
+The `leviathan-crypto/ed25519/embedded` and `leviathan-crypto/x25519/embedded` subpaths each re-export the same WASM blob under three names: `curve25519Wasm`, `ed25519Wasm`, and `x25519Wasm`. All three resolve to the identical underlying string; pick whichever reads most naturally in the surrounding code.
+
+Subpaths: `leviathan-crypto/ed25519` and `leviathan-crypto/x25519`. See [ed25519.md](./ed25519.md) and [x25519.md](./x25519.md). The `Ed25519PreHashSuite` envelope path additionally requires `init({ sha2: sha2Wasm })` because the message-taking and streaming SHA-512 hashers drive the sha2 module.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `ed25519Init` | function | Module-scoped init. `ed25519Init(source: WasmSource)` loads the curve25519 WASM under the `curve25519` slot. |
+| `x25519Init` | function | Module-scoped init. `x25519Init(source: WasmSource)` loads the curve25519 WASM under the `curve25519` slot. Calling either `ed25519Init` or `x25519Init` enables both `Ed25519` and `X25519`. |
+| `Ed25519` | class | Ed25519 classical signer (RFC 8032 §5.1, Ed25519). `keygen()`, `keygenDerand(seed)`, `sign(sk, pk, M)`, `signPrehashed(sk, pk, digest, ctx)`, `verify(pk, M, sig)`, `verifyPrehashed(pk, digest, ctx, sig)`, `dispose()`. Strict verification per FIPS 186-5 §7.6.4, Verification. The public sign methods include a fault-injection cross-check that aborts when the caller-supplied pk disagrees with the WASM-derived pk; see [ed25519.md](./ed25519.md#fault-injection-defense). Pure-mode `sign` and `verify` have a per-call message ceiling of approximately 248 KB; use `Ed25519PreHashSuite` plus `SignStream` for larger payloads. |
+| `X25519` | class | X25519 classical Diffie-Hellman (RFC 7748 §5, The X25519 and X448 Functions). `keygen()`, `keygenDerand(sk)`, `dh(sk, peerPk)`, `dispose()`. `dh` throws `KeyAgreementError` on an all-zero shared secret (small-order peer pk per RFC 7748 §6.1, Curve25519). |
+| `Ed25519KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. Both 32 bytes; `secretKey` is the RFC 8032 §5.1.5, key generation, seed. |
+| `X25519KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. Both 32 bytes; `secretKey` is opaque 32 random bytes (not pre-clamped). |
+| `Ed25519Suite` | const | Pure Ed25519 `SignatureSuite` (RFC 8032 §5.1.6, signature generation). `formatEnum: 0x01`, `ctxDomain: 'ed25519-envelope-v3'`, `pkSize: 32`, `skSize: 32`, `sigMaxSize: 64`. Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Requires `init({ ed25519 })`. |
+| `Ed25519PreHashSuite` | const | Ed25519ph `StreamableSignatureSuite` (RFC 8032 §5.1.7, signature verification, dom2(F=1, ctx) prehash). `formatEnum: 0x11`, `ctxDomain: 'ed25519-prehash-envelope-v3'`, `prehashAlgorithm: 'sha-512'`, `prehashSize: 64`, `pkSize: 32`, `skSize: 32`, `sigMaxSize: 64`. Plugs into `SignStream` / `VerifyStream`. Requires `init({ ed25519, sha2 })`. |
+| `KeyAgreementError` | class | Thrown by `X25519.dh` when the resulting shared secret is all-zero, indicating a small-order peer public key. Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
+
+---
+
+## ECDSA-P256
+
+Requires `init({ p256: p256Wasm })`. The p256 WASM module hosts the full ECDSA-P256 substrate per FIPS 186-5 §6, ECDSA over NIST P-256 (SP 800-186 §3.2.1.3), with RFC 6979 §3.2 deterministic K derivation and hedged-deterministic K per draft-irtf-cfrg-det-sigs-with-noise-05. Verification follows the strict-S posture (low-S enforced) symmetric with the Ed25519 substrate. Scalar (no SIMD); works on every WASM-capable runtime regardless of SIMD support.
+
+The `leviathan-crypto/ecdsa/embedded` subpath re-exports the same WASM blob under two names: `p256Wasm` (canonical) and `ecdsaP256Wasm` (alias that reads more naturally in the ecdsa subpath context). Both resolve to the identical underlying string; pick whichever reads most naturally in the surrounding code.
+
+Subpath: `leviathan-crypto/ecdsa`. The class accepts a caller-computed 32-byte SHA-256 digest; it never hashes the raw message internally. DER ↔ raw r||s conversion is a side utility for X.509 / JWS / TLS interop and lives at the same subpath.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `ecdsaP256Init` | function | Module-scoped init. `ecdsaP256Init(source: WasmSource)` loads only the p256 WASM. |
+| `EcdsaP256` | class | ECDSA-P256 signer / verifier (FIPS 186-5 §6, SP 800-186 §3.2.1.3). `keygen()`, `keygenDerand(seed)`, `keygenUncompressed(seed?)`, `sign(sk, pk, msgHash, rnd)`, `_signInternalPk(sk, msgHash, rnd)`, `verify(pk, msgHash, sig)`, `dispose()`. Strict-S verification (low-S enforced, RFC 6979 §3.5). `sign` accepts caller-supplied 32-byte entropy `rnd`: all-zero selects RFC 6979 §3.2 deterministic K, non-zero selects the draft hedged variant. The class takes a 32-byte SHA-256 digest, not a raw message; `EcdsaP256Suite` drives SHA-256 on top. Public-key inputs are accepted in both 33-byte compressed (SEC 1 §2.3.3) and 65-byte uncompressed (SEC 1 §2.3.4) form; the wrapper normalises to compressed before staging in WASM. `keygen` / `keygenDerand` return the 33-byte compressed form; `keygenUncompressed` returns the 65-byte uncompressed form directly for callers (notably composite ML-DSA + ECDSA hybrids) whose wire format requires the SEC 1 §2.3.4 encoding. The public `sign` method includes a fault-injection cross-check that aborts when the caller-supplied pk disagrees with the WASM-derived pk; `_signInternalPk` skips the cross-check and is intended for suite-layer callers who hold only `sk`. |
+| `EcdsaP256KeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }`. `secretKey` is the 32-byte private scalar d. `publicKey` is 33-byte compressed (SEC 1 §2.3.3) when returned by `keygen` / `keygenDerand`; 65-byte uncompressed (SEC 1 §2.3.4, `0x04 \|\| X \|\| Y`) when returned by `keygenUncompressed`. |
+| `pointDecompress` | function | `pointDecompress(pk33: Uint8Array): Uint8Array`. Decompress a 33-byte SEC 1 §2.3.3 compressed P-256 public key to the 65-byte SEC 1 §2.3.4 uncompressed encoding `0x04 \|\| X \|\| Y`. Recovers y by solving `y² = x³ - 3x + b mod p` (SP 800-186 §3.2.1.3) via the substrate's modular square root (p ≡ 3 mod 4 shortcut). Throws `SigningError('sig-malformed-input')` on prefix bytes outside `{0x02, 0x03}` and on x coordinates with no on-curve y. Requires `init({ p256: ... })`. Subpath: `leviathan-crypto/ecdsa`. |
+| `encodeEcPrivateKey` | function | `encodeEcPrivateKey(scalar: Uint8Array): Uint8Array`. Encode a 32-byte P-256 secret scalar as DER `ECPrivateKey` per RFC 5915 §3, Elliptic Curve Private Key Structure. Output is exactly 51 bytes: version 1, the raw scalar in `privateKey OCTET STRING`, the named-curve OID for secp256r1 (`1.2.840.10045.3.1.7`, SP 800-186 §3.2.1.3) in `parameters [0]`. The `publicKey [1]` field is omitted. Byte-stable. Subpath: `leviathan-crypto/ecdsa`. |
+| `decodeEcPrivateKey` | function | `decodeEcPrivateKey(der: Uint8Array): Uint8Array`. Decode a DER `ECPrivateKey` and return the 32-byte raw P-256 secret scalar. Strict DER per X.690 §10: rejects long-form length encodings under 128 bytes, non-minimal INTEGER on `version`, wrong OCTET STRING length, parameters [0] containing any OID other than secp256r1, trailing bytes, and content extending past the outer SEQUENCE end. Accepts (and ignores) the optional `publicKey [1]` field; accepts the parameters-omitted minimal form. Throws `Error` on any DER violation; `TypeError` on non-`Uint8Array` input. Subpath: `leviathan-crypto/ecdsa`. |
+| `ecdsaSignatureToDer` | function | `ecdsaSignatureToDer(sig: Uint8Array): Uint8Array`. Converts a 64-byte raw r || s signature to the DER form per RFC 3279 §2.2.3, ECDSA Signature Algorithm: `Ecdsa-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }`. Output length is variable, 8 bytes minimum (r = s = 1) and 72 bytes maximum (both components 32 bytes with the high bit set, each picking up a 0x00 sign-pad). |
+| `ecdsaSignatureFromDer` | function | `ecdsaSignatureFromDer(der: Uint8Array): Uint8Array`. Converts a DER signature to 64-byte raw r || s. Throws `SigningError('sig-malformed-input')` on any DER syntax violation: wrong outer / inner tag, long-form length for content under 128 bytes, non-minimal INTEGER encoding (excess leading zero), negative INTEGER, trailing bytes, INTEGER content exceeding 32 bytes. Semantic value rejections (r = 0, s = 0, high-s, off-range) are deferred to the WASM verify path. |
+| `EcdsaP256Suite` | const | ECDSA-P256 + SHA-256 `StreamableSignatureSuite` (FIPS 186-5 §6.4). `formatEnum: 0x02`, `ctxDomain: 'ecdsa-p256-envelope-v3'`, `pkSize: 33`, `skSize: 32`, `sigMaxSize: 64`, `prehashAlgorithm: 'sha-256'`, `prehashSize: 32`. Single mode with SHA-256 prehash baked in; suite-level sign is hedged-by-default (`randomBytes(32)` per call). Rejects non-empty user_ctx with `SigningError('sig-ctx-unsupported')`. Plugs into `SignStream` / `VerifyStream`. Requires `init({ p256, sha2 })`. |
 
 ---
 
@@ -240,7 +356,7 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 |--------|------|-------------|
 | `mldsaInit` | function | Module-scoped init. `mldsaInit(source: WasmSource)` loads only the mldsa WASM. |
 | `MlDsaBase` | class | Abstract base class for all ML-DSA variants. Holds `params: MlDsaParams`. Not normally instantiated directly, use `MlDsa44`, `MlDsa65`, or `MlDsa87`. |
-| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `dispose()`. |
+| `MlDsa44` | class | ML-DSA-44 (k=4, ℓ=4, η=2; NIST category 2). `keygen()`, `keygenDerand(xi)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, ctx, rnd)`, `verify(vk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, ctx, rnd)`, `verifyHash(vk, M, sig, ph, ctx?)`, `signHashPrehashed(sk, digest, ph, ctx?)`, `signHashPrehashedDeterministic(sk, digest, ph, ctx?)`, `signHashPrehashedDerand(sk, digest, ph, ctx, rnd)`, `verifyHashPrehashed(vk, digest, sig, ph, ctx?)`, `dispose()`. |
 | `MlDsa65` | class | ML-DSA-65 (k=6, ℓ=5, η=4; NIST category 3). Recommended default. Same API as `MlDsa44`. |
 | `MlDsa87` | class | ML-DSA-87 (k=8, ℓ=7, η=2; NIST category 5). Same API as `MlDsa44`. |
 | `MlDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 204 pkEncode / skEncode). |
@@ -249,6 +365,39 @@ counterparts `signHash` / `signHashDeterministic` / `signHashDerand` /
 | `MLDSA44` | const | Parameter set for ML-DSA-44. |
 | `MLDSA65` | const | Parameter set for ML-DSA-65. |
 | `MLDSA87` | const | Parameter set for ML-DSA-87. |
+
+---
+
+## SLH-DSA (Post-quantum signatures)
+
+Requires `init({ slhdsa: slhdsaWasm })`. HashSLH-DSA with a SHA-2 family
+pre-hash additionally requires `init({ sha2: sha2Wasm })`; HashSLH-DSA
+with a SHA-3 or SHAKE pre-hash additionally requires
+`init({ sha3: sha3Wasm })`. Pure-mode SLH-DSA needs neither, the slhdsa
+WASM module embeds its own Keccak permutation for the internal
+F / H / T_l / PRF / PRFmsg / Hmsg primitives.
+Subpath: `leviathan-crypto/slhdsa`. See [slhdsa.md](./slhdsa.md).
+
+SLH-DSA classes ship pure-SLH-DSA `keygen` / `keygenDerand` / `sign` /
+`signDeterministic` / `signDerand` / `verify` and the HashSLH-DSA
+pre-hash counterparts `signHash` / `signHashDeterministic` /
+`signHashDerand` / `verifyHash`, plus the caller-supplied-prehash
+variants `signHashPrehashed` / `signHashPrehashedDeterministic` /
+`signHashPrehashedDerand` / `verifyHashPrehashed` (FIPS 205 §10.2.2
+Algorithm 23 / §10.3 Algorithm 25).
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `slhdsaInit` | function | Module-scoped init. `slhdsaInit(source: WasmSource)` loads only the slhdsa WASM. |
+| `SlhDsaBase` | class | Abstract base class for all SLH-DSA variants. Holds `params: SlhDsaParams`. Not normally instantiated directly, use `SlhDsa128f`, `SlhDsa192f`, or `SlhDsa256f`. |
+| `SlhDsa128f` | class | SLH-DSA-SHAKE-128f (n=16, h=66, d=22, h'=3, a=6, k=33, lg(w)=4; NIST category 1). pk 32 B, sk 64 B, sig 17088 B. Same method surface as `SlhDsa192f`. |
+| `SlhDsa192f` | class | SLH-DSA-SHAKE-192f (n=24, h=66, d=22, h'=3, a=8, k=33, lg(w)=4; NIST category 3). pk 48 B, sk 96 B, sig 35664 B. `keygen()`, `keygenDerand(seed)`, `sign(sk, M, ctx?)`, `signDeterministic(sk, M, ctx?)`, `signDerand(sk, M, optRand, ctx?)`, `verify(pk, M, sig, ctx?)`, `signHash(sk, M, ph, ctx?)`, `signHashDeterministic(sk, M, ph, ctx?)`, `signHashDerand(sk, M, ph, optRand, ctx?)`, `verifyHash(pk, M, sig, ph, ctx?)`, `signHashPrehashed(sk, digest, ph, ctx?)`, `signHashPrehashedDeterministic(sk, digest, ph, ctx?)`, `signHashPrehashedDerand(sk, digest, ph, optRand, ctx?)`, `verifyHashPrehashed(pk, digest, sig, ph, ctx?)`, `dispose()`. |
+| `SlhDsa256f` | class | SLH-DSA-SHAKE-256f (n=32, h=68, d=17, h'=4, a=9, k=35, lg(w)=4; NIST category 5). pk 64 B, sk 128 B, sig 49856 B. Same API as `SlhDsa192f`. |
+| `SlhDsaKeyPair` | type | `{ verificationKey: Uint8Array, signingKey: Uint8Array }` (FIPS 205 pkEncode / skEncode). |
+| `SlhDsaParams` | type | Parameter-set configuration (n, h, d, h', a, k, lg(w), securityCategory, byte sizes, paramSet name, wasmSelector). |
+| `SLHDSA128F` | const | Parameter set for SLH-DSA-SHAKE-128f. |
+| `SLHDSA192F` | const | Parameter set for SLH-DSA-SHAKE-192f. |
+| `SLHDSA256F` | const | Parameter set for SLH-DSA-SHAKE-256f. |
 
 ---
 
@@ -265,7 +414,7 @@ Takes a `Generator` and a `HashFn` at create time. Required `init()` modules dep
 | `SHA256Hash`         | const    | `HashFn` const for `Fortuna`. Stateless SHA-256. Requires `init({ sha2 })`. Re-exported from `'leviathan-crypto/sha2'`. |
 | `SHA3_256Hash`       | const    | `HashFn` const for `Fortuna`. Stateless SHA3-256. Requires `init({ sha3 })`. Re-exported from `'leviathan-crypto/sha3'`. |
 | `Generator`          | type     | Interface implemented by `AESGenerator`, `SerpentGenerator`, and `ChaCha20Generator`. |
-| `HashFn`             | type     | Interface implemented by `SHA256Hash` and `SHA3_256Hash`. |
+| `HashFn`             | type     | Interface implemented by `SHA256Hash`, `SHA3_256Hash`, and `BLAKE3Hash`. |
 
 ---
 
@@ -290,6 +439,62 @@ Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
 | `RatchetMessageHeader` | interface | `{ epoch, counter, pn?, kemCt? }`, canonical message header shape. `pn` and `kemCt` present only on the first message of a new epoch. |
 | `MlKemLike` | interface | Structural interface satisfied by `MlKem512`, `MlKem768`, `MlKem1024`. Used as the `kem` parameter type for `kemRatchetEncap`/`kemRatchetDecap`/`RatchetKeypair`. |
 | `ResolveHandle` | interface | Return type of `SkippedKeyStore.resolve()`. `readonly key`, 32-byte message key (throws after settlement). `commit()`, wipes key, marks settled (call on successful decrypt). `rollback()`, returns key to store, marks settled (call on auth failure). Double-settle throws. |
+
+---
+
+## Merkle log substrate
+
+Requires `init({ sha2: sha2Wasm })` for the SHA-256 specialisation or `init({ blake3: blake3Wasm })` for the BLAKE3 specialisation, plus the suite's WASM modules when using the signed-log surface (`Ed25519Suite` needs `curve25519`; `MlDsa44Suite` needs `mldsa` + `sha3`). See [merkle.md](./merkle.md) for the full normie-first API guide and the danger-zone composition surface.
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `Sha256Hasher` | const | `Hasher` implementation over the existing SHA-256 class. Domain separators per RFC 9162 §2.1.1 (leaf prefix `0x00`, internal-node prefix `0x01`). Per-call WASM lifecycle. |
+| `Sha256Tree` | class | Stateful SHA-256 Merkle log. Wraps a `MerkleStorage`, exposes `append(leafBytes)`, `size()`, `rootHash()`, `getInclusionProof(leafIndex, treeSize?)`, `getConsistencyProof(oldSize, newSize)`. |
+| `Blake3Hasher` | const | `Hasher` implementation over the existing BLAKE3 class plus the test-gated `_testParentCV` export. BLAKE3-native domain separation via §2.4 / §2.5 flag bytes (no `0x00` / `0x01` prefix on top); empty-tree value is `BLAKE3()`, leaves are `BLAKE3(leaf)`, internal nodes are the §2.5 parent compress with `modeFlags = 0`, `isRoot = 0`. Per-call WASM lifecycle. |
+| `Blake3Tree` | class | Stateful BLAKE3 Merkle log. Same surface as `Sha256Tree`; only the `hasher` field differs. |
+| `MemoryStorage` | class | In-process `MerkleStorage` backed by a `Map<string, Uint8Array>`. The only storage backend shipped; file and database backends are consumer extension surface. |
+| `Hasher` | interface | Hash-agnostic surface used by the merkle layer: `name`, `outputSize`, `wasmModules`, `hashEmpty()`, `hashLeaf(leaf)`, `hashInternal(left, right)`. |
+| `MerkleTree` | interface | Stateful tree contract: `hasher`, `size()`, `rootHash()`, `append(leafBytes)`, `getInclusionProof(leafIndex, treeSize?)`, `getConsistencyProof(oldSize, newSize)`. |
+| `MerkleStorage` | interface | Backend contract: `size()`, `appendLeaf(leafIndex, leafHash)`, `getLeaf(leafIndex)`, `putNode(level, index, hash)`, `getNode(level, index)`, `hasNode(level, index)`. Sync everywhere. |
+| `splitPoint` | function | `splitPoint(n: number): number`. Largest power of two strictly less than `n`, defined for `n >= 2`. RFC 9162 §2.1.4 `k`. |
+| `verifyInclusionProof` | function | `verifyInclusionProof({ hasher, leafHash, leafIndex, treeSize, proof, rootHash }): boolean`. RFC 9162 §2.1.3. Malformed proofs return `false`; contract violations throw `RangeError`. |
+| `verifyConsistencyProof` | function | `verifyConsistencyProof({ hasher, oldSize, newSize, oldRoot, newRoot, proof }): boolean`. RFC 9162 §2.1.4. |
+| `buildInclusionProof` | function | `buildInclusionProof({ hasher, leafIndex, treeSize, getNode }): Uint8Array[]`. Hash-agnostic builder; the `getNode(level, index)` callback abstracts the storage layer. |
+| `buildConsistencyProof` | function | `buildConsistencyProof({ hasher, oldSize, newSize, getNode }): Uint8Array[]`. |
+| `VerifyInclusionInput`, `VerifyConsistencyInput` | type | Argument-bag types for the verifier free functions. |
+| `BuildInclusionInput`, `BuildConsistencyInput` | type | Argument-bag types for the builder free functions. |
+| `GetNode` | type | `(level: number, index: number) => Uint8Array`. The storage-abstracting callback consumed by the builders. |
+| `serializeCheckpointBody` | function | `serializeCheckpointBody({ origin, treeSize, rootHash }): Uint8Array`. c2sp.org/tlog-checkpoint §Note text canonical body: `utf8(origin) || 0x0A || utf8(decimal(treeSize)) || 0x0A || base64(rootHash) || 0x0A`. RFC 4648 §4 standard alphabet base64; rejects empty / whitespace / plus origins and out-of-range tree sizes. |
+| `parseCheckpointBody` | function | `parseCheckpointBody(bytes, expectedHashLen = 32): Checkpoint`. Inverse of `serializeCheckpointBody`; throws on extension lines, leading-zero / non-decimal tree size, ASCII control bytes, URL-safe / wrong-length base64. |
+| `Checkpoint` | type | `{ origin: string; treeSize: number; rootHash: Uint8Array }`. Decoded body shape, hash-and-algo-agnostic. |
+| `emitSignedNote` | function | `emitSignedNote(body, sigs): Uint8Array`. c2sp.org/signed-note §Format envelope: `body || 0x0A || (— name b64(keyId||sig) 0x0A)+`. Requires `body` to end with 0x0A; rejects empty signature arrays, wrong-size keyIds, and names containing whitespace or plus. |
+| `parseSignedNote` | function | `parseSignedNote(bytes): { body, signatures, ignoredCount }`. Permissive on per-line malformations: lines that fail structural validation are counted in `ignoredCount` and discarded per the signed-note §Signatures "unknown signatures MUST be ignored" rule. Whole-envelope defects (no blank separator, ASCII control bytes) throw `RangeError`. |
+| `deriveKeyId` | function | `deriveKeyId(name, algoByte, pubkey): Uint8Array`. c2sp.org/signed-note §Signatures key ID derivation: `SHA-256(utf8(name) \|\| 0x0A \|\| algoByte \|\| pubkey)[:4]`. Requires `init({ sha2: ... })`. |
+| `suiteFormatEnumToAlgoByte` | function | Maps a leviathan `SignatureSuite.formatEnum` to the corresponding c2sp.org/signed-note algorithm byte. Returns `undefined` for unregistered enums. Thin shim over `lookupAlgoEntryByFormatEnum`. |
+| `lookupAlgoEntryByFormatEnum` | function | `lookupAlgoEntryByFormatEnum(formatEnum): AlgoEntry \| undefined`. Look up the full c2sp.org/tlog-cosignature §Format algo-byte entry by leviathan suite formatEnum (carries algoByte, messageConstruction, signaturePayload, sigSize). |
+| `lookupAlgoEntryByByte` | function | `lookupAlgoEntryByByte(algoByte): AlgoEntry \| undefined`. Reverse lookup by wire-format C2SP algorithm byte; used by verifiers reshaping incoming cosignature payloads. |
+| `buildCosigSignedMessage` | function | `buildCosigSignedMessage(body, timestamp): Uint8Array`. Constructs the bytes a cosigner signs per c2sp.org/tlog-cosignature §"Ed25519 signed message": `cosignature/v1\ntime <decimal>\n` followed by the whole `\n`-terminated checkpoint body. Throws `MerkleCodecError('timestamp-out-of-range')` for non-safe-integer timestamps. |
+| `buildCosignedMessage` | function | `buildCosignedMessage(input: CosignedMessageInput): Uint8Array`. Constructs the bytes an ML-DSA-44 cosigner signs per c2sp.org/tlog-cosignature §"ML-DSA-44 signed message": the `cosigned_message` TLS-Presentation struct (label `subtree/v1\n\0`, length-prefixed cosigner_name + log_origin, BE timestamp / start / end, 32-byte hash). Throws `MerkleCodecError` on safe-integer overflows (`timestamp-out-of-range`), 1..255 length violations (`cosigner-name-length`, `log-origin-length`), or the spec MUST `start != 0 ⇒ timestamp == 0` (`cosigned-message-state`). |
+| `emitCosigSignaturePayload` | function | `emitCosigSignaturePayload(timestamp, signature): Uint8Array`. Builds the `timestamped_signature` struct payload per c2sp.org/tlog-cosignature §Format: `u64_be(timestamp) \|\| signature`. The result is the opaque payload portion of a signed-note signature line (after the 4-byte keyId prefix). |
+| `parseCosigSignaturePayload` | function | `parseCosigSignaturePayload(payload, sigSize): { timestamp, signature }`. Inverse of `emitCosigSignaturePayload`. Throws `MerkleCodecError('cosig-payload-length-mismatch')` on wrong size and `MerkleCodecError('timestamp-exceeds-safe-integer')` on u64 timestamps above `Number.MAX_SAFE_INTEGER`. |
+| `ALGO_BYTE_ED25519_NOTE` | const | `0x01`, c2sp.org/signed-note §Signatures plain Ed25519 over note text. |
+| `ALGO_BYTE_ED25519_COSIG` | const | `0x04`, c2sp.org/tlog-cosignature §Format timestamped Ed25519 cosignature. |
+| `ALGO_BYTE_MLDSA44_COSIG` | const | `0x06`, c2sp.org/tlog-cosignature §Format timestamped ML-DSA-44 cosignature. |
+| `AlgoEntry` | type | `{ formatEnum, algoByte, messageConstruction, signaturePayload, sigSize }`. One row of the c2sp.org/tlog-cosignature §Format algorithm-byte registry. |
+| `MessageConstruction` | type | `'cosig' \| 'cosigned-message'`. Discriminator for the c2sp.org/tlog-cosignature signed-message form: `'cosig'` is the `cosignature/v1` prefixed form (Ed25519, 0x04); `'cosigned-message'` is the TLS-Presentation struct (ML-DSA-44, 0x06; codec deferred). |
+| `SignaturePayload` | type | `'timestamped'`. Discriminator for the per-signature payload encoding on the wire; currently only `'timestamped'` (`u64_be(timestamp) \|\| signature`) is registered by c2sp.org/tlog-cosignature §Format. |
+| `SignatureLine` | type | `{ name: string; keyId: Uint8Array; signature: Uint8Array }`. Decoded signed-note signature line. |
+| `SignedNote` | type | `{ body: Uint8Array; signatures: SignatureLine[]; ignoredCount: number }`. Result of `parseSignedNote`. |
+| `SignedTreeHead` | type | `{ checkpoint: Checkpoint; signatures: readonly SignatureLine[]; timestamp: number }`. In-memory pairing of a parsed `Checkpoint`, its signature lines, and the primary log cosignature's POSIX-seconds timestamp (extracted from the `timestamped_signature` struct in the matching signature line). |
+| `CosignedMessageInput` | type | `{ cosignerName, timestamp, logOrigin, start, end, hash }` input to `buildCosignedMessage`. One named field per `cosigned_message` struct member from c2sp.org/tlog-cosignature §"ML-DSA-44 signed message"; `start`/`end` are non-negative safe integers, `hash` is exactly 32 bytes. |
+| `SignedLog` | class | Signed transparency log substrate. Ties a `MerkleTree` (`Sha256Tree` / `Blake3Tree`), a registered cosignature `SignatureSuite` (currently `Ed25519Suite` or `MlDsa44Suite`), and an origin string into one object. `new SignedLog({ tree, suite, origin, signingKey, pubkey })`; `signCheckpoint({ timestamp? })` emits a signed-note envelope per c2sp.org/tlog-cosignature §Format with the signed-message form dispatched on the algorithm's `messageConstruction` (`'cosig'` for Ed25519, `'cosigned-message'` for ML-DSA-44); `verifyCheckpoint(env)` returns boolean; `parseCheckpoint(env)` returns `SignedTreeHead`; `append`, `size`, `rootHash`, `getInclusionProof`, `getConsistencyProof` passthrough the tree; `dispose()` wipes the stored signing-key copy. Constructor rejects unregistered suites with `SigningError('sig-unsupported-suite')`. |
+| `SignedLogOpts` | type | `{ tree: MerkleTree; suite: S; origin: string; signingKey: Uint8Array; pubkey: Uint8Array }`. Constructor options for `SignedLog<S extends SignatureSuite>`. |
+| `MerkleVerifier` | class | Trust-anchored verifier for c2sp.org/tlog-checkpoint envelopes. Construct with `{ origin, pubkey, hashing: 'sha256' \| 'blake3', suite }`; the suite must be in the c2sp.org/tlog-cosignature §Format algorithm-byte registry (currently `Ed25519Suite` or `MlDsa44Suite`). Exposes `verifyCheckpoint(bytes): boolean`, `verifyInclusion({envelopeBytes, leafBytes, leafIndex, proof}): boolean`, `verifyConsistency({oldEnvelopeBytes, newEnvelopeBytes, proof}): boolean`. Verify methods never throw on input content; construction throws `MerkleLogError` with discriminators `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, or `'module-not-initialized'`. |
+| `MerkleVerifierOpts` | type | `{ origin: string; pubkey: Uint8Array; hashing: 'sha256' \| 'blake3'; suite: SignatureSuite }`. Constructor options for `MerkleVerifier`. |
+| `MerkleLog` | class | Memory-backed signed transparency log. Construct via `await MerkleLog.create({ origin, signingKey, pubkey, hashing?, suite? })` or the keypair-generating `await MerkleLog.generate({ origin, hashing?, suite? })`. Defaults: `hashing: 'sha256'`, `suite: MlDsa44Suite`. Methods: `append(leafBytes)`, `head({ timestamp? })`, `size()`, `rootHash()`, `inclusionProof(leafIndex, treeSize?)`, `consistencyProof(oldSize, newSize)`, `dispose()`. Hot path is synchronous; only `create` / `generate` are async. Unregistered suites raise `MerkleLogError('unsupported-suite')`. Backed by `MemoryStorage`; deployments needing file or database storage use `SignedLog<S>` with a custom `MerkleStorage`. |
+| `MerkleLogCreateOpts` | type | `{ origin, signingKey, pubkey, hashing?, suite? }`. |
+| `MerkleLogGenerateOpts` | type | `{ origin, hashing?, suite? }`. |
+| `MerkleLogError` | class | Thrown on construction-time contract violations of the normie merkle surface (`MerkleLog`, `MerkleVerifier`). Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, `'module-not-initialized'`. |
 
 ---
 
@@ -319,8 +524,8 @@ No `init()` required. See [utils.md](./utils.md).
 | `bytesToUtf8` | function | `Uint8Array` to UTF-8 string. |
 | `base64ToBytes` | function | Base64/base64url string to `Uint8Array`. Returns `undefined` on invalid input. |
 | `bytesToBase64` | function | `Uint8Array` to base64 string. Pass `url=true` for base64url. |
-| `constantTimeEqual` | function | Constant-time byte-array equality. Runs entirely inside a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction) to eliminate JIT timing leaks. Throws a branded error on runtimes without WebAssembly SIMD; no JS fallback. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CT_MAX_BYTES`. |
-| `CT_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes, one 64 KiB WASM page split between two buffers). |
+| `constantTimeEqual` | function | Constant-time byte-array equality. Runs entirely inside a dedicated WASM SIMD module (v128 XOR-accumulate with branch-free reduction) to eliminate JIT timing leaks. Throws a branded error on runtimes without WebAssembly SIMD; no JS fallback. Returns `false` immediately on length mismatch. Throws `RangeError` if either input exceeds `CTE_MAX_BYTES`. |
+| `CTE_MAX_BYTES` | const | Maximum input size for `constantTimeEqual` per side (32768 bytes, one 64 KiB WASM page split between two buffers). |
 | `wipe` | function | Zero a typed array in place. |
 | `xor` | function | XOR two equal-length `Uint8Array`s, returns new array. |
 | `concat` | function | Concatenate one or more `Uint8Array`s into a new array. Variadic. |
@@ -335,5 +540,4 @@ No `init()` required. See [utils.md](./utils.md).
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
-
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

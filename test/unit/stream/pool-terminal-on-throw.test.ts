@@ -20,24 +20,10 @@
 //                           ▀█████▀▀
 //
 /**
- * SealStreamPool is uniformly terminal on any seal()-path throw.
- *
- * Two trigger paths, same outcome:
- *
- * 1. Crypto-path failure (worker error, Promise.all reject).
- * 2. Output-assembly failure (RangeError from `new Uint8Array(totalLen)` if
- *    the combined ciphertext exceeds the runtime's typed-array max).
- *
- * Both end at the same catch: `_killAll` runs, pool.dead flips true, keys
- * are wiped, pending jobs reject, subsequent seal() throws "pool is dead".
- * Unifying the failure contract keeps the class reasoning simple and
- * matches the defensive-wipe posture of the rest of the library.
- *
- * Crypto failure is induced by wiping a worker's internal state via its
- * `type: 'wipe'` message. Output-assembly failure is induced by monkey-
- * patching `_dispatch` to return a fake result whose `.length` property
- * reports `Number.MAX_SAFE_INTEGER`, forcing the assembly allocation to
- * throw RangeError.
+ * SealStreamPool terminal-on-throw. Both crypto-path and output-assembly
+ * failures route through _killAll → dead + keys wiped + pending reject +
+ * subsequent seal() throws "pool is dead". Crypto failure induced via
+ * worker wipe; assembly failure via Proxy length MAX_SAFE_INTEGER.
  */
 import '@vitest/web-worker';
 import { describe, it, expect, beforeAll } from 'vitest';

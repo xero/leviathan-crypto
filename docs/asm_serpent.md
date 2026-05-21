@@ -525,9 +525,9 @@ serpent_unrolled.ts     serpent_simd.ts
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
 | [serpent_reference](./serpent_reference.md) | algorithm specification, S-box tables, linear transform, and known attacks |
 | [serpent](./serpent.md) | TypeScript wrapper classes (`Serpent`, `SerpentCbc`, `SerpentCtr`, `SerpentCipher`) |
 | [serpent_audit](./serpent_audit.md) | security audit results (algorithm correctness, side-channel analysis) |
 | [asm_sha2](./asm_sha2.md) | SHA-2 WASM module (used together with Serpent via Fortuna CSPRNG) |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
-
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

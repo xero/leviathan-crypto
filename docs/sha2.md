@@ -733,7 +733,7 @@ SHA-2 is well-defined for zero-length messages and will return the correct diges
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_sha2](./asm_sha2.md) | WASM implementation details (AssemblyScript buffer layout, compression functions) |
 | [sha3](./sha3.md) | alternative: SHA-3 family (immune to length extension attacks) |
 | [serpent](./serpent.md) | `SerpentCipher` uses HMAC-SHA256 and HKDF internally via `Seal` and `SealStream` |

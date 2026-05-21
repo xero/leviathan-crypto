@@ -92,14 +92,8 @@ for (const combo of combinations) {
 	const firstGet32 = hex(f.get(32));
 	f.stop();
 
-	// Independent cross-verification, recompute the expected genKey and
-	// firstGet32 directly from the underlying primitives, without going through
-	// Fortuna. This converts the script from snapshot-writer to snapshot+verifier
-	// so the SELF-VERIFIED label is honest. The construction follows
-	// _createDeterministicForTesting + reseed + pseudoRandomData:
-	//   pool0_after_addEvent = hash.digest(zeros(32) || u32_le(0) || entropy)
-	//   genKey_after_reseed  = hash.digest(zeros(32) || pool0_after_addEvent)
-	//   firstGet32           = generator.generate(genKey_after_reseed, counter=1, 32)
+	// Recompute genKey / firstGet32 from raw primitives, matching
+	// _createDeterministicForTesting + reseed + pseudoRandomData composition.
 	const pool0Input = new Uint8Array(32 + 4 + entropy.length);
 	// pool0Input layout: zeros(32) chain || u32_le(0) eventId || entropy
 	pool0Input.set(entropy, 32 + 4);

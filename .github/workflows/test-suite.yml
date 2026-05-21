@@ -89,6 +89,50 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/unit-mldsa.yml
 
+  unit-sign:
+    needs: [build]
+    uses: ./.github/workflows/unit-sign.yml
+
+  unit-slhdsa:
+    needs: [build]
+    uses: ./.github/workflows/unit-slhdsa.yml
+
+  unit-slhdsa-acvp:
+    needs: [build]
+    uses: ./.github/workflows/unit-slhdsa-acvp.yml
+
+  unit-sign-hybrid:
+    needs: [build]
+    uses: ./.github/workflows/unit-sign-hybrid.yml
+
+  unit-sign-hybrid-classical:
+    needs: [build]
+    uses: ./.github/workflows/unit-sign-hybrid-classical.yml
+
+  unit-blake3:
+    needs: [build]
+    uses: ./.github/workflows/unit-blake3.yml
+
+  unit-curve25519:
+    needs: [build]
+    uses: ./.github/workflows/unit-curve25519.yml
+
+  unit-p256:
+    needs: [build]
+    uses: ./.github/workflows/unit-p256.yml
+
+  unit-ed25519:
+    needs: [build]
+    uses: ./.github/workflows/unit-ed25519.yml
+
+  unit-x25519:
+    needs: [build]
+    uses: ./.github/workflows/unit-x25519.yml
+
+  unit-merkle:
+    needs: [build]
+    uses: ./.github/workflows/unit-merkle.yml
+
   suite-status:
     name: test-suite-status
     if: always()
@@ -111,6 +155,17 @@ jobs:
       - unit-aes-siv
       - unit-aes-mct
       - unit-mldsa
+      - unit-sign
+      - unit-slhdsa
+      - unit-slhdsa-acvp
+      - unit-sign-hybrid
+      - unit-sign-hybrid-classical
+      - unit-blake3
+      - unit-curve25519
+      - unit-p256
+      - unit-ed25519
+      - unit-x25519
+      - unit-merkle
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream results

@@ -204,8 +204,8 @@ export function polyvec_lowbits(rPvOff: i32, aPvOff: i32, len: i32, gamma2: i32)
 
 /**
  * MakeHint per polynomial, plus aggregate popcount over the resulting hint
- * polyvec. Phase-4 uses the popcount for the `popcount(h) > ω` reject check
- * at Alg 7 line 28.
+ * polyvec. The popcount feeds the `popcount(h) > ω` reject check at Alg 7
+ * line 28.
  */
 export function polyvec_make_hint(hPvOff: i32, zPvOff: i32, rPvOff: i32, len: i32, gamma2: i32): i32 {
 	let pop: i32 = 0;

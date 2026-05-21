@@ -272,10 +272,7 @@ export function polyvec_basemul_acc_montgomery(rOffset: i32, aOffset: i32, bOffs
 	// pq-crystals/kyber ref/polyvec.c polyvec_basemul_acc_montgomery()
 	// r = a[0]*b[0]
 	poly_basemul_montgomery(rOffset, aOffset, bOffset);
-	// r += a[i]*b[i] for i=1..k-1
-	// We need a scratch polynomial. Use a fixed scratch slot outside this function's inputs.
-	// For scratch, use a temp region at a high fixed address (not in user polyvec slots).
-	// Using offset 34816 (just past XOF_PRF_BUFFER end) for temp poly: 34816..35327 (512B).
+	// r += a[i]*b[i] for i=1..k-1; scratch poly at POLY_ACC_OFFSET (see buffers.ts).
 	const tmpOffset: i32 = POLY_ACC_OFFSET;
 	for (let i: i32 = 1; i < k; i++) {
 		poly_basemul_montgomery(tmpOffset, aOffset + i*512, bOffset + i*512);

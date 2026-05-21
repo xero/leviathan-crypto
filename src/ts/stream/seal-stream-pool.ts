@@ -405,10 +405,8 @@ export class SealStreamPool {
 					derivedKeyBytes: openKeys.bytes.slice(),
 				}));
 			}
-			// All per-job key copies made, wipe the main-thread openKeys immediately
-			// rather than waiting for Promise.all. earlyWiped tracks this so the
-			// finally below only fires on pre-dispatch throws (empty body, frame errors,
-			// chunk validation), not as a redundant second call on the normal path.
+			// Per-job copies made; wipe main-thread openKeys immediately. openKeysWiped
+			// guards the finally so it only fires on pre-dispatch throws.
 			this._cipher.wipeKeys(openKeys);
 			openKeysWiped = true;
 

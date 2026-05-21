@@ -9,6 +9,7 @@ Post-quantum key encapsulation via ML-KEM (FIPS 203), plus `KyberSuite` for hybr
 > - [Parameter Sets](#parameter-sets)
 > - [Init](#init)
 > - [MlKem API](#mlkem-api)
+> - [Wipe Discipline](#wipe-discipline)
 > - [KyberSuite](#kybersuite)
 > - [Format enum](#format-enum)
 > - [Full example](#full-example)
@@ -231,6 +232,51 @@ interface MlKemLike {
 
 ---
 
+## Wipe Discipline
+
+Every public ML-KEM operation (`keygen`, `encapsulate`, `decapsulate`)
+zeroes the kyber WASM scratch regions that held secret or secret-derived
+bytes before returning. Without the wipe, residual state persists in
+linear memory until the next kyber op or `MlKem.dispose()`, a window
+during which any other code holding the kyber exports could read it.
+
+The sha3 module is also wiped on every op via `sx.wipeBuffers()`. SHA-3
+state and inputs/outputs would otherwise carry the K-PKE message, sponge
+intermediates, or G/J/H outputs across the call boundary.
+
+### Severity ranking
+
+The wiped regions are not equal-weight. Highest-severity residual first:
+
+| Region | Path | Holds | Severity |
+|--------|------|-------|----------|
+| `SK_OFFSET` | decap | packed CPA secret key `skCpa` (R-028) | Highest. Recovering it compromises every ciphertext under the matching ek, not just this message. |
+| `MSG_OFFSET` | encap | raw 32-byte message `m` | `K = G(m \|\| H(ek))[0..32]`; `m` plus the public `ek` reproduces `K`. |
+| `POLYVEC_SLOT_1/2` | encap, decap | `s_hat`, `e_hat`, `r`, `e1`, uncompressed `u` | Uncompressed `u` is lossy-compressed on the wire for `du in {10, 11}`; the uncompressed form reveals low-order bits the public ciphertext hides. |
+| `POLY_SLOT_1/2/3` | encap, re-encap | `e2`, `v`, message polynomial | Secret-derived; the message polynomial is the nearest neighbour to raw `m`. |
+| `XOF_PRF_OFFSET` | all | last 1024-byte PRF block | After `ExpandS` this contains rho-derived bytes; treat as secret. |
+
+Public regions are intentionally skipped: `PK_OFFSET`, `CT_OFFSET`,
+`POLYVEC_SLOT_0` (Â rows derived from public rho), `POLYVEC_SLOT_3` /
+`POLYVEC_SLOT_4` (t̂, t1, both published in pk).
+
+### Per-op coverage
+
+**`kemKeypairDerand` (keygen).** Wipes the CPA sk slot, the keygen
+noise polyvecs, and the PRF buffer.
+
+**`kemEncapsulateDerand`.** Wipes `MSG_OFFSET`, all six
+noise/intermediate polyvec and poly slots, and the PRF buffer.
+
+**`kemDecapsulate`.** Wipes every region the encap path touches, plus
+`SK_OFFSET` (the CPA secret key restaged for re-encryption) and
+`POLY_SLOT_0/1` (the conditional-select inputs `K'` and `K_bar`).
+
+**`MlKem.dispose()`.** Wipes the entire kyber mutable region. Call it
+when finished with the instance.
+
+---
+
 ## KyberSuite
 
 `KyberSuite` combines a `MlKemBase` instance with an inner `CipherSuite`
@@ -393,7 +439,7 @@ kem.dispose()
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
 | [ciphersuite](./ciphersuite.md) | `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
 | [kyber_audit](./kyber_audit.md) | ML-KEM implementation audit |

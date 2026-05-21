@@ -65,10 +65,7 @@ export async function decodeWasm(b64: string): Promise<Uint8Array> {
 	return out;
 }
 
-// Max thenable nesting depth. A caller can pass `Promise<Response>` or even
-// `Promise<Promise<Response>>` (e.g. deferred fetch wrapped in another async
-// layer), but arbitrary `Promise<Promise<Promise<...>>>` chains would indicate
-// a caller bug, cap at 3 levels and throw a clear error beyond that.
+// Cap thenable-source nesting at 3 to prevent runaway recursion.
 const MAX_THENABLE_DEPTH = 3;
 
 /**
@@ -115,10 +112,7 @@ export async function compileWasm(source: WasmSource, depth = 0): Promise<WebAss
  * @internal
  */
 export async function loadWasm(source: WasmSource): Promise<WebAssembly.Instance> {
-	// All leviathan-crypto WASM modules export their own memory and import
-	// nothing from the host. If a future module needs imports, they would be
-	// computed and passed here.
-	// compileWasm already handles thenable resolution + depth capping.
+	// All modules export their own memory; no host imports today.
 	const mod = await compileWasm(source);
 	return WebAssembly.instantiate(mod);
 }

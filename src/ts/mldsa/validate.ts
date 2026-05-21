@@ -33,6 +33,8 @@
 // and propagate the throw.
 
 import type { MlDsaParams } from './params.js';
+import { SigningError } from '../errors.js';
+import { type PreHashAlgorithm, digestSize } from './hashvariant.js';
 
 /**
  * FIPS 204 §5.2 / §5.3 line 1, ctx must be ≤ 255 bytes (the byte that
@@ -114,4 +116,28 @@ export function validateRnd(rnd: Uint8Array): void {
 export function validateMessage(M: Uint8Array): void {
 	if (!(M instanceof Uint8Array))
 		throw new TypeError('leviathan-crypto: message must be a Uint8Array');
+}
+
+/**
+ * FIPS 204 §5.4.1, the prehash PH_M passed to HashML-DSA Sign_internal /
+ * Verify_internal must be exactly the digest size of `algo`. Used by the
+ * `*Prehashed` family where the caller computes PH externally; the
+ * non-prehashed family produces PH internally so this check is implicit.
+ *
+ * Throws `SigningError('sig-malformed-input')` on mismatch. The verify
+ * surface intercepts this to return false (a wrong-size digest is a
+ * structural mismatch, indistinguishable from a wrong signature), while
+ * the sign surface lets the throw propagate (the caller supplied bad
+ * input, that is a contract violation per the FIPS 204 §5.4 input
+ * contract).
+ */
+export function validateDigest(digest: Uint8Array, algo: PreHashAlgorithm): void {
+	if (!(digest instanceof Uint8Array))
+		throw new SigningError('sig-malformed-input', 'digest must be a Uint8Array');
+	const expected = digestSize(algo);
+	if (digest.length !== expected)
+		throw new SigningError(
+			'sig-malformed-input',
+			`digest length ${digest.length} != ${expected} for ${algo}`,
+		);
 }

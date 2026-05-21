@@ -59,7 +59,6 @@ interface Commit {
 // ── constants ──────────────────────────────────────────────────────────────
 
 // conventional commit subject regex
-// matches: type(scope)!: desc  OR  type!: desc  OR  type(scope): desc  OR  type: desc
 const CC_RE = /^([a-z]+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/;
 
 // sections in display order

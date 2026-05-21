@@ -20,7 +20,7 @@
 //   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
 //                           ▀█████▀▀
 //
-// The "Make yourself sad for no good reason" tests.
+// The "make yourself sad for no good reason" tests.
 // Lints all AssemblyScript modules with `asc --pedantic`.
 // Module table comes from scripts/lib/modules.ts.
 // Exits nonzero on any WARNING / ERROR / PEDANTIC diagnostic.

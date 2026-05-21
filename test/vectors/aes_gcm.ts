@@ -29,9 +29,9 @@
 // All tags are 128-bit (32 hex characters, the maximum permitted by
 // SP 800-38D §5.2.1.2).
 //
-// Phase-4 GCM tests use these 18 cases for the gate plus the AESAVS
-// GCMVS .rsp corpora alongside this file (aes_gcmEncryptExtIV{128,192,256}.rsp
-// and aes_gcmDecrypt{128,192,256}.rsp) for breadth.
+// GCM tests use these 18 cases for the gate plus the AESAVS GCMVS .rsp
+// corpora alongside this file (aes_gcmEncryptExtIV{128,192,256}.rsp and
+// aes_gcmDecrypt{128,192,256}.rsp) for breadth.
 //
 // Audit status: VERIFIED, every byte transcribed directly from the
 //   gcm-spec.pdf PDF (Wayback-archived McGrew-Viega submission), no

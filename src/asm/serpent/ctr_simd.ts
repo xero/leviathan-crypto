@@ -66,13 +66,6 @@ import { encryptBlock_unrolled as encryptBlock } from './serpent_unrolled'
 	// Save base counter
 	const c0 = COUNTER_OFFSET
 
-	// Helper: read 4 bytes from counter at offset o as Serpent-internal word
-	// (NIST natural byte order, little-endian load):
-	// w(o) = byte[o] | (byte[o+1]<<8) | (byte[o+2]<<16) | (byte[o+3]<<24)
-
-	// We need 4 counter values: ctr+0, ctr+1, ctr+2, ctr+3
-	// Build words for each block, interleave into v128 registers
-
 	// Block 0: current counter
 	const b0w0 = i32(load<u8>(c0 +  0)) | (i32(load<u8>(c0 +  1)) << 8) | (i32(load<u8>(c0 +  2)) << 16) | (i32(load<u8>(c0 +  3)) << 24)
 	const b0w1 = i32(load<u8>(c0 +  4)) | (i32(load<u8>(c0 +  5)) << 8) | (i32(load<u8>(c0 +  6)) << 16) | (i32(load<u8>(c0 +  7)) << 24)

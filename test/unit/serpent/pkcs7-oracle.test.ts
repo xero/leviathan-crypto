@@ -20,19 +20,9 @@
 //                           ▀█████▀▀
 //
 /**
- * PKCS7 padding-oracle normalisation tests.
- *
- * `SerpentCbc.decrypt()` must throw a single generic `RangeError` with message
- * `'invalid ciphertext'` for every failure mode, empty input, non-multiple-of-16
- * length, out-of-range pad byte, and pad-byte mismatch, with timing that does
- * not distinguish the failure mode. Error messages must not leak any numeric
- * input-dependent data (byte values, lengths). Happy-path decrypt remains
- * byte-identical.
- *
- * `SerpentCipher` must continue to verify HMAC before invoking `pkcs7Strip`,
- * so a ciphertext whose HMAC fails raises `AuthenticationError` regardless of
- * its inner PKCS7 validity, the authenticated path never exercises the
- * padding check on attacker-controlled bytes.
+ * PKCS7 padding-oracle normalisation. SerpentCbc.decrypt throws a single
+ * generic RangeError; SerpentCipher verifies HMAC before pkcs7Strip. See
+ * docs/serpent.md#pkcs7-oracle-resistance.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { init, SerpentCbc, Seal, SerpentCipher, AuthenticationError, randomBytes } from '../../../src/ts/index.js';
@@ -57,34 +47,15 @@ function capture(fn: () => unknown): Error {
 	throw new Error('expected decrypt() to throw, but it returned normally');
 }
 
-// Produce a valid CBC ciphertext with known key/iv whose first full block
-// decrypts to recoverable plaintext. We then overwrite the last block with
-// adversarial bytes to trigger each failure mode; CBC chaining means the
-// last plaintext block is fully determined by the ciphertext's last block
-// and the preceding ciphertext block (not by any key state beyond loadKey).
-// The point is that the CBC transform produces 16 bytes whose tail byte
-// we control via the crafted ciphertext block.
-//
-// For the "final byte = N, but tail bytes != N" case we need the post-CBC
-// plaintext's last byte to be N while at least one other byte in the tail
-// region is not N. The simplest route: encrypt a plaintext whose final
-// block already has the pattern we want, then the decrypt output matches
-// it exactly.
+// Produce a 32-byte ciphertext whose last decrypted block equals tailPattern.
+// encrypt(32B pt) emits 48B (full-block PKCS7 pad); slice the first 32B as
+// the adversarial ct.
 function makeBogusCiphertext(
 	cbc: SerpentCbc,
 	key: Uint8Array,
 	iv: Uint8Array,
 	tailPattern: Uint8Array,
 ): Uint8Array {
-	// tailPattern is exactly 16 bytes. We encrypt a 32-byte plaintext where
-	// the last 16 bytes are the tailPattern. CBC.encrypt will PKCS7-pad the
-	// 32-byte input to 48 bytes, but we only want to feed decrypt 32 bytes
-	// such that its LAST plaintext block equals tailPattern.
-	//
-	// The wrapper's encrypt always adds a full 16-byte pad block when input
-	// is a multiple of 16. So the first 32 bytes of the 48-byte ciphertext
-	// correspond to the 32-byte input plaintext. Slice that off and use it
-	// as our adversarial ciphertext.
 	expect(tailPattern.length).toBe(16);
 	const pt = new Uint8Array(32);
 	pt.set(tailPattern, 16);
@@ -100,9 +71,6 @@ describe('SerpentCbc, happy path round-trip unchanged', () => {
 	const iv = new Uint8Array(16);
 	for (let i = 0; i < 16; i++) iv[i] = (i + 10) & 0xff;
 
-	// Use the same plaintext lengths as the existing SerpentCbc KAT suite
-	// (serpent_cbc.test.ts). If the CT rewrite altered the happy-path output
-	// path, these would regress.
 	const cases = [
 		{ label: '0-byte plaintext', len: 0 },
 		{ label: '1-byte plaintext', len: 1 },
@@ -160,7 +128,6 @@ describe('SerpentCbc, all failure modes throw identical error', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		let err: Error;
 		try {
-			// A 16-byte tail whose last byte is 0, padLen 0 is invalid.
 			const tail = new Uint8Array(16);  // all zeros
 			const ct = makeBogusCiphertext(cbc, key, iv, tail);
 			err = capture(() => cbc.decrypt(key, iv, ct));
@@ -175,7 +142,6 @@ describe('SerpentCbc, all failure modes throw identical error', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		let err: Error;
 		try {
-			// A 16-byte tail whose last byte is 17, padLen > 16 is invalid.
 			const tail = new Uint8Array(16);
 			tail[15] = 17;
 			const ct = makeBogusCiphertext(cbc, key, iv, tail);
@@ -191,8 +157,6 @@ describe('SerpentCbc, all failure modes throw identical error', () => {
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		let err: Error;
 		try {
-			// Tail ends with ...00 00 00 00 05 → padLen=5, but the 4 preceding
-			// bytes are not 5, so the PKCS7 check must fail.
 			const tail = new Uint8Array(16);
 			tail[15] = 5;
 			const ct = makeBogusCiphertext(cbc, key, iv, tail);
@@ -208,19 +172,14 @@ describe('SerpentCbc, all failure modes throw identical error', () => {
 		const messages: string[] = [];
 		const cbc = new SerpentCbc({ dangerUnauthenticated: true });
 		try {
-			// (a) empty
 			messages.push(capture(() => cbc.decrypt(key, iv, new Uint8Array(0))).message);
-			// (b) length 17
 			messages.push(capture(() => cbc.decrypt(key, iv, new Uint8Array(17))).message);
-			// (c) padLen=0
 			const tailZero = new Uint8Array(16);
 			const ctZero = makeBogusCiphertext(cbc, key, iv, tailZero);
 			messages.push(capture(() => cbc.decrypt(key, iv, ctZero)).message);
-			// (d) padLen=17
 			const tail17 = new Uint8Array(16); tail17[15] = 17;
 			const ct17 = makeBogusCiphertext(cbc, key, iv, tail17);
 			messages.push(capture(() => cbc.decrypt(key, iv, ct17)).message);
-			// (e) padLen=5 mismatch
 			const tail5 = new Uint8Array(16); tail5[15] = 5;
 			const ct5 = makeBogusCiphertext(cbc, key, iv, tail5);
 			messages.push(capture(() => cbc.decrypt(key, iv, ct5)).message);
@@ -241,10 +200,7 @@ describe('SerpentCbc, error messages leak no numeric data', () => {
 	const iv  = new Uint8Array(16).fill(0x66);
 
 	function assertNoDigits(msg: string): void {
-		// Regex /\d/ matches any decimal digit. Our normalised message
-		// 'invalid ciphertext' has no digits; any digit found indicates a
-		// regression that re-introduced a leak like "pad length N" or
-		// "got N bytes".
+		// /\d/ catches any leaked numeric (regression on 'invalid ciphertext').
 		expect(msg).not.toMatch(/\d/);
 	}
 
@@ -303,11 +259,7 @@ describe('SerpentCbc, error messages leak no numeric data', () => {
 // ── 4. Timing invariance (best-effort, loose threshold) ─────────────────────
 
 describe('SerpentCbc, pkcs7Strip timing invariance (loose)', () => {
-	// Regression guard for the pre-fix behaviour where a bad-padLen input
-	// short-circuited before the xor-accumulate loop ran. We measure wall-
-	// clock time per adversarial category and fail only on massive outliers
-	// (>10×). Node's timer granularity and GC pauses make tighter thresholds
-	// unreliable.
+	// Loose 10x threshold, catches the pre-fix early-return bug.
 	const key = new Uint8Array(32).fill(0x77);
 	const iv  = new Uint8Array(16).fill(0x88);
 	const ITERS = 1000;
@@ -362,9 +314,7 @@ describe('SerpentCbc, pkcs7Strip timing invariance (loose)', () => {
 		const all = [tZero, t17, t5];
 		const lo  = Math.min(...all);
 		const hi  = Math.max(...all);
-		// Loose 10× threshold, catches the pre-fix class of bug (early return
-		// before the xor loop gave O(1) vs O(16) timing spread, typically
-		// 2-5× but easily larger under load) while tolerating CI jitter.
+		// 10x bound tolerates CI jitter while catching the pre-fix early-return.
 		expect(hi / lo).toBeLessThan(10.0);
 	}, 30_000);
 });
@@ -373,10 +323,8 @@ describe('SerpentCbc, pkcs7Strip timing invariance (loose)', () => {
 
 describe('SerpentCipher, HMAC verified before pkcs7Strip runs', () => {
 	it('wrong key on Seal.decrypt throws AuthenticationError, not RangeError', () => {
-		// A legitimate SerpentCipher blob decrypted under the wrong key must
-		// fail HMAC before reaching the inner CBC pkcs7Strip. If the padding
-		// layer were reachable pre-auth, a caller observing RangeError would
-		// be learning padding-oracle information.
+		// Wrong key → HMAC fails before pkcs7Strip runs → AuthenticationError,
+		// not RangeError. Pads-leak path unreachable on the auth-tested surface.
 		const correctKey = randomBytes(32);
 		const wrongKey   = randomBytes(32);
 		const pt = new Uint8Array(48);
@@ -387,16 +335,10 @@ describe('SerpentCipher, HMAC verified before pkcs7Strip runs', () => {
 	});
 
 	it('tampered blob (may produce bad PKCS7 after CBC) still throws AuthenticationError', () => {
-		// Flipping a byte in the ciphertext region typically corrupts the
-		// recovered plaintext, including its PKCS7 tail. The HMAC check must
-		// reject it before pkcs7Strip ever sees the mangled output.
+		// HMAC covers the ciphertext; any change must fail auth before pkcs7Strip.
 		const key = randomBytes(32);
 		const pt = new Uint8Array(32).fill(0xAB);
 		const blob = Seal.encrypt(SerpentCipher, key, pt).slice();
-		// Flip a byte in the middle of the ciphertext region (past the
-		// header, before the trailing HMAC). Exact offset doesn't matter for
-		// this test, the HMAC covers the whole ciphertext, so any change
-		// must fail auth.
 		const midpoint = (blob.length >>> 1);
 		blob[midpoint] ^= 0xff;
 		expect(() => Seal.decrypt(SerpentCipher, key, blob))

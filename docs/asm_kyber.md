@@ -853,6 +853,6 @@ assumes its inputs are valid. The TypeScript wrapper (`MlKem512`, `MlKem768`,
 | [index](./README.md) | Project Documentation index |
 | [kyber](./kyber.md) | TypeScript wrapper classes (`MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`) |
 | [kyber_audit](./kyber_audit.md) | ML-KEM implementation audit |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_chacha](./asm_chacha.md) | ChaCha20-Poly1305 WASM module (companion KEM + AEAD cipher) |
 | [asm_sha3](./asm_sha3.md) | SHA-3 WASM module (used for XOF and PRF operations in ML-KEM keygen, encaps, and decaps) |

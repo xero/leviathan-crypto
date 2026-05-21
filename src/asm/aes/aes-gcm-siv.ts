@@ -62,8 +62,6 @@
 // CTR convention (RFC 8452 §4): 16-byte counter block. Bytes [0..4] hold
 // a 32-bit little-endian counter (incremented per block, wrapping mod
 // 2^32, silent per the RFC); bytes [4..16] are fixed across the call.
-// This is materially different from GCM's CTR (96-bit fixed prefix +
-// 32-bit big-endian counter at bytes [12..16]); the two share no code.
 
 import {
 	KEY_OFFSET,
@@ -99,10 +97,8 @@ import {
  * encryption key has the same length as the master KGK, so the round
  * count persisted in NR_OFFSET by the prior KGK loadKey transfers.
  *
- * Side-effect: `loadKey` re-derives H = AES_ENC(enc_key, 0^128) and
- * rebuilds the GF128 table. Both are immediately overwritten by the
- * subsequent `polyvalStart` call (which sets up the reflected POLYVAL
- * H), so the work is wasted but harmless.
+ * Side-effect: `loadKey` rebuilds H + GF128 table; `polyvalStart`
+ * immediately overwrites both with the reflected POLYVAL key.
  */
 @inline function sivLoadEncKey(): void {
 	const Nr: i32 = <i32>load<u8>(NR_OFFSET);

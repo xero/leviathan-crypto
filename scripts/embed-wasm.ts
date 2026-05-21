@@ -67,18 +67,18 @@ export async function run(): Promise<void> {
 		console.log(`  ${wasm} → embedded/${name}.ts  (${kb} KB → ${gzKb} KB gzip → ${b64kb} KB base64)`)
 	}
 
-	// CT module: raw byte array (too small for gzip+base64, raw is smaller)
-	const ctWasmPath = resolve(BUILD_DIR, 'ct.wasm')
-	if (!existsSync(ctWasmPath)) {
-		console.error(`Missing: ${ctWasmPath}, run build:asm first`)
+	// CTE module: raw byte array (too small for gzip+base64, raw is smaller)
+	const cteWasmPath = resolve(BUILD_DIR, 'cte.wasm')
+	if (!existsSync(cteWasmPath)) {
+		console.error(`Missing: ${cteWasmPath}, run build:asm first`)
 		process.exit(1)
 	}
-	const ctBytes = readFileSync(ctWasmPath)
-	const ctLiteral = `new Uint8Array([${Array.from(ctBytes).join(',')}])`
-	const ctOutPath = resolve(ROOT, 'src/ts/ct-wasm.ts')
-	writeFileSync(ctOutPath,
-		`// auto-generated, do not edit\n// raw WASM bytes for constant-time comparison module\nexport const CT_WASM = ${ctLiteral};\n`)
-	console.log(`  ct.wasm → src/ts/ct-wasm.ts  (${ctBytes.length} bytes raw)`)
+	const cteBytes = readFileSync(cteWasmPath)
+	const cteLiteral = `new Uint8Array([${Array.from(cteBytes).join(',')}])`
+	const cteOutPath = resolve(ROOT, 'src/ts/cte-wasm.ts')
+	writeFileSync(cteOutPath,
+		`// auto-generated, do not edit\n// raw WASM bytes for constant-time equality comparison module\nexport const CTE_WASM = ${cteLiteral};\n`)
+	console.log(`  cte.wasm → src/ts/cte-wasm.ts  (${cteBytes.length} bytes raw)`)
 
 	console.log('All WASM modules embedded successfully.')
 }

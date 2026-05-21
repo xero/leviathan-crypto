@@ -372,7 +372,7 @@ Each stream uses a unique random nonce as the HKDF salt, so each stream produces
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha2_audit](./sha2_audit.md) | SHA-256 implementation audit |
 | [hmac_audit](./hmac_audit.md) | HMAC-SHA256 audit (HKDF builds on HMAC) |
 | [serpent_audit](./serpent_audit.md) | HKDF used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle) |

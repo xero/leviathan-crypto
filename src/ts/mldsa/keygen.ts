@@ -154,7 +154,7 @@ export function mldsaKeygenInternal(
 		//   (e) NTT⁻¹ in place → time-domain Â·s₁.
 		//   (f) Add s₂ coefficient-wise.
 		//   (g) Reduce + caddq so coefficients are canonical [0, q-1],
-		//       required by power2round (per phase 3 contract).
+		//       required by power2round per the WASM polynomial-layer contract.
 		mlMem.copyWithin(s1NttOff, s1Off, s1Off + l * POLY_BYTES);
 		mx.polyvec_ntt(s1NttOff, l);
 		mx.polyvec_tomont(s1NttOff, l);
@@ -236,25 +236,9 @@ export function mldsaKeygenInternal(
 		const pk = mlMem.slice(pkOff, pkOff + pkBytes);
 		const sk = mlMem.slice(skOff, skOff + skBytes);
 
-		// ── Wipe scratch (FIPS 204 §3.6.3, Intermediate Values) ──────
-		// Every region that held secret or secret-derived bytes is
-		// zeroed. Public regions (ρ via SEED, pk, MATRIX_SLOT holding Â,
-		// POLYVEC_SLOT_3 holding t₁) we leave untouched, they are not
-		// secrets, but the SEED region also held ρ′ and K so it gets
-		// wiped in full.
-		//
-		// Severity ranking:
-		//   - SEED_OFFSET held ρ′ (expands to s₁/s₂) and K (used in
-		//     signing for deterministic per-message randomness). Highest
-		//     severity: ρ′ leak ⇒ recoverable signing key from ρ.
-		//   - SK_OFFSET holds the encoded sk; also long-lived, but the
-		//     caller already received this, no marginal disclosure
-		//     beyond keeping it in memory longer than needed.
-		//   - POLYVEC_SLOT_0/1/4 held s₁, s₂, t₀ (full secret-key state).
-		//   - POLYVEC_SLOT_2 held t (secret-derived; t₀ exposes low bits).
-		//   - XOF_PRF_OFFSET held the last SHAKE block, which after
-		//     ExpandS contained ρ′-derived bytes.
-		// Public regions intentionally skipped: PK, MATRIX_SLOT (Â), t₁.
+		// Wipe scratch per FIPS 204 §3.6.3. See
+		// docs/mldsa.md#wipe-discipline for the per-region severity
+		// ranking.
 		mlMem.fill(0, seedOff,   seedOff   + 128);                  // ρ ‖ ρ′ ‖ K
 		mlMem.fill(0, trOff,     trOff     + 64);                   // tr (public-derived but no need to keep)
 		mlMem.fill(0, skOff,     skOff     + skBytes);              // encoded sk

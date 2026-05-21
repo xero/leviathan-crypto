@@ -16,9 +16,8 @@
 // All hex strings are lowercase, no separators. Empty fields are
 // encoded as the empty string '' (none appear here).
 //
-// These vectors target the WASM POLYVAL primitive (not yet
-// implemented as of this file's introduction). They exist for
-// Phase 4b-impl's gate tests plus the cross-verifier in
+// These vectors target the WASM POLYVAL primitive. They exist for
+// the POLYVAL gate tests plus the cross-verifier in
 // `scripts/verify-vectors`. The §7 algebraic vectors and the
 // Appendix A mulX vectors are unit-test-only fixtures: the verifier
 // reads them but does not exercise them, since RustCrypto's

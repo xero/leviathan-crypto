@@ -25,17 +25,13 @@
 // FIPS 204 §7.4 Algorithms 35-40 (Power2Round, Decompose, HighBits, LowBits,
 // MakeHint, UseHint).
 //
-// All kernels expect input in canonical [0, q-1] form. Phase-4 wrappers must
-// call poly_caddq before invoking any function from this file.
+// All kernels expect input in canonical [0, q-1] form. Callers must invoke
+// poly_caddq before calling any function from this file.
 //
-// CT posture: Decompose's special-case branch (line 3 of Alg 36) is data-
-// dependent on the input coefficient. Inputs to Decompose come from secret-
-// derived intermediate values (w, ct0). The leak here is the same statistical
-// signal already produced by the signing rejection-restart loop, the next
-// iteration of Alg 7 depends on these values, and the iteration count is
-// observable through SHAKE differences. Documented per FIPS 204 §3.6.3.
-// MakeHint composes two HighBits calls per coefficient; same posture applies.
-// Power2Round is fully branch-free.
+// CT posture: Decompose's special-case branch (Alg 36 line 3) leaks the
+// rejection-restart signal Alg 7 already exposes (FIPS 204 §3.6.3).
+// MakeHint inherits via two HighBits calls; Power2Round is branch-free.
+// See docs/asm_mldsa.md#constant-time-posture.
 
 import { Q, D, N } from './params';
 

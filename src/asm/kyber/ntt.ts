@@ -51,9 +51,8 @@ const zetas: StaticArray<i16> = [
 	 -108,  -308,   996,   991,   958, -1460,  1522,  1628,
 ];
 
-// In AssemblyScript, changetype<i32>(arr) returns the data pointer directly.
-// The runtime header (mmInfo+gcInfo+gcInfo2+rtId+rtSize) sits at ptr-20 (before the data).
-// So the data offset is 0, changetype<i32>(zetas) IS the start of the i16 elements.
+// AS runtime header sits at ptr-20 (before the data); changetype<i32>(arr)
+// already points at element 0, so the data-side offset is 0.
 const AS_HEADER_SIZE: i32 = 0;
 
 /**

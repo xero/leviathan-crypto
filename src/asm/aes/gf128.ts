@@ -21,7 +21,7 @@
 //
 // src/asm/aes/gf128.ts
 //
-// GF(2^128) primitive used by AES-GCM (Phase 4a). Implements the
+// GF(2^128) primitive used by AES-GCM. Implements the
 // "multiplication operation on blocks" of NIST SP 800-38D §6.3, exposed as
 // a 4-bit windowed multiply by the fixed hash subkey H.
 //
@@ -44,49 +44,16 @@
 // bit 0 → u^3 (i.e. nibble's high bit = lowest power, matching GHASH byte
 // order's "MSB = lowest power").
 //
-// Constant-time note. M[k] is read with k = a nibble of the secret-derived
-// running state. On real CPUs this is NOT cache-line constant-time, the
-// classic 4-bit-windowed GHASH side-channel surface is well documented.
-// This is the same approach BoringSSL/OpenSSL/RustCrypto ship for
-// pre-PCLMULQDQ paths. PCLMULQDQ is not available in WebAssembly SIMD,
-// and table-free schoolbook is too slow for production use. The browser
-// sandbox mitigates direct cross-process cache observation; full mitigation
-// would require either CPU carry-less-multiply support or hardware-tied
-// AES-GCM-SIV (phase 4b).
+// Constant-time note: M[k] is table-indexed by a nibble of secret-derived
+// state. NOT cache-line constant-time. See
+// docs/asm_aes.md#ghash-multiplier-is-not-cache-line-constant-time for
+// the BoringSSL/OpenSSL/RustCrypto parallel and the PCLMULQDQ
+// availability discussion.
 
-// ──────────────────────────────────────────────────────────────────────────
-// Phase 4b note. AES-GCM-SIV (RFC 8452) uses POLYVAL, a sibling
-// universal hash in a different field: reduction polynomial
-// x^128 + x^127 + x^126 + x^121 + 1 (vs GHASH's x^128 + x^7 + x^2 + x + 1)
-// and a bit-within-byte ordering where bit 0 of byte 0 is u^0 (vs GHASH's
-// bit 7).
-//
-// RFC 8452 §3 gives the bridge:
-//
-//     POLYVAL(H, X_1..n) = ByteReverse(GHASH(mulX_GHASH(ByteReverse(H)),
-//                                            ByteReverse(X_1..n)))
-//
-// where ByteReverse reverses byte order in a 16-byte string. The
-// within-byte bit flip falls out for free from the differing GHASH /
-// POLYVAL bit-interpretation conventions, RFC 8452 §3: "the differing
-// interpretations of bit order takes care of reversing the bits within
-// each byte, and then reversing the bytes does the rest."
-//
-// Phase 4b chose path (a): a reflection wrapper around the existing
-// gf128MulH multiplier. Per-SIV-operation setup byte-reverses the
-// POLYVAL hash subkey, applies mulX_GHASH (defined in this file as
-// `mulXGhash`), and feeds the result to `gf128InitTable`. Per-block
-// absorption byte-reverses the block into GHASH bit convention, XORs
-// into the running accumulator, and multiplies by H. `polyvalFinalize`
-// byte-reverses the accumulator back to POLYVAL bit convention.
-// `byteReverse16` and `mulXGhash` below are the two helpers required;
-// the existing GF(2^128) primitive does not change.
-//
-// Path (b), a POLYVAL-native multiplier with reduction byte 0x87 in
-// LSB-first storage, was rejected: it would have added ~250 lines of
-// parallel multiplier and a second 256-byte table for no algorithmic
-// benefit on a runtime that lacks PCLMULQDQ.
-// ──────────────────────────────────────────────────────────────────────────
+// AES-GCM-SIV / POLYVAL bridge: byteReverse16 + mulXGhash below feed
+// the GF128 multiplier; the per-call setup runs in polyval.ts.
+// See docs/asm_aes.md#polyval-bridge for the RFC 8452 §3 derivation
+// and the path-(a) vs path-(b) decision.
 
 import {
 	H_OFFSET,

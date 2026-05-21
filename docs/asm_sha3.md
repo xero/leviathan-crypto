@@ -373,7 +373,8 @@ For the user-facing TypeScript classes built on these primitives (CSHAKE128/256,
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha3](./sha3.md) | TypeScript wrapper classes (SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE128, SHAKE256) |
 | [kmac](./kmac.md) | TypeScript wrapper classes for SP 800-185 (CSHAKE128/256, KMAC128/256, KMACXOF128/256) |
 | [asm_sha2](./asm_sha2.md) | alternative hash family (SHA-2/HMAC WASM module) |

@@ -4,12 +4,55 @@
 
 The extension point for the streaming AEAD layer. `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` are all cipher-agnostic. You provide the cipher by passing a `CipherSuite` object at construction.
 
+> ### Table of Contents
+> - [Module Init](#module-init)
+> - [Security Notes](#security-notes)
+> - [Symmetric implementations](#symmetric-implementations)
+>   - [SerpentCipher](#serpentcipher)
+>   - [XChaCha20Cipher](#xchacha20cipher)
+>   - [AESGCMSIVCipher](#aesgcmsivcipher)
+> - [KyberSuite](#kybersuite)
+> - [Interface reference](#interface-reference)
+> - [Per-cipher contract tests](#per-cipher-contract-tests)
+> - [Cross-References](#cross-references)
+
 ---
 
 Four implementations are included: `SerpentCipher`, `XChaCha20Cipher`,
 `AESGCMSIVCipher`, and `KyberSuite`. The first three are symmetric cipher
 suites. `KyberSuite` wraps any of them with an ML-KEM layer for hybrid
 post-quantum encryption.
+
+---
+
+## Module Init
+
+Each `CipherSuite` implementation requires its underlying cipher module plus `sha2` for HKDF-SHA-256 key derivation. `KyberSuite` additionally requires `sha3` for the ML-KEM sponge.
+
+| Suite | `init({ ... })` keys |
+|---|---|
+| `SerpentCipher` | `serpent`, `sha2` |
+| `XChaCha20Cipher` | `chacha20`, `sha2` |
+| `AESGCMSIVCipher` | `aes`, `sha2` |
+| `KyberSuite(MlKem*, inner)` | `kyber`, `sha3`, plus the inner suite's modules |
+
+See [init.md](./init.md) for `WasmSource` types and the per-module init functions.
+
+---
+
+## Security Notes
+
+> [!IMPORTANT]
+> **All four shipped suites are authenticated.** `SerpentCipher` uses Encrypt-then-MAC over Serpent-256-CBC + HMAC-SHA-256. `XChaCha20Cipher` uses XChaCha20-Poly1305 AEAD. `AESGCMSIVCipher` uses AES-256-GCM-SIV nonce-misuse-resistant AEAD. `KyberSuite` inherits the inner suite's authentication.
+
+> [!IMPORTANT]
+> **Key commitment closes the Invisible Salamanders surface.** `XChaCha20Cipher` and `AESGCMSIVCipher` carry a 32-byte commitment in the preamble because Poly1305 and POLYVAL are not key-committing on their own. `SerpentCipher` uses HMAC-SHA-256 which is key-committing by construction and ships with `commitmentSize: 0`. Don't strip the commitment field or skip its verification.
+
+> [!CAUTION]
+> **Custom CipherSuite implementations must use a unique `hkdfInfo` string.** The stream layer derives per-stream keys via `HKDF-SHA-256(masterKey, info=hkdfInfo)`. Two suites sharing the same `hkdfInfo` produce identical keys from the same master key, breaking cross-suite isolation. `wipeKeys` must zero every byte of derived key material; the stream layer calls it unconditionally after `finalize()`.
+
+> [!IMPORTANT]
+> **`formatEnum` reserved values must not collide.** Built-in allocations: `0x02`, `0x03`, `0x04`, `0x12`, `0x13`, `0x14`, `0x22`, `0x23`, `0x24`, `0x32`, `0x33`, `0x34`. Bit 6 of header byte 0 is reserved (`readHeader` rejects it); bit 7 is `FLAG_FRAMED`, set by the framing layer.
 
 ---
 
@@ -187,12 +230,50 @@ it unconditionally after finalize.
 
 ---
 
+## Per-cipher contract tests
+
+Per-cipher contract tests cover the behaviours that vary in shape
+across the shipped suites: header binding, commitment field, and the
+cipher's native key-committing properties. They live alongside the
+cipher-agnostic stream contract tests in `test/unit/stream/`.
+
+The cipher-agnostic block (round-trip, AAD, blob format, `OpenStream`
+compat, error handling, wrong-key / tampered-tag / tampered-ct failure
+modes) lives in `test/unit/stream/seal.test.ts` and runs for every
+cipher via parameterisation over `test/unit/stream/_cipher-spec.ts`.
+
+Each shipped cipher carries one `<cipher>-cipher-suite.test.ts`
+implementing the same describe-block shape. Where the cipher's
+behaviour differs (`SerpentCipher` does not header-bind, for example)
+the describe block is still present, but the assertions are the
+inverse and the test name describes the property being verified.
+
+| Describe block | What it covers |
+|---|---|
+| `deriveKeys` | Commitment-or-no-commitment shape, plus header-binding effect on derived keys (or its absence for Serpent). |
+| `Header binding` | Header-tamper effect on decrypt (failure for v3, no-effect for v2). |
+| `Commitment` | Flipping a byte in the commitment region rejects on decrypt (v3 only; Serpent's block asserts the preamble has no commitment region). |
+| Cipher-specific | Per-cipher behaviours below the shared blocks. |
+
+The shipped contract-test files:
+
+| File | Cipher |
+|---|---|
+| `test/unit/stream/serpent-cipher-suite.test.ts` | `SerpentCipher` |
+| `test/unit/stream/xchacha20-cipher-suite.test.ts` | `XChaCha20Cipher` |
+| `test/unit/stream/aes-cipher-suite.test.ts` | `AESGCMSIVCipher` |
+
+Any new `CipherSuite` added to the catalog gets its own contract-test
+file matching the same describe-block shape.
+
+---
+
 ## Cross-References
 
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` |
 | [serpent](./serpent.md) | Serpent-256 TypeScript API and raw primitives |

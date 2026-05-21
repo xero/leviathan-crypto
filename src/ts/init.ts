@@ -23,7 +23,7 @@ import type { WasmSource } from './wasm-source.js';
 import { loadWasm } from './loader.js';
 import { hasSIMD } from './utils.js';
 
-export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa'
+export type Module = 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'aes' | 'mldsa' | 'slhdsa' | 'blake3' | 'curve25519' | 'p256'
 
 // 'keccak' is an alias for 'sha3', same WASM binary, same instance slot
 const ALIASES: Partial<Record<Module, Module>> = { keccak: 'sha3' };
@@ -32,13 +32,11 @@ function resolve(mod: Module): Module {
 	return ALIASES[mod] ?? mod;
 }
 
-// Module-scope cache: one WebAssembly.Instance per canonical module
+// Per-canonical-module instance cache.
 const instances = new Map<Module, WebAssembly.Instance>();
-// Pending inits, coalesces concurrent initModule calls for the same module.
+// Coalesces concurrent initModule calls.
 const pending = new Map<Module, Promise<WebAssembly.Instance>>();
-// Exclusivity registry: per-module ownership token held by a stateful wrapper
-// for its entire lifetime. Prevents shared-WASM-state clobber when two
-// instances from the same module would otherwise trample each other's memory.
+// Per-module exclusivity token held by a stateful wrapper.
 const owners = new Map<Module, symbol>();
 
 export async function initModule(mod: Module, source: WasmSource): Promise<void> {
@@ -48,9 +46,9 @@ export async function initModule(mod: Module, source: WasmSource): Promise<void>
 	if (inflight) {
 		await inflight; return;
 	}
-	if ((resolved === 'serpent' || resolved === 'chacha20' || resolved === 'kyber' || resolved === 'aes' || resolved === 'mldsa') && !hasSIMD())
+	if ((resolved === 'serpent' || resolved === 'chacha20' || resolved === 'kyber' || resolved === 'aes' || resolved === 'mldsa' || resolved === 'blake3') && !hasSIMD())
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, kyber, aes, and mldsa require WebAssembly SIMD, '
+			'leviathan-crypto: serpent, chacha20, kyber, aes, mldsa, and blake3 require WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 	const p = loadWasm(source);
@@ -116,20 +114,8 @@ export function _isModuleBusy(mod: Module): boolean {
 	return owners.has(resolve(mod));
 }
 
-/**
- * Throw if `mod` is currently held by a stateful instance. Called at the top
- * of every atomic WASM-touching method so that cached-exports access paths
- * cannot silently clobber a live stateful instance's WASM state.
- *
- * The error message is intentionally identical to `_acquireModule`'s so that
- * error handlers matching on text work uniformly across construction-time and
- * method-time ownership failures.
- * @internal
- */
+/** @internal */
 export function _assertNotOwned(mod: Module): void {
-	// Deliberately unoptimized. Do not add caching or epoch tracking: the
-	// check must read current ownership on every call so an atomic op cannot
-	// race ahead of a stateful acquirer.
 	const r = resolve(mod);
 	if (owners.has(r))
 		throw new Error(

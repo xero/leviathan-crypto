@@ -45,10 +45,9 @@
 // Mutable total: 29344 bytes starting at offset 4096.
 //
 // ── Byte buffer sequencing contract ─────────────────────────────────────────
-// PK, SK, CT are contiguous at k=4. The KEM decaps path relies on
-// indcpaDecrypt completing (consuming SK via polyvec_frombytes) before
-// indcpaEncrypt reuses PK_OFFSET. Do not interleave decrypt/encrypt calls.
-// CT_PRIME sits after CT for the decaps re-encrypt → ct_verify comparison.
+// PK, SK, CT contiguous at k=4. Do not interleave decrypt/encrypt:
+// indcpaDecrypt must consume SK before indcpaEncrypt reuses PK_OFFSET.
+// CT_PRIME follows CT for the decaps re-encrypt ct_verify compare.
 
 // ── Poly slot constants ─────────────────────────────────────────────────────
 

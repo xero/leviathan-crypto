@@ -20,7 +20,7 @@
 //                           ▀█████▀▀
 //
 /**
- * ChaCha20-Poly1305 AEAD test vectors + phase 2 behavioral tests.
+ * ChaCha20-Poly1305 AEAD test vectors plus behavioral tests.
  *
  * Source: RFC 8439, "ChaCha20 and Poly1305 for IETF Protocols", May 2018
  * URL: https://www.rfc-editor.org/rfc/rfc8439

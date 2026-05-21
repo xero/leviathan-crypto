@@ -69,9 +69,8 @@ import { sha512Init, sha384Init, sha512Update, sha512Final, sha384Final } from '
 // keyLen must be ≤ 128. Starts the inner hash by processing the ipad block.
 // After this call, SHA512_INPUT_OFFSET is free for message data.
 export function hmac512Init(keyLen: i32): void {
-	// RFC 2104 §3: K' = K padded to block size (128 bytes) with zeros.
-	// Single 128-iteration pass with branchless masking, work per iteration
-	// is constant, so total time does not depend on keyLen.
+	// Constant-time K' build (see hmac.ts:hmac256Init for the
+	// RFC 2104 §3 rationale).
 	for (let i: i32 = 0; i < 128; i++) {
 		// mask = 0xFF when i < keyLen, 0x00 when i >= keyLen
 		const inKey: i32 = (i - keyLen) >> 31
@@ -109,17 +108,12 @@ export function hmac512Final(): void {
 }
 
 // ── HMAC-SHA384 ─────────────────────────────────────────────────────────────
-//
-// HMAC-SHA384 uses the same 128-byte block size as HMAC-SHA512.
-// The inner and outer hashes use SHA-384 (sha384Init + sha384Final).
-// The tag is 48 bytes (SHA512_OUT_OFFSET[0..47]).
+// Same 128-byte block as SHA-512; inner/outer via sha384Init/Final; tag = SHA512_OUT_OFFSET[0..47].
 
 // Set up ipad/opad from key in SHA512_INPUT_OFFSET[0..keyLen-1].
 // keyLen must be ≤ 128. Starts the inner SHA-384 hash with the ipad block.
 export function hmac384Init(keyLen: i32): void {
-	// Same ipad/opad construction as hmac512Init, same 128-byte block size.
-	// Single 128-iteration pass with branchless masking, work per iteration
-	// is constant, so total time does not depend on keyLen.
+	// Constant-time K' build (see hmac.ts:hmac256Init).
 	for (let i: i32 = 0; i < 128; i++) {
 		// mask = 0xFF when i < keyLen, 0x00 when i >= keyLen
 		const inKey: i32 = (i - keyLen) >> 31

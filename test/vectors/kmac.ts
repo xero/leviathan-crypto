@@ -61,8 +61,8 @@
 // Empty exports, kmacxof128_appendix_a / kmacxof256_appendix_a are never
 // empty (NIST publishes 3 samples each). kmac256_acvp and kmacxof128_acvp are
 // empty arrays: no records survived the byte-alignment filter. The exports are
-// retained for symmetry with the variant-grouping convention and so Phase 2
-// imports remain stable as ACVP corpora evolve upstream.
+// retained for symmetry with the variant-grouping convention and so
+// downstream imports remain stable as ACVP corpora evolve upstream.
 //
 // Every record was crosschecked byte-for-byte against an independent reference
 // in an ephemeral Rust project (`tiny-keccak` for KMAC / KMACXOF, the `sha3`

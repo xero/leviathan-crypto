@@ -21,9 +21,9 @@
 //
 // src/ts/mldsa/format.ts
 //
-// External-API M' construction. Lives in its own file because phase 6's
-// HashML-DSA reuses the same byte layout with a different domain
-// separator (0x01) and a hash-of-message tail.
+// External-API M' construction. Lives in its own file because HashML-DSA
+// reuses the same byte layout with a different domain separator (0x01)
+// and a hash-of-message tail.
 //
 // FIPS 204 Algorithm 2 line 10 (Sign) and Algorithm 3 line 5 (Verify):
 //   M' ← BytesToBits(IntegerToBytes(domSep, 1)
@@ -39,7 +39,7 @@
 /**
  * Build M' = domSep ‖ |ctx| ‖ ctx ‖ M.
  *
- * domSep = 0x00 for pure ML-DSA (phase 5), 0x01 for HashML-DSA (phase 6).
+ * domSep = 0x00 for pure ML-DSA, 0x01 for HashML-DSA.
  * Caller has already validated ctx.length ≤ 255.
  */
 export function constructMPrime(domSep: number, ctx: Uint8Array, M: Uint8Array): Uint8Array {

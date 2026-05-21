@@ -307,7 +307,7 @@ The three keys provide:
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [sha2_audit](./sha2_audit.md) | SHA-256 implementation audit (HMAC builds on SHA-256) |
 | [hkdf_audit](./hkdf_audit.md) | HKDF builds on HMAC-SHA256 |
 | [serpent_audit](./serpent_audit.md) | HMAC-SHA256 used in SerpentCipher [§2.4](./serpent_audit.md#24-serpentcipher-verify-then-decrypt-and-the-cryptographic-doom-principle) |

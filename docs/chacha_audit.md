@@ -297,7 +297,7 @@ XOR-accumulate pattern with no early return. The loop always executes all 16 ite
 > was removed; the function now throws a branded error on runtimes
 > without WebAssembly SIMD. The constant-time property of the audited
 > verification is preserved and strengthened. See
-> [asm_ct.md](./asm_ct.md).
+> [asm_cte.md](./asm_cte.md).
 
 **XChaCha20-Poly1305 layer** (`ops.ts:164-194`):
 
@@ -491,7 +491,7 @@ The `SealStream` / `OpenStream` streaming layer uses ChaCha20-Poly1305 AEAD as a
 | Document | Description |
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
-| [architecture](./architecture.md) | architecture overview, module relationships, buffer layouts, and build pipeline |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [serpent_audit](./serpent_audit.md) | Serpent-256 companion audit; comparison in [§2.3](./chacha_audit.md#23-aead-security-properties) |
 | [sha2_audit](./sha2_audit.md) | SHA-256 / HMAC-SHA256 audit |
 | [sha3_audit](./sha3_audit.md) | SHA-3 companion audit |

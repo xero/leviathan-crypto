@@ -1,0 +1,41 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+// src/ts/x25519/validate.ts
+//
+// X25519 caller-side input validation. Pure length / type checks. Peer
+// public-key masking happens inside the WASM (feFromBytes masks bit 255
+// per RFC 7748 §5); the all-zero shared-secret rejection happens in the
+// TS X25519.dh method after the WASM returns.
+
+export function validateSecretKey(sk: Uint8Array): void {
+	if (!(sk instanceof Uint8Array))
+		throw new TypeError('leviathan-crypto: x25519 secret key must be a Uint8Array');
+	if (sk.length !== 32)
+		throw new RangeError(`leviathan-crypto: x25519 secret key must be 32 bytes (got ${sk.length})`);
+}
+
+export function validatePublicKey(pk: Uint8Array): void {
+	if (!(pk instanceof Uint8Array))
+		throw new TypeError('leviathan-crypto: x25519 public key must be a Uint8Array');
+	if (pk.length !== 32)
+		throw new RangeError(`leviathan-crypto: x25519 public key must be 32 bytes (got ${pk.length})`);
+}

@@ -51,7 +51,7 @@ describe('AES single round (Gate 3)', () => {
 	// GATE: applying SubBytes + ShiftRows + MixColumns + AddRoundKey for round
 	// 1 to the FIPS 197 §B Round 1 start state must produce the §B Round 1
 	// end state. Source values come from aesRoundIntermediates128
-	// (FIPS 197 §B, transcribed in Phase 1b).
+	// (FIPS 197 §B).
 	it('FIPS 197 §B Round 1 produces expected end state', () => {
 		const x   = getDebugExports();
 		const mem = new Uint8Array(x.memory.buffer);

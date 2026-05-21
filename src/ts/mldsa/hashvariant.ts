@@ -132,6 +132,31 @@ export function getOid(algo: PreHashAlgorithm): Uint8Array {
 	return tab.slice();
 }
 
+/** FIPS 204 §5.4.1 PH_M byte length for `algo`. SHAKE128 / SHAKE256 are
+ *  XOFs but the spec fixes their HashML-DSA output to 32 / 64 bytes
+ *  respectively; the SHA-3 and SHA-2 entries return their natural digest
+ *  size. Used by `validateDigest` to bound the caller-supplied prehash. */
+export function digestSize(algo: PreHashAlgorithm): number {
+	switch (algo) {
+	case 'SHA2-224':     return 28;
+	case 'SHA2-256':     return 32;
+	case 'SHA2-384':     return 48;
+	case 'SHA2-512':     return 64;
+	case 'SHA2-512/224': return 28;
+	case 'SHA2-512/256': return 32;
+	case 'SHA3-224':     return 28;
+	case 'SHA3-256':     return 32;
+	case 'SHA3-384':     return 48;
+	case 'SHA3-512':     return 64;
+	case 'SHAKE128':     return 32;
+	case 'SHAKE256':     return 64;
+	default: {
+		const exhaustive: never = algo;
+		throw new RangeError(`leviathan-crypto: unsupported HashML-DSA pre-hash algorithm '${exhaustive as string}'`);
+	}
+	}
+}
+
 /** True iff `algo` is one of the SHA-2 family pre-hashes (and therefore
  *  requires `init({ sha2: ... })`). The SHA-3 family and SHAKE variants
  *  use the same `sha3` module mldsa already requires. */

@@ -520,5 +520,5 @@ A wrong key, wrong message, wrong customization, or tampered tag all produce the
 | [index](./README.md) | Project Documentation index |
 | [sha3](./sha3.md) | SHA-3 hash functions (SHA3-224 through SHA3-512) and SHAKE128/256 |
 | [asm_sha3](./asm_sha3.md) | SHA-3 WASM internals and the SP 800-185 AS exports |
-| [architecture](./architecture.md) | Architecture overview, module relationships, buffer layouts |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [utils](./utils.md) | `constantTimeEqual` for fixed-length XOF tag verification |

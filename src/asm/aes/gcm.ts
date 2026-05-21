@@ -21,7 +21,7 @@
 //
 // src/asm/aes/gcm.ts
 //
-// AES-GCM authenticated encryption (Phase 4a). Implements GCM-AE / GCM-AD
+// AES-GCM authenticated encryption. Implements GCM-AE / GCM-AD
 // from NIST SP 800-38D §7. Builds on:
 //   - aes.ts encryptBlock / encryptBlock_8x (block cipher core)
 //   - ghash.ts ghashStart / ghashAbsorbBlock / ghashAbsorbWithLen / ghashFinalize
@@ -29,13 +29,13 @@
 //
 // Tag length is fixed at 128 bits (the universal default; SP 800-38D §5.2.1
 // permits 32/64/96/104/112/120/128, but shorter tags shift the security
-// analysis and are not in this phase's scope).
+// analysis and are not in scope).
 //
 // Counter format (§6.5 GCTR): 128-bit block. The leftmost 96 bits are
 // fixed by J0; the rightmost 32 bits are a big-endian counter that
-// increments per block (inc_32). This is distinct from Phase 3's CTR
-// which uses a full-128-bit big-endian increment. We implement a
-// dedicated GCTR loop here rather than calling Phase 3's CTR.
+// increments per block (inc_32). This is distinct from the standalone
+// AES-CTR mode which uses a full-128-bit big-endian increment, so we
+// implement a dedicated GCTR loop here rather than calling AES-CTR.
 //
 // Streaming chunked API (driven by the AESGCM TS class):
 //
@@ -89,13 +89,8 @@ import {
 // Maximum PT bytes per (key, IV) per SP 800-38D §5.2.1.1: |P| ≤ 2^39 - 256
 // bits = 2^36 - 32 bytes. Equivalently, the 32-bit GCTR counter spans at
 // most 2^32 - 2 increments, each block is 16 bytes, so 16 · (2^32 - 2) =
-// 2^36 - 32 bytes maximum.
-//
-// In our chunked WASM API ctLen is tracked as a single i32-equivalent, but
-// we accumulate in two i32 limbs (low 32 bits of byte length and a
-// "blocks consumed" guard for counter-wrap detection). gcmEncryptChunk
-// rejects when the cumulative block count would push the counter past
-// 2^32 - 2 (the last permitted block index before 32-bit wrap).
+// 2^36 - 32 bytes maximum. Enforced at the TS layer via MAX_PT_BYTES;
+// gctrXform does not detect wrap.
 
 // Bit-length helpers: caller passes byte counts; we shift by 3 to bits.
 @inline function bitsFromBytes(byteLen: u64): u64 {
@@ -117,7 +112,7 @@ import {
 /**
  * 32-bit big-endian increment of GCM_CB[12..16]. Per SP 800-38D §6.2 inc_32.
  * Carry propagates from byte 15 toward byte 12. The high 96 bits stay
- * untouched (this is the GCM-specific counter, distinct from Phase 3 CTR).
+ * untouched (this is the GCM-specific counter, distinct from AES-CTR).
  */
 @inline function inc32(): void {
 	for (let i: i32 = 15; i >= 12; i--) {
@@ -293,9 +288,6 @@ function gctrXform(srcOff: i32, dstOff: i32, len: i32): i32 {
 		processed += blockLen;
 	}
 
-	// Counter wrap is enforced at the TS layer via MAX_PT_BYTES = 2^36 - 32.
-	// Callers that bypass that cap can wrap GCM_CB's low-32 unsafely.
-	// Flagged for hardening when 4b (AESGCMSIV) or 5 (AESCipher) reuse it.
 	return 0;
 }
 

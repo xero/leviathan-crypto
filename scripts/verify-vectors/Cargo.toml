@@ -9,6 +9,15 @@ publish     = false
 name = "verify-vectors"
 path = "src/main.rs"
 
+# Single-shot generator for the BLAKE3 large-input regression test
+# (test/unit/blake3/blake3-large-input.test.ts). Emits expected XOF
+# hex for sizes far past the upstream KAT corpus; the values are
+# embedded verbatim in the test file so the cross-check is reproducible
+# without re-running this generator on every CI invocation.
+[[bin]]
+name = "gen-blake3-large"
+path = "src/bin/gen_blake3_large.rs"
+
 # Exact-version pinning. Verifier dependencies are part of the audit surface;
 # we do not silently consume new versions. CI's Cargo.lock plus this exact
 # pin gives belt-and-suspenders reproducibility.
@@ -61,8 +70,10 @@ aes-gcm          = { version = "=0.10.3", default-features = false, features = [
 # default `from_seed(d || z)` already gives deterministic keygen.
 ml-kem           = { version = "=0.3.0",  default-features = false, features = ["hazmat"] }
 # RustCrypto ML-DSA (FIPS 204 final): independent-lineage oracle for
-# mldsa_keygen.ts, mldsa_siggen.ts, and mldsa_sigver.ts. `rand_core`
-# enables `sign_mu_randomized(mu, &mut rng)` which the verifier feeds a
+# mldsa_keygen.ts, mldsa_siggen.ts, and mldsa_sigver.ts. Also drives the
+# ML-DSA half of the PQ-only hybrid composite verifier in
+# src/hybrid_pq.rs (sign_hybrid_pq.ts). `rand_core` enables
+# `sign_mu_randomized(mu, &mut rng)` which the verifier feeds a
 # deterministic mock RNG so ACVP `rnd` values reproduce hedged
 # externalMu signatures exactly. `pkcs8` and `alloc` are not needed.
 # Note: rc.4 fixed GHSA-5x2r-hc65-25f9 (hint-index acceptance);
@@ -98,10 +109,90 @@ sha3             = { version = "=0.11.0", default-features = false }
 # `sha3`, which keeps the "independent of leviathan-crypto's WASM
 # stack" claim intact for the SP 800-185 corpus.
 tiny-keccak      = { version = "=2.0.2",  default-features = false, features = ["cshake", "kmac"] }
+# RustCrypto SLH-DSA (FIPS 205 final): independent-lineage oracle for
+# slhdsa_keygen.ts, slhdsa_siggen.ts, slhdsa_sigver.ts, and the SLH-DSA
+# half of sign_hybrid_pq.ts (driven by src/hybrid_pq.rs). The crate
+# exposes `SigningKey::slh_keygen_internal(skSeed, skPrf, pkSeed)` and
+# `slh_sign_internal(M', opt_rand)` (both `#[doc(hidden)]` but public)
+# which is the FIPS 205 §9 KAT-validation path. The WASM module ships
+# the SHAKE-fast variants (Shake128f / Shake192f / Shake256f); SHA-2
+# family and slow variants are out of scope so the verifier carries
+# the same SHAKE-fast subset. Defaults stay on
+# because the crate's `alloc` feature unconditionally references
+# `der::SecretDocument` / `der::Document` from the pkcs8/alloc path;
+# disabling defaults breaks the build. `zeroize` is a non-correctness
+# extra we deliberately leave off.
+slh-dsa          = { version = "=0.2.0-rc.5" }
+# Official BLAKE3 Rust crate (BLAKE3-team): independent-lineage oracle
+# for blake3.ts. Drives Hasher::new / new_keyed / new_derive_key plus
+# finalize_xof + OutputReader::fill for the full 131-byte XOF output
+# per record. `default-features = false` drops the `std` feature; the
+# core `fill` method on OutputReader does not require std, so the
+# verifier reads XOF bytes without pulling std::io::Read into scope.
+# Same crate as the WASM substrate's source spec but a separate Rust
+# lineage from leviathan-crypto's AssemblyScript port; the agreement
+# between this oracle and the WASM output is the "two independent
+# stacks agree on the bytes" signal.
+blake3           = { version = "=1.8.5",  default-features = false }
 # Hex codec used everywhere we surface bytes in logs (computed/expected
 # diffs, header dumps). `std` so we can return the standard `String`
 # type from `hex::encode`.
 hex              = { version = "=0.4.3",  default-features = false, features = ["std"] }
+# Base64 codec for the transparency-dev/merkle testdata corpus, which
+# encodes byte slices through Go's encoding/json default (std-padded
+# base64). The verifier decodes record fields back to bytes before
+# feeding them to the hand-rolled RFC 9162 §2.1.1 walker in
+# src/merkle_sha256.rs.
+base64           = { version = "=0.22.1", default-features = false, features = ["std"] }
+# dalek-cryptography Ed25519 (RFC 8032): independent-lineage oracle for
+# ed25519.ts (RFC §7 KATs), ed25519_keygen.ts, ed25519_siggen.ts, and
+# ed25519_sigver.ts (ACVP EDDSA-1.0). The dalek family shares no source
+# with leviathan-crypto's WASM stack and no source with any RustCrypto
+# crate already pinned in this file; it is a distinct verifier lineage
+# analogous to tiny-keccak's role for SP 800-185. `digest` enables
+# `sign_prehashed` / `verify_prehashed_strict` for the Ed25519ph
+# (§5.1.7) records; `rand_core` enables the trait imports that the
+# prehash path pulls in at this dalek minor. Verification uses the
+# `_strict` variants exclusively (RFC 8032 §5.1.7 cofactored
+# verification, matches FIPS 186-5 §7.6.4 and ACVP `testPassed`); the
+# non-strict `verify` would diverge on records that exercise
+# small-order or mixed-order public keys.
+ed25519-dalek    = { version = "=2.2.0",  default-features = false, features = ["rand_core", "digest"] }
+# dalek-cryptography X25519 (RFC 7748): independent-lineage oracle for
+# x25519.ts. Same lineage note as ed25519-dalek above. The
+# `static_secrets` feature exposes
+# `StaticSecret::from(bytes).diffie_hellman(&pk)`, which is the
+# function the §6.1 KAT is computed against; the §5 iterated KATs go
+# through the standalone `x25519_dalek::x25519(k, u)` function.
+x25519-dalek     = { version = "=2.0.1",  default-features = false, features = ["static_secrets"] }
+# Explicit pin of the curve25519-dalek transitive that both dalek crates
+# depend on. Recorded here so the audit surface includes the curve
+# arithmetic crate at exactly the resolved version, rather than
+# whatever happens to satisfy the open `^4` bound in the future.
+curve25519-dalek = { version = "=4.1.3",  default-features = false }
+# RustCrypto P-256 substrate: independent-lineage oracle for the
+# ecdsa_p256*.ts vector files. Pure Rust, separate from leviathan-crypto's
+# AssemblyScript WASM stack. Defaults dropped; `arithmetic` enables curve
+# point ops needed by signing/verification, `ecdsa` enables ECDSA-P256
+# specifically. `hash2curve` is NOT needed (no hash-to-curve work here).
+p256 = { version = "=0.14.0-rc.9", default-features = false, features = ["arithmetic", "ecdsa"] }
+# RustCrypto ECDSA generic: provides the deterministic and explicit-k
+# signing entry points the verifier drives. The `algorithm` feature pulls
+# in `hazmat` + `rfc6979` and exposes `sign_prehashed::<C>(d, k, z)` for
+# ACVP SigGen's explicit-k records (FIPS 186-5 §6.4.2, randomized k) and
+# `sign_prehashed_rfc6979::<C, H>` for the deterministic RFC 6979 §A.2.5
+# gate corpus.
+ecdsa = { version = "=0.17.0-rc.18", default-features = false, features = ["algorithm"] }
+# sha2 v0.11 alias for the ECDSA-P256 oracle. The pinned `sha2 = =0.10.9`
+# above feeds HKDF/HMAC on the digest-0.10 ecosystem; `p256 = 0.14.0-rc.9`
+# and `ecdsa = 0.17.0-rc.18` are on the digest-0.11 ecosystem and need
+# `digest::EagerHash`, which the 0.10 `sha2::Sha256` does NOT implement.
+# We pull the 0.11 sha2 in here under a renamed dep so the ECDSA-P256
+# verifier can name `sha2_v11::Sha256` without changing the project-wide
+# sha2 pin. This dep is transparently brought in by p256/slh-dsa already
+# (see `cargo tree -i sha2:0.11.0`); the explicit pin records the audit
+# surface and lets the verifier code import it directly.
+sha2_v11 = { package = "sha2", version = "=0.11.0", default-features = false }
 
 [profile.release]
 opt-level = 3

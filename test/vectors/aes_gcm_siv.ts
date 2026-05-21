@@ -19,7 +19,7 @@
 // aad, plaintext) -> result via AES-GCM-SIV. FAIL/tamper vectors for
 // the open direction (single-byte tag flip, single-byte CT flip, AAD
 // tamper, IV tamper, key tamper) are synthesised at unit-test time
-// in Phase 4b-impl. The corpus does not need to ship them.
+// in the unit-test layer. The corpus does not need to ship them.
 //
 // The 13 hex/string fields per record carry the full RFC-published
 // trace for each vector, not just (key, nonce, aad, pt, ct, tag).

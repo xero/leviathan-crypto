@@ -33,12 +33,46 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | Module | Description |
 |--------|-------------|
 | [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+| [ciphersuite.md](./ciphersuite.md) | `CipherSuite` interface and the in-tree symmetric / hybrid cipher consts |
+
+### Signatures
+
+| Module | Description |
+|--------|-------------|
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the shipped suite catalog and reserved entries |
 
 ### Post-Quantum KEM
 
 | Module | Description |
 |--------|-------------|
 | [kyber.md](./kyber.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`: ML-KEM key encapsulation (FIPS 203) |
+| [asm_kyber.md](./asm_kyber.md) | WASM implementation: polynomial arithmetic, SIMD NTT/invNTT, basemul in Z_q[X]/(X²-ζ), CBD sampling, compression, FO transform |
+
+### Classical Signatures and Key Agreement
+
+| Module | Description |
+|--------|-------------|
+| [ed25519.md](./ed25519.md) | `Ed25519`: classical Ed25519 signatures (RFC 8032), pure and Ed25519ph prehash modes |
+| [x25519.md](./x25519.md) | `X25519`: Curve25519 Diffie-Hellman key agreement (RFC 7748) |
+| [ecdsa-p256.md](./ecdsa-p256.md) | `EcdsaP256`, `EcdsaP256Suite`, `ecdsaSignatureToDer` / `ecdsaSignatureFromDer`: classical ECDSA signatures over NIST P-256 (FIPS 186-5 §6), hedged-by-default per `draft-irtf-cfrg-det-sigs-with-noise-05`, low-S enforced |
+| [asm_curve25519.md](./asm_curve25519.md) | WASM implementation: field arithmetic, edwards25519, Montgomery ladder, scalar mod L, embedded SHA-512 |
+| [asm_p256.md](./asm_p256.md) | p256 WASM implementation: GF(p256) field arithmetic, Renes-Costello-Batina 2016 complete addition, constant-time scalar mult, embedded SHA-256 + HMAC-SHA-256 for RFC 6979 K derivation |
+
+### Post-Quantum Signatures
+
+| Module | Description |
+|--------|-------------|
+| [mldsa.md](./mldsa.md) | `MlDsa44`, `MlDsa65`, `MlDsa87`: ML-DSA digital signatures (FIPS 204), pure mode and HashML-DSA |
+| [asm_mldsa.md](./asm_mldsa.md) | WASM implementation: SIMD NTT over q=8380417, rejection sampling, Power2Round / Decompose / MakeHint / UseHint, HintBitPack/Unpack with §D.3 SUF-CMA checks, SampleInBall |
+| [slhdsa.md](./slhdsa.md) | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`: SLH-DSA hash-based signatures (FIPS 205), pure mode and HashSLH-DSA |
+| [asm_slhdsa.md](./asm_slhdsa.md) | WASM implementation: embedded Keccak permutation, F / H / T_ℓ / PRF / PRF_msg / H_msg tweakable hash family, 32-byte ADRS encoding, WOTS+ / FORS / XMSS / hypertree composition |
+
+### Transparency Log
+
+| Module | Description |
+|--------|-------------|
+| [merkle.md](./merkle.md) | `MerkleVerifier`, `MerkleLog`, `SignedLog`, `Sha256Tree`, `Blake3Tree`, `MemoryStorage`: append-only Merkle log substrate with inclusion / consistency proofs, signed tree heads, and the c2sp.org/tlog-cosignature wire format |
 
 ### Post-Quantum Ratchet
 
@@ -78,9 +112,16 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Module | Description |
 |--------|-------------|
-| [sha3.md](./sha3.md) | TypeScript API: `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
+| [sha3.md](./sha3.md) | TypeScript API: `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256`, plus streaming variants (`SHA3_256Stream`, `SHA3_512Stream`, `SHAKE128Stream`, `SHAKE256Stream`) |
 | [kmac.md](./kmac.md) | TypeScript API: `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, `KMACXOF256` (SP 800-185) |
 | [asm_sha3.md](./asm_sha3.md) | WASM implementation: Keccak permutation (1600-bit state), sponge construction |
+
+### BLAKE3
+
+| Module | Description |
+|--------|-------------|
+| [blake3.md](./blake3.md) | TypeScript API: `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, plus the `BLAKE3Hash` Fortuna HashFn const |
+| [asm_blake3.md](./asm_blake3.md) | WASM implementation: v128-internal `compress` and lane-parallel `compress4` (BLAKE3 §5.3 SIMD), §2.4 chunk machine, §2.5 tree assembly + root finalize, §2.6 XOF squeeze, all three §2.3 modes |
 
 ### Fortuna CSPRNG
 
@@ -93,7 +134,8 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | Module | Description |
 |--------|-------------|
 | [utils.md](./utils.md) | `randomBytes`, `constantTimeEqual`, `wipe`, encoding helpers. No `init()` required |
-| [types.md](./types.md) | TypeScript interfaces: `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD` |
+| [asm_cte.md](./asm_cte.md) | WASM implementation: SIMD constant-time byte equality backing `constantTimeEqual`, plus the `@inline` source-level `ctEqual` imported by other AS modules. Lazy-loaded, no `init()` |
+| [types.md](./types.md) | TypeScript interfaces: `Hash`, `KeyedHash`, `Blockcipher`, `Streamcipher`, `AEAD`, `Generator`, `HashFn`, `CipherSuite`, `SignatureSuite`, `StreamableSignatureSuite`, `PrehashAlgorithm` |
 
 ---
 
@@ -101,7 +143,9 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Document | Description |
 |----------|-------------|
-| [architecture.md](./architecture.md) | Repository structure, build pipeline, module relationships, buffer layouts, and correctness contract |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
+| [architectural-stance.md](./architectural-stance.md) | Architectural overview and design philosophy: scope, threat model, and the boundaries the library defends |
 | [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, and gate discipline |
 | [Security Policy](./security_policy.md) | Security posture and vulnerability disclosure details |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
@@ -109,6 +153,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | [argon2id.md](./argon2id.md) | Passphrase-based encryption using Argon2id alongside leviathan primitives |
 | [serpent_reference.md](./serpent_reference.md) | Serpent algorithm: S-boxes, linear transform, round structure, known attacks |
 | [chacha_reference.md](./chacha_reference.md) | ChaCha20 algorithm: ARX, block function, Poly1305 MAC, HChaCha20 subkeys, XChaCha20-Poly1305 AEAD, known attacks |
+| [aes_reference.md](./aes_reference.md) | AES algorithm: FIPS 197 cipher core, SP 800-38A/D modes (CBC, CTR, GCM), RFC 8452 GCM-SIV, known attacks |
 | [branding.md](./branding.md) | Project artwork and branding materials |
 
 ---
@@ -136,8 +181,15 @@ See the [audit index](./audits.md) for a summary of all reviews.
 | [chacha_audit.md](./chacha_audit.md) | XChaCha20-Poly1305 correctness, Poly1305 field arithmetic, HChaCha20 nonce extension |
 | [sha2_audit.md](./sha2_audit.md) | SHA-256/512/384 correctness, HMAC and HKDF composition, constant verification |
 | [sha3_audit.md](./sha3_audit.md) | Keccak permutation correctness, step verification, round constant derivation |
+| [blake3_audit.md](./blake3_audit.md) | BLAKE3 tree-mode correctness, compress / compress4 equivalence, flag bits, chunk machine, queue-per-level tree assembly, XOF snapshot integrity |
 | [hmac_audit.md](./hmac_audit.md) | HMAC construction, key processing, RFC 4231 vector coverage |
 | [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, stream key derivation |
 | [kyber_audit.md](./kyber_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
+| [mldsa_audit.md](./mldsa_audit.md) | ML-DSA FIPS 204 prehashed-input surface audit |
+| [slhdsa_audit.md](./slhdsa_audit.md) | SLH-DSA FIPS 205 implementation audit, including PQ-only hybrid factory invariants |
+| [ed25519_audit.md](./ed25519_audit.md) | Ed25519 RFC 8032 plus FIPS 186-5 strict verification, fault-injection defence, embedded SHA-512 integrity, dom2 prehash binding |
+| [x25519_audit.md](./x25519_audit.md) | X25519 RFC 7748 clamping discipline, constant-time Montgomery ladder, TS-layer all-zero rejection |
+| [ecdsa-p256_audit.md](./ecdsa-p256_audit.md) | ECDSA-P256 FIPS 186-5 strict verification, RFC 6979 deterministic-K gate, hedged-by-default posture, low-S enforcement, fault-injection defence, embedded SHA-256 / HMAC-SHA-256 integrity |
 | [stream_audit.md](./stream_audit.md) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 | [ratchet_audit.md](./ratchet_audit.md) | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |
+| [vector_audit.md](./vector_audit.md) | Vector corpus audit: Tier 1-4 classification, the Rust verifier, SHA256SUMS pinning discipline, and CI integration |

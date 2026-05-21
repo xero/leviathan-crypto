@@ -38,26 +38,37 @@ const OUT  = resolve(ROOT, 'dist/docs');
 
 // consumer API docs only
 const INCLUDE = [
+	'aead.md',
 	'aes.md',
-	'architecture.md',
 	'argon2id.md',
+	'blake3.md',
+	'cdn.md',
 	'chacha20.md',
+	'ciphersuite.md',
+	'ecdsa-p256.md',
+	'ed25519.md',
+	'examples.md',
 	'exports.md',
 	'fortuna.md',
 	'init.md',
 	'kmac.md',
+	'kyber.md',
 	'loader.md',
+	'merkle.md',
+	'mldsa.md',
+	'ratchet.md',
 	'serpent.md',
 	'sha2.md',
 	'sha3.md',
-	'aead.md',
+	'signaturesuite.md',
+	'signing.md',
+	'slhdsa.md',
 	'types.md',
 	'utils.md',
+	'x25519.md',
 ];
 
-// strip SVG img tags and all four reference absolute GitHub URLs.
-// useless for agents in an installed package context
-const SVG_IMG = /<img[^>]+\.svg[^>]*>/g;
+const SVG_IMG = /<img[^>]+\.svg[^>]*>/;
 
 export async function run(): Promise<void> {
 	if (!existsSync(OUT)) mkdirSync(OUT, {recursive: true});
@@ -73,13 +84,10 @@ export async function run(): Promise<void> {
 
 		let content = readFileSync(src, 'utf8');
 
-		// strip SVG image lines from architecture.md
-		if (file === 'architecture.md') {
-			content = content
-				.split('\n')
-				.filter(line => !SVG_IMG.test(line))
-				.join('\n');
-		}
+		content = content
+			.split('\n')
+			.filter(line => !SVG_IMG.test(line))
+			.join('\n');
 
 		writeFileSync(dest, content, 'utf8');
 		process.stdout.write(`copied: docs/${file} → dist/docs/${file}\n`);

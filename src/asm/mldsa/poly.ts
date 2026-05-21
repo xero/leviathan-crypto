@@ -30,12 +30,9 @@
 // as cross-checks and for the path widths SIMD does not cover (poly_freeze,
 // poly_chknorm).
 //
-// CT posture for poly_chknorm: the early-exit branch reveals "some coefficient
-// exceeded the bound", which the attacker already learns from the signing
-// retry pattern (each restart of Algorithm 7 changes the SHAKE output, so the
-// number of iterations is observable through other side channels). The leak is
-// statistical and not key-revealing. Documented per FIPS 204 §2.3 (norm
-// definition) and §3.6.3 (intermediate-value sensitivity).
+// CT posture for poly_chknorm: early-exit branch leaks the same
+// rejection-restart pattern Algorithm 7 already exposes (FIPS 204 §2.3,
+// §3.6.3). See docs/asm_mldsa.md#constant-time-posture.
 
 import { Q, N } from './params';
 import { barrett_reduce, montgomery_reduce } from './reduce';
@@ -107,7 +104,7 @@ export function poly_pointwise_montgomery(rOff: i32, aOff: i32, bOff: i32): void
 // names MONTSQ). Verified once via BigInt at the keygen-gate level
 // (test/unit/mldsa/mldsa.test.ts) when ACVP keygen vectors round-trip.
 //
-// Used by phase 4 keygen: after NTT(s₁), one factor of the matrix-vector
+// Used by keygen: after NTT(s₁), one factor of the matrix-vector
 // product needs to be in Montgomery form so that the subsequent
 // pointwise_montgomery (which applies an R⁻¹) leaves the regular-form
 // result Â·ŝ₁. The tomont scaling collapses with the post-NTT regular-form
@@ -122,13 +119,9 @@ export function poly_tomont(polyOff: i32): void {
 }
 
 // ── poly_chknorm, return 1 iff some |w_i| ≥ bound, else 0 ──────────────────
-// Implements the ||w||∞ < bound test of FIPS 204 §2.3 over i32 coefficients
-// already reduced to centered residues (mod± q). The early-exit on the first
-// over-bound coefficient is data-dependent on input, but the leak is the same
-// already-observable rejection-restart pattern, see file header.
-//
-// Used by the rejection branches at Alg 7 lines 21-25: ||z||∞ < γ1−β,
-// ||r0||∞ < γ2−β, ||ct0||∞ < γ2.
+// FIPS 204 §2.3 ||w||inf < bound test over centered i32 coeffs. Early
+// exit leaks rejection-restart pattern only (see file header CT posture).
+// Used by Alg 7 lines 21-25.
 export function poly_chknorm(polyOff: i32, bound: i32): i32 {
 	for (let i: i32 = 0; i < N; i++) {
 		const a: i32 = load<i32>(polyOff + i * 4);

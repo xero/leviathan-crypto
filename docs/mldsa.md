@@ -7,6 +7,7 @@ module-lattice signature scheme.
 
 > ### Table of Contents
 > - [Overview](#overview)
+> - [Implementation Summary](#implementation-summary)
 > - [Parameter Sets](#parameter-sets)
 > - [Init](#init)
 > - [MlDsa API](#mldsa-api)
@@ -15,6 +16,8 @@ module-lattice signature scheme.
 > - [Key & Signature Format](#key--signature-format)
 > - [Wipe Discipline](#wipe-discipline)
 > - [Error Reference](#error-reference)
+> - [SignatureSuites](#signaturesuites)
+> - [Suite integration](#suite-integration)
 
 ---
 
@@ -37,6 +40,14 @@ Verification against the full NIST ACVP corpora, 75 keyGen-FIPS204 vectors
 sigVer-FIPS204 external/pure tests including known-fail cases, confirms
 byte-identical pk/sk/σ output and the SUF-CMA-critical malformed-input
 checks (FIPS 204 §D.3 / Algorithm 21).
+
+---
+
+## Implementation Summary
+
+`mldsa.wasm` implements ML-DSA polynomial arithmetic per FIPS 204. It includes Montgomery and Barrett reduction over q = 8380417, an 8-layer SIMD NTT and inverse NTT with v128 i32 butterflies, basemul in T_q, rejection sampling for the public matrix Â (`rej_ntt_poly`) and the secret noise polynomials s₁/s₂ (`rej_bounded_poly`), Power2Round / Decompose / HighBits / LowBits with the parameter-set γ₂, MakeHint / UseHint, HintBitPack and HintBitUnpack with the three SUF-CMA-critical malformed-input checks from FIPS 204 §D.3 (Algorithm 21 lines 4, 9, 17), bit-pack/unpack at every required width, and SampleInBall in resumable form. Requires WebAssembly SIMD (`v128` instructions). Uses 4 memory pages (256 KB) with a matrix slot, eight polynomial vector slots, eight polynomial slots, and dedicated buffers for keys, signatures, and the SHAKE PRF stream. See [asm_mldsa.md](./asm_mldsa.md) for the full WASM reference.
+
+The TypeScript module exports `MlDsa44`, `MlDsa65`, and `MlDsa87`, signature classes covering NIST security categories 2, 3, and 5. All three require both `mldsa` and `sha3` to be initialized; HashML-DSA with a SHA-2 family pre-hash additionally requires `sha2`. The sha3 module provides SHAKE128 (matrix expansion via ExpandA), SHAKE256 (noise expansion via ExpandS, masking expansion via ExpandMask, message representative μ, ρ'' derivation, and SampleInBall), and the SHA3-fixed digests for HashML-DSA pre-hash. The sha2 module covers SHA2-{224, 256, 384, 512, 512/224, 512/256} when HashML-DSA selects a SHA-2 pre-hash.
 
 ---
 
@@ -263,6 +274,76 @@ failure (wrong sig, malformed hint, length mismatch on `vk` / `sig`),
 > NOT verify under `verifyHash` and vice versa. Treat the two as
 > separate signature schemes that happen to share a key format.
 
+### `signHashPrehashed(sk, digest, ph, ctx?): Uint8Array`
+
+Hedged HashML-DSA sign with a caller-supplied prehash, FIPS 204 §5.4
+Algorithm 4 lines 22-24 (the post-PH path). Skips step 1 (`PH ← Hash(M,
+ph)`) and uses `digest` directly. Identical Sign_internal output to
+[`signHash`](#signhashsk-m-ph-ctx-uint8array) when `digest = Hash(M, ph)`.
+
+`digest` must be exactly the FIPS 204 §5.4.1 output length for `ph`: 28
+bytes for `SHA2-224` / `SHA2-512/224` / `SHA3-224`, 32 bytes for
+`SHA2-256` / `SHA2-512/256` / `SHA3-256` / `SHAKE128`, 48 bytes for
+`SHA2-384` / `SHA3-384`, 64 bytes for `SHA2-512` / `SHA3-512` /
+`SHAKE256`. A mismatch throws
+[`SigningError('sig-malformed-input')`](#error-reference). The caller
+owns `digest` and is responsible for wiping it; the method never mutates
+the buffer.
+
+Use this entry point when:
+
+- The transcript already produced the digest as part of a protocol step
+  (e.g. a signed-blob commit where the digest is the canonical identifier).
+- The signer cannot buffer `M` into a single `Uint8Array` (a `SignStream`-
+  style API computes the prehash incrementally and hands `signHashPrehashed`
+  the finalized digest).
+- A FIPS 140 boundary places the digest computation in a different module
+  from ML-DSA, FIPS 204 §5.4 explicitly endorses the split.
+
+Hedged is the default per FIPS 204 §3.4; see
+[`sign`](#signsk-m-ctx-uint8array) for the rationale.
+
+### `signHashPrehashedDeterministic(sk, digest, ph, ctx?): Uint8Array`
+
+Deterministic prehashed sign, `rnd ← 0³²` per FIPS 204 §3.4. Same
+fault-attack caveat as
+[`signDeterministic`](#signdeterministicsk-m-ctx-uint8array). Produces
+byte-identical output to
+[`signHashDeterministic`](#signhashdeterministicsk-m-ph-ctx-uint8array)
+when `digest = Hash(M, ph)`.
+
+### `signHashPrehashedDerand(sk, digest, ph, rnd, ctx?): Uint8Array`
+
+Externally-randomised prehashed sign, testing / CAVP API. Caller
+supplies the 32-byte `rnd` (FIPS 204 §3.4 contract: `rnd` MUST come from
+an approved RBG and MUST NOT be reused across signatures). Used to
+re-oracle ACVP HashML-DSA sigGen vectors through the prehashed entry
+point with byte-identical output.
+
+### `verifyHashPrehashed(vk, digest, sig, ph, ctx?): boolean`
+
+HashML-DSA verify with a caller-supplied prehash, FIPS 204 §5.4
+Algorithm 5 lines 17-19 (the post-PH path). Same return / throw posture
+as [`verifyHash`](#verifyhashvk-m-sig-ph-ctx-boolean): returns boolean
+for every signature outcome; throws `RangeError` only on caller-side
+contract violations (`ctx.length > 255`, unsupported `ph`).
+
+Wrong-size `digest` is a structural mismatch (a different-shaped M'
+than the signer would have produced) and returns `false`, mirroring
+how wrong-length `vk` / `sig` already return `false` per FIPS 204
+§3.6.2. This DIVERGES from the sign-side behaviour, which throws
+`SigningError` on wrong-size `digest`: on the sign side the caller
+fed bad input (a contract violation); on the verify side, "this is
+not a valid signature" is the correct verdict.
+
+> [!CAUTION]
+> The prehashed family signs `digest` *as if* it were `Hash(M, ph)`,
+> the library cannot check whether `digest` actually equals that hash.
+> A protocol that wants to bind a specific `M` MUST compute the digest
+> itself (or verify the digest's provenance) before calling these
+> methods; otherwise an attacker that controls `digest` can produce a
+> signature that is consistent with any pre-image they later choose.
+
 ### `dispose(): void`
 
 Wipe all mldsa WASM scratch memory. Idempotent. Safe to call multiple times.
@@ -305,6 +386,19 @@ public methods [`signHash`](#signhashsk-m-ph-ctx-uint8array),
 [`verifyHash`](#verifyhashvk-m-sig-ph-ctx-boolean) match the shape of
 their pure counterparts with `ph: PreHashAlgorithm` placed immediately
 after the message bytes (or signature, for verify).
+
+Four parallel prehashed-input variants
+([`signHashPrehashed`](#signhashprehashedsk-digest-ph-ctx-uint8array),
+[`signHashPrehashedDeterministic`](#signhashprehasheddeterministicsk-digest-ph-ctx-uint8array),
+[`signHashPrehashedDerand`](#signhashprehashedderandsk-digest-ph-rnd-ctx-uint8array),
+and
+[`verifyHashPrehashed`](#verifyhashprehashedvk-digest-sig-ph-ctx-boolean))
+skip the internal `PH ← Hash(M, ph)` step and accept the digest from
+the caller. Use these when the digest already exists (a streaming
+signer that absorbed `M` incrementally, a transcript that carries the
+digest as its identifier, or a FIPS 140 boundary that computes the
+hash in a separate module). When `digest = Hash(M, ph)`, the prehashed
+and non-prehashed forms produce byte-identical signatures.
 
 Use HashML-DSA when:
 
@@ -497,6 +591,42 @@ Public regions intentionally left alone: the matrix Â (derived from ρ which
 is published in pk), the encoded pk, and t₁ (also published). The sha3
 module's STATE/INPUT/OUT regions are wiped before return.
 
+### Severity ranking
+
+The keygen and sign wipes are not equal-weight. Highest-severity
+residual first for each path.
+
+**Keygen:**
+
+| Region | Holds | Severity |
+|--------|-------|----------|
+| `SEED_OFFSET` (128 B) | ρ ‖ ρ′ ‖ K | Highest. ρ′ expands to s₁/s₂; a ρ′ leak recovers the signing key. K is the per-message signing randomness, so disclosure also breaks deterministic-signing replay protection. |
+| `POLYVEC_SLOT_0/1/4` | s₁, s₂, t₀ (full secret-key state, time-domain) | Secret. |
+| `POLYVEC_SLOT_2` | intermediate t | t₀ exposes low bits of t. |
+| `XOF_PRF_OFFSET` | last SHAKE block | After `ExpandS` it contains ρ′-derived bytes. |
+| `SK_OFFSET` | encoded sk | Already returned to the caller; the wipe shortens in-WASM lifetime without adding marginal secrecy. |
+
+**Sign (per-iteration intermediates):**
+
+| Region | Holds | Severity |
+|--------|-------|----------|
+| `POLYVEC_SLOT` t̂₀ (NTT/Montgomery form) | low bits of t, the secret part of sk | Highest in the sign path. |
+| `POLYVEC_SLOT` y | per-iteration randomness; used to compute z | A y compromise leaks rejection-sampling state across iterations. |
+| Remaining polyvec slots | ŝ₁, ŝ₂, cs₁, cs₂, ct₀, w, w − cs₂, r₀, z, h | Secret or secret-derived intermediates. |
+| `POLY_SLOT_7` | `polyvec_pointwise_acc_montgomery` scratch | Carries a partial product across y_ntt; secret-derived via y. |
+| `XOF_PRF_OFFSET` | last `ExpandMask` block (ρ″-derived) on rejected iterations, `SampleInBall` position bytes (c̃-derived, public) on accepted | Treat as secret on rejected, harmless on accepted. |
+
+Public-or-derivable regions wiped for hygiene: signs scratch
+(`POLY_SLOT_0`, c̃-derived), c polynomial (`POLY_SLOT_1`, derivable
+from c̃), `C_TILDE_OFFSET`, `MSG_REP_OFFSET`. The defensive wipes on
+`SEED_OFFSET` / `TR_OFFSET` / `SK_OFFSET` cover residue from a prior op
+even though the sign path does not actively write them.
+
+The sign wipe runs in `finally`, so it covers the success path and any
+early throw (sk-range violation, loop-bound exceedance, kernel error).
+Without `finally`, an early throw between `skDecode` and `sigEncode`
+would leave sk-derived state in WASM memory.
+
 Every `sign` / `signDeterministic` / `signDerand` call wipes:
 
 - All 6 polyvec slots, ŝ₁ / ŝ₂ / t̂₀ in tomont form, plus per-iteration
@@ -542,9 +672,49 @@ Behavior](#validation-behavior) for the full split.
 
 ---
 
-## Cross-references
+## SignatureSuites
 
-- [Architecture](./architecture.md), module layout and three-tier design.
-- [init.md](./init.md), `init()` API and module-loader contract.
-- [asm_mldsa.md](./asm_mldsa.md), low-level WASM module reference.
-- [kyber.md](./kyber.md), sibling post-quantum module (KEM, not signatures).
+The mldsa-suites layer wraps `MlDsaBase` into the `SignatureSuite` interface
+for use with `Sign`, `SignStream`, and `VerifyStream`. Six suite consts ship:
+
+- `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite` for pure ML-DSA (FIPS 204 §5.2).
+- `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite` for
+  HashML-DSA (FIPS 204 §5.4) with SHA3-256 (44, 65) or SHA3-512 (87).
+
+The pure-mode suites satisfy `SignatureSuite` only; the prehash-mode suites
+also satisfy `StreamableSignatureSuite` and plug into `SignStream` /
+`VerifyStream`. Each method instantiates a fresh `MlDsa{44,65,87}` instance
+inside a `try { ... } finally { dispose() }` block, so WASM key material is
+wiped on every path.
+
+See [signaturesuite.md](./signaturesuite.md) for the full `SignatureSuite`
+interface, wire format, error reference, and usage examples.
+
+---
+
+## Suite integration
+
+The integration tier exercises the v3 sign layer against the real
+ML-DSA primitives. It asserts:
+
+- `Sign.sign` / `Sign.verify` round-trip for a pure suite
+  (`MlDsa65Suite`) and a prehash suite (`MlDsa65PreHashSuite`).
+- `SignStream` + `VerifyStream` round-trip via the prehash suite,
+  proving the SHA3-256 running-hash wiring lines up with the suite's
+  `signPrehashed` / `verifyPrehashed` path.
+
+---
+
+## Cross-References
+
+| Document | Description |
+|----------|-------------|
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [init.md](./init.md) | `init()` API and module-loader contract |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `MlDsa*Suite` consts |
+| [asm_mldsa.md](./asm_mldsa.md) | Low-level WASM module reference |
+| [mldsa_audit.md](./mldsa_audit.md) | ML-DSA audit checklist |
+| [slhdsa.md](./slhdsa.md) | Companion post-quantum signature primitive (hash-based, paired with ML-DSA in PQ-only hybrid suites) |
+| [kyber.md](./kyber.md) | Sibling post-quantum module (KEM, not signatures) |
+| [exports.md](./exports.md) | Full export catalog |
