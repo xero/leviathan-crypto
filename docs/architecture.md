@@ -2,7 +2,7 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture, comprising twelve independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, classical signatures (Ed25519 / X25519 over curve25519, ECDSA over NIST P-256), the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakable, side-effect free.
+Overview of Leviathan Crypto's architecture, comprising twelve independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, classical signatures (Ed25519 / X25519 over curve25519, ECDSA over NIST P-256), the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakeable, side-effect free.
 
 > ### Table of Contents
 >
