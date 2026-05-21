@@ -217,7 +217,8 @@ defends by requiring the caller to ALSO know the encoded pk.
       module on the same call, so the defence collapses to no
       defence. The skip saves one fixed-base scalar mult per
       sign. See
-      [ecdsa-p256.md §Fault-Injection Defense](./ecdsa-p256.md#fault-injection-defense).
+      [ecdsa-p256.md §Fault-Injection Defense](./ecdsa-p256.md#fault-injection-defense)
+      and [architecture.md §Threat model](./architecture.md#threat-model).
 - [ ] **No side effects on caller buffers.** sk, pk, msgHash,
       rnd, and sig buffers passed in by the caller are read but
       NEVER mutated by either the TS layer or the WASM. The

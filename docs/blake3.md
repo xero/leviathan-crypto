@@ -126,8 +126,9 @@ modules. There is no scalar fallback.
 > [!NOTE]
 > BLAKE3's compress is straight-line ARX over a fixed message schedule,
 > so it has no key-dependent branches and no key-indexed table lookups.
-> The construction is constant-time by algorithm design at the same
-> level as ChaCha20.
+> The construction is algorithm-level constant-time at the same level
+> as ChaCha20. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+> for hardware-level scope.
 
 ---
 

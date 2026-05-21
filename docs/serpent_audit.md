@@ -329,11 +329,10 @@ The unrolled variant (`serpent_unrolled.ts`) pre-resolves all EC/DC values at ge
 **WASM vs JavaScript timing guarantees:** The prior TypeScript audit noted that JavaScript's bitwise operators (`|`, `&`, `^`, `~`) map to CPU integer instructions on modern V8/SpiderMonkey but the JS spec does not guarantee constant-time execution. The WASM implementation substantially improves this situation:
 
 - WASM integer operations (`i32.and`, `i32.or`, `i32.xor`, `i32.rotl`) have well-defined, fixed-width semantics.
-- WASM modules are compiled ahead-of-time by the engine's optimizing compiler (V8 Liftoff → TurboFan, SpiderMonkey Cranelift). The JIT's speculative optimizations (type guards, inline caches, deoptimization) do not apply to WASM.
 - WASM's `i32` type is always 32-bit; there is no polymorphic integer representation that the engine might specialize differently based on observed values.
-- The structured control flow of WASM (no computed gotos, no dynamic dispatch within the S-box circuits) leaves no optimization surface for speculative execution to exploit.
+- The structured control flow of WASM (no computed gotos, no dynamic dispatch within the S-box circuits) gives the JS-level JIT no surface to specialize against.
 
-While WASM does not carry a formal constant-time guarantee in its specification (the spec defines semantics, not timing), the practical constant-time properties are significantly stronger than JavaScript. The uniform, branch-free, fixed-width integer operations in the S-box circuits are as close to constant-time as a browser execution environment can provide without native code.
+The uniform, branch-free, fixed-width integer operations in the S-box circuits are algorithm-level constant-time. See [architecture.md §WebAssembly is the deployment vehicle](./architecture.md#webassembly-is-the-deployment-vehicle) and [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the canonical WASM posture, including the hardware-level Spectre disclaim.
 
 **CTR counter increment** (`ctr.ts:33-40`): The 128-bit LE counter increment uses an early-exit `break` when no carry occurs. This leaks the carry-propagation depth, which correlates with the counter value. The counter value is not secret in CTR mode (it is either derived from a nonce or is itself the nonce incremented by a public block index), so this is a low-severity concern. A fully constant-time increment (always iterating all 16 bytes) would be marginally cleaner but is not a security requirement.
 

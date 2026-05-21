@@ -299,6 +299,8 @@ xc2.dispose();
 | [sha2](./sha2.md) | HKDF-SHA256 for key expansion from Argon2id root keys |
 | [serpent](./serpent.md) | `SerpentCipher`: Serpent-256 cipher suite (use with `Seal` and Argon2id-derived keys) |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [chacha20](./chacha20.md) | XChaCha20Poly1305: ChaCha20 authenticated encryption (pairs with Argon2id-derived keys) |
 | [utils](./utils.md) | `randomBytes` for generating salts, `constantTimeEqual` for hash verification |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

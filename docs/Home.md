@@ -12,9 +12,6 @@
 
 # Leviathan Crypto Library
 
-> [!NOTE]
-> A zero-dependency WebAssembly cryptography library. Two ciphers, opposite philosophies, same security properties.
-
 ```bash
 bun add leviathan-crypto
 # or
@@ -43,6 +40,25 @@ management, and authentication for you.
 
 All four produce and consume the same [wire format](./aead.md#wire-format), so a
 Seal blob can be opened by OpenStream and vice versa.
+
+---
+
+## Signatures
+
+[`Sign`](./signing.md#sign), [`SignStream`](./signing.md#signstream),
+and [`VerifyStream`](./signing.md#verifystream) are the primary API for
+digital signatures in leviathan-crypto. They are scheme-agnostic: you pass
+a [`SignatureSuite`](./signaturesuite.md) object at construction and the
+implementation handles context binding, M' construction, and authentication
+for you.
+
+**The classes form a natural progression:**
+- [Sign](./signing.md#sign) handles data that fits in memory.
+- [SignStream](./signing.md#signstream) and [VerifyStream](./signing.md#verifystream)
+  handle data that arrives in chunks or is too large to buffer.
+
+All three produce and consume the same [wire format](./signing.md#wire-format), so
+a Sign blob can be verified by VerifyStream and vice versa.
 
 ---
 

@@ -277,6 +277,10 @@ linearly with no data-dependent branches.
 **Memory wipes.** `wipeBuffers()` issues a single bulk `memory.fill`
 covering the entire mutable region.
 
+All constant-time properties in this section are algorithm-level. See
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
+
 ---
 
 ## Cross-References

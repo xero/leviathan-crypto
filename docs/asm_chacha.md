@@ -32,7 +32,7 @@ All cryptography runs in WASM. The TypeScript layer writes inputs to linear memo
 
 ## Security Notes
 
-**Constant-time by construction.** ChaCha20 uses only ARX operations (add, rotate, XOR). No lookups, no secret-dependent branches, no variable-time arithmetic. This design is why TLS 1.3 adopted ChaCha20 as its non-AES cipher, it's inherently resistant to cache-timing side channels.
+**Algorithm-level constant-time by construction.** ChaCha20 uses only ARX operations (add, rotate, XOR). No lookups, no secret-dependent branches, no variable-time arithmetic. This design is why TLS 1.3 adopted ChaCha20 as its non-AES cipher; at the algorithm level it has no cache-timing surface. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the hardware-level disclaim.
 
 **Poly1305 accumulator arithmetic.** Poly1305 uses radix-2^26 limbs stored in u64 words. Schoolbook multiplication over five limbs with reduction modulo p = 2^130 - 5. The u64 intermediate products avoid overflow without needing multi-precision carries. The final reduction in `polyFinal` uses constant-time conditional select (mask-and-OR) to choose between h and h - p, avoiding branches on secret values.
 

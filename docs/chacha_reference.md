@@ -28,7 +28,7 @@ Bernstein's stated design priorities for ChaCha20:
 
 **Software speed on constrained hardware.** AES requires either dedicated hardware (AES-NI) for competitive performance, or is slow and vulnerable on platforms without it. ChaCha20 uses only 32-bit addition, XOR, and rotation, operations that are uniformly fast across ARM, MIPS, embedded, and general-purpose CPUs.
 
-**Timing side-channel resistance by construction.** The ARX (Add-Rotate-XOR) design contains no data-dependent memory accesses, no table lookups indexed by secret data, and no data-dependent branches. This is a structural property of the algorithm, not an implementation technique.
+**Algorithm-level timing side-channel resistance.** The ARX (Add-Rotate-XOR) design contains no data-dependent memory accesses, no table lookups indexed by secret data, and no data-dependent branches. This is a structural property of the algorithm, not an implementation technique. Hardware-level side channels (Spectre, cache-timing on secret-dependent loads, branch prediction) remain out of scope; see [architecture.md §Where defense ends](./architecture.md#where-defense-ends).
 
 **Simplicity and auditability.** The full cipher fits in a handful of lines of readable code.
 

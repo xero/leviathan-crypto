@@ -69,9 +69,9 @@ section covers correctness and side-channel posture at the WASM layer.
 
 The S-box is a Boolean circuit on v128 registers. No memory is indexed by
 secret data inside the kernel; the path and the access pattern are
-identical regardless of input value. WASM v128 operations provide
-stronger timing guarantees than JavaScript bitwise operators, which may
-be JIT-compiled with varying instruction selection.
+identical regardless of input value. This is algorithm-level constant-time;
+see [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
 
 ### GHASH multiplier is not cache-line constant-time
 
@@ -79,9 +79,6 @@ be JIT-compiled with varying instruction selection.
 state. The state is secret-derived, so the table read is the classic
 4-bit-windowed GHASH side-channel surface. Mitigations:
 
-- The table is 256 bytes (one cache line on most modern CPUs).
-- The browser sandbox model partially mitigates direct cross-process
-  cache observation.
 - PCLMULQDQ-style carry-less multiply is not exposed to WebAssembly SIMD,
   so the table-free schoolbook alternative is too slow for production.
 - Callers concerned about side-channel leakage should prefer
@@ -90,7 +87,8 @@ state. The state is secret-derived, so the table read is the classic
   fixed).
 
 This is the same posture as BoringSSL, OpenSSL, and RustCrypto on
-pre-PCLMULQDQ paths.
+pre-PCLMULQDQ paths. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the canonical disclaim.
 
 ### CTR counter increment
 
@@ -922,5 +920,7 @@ gf128.ts ─── ghash.ts ─── gcm.ts ───────┘
 | [aes](./aes.md) | TypeScript wrapper classes (`AES`, `AESCbc`, `AESCtr`, `AESGCM`, `AESGCMSIV`, `AESGenerator`, `AESGCMSIVCipher`) |
 | [aead](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `AESGCMSIVCipher` as the suite argument |
 | [ciphersuite](./ciphersuite.md) | `AESGCMSIVCipher` reference: format enum, key derivation, commitment binding |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [asm_sha2](./asm_sha2.md) | SHA-2 WASM module (used together with AES via Fortuna and HKDF) |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |

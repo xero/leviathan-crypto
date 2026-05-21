@@ -76,7 +76,9 @@ state must not persist in WASM memory after an operation completes.
 data-independent (no branches on message content, no secret-dependent
 table lookups). HMAC tag verification in the TypeScript layer must use
 constant-time comparison (XOR-accumulate, no early return) to prevent
-timing side channels.
+timing side channels. This is algorithm-level constant-time; see
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
 
 See [SHA-2 implementation audit](./sha2_audit.md), [HMAC
 audit](./hmac_audit.md), and [HKDF audit](./hkdf_audit.md) for algorithm

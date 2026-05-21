@@ -66,7 +66,7 @@ execution, so constant-time-at-the-algorithm-level discipline is what actually
 closes the timing surface; WASM is the deployment vehicle that lets that
 discipline survive into the browser.
 
-For architectural details and security rationale, see [architecture.md](./architecture.md) and [architectural-stance.md](./architectural-stance.md).
+For architectural details and security rationale, see [architecture.md](./architecture.md).
 
 **TLDR:** _TypeScript handles the API, and WASM handles the math._
 
@@ -216,8 +216,9 @@ See [init.md](./init.md) for the full API.
 | -------- | ----------- |
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
-| [architectural-stance](./architectural-stance.md) | Architectural posture: defended threats, layer composition, and the framing constraint |
 | [init](./init.md) | `init()` API and WasmSource types |
 | [loader](./loader.md) | how WASM binaries are loaded and instantiated |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher`, `XChaCha20Cipher`, or `AESGCMSIVCipher` |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 

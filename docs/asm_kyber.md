@@ -126,6 +126,10 @@ Fujisaki-Okamoto transform's implicit rejection step.
 > Skipping either call, or branching on their results before calling both,
 > reintroduces a timing oracle.
 
+All constant-time properties in this section are algorithm-level. See
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
+
 ---
 
 ### Memory wiping

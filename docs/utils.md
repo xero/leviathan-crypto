@@ -55,9 +55,10 @@ Returns `true` if `a` and `b` contain identical bytes. Returns `false`
 immediately if the arrays differ in length (length is non-secret in all
 standard protocols).
 
-The comparison runs inside a WASM SIMD module, removing the JS JIT compiler
-from the timing picture. Speculative optimisation and branch prediction inside
-the engine cannot short-circuit the loop. This function requires WebAssembly
+The comparison runs inside a WASM SIMD module, removing the JS-level JIT's
+speculative-specialization surface from the timing picture. The accumulate
+loop is branch-free and unconditional. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for hardware-level posture. This function requires WebAssembly
 SIMD; on runtimes without SIMD support it throws `Error: leviathan-crypto:
 constantTimeEqual requires WebAssembly SIMD, this runtime does not support it`
 at first call. SIMD has been a baseline feature of all major browsers and

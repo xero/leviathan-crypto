@@ -9,9 +9,10 @@ before starting any task.
 
 `leviathan-crypto` is a strictly-typed, zero-dependency WebAssembly
 crypto library for the web. All cryptographic computation runs in WASM
-(AssemblyScript), outside the JS JIT. The TypeScript layer provides
-the public API, input validation, type safety, and ergonomics; it
-never implements cryptographic algorithms.
+(AssemblyScript). See [docs/architecture.md §Where defense ends](./docs/architecture.md#where-defense-ends)
+for the canonical WASM side-channel posture. The TypeScript layer
+provides the public API, input validation, type safety, and ergonomics;
+it never implements cryptographic algorithms.
 
 `docs/architecture.md` is required reading before implementation work
 (module structure, `init()` contract, class naming, build pipeline,

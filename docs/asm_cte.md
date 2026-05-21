@@ -53,7 +53,7 @@ Both surfaces return `1` if the inputs are byte-equal and `0` otherwise. Note th
 
 ### WASM SIMD constant-time
 
-JS engines can speculatively optimize XOR-accumulate loops in ways that introduce timing variation. V8 and SpiderMonkey may branch-predict or short-circuit bit operations under JIT when they determine that the accumulated value cannot change the outcome. WASM v128 operations do not go through the same scalar JIT passes. The compilation from AssemblyScript source is structurally branch-free: no `br_if` or conditional paths operate on data values; every byte difference accumulates unconditionally into the `v128` or scalar `diff` accumulators; the final zero-test is a branch-free arithmetic reduction.
+JS-level JIT can speculatively optimize XOR-accumulate loops in ways that introduce timing variation. V8 and SpiderMonkey may branch-predict or short-circuit bit operations when they determine that the accumulated value cannot change the outcome. The structured WASM bytecode gives the JS-level JIT no surface to specialize against: the compilation from AssemblyScript source is branch-free, with no `br_if` or conditional paths on data values; every byte difference accumulates unconditionally into the `v128` or scalar `diff` accumulators; the final zero-test is a branch-free arithmetic reduction. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for hardware-level posture.
 
 The scalar AS-internal `ctEqual` applies the same branch-free reduction in i32 form. It avoids relying on the engine emitting `i32.eqz` with uniform timing by using `~((diff | -diff) >> 31) & 1` as the zero-test.
 

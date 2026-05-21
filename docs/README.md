@@ -145,7 +145,6 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 |----------|-------------|
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
-| [architectural-stance.md](./architectural-stance.md) | Architectural overview and design philosophy: scope, threat model, and the boundaries the library defends |
 | [test-suite.md](./test-suite.md) | Test suite structure, vector corpus, and gate discipline |
 | [Security Policy](./security_policy.md) | Security posture and vulnerability disclosure details |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |

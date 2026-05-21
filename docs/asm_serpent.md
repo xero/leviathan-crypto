@@ -47,11 +47,10 @@ See [Serpent implementation audit](./serpent_audit.md) for algorithm correctness
 ### Constant-time S-boxes
 
 The S-boxes (`sb0`-`sb7`, `si0`-`si7`) use exclusively `&`, `|`, `^`, `~` on
-i32 registers. No memory is indexed by secret data. This is constant-time by
-construction. The execution path and memory access pattern are identical
-regardless of input values. WASM i32 operations provide stronger timing
-guarantees than JavaScript bitwise operators, which may be JIT-compiled with
-varying instruction selection.
+i32 registers. No memory is indexed by secret data. This is algorithm-level
+constant-time by construction; the execution path and memory access pattern
+are identical regardless of input values. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
 
 ### Linear transform and key schedule
 

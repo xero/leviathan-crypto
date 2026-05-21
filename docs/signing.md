@@ -48,7 +48,7 @@ Every signature binds the message bytes to a caller-supplied `ctx`. The envelope
 
 ### WASM Side-Channel Posture
 
-All cryptographic computation runs in WASM outside the JavaScript JIT. ML-DSA's NTT and rejection sampling, SLH-DSA's hash-tree authentication, Ed25519's scalar multiplication, and ECDSA-P256's scalar multiplication are written for constant-time execution on attacker-supplied bytes. WASM lacks hardware-level constant-time guarantees, so this provides stronger posture than pure JavaScript but weaker than native constant-time code. If timing side channels are your primary threat model, a native cryptographic library with verified constant-time guarantees is more appropriate.
+ML-DSA's NTT and rejection sampling, SLH-DSA's hash-tree authentication, Ed25519's scalar multiplication, and ECDSA-P256's scalar multiplication are written for constant-time execution at the algorithm level. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the canonical WASM side-channel posture and threat-model boundaries.
 
 ---
 

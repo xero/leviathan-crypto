@@ -773,6 +773,8 @@ cipher.dispose()
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [asm_chacha](./asm_chacha.md) | WASM (AssemblyScript) implementation details for the chacha20 module |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `XChaCha20Cipher` as the suite argument |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [serpent](./serpent.md) | `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming |
 | [sha2](./sha2.md) | SHA-2 hashes and HMAC. Needed for Encrypt-then-MAC if using raw ChaCha20 |
 | [types](./types.md) | `AEAD` and `Streamcipher` interfaces implemented by ChaCha20 classes |

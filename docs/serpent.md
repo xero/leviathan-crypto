@@ -610,6 +610,8 @@ cipher.dispose();
 | [serpent_reference](./serpent_reference.md) | algorithm specification, S-boxes, linear transform, and known attacks |
 | [serpent_audit](./serpent_audit.md) | security audit findings (correctness, side-channel analysis) |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `SerpentCipher` as the suite argument |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [chacha20](./chacha20.md) | `XChaCha20Cipher`: alternative `CipherSuite` for `Seal` and streaming |
 | [sha2](./sha2.md) | HMAC-SHA256 and HKDF used internally by `SerpentCipher` |
 | [types](./types.md) | `Blockcipher`, `Streamcipher`, and `AEAD` interfaces implemented by Serpent classes |
