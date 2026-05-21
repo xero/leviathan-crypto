@@ -1,34 +1,50 @@
 [![GitHub Release](https://img.shields.io/github/v/release/xero/leviathan-crypto?sort=semver&display_name=tag&style=flat&logo=github&logoColor=989da4&label=latest%20release&labelColor=161925&color=1c7293)](https://github.com/xero/leviathan-crypto/releases/latest) [![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/leviathan-crypto?format=both&style=flat&logo=googlecontaineroptimizedos&logoColor=989da4&label=package%20size&labelColor=161925&color=1c7293)](https://www.npmjs.com/package/leviathan-crypto) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/xero/leviathan-crypto/test-suite.yml?branch=main&style=flat&logo=github&logoColor=989da4&label=test%20suite&labelColor=161925&color=1a936f)](https://github.com/xero/leviathan-crypto/actions/workflows/test-suite.yml) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/xero/leviathan-crypto/wiki.yml?branch=main&style=flat&logo=gitbook&logoColor=989da4&label=wiki%20publish&labelColor=161925&color=1a936f)](https://github.com/xero/leviathan-crypto/wiki)
 
-![simd webassembly](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-wasm-simd.svg) ![side-effect free](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-side-effect-free.svg) ![tree-shakeable](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-tree-shakeable.svg) ![zero dependencies](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-zero-dependancies.svg) [![MIT Licensed](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-mit-license.svg)](https://github.com/xero/leviathan-crypto/blob/main/LICENSE)
+![simd webassembly](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-wasm-simd.svg) ![side-effect free](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-side-effect-free.svg) ![tree-shakeable](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-tree-shakeable.svg) ![zero dependencies](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-zero-dependencies.svg) [![MIT Licensed](https://github.com/xero/leviathan-crypto/raw/main/docs/badge-mit-license.svg)](https://github.com/xero/leviathan-crypto/blob/main/LICENSE)
 
 <img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="Leviathan logo" width="400" >
 
 # Leviathan Crypto: post-quantum WASM cryptography
 
-**Zero dependencies.** No npm graph to audit. No supply chain attack surface. **Tree-shakeable.** Import only what you use. Subpath exports let bundlers exclude everything else. **Side-effect free.** Nothing runs on import. [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) is explicit and asynchronous.
+**Audited primitive-by-primitive.** Every primitive has a published audit covering spec conformance, known-answer tests, constant-time discipline, and ACVP validation where applicable. See [audits](https://github.com/xero/leviathan-crypto/wiki/audits) for the per-primitive index.
 
-**Three ciphers.** Each cipher's round structure runs as a bitsliced Boolean circuit implemented as register-only logic with no S-box lookup tables. WebAssembly optimized with v128 SIMD serves as the deployment platform. Each cipher compiles to an independent module with isolated linear memory, preventing cross-module memory access by design. Key material is zeroed out after each operation, including failures.
+**Zero runtime dependencies.** No NPM graph to audit. No supply chain attack surface.
+
+**Tree-shakeable.** Import only what you use. Subpath exports let bundlers exclude everything else.
+
+**Side-effect free.** Nothing runs on import. [`init()`](https://github.com/xero/leviathan-crypto/wiki/init) is explicit and asynchronous.
+
+**Cipher Triptych.** Leviathan provides three ciphers. The implementations all use a round structure that operates as a bitsliced Boolean circuit, implemented with register-only logic and no S-box lookup tables. Each compiles to an independent, v128 SIMD-optimized WebAssembly module with isolated linear memory, which prevents cross-module memory access by design. Every operation zeroes key material on exit, including on failure.
 
 **[Serpent-256](https://github.com/xero/leviathan-crypto/wiki/serpent_reference): maximum paranoia.** 32 rounds of eight different 4-bit S-boxes, each bitsliced as a Boolean circuit with no table lookups. An ouroboros devouring every bit, in every block, through every round.
 
 **[XChaCha20-Poly1305](https://github.com/xero/leviathan-crypto/wiki/chacha_reference): precise elegance.** 20 rounds of add-rotate-XOR alternating column and diagonal quarter-rounds, choreography without S-boxes or cache-timing leakage. A dance closing with Poly1305's unconditional forgery bound.
 
-**[AES-256-GCM-SIV](https://github.com/xero/leviathan-crypto/wiki/aes): industry standard, sharpened.** 14 rounds bitsliced into Boolean gates with tower-field S-box with no table lookups. A fresh POLYVAL key per nonce leaves GHASH-key recovery with no target.
+**[AES-256-GCM-SIV](https://github.com/xero/leviathan-crypto/wiki/aes_reference): industry standard, sharpened.** 14 rounds bitsliced into Boolean gates with tower-field S-box with no table lookups. A fresh POLYVAL key per nonce leaves GHASH-key recovery with no target.
 
-**Below the cipher suites sit three hash primitive families:** SHA-2 (SHA-256/384/512 with HMAC and HKDF variants), SHA-3 (SHA3-256/512 and SHAKE128/256), and [BLAKE3](https://github.com/xero/leviathan-crypto/wiki/blake3) (default hash, keyed_hash, derive_key, plus the §2.5 XOF reader). The round permutations are constant-time by algorithm design: pure bit operations with no S-box lookups and no data-dependent branches. SHA-2 powers the seal layer's HKDF key derivation and Serpent's HMAC authentication. SHA-3 is the Keccak sponge ML-KEM relies on internally. BLAKE3 ships a v128-internal `compress` and a v128-external lane-parallel `compress4`, and substrates the planned Merkle-log work that builds on its §2.3 / §2.4 tree mode. The SP 800-185 family (cSHAKE128/256, KMAC128/256, KMACXOF128/256) builds on the SHA-3 sponge to provide customizable XOFs and a Keccak-based MAC with built-in domain separation.
+**Beneath the cipher suites sit three hash primitive families:** [`sha2`](https://github.com/xero/leviathan-crypto/wiki/sha2) (SHA-224/256/384/512 and SHA-512/224/256, with HMAC and HKDF variants), [`sha3`](https://github.com/xero/leviathan-crypto/wiki/sha3) (SHA3-224/256/384/512 and SHAKE128/256), and [`blake3`](https://github.com/xero/leviathan-crypto/wiki/blake3) (default-mode hash, keyed_hash, derive_key, and an unbounded XOF reader). The round permutations are constant-time by algorithm design: pure bit operations with no S-box lookups and no data-dependent branches. `sha2` powers the seal layer's HKDF key derivation and Serpent's HMAC authentication. `sha3` is the Keccak sponge ML-KEM and ML-DSA rely on internally. The SHA-512 truncation variants (SHA-512/224, SHA-512/256) and SHA-224 support the twelve HashML-DSA pre-hash functions. `blake3` is the SIMD-only tree-mode hash for transcripts, content-addressed storage, and KDF work; it ships a `HashFn` compatible with the Fortuna substrate.
 
-**Above the cipher suites sits a cipher-agnostic AEAD layer:** `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool`. Each takes a `CipherSuite` at construction, and the seal layer handles key derivation, nonce management, and authentication. `Seal` covers one-shot encryption for data that fits in memory. `SealStream` and `OpenStream` handle chunked data too large to buffer. `SealStreamPool` distributes chunks across Web Workers for parallel throughput. All four share one wire format. A `Seal` blob is structurally a single-chunk `SealStream` output, and `OpenStream` decrypts it interchangeably.
+**Above the cipher suites sits a cipher-agnostic [AEAD layer](https://github.com/xero/leviathan-crypto/wiki/aead):** `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool`. Each takes a `CipherSuite` at construction, and the seal layer handles key derivation, nonce management, and authentication. `Seal` covers one-shot encryption for data that fits in memory. `SealStream` and `OpenStream` handle chunked data too large to buffer. WASM instances are single-threaded by design, so `SealStreamPool` distributes chunks across Web Workers to reach multi-core throughput. Any authentication failure kills the pool. Pending operations reject, workers zero their keys and terminate, and the master synchronously zeroes its copies. No retry, no partial results. All four share one wire format. A `Seal` blob is structurally a single-chunk `SealStream` output, and `OpenStream` decrypts it interchangeably.
 
-**ML-KEM is the post-quantum extension.** `KyberSuite` is a fourth `CipherSuite` factory that wraps an ML-KEM parameter set around any of the three ciphers above. The result satisfies the same `CipherSuite` interface and slots into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` unchanged. ML-KEM is a lattice-based key encapsulation mechanism with three security levels: ML-KEM-512, ML-KEM-768, and ML-KEM-1024. Constant-time comparisons for the Fujisaki-Okamoto transform run within the Kyber WASM module, so secret-derived comparisons never cross to JavaScript. The 32-byte shared secret never crosses the wire.
+**[ML-KEM](https://github.com/xero/leviathan-crypto/wiki/kyber): post-quantum handshake.** `KyberSuite` is a fourth `CipherSuite` factory that wraps an ML-KEM parameter set (`MlKem512`, `MlKem768`, `MlKem1024`) around any of the three ciphers above. The result slots into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` unchanged. Constant-time Fujisaki-Okamoto comparisons run inside the Kyber WASM module; the 32-byte shared secret derives directly from a SHA-3 output and never crosses the wire, so the leading-zero-trim timing leak that hit TLS-DH(E) (the Raccoon attack) has no structural analog here.
 
-**Fortuna is the library's CSPRNG.** It collects entropy from platform-specific sources (browser input events, timing jitter, Node.js process stats, plus `crypto.getRandomValues()` as a baseline), distributes it across 32 independent pools, and reseeds an internal generator built on a cipher-as-PRF construction. The generator key is replaced after every `get()` call, so state compromise at time T cannot reveal any output produced before T. The primitive pair is pluggable, mirroring `CipherSuite`'s extension-point pattern: any of the three ciphers above plugs into the generator, paired with either SHA-256 or SHA3-256/Keccak for hashing.
+**[X25519](https://github.com/xero/leviathan-crypto/wiki/x25519): classical key agreement.** Curve25519 Diffie-Hellman per RFC 7748 §5, with a constant-time Montgomery ladder and TS-layer rejection of the all-zero shared secret. Same key-agreement role as ML-KEM but without post-quantum guarantees; use it for ecosystem interop, ML-KEM when the threat model assumes a future CRQC, or both together when you want a hybrid handshake.
 
-**Above the seal layer sits the ratchet module:** KDF primitives from Signal's Sparse Post-Quantum Ratchet (SPQR), the post-quantum extension of the Double Ratchet protocol. `ratchetInit` bootstraps the root and chain keys from an out-of-band shared secret. `KDFChain` advances a symmetric chain key and derives per-message keys with forward secrecy. `kemRatchetEncap` and `kemRatchetDecap` perform the ML-KEM ratchet step for post-compromise security. `SkippedKeyStore` caches message keys for out-of-order delivery. These are primitives, not a full session: state machines, message counters, header format, and epoch orchestration are application concerns. Consumers compose them with their own transport for forward-secret protocols whose needs outgrow one-shot AEAD.
+**Beside the AEAD layer sits a scheme-agnostic [signature layer](https://github.com/xero/leviathan-crypto/wiki/signing):** `Sign`, `SignStream`, and `VerifyStream`. Each takes a `SignatureSuite` at construction, and the signature layer handles M' formatting, cross-protocol domain separation, hedged-by-default signing, and constant-time verification. `Sign` covers one-shot signing over inputs that fit in memory. `SignStream` and `VerifyStream` chunk through the prehash variants for anything larger. The shipping catalog covers ML-DSA, SLH-DSA, Ed25519 (pure and Ed25519ph), and ECDSA P-256, plus PQ-only and classical+PQ hybrid composites. Every suite speaks the same interface.
 
-**Alongside the WASM-backed primitives ships a utility tier.** No `init()` call required, every utility function works immediately on import. Pure-TypeScript encoding converters handle hex, base64, and the common byte-format round-trips. `wipe` and `xor` modules cover byte-buffer zeroing and exclusive OR logical operations.  The `cte` module is the constant-time path. It carries its own dedicated WebAssembly binary that compiles synchronously, with a zero-copy v128 SIMD XOR-accumulate kernel. `constantTimeEqual` is the library's recommended path for any equality check on secret material.
+**[ML-DSA](https://github.com/xero/leviathan-crypto/wiki/mldsa): lattice mainline.** `MlDsa44`, `MlDsa65`, and `MlDsa87` are FIPS 204 lattice-based signatures at NIST security categories 2, 3, and 5. Polynomial arithmetic, NTT, and rejection sampling are constant-time at the algorithm level. HashML-DSA covers the streaming path. The implementation lands every FIPS 204 §D.3 SUF-CMA check at runtime.
 
-**Implementation discipline is its own pillar.** Every cipher, hash, and KEM is derived independently from its authoritative spec, never ported from another implementation. Known-answer test vectors come from spec authors (NIST CAVP, RFC appendices) and independent third-party generators; the `verify-vectors` Rust crate re-runs every KAT against a parallel Rust implementation, so each WASM output is checked against an independent codebase. The test suite covers unit tests at the primitive level plus end-to-end tests across three browser engines (Chromium, Firefox, WebKit) and Node.js. Detailed reference documentation ships at the [project wiki](https://github.com/xero/leviathan-crypto/wiki).
+**[SLH-DSA](https://github.com/xero/leviathan-crypto/wiki/slhdsa): assumption-diverse hedge.** `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f` are FIPS 205 stateless hash-based signatures at NIST security categories 1, 3, and 5. Security rests on SHAKE preimage and collision resistance rather than any lattice or number-theoretic assumption, so a future lattice break against ML-DSA does not transfer. Three PQ-only hybrid composites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) bind both PQ families to the same prehash digest under a unique `ctxDomain`. One break does not cascade.
+
+**[Merkle log](https://github.com/xero/leviathan-crypto/wiki/merkle): trust-anchored transparency.** `MerkleVerifier` and `MerkleLog` produce and verify C2SP-conformant signed checkpoints with RFC 9162 §2.1.3 / §2.1.4 inclusion and consistency proofs. Cosignatures use `Ed25519Suite` for Sigsum interop or `MlDsa44Suite` as the post-quantum default.
+
+**[Fortuna](https://github.com/xero/leviathan-crypto/wiki/fortuna): pluggable randomness.** It collects entropy from platform-specific sources (browser input events, timing jitter, Node.js process stats, plus `crypto.getRandomValues()` as a baseline), distributes it across 32 independent pools, and reseeds an internal generator built on a cipher-as-PRF construction. The generator key is replaced after every `get()` call, so state compromise at time T cannot reveal any output produced before T. The primitive pair is pluggable, mirroring `CipherSuite`'s extension-point pattern: any of the three ciphers above plugs into the generator, paired with either SHA-256 or SHA3-256 for hashing.
+
+**Atop the seal layer sits the [ratchet module](https://github.com/xero/leviathan-crypto/wiki/ratchet):** KDF primitives from Signal's Sparse Post-Quantum Ratchet (SPQR), the post-quantum extension of the Double Ratchet protocol. `ratchetInit` bootstraps the root and chain keys from an out-of-band shared secret. `KDFChain` advances a symmetric chain key and derives per-message keys with forward secrecy. `kemRatchetEncap` and `kemRatchetDecap` perform the ML-KEM ratchet step for post-compromise security. `SkippedKeyStore` caches message keys for out-of-order delivery; cached keys return through a transactional handle that commits on auth success and rolls back on failure, so a garbage ciphertext at a valid counter cannot consume the legitimate message's slot. The store also bounds memory and per-message HKDF work, so a malicious header with a high counter cannot force unbounded derivations. These are primitives, not a full session: state machines, message counters, header format, and epoch orchestration are application concerns. Consumers compose them with their own transport for forward-secret protocols whose needs outgrow one-shot AEAD.
+
+**Outside the WASM-backed primitives ships a [utility tier](https://github.com/xero/leviathan-crypto/wiki/utils).** No `init()` call required, every utility function works immediately on import. Pure-TypeScript encoding converters handle hex, base64, and the common byte-format round-trips. `wipe` and `xor` modules cover byte-buffer zeroing and exclusive OR logical operations. The `cte` module is the constant-time path. It carries its own dedicated WebAssembly binary that compiles synchronously, with a zero-copy v128 SIMD XOR-accumulate kernel. `constantTimeEqual` is the library's recommended path for any equality check on secret material.
+
+**Discipline binds the layers.** Every cipher, hash, KEM, and signature scheme derives independently from its authoritative spec, never ported from another implementation. Known-answer test vectors come from spec authors, and cross-checks run against multiple independent reference implementations. The test suite covers unit tests at the primitive level plus end-to-end tests across three browser engines (Chromium, Firefox, WebKit) and Node.js. Detailed reference documentation ships at the [project wiki](https://github.com/xero/leviathan-crypto/wiki).
 
 ---
 
@@ -39,6 +55,8 @@
 The TypeScript layer never implements cryptographic algorithms. It manages the boundary between JavaScript and WebAssembly by writing inputs into WASM linear memory, calling exported functions, and reading back outputs. All algorithm logic resides within AssemblyScript.
 
 Higher-level classes like `Seal`, `SealStream`, and `SealStreamPool` are pure TypeScript, but they compose WASM-backed primitives (Serpent-CBC, HMAC-SHA256, ChaCha20-Poly1305, and HKDF-SHA256) rather than implementing new cryptographic logic. TypeScript orchestrates, while WASM computes. Pool workers instantiate their own WASM modules and directly call primitives, bypassing the main-thread module cache.
+
+See [wasm.md](https://github.com/xero/leviathan-crypto/wiki/wasm) for a fuller primer on WebAssembly in the context of this library.
 
 ---
 
@@ -51,8 +69,15 @@ bun i leviathan-crypto
 npm install leviathan-crypto
 ```
 
+v3 is the current stable line; semver applies. Runs in modern browsers, Node.js 22+, Bun, Deno, and Cloudflare Workers.
+
 > [!IMPORTANT]
 > [Serpent](https://github.com/xero/leviathan-crypto/wiki/serpent), [ChaCha20](https://github.com/xero/leviathan-crypto/wiki/chacha20), [ML-KEM](https://github.com/xero/leviathan-crypto/wiki/kyber), [AES](https://github.com/xero/leviathan-crypto/wiki/aes), [ML-DSA](https://github.com/xero/leviathan-crypto/wiki/mldsa), [BLAKE3](https://github.com/xero/leviathan-crypto/wiki/blake3), and [constantTimeEqual](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) require WebAssembly SIMD support. This has been a baseline feature of all major browsers and runtimes [since 2021](https://caniuse.com/wasm-simd).
+
+SIMD throughput on Apple Silicon peaks at ~1.3 GB/s for ChaCha20 and ~40 MB/s for Serpent, single-threaded; 1.2-3.2× over scalar. Full matrix across V8, SpiderMonkey, and JSC in [benchmarks](https://github.com/xero/leviathan-crypto/wiki/benchmarks).
+
+> [!NOTE]
+> Found a security issue? Don't open a public issue. See [SECURITY.md](./SECURITY.md#reporting-a-vulnerability) for the disclosure policy.
 
 ### Loading
 
@@ -73,6 +98,21 @@ await init({ serpent: new URL('/assets/wasm/serpent.wasm', import.meta.url) })
 const compiledModule = await WebAssembly.compileStreaming(fetch('/assets/wasm/serpent.wasm'))
 await init({ serpent: compiledModule })
 ```
+
+All three patterns also work straight from a CDN with no install or bundler:
+
+```html
+<script type="module">
+  import { init, Seal, SerpentCipher } from 'https://unpkg.com/leviathan-crypto/dist/index.js'
+  import { serpentWasm } from 'https://unpkg.com/leviathan-crypto/dist/serpent/embedded.js'
+  import { sha2Wasm }    from 'https://unpkg.com/leviathan-crypto/dist/sha2/embedded.js'
+
+  await init({ serpent: serpentWasm, sha2: sha2Wasm })
+  // ... use as normal
+</script>
+```
+
+See the [CDN reference](https://github.com/xero/leviathan-crypto/wiki/cdn) for unpkg/esm.sh, version pinning, SRI, and import maps.
 
 ### Tree-shaking with subpath imports
 
@@ -98,27 +138,43 @@ await kyberInit(kyberWasm)
 await sha3Init(sha3Wasm)
 ```
 
-| Subpath                              | Entry point                    |
-| ------------------------------------ | ------------------------------ |
-| `leviathan-crypto`                   | `./dist/index.js`              |
-| `leviathan-crypto/stream`            | `./dist/stream/index.js`       |
-| `leviathan-crypto/serpent`           | `./dist/serpent/index.js`      |
-| `leviathan-crypto/serpent/embedded`  | `./dist/serpent/embedded.js`   |
-| `leviathan-crypto/chacha20`          | `./dist/chacha20/index.js`     |
-| `leviathan-crypto/chacha20/embedded` | `./dist/chacha20/embedded.js`  |
-| `leviathan-crypto/sha2`              | `./dist/sha2/index.js`         |
-| `leviathan-crypto/sha2/embedded`     | `./dist/sha2/embedded.js`      |
-| `leviathan-crypto/sha3`              | `./dist/sha3/index.js`         |
-| `leviathan-crypto/sha3/embedded`     | `./dist/sha3/embedded.js`      |
-| `leviathan-crypto/blake3`            | `./dist/blake3/index.js`       |
-| `leviathan-crypto/blake3/embedded`   | `./dist/blake3/embedded.js`    |
-| `leviathan-crypto/kyber`             | `./dist/kyber/index.js`        |
-| `leviathan-crypto/kyber/embedded`    | `./dist/kyber/embedded.js`     |
-| `leviathan-crypto/ecdsa`             | `./dist/ecdsa/index.js`        |
-| `leviathan-crypto/ecdsa/embedded`    | `./dist/ecdsa/embedded.js`     |
-| `leviathan-crypto/ratchet`           | `./dist/ratchet/index.js`      |
+| Subpath                              | Module                                                  |
+| ------------------------------------ | ------------------------------------------------------- |
+| `leviathan-crypto`                   | root barrel (all exports)                               |
+| `leviathan-crypto/stream`            | cipher-agnostic seal layer                              |
+| `leviathan-crypto/serpent`           | Serpent-256                                             |
+| `leviathan-crypto/serpent/embedded`  | Serpent-256 WASM blob                                   |
+| `leviathan-crypto/chacha20`          | XChaCha20-Poly1305                                      |
+| `leviathan-crypto/chacha20/embedded` | XChaCha20-Poly1305 WASM blob                            |
+| `leviathan-crypto/sha2`              | SHA-2 family (224 / 256 / 384 / 512, HMAC, HKDF)        |
+| `leviathan-crypto/sha2/embedded`     | SHA-2 WASM blob                                         |
+| `leviathan-crypto/sha3`              | SHA-3 / SHAKE family                                    |
+| `leviathan-crypto/sha3/embedded`     | SHA-3 WASM blob                                         |
+| `leviathan-crypto/keccak`            | Keccak alias for SHA-3                                  |
+| `leviathan-crypto/keccak/embedded`   | Keccak WASM blob (same bytes as `sha3/embedded`)        |
+| `leviathan-crypto/kyber`             | ML-KEM                                                  |
+| `leviathan-crypto/kyber/embedded`    | ML-KEM WASM blob                                        |
+| `leviathan-crypto/aes`               | AES-256-GCM-SIV                                         |
+| `leviathan-crypto/aes/embedded`      | AES WASM blob                                           |
+| `leviathan-crypto/blake3`            | BLAKE3                                                  |
+| `leviathan-crypto/blake3/embedded`   | BLAKE3 WASM blob                                        |
+| `leviathan-crypto/ecdsa`             | ECDSA-P256                                              |
+| `leviathan-crypto/ecdsa/embedded`    | NIST P-256 WASM blob                                    |
+| `leviathan-crypto/ed25519`           | Ed25519 (pure and Ed25519ph)                            |
+| `leviathan-crypto/ed25519/embedded`  | Curve25519 WASM blob                                    |
+| `leviathan-crypto/mldsa`             | ML-DSA                                                  |
+| `leviathan-crypto/mldsa/embedded`    | ML-DSA WASM blob                                        |
+| `leviathan-crypto/slhdsa`            | SLH-DSA                                                 |
+| `leviathan-crypto/slhdsa/embedded`   | SLH-DSA WASM blob                                       |
+| `leviathan-crypto/x25519`            | X25519 (Curve25519 Diffie-Hellman)                      |
+| `leviathan-crypto/x25519/embedded`   | Curve25519 WASM blob (same bytes as `ed25519/embedded`) |
+| `leviathan-crypto/ratchet`           | forward-secret ratchet (SPQR)                           |
+| `leviathan-crypto/sign`              | scheme-agnostic signature layer                         |
+| `leviathan-crypto/merkle`            | Merkle log substrate                                    |
 
-See the [WASM loading reference](https://github.com/xero/leviathan-crypto/wiki/loader) for details.
+Subpaths resolve to `./dist/<mod>/index.js` and `./dist/<mod>/embedded.js`; see [`package.json`](https://github.com/xero/leviathan-crypto/blob/main/package.json) for the exact export map.
+
+See the [exports reference](https://github.com/xero/leviathan-crypto/wiki/exports) for what each subpath exports and the [WASM loading reference](https://github.com/xero/leviathan-crypto/wiki/loader) for loading strategies.
 
 ---
 
@@ -344,20 +400,23 @@ A covert communications application for end-to-end encrypted group conversations
 
 | **_I want to..._** | |
 |---|---|
-| Encrypt data | [`Seal`](https://github.com/xero/leviathan-crypto/wiki/aead#seal) with [`SerpentCipher`](https://github.com/xero/leviathan-crypto/wiki/serpent#serpentcipher) or [`XChaCha20Cipher`](https://github.com/xero/leviathan-crypto/wiki/chacha20#xchacha20cipher) |
-| Encrypt a stream or large file | [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream) to encrypt, [`OpenStream`](https://github.com/xero/leviathan-crypto/wiki/aead#openstream) to decrypt |
-| Encrypt in parallel | [`SealStreamPool`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstreampool) distributes chunks across Web Workers |
-| Add post-quantum security | [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps [`MlKem512`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), [`MlKem768`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets), or [`MlKem1024`](https://github.com/xero/leviathan-crypto/wiki/kyber#parameter-sets) with any cipher suite |
-| Sign a message | [`Sign`](https://github.com/xero/leviathan-crypto/wiki/signing#sign) with [`MlDsa65Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#pure-mode-suites), [`Ed25519Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ed25519-suites), or [`EcdsaP256Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ecdsa-p256-suite) for attached or detached signatures |
-| Sign a stream or large file | [`SignStream`](https://github.com/xero/leviathan-crypto/wiki/signing#signstream) with [`MlDsa65PreHashSuite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#prehash-mode-suites), [`Ed25519PreHashSuite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ed25519-suites), or [`EcdsaP256Suite`](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#ecdsa-p256-suite); [`VerifyStream`](https://github.com/xero/leviathan-crypto/wiki/signing#verifystream) on the receive side |
-| Convert ECDSA signatures to DER (X.509 / JWS / TLS) | [`ecdsaSignatureToDer`](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility) / [`ecdsaSignatureFromDer`](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility) (RFC 3279 §2.2.3) |
-| Build a forward-secret session | [`ratchetInit`](https://github.com/xero/leviathan-crypto/wiki/ratchet#ratchetinit), [`KDFChain`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kdfchain), [`kemRatchetEncap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetencap) / [`kemRatchetDecap`](https://github.com/xero/leviathan-crypto/wiki/ratchet#kemratchetdecap), [`SkippedKeyStore`](https://github.com/xero/leviathan-crypto/wiki/ratchet#skippedkeystore) |
-| Hash data | [`SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha256), [`SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha384), [`SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#sha512), [`SHA3_256`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_256), [`SHA3_512`](https://github.com/xero/leviathan-crypto/wiki/sha3#sha3_512), [`SHAKE256`](https://github.com/xero/leviathan-crypto/wiki/sha3#shake256), [`BLAKE3`](https://github.com/xero/leviathan-crypto/wiki/blake3#blake3), [`BLAKE3KeyedHash`](https://github.com/xero/leviathan-crypto/wiki/blake3#blake3keyedhash), [`BLAKE3DeriveKey`](https://github.com/xero/leviathan-crypto/wiki/blake3#blake3derivekey) ... |
-| Authenticate a message | [`HMAC_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha256), [`HMAC_SHA384`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha384), [`HMAC_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hmac_sha512), or [`KMAC256`](https://github.com/xero/leviathan-crypto/wiki/kmac#kmac256) |
-| Derive keys | [`HKDF_SHA256`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha256) or [`HKDF_SHA512`](https://github.com/xero/leviathan-crypto/wiki/sha2#hkdf_sha512) |
-| Generate random bytes | [`Fortuna`](https://github.com/xero/leviathan-crypto/wiki/fortuna#api-reference) for forward-secret generation, [`randomBytes`](https://github.com/xero/leviathan-crypto/wiki/utils#randombytes) for one-off use |
-| Compare secrets safely | [`constantTimeEqual`](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) uses a WASM SIMD path to prevent timing attacks |
-| Work with bytes | [`hexToBytes`](https://github.com/xero/leviathan-crypto/wiki/utils#hextobytes), [`bytesToHex`](https://github.com/xero/leviathan-crypto/wiki/utils#bytestohex), [`wipe`](https://github.com/xero/leviathan-crypto/wiki/utils#wipe), [`xor`](https://github.com/xero/leviathan-crypto/wiki/utils#xor), [`concat`](https://github.com/xero/leviathan-crypto/wiki/utils#concat) ... |
+| Encrypt data | [`Seal`](./aead.md#seal) with [`SerpentCipher`](./serpent.md#serpentcipher), [`XChaCha20Cipher`](./chacha20.md#xchacha20cipher), or [`AESGCMSIVCipher`](./aes.md#aesgcmsivcipher) |
+| Encrypt a stream or large file | [`SealStream`](./aead.md#sealstream) to encrypt, [`OpenStream`](./aead.md#openstream) to decrypt |
+| Encrypt in parallel | [`SealStreamPool`](./aead.md#sealstreampool) distributes chunks across Web Workers |
+| Add post-quantum security | [`KyberSuite`](./kyber.md#kybersuite) wraps [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), or [`MlKem1024`](./kyber.md#parameter-sets) with any cipher suite |
+| Build a forward-secret session | [`ratchetInit`](./ratchet.md#ratchetinit), [`KDFChain`](./ratchet.md#kdfchain), [`kemRatchetEncap`](./ratchet.md#kemratchetencap) / [`kemRatchetDecap`](./ratchet.md#kemratchetdecap), [`SkippedKeyStore`](./ratchet.md#skippedkeystore) |
+| Sign data with a classical signature | [`Ed25519Suite`](./signaturesuite.md#ed25519-suites) / [`Ed25519PreHashSuite`](./signaturesuite.md#ed25519-suites) ([ed25519.md](./ed25519.md)) or [`EcdsaP256Suite`](./signaturesuite.md#ecdsa-p256-suite) ([ecdsa-p256.md](./ecdsa-p256.md)) via [`Sign`](./signing.md#sign) / [`SignStream`](./signing.md#signstream) / [`VerifyStream`](./signing.md#verifystream) |
+| Sign data with a post-quantum signature | `MlDsa44/65/87Suite` (+ `*PreHashSuite`) for lattice ML-DSA ([mldsa.md](./mldsa.md)) or `SlhDsa128f/192f/256fSuite` (+ `*PreHashSuite`) for hash-based SLH-DSA ([slhdsa.md](./slhdsa.md)). Full catalog in [signaturesuite.md](./signaturesuite.md) |
+| Sign data with a classical+PQ hybrid | [`MlDsa44Ed25519Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding), [`MlDsa65Ed25519Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding), [`MlDsa44EcdsaP256Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding), [`MlDsa65EcdsaP256Suite`](./signaturesuite.md#classicalpq-hybrid-composite-encoding) for `draft-ietf-lamps-pq-composite-sigs` |
+| Sign data with a PQ-only hybrid | [`MlDsa44SlhDsa128fSuite`](./signaturesuite.md#pq-only-hybrid-suites), [`MlDsa65SlhDsa192fSuite`](./signaturesuite.md#pq-only-hybrid-suites), [`MlDsa87SlhDsa256fSuite`](./signaturesuite.md#pq-only-hybrid-suites) for ML-DSA + SLH-DSA composites at matching NIST categories |
+| Build a transparency log | [`MerkleLog`](./merkle.md#merklelog) for append plus inclusion / consistency proofs, [`MerkleVerifier`](./merkle.md#merkleverifier) for clients, [`SignedLog`](./merkle.md#signedlog) for custom storage backends |
+| Exchange a key with a peer | [`X25519`](./x25519.md) for Curve25519 Diffie-Hellman |
+| Hash data | [`SHA256`](./sha2.md#sha256), [`SHA384`](./sha2.md#sha384), [`SHA512`](./sha2.md#sha512), [`SHA3_256`](./sha3.md#sha3_256), [`SHA3_512`](./sha3.md#sha3_512), [`SHAKE256`](./sha3.md#shake256) ... |
+| Authenticate a message | [`HMAC_SHA256`](./sha2.md#hmac_sha256), [`HMAC_SHA384`](./sha2.md#hmac_sha384), [`HMAC_SHA512`](./sha2.md#hmac_sha512), or [`KMAC256`](./kmac.md#kmac256) |
+| Derive keys | [`HKDF_SHA256`](./sha2.md#hkdf_sha256) or [`HKDF_SHA512`](./sha2.md#hkdf_sha512) |
+| Generate random bytes | [`Fortuna`](./fortuna.md#api-reference) for forward-secret generation, [`randomBytes`](./utils.md#randombytes) for one-off use |
+| Compare secrets safely | [`constantTimeEqual`](./utils.md#constanttimeequal) uses a WASM SIMD path to prevent timing attacks |
+| Work with bytes | [`hexToBytes`](./utils.md#hextobytes), [`bytesToHex`](./utils.md#bytestohex), [`wipe`](./utils.md#wipe), [`xor`](./utils.md#xor), [`concat`](./utils.md#concat) ... |
 
 *For raw primitives, low-level cipher access, and ASM internals see the [full API reference](https://github.com/xero/leviathan-crypto/wiki/index).*
 

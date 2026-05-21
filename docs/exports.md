@@ -5,6 +5,7 @@
 Complete reference for every public export in leviathan-crypto, grouped by module. Follow the module links for deeper documentation on each class.
 
 > ### Table of Contents
+> - [Package Subpaths](#package-subpaths)
 > - [Initialization](#initialization)
 > - [Serpent-256](#serpent-256)
 > - [AES](#aes)
@@ -26,6 +27,46 @@ Complete reference for every public export in leviathan-crypto, grouped by modul
 > - [Merkle log substrate](#merkle-log-substrate)
 > - [Types](#types)
 > - [Utilities](#utilities)
+
+---
+
+## Package Subpaths
+
+Every subpath declared in `package.json` exports. Use a per-module subpath rather than the root barrel to let bundlers tree-shake unused modules. The `<mod>/embedded` variant exposes the gzip+base64 WASM blob as `<mod>Wasm` for passing into `init()`; see [init.md](./init.md) for the loading API and the subpath-to-WASM-export mapping.
+
+| Subpath | Module |
+|---------|--------|
+| `leviathan-crypto` | root barrel (all exports) |
+| `leviathan-crypto/stream` | cipher-agnostic seal layer (`Seal`, `SealStream`, `OpenStream`, `SealStreamPool`) |
+| `leviathan-crypto/serpent` | Serpent-256 |
+| `leviathan-crypto/serpent/embedded` | Serpent-256 WASM blob |
+| `leviathan-crypto/chacha20` | XChaCha20-Poly1305 |
+| `leviathan-crypto/chacha20/embedded` | XChaCha20-Poly1305 WASM blob |
+| `leviathan-crypto/sha2` | SHA-2 family (224 / 256 / 384 / 512, HMAC, HKDF) |
+| `leviathan-crypto/sha2/embedded` | SHA-2 WASM blob |
+| `leviathan-crypto/sha3` | SHA-3 / SHAKE family |
+| `leviathan-crypto/sha3/embedded` | SHA-3 WASM blob |
+| `leviathan-crypto/keccak` | Keccak alias for SHA-3 |
+| `leviathan-crypto/keccak/embedded` | Keccak WASM blob (same bytes as `sha3/embedded`) |
+| `leviathan-crypto/kyber` | ML-KEM |
+| `leviathan-crypto/kyber/embedded` | ML-KEM WASM blob |
+| `leviathan-crypto/aes` | AES-256-GCM-SIV |
+| `leviathan-crypto/aes/embedded` | AES WASM blob |
+| `leviathan-crypto/blake3` | BLAKE3 |
+| `leviathan-crypto/blake3/embedded` | BLAKE3 WASM blob |
+| `leviathan-crypto/ecdsa` | ECDSA-P256 |
+| `leviathan-crypto/ecdsa/embedded` | NIST P-256 WASM blob |
+| `leviathan-crypto/ed25519` | Ed25519 (pure and Ed25519ph) |
+| `leviathan-crypto/ed25519/embedded` | Curve25519 WASM blob |
+| `leviathan-crypto/mldsa` | ML-DSA |
+| `leviathan-crypto/mldsa/embedded` | ML-DSA WASM blob |
+| `leviathan-crypto/slhdsa` | SLH-DSA |
+| `leviathan-crypto/slhdsa/embedded` | SLH-DSA WASM blob |
+| `leviathan-crypto/x25519` | X25519 (Curve25519 Diffie-Hellman) |
+| `leviathan-crypto/x25519/embedded` | Curve25519 WASM blob (same bytes as `ed25519/embedded`) |
+| `leviathan-crypto/ratchet` | forward-secret ratchet (SPQR) |
+| `leviathan-crypto/sign` | scheme-agnostic signature layer (`Sign`, `SignStream`, `VerifyStream`) |
+| `leviathan-crypto/merkle` | Merkle log substrate |
 
 ---
 
