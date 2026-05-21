@@ -942,7 +942,8 @@ byte-compare surface.
 |----------|-------------|
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [init.md](./init.md) | `init()` API and module-loader contract |
-| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `EcdsaP256Suite` const, `Sign`, `SignStream`, `VerifyStream` |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `EcdsaP256Suite` const |
 | [asm_p256.md](./asm_p256.md) | Low-level WASM module reference |
 | [ecdsa-p256_audit.md](./ecdsa-p256_audit.md) | ECDSA-P256 audit checklist |
 | [vector_audit.md](./vector_audit.md) | Test-vector tier classification and Rust verifier coverage |

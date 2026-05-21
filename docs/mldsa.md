@@ -711,7 +711,8 @@ ML-DSA primitives. It asserts:
 |----------|-------------|
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [init.md](./init.md) | `init()` API and module-loader contract |
-| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `MlDsa*Suite` consts, `Sign`, `SignStream`, `VerifyStream` |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
+| [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `MlDsa*Suite` consts |
 | [asm_mldsa.md](./asm_mldsa.md) | Low-level WASM module reference |
 | [mldsa_audit.md](./mldsa_audit.md) | ML-DSA audit checklist |
 | [slhdsa.md](./slhdsa.md) | Companion post-quantum signature primitive (hash-based, paired with ML-DSA in PQ-only hybrid suites) |

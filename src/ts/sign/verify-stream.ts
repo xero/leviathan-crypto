@@ -25,7 +25,7 @@
 // StreamableSignatureSuite. Holds payload chunks internally; on finalize
 // verifies and returns the payload, or throws and wipes.
 //
-// Wire format and parser flow: docs/signaturesuite.md#attached-envelope.
+// Wire format and parser flow: docs/signing.md#attached-envelope.
 
 import { constantTimeEqual, concat, wipe } from '../utils.js';
 import { SigningError } from '../errors.js';

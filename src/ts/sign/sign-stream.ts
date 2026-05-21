@@ -63,7 +63,7 @@ export class SignStream {
 	/**
 	 * Build the wire-format preamble for `payloadLength`. Available at
 	 * any point in the stream lifecycle. See
-	 * docs/signaturesuite.md#attached-envelope.
+	 * docs/signing.md#attached-envelope.
 	 */
 	buildPreamble(payloadLength: number): Uint8Array {
 		if (!Number.isInteger(payloadLength) || payloadLength < 0)

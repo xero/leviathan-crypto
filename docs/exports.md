@@ -115,7 +115,7 @@ Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 ## Sign
 
 Cipher-agnostic signature envelope and streaming layer over the v3 SignatureSuite abstraction.
-Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
+Subpath: `leviathan-crypto/sign`. See [signing.md](./signing.md) for the `Sign` / `SignStream` / `VerifyStream` API and [signaturesuite.md](./signaturesuite.md) for the `SignatureSuite` interface and full suite catalog.
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -155,7 +155,7 @@ Subpath: `leviathan-crypto/sign`. See [signaturesuite.md](./signaturesuite.md).
 | Export | Kind | Description |
 |--------|------|-------------|
 | `AuthenticationError` | class | Thrown on AEAD auth failure. Extends `Error`. Constructor takes cipher name string. |
-| `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signaturesuite.md](./signaturesuite.md)). |
+| `SigningError` | class | Thrown on signature contract violations and verification failures from the v3 sign module. Extends `Error`. Constructor takes a stable `discriminator` string plus optional message. Discriminators span suite, envelope, and stream layers (see [signing.md](./signing.md#signingerror)). |
 | `KeyAgreementError` | class | Thrown by `X25519.dh` when the peer public key produces an all-zero shared secret (small-order point per RFC 7748 §6.1, Curve25519). Extends `Error`. Branch on `err instanceof KeyAgreementError` to distinguish this from a caller-side contract violation. |
 | `MerkleCodecError` | class | Thrown on wire-format contract violations in the merkle cosignature codec (`buildCosigSignedMessage`, `buildCosignedMessage`, `emitCosigSignaturePayload`, `parseCosigSignaturePayload`) per c2sp.org/tlog-cosignature §Format, §"Ed25519 signed message", and §"ML-DSA-44 signed message". Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'timestamp-out-of-range'`, `'timestamp-exceeds-safe-integer'`, `'cosig-payload-length-mismatch'`, `'cosigner-name-length'`, `'log-origin-length'`, `'cosigned-message-state'`. |
 | `MerkleLogError` | class | Thrown on construction-time contract violations of the normie merkle surface (`MerkleLog`, `MerkleVerifier`). Extends `Error`. Constructor takes a stable `discriminator` string plus optional message; documented discriminators: `'origin-invalid'`, `'pubkey-size'`, `'unsupported-hashing'`, `'unsupported-suite'`, `'module-not-initialized'`. |

@@ -144,7 +144,7 @@ pool.destroy()
 
 ---
 
-### [Sign](./signaturesuite.md): one-shot signature envelope
+### [Sign](./signing.md): one-shot signature envelope
 
 `Sign` parallels `Seal` for signatures: pass a `SignatureSuite` and key material, get back a v3 envelope that any verifier with the public key can authenticate. `Sign.verify` throws `SigningError` on a bad signature (mirroring `Seal.decrypt`); the raw primitive `Ed25519.verify` returns a boolean instead.
 
@@ -168,7 +168,7 @@ try {
 }
 ```
 
-Streaming over chunked input requires a `StreamableSignatureSuite` (prehash variants like `Ed25519PreHashSuite`, the ML-DSA / SLH-DSA prehash suites, or any hybrid composite). Pure `Ed25519Suite` is rejected by `SignStream` / `VerifyStream` at the type level, by design. For the full 22-suite catalog including ML-DSA, SLH-DSA, ECDSA-P256, classical+PQ hybrids, and PQ-only hybrids, see [signaturesuite.md](./signaturesuite.md).
+Streaming over chunked input requires a `StreamableSignatureSuite` (prehash variants like `Ed25519PreHashSuite`, the ML-DSA / SLH-DSA prehash suites, or any hybrid composite). Pure `Ed25519Suite` is rejected by `SignStream` / `VerifyStream` at the type level, by design. See [signing.md](./signing.md) for the `Sign` / `SignStream` / `VerifyStream` API and [signaturesuite.md](./signaturesuite.md) for the full 22-suite catalog including ML-DSA, SLH-DSA, ECDSA-P256, classical+PQ hybrids, and PQ-only hybrids.
 
 ---
 

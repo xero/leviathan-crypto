@@ -24,7 +24,7 @@
 // Sign, single-shot signing/verification using the attached envelope wire
 // format. Mirrors the static-only-class pattern from stream/seal.ts.
 //
-// Wire format see: docs/signaturesuite.md#attached-envelope.
+// Wire format see: docs/signing.md#attached-envelope.
 
 import { constantTimeEqual } from '../utils.js';
 import { SigningError } from '../errors.js';

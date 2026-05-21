@@ -772,6 +772,7 @@ deterministic primitive entry point.
 |----------|-------------|
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [init.md](./init.md) | `init()` API and module-loader contract |
+| [signing.md](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, `SigningError` |
 | [signaturesuite.md](./signaturesuite.md) | `SignatureSuite` interface plus the `SlhDsa*Suite` and `MlDsa*SlhDsa*Suite` consts |
 | [asm_slhdsa.md](./asm_slhdsa.md) | Low-level WASM module reference |
 | [slhdsa_audit.md](./slhdsa_audit.md) | Implementation audit checklist |

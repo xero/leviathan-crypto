@@ -61,6 +61,7 @@ const INCLUDE = [
 	'sha2.md',
 	'sha3.md',
 	'signaturesuite.md',
+	'signing.md',
 	'slhdsa.md',
 	'types.md',
 	'utils.md',

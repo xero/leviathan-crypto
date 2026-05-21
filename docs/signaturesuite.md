@@ -2,12 +2,11 @@
 
 ### SignatureSuite
 
-The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyStream` are scheme-agnostic. You provide the signing scheme by passing a `SignatureSuite` object at each call site or to the stream constructors.
-
----
+The extension point for the signing layer. `Sign`, `SignStream`, and `VerifyStream` are all scheme-agnostic. You provide the signing scheme by passing a `SignatureSuite` object at each call site or to the stream constructors.
 
 > ### Table of Contents
-> - [Implementations included](#implementations-included)
+> - [Module Init](#module-init)
+> - [Security Notes](#security-notes)
 > - [Pure-mode suites](#pure-mode-suites)
 > - [Prehash-mode suites](#prehash-mode-suites)
 > - [PQ-only hybrid composite encoding](#pq-only-hybrid-composite-encoding)
@@ -17,11 +16,8 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > - [Hybrid classical+PQ tamper coverage](#hybrid-classicalpq-tamper-coverage)
 > - [Hybrid PQ-only integration](#hybrid-pq-only-integration)
 > - [Hybrid PQ-only tamper coverage](#hybrid-pq-only-tamper-coverage)
-> - [Wire format](#wire-format)
 > - [Interface reference](#interface-reference)
 > - [ctx-domain construction](#ctx-domain-construction)
-> - [Errors](#errors)
-> - [Examples](#examples)
 > - [Memory hygiene](#memory-hygiene)
 > - [Format byte allocation](#format-byte-allocation)
 > - [Custom suites](#custom-suites)
@@ -29,6 +25,8 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > - [Cross-References](#cross-references)
 
 ---
+
+Twenty-two suites ship across six families: six ML-DSA (three pure, three prehash), six SLH-DSA (three pure, three prehash), two Ed25519 (pure plus Ed25519ph), one ECDSA-P256, four classical+PQ hybrid composites, and three PQ-only hybrid composites. Pure-mode suites satisfy `SignatureSuite` only; prehash-mode and hybrid suites satisfy `StreamableSignatureSuite` and plug into `SignStream` / `VerifyStream`. See [signing.md](./signing.md) for the user-facing `Sign`, `SignStream`, and `VerifyStream` API, and the envelope wire format.
 
 > [!NOTE]
 > **The catalog of shipped signature suites is canonical here, not in
@@ -43,11 +41,41 @@ The extension point for the v3 signing layer. `Sign`, `SignStream`, and `VerifyS
 > under `src/ts/sign/suites/` carry only enough preamble to name what
 > they ship and route the reader here.
 
-## Implementations included
+---
 
-Six ML-DSA suites ship. Three are pure-mode, satisfying `SignatureSuite`; three are prehash-mode, satisfying `StreamableSignatureSuite` and usable with `SignStream` / `VerifyStream`.
+## Module Init
 
-SLH-DSA (FIPS 205) and the leviathan PQ-only hybrids also ship: six SLH-DSA suites (three pure, three prehash) plus three hybrid composites that combine ML-DSA with SLH-DSA at each NIST security category. Two Ed25519 suites ship (pure plus Ed25519ph). One ECDSA-P256 suite ships (`EcdsaP256Suite`, FIPS 186-5 §6 over NIST P-256 with SHA-256, hedged-by-default per `draft-irtf-cfrg-det-sigs-with-noise-05`). Four composite classical+PQ hybrid suites ship at format bytes `0x20`-`0x23`, implementing `draft-ietf-lamps-pq-composite-sigs` composite ML-DSA with Ed25519 or ECDSA-P256 at the matching NIST categories. Reserved for future work: BLAKE3-derived signature work and the Merkle log signed-tree-head surface that wires the same `SignatureSuite` shape into log proofs. The format-byte allocation at the bottom of this doc reserves a wire byte for every catalog entry, shipped or queued.
+Each suite requires its underlying primitive's WASM module plus any prehash modules. Prehash suites that use SHA-2 (Ed25519ph, ECDSA-P256, classical+PQ hybrids with SHA-256 or SHA-512 prehash) add `sha2`; suites that use SHA-3 / SHAKE prehashes (ML-DSA prehash, SLH-DSA prehash, PQ-only hybrids) add `sha3`. Hybrid suites combine both halves' module lists.
+
+| Suite family | `init({ ... })` keys |
+|---|---|
+| `MlDsa{44,65,87}Suite`, `MlDsa{44,65,87}PreHashSuite` | `mldsa`, `sha3` |
+| `SlhDsa{128f,192f,256f}Suite` (pure) | `slhdsa` |
+| `SlhDsa{128f,192f,256f}PreHashSuite` | `slhdsa`, `sha3` |
+| `Ed25519Suite` (pure) | `curve25519` |
+| `Ed25519PreHashSuite` (Ed25519ph) | `curve25519`, `sha2` |
+| `EcdsaP256Suite` | `p256`, `sha2` |
+| `MlDsa{44,65,87}SlhDsa{128f,192f,256f}Suite` (PQ-only hybrid) | `mldsa`, `sha3`, `slhdsa` |
+| `MlDsa{44,65}Ed25519Suite` (classical+PQ hybrid) | `mldsa`, `sha3`, `curve25519`, `sha2` |
+| `MlDsa{44,65}EcdsaP256Suite` (classical+PQ hybrid) | `mldsa`, `sha3`, `p256`, `sha2` |
+
+See [init.md](./init.md) for `WasmSource` types and the per-module init functions.
+
+---
+
+## Security Notes
+
+> [!IMPORTANT]
+> **All shipped suites are EUF-CMA secure under their respective specs.** ML-DSA (FIPS 204), SLH-DSA (FIPS 205), Ed25519 (RFC 8032), and ECDSA-P256 (FIPS 186-5 §6) all carry standard existential-unforgeability-under-chosen-message-attack security under their published assumptions. The hybrid composites inherit security from the stronger of their two halves; see the [Threat model](#threat-model) section for the per-family guarantees.
+
+> [!IMPORTANT]
+> **Pure-mode and prehash-mode signatures are not interchangeable.** HashML-DSA, HashSLH-DSA, and Ed25519ph use a different domain-separator byte from pure-mode signing (FIPS 204 §3.6.4, FIPS 205 §10.2, RFC 8032 §5.1.7). The wire format encodes which mode produced the signature via `formatEnum`; the receiver must match the suite the sender used.
+
+> [!CAUTION]
+> **Custom `SignatureSuite` implementations must use a unique `ctxDomain` string.** The suite layer builds `effective_ctx` via `buildEffectiveCtx(ctxDomain, user_ctx)` before reaching the underlying primitive. Two suites sharing the same `ctxDomain` produce identical context bytes from the same `user_ctx`, breaking cross-suite domain separation. The classical+PQ composite suites (`0x20`-`0x23`) bypass `buildEffectiveCtx` and bind their suite identity through the M' Label per `draft-ietf-lamps-pq-composite-sigs` §3.2; custom hybrid composites must replicate that construction or pick `ctxDomain` carefully.
+
+> [!IMPORTANT]
+> **`formatEnum` reserved values must not collide.** Built-in allocations: `0x01`, `0x02`, `0x03`-`0x08`, `0x11`, `0x13`-`0x18`, `0x20`-`0x23`, `0x30`-`0x32`. See [Format byte allocation](#format-byte-allocation) for the full table including reserved-for-future-work entries. Bits 6-7 of the wire byte are reserved.
 
 ---
 
@@ -160,7 +188,7 @@ See [ed25519.md](./ed25519.md#fault-injection-defense) for the underlying threat
 
 #### Wire format
 
-Both Ed25519 suites use the standard v3 attached envelope. Per [Attached envelope](#attached-envelope):
+Both Ed25519 suites use the standard v3 attached envelope. Per [Attached envelope](./signing.md#attached-envelope):
 
 ```
 byte  0                              : suite_byte    (0x01 for Ed25519Suite, 0x11 for Ed25519PreHashSuite)
@@ -307,7 +335,7 @@ No length prefix sits between the halves. Each suite's `pkSize`, `skSize`, and `
 | `MlDsa65SlhDsa192fSuite`    | 1952      | 48         | 2000     | 4032      | 96         | 4128     | 3309       | 35664       | 38973     |
 | `MlDsa87SlhDsa256fSuite`    | 2592      | 64         | 2656     | 4896      | 128        | 5024     | 4627       | 49856       | 54483     |
 
-The combined signature lives inside the same attached / detached envelope the ML-DSA suites use; the envelope's `suite_byte` distinguishes a hybrid from a single-primitive signature, and the rest of the wire layout (ctx, payload_len, payload, sig) follows the [Attached envelope](#attached-envelope) shape with `sigMaxSize` taken from the hybrid suite.
+The combined signature lives inside the same attached / detached envelope the ML-DSA suites use; the envelope's `suite_byte` distinguishes a hybrid from a single-primitive signature, and the rest of the wire layout (ctx, payload_len, payload, sig) follows the [Attached envelope](./signing.md#attached-envelope) shape with `sigMaxSize` taken from the hybrid suite.
 
 ### Prehash and M' construction
 
@@ -468,7 +496,7 @@ The traditional sub-signer signs `M'` directly per composite-sigs §3.2 step 4. 
 
 ### Wire format
 
-The combined signature lives inside the same v3 attached envelope every other suite uses. The envelope's `suite_byte` distinguishes a classical+PQ hybrid from any other suite, and the rest of the wire layout follows the [Attached envelope](#attached-envelope) shape with `sigMaxSize` taken from the hybrid suite. For the Ed25519 hybrids `sig` is fixed-length; for the ECDSA hybrids the ML-DSA half is fixed and the ECDSA-half DER length varies inside `[8, 72]` bytes, so the trailing sig fills the remaining envelope bytes after the `payload_len`-bounded payload.
+The combined signature lives inside the same v3 attached envelope every other suite uses. The envelope's `suite_byte` distinguishes a classical+PQ hybrid from any other suite, and the rest of the wire layout follows the [Attached envelope](./signing.md#attached-envelope) shape with `sigMaxSize` taken from the hybrid suite. For the Ed25519 hybrids `sig` is fixed-length; for the ECDSA hybrids the ML-DSA half is fixed and the ECDSA-half DER length varies inside `[8, 72]` bytes, so the trailing sig fills the remaining envelope bytes after the `payload_len`-bounded payload.
 
 For detached signatures, `Sign.signDetached` returns the spec-compliant `sig_combined` bytes:
 
@@ -737,48 +765,6 @@ timing for the same hybrid.
 
 ---
 
-## Wire format
-
-### Attached envelope
-
-`Sign.sign` and `SignStream` emit the same byte sequence. The layout is one suite byte, one ctx length byte, the user ctx bytes, a four-byte payload-length header, the payload, and finally the signature.
-
-```
-byte  0                                 : suite_byte    (u8, suite.formatEnum)
-byte  1                                 : ctx_len       (u8, 0..255)
-bytes 2 .. 2+ctx_len                    : ctx           (raw user_ctx, no domain prefix)
-bytes 2+ctx_len .. 2+ctx_len+4          : payload_len   (u32 big-endian, 0..2^32 - 1)
-bytes 2+ctx_len+4 .. payload_end        : payload       (exactly payload_len bytes)
-bytes payload_end .. N                  : sig           (variable, <= suite.sigMaxSize bytes)
-```
-
-Total size is `2 + ctx_len + 4 + payload_len + sig.length`. The explicit `payload_len` field lets the sig slot float, which is required for variable-length signature schemes (composite ECDSA, whose `Ecdsa-Sig-Value` DER encoding per RFC 3279 §2.2.3 varies with leading-zero stripping). For fixed-length suites the trailing sig fills exactly `suite.sigMaxSize` bytes; the suite's verify path enforces the exact length. The 4-byte overhead is rounding error on PQ signature sizes (under 0.2% on a ~2500-byte ML-DSA-44 sig) and irrelevant on multi-megabyte signed blobs.
-
-> [!NOTE]
-> The wire carries the raw `user_ctx`, not the `effective_ctx` the suite builds internally. The receiver passes its own `ctx` to `Sign.verify` or `VerifyStream`, the envelope layer compares it against the wire ctx in constant time, and the suite reconstructs `effective_ctx` for the underlying primitive. The wire bytes do not encode the suite's `ctxDomain`.
-
-### Parser flow (attached verify)
-
-1. Validate `blob.length >= 6`. The minimum legal blob carries the fixed 1+1+4-byte header even with empty ctx and empty payload. Fail with `sig-blob-too-short`.
-2. Read `suite_byte`. Compare against `suite.formatEnum`. Fail with `sig-suite-mismatch`.
-3. Read `ctx_len`.
-4. Validate `blob.length >= 2 + ctx_len + 4` so the `payload_len` u32 fits. Fail with `sig-blob-too-short`.
-5. Read `payload_len` as a u32 big-endian at offset `2 + ctx_len`.
-6. Validate `2 + ctx_len + 4 + payload_len <= blob.length`. Fail with `sig-blob-too-short`.
-7. Validate that the trailing sig length fits the suite's catalog upper bound, `blob.length - (2 + ctx_len + 4 + payload_len) <= suite.sigMaxSize`. Fail with `sig-blob-too-short`.
-8. Slice `ctx`, `payload`, and `sig` from the known offsets.
-9. Compare caller `ctx` against wire `ctx` in constant time. Fail with `sig-ctx-mismatch`.
-10. Call `suite.verify(pk, payload, sig, wire_ctx)`. A `false` return becomes `verify-failed`. For fixed-length suites this is where the exact sig-length check happens; for variable-length suites the suite's verify path handles parsing the sig.
-11. Return `payload` on success.
-
-All wire-shape overflows fold into `sig-blob-too-short` so the discriminator count stays stable across the wire upgrade. The error message names the specific overflow (short header, ctx past blob end, payload past blob end, trailing sig over `sigMaxSize`); callers that want a sharper diagnostic read the thrown `SigningError`'s `.message`. `sig-suite-unknown` is reserved for a future routing API that resolves the suite from the wire byte; callers always pass the suite explicitly today, so the discriminator never fires here.
-
-### Detached signature
-
-`Sign.signDetached` returns raw signature bytes (length at most `suite.sigMaxSize`; for fixed-length suites the length is exactly the catalog value). No header, no metadata. The caller manages the `(suite, pk, msg, sig, ctx)` tuple out of band. Use detached signatures when the message is transported separately, or when the wire format must match an external standard (CMS, COSE, JWS) that frames the signature itself.
-
----
-
 ## Interface reference
 
 ### `SignatureSuite`
@@ -865,175 +851,7 @@ Hybrid suites use `{outer}-{inner}-envelope-v3`; see the format byte allocation 
 
 ---
 
-## Errors
-
-Every signing-layer failure throws `SigningError(discriminator, message?)`. The discriminator is the stable, machine-readable identifier; the message is a human-readable string with context. The discriminators below are organized by layer.
-
-| Discriminator           | Layer             | Trigger |
-|-------------------------|-------------------|---------|
-| `sig-key-size`          | suite             | Wrong-length sk or pk for the suite. |
-| `sig-ctx-too-long`      | suite             | `user_ctx` exceeds USER_CTX_MAX (255 bytes per FIPS 204 §3.6.1), or the combined `effective_ctx` from `buildEffectiveCtx` exceeds the same cap. |
-| `sig-ctx-unsupported`   | suite             | Non-empty `user_ctx` passed to a suite with no native context parameter (`Ed25519Suite`, pure-mode 0x01). Pure RFC 8032 §5.1.6 Ed25519 has no ctx; context-bound signing must use `Ed25519PreHashSuite` (0x11) via dom2(F=1, ctx). Future pure-only suites (e.g. Ed448) reuse the same discriminator. |
-| `sig-malformed-input`   | suite             | Primitive validation failure, for example a wrong-length digest in `signPrehashed` or `verifyPrehashed` (both throw symmetrically). |
-| `sig-blob-too-short`    | envelope          | Wire-shape rejection. Fires on a blob shorter than the 6-byte envelope header, on `ctx_len` pushing past the blob end, on `payload_len` pushing the payload past the blob end, or on a trailing sig larger than `suite.sigMaxSize`. The thrown `SigningError`'s `.message` names the specific overflow. |
-| `sig-suite-unknown`     | envelope          | Wire `suite_byte` is not in the catalog. Reserved; callers pass the suite explicitly today, so this discriminator does not fire. |
-| `sig-suite-mismatch`    | envelope, stream  | Wire `suite_byte` does not equal the caller's `suite.formatEnum`. |
-| `sig-ctx-overflow`      | envelope          | Catalog discriminator retained for compatibility; the v3 envelope folds the ctx-past-blob case into `sig-blob-too-short`. Reserved for future routing APIs. |
-| `sig-ctx-mismatch`      | envelope, stream  | Caller `ctx` does not equal wire `ctx`. Constant-time compared. |
-| `verify-failed`         | envelope          | `suite.verify` returned false during envelope verify. |
-| `sig-stream-finalized`  | stream            | `update()` called after `finalize()`. |
-| `sig-stream-disposed`   | stream            | Any operation on a disposed stream. |
-
-`VerifyStream.finalize` also throws `verify-failed` and `sig-blob-too-short` (the latter when finalize fires before enough bytes arrived for a full signature).
-
----
-
-## Examples
-
-Every example below imports from the public package surface and shows the matching `init` call upfront.
-
-### `Sign.sign` and `Sign.verify` (single-shot, attached)
-
-```typescript
-import {
-  init,
-  Sign,
-  MlDsa65Suite,
-} from 'leviathan-crypto'
-import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
-import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
-
-await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
-
-const { pk, sk } = MlDsa65Suite.keygen()
-const msg = new TextEncoder().encode('hello world')
-const ctx = new TextEncoder().encode('myapp/v1')
-
-const blob    = Sign.sign(MlDsa65Suite, sk, msg, ctx)
-const payload = Sign.verify(MlDsa65Suite, pk, blob, ctx)
-// payload is the recovered msg bytes
-```
-
-### `Sign.signDetached` and `Sign.verifyDetached`
-
-```typescript
-import {
-  init,
-  Sign,
-  MlDsa65Suite,
-} from 'leviathan-crypto'
-import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
-import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
-
-await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
-
-const { pk, sk } = MlDsa65Suite.keygen()
-const msg = new TextEncoder().encode('hello world')
-const ctx = new TextEncoder().encode('myapp/v1')
-
-const sig = Sign.signDetached(MlDsa65Suite, sk, msg, ctx)
-const ok  = Sign.verifyDetached(MlDsa65Suite, pk, msg, sig, ctx)
-// ok === true; for fixed-length suites sig is exactly MlDsa65Suite.sigMaxSize bytes
-```
-
-### `SignStream` over chunked input
-
-```typescript
-import {
-  init,
-  SignStream,
-  MlDsa65PreHashSuite,
-} from 'leviathan-crypto'
-import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
-import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
-
-await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
-
-const { pk, sk } = MlDsa65PreHashSuite.keygen()
-const ctx = new TextEncoder().encode('myapp/v1')
-
-const signer = new SignStream(MlDsa65PreHashSuite, sk, ctx)
-signer.update(chunk1)
-signer.update(chunk2)
-const sig = signer.finalize()
-// payload length is known once finalize() returns. The v3 envelope's
-// payload_len header is built at the end via buildPreamble(N).
-const payloadLen = chunk1.length + chunk2.length
-const preamble = signer.buildPreamble(payloadLen)
-// wire output is preamble + chunk1 + chunk2 + sig
-signer.dispose()
-```
-
-### `VerifyStream` over the same wire
-
-```typescript
-import {
-  init,
-  VerifyStream,
-  MlDsa65PreHashSuite,
-} from 'leviathan-crypto'
-import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
-import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
-
-await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
-
-// pk and ctx must match the SignStream side
-const verifier = new VerifyStream(MlDsa65PreHashSuite, pk, ctx)
-verifier.update(preamble)
-verifier.update(chunk1)
-verifier.update(chunk2)
-verifier.update(sig)
-const payload = verifier.finalize()                    // throws SigningError on bad sig
-verifier.dispose()
-```
-
-`update` accepts arbitrarily-sized chunks; the verify-stream parses byte-by-byte through the 6-byte v3 header (suite + ctx_len + ctx + payload_len), then consumes exactly `payload_len` bytes of payload, then buffers the trailing bytes as the sig until `finalize`. A receiver that doesn't yet know which suite produced the wire bytes can call `Sign.peek` (next example) before constructing `VerifyStream`.
-
-### `Sign.peek` for routing
-
-```typescript
-import {
-  init,
-  Sign,
-  MlDsa65Suite,
-} from 'leviathan-crypto'
-import { mldsaWasm } from 'leviathan-crypto/mldsa/embedded'
-import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
-
-await init({ mldsa: mldsaWasm, sha3: sha3Wasm })
-
-// blob is an attached envelope produced by Sign.sign or SignStream.
-// peek validates structural shape only; it does NOT verify the signature
-// and does NOT compare ctx.
-const meta = Sign.peek(blob, MlDsa65Suite)
-// meta.suiteByte      : number, the wire suite byte
-// meta.ctx            : Uint8Array, the wire ctx
-// meta.payloadOffset  : number, byte offset of the payload start
-// meta.payloadLength  : number, payload length in bytes
-// meta.sigOffset      : number, byte offset of the signature start
-```
-
-Use `peek` to extract metadata for routing or logging without paying the verify cost. Always follow up with `Sign.verify` (or `VerifyStream`) before trusting the payload.
-
----
-
 ## Memory hygiene
-
-Three layers each hold a copy of secret-adjacent state. The library wipes its copies on well-defined boundaries; caller-owned buffers are never touched.
-
-### SignStream
-
-`new SignStream(suite, sk, ctx)` copies `ctx` into a lib-owned `Uint8Array`. `sk` is held by reference and never wiped. The running prehash is disposed in both `finalize()` and `dispose()`.
-
-The ctx copy survives `finalize()` deliberately. `buildPreamble(payloadLength)` is available at any point in the stream lifecycle, and the canonical assembly pattern calls `finalize()`, then `buildPreamble()`, then concatenates the blob. Wiping ctx earlier would zero the preamble's ctx field. `dispose()` wipes the ctx copy, so call it once the blob is assembled.
-
-### VerifyStream
-
-`update(chunk)` copies every payload byte into an internally-owned chunk so a caller-side mutation cannot retroactively change the buffered payload. `pk` and the expected `ctx` are held by reference and never wiped.
-
-`finalize()` wipes `payloadChunks`, `sigBuf`, and `headerBuf` on both the success path and every failure path. The returned payload is a fresh `concat(...)` allocation, so wiping the internal chunks does not corrupt the result. `dispose()` performs the same wipe and is idempotent.
-
-### Suite methods
 
 Each suite call instantiates a fresh primitive class, runs the operation inside a `try`, and calls `dispose()` in `finally`. The primitive's `dispose()` invokes the WASM module's `wipeBuffers()`, so key material does not persist in linear memory between calls.
 
@@ -1044,6 +862,8 @@ Lib-allocated temporaries get the same treatment:
 - The hedged-entropy `rnd` buffer inside the ECDSA-P256 sign path is wiped in `finally`.
 
 Caller-owned buffers are never wiped: `sk`, `pk`, `msg`, the `digest` passed to `signPrehashed` and `verifyPrehashed`, `sig`, and the user `ctx`. Hybrid verify paths take subarray views over caller-owned `sig` and `pk`; those views inherit the same rule.
+
+See [signing.md](./signing.md#memory-hygiene) for the `SignStream` and `VerifyStream` wipe discipline.
 
 ---
 
@@ -1118,12 +938,15 @@ The library carries both hybrid families because consumer threat models differ. 
 |----------|-------------|
 | [README](./README.md) | Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`, envelope wire format, and `SigningError` |
 | [ciphersuite](./ciphersuite.md) | Symmetric / AEAD counterpart to this document |
 | [mldsa](./mldsa.md) | Underlying ML-DSA reference, including `signHashPrehashed` and the FIPS 204 §5.4 prehash family |
 | [slhdsa](./slhdsa.md) | Underlying SLH-DSA reference, including `signHashPrehashed` and the FIPS 205 §10.2.2 prehash family |
+| [ed25519](./ed25519.md) | Underlying Ed25519 reference, including the dom2(F=1, ctx) construction |
+| [ecdsa-p256](./ecdsa-p256.md) | Underlying ECDSA-P256 reference, including RFC 6979 nonce derivation and low-S enforcement |
 | [SECURITY.md](../SECURITY.md) | Project security policy and the PQ-only hybrid threat model |
-| [aead](./aead.md) | `Seal`, `SealStream`, `OpenStream` (parallel encryption surface) |
-| [errors](./exports.md) | `SigningError` and `AuthenticationError` export reference |
+| [aead](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` (authenticated encryption surface) |
+| [exports](./exports.md) | `SigningError` and `AuthenticationError` export reference |
 | [types](./types.md) | TypeScript interfaces |
 
 External references:
