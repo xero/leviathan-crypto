@@ -526,6 +526,16 @@ function condSub9IfGe(acc: i32, pBuf: i32): void {
 	store<i32>(acc + 32, ((va8 & (mask as i32)) | (vb8 & (~mask as i32))))
 }
 
+/**
+ * out = a² (mod p). Reuses feMul: a true Comba / off-diagonal-symmetry
+ * squaring routine was measured at 0.985-1.04x the cost of feMul(a, a)
+ * in this radix-2^32 saturated representation under the AssemblyScript /
+ * WASM toolchain. The 28 saved partial-product multiplications are eaten
+ * by the carry-propagation overhead of the diagonal phase plus the
+ * extra dispatch shape; the schoolbook in feMul is tight enough that the
+ * theoretical 30% savings do not materialise. See p256_perf.md
+ * §"Comba feSqr (rejected by measurement)" for the bench detail.
+ */
 export function feSqr(out: i32, a: i32): void {
 	feMul(out, a, a)
 }
