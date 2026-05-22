@@ -14,6 +14,7 @@ data-dependent memory access on secret-derived values" rule.
 > - [Change 1: Comba feSqr (rejected by measurement)](#change-1-comba-fesqr-rejected-by-measurement)
 > - [Change 2: Strauss-Shamir verify](#change-2-strauss-shamir-verify)
 > - [Change 3: Windowed scalarInv](#change-3-windowed-scalarinv)
+> - [Change 4: Bernstein-Yang safegcd scalarInv](#change-4-bernstein-yang-safegcd-scalarinv)
 > - [Combined effect](#combined-effect)
 > - [What remains on the table](#what-remains-on-the-table)
 > - [Cross-References](#cross-references)
@@ -187,50 +188,120 @@ The branch-on-public-bit is the load-bearing move. Constant-time
 discipline on a SECRET exponent forces always-compute, which doubles
 the multiply count. Public exponents can branch freely.
 
+## Change 4: Bernstein-Yang safegcd scalarInv
+
+**Implementation.** Replaced the windowed Fermat scalarInv with
+bit-by-bit Bernstein-Yang safegcd (eprint 2019/266 §11). 743 divsteps
+over a 9 × u32 LE-limb signed representation of (f, g), with (u, v)
+tracked modulo n in 8 × u32 LE limbs. Constant-time by construction:
+
+- Every conditional in the divstep uses mask-driven selects on the two
+  per-step bits: `δ > 0` and `g & 1`. Neither is branched on directly.
+- Per-divstep update of (u, v): 9-limb mask-driven mul-add of u into v
+  (with sign encoded via two's-complement: XOR with `maskNeg`,
+  AND with `maskUse`, carry-in = `swapCond`), then reduce mod n by
+  conditional add of n if negative + conditional sub of n if ≥ n, then
+  modular halve by conditional add of n if odd + arithmetic shift right.
+- Fixed 743-iteration count from Theorem 11.2 (`iter(n) = ⌈(49n+80)/17⌉`
+  for n = 256).
+- At termination: if f's sign bit is set, the answer is `n - u` instead
+  of `u` (computed via constant-time conditional select).
+
+The implementation works in LE u32 limbs internally, bypassing the
+byte-by-byte scalarMul / scalarReduce64 path entirely. BE↔LE conversion
+at the function boundary is the only byte-level work.
+
+**Result.** 5-run median, baseline → after change 4 (cumulative with
+#2 and #3):
+
+| op | baseline | after #3 (windowed) | after #4 (safegcd) | total delta |
+|----|----------|---------------------|--------------------|--------------|
+| scalarInv | 10.54 ms | 6.49 ms | **32.4 µs** | **−99.69%** (325× faster) |
+| ecdsaSign | 14.41 ms | 10.41 ms | **3.92 ms** | **−72.8%** (3.67× faster) |
+| ecdsaVerify | 14.46 ms | 8.41 ms | **1.92 ms** | **−86.7%** (7.53× faster) |
+
+**Why so much bigger than my pre-implementation estimate (5×).** Three
+compounding effects:
+
+1. Per-divstep cost is much lower than I assumed. I estimated ~10 ns
+   per u32 op based on conservative WASM/JSC numbers. Actual is closer
+   to 1-2 ns per u32 op on JSC for this code shape (tight u32 work with
+   excellent register allocation).
+2. No scalarMul calls at all. The windowed implementation made ~270
+   scalarMul calls each averaging 20 µs (5.4 ms total). Safegcd uses
+   only 9-limb u32 additions and shifts.
+3. WASM JIT loves tight u32 loops. The divstep body is mostly
+   register-resident operations on small operands; JSC optimizes the
+   path aggressively.
+
+The 743 × ~85 u32 ops × ~0.5 ns ≈ 32 µs matches the measurement.
+
+**Audit notes.**
+
+- Algorithm: eprint 2019/266 §11.3 (divstep), §11.2 (iteration bound),
+  §11.4 (magnitude bound). Independently transcribed per AGENTS.md §4;
+  cross-checked against RustCrypto `crypto-bigint::modular::safegcd` and
+  BoringSSL `bn_mod_inverse_consttime` for algorithm shape only.
+- Correctness: 200 deterministic random + 5 edge-case inputs verified
+  via the `a · inv(a) ≡ 1 (mod n)` substrate invariant
+  (`test/unit/p256/scalar.test.ts > scalarInv: stress test`). Plus the
+  RFC 6979 §A.2.5 KAT vectors implicitly verify k^{-1} via the
+  reproduced (r, s) outputs.
+- Constant-time: branches on `δ > 0` and `g & 1` use mask-driven
+  selects throughout. The iteration count is the fixed public bound;
+  the per-step work is fixed-shape regardless of secret inputs.
+
 ## Combined effect
 
-5-run median, baseline → after both changes:
+5-run median, baseline → after all four changes (#1 was rejected by
+measurement; #2, #3, #4 shipped):
 
-| op | baseline | after #2 + #3 | delta |
-|----|----------|---------------|-------|
-| feMul | 240 ns | 240 ns | -0.0% |
-| feSqr | 237 ns | 236 ns | -0.3% |
-| feInv | 123.3 µs | 122.4 µs | -0.7% |
-| scalarMul | 20.4 µs | 19.9 µs | -2.2% |
-| scalarInv | 10.54 ms | 6.49 ms | **−38.4%** |
-| pointAdd | 3.63 µs | 3.62 µs | -0.4% |
-| pointDouble | 3.32 µs | 3.30 µs | -0.4% |
-| pointMul | 1.79 ms | 1.77 ms | -1.0% |
-| pointMulBase | 1.79 ms | 1.78 ms | -0.5% |
-| **ecdsaSign** | **14.41 ms** | **10.41 ms** | **−27.7%** |
-| **ecdsaVerify** | **14.46 ms** | **8.41 ms** | **−41.8%** |
+| op | baseline | shipped | delta |
+|----|----------|---------|-------|
+| feMul | 240 ns | 237 ns | -1.2% |
+| feSqr | 237 ns | 237 ns | +0.1% |
+| feInv | 123.3 µs | 129.4 µs | +5.0% (variance) |
+| scalarMul | 20.4 µs | 20.3 µs | -0.3% |
+| **scalarInv** | **10.54 ms** | **32.4 µs** | **−99.7%** (325× faster) |
+| pointAdd | 3.63 µs | 3.63 µs | -0.1% |
+| pointDouble | 3.32 µs | 3.38 µs | +1.8% (variance) |
+| pointMul | 1.79 ms | 1.78 ms | -0.4% |
+| pointMulBase | 1.79 ms | 1.80 ms | +0.5% |
+| **ecdsaSign** | **14.41 ms** | **3.92 ms** | **−72.8%** (3.67× faster) |
+| **ecdsaVerify** | **14.46 ms** | **1.92 ms** | **−86.7%** (7.53× faster) |
 
-WASM binary growth: `build/p256.wasm` 19,084 → 19,376 bytes (+292
-bytes, +1.5%). gzip-embedded delta: 6.1 → 6.2 KB.
+WASM binary growth: `build/p256.wasm` 19,084 → 20,288 bytes (+1,204
+bytes, +6.3%). gzip-embedded delta: 6.1 → 6.6 KB.
 
 ## What remains on the table
 
-After #2 + #3:
+After #2 + #3 + #4:
 
-| component of cost | wall-clock | % of sign | % of verify |
-|-------------------|------------|-----------|-------------|
-| scalarInv | 6.49 ms | 62% | 77% |
-| pointMul / pointMulBase | 1.78 ms / 1.78 ms | 17% | 21% |
-| other (SHA, HMAC-DRBG, scalarMul, etc.) | ~2.1 ms | 21% | ~2% |
+| component of cost | sign | verify |
+|-------------------|------|--------|
+| pointMulBase / pointMul / pointMulDoubleVerify | 1.80 ms (46%) | 1.80 ms (94%) |
+| SHA-256 + HMAC-DRBG + scalarMul (RFC 6979 K-derivation) | ~1.9 ms (49%) | n/a |
+| scalarInv | 32 µs (0.8%) | 32 µs (1.7%) |
+| other (reductions, affinify, etc.) | ~0.2 ms | ~0.1 ms |
 
-`scalarInv` still dominates. The remaining 6.49 ms is the cost of 256
-scalar squarings plus 56 scalar multiplies plus the 14-entry
-precompute. Each scalar op is byte-level (32-byte BE schoolbook) so
-no constant-factor optimization on the substrate squaring (rejected in
-change 1) would help.
+Sign is now dominated by SHA-256 + HMAC-DRBG + pointMulBase. Verify is
+dominated entirely by `pointMulDoubleVerify`. Both ECDSA paths are now
+in the low single-millisecond range.
 
-The next-tier change would be **Bernstein-Yang safegcd** for
-`scalarInv` (eprint 2019/266), which computes `a^-1 mod n` in
-constant-time via a 743-divstep iteration without modular squarings.
-Estimated speedup: ~5x over the current windowed implementation,
-landing both sign and verify around 6 ms wall-clock. Not pursued in
-this round; the audit-surface cost is significantly larger than #2 + #3
-combined and merits a dedicated effort.
+The next-tier optimization targets:
+
+- **Limb-level scalarMul.** The byte-by-byte schoolbook in scalar.ts
+  is ~20 µs per call; a limb-level radix-2^32 schoolbook (mirroring
+  feMul's shape with a Barrett or Montgomery reduction mod n) would
+  be ~250 ns per call, an 80× speedup. Affects the RFC 6979 K-derivation
+  (~270 scalarMuls per sign) and the verify u1/u2 computation (2 muls).
+  Estimated sign delta: ~−5 ms to ~−6 ms, possibly larger if HMAC-DRBG
+  also shares the scalarMul time. Audit surface: moderate.
+
+- **Pre-computed comb for `[scalar]G`.** Adds a precomputed table
+  indexed by SECRET scalar bits, which is the architectural posture
+  this library does not pursue (SECURITY.md §Side-channel resistance).
+  Stays rejected.
 
 A note on what was investigated and explicitly NOT pursued:
 

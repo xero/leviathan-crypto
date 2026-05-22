@@ -393,99 +393,365 @@ export function scalarMul(out: i32, a: i32, b: i32): void {
 	scalarReduce64(out, prod)
 }
 
-// ── scalarInv: a^(n-2) via Fermat, fixed 4-bit windowed exponentiation ─────
+// ── scalarInv: a^(-1) mod n via Bernstein-Yang safegcd ─────────────────────
 //
-// n - 2 BE = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF BCE6FAAD A7179E84 F3B9CAC2 FC63254F
-//   (same as n with the last byte 0x4F instead of 0x51).
+// Reference: Bernstein & Yang, "Fast constant-time gcd computation and
+// modular inversion", eprint 2019/266, §11 "Modular inverse".
 //
-// Fixed-window square-and-multiply over the PUBLIC exponent (n-2),
-// window size w = 4. Precomputes a 15-entry table of odd-and-even powers
-// a^1..a^15 once, then scans (n-2) MSB-first as 64 4-bit windows. Per
-// window: 4 squarings, then if the window value is non-zero, one multiply
-// by table[win].
+// Algorithm overview:
 //
-// Memory layout:
-//   - Table at FIELD_TMP slots 16..30 (15 × 32 bytes = 480 bytes). These
-//     slots are clobbered by point.ts only inside point-arithmetic
-//     routines; scalarMul / scalarReduce64 / ctSubN33BE touch only
-//     slots 0..3 and 12..13. scalarInv is never called concurrently
-//     with point ops within a single substrate entry point.
-//   - acc at slot 5.
+//   The divstep function (Definition 11.3 of eprint 2019/266):
+//
+//     divstep(δ, f, g):
+//       if δ > 0 and g is odd:
+//         return (1 - δ, g, (g - f) / 2)
+//       else:
+//         return (1 + δ, f, (g + (g & 1) · f) / 2)
+//
+//   For modular inverse: track (u, v) such that a·u ≡ f (mod n) and
+//   a·v ≡ g (mod n). Initialize:
+//
+//     f = n, g = a, u = 0, v = 1, δ = 1
+//
+//   After iter(256) divsteps (Theorem 11.2: iter = ⌈(49·256+80)/17⌉ = 743),
+//   we have g = 0 and f = ±gcd(n, a) = ±1 (since n is prime, a ∈ [1, n-1]).
+//   The invariant a·u ≡ f (mod n) gives a^{-1} = sign(f) · u (mod n).
+//
+//   Per-divstep update of (u, v) parallels (f, g):
+//     swap_cond = (δ > 0) AND (g & 1)
+//     (f', g') = swap_cond ? (g, (g - f) / 2)        : (f, (g + (g & 1)·f) / 2)
+//     (u', v') = swap_cond ? (v, (v - u) / 2 mod n)  : (u, (v + (g & 1)·u) / 2 mod n)
+//     δ'       = swap_cond ? (1 - δ)                 : (1 + δ)
+//
+// Internal representation:
+//   f, g: 9 × u32 LE limbs, signed two's complement. Theorem 11.4 bounds
+//   |f|, |g| < 2^256 throughout; the 9th limb absorbs sign extension.
+//
+//   u, v: 8 × u32 LE limbs, unsigned in [0, n).
+//
+//   Per-divstep update of v (and similarly for the v' = (v + sign·u)/2
+//   mod n case) computes v_pre = v + sign·u as a 9-limb signed value,
+//   reduces to [0, n) by conditional add / sub of n, then halves
+//   modularly by adding n if odd and right-shifting.
 //
 // Constant-time discipline:
-//   - The exponent (n-2) is a public constant. Loop iteration count is
-//     fixed at 64 windows, each doing exactly 4 squarings. The branch
-//     `if (win != 0)` is on PUBLIC exponent bits, not on the secret `a`.
-//   - The table lookup `tableBase + (win-1)*32` is indexed by PUBLIC
-//     exponent bits. The access pattern is deterministic given the
-//     public exponent; no secret-bit-driven memory access.
-//   - The table CONTENTS are derived from the secret `a`, but their
-//     ACCESS PATTERN is public-only (architectural posture forbids
-//     secret-bit-indexed tables; public-bit-indexed tables of
-//     secret-derived data are out of scope, same shape as ECDSA verify's
-//     fixed-window pattern at scalar_mult.ts pointMulDoubleVerify).
+//   Every conditional in the divstep is on a secret-derived value
+//   (g & 1 depends on a's history; δ > 0 depends on past `g & 1` bits).
+//   All conditional ops use mask-driven selects and unconditional
+//   loops over fixed limb counts. No branch on secret data.
 //
-// Cost (against baseline naive square-and-multiply):
-//   - Naive Fermat: 256 squarings + 128 conditional multiplies = ~384
-//     scalarMul-equivalents (each multiply is unconditional with a
-//     32-byte ct-select).
-//   - Windowed (this): 14 precompute mults + 256 squarings + (64 - 8)
-//     non-zero windows × 1 mult = 326 scalarMul-equivalents.
-//   - ~15% reduction; verified by bench.
+// Cost (versus the previous windowed Fermat at ~6.5 ms):
+//   743 divsteps × ~85 u32 ops each ≈ 63,000 u32 ops + BE↔LE conversion.
+//   Target: ~250-400 µs per scalarInv. ~15-25× faster than windowed.
+//
+// Audit references:
+//   - eprint 2019/266 §11.3 (Definition: divstep)
+//   - eprint 2019/266 §11.2 (Theorem: iteration bound)
+//   - eprint 2019/266 §11.4 (Theorem: magnitude bound)
+
+// 8-limb LE u32 form of n (the P-256 curve order), reconstructed from
+// SP 800-186 §3.2.1.3 via the N00..N31 BE byte constants above. Public
+// constant; not derived from any planning document.
+//
+//   n = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF
+//       BCE6FAAD A7179E84 F3B9CAC2 FC632551   (32 BE hex digits)
+//
+//   n_le[0] = 0xFC632551  (LSB)
+//   n_le[7] = 0xFFFFFFFF  (MSB)
+@inline
+function loadNLE(buf: i32): void {
+	store<u32>(buf +  0, 0xFC632551)
+	store<u32>(buf +  4, 0xF3B9CAC2)
+	store<u32>(buf +  8, 0xA7179E84)
+	store<u32>(buf + 12, 0xBCE6FAAD)
+	store<u32>(buf + 16, 0xFFFFFFFF)
+	store<u32>(buf + 20, 0xFFFFFFFF)
+	store<u32>(buf + 24, 0x00000000)
+	store<u32>(buf + 28, 0xFFFFFFFF)
+}
+
+// Convert 32 BE bytes at `src` to 8 LE u32 limbs at `dst`.
+@inline
+function beBytesToLE(dst: i32, src: i32): void {
+	for (let i: i32 = 0; i < 8; i++) {
+		const base: i32 = src + 28 - (i << 2)
+		const v: u32 =
+			((load<u8>(base    ) as u32) << 24) |
+			((load<u8>(base + 1) as u32) << 16) |
+			((load<u8>(base + 2) as u32) <<  8) |
+			 (load<u8>(base + 3) as u32)
+		store<u32>(dst + (i << 2), v)
+	}
+}
+
+// Convert 8 LE u32 limbs at `src` to 32 BE bytes at `dst`.
+@inline
+function leToBytesBE(dst: i32, src: i32): void {
+	for (let i: i32 = 0; i < 8; i++) {
+		const v: u32 = load<u32>(src + (i << 2))
+		const base: i32 = dst + 28 - (i << 2)
+		store<u8>(base    , ((v >> 24) & 0xff) as u8)
+		store<u8>(base + 1, ((v >> 16) & 0xff) as u8)
+		store<u8>(base + 2, ((v >>  8) & 0xff) as u8)
+		store<u8>(base + 3,  (v        & 0xff) as u8)
+	}
+}
+
+// Arithmetic right shift by 1 of a 9-limb signed two's complement
+// value. The MSB of limb 8 (sign bit) is preserved by using an i32
+// arithmetic shift on the top limb; the bit shifted out of limb i+1
+// becomes bit 31 of new limb i.
+@inline
+function arithShr1_9(buf: i32): void {
+	const topOld: i32 = load<i32>(buf + 32)
+	const topNew: i32 = topOld >> 1
+	store<i32>(buf + 32, topNew)
+	let prevBit: u32 = (topOld & 1) as u32
+	for (let i: i32 = 7; i >= 0; i--) {
+		const v: u32 = load<u32>(buf + (i << 2))
+		const newV: u32 = (prevBit << 31) | (v >> 1)
+		store<u32>(buf + (i << 2), newV)
+		prevBit = v & 1
+	}
+}
+
+// Conditionally add n (8 LE limbs at `n_le`) to a 9-limb signed value
+// at `buf`. `cond` is 0 or 1. n is added if cond = 1.
+@inline
+function condAddN9(buf: i32, n_le: i32, cond: u32): void {
+	const mask: u32 = ((-(cond as i32)) as u32)
+	let carry: u64 = 0
+	for (let i: i32 = 0; i < 8; i++) {
+		const v:  u64 = load<u32>(buf + (i << 2)) as u64
+		const nv: u64 = (load<u32>(n_le + (i << 2)) as u64) & (mask as u64)
+		const s:  u64 = v + nv + carry
+		store<u32>(buf + (i << 2), s as u32)
+		carry = s >> 32
+	}
+	const v9: u32 = load<u32>(buf + 32)
+	store<u32>(buf + 32, v9 + (carry as u32))
+}
+
+// Conditionally subtract n from a 9-limb signed value. cond is 0 or 1.
+@inline
+function condSubN9(buf: i32, n_le: i32, cond: u32): void {
+	const mask: u32 = ((-(cond as i32)) as u32)
+	let borrow: u64 = 0
+	for (let i: i32 = 0; i < 8; i++) {
+		const v:  u64 = load<u32>(buf + (i << 2)) as u64
+		const nv: u64 = (load<u32>(n_le + (i << 2)) as u64) & (mask as u64)
+		const d:  u64 = v - nv - borrow
+		store<u32>(buf + (i << 2), d as u32)
+		borrow = (d >> 63) & 1
+	}
+	const v9: u32 = load<u32>(buf + 32)
+	store<u32>(buf + 32, v9 - (borrow as u32))
+}
+
+// Test if a 9-limb signed value is >= n. Branchless: compute the
+// subtraction and inspect the borrow + top-limb sign bit. Discards the
+// difference; the caller separately decides whether to commit it.
+@inline
+function geN9(buf: i32, n_le: i32): u32 {
+	let borrow: u64 = 0
+	for (let i: i32 = 0; i < 8; i++) {
+		const v:  u64 = load<u32>(buf + (i << 2)) as u64
+		const nv: u64 = load<u32>(n_le + (i << 2)) as u64
+		const d:  u64 = v - nv - borrow
+		borrow = (d >> 63) & 1
+	}
+	// Top limb signed: subtract just borrow.
+	const top: i32 = load<i32>(buf + 32)
+	const topAfter: i32 = top - (borrow as i32)
+	// value >= n iff (value - n) >= 0 iff topAfter is non-negative.
+	return ((topAfter >> 31) ^ -1) as u32 & 1
+}
 
 /**
- * out = a^(-1) mod n via Fermat (a^(n-2)). Fixed 4-bit window over the
- * public exponent. Caller must ensure a ∈ [1, n-1]; a = 0 returns 0
- * (mathematically undefined). The sign / verify call sites guarantee
- * a is canonical and nonzero per RFC 6979 K-derivation and the verify
- * strict-gate.
+ * out = a^(-1) mod n via Bernstein-Yang safegcd (eprint 2019/266 §11).
+ *
+ * Caller must ensure a ∈ [1, n-1]; a = 0 returns 0 (mathematically
+ * undefined). The sign / verify call sites guarantee a is canonical
+ * and nonzero per RFC 6979 K-derivation and the verify strict-gate.
+ *
+ * Constant-time over the secret a. The 743-divstep iteration count is
+ * the public bound from eprint 2019/266 Theorem 11.2.
  */
 export function scalarInv(out: i32, a: i32): void {
-	// 15-entry table at FIELD_TMP slots 16..30. table[v-1] = a^v for
-	// v in 1..15; v=0 is the multiplicative identity and is never
-	// looked up (skip-on-zero-window).
-	const tableBase: i32 = FIELD_TMP + 16 * FIELD_TMP_STRIDE
+	// Scratch layout in FIELD_TMP starting at offset slot 4 (byte 128):
+	//   off 128: f       (36 bytes, 9 LE u32 limbs, signed)
+	//   off 164: g       (36 bytes, 9 LE u32 limbs, signed)
+	//   off 200: u       (32 bytes, 8 LE u32 limbs, unsigned in [0, n))
+	//   off 232: v       (32 bytes, 8 LE u32 limbs, unsigned in [0, n))
+	//   off 264: n_le    (32 bytes, 8 LE u32 limbs)
+	//   off 296: tmpF    (36 bytes)
+	//   off 332: tmpG    (36 bytes)
+	//   off 368: tmpU    (36 bytes — sized for the 9-limb stage)
+	//   off 404: tmpV    (36 bytes)
+	// Total: 312 bytes, well within FIELD_TMP (1024 bytes).
+	// FIELD_TMP is otherwise unused during scalarInv (scalarMul / point ops
+	// are not called from here).
+	const base: i32 = FIELD_TMP + 128
+	const f:    i32 = base +   0
+	const g:    i32 = base +  36
+	const u:    i32 = base +  72
+	const v:    i32 = base + 104
+	const nLE:  i32 = base + 136
+	const tmpF: i32 = base + 168
+	const tmpG: i32 = base + 204
+	const tmpU: i32 = base + 240
+	const tmpV: i32 = base + 276
 
-	// table[0] (offset 0) = a^1 = a
-	memory.copy(tableBase, a, 32)
-	// table[1] (offset 32) = a^2
-	scalarMul(tableBase + 32, a, a)
-	// table[v-1] = table[v-2] * a for v = 3..15
-	for (let v: i32 = 3; v <= 15; v++) {
-		scalarMul(tableBase + (v - 1) * 32, tableBase + (v - 2) * 32, a)
-	}
+	// Initialise n_le and (f, g, u, v).
+	loadNLE(nLE)
 
-	// acc starts at 1.
-	const acc: i32 = FIELD_TMP + 5 * FIELD_TMP_STRIDE
-	memory.fill(acc, 0, 32)
-	store<u8>(acc + 31, 1)
+	// f = n (8 limbs from nLE) extended to 9 limbs with sign-limb = 0.
+	memory.copy(f, nLE, 32)
+	store<u32>(f + 32, 0)
 
-	// Scan (n-2) MSB-first in 4-bit windows. nByte(i) returns byte i of n;
-	// for i = 31 we subtract 2 to get (n-2)'s LSB.
-	for (let byteIdx: i32 = 0; byteIdx < 32; byteIdx++) {
-		const raw: u8 = nByte(byteIdx)
-		const byte: u8 = byteIdx == 31 ? ((raw as u32 - 2) as u8) : raw
+	// g = a (8 LE limbs from BE bytes) extended with sign-limb = 0.
+	beBytesToLE(g, a)
+	store<u32>(g + 32, 0)
 
-		// High nibble (bits 7..4).
-		const hi: i32 = ((byte as i32) >> 4) & 0xF
-		scalarMul(acc, acc, acc)
-		scalarMul(acc, acc, acc)
-		scalarMul(acc, acc, acc)
-		scalarMul(acc, acc, acc)
-		if (hi != 0) {
-			scalarMul(acc, acc, tableBase + (hi - 1) * 32)
+	// u = 0 (all 8 limbs zero).
+	memory.fill(u, 0, 32)
+
+	// v = 1 (LSB = 1, rest zero).
+	memory.fill(v, 0, 32)
+	store<u32>(v, 1)
+
+	let delta: i32 = 1
+
+	// 743 divsteps (eprint 2019/266 Theorem 11.2 for 256-bit inputs).
+	for (let step: i32 = 0; step < 743; step++) {
+		const deltaPos: u32 = (delta > 0 ? 1 : 0) as u32
+		const gLsb:     u32 = load<u32>(g) & 1
+		const swapCond: u32 = deltaPos & gLsb
+
+		const maskSwap: u32 = ((-(swapCond as i32)) as u32)
+		const useCond:  u32 = swapCond | gLsb
+		const maskUse:  u32 = ((-(useCond as i32)) as u32)
+		const maskNeg:  u32 = maskSwap
+
+		// tmpF = swap_cond ? g : f  (9-limb ct-select)
+		for (let i: i32 = 0; i < 9; i++) {
+			const fv: u32 = load<u32>(f + (i << 2))
+			const gv: u32 = load<u32>(g + (i << 2))
+			store<u32>(tmpF + (i << 2), (gv & maskSwap) | (fv & ~maskSwap))
 		}
 
-		// Low nibble (bits 3..0).
-		const lo: i32 = (byte as i32) & 0xF
-		scalarMul(acc, acc, acc)
-		scalarMul(acc, acc, acc)
-		scalarMul(acc, acc, acc)
-		scalarMul(acc, acc, acc)
-		if (lo != 0) {
-			scalarMul(acc, acc, tableBase + (lo - 1) * 32)
+		// tmpG = g + (swap_cond ? -1 : g_lsb) · f, as 9-limb signed.
+		//   For sign = -1: add ~f and carry-in 1 (two's complement of f)
+		//   For sign = +1: add f
+		//   For sign =  0: add 0
+		// Encoded via maskUse / maskNeg + initial carry = swapCond.
+		{
+			let carry: u64 = swapCond as u64
+			for (let i: i32 = 0; i < 9; i++) {
+				const gv:  u64 = load<u32>(g + (i << 2)) as u64
+				const fEff: u32 = (load<u32>(f + (i << 2)) ^ maskNeg) & maskUse
+				const s:   u64 = gv + (fEff as u64) + carry
+				store<u32>(tmpG + (i << 2), s as u32)
+				carry = s >> 32
+			}
+			// 10th-limb carry dropped (Theorem 11.4 magnitude bound).
+		}
+
+		// tmpG /= 2 (arithmetic shift right by 1, sign-preserving).
+		arithShr1_9(tmpG)
+
+		// tmpU = swap_cond ? v : u  (8-limb ct-select; 9th limb unused).
+		for (let i: i32 = 0; i < 8; i++) {
+			const uv: u32 = load<u32>(u + (i << 2))
+			const vv: u32 = load<u32>(v + (i << 2))
+			store<u32>(tmpU + (i << 2), (vv & maskSwap) | (uv & ~maskSwap))
+		}
+
+		// tmpV = v + (swap_cond ? -1 : g_lsb) · u, as 9-limb signed.
+		//   Same mask-driven mul-add pattern as for f, but u is 8-limb;
+		//   the 9th limb of u's two's-complement extension is
+		//   (maskNeg AND maskUse) — all-ones when negating u, zero otherwise.
+		{
+			let carry: u64 = swapCond as u64
+			for (let i: i32 = 0; i < 8; i++) {
+				const vv:  u64 = load<u32>(v + (i << 2)) as u64
+				const uEff: u32 = (load<u32>(u + (i << 2)) ^ maskNeg) & maskUse
+				const s:   u64 = vv + (uEff as u64) + carry
+				store<u32>(tmpV + (i << 2), s as u32)
+				carry = s >> 32
+			}
+			// 9th limb: v_high (0) + sign-extended-u_high (maskNeg & maskUse) + carry.
+			const u9: u32 = maskNeg & maskUse
+			const s9: u64 = (u9 as u64) + carry
+			store<u32>(tmpV + 32, s9 as u32)
+		}
+
+		// Reduce tmpV to [0, n):
+		//   if tmpV < 0 (sign bit set): tmpV += n
+		const vNeg: u32 = ((load<i32>(tmpV + 32) >> 31) as u32) & 1
+		condAddN9(tmpV, nLE, vNeg)
+		//   if tmpV >= n: tmpV -= n
+		const vGe: u32 = geN9(tmpV, nLE)
+		condSubN9(tmpV, nLE, vGe)
+
+		// Modular halve: if tmpV is odd, add n (n is odd, so tmpV + n is
+		// even), then arithmetic-shift right by 1. Result is in [0, n).
+		const vOdd: u32 = load<u32>(tmpV) & 1
+		condAddN9(tmpV, nLE, vOdd)
+		arithShr1_9(tmpV)
+
+		// Commit: tmpF → f, tmpG → g, tmpU → u, tmpV[0..7] → v.
+		memory.copy(f, tmpF, 36)
+		memory.copy(g, tmpG, 36)
+		memory.copy(u, tmpU, 32)
+		memory.copy(v, tmpV, 32)
+
+		// δ_new = swap_cond ? (1 - δ) : (1 + δ)
+		// Branch-free: δ_new = (1 - 2·swap_cond) · δ + 1
+		delta = (1 - 2 * (swapCond as i32)) * delta + 1
+	}
+
+	// At termination: f = ±1 (since gcd(n, a) = 1) and a·u ≡ f (mod n).
+	// If f is negative (sign bit of limb 8 set), negate u mod n.
+	const fNeg: u32 = ((load<i32>(f + 32) >> 31) as u32) & 1
+
+	// Compute (n - u) into tmpU (8-limb), constant-time. n - u ∈ (0, n] for
+	// u ∈ [0, n); for u = 0 it equals n, which is non-canonical. The valid
+	// inverse case has u ∈ [1, n-1] so n - u is in [1, n-1]. We still
+	// produce the canonical answer by handling the u = 0 corner: if u = 0,
+	// don't subtract from n; return 0. This corner is mathematically
+	// degenerate (a = 0 input), but the wipe shape stays uniform.
+	{
+		let borrow: u64 = 0
+		for (let i: i32 = 0; i < 8; i++) {
+			const nv: u64 = load<u32>(nLE + (i << 2)) as u64
+			const uv: u64 = load<u32>(u + (i << 2)) as u64
+			const d:  u64 = nv - uv - borrow
+			store<u32>(tmpU + (i << 2), d as u32)
+			borrow = (d >> 63) & 1
 		}
 	}
 
-	memory.copy(out, acc, 32)
+	// If u was zero, tmpU is now n; mask it to zero in that case to keep
+	// canonical. Test: u == 0 by OR-folding limbs.
+	let uOr: u32 = 0
+	for (let i: i32 = 0; i < 8; i++) uOr |= load<u32>(u + (i << 2))
+	const uZero: u32 = (uOr | ((-(uOr as i32)) as u32)) >> 31 ^ 1  // 1 if u == 0
+	// If u was zero, force tmpU to zero. (Mask: 0 if u == 0, ~0 otherwise.)
+	const tmpUMask: u32 = ((-(((1 - uZero) as i32))) as u32)
+	for (let i: i32 = 0; i < 8; i++) {
+		const w: u32 = load<u32>(tmpU + (i << 2))
+		store<u32>(tmpU + (i << 2), w & tmpUMask)
+	}
+
+	// out_le = fNeg ? tmpU : u
+	const maskFNeg: u32 = ((-(fNeg as i32)) as u32)
+	for (let i: i32 = 0; i < 8; i++) {
+		const uv:  u32 = load<u32>(u    + (i << 2))
+		const tv:  u32 = load<u32>(tmpU + (i << 2))
+		store<u32>(tmpV + (i << 2), (tv & maskFNeg) | (uv & ~maskFNeg))
+	}
+
+	// Convert tmpV (LE limbs) to 32 BE bytes at out.
+	leToBytesBE(out, tmpV)
 }

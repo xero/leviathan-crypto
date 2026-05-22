@@ -470,10 +470,10 @@ scalarAdd(out, a, b):         out = (a + b) mod n
 scalarSub(out, a, b):         out = (a - b) mod n
 scalarMul(out, a, b):         out = (a * b) mod n
 scalarNegate(out, a):         out = (n - a) mod n
-scalarInv(out, a):            out = a^(-1) mod n via Fermat
-                              (fixed 4-bit windowed exponentiation
-                              over the PUBLIC (n-2) exponent; see
-                              p256_perf.md §Change 3)
+scalarInv(out, a):            out = a^(-1) mod n via Bernstein-Yang
+                              safegcd, 743 divsteps (eprint 2019/266
+                              §11). Constant-time over secret a.
+                              See p256_perf.md §Change 4.
 ```
 
 ### Projective points + complete addition

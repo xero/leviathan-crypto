@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
 	loadP256, hexToBytes, writeBytes, testSlot,
-	N_HEX, N_MINUS_1_HEX,
+	N_HEX, N_MINUS_1_HEX, RNG,
 	type P256Exports,
 } from './util.js';
 
@@ -108,6 +108,74 @@ describe('p256 scalar invariants', () => {
 		// Expected: 1 in BE = 0...01
 		expect(prodView[31]).toBe(1);
 		for (let i = 0; i < 31; i++) expect(prodView[i]).toBe(0);
+	}, 30000);
+
+	it('scalarInv: stress test, a * inv(a) == 1 across 200 random + edge inputs', () => {
+		// Exercises the safegcd substrate across a broader input space than
+		// the single a=7 above. Catches off-by-one in iteration count,
+		// sign-handling errors at termination, or any mask-logic bug that
+		// only surfaces on specific bit patterns.
+		wasm.wipeBuffers();
+		const a    = testSlot(0);
+		const inv  = testSlot(32);
+		const prod = testSlot(64);
+
+		// Edge cases: a = 1, a = 2, a = n-1, a = n-2, a = n/2 (high-S boundary).
+		const edges: Uint8Array[] = [];
+		{
+			const e1 = new Uint8Array(32); e1[31] = 1; edges.push(e1);
+			const e2 = new Uint8Array(32); e2[31] = 2; edges.push(e2);
+			edges.push(hexToBytes(N_MINUS_1_HEX));
+			const nm2 = hexToBytes(N_MINUS_1_HEX); nm2[31] -= 1; edges.push(nm2);
+			// n/2 (= scalarIsHighS boundary)
+			const nh = hexToBytes(N_HEX);
+			// Compute n/2 BE: right-shift the BE bytes by 1.
+			let carry = 0;
+			for (let i = 0; i < 32; i++) {
+				const v = nh[i];
+				nh[i] = (carry << 7) | (v >>> 1);
+				carry = v & 1;
+			}
+			edges.push(nh);
+		}
+
+		for (const e of edges) {
+			writeBytes(wasm.memory, a, e);
+			wasm.scalarInv(inv, a);
+			wasm.scalarMul(prod, a, inv);
+			const view = new Uint8Array(wasm.memory.buffer, prod, 32);
+			expect(view[31]).toBe(1);
+			for (let i = 0; i < 31; i++) expect(view[i]).toBe(0);
+		}
+
+		// 200 deterministic random inputs in [1, n-1]. Using the xorshift32
+		// RNG from util.ts (per AGENTS.md curve25519 test guidance: no
+		// crypto.getRandomValues in unit tests).
+		const rng = new RNG(0xC0FFEE);
+		for (let trial = 0; trial < 200; trial++) {
+			const aBytes = rng.bytes(32);
+			// Force the high bit clear so the value is < n (n's top byte is 0xFF
+			// but n has 0x00 in bytes 4-7, so values with top byte < 0xFF are
+			// always canonical < n). Also force non-zero by setting LSB if all
+			// zero.
+			aBytes[0] = aBytes[0] & 0x7F;  // top bit clear -> value < 2^255 < n
+			let allZero = true;
+			for (let i = 0; i < 32; i++) {
+				if (aBytes[i] !== 0) {
+					allZero = false;
+					break;
+				}
+			}
+			if (allZero) aBytes[31] = 1;
+
+			writeBytes(wasm.memory, a, aBytes);
+			wasm.scalarInv(inv, a);
+			wasm.scalarMul(prod, a, inv);
+
+			const view = new Uint8Array(wasm.memory.buffer, prod, 32);
+			expect(view[31]).toBe(1);
+			for (let i = 0; i < 31; i++) expect(view[i]).toBe(0);
+		}
 	}, 30000);
 
 	it('scalarReduce: input n reduces to 0', () => {
