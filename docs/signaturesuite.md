@@ -797,7 +797,7 @@ Adds the digest-input methods `SignStream` / `VerifyStream` call after running t
 | Method                                       | Description |
 |----------------------------------------------|-------------|
 | `signPrehashed(sk, digest, ctx)`             | Sign a precomputed digest. Throws `SigningError('sig-malformed-input')` if `digest.length !== prehashSize`. |
-| `verifyPrehashed(pk, digest, sig, ctx)`      | Verify a precomputed-digest signature. Returns `false` on wrong-length digest. Throws `SigningError` only on contract violations. |
+| `verifyPrehashed(pk, digest, sig, ctx)`      | Verify a precomputed-digest signature. Returns `false` on signature failure. Throws `SigningError('sig-malformed-input')` if `digest.length !== prehashSize`; other contract violations throw `SigningError`. |
 
 ### `PrehashAlgorithm`
 

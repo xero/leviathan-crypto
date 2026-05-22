@@ -446,6 +446,7 @@ loadB(dst):                   write the SEC P-256 curve constant b to dst (8 LE 
 feIsZero(a):                  i32 - 1 if a == 0, 0 otherwise
 feIsEqual(a, b):              i32 - 1 if a == b, 0 otherwise
 feIsOdd(a):                   i32 - LSB of canonical encoding (SEC1 parity bit)
+feIsCanonical(a):             i32 - 1 if a < p, 0 otherwise (strict-decode gate)
 feCondSwap(a, b, swap):       conditional XOR-mask swap
 feCondNeg(out, a, neg):       out = (neg ? -a : a) (mod p)
 ```
@@ -486,6 +487,9 @@ pointOnCurve(p):              i32 - 1 if Y² Z = X³ - 3 X Z² + b Z³
 pointAffinify(p, outX, outY): write affine x = X / Z, y = Y / Z
 pointCompress(out, p):        write 33-byte SEC1 §2.3.3 compressed form
 pointDecompress(out, src):    i32 - 1 on success, 0 on invalid input
+                              (rejects prefix not in {0x02, 0x03},
+                              non-canonical x >= p via feIsCanonical,
+                              and y² quadratic non-residue)
 ```
 
 ### Scalar multiplication

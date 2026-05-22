@@ -57,6 +57,7 @@ export interface P256Exports {
 	feIsZero:            (a: number) => number;
 	feIsEqual:           (a: number, b: number) => number;
 	feIsOdd:             (a: number) => number;
+	feIsCanonical:       (a: number) => number;
 	feCondSwap:          (a: number, b: number, swap: number) => void;
 	feCondNeg:           (out: number, a: number, neg: number) => void;
 	// Scalar (mod n)

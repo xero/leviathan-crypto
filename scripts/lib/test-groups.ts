@@ -417,6 +417,7 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/p256/ecdsa_verify.test.ts',
 			'test/unit/p256/ecdsa-pk-uncompressed.test.ts',
 			'test/unit/p256/ecdsa-ecprivatekey-der.test.ts',
+			'test/unit/p256/ecdsa_pk_canonicality.test.ts',
 			'test/unit/ecdsa/ecdsa_class.test.ts',
 			'test/unit/ecdsa/ecdsa_der.test.ts',
 		],

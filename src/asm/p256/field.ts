@@ -692,6 +692,25 @@ export function feIsEqual(a: i32, b: i32): i32 {
 	return ((1 as u32) - (x >> 31)) as i32
 }
 
+/**
+ * Returns 1 if a < p (canonical field element), 0 otherwise. Subtracts
+ * p limb-wise; the final borrow is set iff a < p. The difference is
+ * discarded. Mirrors `scalarIsCanonical` in scalar.ts but for the
+ * LE u32 limb form and the field prime p (not the curve order n).
+ *
+ * Internal field outputs (feAdd / feSub / feMul / feSqr) are canonical
+ * by construction; only `feFromBytes` on adversarial wire data can
+ * produce a non-canonical limb representation. `pointDecompress` is
+ * the sole call site so far, rejecting compressed pks whose x bytes
+ * exceed the field prime per SEC 1 §2.3.4 strict-decode.
+ */
+export function feIsCanonical(a: i32): i32 {
+	const pBuf:    i32 = FIELD_TMP + 0 * FIELD_TMP_STRIDE
+	const diffBuf: i32 = FIELD_TMP + 1 * FIELD_TMP_STRIDE
+	loadP(pBuf)
+	return (sub8(diffBuf, a, pBuf) as i32)
+}
+
 // ── Constant-time conditional helpers ──────────────────────────────────────
 
 /**
