@@ -88,7 +88,7 @@ export {
 // ── Scalar multiplication ───────────────────────────────────────────────────
 
 export {
-	pointMul, pointMulBase,
+	pointMul, pointMulBase, pointMulDoubleVerify,
 } from './scalar_mult'
 
 // ── RFC 6979 K derivation (deterministic + hedged) ──────────────────────────

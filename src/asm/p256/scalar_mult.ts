@@ -126,3 +126,77 @@ export function pointMulBase(scalarBE: i32, out: i32): void {
 	pointBasepoint(Gslot)
 	pointMul(scalarBE, Gslot, out)
 }
+
+// ── pointMulDoubleVerify: Strauss-Shamir [u1]G + [u2]Q ─────────────────────
+//
+// Verify-only double scalar multiplication. Interleaves the two ladders
+// of [u1]G and [u2]Q into a single 256-iteration loop: one shared
+// doubling per bit position plus a conditional add of one of four
+// precomputed combinations {O, Q, G, G+Q} based on the bit pair
+// (u1_bit, u2_bit). Replaces the two-ladder + final-add pattern used by
+// ecdsaVerify with roughly half the scalar-multiplication work.
+//
+// NOT constant-time across the (u1_bit, u2_bit) selector. ECDSA verify
+// inputs are public on the wire (pk, msgHash, sig) and the call site at
+// ecdsa.ts ecdsaVerify is already non-CT across reject branches per
+// docs/asm_p256.md#verify-timing. The four-entry precomputed table is
+// indexed by PUBLIC bits, not by any secret-derived value, so it is
+// outside the architectural prohibition on "lookup tables indexed by
+// secret bits" (SECURITY.md §Side-channel resistance).
+//
+// Reference: Strauss 1964 "Addition chains for vectors"; the simultaneous
+// multi-scalar pattern is standard in ECDSA implementations.
+//
+// Slot allocation in POINT_TMP:
+//   slot 0: accumulator R
+//   slot 2: basepoint G (materialized inside this function)
+//   slot 3: G + Q (precomputed once before the loop)
+//   slot 7: reserved by point.ts pointAdd / pointDouble internal staging
+//
+// Caller's Q must NOT alias POINT_TMP slot 0, 2, 3, or 7. The `out`
+// pointer may alias slot 3 (the call site in ecdsa.ts does this; the
+// final R-to-out copy lands after G+Q is no longer read).
+
+/**
+ * out = [u1]G + [u2]Q. Strauss-Shamir simultaneous double scalar mult.
+ *
+ * @param u1BE 32-byte BE scalar (verify-side u1 = e * w mod n)
+ * @param u2BE 32-byte BE scalar (verify-side u2 = r * w mod n)
+ * @param Q    projective point (the verifier's pk after on-curve gate)
+ * @param out  96-byte output point
+ *
+ * Inputs are all public-derived; this function is not constant-time
+ * across the bit-pair selector. Do not call from any code path that
+ * carries secret-derived scalars.
+ */
+export function pointMulDoubleVerify(u1BE: i32, u2BE: i32, Q: i32, out: i32): void {
+	const R:  i32 = POINT_TMP + 0 * POINT_TMP_STRIDE
+	const G:  i32 = POINT_TMP + 2 * POINT_TMP_STRIDE
+	const GQ: i32 = POINT_TMP + 3 * POINT_TMP_STRIDE
+
+	pointBasepoint(G)
+	pointAdd(GQ, G, Q)
+	pointZero(R)
+
+	for (let byteIdx: i32 = 0; byteIdx < 32; byteIdx++) {
+		const b1: u32 = load<u8>(u1BE + byteIdx) as u32
+		const b2: u32 = load<u8>(u2BE + byteIdx) as u32
+		for (let bitIdx: i32 = 7; bitIdx >= 0; bitIdx--) {
+			pointDouble(R, R)
+			const bit1: u32 = (b1 >> (bitIdx as u32)) & 1
+			const bit2: u32 = (b2 >> (bitIdx as u32)) & 1
+			const idx: u32 = (bit1 << 1) | bit2
+			// idx 0: R += O, skip; RCB complete add would handle O correctly
+			// but the add is wasted work and a public-branch saves the cost.
+			if (idx == 1) {
+				pointAdd(R, R, Q)
+			} else if (idx == 2) {
+				pointAdd(R, R, G)
+			} else if (idx == 3) {
+				pointAdd(R, R, GQ)
+			}
+		}
+	}
+
+	memory.copy(out, R, 96)
+}
