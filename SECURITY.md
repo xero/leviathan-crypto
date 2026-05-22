@@ -19,9 +19,9 @@ Every fix is documented in the full [CHANGELOG](https://github.com/xero/leviatha
 | Version | Status | Summary |
 | --- | --- | --- |
 | [v3.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v3-0-0) | ✓ supported | Serpent public byte-order convention flipped to NIST natural order (wire-format break against v2); ChaCha salamander defense; AES-128/192/256 raw block cipher; PQ + classical signature catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, PQ-only and classical+PQ hybrids); BLAKE3 hash family; C2SP-conformant merkle log substrate (`MerkleLog`, `MerkleVerifier`) |
-| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Upgrade to v3.0.x; note the Serpent wire-format break |
-| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. Upgrade to v3.0.x |
-| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. Upgrade to v3.0.x |
+| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Note the Seal wire-format break |
+| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. |
+| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. |
 
 > [!CAUTION]
 > v2.0.0 has a known silent-corruption bug. `SealStreamPool` with `SerpentCipher` silently produces corrupt plaintext with no authentication error on decrypt for inputs ≥ 65536 bytes. See [v2.0.1 release notes](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) and update to the latest version immediately.
