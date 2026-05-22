@@ -54,7 +54,7 @@ import {
 
 import {
 	feAdd, feSub, feNeg, feMul, feSqr, feInv, feSqrt, feCopy,
-	feZero, feOne, feIsEqual, feIsOdd,
+	feZero, feOne, feIsEqual, feIsOdd, feIsCanonical,
 	loadB,
 } from './field'
 
@@ -515,8 +515,15 @@ export function pointDecompress(out: i32, src: i32): i32 {
 	const x: i32 = pX(out)
 	feFromBytes(x, src + 1)
 
-	// TODO: explicit x < p check. pointOnCurve below catches non-canonical
-	// x indirectly via the curve-equation residue.
+	// Strict x < p canonicality. feFromBytes is a literal byte loader
+	// (no reduction); a non-canonical encoding x ∈ [p, 2^256) would
+	// otherwise reduce silently inside the curve-equation feMul / feSqr
+	// calls and produce a malleable second encoding for the same
+	// logical pk. The y² = x³ - 3*x + b residue check below remains as
+	// defence-in-depth.
+	if (feIsCanonical(x) == 0) {
+		return 0
+	}
 
 	// y² = x³ - 3*x + b
 	const x3: i32 = TMP1

@@ -41,6 +41,16 @@ sigVer-FIPS204 external/pure tests including known-fail cases, confirms
 byte-identical pk/sk/σ output and the SUF-CMA-critical malformed-input
 checks (FIPS 204 §D.3 / Algorithm 21).
 
+The corpus also exercises every reachable rejection branch in
+`ML-DSA.Sign_internal` (FIPS 204 §6.2 Algorithm 7) via the 27
+hand-rolled KATs in `test/vectors/mldsa_siggen_kats.ts`, sourced from
+ACVP ML-DSA JSON Specification §6.1.2 Tables 1 and 2. Table 1 covers
+the `|z|`, `|r₀|`, hint popcount, and (ML-DSA-44 only) `|ct₀|` reject
+conditions; Table 2 forces 32 to 100 loop iterations per vector to
+catch implementations that abort early under retry. Random AFT
+sampling cannot reliably trigger these branches; the KAT path closes
+that coverage gap.
+
 ---
 
 ## Implementation Summary

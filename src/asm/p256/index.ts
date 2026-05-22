@@ -65,7 +65,7 @@ export {
 export {
 	feAdd, feSub, feNeg, feMul, feSqr, feInv, feSqrt,
 	feFromBytes, feToBytes,
-	feIsZero, feIsEqual, feIsOdd, feCondSwap, feCondNeg,
+	feIsZero, feIsEqual, feIsOdd, feIsCanonical, feCondSwap, feCondNeg,
 } from './field'
 
 // ── Scalar arithmetic (mod n, curve order) ──────────────────────────────────

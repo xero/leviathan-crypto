@@ -228,6 +228,241 @@ Your `formatEnum` must not conflict with the built-in values (`0x02`, `0x03`,
 `wipeKeys` must zero every byte of derived key material, the stream layer calls
 it unconditionally after finalize.
 
+`CipherSuite` is the public-surface contract. The shipped implementations live
+in [src/ts/serpent/cipher-suite.ts](../src/ts/serpent/cipher-suite.ts),
+[src/ts/chacha20/cipher-suite.ts](../src/ts/chacha20/cipher-suite.ts), and
+[src/ts/aes/cipher-suite.ts](../src/ts/aes/cipher-suite.ts). Read one of them
+before writing your own. The examples below show the three patterns a
+consumer is most likely to need.
+
+#### Symmetric AEAD skeleton
+
+A custom symmetric suite reduces to wiring an AEAD primitive into the four
+methods. The shape is a plain `const` object that satisfies `CipherSuite`. The
+example below outlines a hypothetical AES-256-OCB3 suite (not shipped); replace
+the `ocb3Encrypt` / `ocb3Decrypt` placeholder calls with your primitive's
+bindings.
+
+```typescript
+import { HKDF_SHA256, wipe, randomBytes, concat } from 'leviathan-crypto'
+import type { CipherSuite, DerivedKeys } from 'leviathan-crypto'
+
+const INFO = new TextEncoder().encode('aes-ocb3-customstream-v1')
+
+export const AesOcb3Cipher: CipherSuite & { keygen(): Uint8Array } = {
+  formatEnum:    0x05,                     // outside the reserved range
+  formatName:    'aes-ocb3',
+  hkdfInfo:      'aes-ocb3-customstream-v1',
+  keySize:       32,
+  kemCtSize:     0,
+  commitmentSize: 32,                      // 0 only if the AEAD is key-committing on its own
+  tagSize:       16,
+  padded:        false,
+  wasmChunkSize: 65536,                    // must match the WASM module's CHUNK_SIZE constant
+  wasmModules:   ['aes', 'sha2'],
+
+  keygen(): Uint8Array {
+    return randomBytes(32)
+  },
+
+  deriveKeys(masterKey, nonce, _kemCt, header): DerivedKeys {
+    if (!header || header.length !== 20)
+      throw new Error('AesOcb3Cipher.deriveKeys: header binding required')
+
+    const hkdf = new HKDF_SHA256()
+    let okm: Uint8Array
+    try {
+      // INFO || header binds formatEnum, framed flag, nonce, chunkSize into the KDF.
+      okm = hkdf.derive(masterKey, nonce, concat(INFO, header), 64)
+    } finally {
+      hkdf.dispose()
+    }
+
+    const bytes      = okm.slice(0,  32)    // per-stream AEAD key
+    const commitment = okm.slice(32, 64)    // key commitment for the preamble
+    wipe(okm)
+    return { bytes, commitment }
+  },
+
+  sealChunk(keys, counterNonce, chunk, aad) {
+    // call your AEAD encrypt; return ciphertext || 16-byte tag
+    return ocb3Encrypt(keys.bytes, counterNonce, chunk, aad ?? new Uint8Array(0))
+  },
+
+  openChunk(keys, counterNonce, chunk, aad) {
+    if (chunk.length < 16)
+      throw new RangeError(`chunk too short for tag (got ${chunk.length})`)
+    // call your AEAD decrypt; throw AuthenticationError on tag mismatch
+    return ocb3Decrypt(keys.bytes, counterNonce, chunk, aad ?? new Uint8Array(0))
+  },
+
+  wipeKeys(keys) {
+    wipe(keys.bytes)
+  },
+
+  createPoolWorker(): Worker {
+    // see docs/architecture.md#build-pipeline for the IIFE spawn pattern
+    const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' })
+    const url  = URL.createObjectURL(blob)
+    const w    = new Worker(url)
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+    return w
+  },
+}
+```
+
+What the skeleton is doing:
+
+**Commitment field.** Any AEAD whose MAC is not key-committing (Poly1305,
+POLYVAL, OCB3) carries a 32-byte HKDF-derived commitment in the preamble.
+Set `commitmentSize: 0` only when the construction is key-committing by
+itself (HMAC, KMAC).
+
+**Header binding.** Concatenating the 20-byte preamble header into HKDF
+info binds `formatEnum`, the framed flag, the stream nonce, and `chunkSize`
+into key derivation. Header tampering produces different keys and AEAD
+fails on the first chunk.
+
+**Wipe discipline.** `wipe(okm)` zeros both halves before return; the
+commitment is safe because `slice` returns independent backing. The stream
+layer calls `wipeKeys` unconditionally after `finalize()`.
+
+**`wasmChunkSize`.** Must equal the underlying WASM module's `CHUNK_SIZE`
+constant. For padded ciphers, the pool validates `paddedFull <= wasmChunkSize`
+at construction.
+
+#### Spread-override variant
+
+When you only need to change one behaviour (most often `createPoolWorker`
+for strict-CSP environments that disallow `blob:` URLs in `worker-src`),
+use the spread pattern. The result is still a valid `CipherSuite`:
+
+```typescript
+import { XChaCha20Cipher } from 'leviathan-crypto'
+import type { CipherSuite } from 'leviathan-crypto'
+
+export const CspXChaCha20Cipher: CipherSuite = {
+  ...XChaCha20Cipher,
+  createPoolWorker: () => new Worker(
+    new URL('./workers/xchacha20-pool-worker.js', import.meta.url),
+    { type: 'classic' },
+  ),
+}
+```
+
+Do not change `formatEnum`, `hkdfInfo`, or any of the size fields when
+wrapping. Doing so produces a wire format that no `OpenStream` will accept
+and breaks the implicit contract that two parties using the same
+`formatName` interop.
+
+#### Hybrid KEM wrapper
+
+`KyberSuite` shows the pattern for wrapping a KEM around any inner
+`CipherSuite`. A custom KEM (HPKE, NTRU, a future PQ family) plugs in the
+same way: encapsulate on the encrypt path, decapsulate on the decrypt path,
+feed the shared secret through HKDF, then delegate `sealChunk` / `openChunk`
+to the inner suite.
+
+```typescript
+import { HKDF_SHA256, concat } from 'leviathan-crypto'
+import type { CipherSuite, DerivedKeys } from 'leviathan-crypto'
+
+interface MyKem {
+  readonly ekBytes: number
+  readonly dkBytes: number
+  readonly ctBytes: number
+  encapsulate(ek: Uint8Array): { sharedSecret: Uint8Array; ciphertext: Uint8Array }
+  decapsulate(dk: Uint8Array, ct: Uint8Array): Uint8Array
+  keygen(): { encapsulationKey: Uint8Array; decapsulationKey: Uint8Array }
+}
+
+export function MyKemSuite(
+  kem: MyKem,
+  inner: CipherSuite,
+): CipherSuite & { keygen(): ReturnType<MyKem['keygen']> } {
+  const info = new TextEncoder().encode(inner.hkdfInfo)
+
+  return {
+    formatEnum:    0x40 | inner.formatEnum,   // pick a free KEM nibble (bits 4-5)
+    formatName:    `mykem+${inner.formatName}`,
+    hkdfInfo:      inner.hkdfInfo,
+    keySize:       kem.ekBytes,               // encrypt path uses the encapsulation key
+    decKeySize:    kem.dkBytes,               // decrypt path uses the decapsulation key
+    kemCtSize:     kem.ctBytes,
+    commitmentSize: inner.commitmentSize,
+    tagSize:       inner.tagSize,
+    padded:        inner.padded,
+    wasmChunkSize: inner.wasmChunkSize,
+    wasmModules:   [...inner.wasmModules, 'mykem'],
+
+    deriveKeys(key, nonce, kemCt, header): DerivedKeys {
+      let sharedSecret: Uint8Array
+      let outKemCt: Uint8Array | undefined
+      let ctForInfo: Uint8Array
+
+      if (kemCt === undefined) {
+        // encrypt path: key is the encapsulation key, emit a fresh ct
+        const r = kem.encapsulate(key)
+        sharedSecret = r.sharedSecret
+        outKemCt     = r.ciphertext
+        ctForInfo    = r.ciphertext
+      } else {
+        // decrypt path: key is the decapsulation key, recover ss from ct
+        sharedSecret = kem.decapsulate(key, kemCt)
+        ctForInfo    = kemCt
+      }
+
+      // Bind the KEM ciphertext into HKDF info (defense in depth).
+      const hkdf    = new HKDF_SHA256()
+      const derived = hkdf.derive(sharedSecret, nonce, concat(info, ctForInfo), inner.keySize)
+      hkdf.dispose()
+      sharedSecret.fill(0)
+
+      // Delegate symmetric key derivation to the inner suite; forward the
+      // header so suites that header-bind (XChaCha20, AES-GCM-SIV) see it.
+      const innerKeys = inner.deriveKeys(derived, nonce, undefined, header)
+      derived.fill(0)
+
+      if (!outKemCt) return innerKeys
+      return innerKeys.commitment
+        ? { bytes: innerKeys.bytes, kemCiphertext: outKemCt, commitment: innerKeys.commitment }
+        : { bytes: innerKeys.bytes, kemCiphertext: outKemCt }
+    },
+
+    sealChunk:        inner.sealChunk.bind(inner),
+    openChunk:        inner.openChunk.bind(inner),
+    wipeKeys:         inner.wipeKeys.bind(inner),
+    createPoolWorker: inner.createPoolWorker.bind(inner),
+
+    keygen() {
+      return kem.keygen()
+    },
+  }
+}
+```
+
+A few points specific to the hybrid path:
+
+**Asymmetric key sizes.** `keySize` is the encapsulation-key length, used
+by `SealStream`. `decKeySize` is the decapsulation-key length, used by
+`OpenStream`. Symmetric suites omit `decKeySize` and the stream layer
+defaults it to `keySize`.
+
+**KEM ciphertext in the preamble.** The wire-format preamble is
+`header(20) || kemCt || commitment?`. `deriveKeys` returns `kemCiphertext`
+on the encrypt path so the stream layer can write it into the preamble; on
+the decrypt path the stream layer pulls it back out and passes it as
+`kemCt`.
+
+**Format-byte allocation.** The reserved nibble layout
+(`0x10`/`0x20`/`0x30` for ML-KEM-512/768/1024) is already used. A custom
+KEM must pick a free KEM nibble in bits 4-5 (or coordinate with the catalog
+if you intend the suite to be reachable from `OpenStream` preamble sniffing).
+
+**Inner-suite delegation.** `sealChunk` / `openChunk` / `wipeKeys` /
+`createPoolWorker` all bind through to the inner suite. Only `deriveKeys`
+and the metadata fields are KEM-specific.
+
 ---
 
 ## Per-cipher contract tests

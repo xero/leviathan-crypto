@@ -44,17 +44,26 @@ with the leviathan-crypto low-S strict-gate layered on top.
 ACVP `testPassed=false` sigVer records and the Wycheproof
 malleability corpus exercise these checks.
 
-- [ ] **Public-key canonicality.** `pointDecompress` rejects pk
-      encodings whose prefix is not `0x02` or `0x03`, or whose
-      `y^2 = x^3 - 3x + b` square root does not exist.
+- [x] **Public-key canonicality.** `pointDecompress` rejects pk
+      encodings whose prefix is not `0x02` or `0x03`, whose x
+      bytes encode a non-canonical field element (`x >= p`), or
+      whose `y^2 = x^3 - 3x + b` square root does not exist.
       `ecdsaVerify` returns 0 on decompression failure. The
-      explicit `x < p` check is deferred per the TODO at
-      `src/asm/p256/point.ts:538-544`; `feFromBytes` does not
-      reduce, so an adversarial x in `[p, 2^256)` decodes but is
-      caught indirectly by `pointOnCurve`, because a
-      non-canonical x cannot satisfy `y^2 = x^3 - 3x + b` against
-      a canonical y. The belt-and-suspenders `x < p` rejection is
-      gated on a future test that surfaces the case.
+      `x < p` gate is the explicit `feIsCanonical(x)` check
+      inserted immediately after `feFromBytes` in
+      `pointDecompress` (`src/asm/p256/point.ts`); `feFromBytes`
+      is a literal byte loader and does not reduce, so without
+      this gate an adversarial x in `[p, 2^256)` would silently
+      reduce inside the curve-equation `feMul` / `feSqr` calls
+      and (for the reducing-to-on-curve shape) produce a
+      malleable second encoding for the same logical pk. The
+      curve-equation residue check below the gate remains as
+      defence-in-depth. Surfacing test:
+      `test/unit/p256/ecdsa_pk_canonicality.test.ts` constructs the
+      four adversarial shapes (trivial overflow, x = p,
+      x = x_valid + p, x = x_off_curve + p) and cross-checks
+      that the rejection in case 3 fires at `feIsCanonical`,
+      not at `pointOnCurve`.
 - [ ] **Identity-element pk rejection.** A decompressed pk equal
       to the curve identity `(0:1:0)` is rejected before the
       signature equation evaluates. The identity check uses
@@ -315,6 +324,16 @@ fixed-length loop with mask-driven conditional selects.
       ladder consuming the scalar MSB-first. Each bit drives
       one `pointDouble` and one masked `pointAdd`; the operation
       set per bit is independent of the scalar bit value.
+- [ ] **No precomputed tables.** `pointMulBase` runs the same
+      `pointMul` variable-base ladder used for arbitrary points,
+      not a fixed-base comb table. Comb tables index a precomputed
+      array by secret scalar bits, which is a lookup table even
+      under constant-time masked-select discipline. The project's
+      architectural commitment (SECURITY.md §Side-channel
+      resistance, architecture.md §Cipher Triptych) is register-only
+      logic with no data-dependent memory access across every
+      primitive; P-256 holds the same line as Serpent, AES,
+      ChaCha20, and the hash family.
 - [ ] **Low-S branch is mask-driven.** The signer's
       `scalarIsHighS` plus conditional `scalarNegate` selects
       the canonical s through a mask rather than a conditional

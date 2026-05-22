@@ -1124,12 +1124,20 @@ pub struct MlDsaKeyGenVector {
 #[allow(dead_code)] // parameter_set + pk surfaced for diagnostics; verifier
                     // dispatches by paramset at the run_mldsa level and
                     // signs via sk, comparing the produced signature.
-                    // corner_case is parsed for forward-compat: ACVP may
-                    // populate it with discriminator strings (e.g.
-                    // shortMaxNorm, highMaxNorm) in future revisions; the
-                    // verifier currently branches only on signature_interface,
-                    // pre_hash, and external_mu. TODO: dispatch on corner_case
-                    // when ACVP publishes corner-case-specific behavior.
+                    // corner_case is parsed for forward-compat. Per the
+                    // ACVP-Server enum MLDSASignatureCornerCase.cs (commit
+                    // 15c0f3d, v1.1.0.42), the three legal values are
+                    // "none", "all-rejection", and "total-rejection-count".
+                    // Both non-none values are diagnostic labels only;
+                    // expected sig is Sign(sk, msg, rnd=zeros) via
+                    // FIPS 204 §6.2 Algorithm 7 regardless of label.
+                    // Public github JSON drops ship "none" on every record
+                    // because the corner-case pools are NIST-internal.
+                    // Rejection-path coverage is provided by
+                    // test/vectors/mldsa_siggen_kats.ts (ACVP spec source
+                    // §6.1.2 Tables 1 and 2, transcribed from
+                    // usnistgov/ACVP@f66d187); no Server-side dispatch
+                    // needed here.
 #[derive(Debug, Clone, Default)]
 pub struct MlDsaSigGenVector {
     pub tc_id:                u32,

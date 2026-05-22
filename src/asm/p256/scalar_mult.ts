@@ -27,10 +27,16 @@
 //
 // pointMul(scalar, P, out): [scalar]P for arbitrary P.
 // pointMulBase(scalar, out): [scalar]G for the SP 800-186 §3.2.1.3
-//   basepoint. Currently implemented as pointMul(scalar, G, out); a
-//   future revision can replace this with a fixed-base comb table for
-//   performance, but the gate test (n*G == identity) is independent
-//   of the algorithm choice and will catch any change.
+//   basepoint. Implemented as pointMul(scalar, G, out): the same
+//   variable-base double-and-add-always ladder used for arbitrary
+//   points. A fixed-base comb table is not used. Comb tables
+//   precompute an array indexed by secret scalar bits, which is a
+//   lookup table even under constant-time masked-select discipline.
+//   The project's architectural commitment (SECURITY.md
+//   §Side-channel resistance, docs/architecture.md) is register-only
+//   logic with no data-dependent memory access across every
+//   primitive. P-256 holds the same line as Serpent, AES, ChaCha20,
+//   and the hash family.
 //
 // Algorithm: scan the scalar BE byte stream MSB-first, 1 bit at a
 // time. For each bit:

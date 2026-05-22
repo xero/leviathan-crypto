@@ -222,7 +222,7 @@ TS layer separately wipes its own I/O staging region above
 | `montgomery.ts`  | The X25519 Montgomery ladder, `x25519Ladder(out, scalar, u)`. Per RFC 7748 §5, The X25519 and X448 Functions, `feFromBytes` masks bit 255 of the encoded u-coord internally. |
 | `scalar.ts`      | Scalar arithmetic mod L: clamp (RFC 7748 §5), isCanonical (s < L), reduce (32-byte input), reduce64 (64-byte input), add, mulAdd. |
 | `sha512.ts`      | Embedded SHA-512 ported verbatim from `src/asm/sha2/sha512.ts` at commit `3ffe9044873c6b253ca872b9333c8db84327aad1`. Module-internal; not surfaced at the WASM ABI. |
-| `ed25519.ts`     | Ed25519 protocol: `ed25519Keygen`, `ed25519Sign`, `ed25519Verify`, `ed25519SignPrehashed`, `ed25519VerifyPrehashed`. Drives sha512 and the substrate. |
+| `ed25519.ts`     | Ed25519 protocol: `ed25519Keygen`, `ed25519Sign`, `ed25519Verify`, `ed25519SignPrehashed`, `ed25519VerifyPrehashed`, plus suite-routing `ed25519SignInternalPk` / `ed25519SignPrehashedInternalPk` (skip the fault-injection cross-check). Drives sha512 and the substrate. |
 | `x25519.ts`      | X25519 protocol: `x25519Keygen`, `x25519DH`. Drives the ladder with internal clamping. |
 | `index.ts`       | Public exports re-exposed from the files above. |
 
@@ -366,6 +366,9 @@ function ed25519SignPrehashed(seedOff, pkOff, digestOff,
                               ctxOff, ctxLen, sigOff):                     void
 function ed25519VerifyPrehashed(pkOff, digestOff,
                                 ctxOff, ctxLen, sigOff):                   i32
+function ed25519SignInternalPk(seedOff, msgOff, msgLen, sigOff):           void
+function ed25519SignPrehashedInternalPk(seedOff, digestOff,
+                                        ctxOff, ctxLen, sigOff):           void
 ```
 
 The high-level Ed25519 entry points. `ed25519Sign` and
@@ -376,6 +379,18 @@ mismatch (the fault-injection defence documented in
 `ed25519Verify` and `ed25519VerifyPrehashed` return 1 on
 success, 0 on every signature failure mode. Every export wipes
 the mutable region on the way out.
+
+`ed25519SignInternalPk` and `ed25519SignPrehashedInternalPk` are
+the suite-routing entry points. They take no `pkOff` argument,
+derive pk inside the same call, and skip the cross-check, saving
+one basepoint scalar multiplication per sign on the
+`SignatureSuite` hot path. The defence collapses to no defence at
+the suite call site (pk would be derived inside the same
+potentially-faulted call), so it is dropped for performance. See
+[signaturesuite.md](./signaturesuite.md#fault-injection-defense)
+for the architectural rationale; callers who hold a stored,
+known-good pk should use `ed25519Sign` /
+`ed25519SignPrehashed` directly.
 
 ### X25519 protocol
 
