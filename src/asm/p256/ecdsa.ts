@@ -46,12 +46,11 @@ import {
 } from './scalar'
 
 import {
-	pointMul, pointMulBase,
+	pointMulBase, pointMulDoubleVerify,
 } from './scalar_mult'
 
 import {
-	pointAdd, pointAffinify, pointCompress, pointDecompress,
-	pointOnCurve,
+	pointAffinify, pointCompress, pointDecompress, pointOnCurve,
 } from './point'
 
 import {
@@ -319,12 +318,12 @@ export function ecdsaVerify(pkOff: i32, msgHashOff: i32, sigOff: i32): i32 {
 	scalarMul(u1, e, w)
 	scalarMul(u2, r, w)
 
-	// R = u1*G + u2*Q.
+	// R = u1*G + u2*Q via Strauss-Shamir simultaneous double scalar mult.
+	// Cuts the scalar-multiplication wall-clock roughly in half versus
+	// two separate ladders + a join add. Verify inputs are public; this
+	// is documented non-CT (docs/asm_p256.md#verify-timing).
 	const u1G: i32 = POINT_TMP + 3 * POINT_TMP_STRIDE
-	const u2Q: i32 = POINT_TMP + 5 * POINT_TMP_STRIDE
-	pointMulBase(u1, u1G)
-	pointMul(u2, Q, u2Q)
-	pointAdd(u1G, u1G, u2Q)  // u1G now holds R = u1*G + u2*Q
+	pointMulDoubleVerify(u1, u2, Q, u1G)
 
 	// r_check = x(R) mod n. If R is the identity (Z = 0), reject.
 	const xR: i32 = FIELD_TMP + 16 * FIELD_TMP_STRIDE

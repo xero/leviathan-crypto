@@ -470,7 +470,10 @@ scalarAdd(out, a, b):         out = (a + b) mod n
 scalarSub(out, a, b):         out = (a - b) mod n
 scalarMul(out, a, b):         out = (a * b) mod n
 scalarNegate(out, a):         out = (n - a) mod n
-scalarInv(out, a):            out = a^(-1) mod n via Fermat
+scalarInv(out, a):            out = a^(-1) mod n via Bernstein-Yang
+                              safegcd, 743 divsteps (eprint 2019/266
+                              §11). Constant-time over secret a.
+                              See p256_perf.md §Change 4.
 ```
 
 ### Projective points + complete addition
@@ -495,14 +498,32 @@ pointDecompress(out, src):    i32 - 1 on success, 0 on invalid input
 ### Scalar multiplication
 
 ```
-pointMul(scalar, p, out):     out = [scalar] p (variable-base, const-time)
-pointMulBase(scalar, out):    out = [scalar] G (fixed-base, const-time)
+pointMul(scalar, p, out):              out = [scalar] p
+                                       (variable-base, const-time)
+pointMulBase(scalar, out):             out = [scalar] G
+                                       (fixed-base, const-time)
+pointMulDoubleVerify(u1, u2, Q, out):  out = [u1] G + [u2] Q
+                                       (Strauss-Shamir, verify-only)
 ```
 
-Both use constant-time double-and-add-always over the RCB complete-
-addition substrate. The scalar is consumed MSB-first; each bit
-drives one `pointDouble` and one masked `pointAdd`. No branches on
-secret scalar bits.
+`pointMul` and `pointMulBase` use constant-time double-and-add-always
+over the RCB complete-addition substrate. The scalar is consumed
+MSB-first; each bit drives one `pointDouble` and one masked
+`pointAdd`. No branches on secret scalar bits.
+
+`pointMulDoubleVerify` is the Strauss-Shamir simultaneous double scalar
+multiplication: a single 256-iteration ladder that shares one
+`pointDouble` per bit across both scalars and conditionally adds one of
+four precomputed combinations `{O, Q, G, G+Q}` based on the bit pair
+`(u1_bit, u2_bit)`. NOT constant-time across the bit-pair selector;
+verify is documented non-CT (see [§Verify timing](#verify-timing)) and
+ECDSA verify inputs are public on the wire, so the four-entry table is
+indexed by PUBLIC bits and remains outside the architectural prohibition
+on secret-bit-indexed tables. The function is called once per
+`ecdsaVerify` invocation and replaces the prior
+`pointMulBase(u1) + pointMul(u2, Q) + pointAdd` triplet. See
+[p256_perf.md](./p256_perf.md#change-2-strauss-shamir-verify) for the
+bench delta.
 
 ### RFC 6979 K derivation
 
