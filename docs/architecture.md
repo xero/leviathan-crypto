@@ -2,7 +2,7 @@
 
 ### Architecture
 
-Overview of Leviathan Crypto's architecture, comprising twelve independent WASM modules unified by a misuse-resistant TypeScript API: a Cipher Triptych of Serpent-256, XChaCha20-Poly1305, and AES-256-GCM-SIV, post-quantum ML-KEM key encapsulation, ML-DSA (lattice) and SLH-DSA (hash-based) signatures with PQ-only hybrid composites, classical signatures (Ed25519 / X25519 over curve25519, ECDSA over NIST P-256), the BLAKE3 tree-mode hash family, and a forward-secret ratchet built on Signal's SPQR. Zero-dependency, tree-shakeable, side-effect free.
+Overview of Leviathan Crypto's architecture, twelve independent WASM modules unified by a misuse-resistant TypeScript API: bitsliced ciphers (Serpent, XChaCha20, AES), ML-KEM, lattice and hash-based signatures (ML-DSA, SLH-DSA, hybrid composites), hashing (SHA-2, SHA-3, BLAKE3), Merkle transparency, forward-secret ratchet, and Fortuna CSPRNG.
 
 > ### Table of Contents
 >
@@ -68,6 +68,8 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 
 **[SLH-DSA](./slhdsa.md): assumption-diverse hedge.** `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f` are FIPS 205 stateless hash-based signatures at NIST security categories 1, 3, and 5. Security rests on SHAKE preimage and collision resistance rather than any lattice or number-theoretic assumption, so a future lattice break against ML-DSA does not transfer. Three PQ-only hybrid composites (`MlDsa44SlhDsa128fSuite`, `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite`) bind both PQ families to the same prehash digest under a unique `ctxDomain`. One break does not cascade.
 
+**[Merkle log](./merkle): trust-anchored transparency.** `MerkleVerifier` and `MerkleLog` produce and verify C2SP-conformant signed checkpoints with RFC 9162 §2.1.3 / §2.1.4 inclusion and consistency proofs. Cosignatures use `Ed25519Suite` for Sigsum interop or `MlDsa44Suite` as the post-quantum default.
+
 **[Fortuna](./fortuna.md): pluggable randomness.** It collects entropy from platform-specific sources (browser input events, timing jitter, Node.js process stats, plus `crypto.getRandomValues()` as a baseline), distributes it across 32 independent pools, and reseeds an internal generator built on a cipher-as-PRF construction. The generator key is replaced after every `get()` call, so state compromise at time T cannot reveal any output produced before T. The primitive pair is pluggable, mirroring `CipherSuite`'s extension-point pattern: any of the three ciphers above plugs into the generator, paired with either SHA-256 or SHA3-256 for hashing.
 
 **Atop the seal layer sits the [ratchet module](./ratchet.md):** KDF primitives from Signal's Sparse Post-Quantum Ratchet (SPQR), the post-quantum extension of the Double Ratchet protocol. `ratchetInit` bootstraps the root and chain keys from an out-of-band shared secret. `KDFChain` advances a symmetric chain key and derives per-message keys with forward secrecy. `kemRatchetEncap` and `kemRatchetDecap` perform the ML-KEM ratchet step for post-compromise security. `SkippedKeyStore` caches message keys for out-of-order delivery; cached keys return through a transactional handle that commits on auth success and rolls back on failure, so a garbage ciphertext at a valid counter cannot consume the legitimate message's slot. The store also bounds memory and per-message HKDF work, so a malicious header with a high counter cannot force unbounded derivations. These are primitives, not a full session: state machines, message counters, header format, and epoch orchestration are application concerns. Consumers compose them with their own transport for forward-secret protocols whose needs outgrow one-shot AEAD.
@@ -77,7 +79,6 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 **Discipline binds the layers.** Every cipher, hash, KEM, and signature scheme derives independently from its authoritative spec, never ported from another implementation. Known-answer test vectors come from spec authors, and cross-checks run against multiple independent reference implementations. The test suite covers unit tests at the primitive level plus end-to-end tests across three browser engines (Chromium, Firefox, WebKit) and Node.js. Detailed reference documentation ships at the [project wiki](https://github.com/xero/leviathan-crypto/wiki).
 
 ---
-
 
 ## Scope
 
@@ -141,7 +142,6 @@ Overview of Leviathan Crypto's architecture, comprising twelve independent WASM 
 | [`constantTimeEqual`](./utils.md#constanttimeequal)                          | Timing-attack resistant comparison (WASM-backed) |
 
 ---
-
 
 ## Repository Structure
 
@@ -467,7 +467,6 @@ The repository root holds project documentation, package metadata, and tool conf
 
 ---
 
-
 ## Build and CI
 
 ### Build Scripts
@@ -766,7 +765,6 @@ lifetime.
 
 ---
 
-
 ## Public API Classes
 
 | Classes                                                                                                                                                                                                                                                                                                                                                                                                                        | Description / composition                                                                                                                                                                             | Required modules                                  |
@@ -839,7 +837,6 @@ Pure TypeScript utilities ship alongside the WASM-backed primitives:
 |Types|[`Hash`](./types.md#hash), [`KeyedHash`](./types.md#keyedhash), [`Blockcipher`](./types.md#blockcipher), [`Streamcipher`](./types.md#streamcipher), [`AEAD`](./types.md#aead), [`Generator`](./types.md#generator), [`HashFn`](./types.md#hashfn), [`CipherSuite`](./types.md#ciphersuite), [`SignatureSuite`](./signaturesuite.md#signaturesuite), [`StreamableSignatureSuite`](./signaturesuite.md#streamablesignaturesuite-extends-signaturesuite), [`PrehashAlgorithm`](./signaturesuite.md#prehashalgorithm)|
 
 ---
-
 
 ## Module Relationships
 
@@ -1008,7 +1005,6 @@ The `p256.wasm` binary embeds its own SHA-256 + HMAC-SHA-256 (verbatim ports fro
 See [exports.md](./exports.md) for the complete export reference, including every class, function, type, per-module init function, and the `isInitialized` re-exports available from every subpath.
 
 ---
-
 
 ## NPM Package
 

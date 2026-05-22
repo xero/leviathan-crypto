@@ -6,8 +6,6 @@
 
 # Leviathan Crypto: post-quantum WASM cryptography
 
-**Audited primitive-by-primitive.** Every primitive has a published audit covering spec conformance, known-answer tests, constant-time discipline, and ACVP validation where applicable. See [audits](https://github.com/xero/leviathan-crypto/wiki/audits) for the per-primitive index.
-
 **Zero runtime dependencies.** No NPM graph to audit. No supply chain attack surface.
 
 **Tree-shakeable.** Import only what you use. Subpath exports let bundlers exclude everything else.
@@ -137,6 +135,15 @@ import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 await kyberInit(kyberWasm)
 await sha3Init(sha3Wasm)
 ```
+
+Real bundle sizes (esbuild minified + gzip):
+
+| Use case | gzip bundle |
+|---|---:|
+| `Seal` + `XChaCha20Cipher` | ~17 KB |
+| `Seal` + `SerpentCipher` | ~29 KB |
+| Merkle log + ML-DSA-44 cosig | ~29 KB |
+| Full root barrel (every export) | ~53 KB |
 
 | Subpath                              | Module                                                  |
 | ------------------------------------ | ------------------------------------------------------- |
@@ -429,6 +436,7 @@ A covert communications application for end-to-end encrypted group conversations
 | [Architecture](https://github.com/xero/leviathan-crypto/wiki/architecture) | Repository structure, module relationships, build pipeline, and buffer layouts |
 | [Test Suite](https://github.com/xero/leviathan-crypto/wiki/test-suite) | How the test suite works, vector corpus, and gate discipline |
 | [Security Policy](./SECURITY.md) | Security posture and vulnerability disclosure details |
+| [Audits](https://github.com/xero/leviathan-crypto/wiki/audits) | Every primitive has a published audit covering spec conformance, known-answer tests, constant-time discipline, and ACVP validation where applicable. |
 | [Lexicon](https://github.com/xero/leviathan-crypto/wiki/lexicon) | Glossary of cryptographic terms |
 | [WASM Primer](https://github.com/xero/leviathan-crypto/wiki/wasm) | WebAssembly primer in the context of this library |
 | [CDN](https://github.com/xero/leviathan-crypto/wiki/cdn) | Use leviathan-crypto directly from a CDN with no bundler |
