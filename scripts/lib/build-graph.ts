@@ -35,7 +35,6 @@ import {EMBED_MODULES, POOL_WORKER_CIPHERS} from './modules'
 import * as buildAsm from '../build-asm'
 import * as embedWasm from '../embed-wasm'
 import * as embedWorkers from '../embed-workers'
-import * as copyDocs from '../copy-docs'
 
 export type BuildTarget =
 	| 'asm'
@@ -44,7 +43,6 @@ export type BuildTarget =
 	| 'ts'
 	| 'wasm-copy'
 	| 'claude-md'
-	| 'docs'
 	| 'all'
 
 export interface TargetDef {
@@ -117,26 +115,15 @@ export const TARGETS: Record<BuildTarget, TargetDef> = {
 			await cp('docs/CLAUDE_consumer.md', 'CLAUDE.md')
 		},
 	},
-	docs: {
-		deps: ['ts'],
-		run: async () => {
-			await rm('dist/docs', {recursive: true, force: true})
-			await copyDocs.run()
-		},
-	},
 	all: {
 		deps: [],
 		run: async (visited) => {
-			// Serial chain: asm → embed → embed-workers → ts.
+			// Serial chain: asm → embed → embed-workers → ts → wasm-copy
 			await walk('asm', visited)
 			await walk('embed', visited)
 			await walk('embed-workers', visited)
 			await walk('ts', visited)
-			// Post-ts copies in parallel.
-			await Promise.all([
-				walk('wasm-copy', visited),
-				walk('docs', visited),
-			])
+			await walk('wasm-copy', visited)
 		},
 	},
 }

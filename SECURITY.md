@@ -173,9 +173,7 @@ No class silently auto-initializes. The [`init()`](https://github.com/xero/levia
 
 All AI-assisted development on this repository operates under a strict agentic contract defined in [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md). The contract enforces spec authority over planning documents, immutable test vectors, gate discipline before extending any test suite, independent algorithm derivation from published standards, and constant-time and wipe requirements for all security-sensitive code paths. Agents are explicitly prohibited from guessing cryptographic values or resolving spec ambiguities silently.
 
-The contract has been verified against Claude, GitHub Copilot (VS Code), OpenHands, Kilo Code, Cursor, Windsurf, and Aider. Configuration files for each are in the repository and all route to [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md) as the single source of authority.
-
-A separate `CLAUDE_consumer.md` ships alongside the library, compressing the API surface, design restrictions, and recommended workflows into a map an AI assistant can use when a consumer asks for help writing or reviewing code that uses leviathan-crypto. It does for consumer-side AI work what `AGENTS.md` does for contributor-side AI work.
+A separate `CLAUDE.md` ships at the package root as a terse routing layer for AI consumer agents: high-level API entry points, cross-cutting foot-guns, and wiki URLs for per-primitive references. It does for consumer-side AI work what `AGENTS.md` does for contributor-side AI work.
 
 ---
 
