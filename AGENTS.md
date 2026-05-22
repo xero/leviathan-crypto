@@ -336,107 +336,107 @@ However, docs ARE authoritative on API shape. If `docs/serpent.md`
 says `SerpentCipher` has `formatEnum: 0x02` and the source disagrees,
 flag the discrepancy; don't silently resolve in either direction.
 
-### Two doc audiences
+### Wiki vs package
 
-`docs/` serves two distinct readers with different obligations:
+`docs/*.md` is the wiki source. The `wiki.yml` workflow publishes
+`docs/*` to the GitHub wiki on push to `main`. Human and AI readers
+reach feature docs at `https://github.com/xero/leviathan-crypto/wiki/<page>`.
 
-1. **Per-feature API reference** (`docs/serpent.md`, `docs/aead.md`,
-   `docs/mldsa.md`, etc). Canonical API references; ship inside the
-   npm package via the INCLUDE list in `scripts/copy-docs.ts`.
-   Load-bearing for consumer AI agents: `docs/CLAUDE_consumer.md`
-   routes agents here for any non-trivial API work.
-
-2. **Consumer AI quickstart** (`docs/CLAUDE_consumer.md`). The build
-   pipeline copies this to repo-root `CLAUDE.md` at `npm pack` time
-   via `scripts/pack.ts --pre`, removes post-pack. Consumers find it
-   at `node_modules/leviathan-crypto/CLAUDE.md`. Source of truth
-   always lives at `docs/CLAUDE_consumer.md`; never edit the root copy.
+The npm package does NOT ship `docs/*`. Per `package.json` `files`,
+only `dist/`, `SECURITY.md`, and `CLAUDE.md` (generated from
+`docs/CLAUDE_consumer.md`) ship. Consumer AI agents working inside
+`node_modules/leviathan-crypto/` see `CLAUDE.md` and the wiki URLs it
+points at; they do not read per-feature `.md` files from inside the
+package.
 
 ### `docs/CLAUDE_consumer.md` generation rules
 
-`CLAUDE_consumer.md` is the consumer-facing AI quickstart. NOT a
-duplicate of any `docs/<feature>.md`. It exists to front-load the
-foot-guns an agent will hit immediately on first use, route the agent
-to the right feature doc, and show one canonical example. Everything
-else lives in the per-feature doc.
+Source of truth at `docs/CLAUDE_consumer.md`. `scripts/pack.ts --pre`
+copies it to repo-root `CLAUDE.md` at `npm pack` time via the
+`claude-md` build target; `pack.ts --post` removes the root copy.
+Never edit the root `CLAUDE.md`; it is generated and removed.
 
-Structure (target ≤ 8000 chars, hard cap 10000):
+The file is the consumer-facing AI routing layer. It exists to:
 
-1. **Repo-out redirect**: `> [!NOTE]` block at the top telling agents
-   working *inside* the repo to stop and read `AGENTS.md` instead.
-   Cheap insurance against the pack artifact slipping into a dev
-   session.
-2. **Identity**: what the library is. ~5 lines of content; paragraph
-   or compact family table.
-3. **API shape**: tier × axis table (one-shot / streaming / parallel
+1. Front-load the cross-cutting foot-guns a consumer agent will hit
+   regardless of which primitive it touches.
+2. Route the agent to the relevant wiki page for any non-trivial work.
+3. Show one canonical example.
+
+Structure (target ≤ 8000 chars):
+
+1. **Repo-out redirect**: `> [!NOTE]` telling agents inside the repo
+   to stop and read `AGENTS.md` instead.
+2. **Identity**: brief paragraph or family table.
+3. **API shape**: tier × suite table (one-shot / streaming / parallel
    × AEAD / signatures) plus the high-level-surface preference
-   statement. Routes agents to the right entry point.
-4. **Critical foot-guns**: repo-wide ones that apply to every consumer
-   regardless of which primitive they touch: `init()` required,
-   `dispose()` in finally, stateful exclusivity, `decrypt()` throws,
-   raw `verify()` returns bool with `Sign.verify` envelope
-   discriminator, pure vs prehash sig wall, sign-envelope `ctx`
-   requirement, ratchet-is-KDF-not-session. ≤ 4000 chars.
-5. **Subpath surface**: standard-pattern statement (`<mod>Init` and
-   `<mod>Wasm`) plus aliases/exceptions table (`keccak`, `ed25519`,
-   `x25519`, `ecdsa`, no-`/embedded` subpaths).
-6. **Class → required modules → doc-file routing table**. One row per
-   primitive family; doc column points at `docs/<feature>.md`. Hybrid
-   suite rows MAY carry a `fmt 0xNN` annotation as a disambiguator;
-   wire format internals stay in the feature doc.
-7. **Single canonical example**: `Seal` + `SerpentCipher` round-trip
-   showing `init` / `keygen` / `encrypt` / throw-on-failure `decrypt`.
-   `Seal.encrypt` self-wipes (rule #2 in the file); no explicit
-   dispose. No second example.
-8. **Reference docs footer**: small table or list pointing to
-   non-feature docs (`exports.md`, `init.md`, `examples.md`,
-   `types.md`, `loader.md`, `cdn.md`).
+   statement.
+4. **Cross-cutting foot-guns**: rules that apply regardless of
+   primitive: `init()` required, `dispose()` in finally, stateful
+   exclusivity, AEAD `decrypt()` throws, raw `verify()` returns bool
+   with `Sign.verify` envelope discriminator, pure vs prehash sig
+   wall, sign-envelope `ctx` requirement, ratchet-is-KDF-not-session.
+5. **Subpath surface**: pattern statement + alias table +
+   no-`/embedded` list.
+6. **Class → init modules + wiki**: one row per high-level class.
+   Three columns: class name (with `fmt 0xNN` annotation on hybrids
+   if it disambiguates), init modules required, bare wiki URL. NOT a
+   markdown link; the URL alone.
+7. **Other refs**: small table for non-class topics (`init`,
+   `loader`, `cdn`, `examples`, `utils`, `argon2id`, `ciphersuite`,
+   `signaturesuite`). Same URL-only convention as the class table.
+8. **Canonical example**: single `Seal` + `SerpentCipher` round-trip
+   showing `init` / `keygen` / `encrypt` / throw-on-failure
+   `decrypt`. `Seal.encrypt` self-wipes; no explicit dispose. No
+   second example.
 
-Forbidden in `CLAUDE_consumer.md`:
+Forbidden:
 
-- Per-primitive worked examples (lives in `docs/<primitive>.md`)
-- Duplicate API reference tables (lives in `docs/<primitive>.md`)
-- Cipher-specific deep dives, wire format internals beyond the
-  format-byte disambiguator allowed in §6, error discriminator tables
-  (lives in `docs/<primitive>.md`)
-- Anything that pushes the file past 10000 chars
+- Per-primitive worked examples (lives in the wiki feature page)
+- Duplicate API reference tables (lives in the wiki feature page)
+- Cipher-specific deep dives, wire format internals, error
+  discriminator tables (lives in the wiki feature page)
+- Markdown link syntax in wiki URL columns; use bare URLs
+- Decorative bold or all-caps. Reserve bold for foot-gun rule
+  lead-ins; reserve all-caps for the rare silent-failure flag
+  (e.g. `NOT interchangeable`)
+- Anything that pushes the file past the ~8K char target
 
-The size cap is load-bearing, not aesthetic. If tempted to add a
-section, you are almost certainly adding content that belongs in a
-feature doc.
+The size cap is load-bearing, not aesthetic; it constrains both
+package size and the agent's context-window cost. If tempted to add
+a section, you are almost certainly adding content that belongs in a
+wiki feature page.
 
 Update triggers (modify `CLAUDE_consumer.md`):
 
-- New primitive family → add row to routing table
+- New primitive family → add row to class table
 - New module-init combination → update affected row
-- New subpath import → add row to aliases/exceptions table
-- New repo-wide foot-gun → add to critical section
-- New feature doc shipping via `copy-docs.ts` INCLUDE → routing-table
-  row is part of the same change
-- Feature doc removed from `copy-docs.ts` INCLUDE → drop its routing
-  row in the same change
+- New subpath import → add row to alias table or no-`/embedded` list
+- New repo-wide foot-gun → add to the rules section
+- New wiki page consumer agents need to reach → add row to Other refs
 
-Non-triggers (update `docs/<feature>.md` only, leave
+Non-triggers (update the relevant `docs/<feature>.md` only, leave
 `CLAUDE_consumer.md` alone):
 
 - New method on an existing class
 - New optional parameter on an existing method
 - Error message text change
 - Internal refactor with no public surface change
-- Anything affecting only one primitive family without changing its
+- Anything affecting one primitive family without changing its
   module requirements or subpath surface
 
-### `docs/<feature>.md` agent-readability bar
+### `docs/<feature>.md` as wiki source
 
-Because the routing table in `CLAUDE_consumer.md` makes per-feature
-docs load-bearing for consumer agents, every `docs/<feature>.md` that
-ships (see the INCLUDE list in `scripts/copy-docs.ts`) must contain at
-minimum:
+Per-feature docs are the canonical reference for human readers and
+for any agent that follows a wiki URL out of `CLAUDE.md`. They
+publish to the GitHub wiki on every push to `main` via `wiki.yml`.
+
+Each `docs/<feature>.md` for a shipping primitive should contain:
 
 - Front-matter table of contents linking every H2 heading
 - "Module Init" section near the top showing the exact `init()` call
-- "Security Notes" with `> [!CAUTION]` / `> [!IMPORTANT]` callouts for
-  every primitive-specific foot-gun
+- "Security Notes" with `> [!CAUTION]` / `> [!IMPORTANT]` callouts
+  for every primitive-specific foot-gun
 - "API Reference" tables for class members
 - "Usage Examples" with at least one canonical happy-path per public
   class
@@ -444,13 +444,10 @@ minimum:
 - "Cross-References" footer table pointing to related docs
 
 A new public class or const requires its `docs/<feature>.md` to meet
-this bar in the same change that introduces the export. Any new doc
-file added to `copy-docs.ts` INCLUDE must meet this bar before merging.
-
-When adding a new primitive doc to `docs/`: add it to the INCLUDE list
-in `scripts/copy-docs.ts` in alphabetical order, and add its routing
-row to `CLAUDE_consumer.md`. Both edits are part of the same change.
-The INCLUDE list edit is what makes the doc actually ship.
+this bar in the same change that introduces the export. When adding
+a new primitive doc, also add its routing row to `CLAUDE_consumer.md`
+with the wiki URL the doc will publish at. Both edits land in the
+same change.
 
 ---
 

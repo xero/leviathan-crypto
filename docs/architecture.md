@@ -440,7 +440,7 @@ The repository root holds project documentation, package metadata, and tool conf
 
 **Tool configs.** `asconfig.json` configures AssemblyScript compilation. `eslint.config.ts` is the active linter, run via `bun fix`. `playwright.config.ts` and `vitest.config.ts` configure the e2e and unit test runners. `tsconfig.json` is the base TypeScript config; `tsconfig.test.json` and `tsconfig.e2e.json` extend it for the test targets. `tslint.json` is a TSLint config (older format).
 
-**Build artifacts** (gitignored; only exist after `bun bake`). `build/` holds the raw `.wasm` outputs from AssemblyScript compilation. `dist/` is the published NPM package contents (compiled JS, declarations, copied WASM, embedded blobs, doc subset).
+**Build artifacts** (gitignored; only exist after `bun bake`). `build/` holds the raw `.wasm` outputs from AssemblyScript compilation. `dist/` is the published NPM package contents (compiled JS, declarations, copied WASM, embedded blobs).
 
 ```
 .
@@ -474,7 +474,7 @@ The repository root holds project documentation, package metadata, and tool conf
 
 `scripts/` holds the build, codegen, and tooling scripts that produce `dist/` and the test-vector corpus, plus the independent Rust verifier crate. Four categories.
 
-**Build orchestration.** Four top-level dispatchers front the package scripts: `build.ts` (the `bun bake` shorthand and the canonical `bun run build`), `test.ts` (`bun scripts/test.ts <unit|unit:group|e2e|e2e:install|all>`), `lint.ts` (`bun fix` and the canonical `bun run lint`), and `check.ts` (`bun check`, which runs a full build then lint + unit + e2e in parallel). They share a typed dependency DAG (`scripts/lib/build-graph.ts`), a parallel runner with per-task timing and colored output (`scripts/lib/parallel.ts`), the canonical eight-module list (`scripts/lib/modules.ts`), and the per-CI-group test composition (`scripts/lib/test-groups.ts`). Underneath the dispatchers, the step scripts do the actual work: `build-asm.ts` drives AssemblyScript compilation across the eight modules; `embed-wasm.ts` produces the gzip+base64 blob for each `.wasm`; `embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild; `copy-docs.ts` ships the consumer doc subset into `dist/`. See [Build Pipeline](#build-pipeline) for the full sequence.
+**Build orchestration.** Four top-level dispatchers front the package scripts: `build.ts` (the `bun bake` shorthand and the canonical `bun run build`), `test.ts` (`bun scripts/test.ts <unit|unit:group|e2e|e2e:install|all>`), `lint.ts` (`bun fix` and the canonical `bun run lint`), and `check.ts` (`bun check`, which runs a full build then lint + unit + e2e in parallel). They share a typed dependency DAG (`scripts/lib/build-graph.ts`), a parallel runner with per-task timing and colored output (`scripts/lib/parallel.ts`), the canonical eight-module list (`scripts/lib/modules.ts`), and the per-CI-group test composition (`scripts/lib/test-groups.ts`). Underneath the dispatchers, the step scripts do the actual work: `build-asm.ts` drives AssemblyScript compilation across the eight modules; `embed-wasm.ts` produces the gzip+base64 blob for each `.wasm`; `embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild. See [Build Pipeline](#build-pipeline) for the full sequence.
 
 **Codegen.** `generate_simd.ts` produces `src/asm/serpent/serpent_simd.ts` from a template by translating S-box gate logic into v128 ops; the generator and its output are both committed and the output is never edited by hand. `gen-seal-vectors.ts`, `gen-sealstream-vectors.ts`, `gen-fortuna-vectors.ts`, and `gen-ratchet-vectors.ts` produce known-answer-test vectors for their respective primitives.
 
@@ -489,7 +489,6 @@ scripts/
 ├── lint.ts              ← dispatcher · bun fix · bun scripts/lint.ts [ts|asm|all]
 ├── test.ts              ← dispatcher · bun scripts/test.ts [unit|unit:group <name>|e2e|e2e:install|all]
 ├── build-asm.ts
-├── copy-docs.ts
 ├── embed-wasm.ts
 ├── embed-workers.ts
 ├── gen-changelog.ts
@@ -526,13 +525,12 @@ For the developer-facing workflow around these scripts (the iteration loop, sing
 3. `embed-workers`: `scripts/embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild and writes the source to `src/ts/embedded/<cipher>-pool-worker.ts` as a string export.
 4. `ts`: TypeScript compiler emits `dist/`.
 5. `wasm-copy`: `build/*.wasm` is copied into `dist/` for URL-based consumers.
-6. `claude-md`: `docs/CLAUDE_consumer.md` is copied to the repository root as `CLAUDE.md` for in-package agent guidance.
-7. `docs`: `scripts/copy-docs.ts` ships the consumer doc subset into `dist/`.
+6. `claude-md`: `docs/CLAUDE_consumer.md` is copied to the repository root as `CLAUDE.md` at `npm pack` time for in-package agent guidance.
 
 **Runtime path (after build).**
 
-8. Subpath consumer: `serpentInit(serpentWasm)` → `initModule()` → `loadWasm(source)` → decode gzip+base64 → `WebAssembly.instantiate` → cache in `init.ts`.
-9. Root consumer: `init({ serpent: serpentWasm, sha2: sha2Wasm })` → dispatches to each module's init function via `Promise.all` → same path as step 8 per module.
+7. Subpath consumer: `serpentInit(serpentWasm)` → `initModule()` → `loadWasm(source)` → decode gzip+base64 → `WebAssembly.instantiate` → cache in `init.ts`.
+8. Root consumer: `init({ serpent: serpentWasm, sha2: sha2Wasm })` → dispatches to each module's init function via `Promise.all` → same path as step 7 per module.
 
 `src/ts/embedded/` is gitignored; these files are build artifacts. The WASM blobs (`<module>.ts`) derive from the AssemblyScript source in `src/asm/`. The pool-worker bundles (`<cipher>-pool-worker.ts`) derive from the worker source in `src/ts/<cipher>/pool-worker.ts`, bundled as a self-contained IIFE by `scripts/embed-workers.ts`.
 
@@ -1219,9 +1217,9 @@ Neither ML-DSA exception is key-revealing. Both reveal statistical patterns the 
 
 #### Agentic development contracts
 
-**All AI-assisted development on this repository operates under a strict agentic contract** defined in [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md). Configs for Claude, GitHub Copilot, OpenHands, Kilo Code, Cursor, Windsurf, and Aider all route to that file as the single source of authority. The contract enforces spec authority over planning documents, immutable test vectors, gate discipline before any test-suite extension, independent algorithm derivation from published standards, and constant-time and wipe requirements for all security-sensitive code paths. The contract explicitly prohibits agents from guessing cryptographic values or resolving spec ambiguities silently.
+**All AI-assisted development on this repository operates under a strict agentic contract** defined in [AGENTS.md](https://github.com/xero/leviathan-crypto/blob/main/AGENTS.md). The contract enforces spec authority over planning documents, immutable test vectors, gate discipline before any test-suite extension, independent algorithm derivation from published standards, and constant-time and wipe requirements for all security-sensitive code paths. The contract explicitly prohibits agents from guessing cryptographic values or resolving spec ambiguities silently.
 
-**Consumer agent guidance.** A [`CLAUDE.md`](./CLAUDE_consumer.md) file ships alongside the published library, compressing the API surface, design restrictions, and recommended workflows into a map an AI assistant can use when a consumer asks for help writing or reviewing code that uses leviathan-crypto. It does for consumer-side AI work what `AGENTS.md` does for contributor-side AI work.
+**Consumer agent guidance.** A [`CLAUDE.md`](./CLAUDE_consumer.md) file ships at the package root as a terse routing layer for AI consumer agents: high-level API entry points, cross-cutting foot-guns, and wiki URLs for per-primitive references. It does for consumer-side AI work what `AGENTS.md` does for contributor-side AI work.
 
 ---
 

@@ -97,7 +97,6 @@ bun run test unit:group aes
 | `ts`            | `src/ts/**`                               | `dist/`                                            | Edits to TypeScript sources without an asm rebuild                   |
 | `wasm-copy`     | `build/*.wasm`                            | `dist/*.wasm`                                      | URL-loaded consumer testing                                          |
 | `claude-md`     | `docs/CLAUDE_consumer.md`                 | `CLAUDE.md` at repo root                           | After consumer-doc edits                                             |
-| `docs`          | `docs/*.md` and SVGs                      | `dist/docs/`                                       | Verifying the doc subset that ships in the npm package               |
 
 Each target cleans its own outputs before writing. Force is the only mode; there is no staleness check and no `--force` flag.
 
