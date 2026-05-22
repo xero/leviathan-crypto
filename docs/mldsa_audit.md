@@ -6,6 +6,7 @@ Audit of the `leviathan-crypto` WebAssembly ML-DSA implementation (AssemblyScrip
 
 > ### Table of Contents
 > - [HashML-DSA Prehashed-Input Surface](#hashml-dsa-prehashed-input-surface)
+> - [Sign_internal Rejection-Path Coverage](#sign_internal-rejection-path-coverage)
 
 | Meta | Description |
 | --- | --- |
@@ -39,6 +40,20 @@ Audit of the `leviathan-crypto` WebAssembly ML-DSA implementation (AssemblyScrip
 - [ ] The refactor preserves byte-identical output for the existing `signHash` / `signHashDeterministic` / `signHashDerand` / `verifyHash` methods. Coverage: `test/unit/mldsa/hashvariant.test.ts` (Gates 8/9/10 across 3 parameter sets × 12 pre-hash functions × 90 ACVP sigGen vectors + 90 ACVP sigVer vectors) all pass unchanged.
 - [ ] Equivalence with the non-prehashed family is asserted in `test/unit/mldsa/mldsa-prehashed.test.ts`: `signHashDeterministic(sk, M, ph, ctx)` and `signHashPrehashedDeterministic(sk, Hash(M, ph), ph, ctx)` produce byte-identical signatures across all 36 (paramSet × ph) tuples; cross-API verify (sign via prehashed → verify via non-prehashed and vice versa) succeeds.
 - [ ] ACVP sigGen vectors with `preHash=preHash` are re-oracled through `signHashPrehashedDeterministic` / `signHashPrehashedDerand` (with externally-computed PH) and produce byte-identical signatures to the canonical vector.
+
+---
+
+## Sign_internal Rejection-Path Coverage
+
+FIPS 204 §6.2 Algorithm 7 `ML-DSA.Sign_internal` drives a rejection-sampling loop with four reject conditions: `‖z‖∞ ≥ γ₁ − β`, `‖r₀‖∞ ≥ γ₂ − β`, hint popcount `‖h‖₁ > ω`, and (ML-DSA-44 only) `‖ct₀‖∞ ≥ γ₂`. Random AFT sampling triggers these branches too rarely to give meaningful correctness assurance; ACVP ML-DSA JSON Specification §6.1.2 supplies KATs that exercise each path deterministically.
+
+**Audit checklist:**
+
+- [ ] Rejection-path coverage. Every reachable reject branch on every parameter set is exercised by at least one KAT vector in `test/vectors/mldsa_siggen_kats.ts`. Source: ACVP ML-DSA JSON Specification §6.1.2 Table 1 (5 vectors per parameter set, 15 total). Coverage: `test/unit/mldsa/mldsa_siggen_kats.test.ts` records labelled `t1-seed-*`.
+- [ ] High-rejection-count coverage. At least two KAT vectors per parameter set force `‖rejection-count‖ ≥ 32` (the ACVP §6.1.2 SHALL threshold) to confirm the signing loop tolerates heavy retry without early abort. Source: ACVP ML-DSA JSON Specification §6.1.2 Table 2. Recorded counts range 64-100 (ML-DSA-44 has 2 vectors at 77 and 100; ML-DSA-65 has 5 vectors at 64-73; ML-DSA-87 has 5 vectors at 64-69). Coverage: `test/unit/mldsa/mldsa_siggen_kats.test.ts` records labelled `t2-rej-*`.
+- [ ] Per-KAT byte equivalence. For every vector, `KeyGen(seed)` reproduces `(pk, sk)` whose `SHA2-256(pk ‖ sk)` matches the spec; `Sign_internal(sk, M′, rnd = 0³²)` produces σ whose `SHA2-256(σ)` matches the spec. The spec stores hashes rather than full bytes to bound vector-file size; the test reconstructs both halves and compares hashes.
+- [ ] Vector provenance. ML-DSA-65 and ML-DSA-87 Table 1 entries reflect the Nov 19 2025 ACVP regeneration (`usnistgov/ACVP@f66d187`, "Fixes ML-DSA tables with test cases that cover what they are intended to cover") that superseded the originally published vectors flagged on PQC-Forum. The ML-DSA-44 set was correct in the original specification and is unchanged.
+- [ ] Spec authority. Vectors are transcribed verbatim from `usnistgov/ACVP/src/ml-dsa/sections/04-testtypes.adoc` (the asciidoc source for the live spec at `https://pages.nist.gov/ACVP/draft-celi-acvp-ml-dsa.html`); the SHA256SUMS entry pins the vector file against further drift.
 
 ---
 

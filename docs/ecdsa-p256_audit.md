@@ -325,6 +325,16 @@ fixed-length loop with mask-driven conditional selects.
       ladder consuming the scalar MSB-first. Each bit drives
       one `pointDouble` and one masked `pointAdd`; the operation
       set per bit is independent of the scalar bit value.
+- [ ] **No precomputed tables.** `pointMulBase` runs the same
+      `pointMul` variable-base ladder used for arbitrary points,
+      not a fixed-base comb table. Comb tables index a precomputed
+      array by secret scalar bits, which is a lookup table even
+      under constant-time masked-select discipline. The project's
+      architectural commitment (SECURITY.md §Side-channel
+      resistance, architecture.md §Cipher Triptych) is register-only
+      logic with no data-dependent memory access across every
+      primitive; P-256 holds the same line as Serpent, AES,
+      ChaCha20, and the hash family.
 - [ ] **Low-S branch is mask-driven.** The signer's
       `scalarIsHighS` plus conditional `scalarNegate` selects
       the canonical s through a mask rather than a conditional

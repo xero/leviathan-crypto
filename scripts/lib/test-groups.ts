@@ -248,6 +248,7 @@ export const UNIT_GROUPS: readonly TestGroup[] = [
 			'test/unit/mldsa/rounding.test.ts',
 			'test/unit/mldsa/sampling.test.ts',
 			'test/unit/mldsa/mldsa.test.ts',
+			'test/unit/mldsa/mldsa_siggen_kats.test.ts',
 			'test/unit/mldsa/keygen-scratch-wipe.test.ts',
 			'test/unit/mldsa/sign-scratch-wipe.test.ts',
 			'test/unit/mldsa/verify-scratch-wipe.test.ts',

@@ -1133,8 +1133,11 @@ pub struct MlDsaKeyGenVector {
                     // FIPS 204 §6.2 Algorithm 7 regardless of label.
                     // Public github JSON drops ship "none" on every record
                     // because the corner-case pools are NIST-internal.
-                    // TODO: surface corner_case in per-record assertion text
-                    // if a future corpus pull yields non-"none" records.
+                    // Rejection-path coverage is provided by
+                    // test/vectors/mldsa_siggen_kats.ts (ACVP spec source
+                    // §6.1.2 Tables 1 and 2, transcribed from
+                    // usnistgov/ACVP@f66d187); no Server-side dispatch
+                    // needed here.
 #[derive(Debug, Clone, Default)]
 pub struct MlDsaSigGenVector {
     pub tc_id:                u32,

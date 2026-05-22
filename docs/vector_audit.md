@@ -78,6 +78,8 @@ Each AES target reads its respective KAT file and asserts byte-for-byte agreemen
 - SigGen: the verifier rebuilds M' per (signatureInterface, preHash, externalMu) per FIPS 204 §6.2 / §5.4 and calls `sign_internal(&[M'], &rnd)` (or `sign_mu_*` for externalMu). Deterministic mode passes the all-zero 32-byte vector as rnd; hedged signing checks against ACVP's published per-record rnd.
 - SigVer: `VerifyingKey::decode(pk_bytes)` plus `Signature::decode(...)`, then `verify_internal(&M', &sig)` (or `verify_mu(mu, &sig)`). The boolean result compares to ACVP `testPassed`. The pinned rc.9 sits on the patched side of GHSA-5x2r-hc65-25f9 (sigVer previously accepted hint vectors with non-strictly-increasing indices), so hint-malleability rejection records validate cleanly.
 
+A fourth ML-DSA vector file, `mldsa_siggen_kats.ts`, ships ACVP §6.1.2 Tables 1 and 2 (Sign_internal rejection-path KATs plus high-rejection-count KATs, 27 records total). It is sourced verbatim from the spec's asciidoc at `usnistgov/ACVP/src/ml-dsa/sections/04-testtypes.adoc` (revision `f66d187`, Nov 19 2025), pinned in `SHA256SUMS`, and exercised by `test/unit/mldsa/mldsa_siggen_kats.test.ts` via hash-comparison rather than Rust-verifier re-derivation. The spec stores `SHA2-256(pk‖sk)` and `SHA2-256(σ)` rather than the full bytes for compactness; the unit test reconstructs both halves locally and compares hashes. The Rust verifier does not exercise this file (the spec is itself the external authority; no second-source re-derivation is available).
+
 **Ed25519 and X25519 (RFC 8032 / RFC 7748).** Verified against:
 
 - ed25519-dalek 2.2.0 (dalek-cryptography organisation).
