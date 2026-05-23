@@ -439,7 +439,7 @@ exception.
 
 Every arithmetic path that touches secret material is designed to run in constant time. This means avoiding secret-dependent branches and table lookups, both of which leak timing information on real hardware.
 
-**Montgomery reduction** is pure arithmetic: multiply, mask, multiply, subtract, shift. No branches, no lookups. The formula itself guarantees constant-time behavior within the WASM execution model.
+**Montgomery reduction** is pure arithmetic: multiply, mask, multiply, subtract, shift. No branches, no lookups. The formula is algorithm-level constant-time.
 
 **Barrett reduction** also uses pure arithmetic (multiply, shift, multiply, subtract) with no branches.
 
@@ -540,11 +540,11 @@ is used for these layers instead. The mixed path is transparent to callers.
 This implementation inherits the library's established "best-available, not
 constant-time guarantee" posture for WASM:
 
-- WASM execution is deterministic and not subject to JIT speculation in the
-  cryptographic sense, but WASM is not a formally constant-time ISA. Timing
-  isolation relative to JavaScript holds; hardware microarchitectural side
-  channels (cache timing, branch prediction) cannot be excluded at the WASM
-  execution level.
+- WASM is not a formally constant-time ISA. The structured bytecode gives
+  the JS-level JIT no specialization surface, but hardware-level speculative
+  execution still applies to the lowered native code. See
+  [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+  for the canonical posture.
 - **SIMD NTT constant-time posture:** The SIMD NTT processes all 256
   coefficients unconditionally using fixed-pattern v128 loads and stores.
   No data-dependent branching exists in the SIMD layers. The scalar tail

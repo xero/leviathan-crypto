@@ -294,7 +294,7 @@ Spelling out the limits of the audit is part of the audit.
 
 **Constant-time properties are not verified.** RustCrypto's primitives are documented as constant-time on supported platforms; leviathan-crypto's WASM primitives are designed for constant-time execution. The verifier checks that they produce the same output bytes, which is a necessary condition for correctness. It does not measure timing variation or independently confirm constant-time behavior on either side. The `serpent_audit.md`, `chacha_audit.md`, and `sha2_audit.md` documents cover that scope separately.
 
-**Side channels are out of scope.** Cache-timing, power analysis, EM emanation, and speculative-execution leaks are not within reach of byte-equality checking.
+**Side channels are out of scope.** Cache-timing, power analysis, EM emanation, and speculative-execution leaks are not within reach of byte-equality checking. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends).
 
 **WASM-internal memory safety is out of scope.** The verifier confirms that whatever leviathan-crypto produces on its output buffer matches what RustCrypto produces. It says nothing about whether leviathan-crypto's WASM linear memory is correctly wiped after use, whether transient buffers are scrubbed, or whether dispose paths free key material correctly. The unit and e2e test suites cover those properties via `test/unit/*/wipe.test.ts` and similar.
 
@@ -371,8 +371,9 @@ Notes. RustCrypto's `aes` crate matches NIST CAVP byte-exactly with no conventio
 | -------- | ----------- |
 | [audits](./audits.md) | Per-primitive correctness audits |
 | [aead](./aead.md) | Authenticated encryption wire format and security model |
+| [signing](./signing.md) | Signing envelope wire format and security model |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [test-suite](./test-suite.md) | Full test inventory and gate structure |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
-| [architectural-stance](./architectural-stance.md) | Architectural posture: defended threats, layer composition, and the framing constraint |
 | [stream_audit](./stream_audit.md) | Streaming AEAD composition audit |
 | [SECURITY.md](../SECURITY.md) | Security model, threat model, authenticator robustness |

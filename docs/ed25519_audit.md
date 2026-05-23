@@ -86,6 +86,16 @@ requiring the caller to ALSO know the encoded pk.
 - [ ] **Prehash path parity.** `ed25519SignPrehashed` runs the
       same pk re-derivation and `ctEqual` check before computing
       r. Same wipe and trap discipline.
+- [ ] **Suite-layer collapse documented.** `Ed25519Suite` and
+      `Ed25519PreHashSuite` route through `_signInternalPk` /
+      `_signPrehashedInternalPk`, which derive pk inside the same
+      WASM call and skip the cross-check. At the suite call site
+      the comparison would be between two outputs of the same
+      potentially-faulted module on the same call, so the defence
+      collapses to no defence. The skip saves one basepoint scalar
+      mult per sign. See
+      [ed25519.md §Fault-Injection Defense](./ed25519.md#fault-injection-defense)
+      and [architecture.md §Threat model](./architecture.md#threat-model).
 - [ ] **No side effects on caller buffers.** sk, pk, M, digest,
       sig, and ctx buffers passed in are read but NEVER mutated
       by either the TS layer or the WASM.

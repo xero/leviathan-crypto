@@ -833,6 +833,8 @@ try {
 | [asm_aes](./asm_aes.md) | AES WASM implementation details, buffer layout, and SIMD architecture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: use `AESGCMSIVCipher` as the suite argument |
 | [ciphersuite](./ciphersuite.md) | `AESGCMSIVCipher` reference: format enum, key derivation, commitment binding |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [fortuna](./fortuna.md) | `Fortuna` CSPRNG with `AESGenerator` (Practical Cryptography §9.4) |
 | [serpent](./serpent.md) | `SerpentCipher`: alternative `CipherSuite` for `Seal` and streaming |
 | [chacha20](./chacha20.md) | `XChaCha20Cipher`: alternative `CipherSuite` for `Seal` and streaming |

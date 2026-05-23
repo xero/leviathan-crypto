@@ -57,7 +57,9 @@ during padding, making the two functions cryptographically independent.
 **Constant-time permutation.** Keccak-f[1600] uses only bitwise XOR, AND, NOT, and
 fixed rotations on 64-bit lanes. There are no data-dependent branches, no table
 lookups, and no secret-dependent memory access patterns. The permutation is
-constant-time by construction.
+algorithm-level constant-time by construction. See
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
 
 **SHAKE output cap.** `shakeFinal()` performs a single squeeze block. SHAKE128
 output is capped at 168 bytes and SHAKE256 at 136 bytes per call. For longer

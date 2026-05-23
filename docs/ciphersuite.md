@@ -511,6 +511,8 @@ file matching the same describe-block shape.
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool` |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream` (signature counterpart to the AEAD layer) |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` and the shipped suite catalog (signature counterpart to this interface) |
 | [serpent](./serpent.md) | Serpent-256 TypeScript API and raw primitives |
 | [chacha20](./chacha20.md) | ChaCha20 TypeScript API and raw primitives |
 | [kyber](./kyber.md) | ML-KEM key encapsulation and `KyberSuite` |

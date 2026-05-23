@@ -409,13 +409,13 @@ We designed every component for constant-time operation:
 | Poly1305 tag comparison | XOR-accumulate loop with no early return | Yes |
 | HChaCha20 | 20 fixed rounds, no add-back step | Yes |
 
-**ChaCha20's ARX design.** It uses only add, rotate, and XOR on 32-bit words. No lookups, no data-dependent memory access, no conditionals. This architecture is inherently immune to cache-timing side channels.
+**ChaCha20's ARX design.** It uses only add, rotate, and XOR on 32-bit words. No lookups, no data-dependent memory access, no conditionals. At the algorithm level this design has no cache-timing surface.
 
-**WASM timing guarantees.** The WASM `i32.rotl` instruction runs in fixed time on all modern architectures. Unlike JavaScript bitwise operators (which go through the JIT's polymorphic type system), WASM `i32` is always a 32-bit integer. No type specialization, no timing variation. The WASM module compiles ahead-of-time via the engine's optimizing compiler (V8's Liftoff → TurboFan, SpiderMonkey's Cranelift), so JIT speculations don't apply.
+**WASM execution model.** WASM `i32` is always a 32-bit integer with fixed-width semantics; the structured bytecode gives the JS-level JIT no specialization surface (no hidden classes, no polymorphic dispatch). See [architecture.md §WebAssembly is the deployment vehicle](./architecture.md#webassembly-is-the-deployment-vehicle) and [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the canonical WASM posture, including the hardware-level Spectre disclaim.
 
 **Poly1305 arithmetic.** The radix-2^26 multiplication in `absorbBlock` (`poly1305.ts:68-72`) and carry propagation (lines 75-81) are straight-line code with no data-dependent branches. Modular reduction multiplies carries by 5, a fixed-cost operation regardless of the accumulator value. The final conditional subtraction in `polyFinal` (lines 189-200) uses bitwise mask selection instead of a branch, avoiding any timing dependence on whether h >= p.
 
-**Counter increment:** Unlike the Serpent CTR mode counter (which has an early-exit carry propagation), the ChaCha20 counter is a simple `u32` addition (`chacha20.ts:166`). A single 32-bit add has no timing variation. This is a side-channel advantage over the Serpent implementation.
+**Counter increment:** Unlike the Serpent CTR mode counter (which has an early-exit carry propagation), the ChaCha20 counter is a simple `u32` addition (`chacha20.ts:166`). No data-dependent branch on counter value. This is a side-channel advantage over the Serpent implementation at the algorithm level.
 
 ---
 

@@ -86,7 +86,7 @@ This choice was deliberate and has two key consequences:
 | Best known cryptanalytic attack | 12 rounds (theoretical) | 9 rounds (theoretical) |
 | Security margin (rounds) | 20 | 5 |
 | Relative software speed | ~3-4x slower | Faster |
-| S-box timing channel risk | None (bitslice) | Yes (if not using AES-NI) |
+| S-box timing channel risk | None at algorithm level (bitslice) | Yes (if not using AES-NI) |
 
 Serpent's 20-round security margin versus AES's 5-round margin is the central argument
 for choosing it in high-security applications where performance is less critical.

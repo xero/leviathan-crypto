@@ -375,6 +375,10 @@ Tree-node hashing uses the same branch-free tweakable hash above.
 calls covering OUT, STATE, and SCRATCH. INPUT is owned by the caller
 and wiped by the TS wrapper after each operation.
 
+All constant-time properties in this section are algorithm-level. See
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the hardware-level disclaim.
+
 ---
 
 ## Cross-References

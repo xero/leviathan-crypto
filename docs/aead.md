@@ -60,7 +60,7 @@ The STREAM construction is based on [Hoang, Reyhanitabar, Rogaway, and Vizár (C
 
 ### WASM Side-Channel Posture
 
-All cryptographic computation runs in WASM outside the JavaScript JIT. Serpent's bitsliced S-box implementation and ChaCha20's quarter-round construction are both branchless and table-free, which eliminates data-dependent timing variation at the algorithm level. WASM lacks hardware-level constant-time guarantees, so this provides stronger posture than pure JavaScript but weaker than native constant-time code. If timing side channels are your primary threat model, a native cryptographic library with verified constant-time guarantees is more appropriate.
+Serpent's bitsliced S-box implementation and ChaCha20's quarter-round construction are both branchless and table-free, eliminating data-dependent timing variation at the algorithm level. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the canonical WASM side-channel posture and threat-model boundaries.
 
 ---
 
@@ -399,6 +399,8 @@ Never attempt to recover plaintext after an `AuthenticationError`. The stream la
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream` (signature counterpart to this layer) |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` and the shipped suite catalog (signature counterpart to `CipherSuite`) |
 | [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
 | [serpent](./serpent.md) | Serpent-256 raw primitives |
 | [chacha20](./chacha20.md) | ChaCha20 raw primitives |

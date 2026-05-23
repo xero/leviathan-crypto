@@ -470,7 +470,7 @@ and Python `hashlib`:
 
 SHA-2 uses only add, rotate, XOR, AND, OR, and NOT operations. **No table lookups.** Unlike AES, there are no S-boxes that would create cache-timing side channels. The entire compression function is a fixed sequence of arithmetic operations with no data-dependent branches.
 
-**WASM execution model:** As noted in the [Serpent audit](./serpent_audit.md#21-side-channel-analysis), WASM integer operations (`i32.and`, `i32.xor`, `i32.rotr`, `i64.add`, etc.) have fixed-width semantics compiled ahead-of-time. JIT speculative optimizations do not apply to WASM. The uniform, branch-free compression loop provides constant-time properties that are as strong as a browser execution environment can offer.
+**WASM execution model:** WASM integer operations (`i32.and`, `i32.xor`, `i32.rotr`, `i64.add`, etc.) have fixed-width semantics. The uniform, branch-free compression loop is algorithm-level constant-time. See [architecture.md §WebAssembly is the deployment vehicle](./architecture.md#webassembly-is-the-deployment-vehicle) and [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the canonical WASM posture.
 
 **No data-dependent branches in the compression loop:** The SHA-256 compression (`sha256.ts:204-209`) runs exactly 64 iterations unconditionally. The SHA-512 compression (`sha512.ts:244-249`) runs exactly 80 iterations. No iteration is skipped or short-circuited based on data values.
 

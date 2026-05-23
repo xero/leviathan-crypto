@@ -293,6 +293,8 @@ produce additional 64-byte XOF blocks.
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
 | [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
 | [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
 | [ratchet](./ratchet.md) | Double Ratchet KDF primitives: `ratchetInit`, `KDFChain`, `kemRatchetEncap`/`kemRatchetDecap`, `SkippedKeyStore` |
 | [serpent](./serpent.md) | Serpent-256 raw primitives |

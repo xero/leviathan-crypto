@@ -153,9 +153,12 @@ const sharedSecret = kem.decapsulate(decapsulationKey, ciphertext)
 
 ML-KEM uses implicit rejection. If the ciphertext was tampered with,
 `decapsulate` returns a pseudorandom value derived from a secret random string
-rather than throwing. This prevents timing attacks on decapsulation failure.
-The shared secret simply won't match, causing authentication failure at the
-AEAD layer.
+rather than throwing. The FO transform is algorithm-level constant-time on the
+FO branch, so decapsulation failure is not distinguishable from success at the
+algorithm level. The shared secret simply won't match, causing authentication
+failure at the AEAD layer. See
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for hardware-level scope.
 
 > [!IMPORTANT]
 > **FIPS 203 compliance and trust model.** `decapsulate(dk, c)` performs two
@@ -442,6 +445,8 @@ kem.dispose()
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
 | [ciphersuite](./ciphersuite.md) | `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog including PQ-only and classical+PQ hybrid composites |
 | [kyber_audit](./kyber_audit.md) | ML-KEM implementation audit |
 | [ratchet](./ratchet.md) | `ratchetInit`, `KDFChain`, `kemRatchetEncap`, `kemRatchetDecap`: post-quantum ratchet KDF primitives |
 | [ratchet_audit](./ratchet_audit.md) | ratchet KDF implementation audit |

@@ -460,7 +460,7 @@ and Python `hashlib`:
 
 **The iota if-else chain** (`keccak.ts:195-218`) branches on the round counter, not on secret data. The round counter is always 0-23, independent of the hash input. While the if-else chain is technically not constant-time with respect to the round number, the round number is not secret. It is a public loop index. This does not constitute a side-channel vulnerability.
 
-**WASM execution model:** As noted in the [SHA-2](./sha2_audit.md#21-side-channel-analysis) and [Serpent](./serpent_audit.md#21-side-channel-analysis) audits, WASM integer operations have fixed-width semantics compiled ahead-of-time. The entire `keccakF()` function operates on 25 local `i64` variables, all loaded from memory at the start, all stored back at the end. During the 24 rounds, no memory access occurs. This is the optimal constant-time pattern. The permutation is a pure register-to-register computation.
+**WASM execution model:** The entire `keccakF()` function operates on 25 local `i64` variables, all loaded from memory at the start, all stored back at the end. During the 24 rounds, no memory access occurs. This is the optimal algorithm-level constant-time pattern; the permutation is a pure register-to-register computation. See [architecture.md §WebAssembly is the deployment vehicle](./architecture.md#webassembly-is-the-deployment-vehicle) and [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for the canonical WASM posture.
 
 > [!NOTE]
 > SHA-3/Keccak is inherently more resistant to cache-timing attacks than most

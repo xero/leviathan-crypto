@@ -32,10 +32,10 @@ error telling you exactly which module to load.
 
 ## Security Notes
 
-**WASM runs outside the JavaScript JIT.** Cryptographic code executes in
-WebAssembly, which provides more predictable execution timing than optimized
-JavaScript. This reduces the risk of timing side-channels introduced by the
-JIT compiler.
+**Cryptographic code executes in WebAssembly.** See
+[architecture.md §WebAssembly is the deployment vehicle](./architecture.md#webassembly-is-the-deployment-vehicle)
+and [architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for the canonical WASM side-channel posture.
 
 **Each module gets its own linear memory.** Every WASM module receives a few
 64 KB pages of independent memory (3 pages for most modules, 4 for AES due to

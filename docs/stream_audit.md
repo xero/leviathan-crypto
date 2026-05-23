@@ -570,16 +570,16 @@ let diff = 0;
 for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
 return diff === 0;
 ```
-XOR-accumulate with no early return. The loop always executes all iterations. This provides constant-time comparison at the JavaScript level. True hardware-level constant-time guarantees are not possible in JavaScript, but this pattern is the strongest available.
+XOR-accumulate with no early return. The loop always executes all iterations. This provides algorithm-level constant-time comparison. See [architecture.md §Where defense ends](./architecture.md#where-defense-ends) for hardware-level scope.
 
 > [!NOTE]
 > Post-audit, this comparison was moved into a dedicated WASM SIMD
 > module (v128 XOR-accumulate with branch-free reduction). The JS path
 > was removed; the function now throws a branded error on runtimes
-> without WebAssembly SIMD. The constant-time property is preserved
-> and strengthened: WASM v128 ops bypass the V8/SpiderMonkey scalar
-> JIT passes that the audit's "strongest available in JavaScript"
-> caveat referenced. See [asm_cte.md](./asm_cte.md).
+> without WebAssembly SIMD. The structured WASM bytecode gives the
+> JS-level JIT no specialization surface that the audit's "strongest
+> available in JavaScript" caveat referenced. See
+> [asm_cte.md](./asm_cte.md).
 
 **Verify-then-decrypt branching:**
 
@@ -723,6 +723,8 @@ The KAT vectors in `test/vectors/sealstream_v2.ts` are **self-generated** by `sc
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | wire format spec, security model, API reference |
+| [signing](./signing.md) | Signing envelope wire format, security model, API reference |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog |
 | [serpent_audit](./serpent_audit.md) | Serpent-256 audit, §2.4 Verify-then-Decrypt |
 | [chacha_audit](./chacha_audit.md) | XChaCha20-Poly1305 audit, §1.7 AEAD construction |
 | [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 audit, §1.4 stream layer usage |

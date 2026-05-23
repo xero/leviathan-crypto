@@ -216,7 +216,7 @@ covering the regions below. The TS wrapper's `dispose()` paths call
 
 ## Side Channels
 
-- [ ] **Timing side channels.** BLAKE3 has no key-dependent branches and no key-indexed table lookups by algorithm design. Timing equalization at the CPU level is out of scope for v3 hashing modules, consistent with the sha2 / sha3 stance. The published BLAKE3 / BLAKE2 cryptanalysis literature does not report timing-side-channel weaknesses in the ARX round structure.
+- [ ] **Timing side channels.** BLAKE3 has no key-dependent branches and no key-indexed table lookups by algorithm design. Timing equalization at the CPU level is out of scope; see [architecture.md §Where defense ends](./architecture.md#where-defense-ends). The published BLAKE3 / BLAKE2 cryptanalysis literature does not report timing-side-channel weaknesses in the ARX round structure.
 - [ ] **Cache side channels.** No data-dependent table lookups exist in the compress kernel. The SIGMA table is indexed by the round number (a public loop counter), not by secret data. The `BLAKE3_IV*` constants are inlined into the source.
 - [ ] **Power and EM.** Out of scope per [architecture.md §Where defense ends](./architecture.md#where-defense-ends).
 - [ ] **Fault attacks.** Out of scope for v3 hashing modules.
