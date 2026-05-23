@@ -23,8 +23,8 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | Type | Runner     | Tests                        | Status   |
 | ---- | ---------- | ---------------------------- | -------- |
 | Unit | Vitest     | 6336                         | All pass |
-| e2e  | Playwright | 300 (100 tests × 3 browsers) | All pass |
-|      | **Total**  | **6636**                     | All pass |
+| e2e  | Playwright | 354 (118 tests × 3 browsers) | All pass |
+|      | **Total**  | **6690**                     | All pass |
 
 ---
 
@@ -322,7 +322,9 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | `fortuna.spec.ts`             | Fortuna CSPRNG: four `(generator, hash)` pair smoke (Serpent/ChaCha20 × SHA-256/SHA3-256), DOM entropy collector wiring (mouse + keyboard via Playwright synthesis), `stop()` listener removal (post-stop methods throw), `SerpentCtr` exclusivity coexistence, external entropy seed | 5     |
 | `ratchet.spec.ts`             | SPQR ratchet (`MlKem768` + `SerpentCipher` + `Seal`): same-realm two-party 10-message round-trip, out-of-order delivery via `SkippedKeyStore` (5 messages reordered with `ResolveHandle.commit/rollback`), tamper + rollback preserves the key for legitimate retry | 3     |
 | `worker_context.spec.ts`      | Library functions inside a `Web Worker`: SHA-256 "abc" digest, `Seal` round-trip (XChaCha20), Fortuna with external entropy. Validates dynamic `import()`, `init()`, primitive use, and disposal all work cross-realm | 3     |
-| `merkle-log.spec.ts`          | `MerkleLog` + `MerkleVerifier` end-to-end: Ed25519 + SHA-256 full lifecycle (append, head, inclusion proof at index 2, consistency proof between two snapshots, all three verify methods succeed), plus a tampered-envelope rejection that ensures `verifyCheckpoint` returns false on a flipped body byte | 2     |
+| `merkle-log.spec.ts`          | `MerkleLog` + `MerkleVerifier` end-to-end: Ed25519 + SHA-256 full lifecycle (append, head, inclusion proof at index 2, consistency proof between two snapshots, all three verify methods succeed), the equivalent MlDsa44Suite + SHA-256 lifecycle proving the c2sp.org cosigned-message PQ path, plus a tampered-envelope rejection that ensures `verifyCheckpoint` returns false on a flipped body byte | 3     |
+| `sign_envelope.spec.ts`       | `Sign` envelope API smoke across all 7 signature families: Ed25519Suite (RFC 8032 §7.1 TEST 1 deterministic byte gate, round-trip + tamper), Ed25519PreHashSuite (round-trip with non-empty ctx + wrong-ctx rejection), EcdsaP256Suite (round-trip, two-signs-differ hedging assertion, `signDetached`/`verifyDetached` raw round-trip), MlDsa44Suite (hedged round-trip + ctx mismatch), MlDsa44PreHashSuite (round-trip), SlhDsa128fSuite (hedged round-trip), MlDsa44SlhDsa128fSuite (PQ hybrid round-trip + tamper), MlDsa44Ed25519Suite (classical hybrid round-trip), MlDsa44EcdsaP256Suite (classical hybrid round-trip), cross-suite tamper (Ed25519 blob flipped to EcdsaP256 suite_byte), `Sign.peek` offset shape | 13    |
+| `sign_stream.spec.ts`         | `SignStream` / `VerifyStream` cross-browser smoke: Ed25519PreHashSuite chunked-stream byte-equivalence with `Sign.sign` (Ed25519ph determinism), EcdsaP256Suite header+payload equivalence with sig divergence (hedged), MlDsa44PreHashSuite `VerifyStream` accepts `Sign.sign` output (chunked feed), MlDsa44PreHashSuite mid-payload byte-flip rejection | 4     |
 
 > [!NOTE]
 > E2E Monte Carlo tests use 50 outer iterations in Playwright (vs 1200 in Vitest) for

@@ -69,10 +69,9 @@ import {
 import {
 	edPointZero,
 	edPointDouble,
-	edPointAdd,
 	edPointEqual,
-	edPointMul,
 	edPointMulBase,
+	edPointMulDoubleVerify,
 } from './edwards'
 
 import {
@@ -340,15 +339,12 @@ export function ed25519Verify(pkOff: i32, msgOff: i32, msgLen: i32, sigOff: i32)
 	sha512Final()
 	scalarReduce64(ED25519_K_SCALAR, SHA512_OUT_OFFSET)
 
-	// Strict equation: [s]B == R + [k]A.
-	// LHS = [s]B in TMP1 (overwriting the [8]A doubling chain), kA in
-	// TMP2 (overwriting the staged identity), RHS = R + kA accumulated
-	// back into TMP2 (edPointAdd allows out to alias either operand).
-	edPointMulBase(ED25519_POINT_TMP1, sigOff + 32)
-	edPointMul(ED25519_POINT_TMP2, ED25519_K_SCALAR, ED25519_POINT_A)
-	edPointAdd(ED25519_POINT_TMP2, ED25519_POINT_R, ED25519_POINT_TMP2)
+	// Strict equation: [s]B == R + [k]A, rearranged to [s]B - [k]A == R.
+	// Compute [s]B - [k]A via Strauss-Shamir interleaved double scalar
+	// mult, then compare with the decompressed R point.
+	edPointMulDoubleVerify(sigOff + 32, ED25519_K_SCALAR, ED25519_POINT_A, ED25519_POINT_TMP1)
 
-	const result: i32 = edPointEqual(ED25519_POINT_TMP1, ED25519_POINT_TMP2)
+	const result: i32 = edPointEqual(ED25519_POINT_TMP1, ED25519_POINT_R)
 	wipeAll()
 	return result
 }
@@ -507,11 +503,11 @@ export function ed25519VerifyPrehashed(pkOff: i32, digestOff: i32, ctxOff: i32, 
 	sha512Final()
 	scalarReduce64(ED25519_K_SCALAR, SHA512_OUT_OFFSET)
 
-	edPointMulBase(ED25519_POINT_TMP1, sigOff + 32)
-	edPointMul(ED25519_POINT_TMP2, ED25519_K_SCALAR, ED25519_POINT_A)
-	edPointAdd(ED25519_POINT_TMP2, ED25519_POINT_R, ED25519_POINT_TMP2)
+	// Strict equation: [s]B == R + [k]A, rearranged to [s]B - [k]A == R.
+	// Strauss-Shamir interleaved double scalar mult.
+	edPointMulDoubleVerify(sigOff + 32, ED25519_K_SCALAR, ED25519_POINT_A, ED25519_POINT_TMP1)
 
-	const result: i32 = edPointEqual(ED25519_POINT_TMP1, ED25519_POINT_TMP2)
+	const result: i32 = edPointEqual(ED25519_POINT_TMP1, ED25519_POINT_R)
 	wipeAll()
 	return result
 }
