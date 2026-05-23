@@ -14,7 +14,7 @@ Independent correctness and security reviews of every primitive in leviathan-cry
 | [sha3_audit](./sha3_audit.md) | 2026-03-25 | Keccak permutation correctness, step verification, round constant derivation |
 | [hmac_audit](./hmac_audit.md) | 2026-03-25 | HMAC construction, key processing, RFC 4231 vector coverage |
 | [hkdf_audit](./hkdf_audit.md) | 2026-03-25 | Extract-and-expand, info field domain separation, stream key derivation |
-| [kyber_audit](./kyber_audit.md) | 2026-04-06 | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
+| [mlkem_audit](./mlkem_audit.md) | 2026-04-06 | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
 | [stream_audit](./stream_audit.md) | 2026-04-03 | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths |
 | [ratchet_audit](./ratchet_audit.md) | 2026-04-13 | SPQR KDF primitives: HKDF parameter assignments, wipe coverage, counter encoding, direction slot alignment |
 | [vector_audit](./vector_audit.md) | 2026-05-04 | Test vector tier classification, independent Rust verifier coverage, CI integration, provenance of pinned KATs |

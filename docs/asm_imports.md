@@ -115,7 +115,7 @@ index.ts
   re-exports: buffers + keccak
 ```
 
-**Kyber (`src/asm/kyber/`)**
+**ML-KEM (`src/asm/mlkem/`)**
 
 ```
 params.ts
@@ -340,7 +340,7 @@ index.ts
 shared.ts
   Source-level export only, not compiled to its own WASM binary.
   Exports @inline ctEqual(aOff, bOff, len): i32. Scalar XOR-accumulate
-  with branch-free reduction. Imported by kyber/verify.ts,
+  with branch-free reduction. Imported by mlkem/verify.ts,
   slhdsa/hypertree.ts, curve25519/ed25519.ts, and p256/ecdsa.ts; the
   AS compiler inlines the body at each call site. Never emitted as a
   WASM export from any consumer binary.
@@ -355,7 +355,7 @@ shared.ts
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [asm_cte.md](./asm_cte.md) | WASM implementation: SIMD constant-time byte equality backing `constantTimeEqual`, plus the `@inline` source-level `ctEqual` imported by other AS modules. Lazy-loaded, no `init()` |
-| [asm_kyber.md](./asm_kyber.md) | WASM implementation: polynomial arithmetic, SIMD NTT/invNTT, basemul in Z_q[X]/(X²-ζ), CBD sampling, compression, FO transform |
+| [asm_mlkem.md](./asm_mlkem.md) | WASM implementation: polynomial arithmetic, SIMD NTT/invNTT, basemul in Z_q[X]/(X²-ζ), CBD sampling, compression, FO transform |
 | [asm_curve25519.md](./asm_curve25519.md) | WASM implementation: field arithmetic, edwards25519, Montgomery ladder, scalar mod L, embedded SHA-512 |
 | [asm_p256.md](./asm_p256.md) | p256 WASM implementation: GF(p256) field arithmetic, Renes-Costello-Batina 2016 complete addition, constant-time scalar mult, embedded SHA-256 + HMAC-SHA-256 for RFC 6979 K derivation |
 | [asm_mldsa.md](./asm_mldsa.md) | WASM implementation: SIMD NTT over q=8380417, rejection sampling, Power2Round / Decompose / MakeHint / UseHint, HintBitPack/Unpack with §D.3 SUF-CMA checks, SampleInBall |

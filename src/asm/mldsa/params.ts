@@ -49,7 +49,7 @@ export const D: i32 = 13;
  * Used in MontgomeryReduce: t ← ((a mod 2³²) · QINV) mod 2³².
  *
  * Note the Montgomery factor for ML-DSA is R = 2³² (FIPS 204 Appendix A),
- * unlike Kyber where R = 2¹⁶. The wider R is required because q ≈ 2²³
+ * unlike ML-KEM where R = 2¹⁶. The wider R is required because q ≈ 2²³
  * does not fit in i16.
  */
 export const QINV: i32 = 58728449;

@@ -27,7 +27,7 @@
 //
 // The pointwise-multiply round-trip gate verifies NTT-domain multiplication
 // matches schoolbook multiplication mod (X²⁵⁶ + 1) mod q over a randomised
-// batch, the same kind of cross-check used to validate Kyber's basemul.
+// batch, the same kind of cross-check used to validate MlKem's basemul.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { loadMldsa, getWasm, readPoly, writePoly, prng, modQ } from './helpers.js';

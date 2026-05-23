@@ -36,9 +36,9 @@ test.describe('SPQR ratchet, e2e (MlKem768 + SerpentCipher + Seal)', () => {
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm }    = await import(`${base}/dist/sha2/embedded.js`);
 			const { sha3Wasm }    = await import(`${base}/dist/sha3/embedded.js`);
-			const { kyberWasm }   = await import(`${base}/dist/kyber/embedded.js`);
+			const { mlkemWasm }   = await import(`${base}/dist/mlkem/embedded.js`);
 			(await import(`${base}/dist/init.js`))._resetForTesting();
-			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm, kyber: kyberWasm });
+			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm, mlkem: mlkemWasm });
 
 			const kem = new lib.MlKem768();
 			const { encapsulationKey: bobEk, decapsulationKey: bobDk } = kem.keygen();
@@ -92,9 +92,9 @@ test.describe('SPQR ratchet, e2e (MlKem768 + SerpentCipher + Seal)', () => {
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm }    = await import(`${base}/dist/sha2/embedded.js`);
 			const { sha3Wasm }    = await import(`${base}/dist/sha3/embedded.js`);
-			const { kyberWasm }   = await import(`${base}/dist/kyber/embedded.js`);
+			const { mlkemWasm }   = await import(`${base}/dist/mlkem/embedded.js`);
 			(await import(`${base}/dist/init.js`))._resetForTesting();
-			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm, kyber: kyberWasm });
+			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm, mlkem: mlkemWasm });
 
 			const kem = new lib.MlKem768();
 			const { encapsulationKey: bobEk, decapsulationKey: bobDk } = kem.keygen();
@@ -160,9 +160,9 @@ test.describe('SPQR ratchet, e2e (MlKem768 + SerpentCipher + Seal)', () => {
 			const { serpentWasm } = await import(`${base}/dist/serpent/embedded.js`);
 			const { sha2Wasm }    = await import(`${base}/dist/sha2/embedded.js`);
 			const { sha3Wasm }    = await import(`${base}/dist/sha3/embedded.js`);
-			const { kyberWasm }   = await import(`${base}/dist/kyber/embedded.js`);
+			const { mlkemWasm }   = await import(`${base}/dist/mlkem/embedded.js`);
 			(await import(`${base}/dist/init.js`))._resetForTesting();
-			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm, kyber: kyberWasm });
+			await lib.init({ serpent: serpentWasm, sha2: sha2Wasm, sha3: sha3Wasm, mlkem: mlkemWasm });
 
 			const kem = new lib.MlKem768();
 			const { encapsulationKey: bobEk, decapsulationKey: bobDk } = kem.keygen();

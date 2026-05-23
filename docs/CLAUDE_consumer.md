@@ -27,7 +27,7 @@ Two hierarchies, one suite extension point. Tier = data shape. Suite = crypto ch
 | Parallel | SealStreamPool (Web Workers) | n/a |
 | Suite arg | CipherSuite | SignatureSuite |
 
-`Seal` blob = single-chunk `SealStream` output (interchangeable). Symmetric: `SerpentCipher`, `XChaCha20Cipher`, `AESGCMSIVCipher`. `KyberSuite(MlKem*, inner)` wraps any of them for PQ hybrid (same `CipherSuite` interface).
+`Seal` blob = single-chunk `SealStream` output (interchangeable). Symmetric: `SerpentCipher`, `XChaCha20Cipher`, `AESGCMSIVCipher`. `MlKemSuite(MlKem*, inner)` wraps any of them for PQ hybrid (same `CipherSuite` interface).
 
 **Prefer the high-level surface (Seal / Sign / Fortuna).** Handles KDF, nonce management, auth, key wipes, counter binding. Rejects tampered/reordered/spliced inputs before plaintext release. Low-level primitives (raw `ChaCha20`, `SerpentCbc`, etc.) require reading their wiki page first.
 
@@ -51,7 +51,7 @@ Two hierarchies, one suite extension point. Tier = data shape. Suite = crypto ch
 
 ## Subpath imports
 
-Pattern: `leviathan-crypto/<mod>` exports `<mod>Init(source)`; `leviathan-crypto/<mod>/embedded` exports `<mod>Wasm`. Twelve modules: `serpent`, `chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `kyber`, `mldsa`, `slhdsa`, `blake3`, `curve25519`, `p256`.
+Pattern: `leviathan-crypto/<mod>` exports `<mod>Init(source)`; `leviathan-crypto/<mod>/embedded` exports `<mod>Wasm`. Twelve modules: `serpent`, `chacha20`, `aes`, `sha2`, `sha3`, `keccak`, `mlkem`, `mldsa`, `slhdsa`, `blake3`, `curve25519`, `p256`.
 
 Aliases share binary + instance slot:
 
@@ -72,7 +72,7 @@ No `/embedded`: `leviathan-crypto/ratchet`, `leviathan-crypto/stream`, `leviatha
 | SerpentCipher | serpent, sha2 | https://github.com/xero/leviathan-crypto/wiki/serpent |
 | XChaCha20Cipher | chacha20, sha2 | https://github.com/xero/leviathan-crypto/wiki/chacha20 |
 | AESGCMSIVCipher | aes, sha2 | https://github.com/xero/leviathan-crypto/wiki/aes |
-| KyberSuite(MlKem*, inner) | kyber, sha3 + inner | https://github.com/xero/leviathan-crypto/wiki/kyber |
+| MlKemSuite(MlKem*, inner) | mlkem, sha3 + inner | https://github.com/xero/leviathan-crypto/wiki/mlkem |
 | Sign / SignStream / VerifyStream | varies by suite | https://github.com/xero/leviathan-crypto/wiki/signing |
 | MlDsa{44,65,87}Suite (pure, prehash) | mldsa, sha3 (+sha2 for SHA-2 prehash) | https://github.com/xero/leviathan-crypto/wiki/mldsa |
 | SlhDsa{128f,192f,256f}Suite | slhdsa, sha3 (+sha2 for SHA-2 prehash) | https://github.com/xero/leviathan-crypto/wiki/slhdsa |
@@ -83,7 +83,7 @@ No `/embedded`: `leviathan-crypto/ratchet`, `leviathan-crypto/stream`, `leviatha
 | MlDsa{44,65,87}SlhDsa{128f,192f,256f}Suite (0x30-0x32) | mldsa, sha3, slhdsa | https://github.com/xero/leviathan-crypto/wiki/signaturesuite |
 | X25519 | curve25519 | https://github.com/xero/leviathan-crypto/wiki/x25519 |
 | MerkleVerifier / MerkleLog | sha2 + suite (+blake3 if `hashing: 'blake3'`) | https://github.com/xero/leviathan-crypto/wiki/merkle |
-| Sparse PQ Ratchet (KDF, rule 8) | sha2, kyber, sha3 | https://github.com/xero/leviathan-crypto/wiki/ratchet |
+| Sparse PQ Ratchet (KDF, rule 8) | sha2, mlkem, sha3 | https://github.com/xero/leviathan-crypto/wiki/ratchet |
 | Fortuna | one cipher + one hash | https://github.com/xero/leviathan-crypto/wiki/fortuna |
 | SHA-2 / HMAC / HKDF | sha2 | https://github.com/xero/leviathan-crypto/wiki/sha2 |
 | SHA-3 / SHAKE | sha3 | https://github.com/xero/leviathan-crypto/wiki/sha3 |
@@ -123,4 +123,4 @@ try {
 }
 ```
 
-Streaming: `Seal` → `SealStream` + `OpenStream`. PQ hybrid: `SerpentCipher` → `KyberSuite(new MlKem768(), SerpentCipher)`. Same call site, wire format, catch semantics.
+Streaming: `Seal` → `SealStream` + `OpenStream`. PQ hybrid: `SerpentCipher` → `MlKemSuite(new MlKem768(), SerpentCipher)`. Same call site, wire format, catch semantics.

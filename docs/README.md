@@ -32,7 +32,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Module | Description |
 |--------|-------------|
-| [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite` |
+| [aead.md](./aead.md) | `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, `SerpentCipher`, `XChaCha20Cipher`, `MlKemSuite` |
 | [ciphersuite.md](./ciphersuite.md) | `CipherSuite` interface and the in-tree symmetric / hybrid cipher consts |
 
 ### Signatures
@@ -46,8 +46,8 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 
 | Module | Description |
 |--------|-------------|
-| [kyber.md](./kyber.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `KyberSuite`: ML-KEM key encapsulation (FIPS 203) |
-| [asm_kyber.md](./asm_kyber.md) | WASM implementation: polynomial arithmetic, SIMD NTT/invNTT, basemul in Z_q[X]/(X²-ζ), CBD sampling, compression, FO transform |
+| [mlkem.md](./mlkem.md) | `MlKem512`, `MlKem768`, `MlKem1024`, `MlKemSuite`: ML-KEM key encapsulation (FIPS 203) |
+| [asm_mlkem.md](./asm_mlkem.md) | WASM implementation: polynomial arithmetic, SIMD NTT/invNTT, basemul in Z_q[X]/(X²-ζ), CBD sampling, compression, FO transform |
 
 ### Classical Signatures and Key Agreement
 
@@ -183,7 +183,7 @@ See the [audit index](./audits.md) for a summary of all reviews.
 | [blake3_audit.md](./blake3_audit.md) | BLAKE3 tree-mode correctness, compress / compress4 equivalence, flag bits, chunk machine, queue-per-level tree assembly, XOF snapshot integrity |
 | [hmac_audit.md](./hmac_audit.md) | HMAC construction, key processing, RFC 4231 vector coverage |
 | [hkdf_audit.md](./hkdf_audit.md) | HKDF extract-then-expand, info field domain separation, stream key derivation |
-| [kyber_audit.md](./kyber_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
+| [mlkem_audit.md](./mlkem_audit.md) | ML-KEM FIPS 203 correctness, NTT verification, FO transform CT analysis, ACVP validation |
 | [mldsa_audit.md](./mldsa_audit.md) | ML-DSA FIPS 204 prehashed-input surface audit |
 | [slhdsa_audit.md](./slhdsa_audit.md) | SLH-DSA FIPS 205 implementation audit, including PQ-only hybrid factory invariants |
 | [ed25519_audit.md](./ed25519_audit.md) | Ed25519 RFC 8032 plus FIPS 186-5 strict verification, fault-injection defence, embedded SHA-512 integrity, dom2 prehash binding |

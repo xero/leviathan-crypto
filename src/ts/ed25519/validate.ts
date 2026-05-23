@@ -26,7 +26,7 @@
 // pk-mismatch trap all live inside the WASM layer.
 //
 // TypeError for non-Uint8Array, RangeError for wrong-length. Matches
-// the mldsa / kyber validation conventions.
+// the mldsa / mlkem validation conventions.
 
 export function validateSeed(seed: Uint8Array): void {
 	if (!(seed instanceof Uint8Array))

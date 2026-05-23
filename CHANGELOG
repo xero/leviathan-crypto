@@ -11,10 +11,10 @@
   from `(masterKey, nonce, INFO || header)`, bytes 0..32 are the per-stream
   AES-GCM-SIV key, bytes 32..64 are a 32-byte commitment verified in
   constant time. Works with `Seal`, `SealStream`, `OpenStream`,
-  `SealStreamPool`, and `KyberSuite`. The standalone `AESGCMSIV` primitive
+  `SealStreamPool`, and `MlKemSuite`. The standalone `AESGCMSIV` primitive
   still supports both AES-128 and AES-256.
 
-- **`KyberSuite` AES variants.** `KyberSuite(MlKem512/768/1024,
+- **`MlKemSuite` AES variants.** `MlKemSuite(MlKem512/768/1024,
   AESGCMSIVCipher)` produces `formatEnum` 0x14, 0x24, 0x34 with preambles
   820 / 1140 / 1620 bytes, identical to the XChaCha20 KEM variants.
 
@@ -345,17 +345,17 @@
   | `_chachaReady()`       | `isInitialized('chacha20')`    |
   | `_sha2Ready()`         | `isInitialized('sha2')`        |
   | `_sha3Ready()`         | `isInitialized('sha3')`        |
-  | `_kyberReady()`        | `isInitialized('kyber')`       |
+  | `_kyberReady()`        | `isInitialized('mlkem')`       |
 
   Update the import: `import { isInitialized } from 'leviathan-crypto'`.
 
   One semantic narrowing: `_kyberReady()` previously checked **both** the
-  `kyber` and `sha3` modules. The replacement `isInitialized('kyber')`
-  checks only the `kyber` module. If the combined check matters, do
-  `isInitialized('kyber') && isInitialized('sha3')`.
+  `mlkem` and `sha3` modules. The replacement `isInitialized('mlkem')`
+  checks only the `mlkem` module. If the combined check matters, do
+  `isInitialized('mlkem') && isInitialized('sha3')`.
 
 - **`isInitialized(mod)` now re-exported from every submodule subpath.**
-  Previously only the root barrel and the kyber subpath re-exported it.
+  Previously only the root barrel and the mlkem subpath re-exported it.
   Purely additive on the seven other submodule subpaths.
 
 - **`CT_MAX_BYTES` renamed to `CTE_MAX_BYTES`.** The public const that
@@ -366,6 +366,32 @@
   `src/ts/ct-wasm.ts` → `src/ts/cte-wasm.ts`, `docs/asm_ct.md` →
   `docs/asm_cte.md`. The TS function name `constantTimeEqual` and the
   WASM ABI are unchanged.
+
+- **`kyber` renamed to `mlkem` everywhere.** Identifiers, file paths,
+  subpath exports, init keys, CI handles, and feature-doc filenames now
+  use the FIPS 203 standardized name. Wire format is unchanged: locked
+  `formatEnum` bytes (0x12-0x34), KEM labels (`mlkem512`/`mlkem768`/
+  `mlkem1024`), and all `MlKem*`/`MLKEM*` symbols were already correct.
+
+  | Old                       | New                       |
+  |---                        |---                        |
+  | `import from 'leviathan-crypto/kyber'`          | `import from 'leviathan-crypto/mlkem'`          |
+  | `import from 'leviathan-crypto/kyber/embedded'` | `import from 'leviathan-crypto/mlkem/embedded'` |
+  | `KyberSuite`              | `MlKemSuite`              |
+  | `KyberParams`             | `MlKemParams`             |
+  | `KyberExports`            | `MlKemExports`            |
+  | `KyberKeyPair`            | `MlKemKeyPair`            |
+  | `KyberEncapsulation`      | `MlKemEncapsulation`      |
+  | `kyberInit(src)`          | `mlkemInit(src)`          |
+  | `kyberWasm`               | `mlkemWasm`               |
+  | `init({ kyber: src })`    | `init({ mlkem: src })`    |
+  | `isInitialized('kyber')`  | `isInitialized('mlkem')`  |
+
+  No backward-compat alias. The `MlKem512`/`MlKem768`/`MlKem1024` class
+  names, the `MLKEM512`/`MLKEM768`/`MLKEM1024` parameter consts, and
+  every wire-format byte and label are unchanged. The historical
+  `docs/kyber_audit.md` keeps its filename and wiki URL as the audit
+  trail for the original FIPS 203 implementation work.
 
 ### Security
 
@@ -446,7 +472,7 @@
 
 - **`cte/shared.ts ctEqual` for in-WASM byte equality.** New `@inline`
   AssemblyScript helper exporting `ctEqual(aOff, bOff, len): i32`.
-  Imported by `kyber/verify.ts`, `slhdsa/hypertree.ts`,
+  Imported by `mlkem/verify.ts`, `slhdsa/hypertree.ts`,
   `curve25519/ed25519.ts`, and `p256/ecdsa.ts`; the AS compiler inlines
   the body at each call site so the symbol never appears in any consumer
   WASM exports table. Scalar XOR-accumulate with a branch-free
@@ -555,7 +581,7 @@
 
 - **`docs/architecture.md`** per-submodule export map drops the
   `_<module>Ready` entries, picks up the `ratchet/index.ts` row,
-  `kyberInit` in the subpath-init list, and a footnote noting
+  `mlkemInit` in the subpath-init list, and a footnote noting
   `isInitialized(mod)` is now reachable from every submodule subpath.
   New entries for ECDSA-P256, BLAKE3, SLH-DSA, ML-DSA, curve25519, and
   the merkle layer.
@@ -568,7 +594,7 @@
   latest release). SRI example keeps an explicit version pin since the
   integrity hash is bytes-specific. Adds a "Pinning" callout
   recommending pinned versions for production. WASM filenames table
-  picks up a missing `kyber.wasm` row.
+  picks up a missing `mlkem.wasm` row.
 
 - **New shipped docs.** `docs/signaturesuite.md`,
   `docs/phase-index.md`, `docs/blake3.md`, `docs/slhdsa.md`,

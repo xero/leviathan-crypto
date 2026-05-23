@@ -64,7 +64,7 @@ cbc              = { version = "=0.2.0",  default-features = false, features = [
 ctr              = { version = "=0.10.0", default-features = false }
 aes-gcm          = { version = "=0.10.3", default-features = false, features = ["aes", "alloc"] }
 # RustCrypto ML-KEM (FIPS 203 final): independent-lineage oracle for
-# kyber_keygen.ts and kyber_encapdecap.ts. `hazmat` exposes
+# mlkem_keygen.ts and mlkem_encapdecap.ts. `hazmat` exposes
 # `EncapsulationKey::encapsulate_deterministic(m)` so ACVP-supplied
 # message values reproduce the published ciphertext byte-for-byte; the
 # default `from_seed(d || z)` already gives deterministic keygen.

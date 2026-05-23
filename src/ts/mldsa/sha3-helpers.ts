@@ -31,7 +31,7 @@
 // helpers and the incremental SHAKE128 / SHAKE256 squeezers below cover
 // every call shape ML-DSA needs.
 
-import type { Sha3Exports } from '../kyber/types.js';
+import type { Sha3Exports } from '../mlkem/types.js';
 
 const SHAKE128_RATE = 168;
 const SHAKE256_RATE = 136;

@@ -275,7 +275,7 @@ This check is independent of the cipher: even `XChaCha20Cipher` requires sha2 be
 
 **Verdict:** Correct. The sha2 init gate is present in all stream entry points.
 
-### KyberSuite key derivation
+### MlKemSuite key derivation
 
 On encrypt, `kem.encapsulate(ek)` produces `sharedSecret` and `kemCt`. HKDF-SHA256
 is called with `info = encode(hkdfInfo) || kemCt`, binding the KEM ciphertext

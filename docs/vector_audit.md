@@ -25,7 +25,7 @@ Test vectors fall into four tiers based on their authority and how their correct
 
 **Tier 3: Self-generated over custom primitives.** The construction is unique to leviathan-crypto and has no external reference implementation. The SPQR ratchet KATs and Fortuna PRNG KATs live here. The audit discipline is internal consistency: round-trip tests, never-reuse-nonce invariants, forward-secrecy property tests. Cross-language verification has no external authority to verify against.
 
-**Tier 4: Hybrid.** Vectors that wrap a Tier 1 primitive in a Tier 2 construction. Kyber-suite seal blobs are an example. The KEM ciphertext piece is Tier 1 (NIST ACVP defines correctness). The seal-format wrapper is Tier 2 (we designed it). The verifier independently covers the ML-KEM primitive against ACVP and covers symmetric Tier 2 wrappers, but it does not yet exercise KEM-wrapped seal blobs end to end. The two pieces are verified separately; their composition is not yet a single verifier target.
+**Tier 4: Hybrid.** Vectors that wrap a Tier 1 primitive in a Tier 2 construction. ML-KEM-suite seal blobs are an example. The KEM ciphertext piece is Tier 1 (NIST ACVP defines correctness). The seal-format wrapper is Tier 2 (we designed it). The verifier independently covers the ML-KEM primitive against ACVP and covers symmetric Tier 2 wrappers, but it does not yet exercise KEM-wrapped seal blobs end to end. The two pieces are verified separately; their composition is not yet a single verifier target.
 
 ---
 
@@ -65,7 +65,7 @@ Each AES target reads its respective KAT file and asserts byte-for-byte agreemen
 
 **POLYVAL primitive.** Verified against RustCrypto's `polyval` crate, which implements the universal hash directly per RFC 8452 §3. POLYVAL stands as its own target separate from AES-GCM-SIV because the test corpus includes the §7 / Appendix A KATs that exercise POLYVAL's reflected-GHASH structure independent of the AEAD wrapper.
 
-**ML-KEM primitive (FIPS 203).** Verified against RustCrypto's `ml-kem` crate. The verifier reads the NIST ACVP `keyGen` and `encap+decap` records (`kyber_keygen.ts`, `kyber_encapdecap.ts`) and reproduces every ACVP-published expected output:
+**ML-KEM primitive (FIPS 203).** Verified against RustCrypto's `ml-kem` crate. The verifier reads the NIST ACVP `keyGen` and `encap+decap` records (`mlkem_keygen.ts`, `mlkem_encapdecap.ts`) and reproduces every ACVP-published expected output:
 
 - §6.1 KeyGen_internal: `KeyGen::from_seed(d ‖ z)` returns dk; the matching ek encoding compares to `pk` and the dk encoding to `sk`.
 - §6.2 Encaps_internal: `EncapsulationKey::encapsulate_deterministic(m)` reproduces the ACVP `(c, k)` pair given the published 32-byte message m.
@@ -302,7 +302,7 @@ Spelling out the limits of the audit is part of the audit.
 
 **Tier 3 vectors (ratchet, fortuna) are not covered.** No external reference exists to verify against; internal consistency tests in the unit suite cover the available correctness properties.
 
-**KEM-wrapped seal blobs (Tier 4) are not covered as a single target.** The verifier independently covers the ML-KEM primitive against ACVP and covers symmetric Tier 2 wrappers, but it does not yet exercise KyberSuite-wrapped seal blobs end to end. Their two pieces are verified separately; their composition is not yet a single verifier target.
+**KEM-wrapped seal blobs (Tier 4) are not covered as a single target.** The verifier independently covers the ML-KEM primitive against ACVP and covers symmetric Tier 2 wrappers, but it does not yet exercise MlKemSuite-wrapped seal blobs end to end. Their two pieces are verified separately; their composition is not yet a single verifier target.
 
 ---
 

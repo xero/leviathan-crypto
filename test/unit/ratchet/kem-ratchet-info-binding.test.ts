@@ -47,7 +47,7 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, MlKem512, constantTimeEqual, wipe } from '../../../src/ts/index.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
-import { kyberWasm } from '../../../src/ts/kyber/embedded.js';
+import { mlkemWasm } from '../../../src/ts/mlkem/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
 import { kemRatchetEncap, kemRatchetDecap } from '../../../src/ts/ratchet/index.js';
 import { utf8ToBytes, hexToBytes, bytesToHex } from '../../../src/ts/utils.js';
@@ -70,7 +70,7 @@ function wipeDecap(x: { nextRootKey: Uint8Array; sendChainKey: Uint8Array; recvC
 }
 
 beforeAll(async () => {
-	await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm });
+	await init({ sha2: sha2Wasm, mlkem: mlkemWasm, sha3: sha3Wasm });
 });
 
 describe('kemRatchet info binding', () => {

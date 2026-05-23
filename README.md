@@ -24,7 +24,7 @@
 
 **Above the cipher suites sits a cipher-agnostic [AEAD layer](https://github.com/xero/leviathan-crypto/wiki/aead):** `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool`. Each takes a `CipherSuite` at construction, and the seal layer handles key derivation, nonce management, and authentication. `Seal` covers one-shot encryption for data that fits in memory. `SealStream` and `OpenStream` handle chunked data too large to buffer. WASM instances are single-threaded by design, so `SealStreamPool` distributes chunks across Web Workers to reach multi-core throughput. Any authentication failure kills the pool. Pending operations reject, workers zero their keys and terminate, and the master synchronously zeroes its copies. No retry, no partial results. All four share one wire format. A `Seal` blob is structurally a single-chunk `SealStream` output, and `OpenStream` decrypts it interchangeably.
 
-**[ML-KEM](https://github.com/xero/leviathan-crypto/wiki/kyber): post-quantum handshake.** `KyberSuite` is a fourth `CipherSuite` factory that wraps an ML-KEM parameter set (`MlKem512`, `MlKem768`, `MlKem1024`) around any of the three ciphers above. The result slots into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` unchanged. Constant-time Fujisaki-Okamoto comparisons run inside the Kyber WASM module; the 32-byte shared secret derives directly from a SHA-3 output and never crosses the wire, so the leading-zero-trim timing leak that hit TLS-DH(E) (the Raccoon attack) has no structural analog here.
+**[ML-KEM](https://github.com/xero/leviathan-crypto/wiki/mlkem): post-quantum handshake.** `MlKemSuite` is a fourth `CipherSuite` factory that wraps an ML-KEM parameter set (`MlKem512`, `MlKem768`, `MlKem1024`) around any of the three ciphers above. The result slots into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` unchanged. Constant-time Fujisaki-Okamoto comparisons run inside the ML-KEM WASM module; the 32-byte shared secret derives directly from a SHA-3 output and never crosses the wire, so the leading-zero-trim timing leak that hit TLS-DH(E) (the Raccoon attack) has no structural analog here.
 
 **[X25519](https://github.com/xero/leviathan-crypto/wiki/x25519): classical key agreement.** Curve25519 Diffie-Hellman per RFC 7748 §5, with a constant-time Montgomery ladder and TS-layer rejection of the all-zero shared secret. Same key-agreement role as ML-KEM but without post-quantum guarantees; use it for ecosystem interop, ML-KEM when the threat model assumes a future CRQC, or both together when you want a hybrid handshake.
 
@@ -70,7 +70,7 @@ npm install leviathan-crypto
 v3 is the current stable line; semver applies. Runs in modern browsers, Node.js 22+, Bun, Deno, and Cloudflare Workers.
 
 > [!IMPORTANT]
-> [Serpent](https://github.com/xero/leviathan-crypto/wiki/serpent), [ChaCha20](https://github.com/xero/leviathan-crypto/wiki/chacha20), [ML-KEM](https://github.com/xero/leviathan-crypto/wiki/kyber), [AES](https://github.com/xero/leviathan-crypto/wiki/aes), [ML-DSA](https://github.com/xero/leviathan-crypto/wiki/mldsa), [BLAKE3](https://github.com/xero/leviathan-crypto/wiki/blake3), and [constantTimeEqual](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) require WebAssembly SIMD support. This has been a baseline feature of all major browsers and runtimes [since 2021](https://caniuse.com/wasm-simd).
+> [Serpent](https://github.com/xero/leviathan-crypto/wiki/serpent), [ChaCha20](https://github.com/xero/leviathan-crypto/wiki/chacha20), [ML-KEM](https://github.com/xero/leviathan-crypto/wiki/mlkem), [AES](https://github.com/xero/leviathan-crypto/wiki/aes), [ML-DSA](https://github.com/xero/leviathan-crypto/wiki/mldsa), [BLAKE3](https://github.com/xero/leviathan-crypto/wiki/blake3), and [constantTimeEqual](https://github.com/xero/leviathan-crypto/wiki/utils#constanttimeequal) require WebAssembly SIMD support. This has been a baseline feature of all major browsers and runtimes [since 2021](https://caniuse.com/wasm-simd).
 
 SIMD throughput on Apple Silicon peaks at ~1.3 GB/s for ChaCha20 and ~40 MB/s for Serpent, single-threaded; 1.2-3.2× over scalar. Full matrix across V8, SpiderMonkey, and JSC in [benchmarks](https://github.com/xero/leviathan-crypto/wiki/benchmarks).
 
@@ -126,13 +126,13 @@ import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 await serpentInit(serpentWasm)
 await sha2Init(sha2Wasm)
 
-// ML-KEM requires kyber + sha3
-import { kyberInit } from 'leviathan-crypto/kyber'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+// ML-KEM requires mlkem + sha3
+import { mlkemInit } from 'leviathan-crypto/mlkem'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 import { sha3Init } from 'leviathan-crypto/sha3'
 import { sha3Wasm } from 'leviathan-crypto/sha3/embedded'
 
-await kyberInit(kyberWasm)
+await mlkemInit(mlkemWasm)
 await sha3Init(sha3Wasm)
 ```
 
@@ -159,8 +159,8 @@ Real bundle sizes (esbuild minified + gzip):
 | `leviathan-crypto/sha3/embedded`     | SHA-3 WASM blob                                         |
 | `leviathan-crypto/keccak`            | Keccak alias for SHA-3                                  |
 | `leviathan-crypto/keccak/embedded`   | Keccak WASM blob (same bytes as `sha3/embedded`)        |
-| `leviathan-crypto/kyber`             | ML-KEM                                                  |
-| `leviathan-crypto/kyber/embedded`    | ML-KEM WASM blob                                        |
+| `leviathan-crypto/mlkem`             | ML-KEM                                                  |
+| `leviathan-crypto/mlkem/embedded`    | ML-KEM WASM blob                                        |
 | `leviathan-crypto/aes`               | AES-256-GCM-SIV                                         |
 | `leviathan-crypto/aes/embedded`      | AES WASM blob                                           |
 | `leviathan-crypto/blake3`            | BLAKE3                                                  |
@@ -260,16 +260,16 @@ const decrypted = await pool.open(encrypted)
 pool.destroy()
 ```
 
-**_Want post-quantum security?_** [`KyberSuite`](https://github.com/xero/leviathan-crypto/wiki/kyber#kybersuite) wraps ML-KEM and a cipher suite into a hybrid construction. It plugs directly into [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream). The sender encrypts with the public encapsulation key and only the recipient's private decapsulation key can open it.
+**_Want post-quantum security?_** [`MlKemSuite`](https://github.com/xero/leviathan-crypto/wiki/mlkem#mlkemsuite) wraps ML-KEM and a cipher suite into a hybrid construction. It plugs directly into [`SealStream`](https://github.com/xero/leviathan-crypto/wiki/aead#sealstream). The sender encrypts with the public encapsulation key and only the recipient's private decapsulation key can open it.
 
 ```typescript
-import { KyberSuite, MlKem768 } from 'leviathan-crypto/kyber'
-import { kyberWasm }    from 'leviathan-crypto/kyber/embedded'
+import { MlKemSuite, MlKem768 } from 'leviathan-crypto/mlkem'
+import { mlkemWasm }    from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
 
-await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
 
-const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
+const suite = MlKemSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 
 // sender: encrypts with the public key
@@ -356,7 +356,7 @@ ECDSA-P256 is classical (not post-quantum); pair it with an ML-DSA or SLH-DSA su
 ```typescript
 import { ratchetInit, KDFChain } from 'leviathan-crypto/ratchet'
 
-await init({ sha2: sha2Wasm })   // KDF layer only; add kyber + sha3 for KEM steps
+await init({ sha2: sha2Wasm })   // KDF layer only; add mlkem + sha3 for KEM steps
 
 const { nextRootKey, sendChainKey, recvChainKey } = ratchetInit(sharedSecret)
 const chain = new KDFChain(sendChainKey)
@@ -393,13 +393,13 @@ lvthn keygen --armor -o my.key
 cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 ```
 
-**`kyber`** [ [demo](https://leviathan.3xi.club/kyber) · [source](https://github.com/xero/leviathan-demos/tree/main/kyber) · [readme](https://github.com/xero/leviathan-demos/blob/main/kyber/README.md) ]
+**`mlkem`** [ [demo](https://leviathan.3xi.club/mlkem) · [source](https://github.com/xero/leviathan-demos/tree/main/mlkem) · [readme](https://github.com/xero/leviathan-demos/blob/main/mlkem/README.md) ]
 
 Post-quantum cryptography demo simulating a complete ML-KEM key encapsulation ceremony between two browser-side clients. A live wire at the top of the page logs every value that crosses the channel; importantly, the shared secret never appears in the wire. After the ceremony completes, both sides independently derive a symmetric key using HKDF-SHA256 and exchange messages encrypted with XChaCha20-Poly1305. Each wire frame is expandable, revealing the raw nonce, ciphertext, Poly1305 tag, and AAD.
 
 **`COVCOM`** [ [demo](https://leviathan.3xi.club/covcom) · [source](https://github.com/xero/covcom/) · [readme](https://github.com/xero/covcom/blob/master/README.md) ]
 
-A covert communications application for end-to-end encrypted group conversations. Share an invite, talk, exit, and it's gone. Clients available for both the web and cli, along with a containerized dumb server for managing rooms. No secrets or cleartext beyond the handle you chose to join a room with are ever visible to the server. Featuring sparse post-quantum ratcheting, ML-KEM-768, KDFChains, Seal+KyberSuite, and a XChaCha20-Poly1305 core.
+A covert communications application for end-to-end encrypted group conversations. Share an invite, talk, exit, and it's gone. Clients available for both the web and cli, along with a containerized dumb server for managing rooms. No secrets or cleartext beyond the handle you chose to join a room with are ever visible to the server. Featuring sparse post-quantum ratcheting, ML-KEM-768, KDFChains, Seal+MlKemSuite, and a XChaCha20-Poly1305 core.
 
 ---
 
@@ -410,7 +410,7 @@ A covert communications application for end-to-end encrypted group conversations
 | Encrypt data | [`Seal`](./aead.md#seal) with [`SerpentCipher`](./serpent.md#serpentcipher), [`XChaCha20Cipher`](./chacha20.md#xchacha20cipher), or [`AESGCMSIVCipher`](./aes.md#aesgcmsivcipher) |
 | Encrypt a stream or large file | [`SealStream`](./aead.md#sealstream) to encrypt, [`OpenStream`](./aead.md#openstream) to decrypt |
 | Encrypt in parallel | [`SealStreamPool`](./aead.md#sealstreampool) distributes chunks across Web Workers |
-| Add post-quantum security | [`KyberSuite`](./kyber.md#kybersuite) wraps [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), or [`MlKem1024`](./kyber.md#parameter-sets) with any cipher suite |
+| Add post-quantum security | [`MlKemSuite`](./mlkem.md#mlkemsuite) wraps [`MlKem512`](./mlkem.md#parameter-sets), [`MlKem768`](./mlkem.md#parameter-sets), or [`MlKem1024`](./mlkem.md#parameter-sets) with any cipher suite |
 | Build a forward-secret session | [`ratchetInit`](./ratchet.md#ratchetinit), [`KDFChain`](./ratchet.md#kdfchain), [`kemRatchetEncap`](./ratchet.md#kemratchetencap) / [`kemRatchetDecap`](./ratchet.md#kemratchetdecap), [`SkippedKeyStore`](./ratchet.md#skippedkeystore) |
 | Sign data with a classical signature | [`Ed25519Suite`](./signaturesuite.md#ed25519-suites) / [`Ed25519PreHashSuite`](./signaturesuite.md#ed25519-suites) ([ed25519.md](./ed25519.md)) or [`EcdsaP256Suite`](./signaturesuite.md#ecdsa-p256-suite) ([ecdsa-p256.md](./ecdsa-p256.md)) via [`Sign`](./signing.md#sign) / [`SignStream`](./signing.md#signstream) / [`VerifyStream`](./signing.md#verifystream) |
 | Sign data with a post-quantum signature | `MlDsa44/65/87Suite` (+ `*PreHashSuite`) for lattice ML-DSA ([mldsa.md](./mldsa.md)) or `SlhDsa128f/192f/256fSuite` (+ `*PreHashSuite`) for hash-based SLH-DSA ([slhdsa.md](./slhdsa.md)). Full catalog in [signaturesuite.md](./signaturesuite.md) |

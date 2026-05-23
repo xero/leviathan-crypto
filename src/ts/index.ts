@@ -25,7 +25,7 @@ import { chacha20Init } from './chacha20/index.js';
 import { sha2Init } from './sha2/index.js';
 import { sha3Init } from './sha3/index.js';
 import { keccakInit } from './keccak/index.js';
-import { kyberInit } from './kyber/index.js';
+import { mlkemInit } from './mlkem/index.js';
 import { aesInit } from './aes/index.js';
 import { mldsaInit } from './mldsa/index.js';
 import { slhdsaInit } from './slhdsa/index.js';
@@ -44,7 +44,7 @@ const _dispatchers: Record<Module, (source: WasmSource) => Promise<void>> = {
 	sha2: sha2Init,
 	sha3: sha3Init,
 	keccak: keccakInit,
-	kyber: kyberInit,
+	mlkem: mlkemInit,
 	aes: aesInit,
 	mldsa: mldsaInit,
 	slhdsa: slhdsaInit,
@@ -102,12 +102,12 @@ export async function init(sources: InitInput): Promise<void> {
 	// SIMD preflight for modules that contain v128 instructions
 	// (see scripts/lib/modules.ts).
 	if (
-		(resolved.has('serpent') || resolved.has('chacha20') || resolved.has('kyber')
+		(resolved.has('serpent') || resolved.has('chacha20') || resolved.has('mlkem')
 			|| resolved.has('aes') || resolved.has('mldsa') || resolved.has('blake3'))
 		&& !hasSIMD()
 	)
 		throw new Error(
-			'leviathan-crypto: serpent, chacha20, kyber, aes, mldsa, and blake3 require WebAssembly SIMD, '
+			'leviathan-crypto: serpent, chacha20, mlkem, aes, mldsa, and blake3 require WebAssembly SIMD, '
 			+ 'this runtime does not support it',
 		);
 	await Promise.all(
@@ -123,7 +123,7 @@ export { chacha20Init, ChaCha20, Poly1305, ChaCha20Poly1305, XChaCha20Poly1305, 
 export { sha2Init, SHA256, SHA224, SHA384, SHA512, SHA512_224, SHA512_256, HMAC_SHA256, HMAC_SHA512, HMAC_SHA384, HKDF_SHA256, HKDF_SHA512, SHA256Hash } from './sha2/index.js';
 export { sha3Init, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHA3_256Stream, SHA3_512Stream, SHAKE128, SHAKE256, SHAKE128Stream, SHAKE256Stream, SHA3_256Hash, CSHAKE128, CSHAKE256, KMAC128, KMAC256, KMACXOF128, KMACXOF256 } from './sha3/index.js';
 export { keccakInit } from './keccak/index.js';
-export { kyberInit, MlKem512, MlKem768, MlKem1024, MlKemBase, KyberSuite } from './kyber/index.js';
+export { mlkemInit, MlKem512, MlKem768, MlKem1024, MlKemBase, MlKemSuite } from './mlkem/index.js';
 export { aesInit, AES, AESCbc, AESCtr, AESGCM, AESGCMSIV, AESGenerator, AESGCMSIVCipher } from './aes/index.js';
 export { mldsaInit, MlDsa44, MlDsa65, MlDsa87, MlDsaBase, MLDSA44, MLDSA65, MLDSA87 } from './mldsa/index.js';
 export {
@@ -149,7 +149,7 @@ export { ed25519Init, Ed25519 } from './ed25519/index.js';
 export type { Ed25519KeyPair } from './ed25519/index.js';
 export { x25519Init, X25519 } from './x25519/index.js';
 export type { X25519KeyPair } from './x25519/index.js';
-export type { KyberKeyPair, KyberEncapsulation, KyberParams } from './kyber/index.js';
+export type { MlKemKeyPair, MlKemEncapsulation, MlKemParams } from './mlkem/index.js';
 export type { MlDsaKeyPair, MlDsaParams, PreHashAlgorithm } from './mldsa/index.js';
 export type { SlhDsaKeyPair, SlhDsaParams } from './slhdsa/index.js';
 export { SealStream, OpenStream, Seal, SealStreamPool, FLAG_FRAMED, TAG_DATA, TAG_FINAL, HEADER_SIZE, CHUNK_MIN, CHUNK_MAX } from './stream/index.js';

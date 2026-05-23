@@ -1,0 +1,455 @@
+<img src="https://github.com/xero/leviathan-crypto/raw/main/docs/logo.svg" alt="logo" width="120" align="left" margin="10">
+
+### ML-KEM (ML-KEM): Post-Quantum Key Encapsulation
+
+Post-quantum key encapsulation via ML-KEM (FIPS 203), plus `MlKemSuite` for hybrid KEM + symmetric AEAD with `Seal`, `SealStream`, and `OpenStream`.
+
+> ### Table of Contents
+> - [Overview](#overview)
+> - [Parameter Sets](#parameter-sets)
+> - [Init](#init)
+> - [MlKem API](#mlkem-api)
+> - [Wipe Discipline](#wipe-discipline)
+> - [MlKemSuite](#mlkemsuite)
+> - [Format enum](#format-enum)
+> - [Full example](#full-example)
+> - [Error reference](#error-reference)
+
+---
+
+## Overview
+
+ML-KEM (formerly ML-KEM) is a lattice-based key encapsulation mechanism
+standardized by NIST in FIPS 203. It provides key agreement that is secure
+against both classical and quantum adversaries.
+
+This module provides three things. `MlKem512`, `MlKem768`, and `MlKem1024`
+give you raw KEM operations: keygen, encapsulate, and decapsulate. Use these
+when you need direct access to the KEM. `MlKemSuite` is a factory that wraps
+a `MlKemBase` instance and an inner `CipherSuite` into a hybrid KEM + AEAD
+suite. Pass the result to `Seal`, `SealStream`, or `OpenStream` exactly as
+you would a symmetric cipher suite. All three parameter sets are verified
+against 240 NIST ACVP test vectors covering keygen, encap, decap, and
+implicit rejection.
+
+---
+
+## Parameter Sets
+
+| Class | NIST Name | ek size | dk size | ct size | Security |
+|-------|-----------|---------|---------|---------|----------|
+| `MlKem512` | ML-KEM-512 | 800 B | 1632 B | 768 B | Category 1 |
+| `MlKem768` | ML-KEM-768 | 1184 B | 2400 B | 1088 B | Category 3 |
+| `MlKem1024` | ML-KEM-1024 | 1568 B | 3168 B | 1568 B | Category 5 |
+
+Use `MlKem768` for general-purpose applications. Use `MlKem512` only if you
+have strict size or performance constraints. Use `MlKem1024` for long-lived
+keys or high-assurance requirements.
+
+---
+
+## Init
+
+```typescript
+import { init } from 'leviathan-crypto'
+import { mlkemWasm }    from 'leviathan-crypto/mlkem/embedded'
+import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
+
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
+```
+
+Both `mlkem` and `sha3` are required. The mlkem module handles polynomial
+arithmetic. The sha3 module provides the Keccak sponge operations used for
+key generation and encapsulation. If using `MlKemSuite` with `XChaCha20Cipher`,
+also load `chacha20` and `sha2`. With `SerpentCipher`, load `serpent` and `sha2`.
+
+`'keccak'` is an alias for `'sha3'`; same WASM binary, same instance slot.
+You can substitute `keccakWasm` and `init({ keccak: keccakWasm })` anywhere
+`sha3` is used. See [init.md](./init.md#keccak-alias-for-ml-kem) for details.
+
+For tree-shakeable imports, the `leviathan-crypto/mlkem` subpath exports its
+own init function:
+
+```typescript
+import { mlkemInit } from 'leviathan-crypto/mlkem'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
+
+await mlkemInit(mlkemWasm)
+```
+
+`mlkemInit(source)` initializes only the mlkem WASM binary. Note that
+ML-KEM classes additionally require `sha3` (or `keccak`), both modules
+must be initialized before constructing any `MlKem*` instance.
+
+---
+
+## MlKem API
+
+All three classes share the same interface via `MlKemBase`. Construct the
+parameter set you want and call methods on the instance.
+
+```typescript
+import { MlKem768 } from 'leviathan-crypto/mlkem'
+
+const kem = new MlKem768()
+```
+
+### kem.keygen()
+
+Generates a fresh keypair using CSPRNG randomness.
+
+```typescript
+const { encapsulationKey, decapsulationKey } = kem.keygen()
+// encapsulationKey: Uint8Array, share with senders
+// decapsulationKey: Uint8Array, keep secret, never transmit
+```
+
+The encapsulation key (`ek`) is the public key. Share it freely. The
+decapsulation key (`dk`) is the private key. Store it securely and never
+transmit it.
+
+### kem.keygenDerand(d, z)
+
+Deterministic keygen for testing. Both `d` and `z` must be 32 bytes.
+Do not use in production. Randomness must come from the CSPRNG.
+
+### kem.encapsulate(ek)
+
+Generates a shared secret and KEM ciphertext. The sender calls this.
+
+```typescript
+const { ciphertext, sharedSecret } = kem.encapsulate(encapsulationKey)
+// ciphertext:   Uint8Array, send to recipient alongside your message
+// sharedSecret: Uint8Array (32 bytes), derive session keys from this
+```
+
+The shared secret is 32 bytes. It is never transmitted. The sender and
+recipient independently derive the same value.
+
+> [!IMPORTANT]
+> **FIPS 203 compliance.** `encapsulate(ek)` validates `ek` per FIPS 203 §7.2
+> before use and throws `RangeError` with message
+> `'leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check'`
+> if validation fails. The length gate also throws `RangeError` on wrong-length
+> input, but does not mention §7.2. Callers who want to probe an `ek` without
+> triggering an exception can still call the public
+> `checkEncapsulationKey(ek) → boolean` method.
+
+### kem.encapsulateDerand(ek, m)
+
+Deterministic encapsulation. `m` is 32 bytes of randomness. KAT and testing
+only. Applies the same FIPS 203 §7.2 validation as `encapsulate(ek)`.
+
+### kem.decapsulate(dk, ciphertext)
+
+Recovers the shared secret. The recipient calls this.
+
+```typescript
+const sharedSecret = kem.decapsulate(decapsulationKey, ciphertext)
+// sharedSecret: Uint8Array (32 bytes)
+```
+
+ML-KEM uses implicit rejection. If the ciphertext was tampered with,
+`decapsulate` returns a pseudorandom value derived from a secret random string
+rather than throwing. The FO transform is algorithm-level constant-time on the
+FO branch, so decapsulation failure is not distinguishable from success at the
+algorithm level. The shared secret simply won't match, causing authentication
+failure at the AEAD layer. See
+[architecture.md §Where defense ends](./architecture.md#where-defense-ends)
+for hardware-level scope.
+
+> [!IMPORTANT]
+> **FIPS 203 compliance and trust model.** `decapsulate(dk, c)` performs two
+> distinct checks. First, it validates `dk` per FIPS 203 §7.3 (embedded `H(ek)`
+> match and the embedded `ek`'s own §7.2 range check). On failure it throws
+> `RangeError` with message
+> `'leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check'`.
+> This is a local-integrity check on key material, not part of the FO transform;
+> it is not constant-time with the tampered-ciphertext path and it is not
+> intended to be. ML-KEM assumes `dk` is recipient-controlled local storage.
+>
+> Second, after `dk` validates, the core Decaps algorithm applies FIPS 203's
+> Fujisaki-Okamoto transform. A tampered or otherwise invalid ciphertext is
+> handled by implicit rejection: the function returns a pseudorandom 32-byte
+> shared secret derived from the secret random value `z` and the ciphertext.
+> The caller cannot distinguish "valid ciphertext" from "tampered ciphertext"
+> by observing the return value, only downstream AEAD authentication will
+> fail in the tampered case.
+>
+> A caller whose threat model includes adversarially-supplied `dk` (for
+> example, decapsulation keys loaded from untrusted storage) should probe
+> with the boolean `checkDecapsulationKey(dk)` before calling `decapsulate`,
+> so the §7.3 outcome is captured in the same branch as other
+> input-validation failures. The library does not ship a strict-mode
+> decapsulate that routes §7.3 failure through the FO path, the standard
+> does not specify one, and doing so would diverge from the reference
+> implementations.
+
+### kem.checkEncapsulationKey(ek)
+
+Returns `true` if `ek` is a well-formed encapsulation key per FIPS 203 §7.2.
+Checks length, then decodes the polyvec portion via `polyvec_frombytes` and
+scans every coefficient against `c < Q = 3329`.
+
+```typescript
+if (!kem.checkEncapsulationKey(ek)) throw new Error('invalid ek')
+```
+
+### kem.checkDecapsulationKey(dk)
+
+Returns `true` if `dk` is a well-formed decapsulation key per FIPS 203 §7.3.
+
+### kem.dispose()
+
+Wipes the WASM memory buffers. Call when done with the instance. Every public
+mlkem op (`keygen`, `encapsulate`, `decapsulate`, `checkDecapsulationKey`)
+already zeros sha3 scratch before returning, so sha3 linear memory carries no
+residue across an op boundary, `dispose()` handles the mlkem module's own
+buffers.
+
+### Key sizes by parameter set
+
+| | `MlKem512` | `MlKem768` | `MlKem1024` |
+|-|-----------|-----------|------------|
+| ek | 800 B | 1184 B | 1568 B |
+| dk | 1632 B | 2400 B | 3168 B |
+| ciphertext | 768 B | 1088 B | 1568 B |
+| sharedSecret | 32 B | 32 B | 32 B |
+
+### MlKemLike
+
+Structural interface implemented by `MlKem512`, `MlKem768`, and `MlKem1024`.
+Used by `MlKemSuite` and `RatchetKeypair.decap()`, pass any `MlKem*` instance
+where a `MlKemLike` is expected.
+
+```typescript
+interface MlKemLike {
+    readonly params: MlKemParams;
+    encapsulate(ek: Uint8Array): MlKemEncapsulation;
+    decapsulate(dk: Uint8Array, c: Uint8Array): Uint8Array;
+    keygen(): MlKemKeyPair;
+}
+```
+
+---
+
+## Wipe Discipline
+
+Every public ML-KEM operation (`keygen`, `encapsulate`, `decapsulate`)
+zeroes the mlkem WASM scratch regions that held secret or secret-derived
+bytes before returning. Without the wipe, residual state persists in
+linear memory until the next mlkem op or `MlKem.dispose()`, a window
+during which any other code holding the mlkem exports could read it.
+
+The sha3 module is also wiped on every op via `sx.wipeBuffers()`. SHA-3
+state and inputs/outputs would otherwise carry the K-PKE message, sponge
+intermediates, or G/J/H outputs across the call boundary.
+
+### Severity ranking
+
+The wiped regions are not equal-weight. Highest-severity residual first:
+
+| Region | Path | Holds | Severity |
+|--------|------|-------|----------|
+| `SK_OFFSET` | decap | packed CPA secret key `skCpa` (R-028) | Highest. Recovering it compromises every ciphertext under the matching ek, not just this message. |
+| `MSG_OFFSET` | encap | raw 32-byte message `m` | `K = G(m \|\| H(ek))[0..32]`; `m` plus the public `ek` reproduces `K`. |
+| `POLYVEC_SLOT_1/2` | encap, decap | `s_hat`, `e_hat`, `r`, `e1`, uncompressed `u` | Uncompressed `u` is lossy-compressed on the wire for `du in {10, 11}`; the uncompressed form reveals low-order bits the public ciphertext hides. |
+| `POLY_SLOT_1/2/3` | encap, re-encap | `e2`, `v`, message polynomial | Secret-derived; the message polynomial is the nearest neighbour to raw `m`. |
+| `XOF_PRF_OFFSET` | all | last 1024-byte PRF block | After `ExpandS` this contains rho-derived bytes; treat as secret. |
+
+Public regions are intentionally skipped: `PK_OFFSET`, `CT_OFFSET`,
+`POLYVEC_SLOT_0` (Â rows derived from public rho), `POLYVEC_SLOT_3` /
+`POLYVEC_SLOT_4` (t̂, t1, both published in pk).
+
+### Per-op coverage
+
+**`kemKeypairDerand` (keygen).** Wipes the CPA sk slot, the keygen
+noise polyvecs, and the PRF buffer.
+
+**`kemEncapsulateDerand`.** Wipes `MSG_OFFSET`, all six
+noise/intermediate polyvec and poly slots, and the PRF buffer.
+
+**`kemDecapsulate`.** Wipes every region the encap path touches, plus
+`SK_OFFSET` (the CPA secret key restaged for re-encryption) and
+`POLY_SLOT_0/1` (the conditional-select inputs `K'` and `K_bar`).
+
+**`MlKem.dispose()`.** Wipes the entire mlkem mutable region. Call it
+when finished with the instance.
+
+---
+
+## MlKemSuite
+
+`MlKemSuite` combines a `MlKemBase` instance with an inner `CipherSuite`
+(`XChaCha20Cipher` or `SerpentCipher`) into a new object that satisfies the
+`CipherSuite` interface. Pass it anywhere you would pass a symmetric cipher suite.
+
+```typescript
+import { MlKemSuite, MlKem768 } from 'leviathan-crypto/mlkem'
+import { XChaCha20Cipher }      from 'leviathan-crypto/chacha20'
+
+const kem   = new MlKem768()
+const suite = MlKemSuite(kem, XChaCha20Cipher)
+```
+
+### suite.keygen()
+
+Delegates to `kem.keygen()`. Returns `{ encapsulationKey, decapsulationKey }`.
+
+```typescript
+const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
+```
+
+### One-shot encryption with Seal
+
+The sender encrypts with `ek`. The recipient decrypts with `dk`.
+
+```typescript
+import { Seal } from 'leviathan-crypto'
+
+// sender
+const blob = Seal.encrypt(suite, ek, plaintext)
+
+// recipient
+const pt = Seal.decrypt(suite, dk, blob)
+```
+
+The blob wire format is `preamble || ciphertext`. For KEM suites the preamble
+includes the KEM ciphertext:
+
+| Param set | Preamble size |
+|-----------|--------------|
+| ML-KEM-512 + any cipher | 788 bytes |
+| ML-KEM-768 + any cipher | 1108 bytes |
+| ML-KEM-1024 + any cipher | 1588 bytes |
+
+### Streaming encryption with SealStream and OpenStream
+
+```typescript
+import { SealStream, OpenStream } from 'leviathan-crypto'
+
+// sender
+const sealer   = new SealStream(suite, ek)
+const preamble = sealer.preamble       // 1108 bytes for MlKem768
+const ct0      = sealer.push(chunk0)
+const ctFinal  = sealer.finalize(lastChunk)
+
+// recipient
+const opener  = new OpenStream(suite, dk, preamble)
+const pt0     = opener.pull(ct0)
+const ptFinal = opener.finalize(ctFinal)
+```
+
+### Mix and match
+
+Any combination of parameter set and inner cipher works:
+
+```typescript
+import { SerpentCipher } from 'leviathan-crypto/serpent'
+import { MlKem1024 }     from 'leviathan-crypto/mlkem'
+
+const suite = MlKemSuite(new MlKem1024(), SerpentCipher)
+// formatEnum: 0x32 (ML-KEM-1024 + Serpent)
+// preamble:   20 + 1568 = 1588 bytes
+```
+
+### Key management
+
+Generate a keypair once on the recipient side. Distribute `ek` to all senders
+and store `dk` securely. The decapsulation key never leaves the recipient.
+There is no session concept at this layer. Each `Seal.encrypt` call performs a
+fresh encapsulation with fresh randomness. Before trusting a received public
+key, validate it with `kem.checkEncapsulationKey(ek)`.
+
+---
+
+## Format enum
+
+`MlKemSuite` sets `formatEnum = kemNibble | cipherNibble`. This is encoded
+in byte 0 of the 20-byte header (bits 4-6 = KEM, bits 0-3 = cipher):
+
+| Suite | formatEnum |
+|-------|-----------|
+| MlKem512 + XChaCha20 | `0x13` |
+| MlKem512 + Serpent | `0x12` |
+| MlKem768 + XChaCha20 | `0x23` |
+| MlKem768 + Serpent | `0x22` |
+| MlKem1024 + XChaCha20 | `0x33` |
+| MlKem1024 + Serpent | `0x32` |
+
+Symmetric suites have KEM bits = `0x00` and are backward compatible.
+
+---
+
+## Full example
+
+```typescript
+import { init, Seal }           from 'leviathan-crypto'
+import { MlKemSuite, MlKem768 } from 'leviathan-crypto/mlkem'
+import { XChaCha20Cipher }      from 'leviathan-crypto/chacha20'
+import { mlkemWasm }    from 'leviathan-crypto/mlkem/embedded'
+import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
+import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
+import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
+
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
+
+const kem   = new MlKem768()
+const suite = MlKemSuite(kem, XChaCha20Cipher)
+
+// keygen, once, on the recipient side
+const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
+// store dk securely; distribute ek to senders
+
+// sender, only needs ek
+const message = new TextEncoder().encode('hello post-quantum world')
+const blob    = Seal.encrypt(suite, ek, message)
+
+// recipient, only needs dk
+const plaintext = Seal.decrypt(suite, dk, blob)
+console.log(new TextDecoder().decode(plaintext)) // 'hello post-quantum world'
+
+kem.dispose()
+```
+
+---
+
+## Error reference
+
+| Condition | Type | Message |
+|-----------|------|---------|
+| Constructed before `init({ mlkem: ... })` | `Error` | `leviathan-crypto: call init({ mlkem: ... }) before using MlKem classes` |
+| Constructed before `init({ sha3: ... })` | `Error` | `leviathan-crypto: call init({ sha3: ... }) before using MlKem classes` |
+| `encapsulate` with wrong-length ek | `RangeError` | `encapsulation key must be N bytes (got M)` |
+| `encapsulate` with ek that fails §7.2 validation | `RangeError` | `leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check` |
+| `decapsulate` with wrong-length dk | `RangeError` | `decapsulation key must be N bytes (got M)` |
+| `decapsulate` with dk that fails §7.3 validation | `RangeError` | `leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check` |
+| `decapsulate` with wrong-length ciphertext | `RangeError` | `ciphertext must be N bytes (got M)` |
+| `keygenDerand` with wrong-length `d` | `RangeError` | `d seed must be 32 bytes (got N)` |
+| `keygenDerand` with wrong-length `z` | `RangeError` | `z seed must be 32 bytes (got N)` |
+| `encapsulateDerand` with wrong-length `m` | `RangeError` | `randomness m must be 32 bytes (got N)` |
+| Another stateful instance holds `mlkem` or `sha3` | `Error` | `leviathan-crypto: another stateful instance is using the '…' WASM module, call dispose() on it before constructing a new one` |
+| `Seal.decrypt` with ek instead of dk | `RangeError` | `key must be N bytes (got M)` (dk ≠ ek size) |
+| `MlKemSuite` with unsupported k value | `Error` | `unsupported ML-KEM k=N` |
+
+---
+
+
+## Cross-References
+
+| Document | Description |
+| -------- | ----------- |
+| [index](./README.md) | Project Documentation index |
+| [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
+| [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
+| [ciphersuite](./ciphersuite.md) | `CipherSuite` interface, `SerpentCipher`, `XChaCha20Cipher`, `MlKemSuite` |
+| [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
+| [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog including PQ-only and classical+PQ hybrid composites |
+| [mlkem_audit](./mlkem_audit.md) | ML-KEM implementation audit |
+| [ratchet](./ratchet.md) | `ratchetInit`, `KDFChain`, `kemRatchetEncap`, `kemRatchetDecap`: post-quantum ratchet KDF primitives |
+| [ratchet_audit](./ratchet_audit.md) | ratchet KDF implementation audit |
+| [init](./init.md) | module initialization and WASM loading |
+| [exports](./exports.md) | full export list |
+

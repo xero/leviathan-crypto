@@ -26,7 +26,7 @@
 // Verify is a pure boolean predicate: returns true iff the signature
 // passes the FIPS 204 norm check (‖z‖∞ < γ₁ − β) AND the constant-time
 // comparison of the recomputed c̃' against the σ-supplied c̃. There is
-// no analog to the FO transform's implicit-rejection branch (Kyber's
+// no analog to the FO transform's implicit-rejection branch (ML-KEM's
 // `return pseudorandom shared secret on failure`); ML-DSA verification
 // is binary.
 //

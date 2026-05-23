@@ -142,7 +142,7 @@ export const BUFFER_END:           i32 = 7836
 // ── Module identity ─────────────────────────────────────────────────────────
 
 // Module ID 8: ct=0, serpent=0, chacha20=1, aes=1, sha2=2, sha3=3,
-// blake3=4, kyber=5, mldsa=6, slhdsa=7. (The cipher modules collide on
+// blake3=4, mlkem=5, mldsa=6, slhdsa=7. (The cipher modules collide on
 // the low IDs; the values are informational, not used as a unique key.)
 export function getModuleId():           i32 { return 8                  }
 export function getMemoryPages():        i32 { return memory.size()      }

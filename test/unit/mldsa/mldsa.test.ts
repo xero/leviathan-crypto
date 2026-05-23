@@ -59,7 +59,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 
 // Top-level beforeAll: reset module cache, verify pre-init guard, init both
-// modules. This pattern (mirroring test/unit/kyber/mlkem.test.ts) makes init
+// modules. This pattern (mirroring test/unit/mlkem/mlkem.test.ts) makes init
 // happen for every test in this file even when filtering with `-t`.
 beforeAll(async () => {
 	_resetForTesting();

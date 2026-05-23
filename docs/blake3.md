@@ -84,7 +84,7 @@ any `BLAKE3*` class before `blake3` is initialized throws a clear error
 naming the missing module.
 
 BLAKE3 requires WebAssembly SIMD. Runtimes without SIMD support throw at
-`init()` time, identical to the serpent, chacha20, aes, kyber, and mldsa
+`init()` time, identical to the serpent, chacha20, aes, mlkem, and mldsa
 modules. There is no scalar fallback.
 
 ---

@@ -82,7 +82,7 @@ The server must respond with `Content-Type: application/wasm`.
 | `aes`        | `aes.wasm`        |
 | `sha2`       | `sha2.wasm`       |
 | `sha3`       | `sha3.wasm`       |
-| `kyber`      | `kyber.wasm`      |
+| `mlkem`      | `mlkem.wasm`      |
 | `blake3`     | `blake3.wasm`     |
 | `mldsa`      | `mldsa.wasm`      |
 | `slhdsa`     | `slhdsa.wasm`     |
@@ -150,8 +150,8 @@ If you want the same import style as the npm docs, add one before your module sc
     "leviathan-crypto/sha3/embedded":      "https://unpkg.com/leviathan-crypto/dist/sha3/embedded.js",
     "leviathan-crypto/keccak":             "https://unpkg.com/leviathan-crypto/dist/keccak/index.js",
     "leviathan-crypto/keccak/embedded":    "https://unpkg.com/leviathan-crypto/dist/keccak/embedded.js",
-    "leviathan-crypto/kyber":              "https://unpkg.com/leviathan-crypto/dist/kyber/index.js",
-    "leviathan-crypto/kyber/embedded":     "https://unpkg.com/leviathan-crypto/dist/kyber/embedded.js",
+    "leviathan-crypto/mlkem":              "https://unpkg.com/leviathan-crypto/dist/mlkem/index.js",
+    "leviathan-crypto/mlkem/embedded":     "https://unpkg.com/leviathan-crypto/dist/mlkem/embedded.js",
     "leviathan-crypto/blake3":             "https://unpkg.com/leviathan-crypto/dist/blake3/index.js",
     "leviathan-crypto/blake3/embedded":    "https://unpkg.com/leviathan-crypto/dist/blake3/embedded.js",
     "leviathan-crypto/mldsa":              "https://unpkg.com/leviathan-crypto/dist/mldsa/index.js",

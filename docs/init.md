@@ -54,7 +54,7 @@ auditable.
 ### Types
 
 ```typescript
-type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'kyber' | 'mldsa' | 'slhdsa' | 'blake3' | 'curve25519' | 'p256'
+type Module = 'aes' | 'serpent' | 'chacha20' | 'sha2' | 'sha3' | 'keccak' | 'mlkem' | 'mldsa' | 'slhdsa' | 'blake3' | 'curve25519' | 'p256'
 ```
 
 The WASM module families. Each one backs a group of related classes.
@@ -74,8 +74,8 @@ binary, same instance slot.
 | `'sha2'` | `SHA256`, `SHA384`, `SHA512`, `HMAC` (SHA-2 based), `HKDF` |
 | `'sha3'` / `'keccak'` | `SHA3_224`, `SHA3_256`, `SHA3_384`, `SHA3_512`, `SHAKE128`, `SHAKE256` |
 | `'blake3'` | `BLAKE3`, `BLAKE3Stream`, `BLAKE3KeyedHash`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKey`, `BLAKE3DeriveKeyStream`, `BLAKE3OutputReader`, see [blake3.md](./blake3.md) |
-| `'kyber'` + `'sha3'` | `MlKem512`, `MlKem768`, `MlKem1024`, see [kyber.md](./kyber.md) |
-| `'kyber'` + `'sha3'` + inner cipher modules | `KyberSuite` (hybrid KEM+AEAD factory), see [kyber.md](./kyber.md) |
+| `'mlkem'` + `'sha3'` | `MlKem512`, `MlKem768`, `MlKem1024`, see [mlkem.md](./mlkem.md) |
+| `'mlkem'` + `'sha3'` + inner cipher modules | `MlKemSuite` (hybrid KEM+AEAD factory), see [mlkem.md](./mlkem.md) |
 | `'mldsa'` + `'sha3'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (pure ML-DSA + HashML-DSA with SHA-3 / SHAKE pre-hash), see [mldsa.md](./mldsa.md) |
 | `'mldsa'` + `'sha3'` + `'sha2'` | `MlDsa44`, `MlDsa65`, `MlDsa87` (HashML-DSA with a SHA-2 family pre-hash; sha2 only required when `ph` is `'SHA2-*'`) |
 | `'slhdsa'` (+`'sha3'` / `'sha2'` for prehash) | `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f` (pure SLH-DSA + HashSLH-DSA), see [slhdsa.md](./slhdsa.md) |
@@ -145,7 +145,7 @@ async function chacha20Init(source: WasmSource): Promise<void>
 async function sha2Init(source: WasmSource): Promise<void>
 async function sha3Init(source: WasmSource): Promise<void>
 async function keccakInit(source: WasmSource): Promise<void>
-async function kyberInit(source: WasmSource): Promise<void>
+async function mlkemInit(source: WasmSource): Promise<void>
 async function mldsaInit(source: WasmSource): Promise<void>
 async function slhdsaInit(source: WasmSource): Promise<void>
 async function blake3Init(source: WasmSource): Promise<void>
@@ -172,7 +172,7 @@ ready-to-use `WasmSource`:
 | `leviathan-crypto/sha2/embedded` | `sha2Wasm` |
 | `leviathan-crypto/sha3/embedded` | `sha3Wasm` |
 | `leviathan-crypto/keccak/embedded` | `keccakWasm` |
-| `leviathan-crypto/kyber/embedded` | `kyberWasm` |
+| `leviathan-crypto/mlkem/embedded` | `mlkemWasm` |
 | `leviathan-crypto/mldsa/embedded` | `mldsaWasm` |
 | `leviathan-crypto/slhdsa/embedded` | `slhdsaWasm` |
 | `leviathan-crypto/blake3/embedded` | `blake3Wasm` |
@@ -183,8 +183,8 @@ ready-to-use `WasmSource`:
 `keccakWasm` and `sha3Wasm` are the same gzip+base64 blob. Both point to `sha3.wasm`.
 
 > [!NOTE]
-> `MlKem512`, `MlKem768`, and `MlKem1024` require both `kyber` and `sha3`
-> (or `keccak`) to be initialized. The kyber module handles polynomial arithmetic.
+> `MlKem512`, `MlKem768`, and `MlKem1024` require both `mlkem` and `sha3`
+> (or `keccak`) to be initialized. The mlkem module handles polynomial arithmetic.
 > The sha3 module provides the Keccak sponge operations used for key generation
 > and encapsulation.
 

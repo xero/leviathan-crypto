@@ -63,7 +63,7 @@ const ED25519_PK_HEX_FIXTURE =
 // 1312-byte deterministic ML-DSA-44 public key fixture: byte i = (7i + 3) mod 256.
 // Stored as a hex string literal so the vector file is plain data and the
 // Rust verifier can extract it via the same `extract_hex` helpers used for
-// the existing kyber / mldsa / slhdsa vectors.
+// the existing mlkem / mldsa / slhdsa vectors.
 const MLDSA44_PK_HEX_FIXTURE = (() => {
 	let s = '';
 	const lut = '0123456789abcdef';

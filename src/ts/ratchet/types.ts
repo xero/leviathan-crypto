@@ -26,7 +26,7 @@
 
 // Re-export MlKemLike so consumers import from one place.
 // MlKemLike is the structural interface already used in suite.ts.
-export type { MlKemLike } from '../kyber/suite.js';
+export type { MlKemLike } from '../mlkem/suite.js';
 
 export interface RatchetInitResult {
 	readonly nextRootKey:  Uint8Array  // 32 bytes

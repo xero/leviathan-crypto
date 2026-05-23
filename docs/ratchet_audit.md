@@ -432,7 +432,7 @@ end: `wipe(nextRk); wipe(bobNextRk)`.
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ratchet](./ratchet.md) | Ratchet KDF public API reference |
 | [hkdf_audit](./hkdf_audit.md) | HKDF-SHA256 audit (underlying primitive) |
-| [kyber](./kyber.md) | ML-KEM key encapsulation (KEM ratchet dependency) |
+| [mlkem](./mlkem.md) | ML-KEM key encapsulation (KEM ratchet dependency) |
 | [sha2](./sha2.md) | HKDF-SHA256 (the underlying primitive) |
 | [exports](./exports.md) | full export list |
 

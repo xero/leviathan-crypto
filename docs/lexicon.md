@@ -129,11 +129,11 @@ A reference glossary for readers new to cryptography. Covers foundational terms,
 
 **Decapsulation key.** The private key in a KEM scheme. The recipient keeps it secret and uses it to recover the shared secret from the ciphertext produced by encapsulation. It is never transmitted.
 
-**ML-KEM / Kyber.** The NIST post-quantum KEM standard (FIPS 203, formerly known as Kyber). It produces a 32-byte shared secret suitable for use as a symmetric key. leviathan-crypto provides `MlKem512`, `MlKem768`, and `MlKem1024`, corresponding to NIST security levels 1, 3, and 5.
+**ML-KEM / ML-KEM.** The NIST post-quantum KEM standard (FIPS 203, formerly known as ML-KEM). It produces a 32-byte shared secret suitable for use as a symmetric key. leviathan-crypto provides `MlKem512`, `MlKem768`, and `MlKem1024`, corresponding to NIST security levels 1, 3, and 5.
 
 **Parameter set.** ML-KEM comes in three variants that trade key and ciphertext size for security margin. ML-KEM-512 has the smallest keys; ML-KEM-1024 has the largest and the highest security level. ML-KEM-768 is the recommended default, offering a conservative security margin with reasonable key sizes.
 
-**Hybrid construction.** A scheme that combines a post-quantum KEM with a classical symmetric cipher. The KEM establishes a shared secret; that secret keys a symmetric cipher (XChaCha20-Poly1305 or Serpent-256) for the actual data. Security holds as long as either component remains unbroken. `KyberSuite` implements this pattern and plugs directly into `Seal` and `SealStream`.
+**Hybrid construction.** A scheme that combines a post-quantum KEM with a classical symmetric cipher. The KEM establishes a shared secret; that secret keys a symmetric cipher (XChaCha20-Poly1305 or Serpent-256) for the actual data. Security holds as long as either component remains unbroken. `MlKemSuite` implements this pattern and plugs directly into `Seal` and `SealStream`.
 
 ---
 
@@ -292,10 +292,10 @@ produce additional 64-byte XOF blocks.
 | [index](./README.md) | Project documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [authenticated encryption](./aead.md) | `Seal`, `SealStream`, `OpenStream`: cipher-agnostic AEAD APIs using a `CipherSuite` such as `SerpentCipher` or `XChaCha20Cipher` |
-| [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
+| [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `MlKemSuite`, and the `CipherSuite` interface |
 | [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream`: scheme-agnostic signing layer |
 | [signaturesuite](./signaturesuite.md) | `SignatureSuite` interface and the shipped suite catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, hybrids) |
-| [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
+| [mlkem](./mlkem.md) | ML-KEM key encapsulation, parameter sets, and key management |
 | [ratchet](./ratchet.md) | Double Ratchet KDF primitives: `ratchetInit`, `KDFChain`, `kemRatchetEncap`/`kemRatchetDecap`, `SkippedKeyStore` |
 | [serpent](./serpent.md) | Serpent-256 raw primitives |
 | [chacha20](./chacha20.md) | ChaCha20 raw primitives |

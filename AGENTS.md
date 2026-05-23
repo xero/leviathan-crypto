@@ -194,7 +194,7 @@ Decisions already made. Don't relitigate without raising it first.
   layout, AS entry point. `cte.wasm` is the internal SIMD constant-time
   equality module backing the TS `constantTimeEqual`. `cte/shared.ts`
   is the AS source-level `ctEqual` inlined by other modules' compile
-  units (kyber, slhdsa, curve25519, p256) for in-WASM byte equality;
+  units (mlkem, slhdsa, curve25519, p256) for in-WASM byte equality;
   never emitted as a WASM export from any consumer binary.
 - **Static buffers only**: no dynamic allocation (`memory.grow()`
   unused). All buffers are fixed offsets in linear memory defined in
@@ -286,7 +286,7 @@ Playwright discovers e2e specs automatically; no CI change needed for
 e2e. For unit tests:
 
 - Find the `UNIT_GROUPS` entry in `scripts/lib/test-groups.ts` whose
-  `name` matches the test family (`aes`, `mldsa`, `kyber`, etc.). When
+  `name` matches the test family (`aes`, `mldsa`, `mlkem`, etc.). When
   unsure: `grep -l "test/unit/family" scripts/lib/test-groups.ts`.
 - Add or remove the test file path from that group's `files` array.
 - No workflow file edit is needed when adding a test to an existing

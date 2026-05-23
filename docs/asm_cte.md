@@ -41,11 +41,11 @@ The module ships two source files that implement the same constant-time-equality
 
 **`src/asm/cte/index.ts`.** Compiled to `cte.wasm`. SIMD `compare(aOff, bOff, len)`, 16-byte v128 XOR-OR accumulator with a scalar tail. Called from TypeScript via `constantTimeEqual` for tag, MAC, signature component, and any other secret-derived byte comparison that crosses the JS/WASM boundary. Sized for the JS boundary case where buffer sizes can range up to 32 KiB.
 
-**`src/asm/cte/shared.ts`.** Source-level only, not compiled to its own binary. Exports `@inline function ctEqual(aOff, bOff, len): i32`. Imported by other AssemblyScript modules (`kyber/verify.ts`, `slhdsa/hypertree.ts`, `curve25519/ed25519.ts`, `p256/ecdsa.ts`) and inlined into each importer's compile unit. Scalar implementation, since half the importing modules do not enable the SIMD compiler feature and the comparisons are short (16 to 32 bytes typical).
+**`src/asm/cte/shared.ts`.** Source-level only, not compiled to its own binary. Exports `@inline function ctEqual(aOff, bOff, len): i32`. Imported by other AssemblyScript modules (`mlkem/verify.ts`, `slhdsa/hypertree.ts`, `curve25519/ed25519.ts`, `p256/ecdsa.ts`) and inlined into each importer's compile unit. Scalar implementation, since half the importing modules do not enable the SIMD compiler feature and the comparisons are short (16 to 32 bytes typical).
 
 The two share the algorithmic shape (XOR-accumulate over the input, branch-free arithmetic reduction to 0 or 1) and the audit case. The instruction sequences differ because WASM modules cannot share runtime code or memory; each binary that uses `ctEqual` carries its own inlined copy.
 
-Both surfaces return `1` if the inputs are byte-equal and `0` otherwise. Note that this is the opposite of `ct_verify` in `kyber.wasm`, which preserves FIPS 203 §6.3's "fail flag" convention of `0` for equal.
+Both surfaces return `1` if the inputs are byte-equal and `0` otherwise. Note that this is the opposite of `ct_verify` in `mlkem.wasm`, which preserves FIPS 203 §6.3's "fail flag" convention of `0` for equal.
 
 ---
 
@@ -77,7 +77,7 @@ The AS-internal `ctEqual` reads from the importing module's own linear memory an
 
 ### Return value convention
 
-Both `compare` (cte.wasm export) and `ctEqual` (AS-internal helper) return `1` if the arrays are equal and `0` if they differ. This is the inverse of `ct_verify` in `kyber.wasm`, which returns `0` for equal and `1` for any difference per FIPS 203 §6.3. Do not mix up the two conventions.
+Both `compare` (cte.wasm export) and `ctEqual` (AS-internal helper) return `1` if the arrays are equal and `0` if they differ. This is the inverse of `ct_verify` in `mlkem.wasm`, which returns `0` for equal and `1` for any difference per FIPS 203 §6.3. Do not mix up the two conventions.
 
 ---
 
@@ -111,7 +111,7 @@ The AS-internal helper is a source-level export only. It does not appear in any 
 
 #### `ctEqual(aOff: i32, bOff: i32, len: i32): i32`
 
-AssemblyScript source-level helper. Imported by `kyber/verify.ts`, `slhdsa/hypertree.ts`, `curve25519/ed25519.ts`, and `p256/ecdsa.ts`. Inlined into the importer's compile unit by the AS compiler.
+AssemblyScript source-level helper. Imported by `mlkem/verify.ts`, `slhdsa/hypertree.ts`, `curve25519/ed25519.ts`, and `p256/ecdsa.ts`. Inlined into the importer's compile unit by the AS compiler.
 
 - **aOff**. byte offset of the first array in the importer's linear memory
 - **bOff**. byte offset of the second array in the importer's linear memory
@@ -217,5 +217,5 @@ The AS-internal `ctEqual` has no error returns and no preconditions beyond well-
 | [asm_imports.md](./asm_imports.md) | Per-module AssemblyScript import dependency graphs |
 | [utils](./utils.md) | `constantTimeEqual`, `hasSIMD`, and other utility exports |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
-| [asm_kyber](./asm_kyber.md) | `ct_verify` and `ct_cmov` in the kyber WASM module (note the inverted return convention) |
+| [asm_mlkem](./asm_mlkem.md) | `ct_verify` and `ct_cmov` in the mlkem WASM module (note the inverted return convention) |
 | [asm_chacha](./asm_chacha.md) | ChaCha20-Poly1305 WASM module (uses `constantTimeEqual` for tag verification in the TypeScript wrapper) |

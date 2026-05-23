@@ -1,0 +1,185 @@
+//                  ▄▄▄▄▄▄▄▄▄▄
+//           ▄████████████████████▄▄          ▒  ▄▀▀ ▒ ▒ █ ▄▀▄ ▀█▀ █ ▒ ▄▀▄ █▀▄
+//        ▄██████████████████████ ▀████▄      ▓  ▓▀  ▓ ▓ ▓ ▓▄▓  ▓  ▓▀▓ ▓▄▓ ▓ ▓
+//      ▄█████████▀▀▀     ▀███████▄▄███████▌  ▀▄ ▀▄▄ ▀▄▀ ▒ ▒ ▒  ▒  ▒ █ ▒ ▒ ▒ █
+//     ▐████████▀   ▄▄▄▄     ▀████████▀██▀█▌
+//     ████████      ███▀▀     ████▀  █▀ █▀       Leviathan Crypto Library
+//     ███████▌    ▀██▀         ███
+//      ███████   ▀███           ▀██ ▀█▄      Repository & Mirror:
+//       ▀██████   ▄▄██            ▀▀  ██▄    github.com/xero/leviathan-crypto
+//         ▀█████▄   ▄██▄             ▄▀▄▀    unpkg.com/leviathan-crypto
+//            ▀████▄   ▄██▄
+//              ▐████   ▐███                  Author: xero (https://x-e.ro)
+//       ▄▄██████████    ▐███         ▄▄      License: MIT
+//    ▄██▀▀▀▀▀▀▀▀▀▀     ▄████      ▄██▀
+//  ▄▀  ▄▄█████████▄▄  ▀▀▀▀▀     ▄███         This file is provided completely
+//   ▄██████▀▀▀▀▀▀██████▄ ▀▄▄▄▄████▀          free, "as is", and without
+//  ████▀    ▄▄▄▄▄▄▄ ▀████▄ ▀█████▀  ▄▄▄▄     warranty of any kind. The author
+//  █████▄▄█████▀▀▀▀▀▀▄ ▀███▄      ▄████      assumes absolutely no liability
+//   ▀██████▀             ▀████▄▄▄████▀       for its {ab,mis,}use.
+//                           ▀█████▀▀
+//
+// src/ts/mlkem/index.ts
+//
+// ML-KEM public API, MlKem512, MlKem768, MlKem1024 classes.
+// Uses the init() module cache, call init({ mlkem: ..., sha3: ... }) before constructing.
+
+import { getInstance, initModule, isInitialized, _assertNotOwned } from '../init.js';
+import type { WasmSource } from '../wasm-source.js';
+import { randomBytes, wipe } from '../utils.js';
+import type { MlKemExports, Sha3Exports, MlKemKeyPair, MlKemEncapsulation } from './types.js';
+import { MlKemParams, MLKEM512, MLKEM768, MLKEM1024 } from './params.js';
+import { kemKeypairDerand, kemEncapsulateDerand, kemDecapsulate } from './kem.js';
+import { checkEncapsulationKey, checkDecapsulationKey } from './validate.js';
+
+export async function mlkemInit(source: WasmSource): Promise<void> {
+	return initModule('mlkem', source);
+}
+
+export type { WasmSource };
+export type { MlKemKeyPair, MlKemEncapsulation, MlKemExports, Sha3Exports };
+export { MLKEM512, MLKEM768, MLKEM1024 };
+export type { MlKemParams };
+export { isInitialized };
+export { MlKemSuite } from './suite.js';
+
+// ── Layout assertion ────────────────────────────────────────────────────────
+
+function assertLayout(kx: MlKemExports, p: MlKemParams): void {
+	const pk      = kx.getPkOffset();
+	const sk      = kx.getSkOffset();
+	const ct      = kx.getCtOffset();
+	const ctPrime = kx.getCtPrimeOffset();
+	const xof     = kx.getXofPrfOffset();
+	if (pk + p.ekBytes > sk)
+		throw new Error('leviathan-crypto: mlkem buffer overflow, ek overflows into SK region');
+	if (sk + p.skCpaBytes > ct)
+		throw new Error('leviathan-crypto: mlkem buffer overflow, sk overflows into CT region');
+	if (ct + p.ctBytes > ctPrime)
+		throw new Error('leviathan-crypto: mlkem buffer overflow, ct overflows into CT_PRIME region');
+	if (ctPrime + p.ctBytes > xof)
+		throw new Error('leviathan-crypto: mlkem buffer overflow, ct_prime overflows into XOF region');
+}
+
+// ── Base class ──────────────────────────────────────────────────────────────
+
+export class MlKemBase {
+	readonly params: MlKemParams;
+
+	constructor(params: MlKemParams) {
+		if (!isInitialized('mlkem'))
+			throw new Error('leviathan-crypto: call init({ mlkem: ... }) before using MlKem classes');
+		if (!isInitialized('sha3'))
+			throw new Error('leviathan-crypto: call init({ sha3: ... }) before using MlKem classes');
+		this.params = params;
+		assertLayout(this.kx, params);
+	}
+
+	private get kx(): MlKemExports {
+		return getInstance('mlkem').exports as unknown as MlKemExports;
+	}
+
+	private get sx(): Sha3Exports {
+		return getInstance('sha3').exports as unknown as Sha3Exports;
+	}
+
+	keygenDerand(d: Uint8Array, z: Uint8Array): MlKemKeyPair {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mlkem');
+		if (d.length !== 32)
+			throw new RangeError(`d seed must be 32 bytes (got ${d.length})`);
+		if (z.length !== 32)
+			throw new RangeError(`z seed must be 32 bytes (got ${z.length})`);
+		return kemKeypairDerand(this.kx, this.sx, this.params, d, z);
+	}
+
+	keygen(): MlKemKeyPair {
+		const d = randomBytes(32);
+		const z = randomBytes(32);
+		try {
+			return this.keygenDerand(d, z);
+		} finally {
+			wipe(d);
+			wipe(z);
+		}
+	}
+
+	encapsulateDerand(ek: Uint8Array, m: Uint8Array): MlKemEncapsulation {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mlkem');
+		if (ek.length !== this.params.ekBytes)
+			throw new RangeError(`encapsulation key must be ${this.params.ekBytes} bytes (got ${ek.length})`);
+		if (m.length !== 32)
+			throw new RangeError(`randomness m must be 32 bytes (got ${m.length})`);
+		if (!checkEncapsulationKey(this.kx, this.params, ek))
+			throw new RangeError('leviathan-crypto: encapsulation key failed FIPS 203 §7.2 validity check');
+		return kemEncapsulateDerand(this.kx, this.sx, this.params, ek, m);
+	}
+
+	encapsulate(ek: Uint8Array): MlKemEncapsulation {
+		const m = randomBytes(32);
+		try {
+			return this.encapsulateDerand(ek, m);
+		} finally {
+			wipe(m);
+		}
+	}
+
+	decapsulate(dk: Uint8Array, c: Uint8Array): Uint8Array {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mlkem');
+		if (dk.length !== this.params.dkBytes)
+			throw new RangeError(`decapsulation key must be ${this.params.dkBytes} bytes (got ${dk.length})`);
+		if (c.length !== this.params.ctBytes)
+			throw new RangeError(`ciphertext must be ${this.params.ctBytes} bytes (got ${c.length})`);
+		if (!checkDecapsulationKey(this.kx, this.sx, this.params, dk))
+			throw new RangeError('leviathan-crypto: decapsulation key failed FIPS 203 §7.3 validity check');
+		return kemDecapsulate(this.kx, this.sx, this.params, dk, c);
+	}
+
+	checkEncapsulationKey(ek: Uint8Array): boolean {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mlkem');
+		return checkEncapsulationKey(this.kx, this.params, ek);
+	}
+
+	checkDecapsulationKey(dk: Uint8Array): boolean {
+		_assertNotOwned('sha3');
+		_assertNotOwned('mlkem');
+		return checkDecapsulationKey(this.kx, this.sx, this.params, dk);
+	}
+
+	dispose(): void {
+		this.kx.wipeBuffers();
+		// MlKemBase does not own the sha3 module, wiping this.sx.wipeBuffers()
+		// here would clobber any SHAKE128/SHAKE256 instance live at the time
+		// of dispose(). The wipe is not needed: every public mlkem op
+		// (keygen, encapsulate, decapsulate, checkDecapsulationKey) calls
+		// sx.wipeBuffers() before returning, under the _assertNotOwned('sha3')
+		// guard it holds for the duration. sha3 scratch therefore carries no
+		// residue across a mlkem op boundary, secret-derived or otherwise.
+	}
+}
+
+// ── Public classes ──────────────────────────────────────────────────────────
+
+/** ML-KEM-512, k=2, η₁=3, η₂=2, dᵤ=10, dᵥ=4. */
+export class MlKem512 extends MlKemBase {
+	constructor() {
+		super(MLKEM512);
+	}
+}
+
+/** ML-KEM-768, k=3, η₁=2, η₂=2, dᵤ=10, dᵥ=4. */
+export class MlKem768 extends MlKemBase {
+	constructor() {
+		super(MLKEM768);
+	}
+}
+
+/** ML-KEM-1024, k=4, η₁=2, η₂=2, dᵤ=11, dᵥ=5. */
+export class MlKem1024 extends MlKemBase {
+	constructor() {
+		super(MLKEM1024);
+	}
+}

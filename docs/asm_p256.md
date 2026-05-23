@@ -141,7 +141,7 @@ locked decision recorded in `buffers.ts`.
 
 ```
 getModuleId():        i32   // 9 (ct=0, serpent=0, chacha20=1, aes=1,
-                            //    sha2=2, sha3=3, blake3=4, kyber=5,
+                            //    sha2=2, sha3=3, blake3=4, mlkem=5,
                             //    mldsa=6, slhdsa=7, curve25519=8)
 getMemoryPages():     i32   // current WASM linear-memory page count
 ```

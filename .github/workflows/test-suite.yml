@@ -64,9 +64,9 @@ jobs:
     with:
       bun-version: *bun_version
 
-  unit-kyber:
+  unit-mlkem:
     needs: [build]
-    uses: ./.github/workflows/unit-kyber.yml
+    uses: ./.github/workflows/unit-mlkem.yml
     with:
       bun-version: *bun_version
 
@@ -202,7 +202,7 @@ jobs:
       - unit-serpent
       - unit-chacha20
       - unit-stream
-      - unit-kyber
+      - unit-mlkem
       - unit-hashing
       - unit-montecarlo-cbc
       - unit-montecarlo-ecb

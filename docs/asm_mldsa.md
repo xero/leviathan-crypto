@@ -54,7 +54,7 @@ notes per file.
 
 **i32 coefficients.** ML-DSA's prime `q = 2²³ − 2¹³ + 1 = 8380417` does
 not fit in i16, so polynomials are stored as 256 × i32 = 1024 bytes each.
-Compare to kyber, where i16 suffices.
+Compare to mlkem, where i16 suffices.
 
 **No protocol-level logic in WASM.** Algorithm 6 (KeyGen), Algorithm 7
 (Sign), Algorithm 8 (Verify) are all TS-orchestrated. The WASM module

@@ -178,7 +178,7 @@ describe('mldsaKeygenInternal, scratch slots wiped after keygenDerand', () => {
 	});
 
 	// Pre-dirty + keygen confirms wipe definitively zeros the regions, not
-	// just that they happen to be initial-empty. Mirrors the kyber gate
+	// just that they happen to be initial-empty. Mirrors the mlkem gate
 	// pattern.
 	it('pre-dirtied scratch regions are wiped after keygen (ML-DSA-65)', () => {
 		const dsa = new MlDsa65();

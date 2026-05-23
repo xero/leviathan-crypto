@@ -172,7 +172,7 @@ function getMemoryPages(): i32   // current WASM linear-memory page count (4 pag
 
 Module ID 8 in the AsmModule registry. The 11th WASM binary in
 the library after ct, serpent, chacha20, aes, sha2, sha3,
-blake3, kyber, mldsa, and slhdsa.
+blake3, mlkem, mldsa, and slhdsa.
 
 ---
 

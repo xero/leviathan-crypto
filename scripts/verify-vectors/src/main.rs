@@ -111,8 +111,8 @@ fn print_section(label: &str) {
 // ────────────────────────────────────────────────────────────────────────────
 
 fn run_mlkem(use_color: bool) -> bool {
-    let kg_path = vector_path("kyber_keygen.ts");
-    let ed_path = vector_path("kyber_encapdecap.ts");
+    let kg_path = vector_path("mlkem_keygen.ts");
+    let ed_path = vector_path("mlkem_encapdecap.ts");
     print_section("ML-KEM, FIPS 203 (keygen + encap + decap + key validity)");
 
     println!("Reading keygen vectors from   {}", kg_path.display());

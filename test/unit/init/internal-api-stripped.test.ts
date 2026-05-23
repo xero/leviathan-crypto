@@ -61,7 +61,7 @@ const REMOVED_READY_PROBES: { module: string; symbol: string }[] = [
 	{ module: 'chacha20', symbol: '_chachaReady'  },
 	{ module: 'sha2',     symbol: '_sha2Ready'    },
 	{ module: 'sha3',     symbol: '_sha3Ready'    },
-	{ module: 'kyber',    symbol: '_kyberReady'   },
+	{ module: 'mlkem',    symbol: '_mlkemReady'   },
 ];
 
 // CI: dist/ must exist or fail; local: skip gracefully.

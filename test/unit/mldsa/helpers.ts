@@ -24,8 +24,8 @@
 // WASM test helpers for the mldsa module. Loads build/mldsa.wasm directly
 // (no init() system, mldsa WASM has its own memory, not imported).
 //
-// Mirrors the kyber test harness shape with i32-coefficient polynomials
-// (256 × 4 bytes = 1024 B per poly) instead of kyber's i16 (512 B per poly).
+// Mirrors the mlkem test harness shape with i32-coefficient polynomials
+// (256 × 4 bytes = 1024 B per poly) instead of mlkem's i16 (512 B per poly).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

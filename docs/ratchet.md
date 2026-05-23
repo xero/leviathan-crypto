@@ -48,19 +48,19 @@ skipped-key storage helper.
 | Function / Class | Required `init()` modules |
 |---|---|
 | `ratchetInit`, `KDFChain`, `ratchetReady`, `SkippedKeyStore` | `sha2` |
-| `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `sha2`, `kyber`, `sha3` |
+| `kemRatchetEncap`, `kemRatchetDecap`, `RatchetKeypair` | `sha2`, `mlkem`, `sha3` |
 
 ```typescript
 import { init } from 'leviathan-crypto'
 import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
 
 // For ratchetInit and KDFChain only:
 await init({ sha2: sha2Wasm })
 
 // For all functions including KEM ratchet:
-await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })
+await init({ sha2: sha2Wasm, mlkem: mlkemWasm, sha3: sha3Wasm })
 ```
 
 ---
@@ -395,7 +395,7 @@ keypair.dispose()
 
 Calls `kem.keygen()` immediately. The `ek` field is available right away.
 
-**Required `init()` modules:** `sha2`, `kyber`, `sha3`
+**Required `init()` modules:** `sha2`, `mlkem`, `sha3`
 
 #### `keypair.ek`
 
@@ -569,11 +569,11 @@ epoch. On that first message, both must be present together.
 ```typescript
 import { init, MlKem768, ratchetInit, kemRatchetEncap, kemRatchetDecap, KDFChain } from 'leviathan-crypto'
 import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
 
 // 1. Initialize required modules
-await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })
+await init({ sha2: sha2Wasm, mlkem: mlkemWasm, sha3: sha3Wasm })
 
 // 2. Create a KEM instance
 const kem = new MlKem768()
@@ -632,11 +632,11 @@ import {
   KDFChain, RatchetKeypair,
 } from 'leviathan-crypto'
 import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
 import { wipe } from 'leviathan-crypto'
 
-await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })
+await init({ sha2: sha2Wasm, mlkem: mlkemWasm, sha3: sha3Wasm })
 
 const kem = new MlKem768()
 
@@ -845,7 +845,7 @@ immediately after use.
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [ratchet_audit](./ratchet_audit.md) | Ratchet KDF implementation audit |
-| [kyber](./kyber.md) | ML-KEM key encapsulation (`MlKem512`, `MlKem768`, `MlKem1024`) |
+| [mlkem](./mlkem.md) | ML-KEM key encapsulation (`MlKem512`, `MlKem768`, `MlKem1024`) |
 | [sha2](./sha2.md) | HKDF-SHA256 (the underlying primitive) |
 | [exports](./exports.md) | full export list |
 

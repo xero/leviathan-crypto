@@ -117,10 +117,10 @@ export interface MlDsaExports {
 	sample_in_ball:    (polyOff: number, signsOff: number, posBytesOff: number, posBytesLen: number, tau: number, startI: number) => number
 }
 
-// Sha3Exports, re-exported from kyber/types.ts. Both modules consume the
+// Sha3Exports, re-exported from mlkem/types.ts. Both modules consume the
 // same SHA3 WASM ABI; duplication of the interface declaration would let the
 // two drift independently.
-export type { Sha3Exports } from '../kyber/types.js';
+export type { Sha3Exports } from '../mlkem/types.js';
 
 /** ML-DSA key pair returned by keygen / keygenDerand. */
 export interface MlDsaKeyPair {

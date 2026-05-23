@@ -22,14 +22,14 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { init, MlKem512, constantTimeEqual, wipe } from '../../../src/ts/index.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
-import { kyberWasm } from '../../../src/ts/kyber/embedded.js';
+import { mlkemWasm } from '../../../src/ts/mlkem/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
 import { kemRatchetEncap, kemRatchetDecap } from '../../../src/ts/ratchet/index.js';
 import { utf8ToBytes, hexToBytes, bytesToHex } from '../../../src/ts/utils.js';
 import { kemRatchetDecapVectors } from '../../vectors/ratchet_kat.js';
 
 beforeAll(async () => {
-	await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm });
+	await init({ sha2: sha2Wasm, mlkem: mlkemWasm, sha3: sha3Wasm });
 });
 
 // ML-KEM-512 dk layout per FIPS 203 §7.2: dk = skCpa(768) || ek(800) || H(ek)(32) || z(32).
@@ -152,4 +152,4 @@ test('kemRatchetEncap, kemCt.length === kem.params.ctBytes', () => {
 // of each call and throw Error if sha2 is not loaded. This is verified by
 // inspection and by the init guard test in ratchet_kdf.test.ts which uses
 // _resetForTesting() to clear all module state. An isolated test is not
-// duplicated here to avoid resetting kyber/sha3 mid-suite.
+// duplicated here to avoid resetting mlkem/sha3 mid-suite.

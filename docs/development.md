@@ -75,7 +75,7 @@ bun e2e test/e2e/seal.spec.ts
 bun e2e test/e2e/seal.spec.ts --project=chromium
 ```
 
-**`bun run test unit:group <name>`.** Run one CI test group locally. Builds the group's declared prerequisites, then runs the file list from `scripts/lib/test-groups.ts`. Group names match the `.github/workflows/unit-*.yml` suffixes: `core`, `serpent`, `chacha20`, `stream`, `kyber`, `hashing`, `montecarlo-cbc`, `montecarlo-ecb`, `nessie`, `ratchet`, `aes`, `aes-siv`, `aes-mct`, `mldsa`.
+**`bun run test unit:group <name>`.** Run one CI test group locally. Builds the group's declared prerequisites, then runs the file list from `scripts/lib/test-groups.ts`. Group names match the `.github/workflows/unit-*.yml` suffixes: `core`, `serpent`, `chacha20`, `stream`, `mlkem`, `hashing`, `montecarlo-cbc`, `montecarlo-ecb`, `nessie`, `ratchet`, `aes`, `aes-siv`, `aes-mct`, `mldsa`.
 
 ```sh
 bun run test unit:group aes

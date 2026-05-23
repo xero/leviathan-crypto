@@ -22,7 +22,7 @@
 // constant-time byte equality, AS-internal shared helper
 //
 // Scalar XOR-accumulate, branch-free 0/1 reduction. `@inline` so
-// importers (kyber, slhdsa, curve25519, p256) inline it into binaries
+// importers (mlkem, slhdsa, curve25519, p256) inline it into binaries
 // without WASM SIMD; sibling `index.ts` keeps the SIMD path for cte.wasm.
 
 @inline

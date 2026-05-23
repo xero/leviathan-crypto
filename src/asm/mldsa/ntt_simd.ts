@@ -25,7 +25,7 @@
 // FIPS 204 Algorithms 41 (NTT) and 42 (NTT⁻¹), vectorised.
 //
 // SIMD lane discipline: ML-DSA coefficients are i32 (q ≈ 2²³ does not fit i16),
-// so each v128 carries 4 coefficients, half the lane count of Kyber's i16x8.
+// so each v128 carries 4 coefficients, half the lane count of ML-KEM's i16x8.
 // 4 contiguous butterflies fit a v128 only when len ≥ 4 (group size ≥ 8).
 // Smaller layers (len = 2, 1) reuse the scalar fqmul/barrett_reduce because
 // the per-butterfly twiddle factors don't share lanes inside a vector.

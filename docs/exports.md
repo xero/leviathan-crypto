@@ -48,8 +48,8 @@ Every subpath declared in `package.json` exports. Use a per-module subpath rathe
 | `leviathan-crypto/sha3/embedded` | SHA-3 WASM blob |
 | `leviathan-crypto/keccak` | Keccak alias for SHA-3 |
 | `leviathan-crypto/keccak/embedded` | Keccak WASM blob (same bytes as `sha3/embedded`) |
-| `leviathan-crypto/kyber` | ML-KEM |
-| `leviathan-crypto/kyber/embedded` | ML-KEM WASM blob |
+| `leviathan-crypto/mlkem` | ML-KEM |
+| `leviathan-crypto/mlkem/embedded` | ML-KEM WASM blob |
 | `leviathan-crypto/aes` | AES-256-GCM-SIV |
 | `leviathan-crypto/aes/embedded` | AES WASM blob |
 | `leviathan-crypto/blake3` | BLAKE3 |
@@ -78,7 +78,7 @@ Root barrel `leviathan-crypto`. No module required.
 |--------|------|-------------|
 | `init` | function | Load and cache WASM modules. `init(sources: Partial<Record<Module, WasmSource>>)`. |
 | `isInitialized` | function | `isInitialized(mod: Module): boolean`. Returns `true` if the given module has been loaded. Useful for diagnostic checks. |
-| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'kyber' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3' \| 'curve25519' \| 'p256'`. The top-level `init()` additionally accepts `'ed25519'` and `'x25519'` as aliases that resolve to the `curve25519` slot. |
+| `Module` | type | `'serpent' \| 'chacha20' \| 'sha2' \| 'sha3' \| 'keccak' \| 'mlkem' \| 'aes' \| 'mldsa' \| 'slhdsa' \| 'blake3' \| 'curve25519' \| 'p256'`. The top-level `init()` additionally accepts `'ed25519'` and `'x25519'` as aliases that resolve to the `curve25519` slot. |
 | `WasmSource` | type | Union of all accepted WASM loading strategies. See below. |
 
 **`WasmSource`** accepted by every init function:
@@ -125,7 +125,7 @@ Bitsliced AES-128/192/256 (FIPS 197) over WebAssembly SIMD, with CBC and CTR mod
 | `AESGCM` | class | AES-GCM authenticated encryption (SP 800-38D §7). `seal(key, iv, aad, pt)` returns `ciphertext \|\| tag` (128-bit tag); `open(key, iv, aad, sealed)` verifies and returns plaintext, throws `RangeError('authentication failed')` on any verification failure. 12-byte (96-bit) IV is the recommended fast path; variable-length IVs trigger the GHASH-on-IV slow path per §7.1 step 2. AAD up to 64 KiB; PT up to 64 KiB per single call (chunked iteration internally for larger inputs). Tag length fixed at 128 bits. Stateful, holds the AES module exclusively until `dispose()`. |
 | `AESGCMSIV` | class | AES-GCM-SIV nonce-misuse-resistant authenticated encryption (RFC 8452). Constructor takes a 16-byte (AES-128) or 32-byte (AES-256) key, AES-192 is **not** supported (RFC 8452 §6 only defines AES-128/256 variants). `seal(nonce, plaintext, aad?)` returns `ciphertext \|\| tag`; `open(nonce, sealed, aad?)` returns plaintext, throws `AuthenticationError('siv')` on any verification failure. Nonce must be exactly 12 bytes. AAD ≤ 64 KiB; plaintext ≤ 64 KiB per call (single-shot only, larger messages will use a future streaming SIV variant). Tag verification routes through `constantTimeEqual` in the dedicated `ct` WASM module. Atomic. |
 | `AESGenerator` | const | `Generator` const for `Fortuna`. AES-256 ECB counter-mode PRF (Practical Cryptography §9.4, the spec-canonical Fortuna generator). `keySize: 32`, `blockSize: 16`, `counterSize: 16`. Requires `init({ aes })`. Re-exported from the root barrel. |
-| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `KyberSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher`, closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
+| `AESGCMSIVCipher` | const | `CipherSuite` for AES-256-GCM-SIV (RFC 8452). `keygen()` returns a 32-byte master key. `formatEnum: 0x04`, `keySize: 32`, `tagSize: 16`, `commitmentSize: 32`, `padded: false`. Used with `Seal`, `SealStream`, `OpenStream`, `SealStreamPool`, and `MlKemSuite`. Requires `init({ aes, sha2 })`. HtE explicit-commitment construction matches `XChaCha20Cipher`, closes the Invisible Salamanders attack surface for AES-GCM-SIV's POLYVAL-based MAC. |
 
 ---
 
@@ -136,11 +136,11 @@ Subpath: `leviathan-crypto/stream`. See [aead.md](./aead.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `Seal` | class (static) | One-shot AEAD. `Seal.encrypt(suite, key, plaintext)` / `Seal.decrypt(suite, key, blob)`. Works with any `CipherSuite` including `KyberSuite`. Never instantiated. |
+| `Seal` | class (static) | One-shot AEAD. `Seal.encrypt(suite, key, plaintext)` / `Seal.decrypt(suite, key, blob)`. Works with any `CipherSuite` including `MlKemSuite`. Never instantiated. |
 | `SealStream` | class | Cipher-agnostic streaming encryption (STREAM construction). `push(chunk)`, `finalize(chunk)`, `toTransformStream()`. |
 | `OpenStream` | class | Cipher-agnostic streaming decryption. `pull(chunk)`, `finalize(chunk)`, `seek(index)`, `toTransformStream()`. |
 | `SealStreamPool` | class | Parallel batch seal/open via Web Workers. `SealStreamPool.create(cipher, key, opts)` static factory. |
-| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`, `AESGCMSIVCipher`, `KyberSuite`. See [ciphersuite.md](./ciphersuite.md). |
+| `CipherSuite` | interface | Cipher-specific logic injected into SealStream/OpenStream. Implementations: `XChaCha20Cipher`, `SerpentCipher`, `AESGCMSIVCipher`, `MlKemSuite`. See [ciphersuite.md](./ciphersuite.md). |
 | `DerivedKeys` | interface | Opaque key material returned by `CipherSuite.deriveKeys()`. |
 | `SealStreamOpts` | type | Options for SealStream: `chunkSize?`, `framed?`. |
 | `PoolOpts` | type | Options for SealStreamPool: `wasm`, `workers?`, `chunkSize?`, `framed?`, `jobTimeout?`. |
@@ -272,7 +272,7 @@ Subpath: `leviathan-crypto/sha3`. See [sha3.md](./sha3.md).
 
 `'keccak'` is an alias for `'sha3'`. Same WASM binary, same instance slot.
 Both `init({ sha3: sha3Wasm })` and `init({ keccak: keccakWasm })` load the same module.
-Provided so Kyber/ML-KEM consumers can use the semantically correct primitive name.
+Provided so ML-KEM/ML-KEM consumers can use the semantically correct primitive name.
 Subpath: `leviathan-crypto/keccak`.
 
 | Export | Kind | Description |
@@ -358,20 +358,20 @@ Subpath: `leviathan-crypto/ecdsa`. The class accepts a caller-computed 32-byte S
 
 ## ML-KEM (Post-quantum KEM)
 
-Requires `init({ kyber: kyberWasm, sha3: sha3Wasm })`.
-Subpath: `leviathan-crypto/kyber`. See [kyber.md](./kyber.md).
+Requires `init({ mlkem: mlkemWasm, sha3: sha3Wasm })`.
+Subpath: `leviathan-crypto/mlkem`. See [mlkem.md](./mlkem.md).
 
 | Export | Kind | Description |
 |--------|------|-------------|
-| `kyberInit` | function | Module-scoped init. `kyberInit(source: WasmSource)` loads only kyber WASM. |
-| `MlKemBase` | class | Abstract base class for all ML-KEM variants. Holds `params: KyberParams`. Not normally instantiated directly. Use `MlKem512`, `MlKem768`, or `MlKem1024`. |
+| `mlkemInit` | function | Module-scoped init. `mlkemInit(source: WasmSource)` loads only mlkem WASM. |
+| `MlKemBase` | class | Abstract base class for all ML-KEM variants. Holds `params: MlKemParams`. Not normally instantiated directly. Use `MlKem512`, `MlKem768`, or `MlKem1024`. |
 | `MlKem512` | class | ML-KEM-512. k=2, η₁=3. `keygen()`, `encapsulate(ek)`, `decapsulate(dk, c)`, `checkEncapsulationKey(ek)`, `checkDecapsulationKey(dk)`. |
 | `MlKem768` | class | ML-KEM-768. k=3, η₁=2. Recommended default. Same API as MlKem512. |
 | `MlKem1024` | class | ML-KEM-1024. k=4, η₁=2. Same API as MlKem512. |
-| `KyberSuite` | function | Factory. `KyberSuite(kem, innerCipher)` → `CipherSuite & { keygen(): KyberKeyPair }`. Wraps `MlKemBase` + `CipherSuite` into a hybrid KEM+AEAD suite for use with `Seal`, `SealStream`, `OpenStream`. |
-| `KyberKeyPair` | type | `{ encapsulationKey: Uint8Array, decapsulationKey: Uint8Array }` |
-| `KyberEncapsulation` | type | `{ ciphertext: Uint8Array, sharedSecret: Uint8Array }` |
-| `KyberParams` | type | Parameter set configuration (k, η₁, η₂, dᵤ, dᵥ, byte sizes). |
+| `MlKemSuite` | function | Factory. `MlKemSuite(kem, innerCipher)` → `CipherSuite & { keygen(): MlKemKeyPair }`. Wraps `MlKemBase` + `CipherSuite` into a hybrid KEM+AEAD suite for use with `Seal`, `SealStream`, `OpenStream`. |
+| `MlKemKeyPair` | type | `{ encapsulationKey: Uint8Array, decapsulationKey: Uint8Array }` |
+| `MlKemEncapsulation` | type | `{ ciphertext: Uint8Array, sharedSecret: Uint8Array }` |
+| `MlKemParams` | type | Parameter set configuration (k, η₁, η₂, dᵤ, dᵥ, byte sizes). |
 | `MLKEM512` | const | Parameter set for ML-KEM-512. |
 | `MLKEM768` | const | Parameter set for ML-KEM-768. |
 | `MLKEM1024` | const | Parameter set for ML-KEM-1024. |
@@ -462,7 +462,7 @@ Takes a `Generator` and a `HashFn` at create time. Required `init()` modules dep
 ## Ratchet (Sparse Post-Quantum Ratchet KDF)
 
 `ratchetInit`, `KDFChain`, `ratchetReady` require `init({ sha2: sha2Wasm })`.
-`kemRatchetEncap`, `kemRatchetDecap` additionally require `init({ kyber: kyberWasm, sha3: sha3Wasm })`.
+`kemRatchetEncap`, `kemRatchetDecap` additionally require `init({ mlkem: mlkemWasm, sha3: sha3Wasm })`.
 Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
 
 | Export | Kind | Description |
@@ -470,7 +470,7 @@ Subpath: `leviathan-crypto/ratchet`. See [ratchet.md](./ratchet.md).
 | `ratchetInit` | function | `ratchetInit(sk, context?)`, derives initial root key, send chain key, and receive chain key from a 32-byte shared secret (`KDF_SCKA_INIT`). Returns `RatchetInitResult`. |
 | `KDFChain` | class | Stateful symmetric ratchet chain (`KDF_SCKA_CK`). `new KDFChain(ck)`, `step()` → 32-byte message key, `stepWithCounter()` → `{ key, counter }`, `dispose()`. |
 | `SkippedKeyStore` | class | MKSKIPPED cache for a single `KDFChain` (DR spec §3.2/§3.5). `new SkippedKeyStore({ maxCacheSize?, maxSkipPerResolve? })`. `resolve(chain, counter)` → `ResolveHandle`, call `handle.commit()` on successful decrypt, `handle.rollback()` on auth failure. `advanceToBoundary(chain, pn)`, `size`, `wipeAll()`. Requires `sha2`. |
-| `RatchetKeypair` | class | Single-use ek/dk lifecycle for one KEM ratchet step. `new RatchetKeypair(kem)`, `readonly ek`, `decap(kem, rk, kemCt, context?)`, `dispose()`. Requires `sha2`, `kyber`, `sha3`. |
+| `RatchetKeypair` | class | Single-use ek/dk lifecycle for one KEM ratchet step. `new RatchetKeypair(kem)`, `readonly ek`, `decap(kem, rk, kemCt, context?)`, `dispose()`. Requires `sha2`, `mlkem`, `sha3`. |
 | `kemRatchetEncap` | function | `kemRatchetEncap(kem, rk, peerEk, context?)`, encapsulation side of a KEM ratchet step (`KDF_SCKA_RK`). Returns `KemEncapResult` including `kemCt` to transmit to peer. |
 | `kemRatchetDecap` | function | `kemRatchetDecap(kem, rk, dk, kemCt, ownEk, context?)`, decapsulation side of a KEM ratchet step. `ownEk` is the local party's encapsulation key, bound into the HKDF info string alongside `peerEk` and `kemCt` as defense-in-depth on top of the KEM FO transform. Returns `KemDecapResult` with chain key slots swapped to match Bob's perspective. |
 | `ratchetReady` | function | `ratchetReady(): boolean`, returns `true` if `sha2` has been initialized. |

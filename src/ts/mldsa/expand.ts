@@ -88,7 +88,7 @@ export function expandA(
  * For r ∈ [0, ℓ): s₁[r] ← RejBoundedPoly(SHAKE256(ρ' ‖ IntegerToBytes(r, 2)))
  * For r ∈ [0, k): s₂[r] ← RejBoundedPoly(SHAKE256(ρ' ‖ IntegerToBytes(r+ℓ, 2)))
  *
- * Note the index is 2 bytes (little-endian per FIPS 204 §7.1 Alg 11), kyber
+ * Note the index is 2 bytes (little-endian per FIPS 204 §7.1 Alg 11), mlkem
  * uses 1 byte because k ≤ 4, but ML-DSA's max index is k+ℓ-1 = 14 (still
  * ≤ 255 in practice but the spec mandates 2 bytes).
  *

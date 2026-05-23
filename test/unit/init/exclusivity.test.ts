@@ -40,7 +40,7 @@ import { serpentWasm } from '../../../src/ts/serpent/embedded.js';
 import { chacha20Wasm } from '../../../src/ts/chacha20/embedded.js';
 import { sha2Wasm } from '../../../src/ts/sha2/embedded.js';
 import { sha3Wasm } from '../../../src/ts/sha3/embedded.js';
-import { kyberWasm } from '../../../src/ts/kyber/embedded.js';
+import { mlkemWasm } from '../../../src/ts/mlkem/embedded.js';
 
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 
@@ -50,7 +50,7 @@ beforeAll(async () => {
 		chacha20: chacha20Wasm,
 		sha2: sha2Wasm,
 		sha3: sha3Wasm,
-		kyber: kyberWasm,
+		mlkem: mlkemWasm,
 	});
 });
 
@@ -402,9 +402,9 @@ describe('post-dispose, regression: disposed call does not clobber new instance'
 	});
 });
 
-// ── kyber exclusivity, SHAKE ↔ MlKem interleave ────────────────────────────
+// ── mlkem exclusivity, SHAKE ↔ MlKem interleave ────────────────────────────
 
-describe('exclusivity, kyber ↔ sha3', () => {
+describe('exclusivity, mlkem ↔ sha3', () => {
 	test('SHAKE128 live blocks MlKem768.keygen(), assertNotOwned(sha3)', () => {
 		const s = new SHAKE128();
 		const m = new MlKem768();
@@ -467,7 +467,7 @@ describe('exclusivity, kyber ↔ sha3', () => {
 		// must construct without throwing.
 		expect(_isModuleBusy('sha3')).toBe(false);
 		const s = new SHAKE128();
-		s.absorb(enc('after-kyber'));
+		s.absorb(enc('after-mlkem'));
 		s.dispose();
 	});
 

@@ -25,7 +25,7 @@ leviathan-crypto includes three symmetric cipher suites. A fourth suite wraps an
 | `SerpentCipher` | Serpent-256 CBC + HMAC-SHA-256 | 32 B | `serpent`, `sha2` |
 | `XChaCha20Cipher` | XChaCha20-Poly1305 | 16 B | `chacha20`, `sha2` |
 | `AESGCMSIVCipher` | AES-256-GCM-SIV (RFC 8452) | 16 B | `aes`, `sha2` |
-| `KyberSuite` | ML-KEM + inner cipher | depends | `kyber`, `sha3`, + inner |
+| `MlKemSuite` | ML-KEM + inner cipher | depends | `mlkem`, `sha3`, + inner |
 
 See [ciphersuite.md](./ciphersuite.md) for full cipher suite documentation.
 
@@ -83,7 +83,7 @@ bytes:
 | `0x03` | XChaCha20-Poly1305 | v3 |
 | `0x04` | AES-256-GCM-SIV (RFC 8452) | v3 |
 
-The legacy XChaCha20 v2 format used `0x01`, which the parser now rejects as unknown. KEM suites encode both the parameter set and the inner cipher in the same byte. See [ciphersuite.md](./ciphersuite.md#kybersuite) for the full format enum table.
+The legacy XChaCha20 v2 format used `0x01`, which the parser now rejects as unknown. KEM suites encode both the parameter set and the inner cipher in the same byte. See [ciphersuite.md](./ciphersuite.md#mlkemsuite) for the full format enum table.
 
 The 16-byte nonce drives HKDF key derivation and HChaCha20 subkey derivation. It is not the cipher nonce directly. The framed flag (bit 7) prefixes each chunk with a `u32be` length. Use framed mode for flat byte streams where chunks concatenate without an external framing layer. Leave it off when the transport provides its own message boundaries, such as WebSocket frames or IPC messages.
 
@@ -209,7 +209,7 @@ const ctLast = sealer.finalize(lastChunk)  // keys wiped
 
 | Parameter | Type | Description |
 |---|---|---|
-| `cipher` | `CipherSuite` | `XChaCha20Cipher`, `SerpentCipher`, `AESGCMSIVCipher`, or a `KyberSuite` instance. |
+| `cipher` | `CipherSuite` | `XChaCha20Cipher`, `SerpentCipher`, `AESGCMSIVCipher`, or a `MlKemSuite` instance. |
 | `key` | `Uint8Array` | Master key. Must be `cipher.keySize` bytes (32 for both symmetric suites). |
 | `opts.chunkSize` | `number` | Max plaintext bytes per chunk. Range: [1024, 16777215]. Default: 65536. |
 | `opts.framed` | `boolean` | Prepend `u32be` length prefix to each chunk. Default: false. |
@@ -328,22 +328,22 @@ pool.destroy()
 
 ---
 
-### KyberSuite
+### MlKemSuite
 
-`KyberSuite` wraps an ML-KEM instance and an inner `CipherSuite` into a hybrid post-quantum construction. The result plugs into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` identically to a symmetric suite.
+`MlKemSuite` wraps an ML-KEM instance and an inner `CipherSuite` into a hybrid post-quantum construction. The result plugs into `Seal`, `SealStream`, `OpenStream`, and `SealStreamPool` identically to a symmetric suite.
 
 ```typescript
 import { init, SealStream, OpenStream } from 'leviathan-crypto'
-import { KyberSuite, MlKem768 }         from 'leviathan-crypto/kyber'
+import { MlKemSuite, MlKem768 }         from 'leviathan-crypto/mlkem'
 import { XChaCha20Cipher }              from 'leviathan-crypto/chacha20'
-import { kyberWasm }    from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm }    from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
 import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
 
-await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
 
-const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
+const suite = MlKemSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 
 // sender, encrypts with the public key
@@ -358,7 +358,7 @@ const pt0    = opener.pull(ct0)
 const ptLast = opener.finalize(ctLast)
 ```
 
-See [kyber.md](./kyber.md) for key management, parameter set selection, and the full ML-KEM reference. See [ciphersuite.md](./ciphersuite.md#kybersuite) for format enum values and key derivation details.
+See [mlkem.md](./mlkem.md) for key management, parameter set selection, and the full ML-KEM reference. See [ciphersuite.md](./ciphersuite.md#mlkemsuite) for format enum values and key derivation details.
 
 ---
 
@@ -398,10 +398,10 @@ Never attempt to recover plaintext after an `AuthenticationError`. The stream la
 | [index](./README.md) | Project Documentation index |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
-| [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `KyberSuite`, and the `CipherSuite` interface |
+| [ciphersuite](./ciphersuite.md) | `SerpentCipher`, `XChaCha20Cipher`, `MlKemSuite`, and the `CipherSuite` interface |
 | [signing](./signing.md) | `Sign`, `SignStream`, `VerifyStream` (signature counterpart to this layer) |
 | [signaturesuite](./signaturesuite.md) | `SignatureSuite` and the shipped suite catalog (signature counterpart to `CipherSuite`) |
-| [kyber](./kyber.md) | ML-KEM key encapsulation, parameter sets, and key management |
+| [mlkem](./mlkem.md) | ML-KEM key encapsulation, parameter sets, and key management |
 | [serpent](./serpent.md) | Serpent-256 raw primitives |
 | [chacha20](./chacha20.md) | ChaCha20 raw primitives |
 | [stream_audit](./stream_audit.md) | streaming AEAD composition audit |

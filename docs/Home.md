@@ -92,7 +92,7 @@ transport, header format, and epoch orchestration. See the
 | Encrypt data | [`Seal`](./aead.md#seal) with [`SerpentCipher`](./serpent.md#serpentcipher), [`XChaCha20Cipher`](./chacha20.md#xchacha20cipher), or [`AESGCMSIVCipher`](./aes.md#aesgcmsivcipher) |
 | Encrypt a stream or large file | [`SealStream`](./aead.md#sealstream) to encrypt, [`OpenStream`](./aead.md#openstream) to decrypt |
 | Encrypt in parallel | [`SealStreamPool`](./aead.md#sealstreampool) distributes chunks across Web Workers |
-| Add post-quantum security | [`KyberSuite`](./kyber.md#kybersuite) wraps [`MlKem512`](./kyber.md#parameter-sets), [`MlKem768`](./kyber.md#parameter-sets), or [`MlKem1024`](./kyber.md#parameter-sets) with any cipher suite |
+| Add post-quantum security | [`MlKemSuite`](./mlkem.md#mlkemsuite) wraps [`MlKem512`](./mlkem.md#parameter-sets), [`MlKem768`](./mlkem.md#parameter-sets), or [`MlKem1024`](./mlkem.md#parameter-sets) with any cipher suite |
 | Build a forward-secret session | [`ratchetInit`](./ratchet.md#ratchetinit), [`KDFChain`](./ratchet.md#kdfchain), [`kemRatchetEncap`](./ratchet.md#kemratchetencap) / [`kemRatchetDecap`](./ratchet.md#kemratchetdecap), [`SkippedKeyStore`](./ratchet.md#skippedkeystore) |
 | Sign data with a classical signature | [`Ed25519Suite`](./signaturesuite.md#ed25519-suites) / [`Ed25519PreHashSuite`](./signaturesuite.md#ed25519-suites) ([ed25519.md](./ed25519.md)) or [`EcdsaP256Suite`](./signaturesuite.md#ecdsa-p256-suite) ([ecdsa-p256.md](./ecdsa-p256.md)) via [`Sign`](./signing.md#sign) / [`SignStream`](./signing.md#signstream) / [`VerifyStream`](./signing.md#verifystream) |
 | Sign data with a post-quantum signature | `MlDsa44/65/87Suite` (+ `*PreHashSuite`) for lattice ML-DSA ([mldsa.md](./mldsa.md)) or `SlhDsa128f/192f/256fSuite` (+ `*PreHashSuite`) for hash-based SLH-DSA ([slhdsa.md](./slhdsa.md)). Full catalog in [signaturesuite.md](./signaturesuite.md) |
@@ -141,7 +141,7 @@ conversations. Share an invite, talk, exit, and it's gone. Clients available for
 both the web and cli, along with a containerized dumb server for managing
 rooms. No secrets or cleartext beyond the handle you chose to join a room with
 are ever visible to the server. Featuring sparse post-quantum ratcheting,
-ML-KEM-768, KDFChains, Seal+KyberSuite, and a XChaCha20-Poly1305 core.
+ML-KEM-768, KDFChains, Seal+MlKemSuite, and a XChaCha20-Poly1305 core.
 
 **`web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/web) · [readme](https://github.com/xero/leviathan-demos/blob/main/web/README.md) ]
 
@@ -159,7 +159,7 @@ plaintext. Messages carry sequence numbers so the protocol detects and rejects
 replayed messages. The demo deconstructs the protocol step by step with visual
 feedback for injection and replay attacks.
 
-**`kyber`** [ [demo](https://leviathan.3xi.club/kyber) · [source](https://github.com/xero/leviathan-demos/tree/main/kyber) · [readme](https://github.com/xero/leviathan-demos/blob/main/kyber/README.md) ]
+**`mlkem`** [ [demo](https://leviathan.3xi.club/mlkem) · [source](https://github.com/xero/leviathan-demos/tree/main/mlkem) · [readme](https://github.com/xero/leviathan-demos/blob/main/mlkem/README.md) ]
 
 Post-quantum cryptography demo simulating a complete ML-KEM key encapsulation
 ceremony between two browser-side clients. A live wire at the top of the page

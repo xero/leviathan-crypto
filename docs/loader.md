@@ -124,13 +124,13 @@ import { init } from 'leviathan-crypto'
 import { serpentWasm } from 'leviathan-crypto/serpent/embedded'
 import { sha2Wasm } from 'leviathan-crypto/sha2/embedded'
 import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 
 await init({
   serpent: serpentWasm,
   sha2: sha2Wasm,
   chacha20: chacha20Wasm,
-  kyber: kyberWasm
+  mlkem: mlkemWasm
 })
 ```
 
@@ -146,7 +146,7 @@ await init({
   serpent: new URL('https://cdn.example.com/wasm/serpent.wasm'),
   sha2: new URL('https://cdn.example.com/wasm/sha2.wasm'),
   chacha20: new URL('https://cdn.example.com/wasm/chacha20.wasm'),
-  kyber: new URL('https://cdn.example.com/wasm/kyber.wasm')
+  mlkem: new URL('https://cdn.example.com/wasm/mlkem.wasm')
 })
 
 // From a local /public folder

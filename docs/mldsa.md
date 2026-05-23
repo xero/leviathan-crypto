@@ -726,5 +726,5 @@ ML-DSA primitives. It asserts:
 | [asm_mldsa.md](./asm_mldsa.md) | Low-level WASM module reference |
 | [mldsa_audit.md](./mldsa_audit.md) | ML-DSA audit checklist |
 | [slhdsa.md](./slhdsa.md) | Companion post-quantum signature primitive (hash-based, paired with ML-DSA in PQ-only hybrid suites) |
-| [kyber.md](./kyber.md) | Sibling post-quantum module (KEM, not signatures) |
+| [mlkem.md](./mlkem.md) | Sibling post-quantum module (KEM, not signatures) |
 | [exports.md](./exports.md) | Full export catalog |

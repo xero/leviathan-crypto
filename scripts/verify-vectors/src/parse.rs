@@ -1002,7 +1002,7 @@ fn extract_chunks(body: &str) -> Vec<ChunkVector> {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// ML-KEM vectors (kyber_keygen.ts, kyber_encapdecap.ts).
+// ML-KEM vectors (mlkem_keygen.ts, mlkem_encapdecap.ts).
 //
 // All ACVP records use single-line concatenated hex strings (no `+` joins),
 // so the existing `extract_hex` and `extract_int` helpers work directly on

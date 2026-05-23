@@ -45,20 +45,20 @@ const pt   = Seal.decrypt(SerpentCipher, key, blob)
 
 ---
 
-### [KyberSuite](./aead.md#kybersuite): post-quantum hybrid encryption
+### [MlKemSuite](./aead.md#mlkemsuite): post-quantum hybrid encryption
 
-`KyberSuite` wraps an ML-KEM instance and a `CipherSuite` into a hybrid KEM+AEAD suite. Each call to `encrypt` creates a fresh shared secret via the KEM, then the inner cipher performs AEAD. The KEM ciphertext is prepended to the blob automatically.
+`MlKemSuite` wraps an ML-KEM instance and a `CipherSuite` into a hybrid KEM+AEAD suite. Each call to `encrypt` creates a fresh shared secret via the KEM, then the inner cipher performs AEAD. The KEM ciphertext is prepended to the blob automatically.
 
 ```typescript
-import { init, Seal, KyberSuite, MlKem768, XChaCha20Cipher } from 'leviathan-crypto'
-import { kyberWasm }    from 'leviathan-crypto/kyber/embedded'
+import { init, Seal, MlKemSuite, MlKem768, XChaCha20Cipher } from 'leviathan-crypto'
+import { mlkemWasm }    from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }     from 'leviathan-crypto/sha3/embedded'
 import { chacha20Wasm } from 'leviathan-crypto/chacha20/embedded'
 import { sha2Wasm }     from 'leviathan-crypto/sha2/embedded'
 
-await init({ kyber: kyberWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm, chacha20: chacha20Wasm, sha2: sha2Wasm })
 
-const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
+const suite = MlKemSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 
 // sender, encrypts with the public key
@@ -180,10 +180,10 @@ recovers the same shared secret using their private decapsulation key.
 
 ```typescript
 import { init, MlKem768 } from 'leviathan-crypto'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
 
-await init({ kyber: kyberWasm, sha3: sha3Wasm })
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm })
 
 const kem = new MlKem768()
 
@@ -197,7 +197,7 @@ const { ciphertext, sharedSecret: senderSecret } = kem.encapsulate(encapsulation
 const recipientSecret = kem.decapsulate(decapsulationKey, ciphertext)
 
 // senderSecret and recipientSecret are identical 32-byte values
-// use as a symmetric key input: derive with HKDF or pass directly to KyberSuite
+// use as a symmetric key input: derive with HKDF or pass directly to MlKemSuite
 kem.dispose()
 ```
 
@@ -205,21 +205,21 @@ To combine classical and post-quantum security, pair an X25519 shared secret wit
 
 ```typescript
 import { init, MlKem768, HKDF_SHA256 } from 'leviathan-crypto'
-import { kyberWasm } from 'leviathan-crypto/kyber/embedded'
+import { mlkemWasm } from 'leviathan-crypto/mlkem/embedded'
 import { sha3Wasm }  from 'leviathan-crypto/sha3/embedded'
 import { sha2Wasm }  from 'leviathan-crypto/sha2/embedded'
 
-await init({ kyber: kyberWasm, sha3: sha3Wasm, sha2: sha2Wasm })
+await init({ mlkem: mlkemWasm, sha3: sha3Wasm, sha2: sha2Wasm })
 
 // x25519SharedSecret: 32 bytes from WebCrypto ECDH
 const kem = new MlKem768()
 const { encapsulationKey, decapsulationKey } = kem.keygen()
-const { ciphertext, sharedSecret: kyberSecret } = kem.encapsulate(encapsulationKey)
+const { ciphertext, sharedSecret: mlkemSecret } = kem.encapsulate(encapsulationKey)
 
 const hkdf     = new HKDF_SHA256()
 const combined = new Uint8Array(64)
 combined.set(x25519SharedSecret, 0)
-combined.set(kyberSecret, 32)
+combined.set(mlkemSecret, 32)
 
 const hybridKey = hkdf.derive(combined, salt, info, 32)
 
@@ -295,7 +295,7 @@ import {
   constantTimeEqual,
 } from 'leviathan-crypto'
 
-await init({ sha2: sha2Wasm, kyber: kyberWasm, sha3: sha3Wasm })
+await init({ sha2: sha2Wasm, mlkem: mlkemWasm, sha3: sha3Wasm })
 
 const kem = new MlKem768()
 

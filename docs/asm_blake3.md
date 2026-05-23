@@ -34,7 +34,7 @@ Key properties of this implementation:
 **SIMD-only.** Two compression kernels ship: a v128-internal
 `compress` for single-block work and a v128-external lane-parallel
 `compress4` for batches of four independent blocks. No scalar fallback
-exists. The module joins serpent, chacha20, aes, kyber, and mldsa in
+exists. The module joins serpent, chacha20, aes, mlkem, and mldsa in
 the v128-required tier.
 
 **Static memory only.** All buffers are fixed offsets in linear memory.
@@ -208,7 +208,7 @@ two physical registers). The deferred optimization is noted in the
 audit doc and may revisit when wide-SIMD WebAssembly lands.
 
 **No scalar path.** `init()` rejects the `blake3` slot when SIMD is
-unavailable, identical to serpent, chacha20, aes, kyber, and mldsa.
+unavailable, identical to serpent, chacha20, aes, mlkem, and mldsa.
 No fallback ships and none is planned.
 
 ---

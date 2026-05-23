@@ -11,7 +11,7 @@ The extension point for the streaming AEAD layer. `Seal`, `SealStream`, `OpenStr
 >   - [SerpentCipher](#serpentcipher)
 >   - [XChaCha20Cipher](#xchacha20cipher)
 >   - [AESGCMSIVCipher](#aesgcmsivcipher)
-> - [KyberSuite](#kybersuite)
+> - [MlKemSuite](#mlkemsuite)
 > - [Interface reference](#interface-reference)
 > - [Per-cipher contract tests](#per-cipher-contract-tests)
 > - [Cross-References](#cross-references)
@@ -19,22 +19,22 @@ The extension point for the streaming AEAD layer. `Seal`, `SealStream`, `OpenStr
 ---
 
 Four implementations are included: `SerpentCipher`, `XChaCha20Cipher`,
-`AESGCMSIVCipher`, and `KyberSuite`. The first three are symmetric cipher
-suites. `KyberSuite` wraps any of them with an ML-KEM layer for hybrid
+`AESGCMSIVCipher`, and `MlKemSuite`. The first three are symmetric cipher
+suites. `MlKemSuite` wraps any of them with an ML-KEM layer for hybrid
 post-quantum encryption.
 
 ---
 
 ## Module Init
 
-Each `CipherSuite` implementation requires its underlying cipher module plus `sha2` for HKDF-SHA-256 key derivation. `KyberSuite` additionally requires `sha3` for the ML-KEM sponge.
+Each `CipherSuite` implementation requires its underlying cipher module plus `sha2` for HKDF-SHA-256 key derivation. `MlKemSuite` additionally requires `sha3` for the ML-KEM sponge.
 
 | Suite | `init({ ... })` keys |
 |---|---|
 | `SerpentCipher` | `serpent`, `sha2` |
 | `XChaCha20Cipher` | `chacha20`, `sha2` |
 | `AESGCMSIVCipher` | `aes`, `sha2` |
-| `KyberSuite(MlKem*, inner)` | `kyber`, `sha3`, plus the inner suite's modules |
+| `MlKemSuite(MlKem*, inner)` | `mlkem`, `sha3`, plus the inner suite's modules |
 
 See [init.md](./init.md) for `WasmSource` types and the per-module init functions.
 
@@ -43,7 +43,7 @@ See [init.md](./init.md) for `WasmSource` types and the per-module init function
 ## Security Notes
 
 > [!IMPORTANT]
-> **All four shipped suites are authenticated.** `SerpentCipher` uses Encrypt-then-MAC over Serpent-256-CBC + HMAC-SHA-256. `XChaCha20Cipher` uses XChaCha20-Poly1305 AEAD. `AESGCMSIVCipher` uses AES-256-GCM-SIV nonce-misuse-resistant AEAD. `KyberSuite` inherits the inner suite's authentication.
+> **All four shipped suites are authenticated.** `SerpentCipher` uses Encrypt-then-MAC over Serpent-256-CBC + HMAC-SHA-256. `XChaCha20Cipher` uses XChaCha20-Poly1305 AEAD. `AESGCMSIVCipher` uses AES-256-GCM-SIV nonce-misuse-resistant AEAD. `MlKemSuite` inherits the inner suite's authentication.
 
 > [!IMPORTANT]
 > **Key commitment closes the Invisible Salamanders surface.** `XChaCha20Cipher` and `AESGCMSIVCipher` carry a 32-byte commitment in the preamble because Poly1305 and POLYVAL are not key-committing on their own. `SerpentCipher` uses HMAC-SHA-256 which is key-committing by construction and ships with `commitmentSize: 0`. Don't strip the commitment field or skip its verification.
@@ -143,18 +143,18 @@ See [exports.md](./exports.md#aes) for the AES primitive reference and the AES e
 
 ---
 
-## KyberSuite
+## MlKemSuite
 
-`KyberSuite` is a factory that wraps a `MlKemBase` instance and an inner
+`MlKemSuite` is a factory that wraps a `MlKemBase` instance and an inner
 `CipherSuite` into a hybrid KEM+AEAD suite. The result satisfies the
 `CipherSuite` interface and plugs into `Seal`, `SealStream`, `OpenStream`,
 and `SealStreamPool` identically to the symmetric suites.
 
 ```typescript
-import { KyberSuite, MlKem768 } from 'leviathan-crypto/kyber'
+import { MlKemSuite, MlKem768 } from 'leviathan-crypto/mlkem'
 import { XChaCha20Cipher }      from 'leviathan-crypto/chacha20'
 
-const suite = KyberSuite(new MlKem768(), XChaCha20Cipher)
+const suite = MlKemSuite(new MlKem768(), XChaCha20Cipher)
 const { encapsulationKey: ek, decapsulationKey: dk } = suite.keygen()
 ```
 
@@ -184,7 +184,7 @@ Serpent hybrid suites have no commitment field (header(20) + kemCt).
 The AES-GCM-SIV preamble sizes match XChaCha20 because both have
 `commitmentSize: 32`.
 
-See [kyber.md](./kyber.md) for the full ML-KEM reference and key management guidance.
+See [mlkem.md](./mlkem.md) for the full ML-KEM reference and key management guidance.
 
 ---
 
@@ -357,7 +357,7 @@ and breaks the implicit contract that two parties using the same
 
 #### Hybrid KEM wrapper
 
-`KyberSuite` shows the pattern for wrapping a KEM around any inner
+`MlKemSuite` shows the pattern for wrapping a KEM around any inner
 `CipherSuite`. A custom KEM (HPKE, NTRU, a future PQ family) plugs in the
 same way: encapsulate on the encrypt path, decapsulate on the decrypt path,
 feed the shared secret through HKDF, then delegate `sealChunk` / `openChunk`
@@ -515,6 +515,6 @@ file matching the same describe-block shape.
 | [signaturesuite](./signaturesuite.md) | `SignatureSuite` and the shipped suite catalog (signature counterpart to this interface) |
 | [serpent](./serpent.md) | Serpent-256 TypeScript API and raw primitives |
 | [chacha20](./chacha20.md) | ChaCha20 TypeScript API and raw primitives |
-| [kyber](./kyber.md) | ML-KEM key encapsulation and `KyberSuite` |
+| [mlkem](./mlkem.md) | ML-KEM key encapsulation and `MlKemSuite` |
 | [types](./types.md) | TypeScript interfaces |
 

@@ -1,6 +1,6 @@
 // Independent verifier for ML-KEM (FIPS 203 final) vectors.
 //
-// Reads `kyber_keygen.ts` and `kyber_encapdecap.ts` (parsed by
+// Reads `mlkem_keygen.ts` and `mlkem_encapdecap.ts` (parsed by
 // parse::parse_mlkem_*_array) and runs each record through RustCrypto's
 // `ml-kem` crate. For each cipher operation the bytes are compared against
 // the ACVP-published expected values: pk+sk for keygen, ciphertext+sharedKey

@@ -267,7 +267,7 @@ Cipher-specific logic injected into `SealStream` and `OpenStream`.
 | `kemCtSize` | `number` | KEM ciphertext byte length appended to the header in the preamble. `0` for symmetric suites |
 | `tagSize` | `number` | Authentication tag size in bytes |
 | `padded` | `boolean` | Whether ciphertext includes padding (PKCS7 for CBC) |
-| `wasmChunkSize` | `number` | WASM buffer capacity for one padded chunk. `SealStreamPool.create()` validates `paddedFull ≤ wasmChunkSize` at startup for padded ciphers and throws `RangeError` if the check fails. `SerpentCipher`: 65552. `XChaCha20Cipher`: 65536. `KyberSuite` forwards from its inner cipher. |
+| `wasmChunkSize` | `number` | WASM buffer capacity for one padded chunk. `SealStreamPool.create()` validates `paddedFull ≤ wasmChunkSize` at startup for padded ciphers and throws `RangeError` if the check fails. `SerpentCipher`: 65552. `XChaCha20Cipher`: 65536. `MlKemSuite` forwards from its inner cipher. |
 | `wasmModules` | `readonly string[]` | Cipher-specific WASM modules used by pool workers and per-chunk operations (not transitive dependencies such as HKDF-SHA-256 used by `deriveKeys()`) |
 
 | Method | Signature | Description |
@@ -278,7 +278,7 @@ Cipher-specific logic injected into `SealStream` and `OpenStream`.
 | `wipeKeys` | `(keys) → void` | Zero derived key material |
 | `createPoolWorker` | `() → Worker` | Create a Web Worker for pool use. Default spawns a classic worker from a blob URL over a build-time IIFE; override via spread for strict-CSP environments. See [ciphersuite.md](./ciphersuite.md). |
 
-Implementations: `XChaCha20Cipher`, `SerpentCipher` (plain `const` objects, not classes), and `KyberSuite` (factory function returning a `CipherSuite`). See [ciphersuite.md](./ciphersuite.md).
+Implementations: `XChaCha20Cipher`, `SerpentCipher` (plain `const` objects, not classes), and `MlKemSuite` (factory function returning a `CipherSuite`). See [ciphersuite.md](./ciphersuite.md).
 
 > [!IMPORTANT]
 > All CipherSuite implementations use HKDF-SHA-256 in `deriveKeys()`. The stream layer requires
@@ -332,7 +332,7 @@ Structural interface satisfied by `MlKem512`, `MlKem768`, and `MlKem1024`. Used 
 
 ```typescript
 interface MlKemLike {
-  readonly params: KyberParams
+  readonly params: MlKemParams
   keygen(): { encapsulationKey: Uint8Array; decapsulationKey: Uint8Array }
   encapsulate(ek: Uint8Array): { ciphertext: Uint8Array; sharedSecret: Uint8Array }
   decapsulate(dk: Uint8Array, ct: Uint8Array): Uint8Array
