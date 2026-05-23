@@ -362,3 +362,90 @@ export function edPointMulBase(out: i32, scalar: i32): void {
 	edPointBasepoint(B)
 	edPointMul(out, scalar, B)
 }
+
+// ── edPointMulDoubleVerify: Strauss-Shamir [s]B - [k]A ─────────────────────
+//
+// Verify-only double scalar multiplication. Computes [s]B - [k]A via a
+// single interleaved 255-iteration ladder with a 4-entry precomputed
+// table {O, -A, B, B - A}, selected by the bit pair (s_i, k_i) at each
+// step. Replaces the two-ladder + final-add pattern in
+// `ed25519Verify` / `ed25519VerifyPrehashed`.
+//
+// Why subtract not add: the Ed25519 verify equation is
+//   [s]B == R + [k]A     (RFC 8032 §5.1.7)
+// which rearranges to
+//   [s]B - [k]A == R
+// Computing `[s]B + [k](-A)` via a single ladder and comparing the result
+// with the decompressed R point is the natural Strauss-Shamir shape.
+//
+// NOT constant-time across the bit-pair selector. Ed25519 verify is
+// public-input (pk, msg, sig are wire data); the existing verify path
+// already short-circuits on decompression / canonicality failures, so
+// public-bit branches here add no new timing channel. The 4-entry table
+// is indexed by PUBLIC bits and remains outside the architectural
+// prohibition on secret-bit-indexed tables (SECURITY.md
+// §Side-channel resistance).
+//
+// Slot allocation in POINT_TMP (4 × 160 bytes total; all four used):
+//   slot 0: R     (accumulator)
+//   slot 1: B     (basepoint, materialized once)
+//   slot 2: negA  (-A; X and T negated per edPointSub convention)
+//   slot 3: BmA   (B - A = B + negA, precomputed once)
+//
+// FIELD_TMP slots 0..12 are reclaimed by edPointDouble / edPointAdd
+// between iterations, same as `edPointMul`.
+
+/**
+ * out = [s]B - [k]A. Strauss-Shamir simultaneous double scalar mult,
+ * verify-only.
+ *
+ * @param s   32-byte LE scalar (verify-side signature s component)
+ * @param k   32-byte LE scalar (verify-side challenge k)
+ * @param A   Edwards point (decompressed public key)
+ * @param out 160-byte output point
+ *
+ * Inputs are all public-derived; this function is not constant-time
+ * across the bit-pair selector. Do not call from any code path that
+ * carries secret-derived scalars.
+ */
+export function edPointMulDoubleVerify(s: i32, k: i32, A: i32, out: i32): void {
+	const R:    i32 = POINT_TMP_OFFSET + 0 * POINT_TMP_STRIDE
+	const B:    i32 = POINT_TMP_OFFSET + 1 * POINT_TMP_STRIDE
+	const negA: i32 = POINT_TMP_OFFSET + 2 * POINT_TMP_STRIDE
+	const BmA:  i32 = POINT_TMP_OFFSET + 3 * POINT_TMP_STRIDE
+
+	// Materialise B and -A (negate X and T in extended coords; see
+	// edPointSub).
+	edPointBasepoint(B)
+	feNeg     (negA + X_OFF, A + X_OFF)
+	memory.copy(negA + Y_OFF, A + Y_OFF, 40)
+	memory.copy(negA + Z_OFF, A + Z_OFF, 40)
+	feNeg     (negA + T_OFF, A + T_OFF)
+	// B - A
+	edPointAdd(BmA, B, negA)
+	// R = identity
+	edPointZero(R)
+
+	// Scan bits 254..0 (Ed25519 canonical 255-bit scalar range).
+	for (let i: i32 = 254; i >= 0; i--) {
+		edPointDouble(R, R)
+
+		const byteIdx: i32 = i >> 3
+		const bitIdx:  i32 = i & 7
+		const bs: i32 = ((load<u8>(s + byteIdx) as i32) >> bitIdx) & 1
+		const bk: i32 = ((load<u8>(k + byteIdx) as i32) >> bitIdx) & 1
+		const idx: i32 = (bs << 1) | bk
+
+		// idx 0 (both bits zero): R += O, skip (saves one pointAdd).
+		// Verify is public-input; branch on idx is fine.
+		if (idx == 1) {
+			edPointAdd(R, R, negA)
+		} else if (idx == 2) {
+			edPointAdd(R, R, B)
+		} else if (idx == 3) {
+			edPointAdd(R, R, BmA)
+		}
+	}
+
+	memory.copy(out, R, 160)
+}

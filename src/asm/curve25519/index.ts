@@ -66,7 +66,8 @@ export {
 
 export {
 	edPointZero, edPointBasepoint, edPointDouble, edPointAdd, edPointSub,
-	edPointEqual, edPointMul, edPointMulBase, edPointOnCurve,
+	edPointEqual, edPointMul, edPointMulBase, edPointMulDoubleVerify,
+	edPointOnCurve,
 } from './edwards'
 
 // ── Point compression ───────────────────────────────────────────────────────
