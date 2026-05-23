@@ -13,6 +13,9 @@ on:
     branches: ['**']
   workflow_dispatch:
 
+env:
+  BUN_VERSION: '1.3.13'
+
 permissions:
   contents: read
   packages: read
@@ -25,9 +28,13 @@ jobs:
   build:
     needs: [verify-vectors]
     uses: ./.github/workflows/build.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   lint:
     uses: ./.github/workflows/lint.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   e2e:
     needs: [build]
@@ -36,105 +43,155 @@ jobs:
   unit-core:
     needs: [build]
     uses: ./.github/workflows/unit-core.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-serpent:
     needs: [build]
     uses: ./.github/workflows/unit-serpent.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-chacha20:
     needs: [build]
     uses: ./.github/workflows/unit-chacha20.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-stream:
     needs: [build]
     uses: ./.github/workflows/unit-stream.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-kyber:
     needs: [build]
     uses: ./.github/workflows/unit-kyber.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-hashing:
     needs: [build]
     uses: ./.github/workflows/unit-hashing.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-montecarlo-cbc:
     needs: [build]
     uses: ./.github/workflows/unit-montecarlo-cbc.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-montecarlo-ecb:
     needs: [build]
     uses: ./.github/workflows/unit-montecarlo-ecb.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-nessie:
     needs: [build]
     uses: ./.github/workflows/unit-nessie.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-ratchet:
     needs: [build]
     uses: ./.github/workflows/unit-ratchet.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-aes:
     needs: [build]
     uses: ./.github/workflows/unit-aes.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-aes-siv:
     needs: [build]
     uses: ./.github/workflows/unit-aes-siv.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-aes-mct:
     needs: [build]
     uses: ./.github/workflows/unit-aes-montecarlo.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-mldsa:
     needs: [build]
     uses: ./.github/workflows/unit-mldsa.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-sign:
     needs: [build]
     uses: ./.github/workflows/unit-sign.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-slhdsa:
     needs: [build]
     uses: ./.github/workflows/unit-slhdsa.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-slhdsa-acvp:
     needs: [build]
     uses: ./.github/workflows/unit-slhdsa-acvp.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-sign-hybrid:
     needs: [build]
     uses: ./.github/workflows/unit-sign-hybrid.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-sign-hybrid-classical:
     needs: [build]
     uses: ./.github/workflows/unit-sign-hybrid-classical.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-blake3:
     needs: [build]
     uses: ./.github/workflows/unit-blake3.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-curve25519:
     needs: [build]
     uses: ./.github/workflows/unit-curve25519.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-p256:
     needs: [build]
     uses: ./.github/workflows/unit-p256.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-ed25519:
     needs: [build]
     uses: ./.github/workflows/unit-ed25519.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-x25519:
     needs: [build]
     uses: ./.github/workflows/unit-x25519.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   unit-merkle:
     needs: [build]
     uses: ./.github/workflows/unit-merkle.yml
+    with:
+      bun-version: ${{ env.BUN_VERSION }}
 
   suite-status:
-    name: test-suite-status
+    name: test-status
     if: always()
     needs:
       - verify-vectors
@@ -168,7 +225,7 @@ jobs:
       - unit-merkle
     runs-on: ubuntu-latest
     steps:
-      - name: Check upstream results
+      - name: Check results
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
           echo "::error::One or more upstream jobs failed or were cancelled."
