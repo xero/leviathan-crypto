@@ -23,6 +23,7 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 | [exports.md](./exports.md) | Complete export reference: every class, function, and type |
 | [init.md](./init.md) | `init()` API, `WasmSource`, subpath imports, tree-shaking |
 | [loader.md](./loader.md) | WASM binary loading internals: `WasmSource` dispatch, `loadWasm()`, `compileWasm()` |
+| [csp.md](./csp.md) | Content-Security-Policy: required directives, minimal policies, pool workers, per-engine differences |
 
 ---
 
@@ -100,6 +101,12 @@ This index lists every documentation file in the `docs/` directory. Use it as yo
 |--------|-------------|
 | [chacha20.md](./chacha20.md) | TypeScript API: `ChaCha20`, `Poly1305`, `ChaCha20Poly1305`, `XChaCha20Poly1305` |
 | [asm_chacha.md](./asm_chacha.md) | WASM implementation: quarter-round, Poly1305 accumulator, HChaCha20 |
+
+### Hashing
+
+| Module | Description |
+|--------|-------------|
+| [hashing.md](./hashing.md) | Hashing landing page: overview, a choose-the-right-hash decision matrix, and cross-links across the SHA-2, SHA-3, and BLAKE3 families |
 
 ### SHA-2
 

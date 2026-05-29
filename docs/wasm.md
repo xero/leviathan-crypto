@@ -97,7 +97,7 @@ Serpent classes (`Serpent`, `SerpentCtr`, `SerpentCbc`) share this instance.
 A `WebAssembly.Memory` is a contiguous block of bytes, essentially a
 `Uint8Array` that WASM functions can read and write, also known as **linear
 memory**. Each of our WASM modules gets its own memory: most use 3 pages
-(192 KB); `aes` and `mldsa` use 4 pages (256 KB); `ct` uses 1 page (64 KB).
+(192 KB); `aes` and `mldsa` use 4 pages (256 KB); `cte` uses 1 page (64 KB).
 
 The TypeScript layer communicates with WASM by writing inputs to specific offsets
 in this memory, calling a WASM function, and then reading the outputs from other

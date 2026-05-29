@@ -121,11 +121,13 @@ We maintain a number of demo applications for the library
 
 **`cli`** [ [npm](https://www.npmjs.com/package/lvthn) · [source](https://github.com/xero/leviathan-demos/tree/main/cli) · [readme](https://github.com/xero/leviathan-demos/blob/main/cli/README.md) ]
 
-`lvthn` command-line file encryption tool supporting both Serpent-256 and
-XChaCha20-Poly1305 via `--cipher`. A single keyfile works with both ciphers.
-The header byte determines decryption automatically. Chunks distribute across a
-worker pool sized to `hardwareConcurrency`. Each worker owns an isolated WASM
-instance with no shared memory. The tool can export its own interactive
+`lvthn` command-line file encryption tool supporting
+Serpent-256-CBC+HMAC-SHA256, XChaCha20-Poly1305, and AES-256-GCM-SIV,
+selectable via the `--cipher` flag. A single keyfile is compatible with all
+three ciphers; the header byte determines decryption automatically. Encryption
+and decryption distribute 64KB chunks across a worker pool sized to
+`hardwareConcurrency`. Each worker owns an isolated WASM instance with no
+shared memory between workers. The tool can export its own interactive
 completions for a variety of shells.
 
 ```sh
@@ -134,32 +136,35 @@ lvthn keygen --armor -o my.key
 cat secret.txt | lvthn encrypt -k my.key --armor > secret.enc
 ```
 
-**`COVCOM`** [ [demo](https://leviathan.3xi.club/covcom) · [source](https://github.com/xero/covcom/) · [readme](https://github.com/xero/covcom/blob/master/README.m) ]
+**`COVCOM`** [ [demo](https://leviathan.3xi.club/covcom) · [source](https://github.com/xero/covcom/) · [readme](https://github.com/xero/covcom/blob/master/README.md) ]
 
-A full covert communications application for end-to-end encrypted group
-conversations. Share an invite, talk, exit, and it's gone. Clients available for
-both the web and cli, along with a containerized dumb server for managing
-rooms. No secrets or cleartext beyond the handle you chose to join a room with
-are ever visible to the server. Featuring sparse post-quantum ratcheting,
-ML-KEM-768, KDFChains, Seal+MlKemSuite, and a XChaCha20-Poly1305 core.
+Covert communications app suite for private group conversations. Invite, talk,
+close the client, and the chat vanishes. Every message is encrypted with
+XChaCha20 and signed with Ed25519. A BLAKE3 fingerprint on each key allows
+peers to verify one another. SPQR's manual and epoch ratchets add forward
+secrecy, while post-quantum ML-KEM-768 encapsulation keeps recorded
+communications unreadable and secure against future cryptanalysis.
 
 **`web`** [ [demo](https://leviathan.3xi.club/web) · [source](https://github.com/xero/leviathan-demos/tree/main/web) · [readme](https://github.com/xero/leviathan-demos/blob/main/web/README.md) ]
 
 A self-contained browser encryption tool in a single HTML file. Encrypt text or
-files with Serpent-256-CBC and Argon2id key derivation, then share the armored
+files with Serpent-256-CBC and scrypt key derivation, then share the armored
 output. No server, no install, no network connection after initial load. The
 code is written to be read. The Encrypt-then-MAC construction, HMAC input, and
-Argon2id parameters are all intentional examples worth studying.
+scrypt parameters are all intentional examples worth studying.
 
-**`chat`** [ [demo](https://leviathan.3xi.club/chat) · [source](https://github.com/xero/leviathan-demos/tree/main/chat) · [readme](https://github.com/xero/leviathan-demos/blob/main/chat/README.md) ]
+**`tamper`** [ [demo](https://leviathan.3xi.club/tamper) · [source](https://github.com/xero/leviathan-demos/tree/main/tamper) · [readme](https://github.com/xero/leviathan-demos/blob/main/tamper/README.md) ]
 
-Simple end-to-end encrypted chat demo using X25519 key exchange and XChaCha20-Poly1305
-message encryption. The relay server is a dumb WebSocket pipe that never sees
-plaintext. Messages carry sequence numbers so the protocol detects and rejects
-replayed messages. The demo deconstructs the protocol step by step with visual
-feedback for injection and replay attacks.
+A crypto attack-resilience demo. It runs a real two-party encrypted channel,
+then lets you attack it: forge a replay and the sequence check rejects it,
+tamper with a frame and the Poly1305 tag fails. Key exchange uses X25519 with
+HKDF-SHA256, message encryption uses XChaCha20-Poly1305, and the relay server is
+a dumb WebSocket pipe that never sees plaintext. The demo deconstructs the
+protocol step by step with visual feedback for injection and replay attacks. For
+a real, production-ready secure messenger built on the same library, see
+[COVCOM](https://github.com/xero/covcom).
 
-**`mlkem`** [ [demo](https://leviathan.3xi.club/mlkem) · [source](https://github.com/xero/leviathan-demos/tree/main/mlkem) · [readme](https://github.com/xero/leviathan-demos/blob/main/mlkem/README.md) ]
+**`kyber`** [ [demo](https://leviathan.3xi.club/kyber) · [source](https://github.com/xero/leviathan-demos/tree/main/kyber) · [readme](https://github.com/xero/leviathan-demos/blob/main/kyber/README.md) ]
 
 Post-quantum cryptography demo simulating a complete ML-KEM key encapsulation
 ceremony between two browser-side clients. A live wire at the top of the page
@@ -168,4 +173,16 @@ appears in the wire. After the ceremony completes, both sides independently
 derive a symmetric key using HKDF-SHA256 and exchange messages encrypted with
 XChaCha20-Poly1305. Each wire frame is expandable, revealing the raw nonce,
 ciphertext, Poly1305 tag, and AAD.
+
+**`jwt`** [ [demo](https://leviathan.3xi.club/jwt) · [source](https://github.com/xero/leviathan-demos/tree/main/jwt) · [readme](https://github.com/xero/leviathan-demos/blob/main/jwt/README.md) ]
+
+Classical and post-quantum JSON Web Token signing demo in a single
+self-contained HTML file. It signs the same claims across eleven algorithms:
+EdDSA and ES256, the post-quantum ML-DSA and SLH-DSA families, and the leviathan
+hybrid composites. Every algorithm runs through one uniform path on the `Sign`
+suite API, with no per-algorithm branching. The token renders with its three
+segments color-coded and a live byte readout, so the cost of quantum resistance
+is visible: the same token grows from about 220 bytes under Ed25519 to past 66
+kilobytes under SLH-DSA-SHAKE-256f. Tamper with the payload and verification
+rejects it, because the signature covers the original bytes.
 

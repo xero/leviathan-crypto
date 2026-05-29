@@ -14,17 +14,17 @@
 
 ## Supported versions
 
-Every fix is documented in the full [CHANGELOG](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG). Each version below links to the release notes documenting its fixes.
+Every fix is documented in the full [CHANGELOG](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG.md). Each version below links to the release notes documenting its fixes.
 
 | Version | Status | Summary |
 | --- | --- | --- |
-| [v3.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v3-0-0) | ✓ supported | Serpent public byte-order convention flipped to NIST natural order (wire-format break against v2); ChaCha salamander defense; AES-128/192/256 raw block cipher; PQ + classical signature catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, PQ-only and classical+PQ hybrids); BLAKE3 hash family; C2SP-conformant merkle log substrate (`MerkleLog`, `MerkleVerifier`) |
-| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-1-0-XXXX-XX-XX) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Note the Seal wire-format break |
-| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. |
-| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-0-2026-04-10) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. |
+| [v3.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG.md#v300) | ✓ supported | Serpent public byte-order convention flipped to NIST natural order (wire-format break against v2); ChaCha salamander defense; AES-128/192/256 raw block cipher; PQ + classical signature catalog (ML-DSA, SLH-DSA, Ed25519, ECDSA-P256, PQ-only and classical+PQ hybrids); BLAKE3 hash family; C2SP-conformant merkle log substrate (`MerkleLog`, `MerkleVerifier`) |
+| [v2.1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG.md#v210) | ✗ deprecated | Seal with ChaCha vulnerable to Salamander attacks (Serpent unaffected). Note the Seal wire-format break |
+| [v2.0.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG.md#v201) | ✗ deprecated | FIPS 203 key validation, per-op wipe hygiene, padding-oracle closure, and ratchet DoS mitigation. |
+| [v1.x](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG.md#v200) | ✗ deprecated | Multiple partial-wipe and auth-handling issues. |
 
 > [!CAUTION]
-> v2.0.0 has a known silent-corruption bug. `SealStreamPool` with `SerpentCipher` silently produces corrupt plaintext with no authentication error on decrypt for inputs ≥ 65536 bytes. See [v2.0.1 release notes](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG#v2-0-1-2026-04-10) and update to the latest version immediately.
+> v2.0.0 has a known silent-corruption bug. `SealStreamPool` with `SerpentCipher` silently produces corrupt plaintext with no authentication error on decrypt for inputs ≥ 65536 bytes. See [v2.0.1 release notes](https://github.com/xero/leviathan-crypto/blob/main/CHANGELOG.md#v201) and update to the latest version immediately.
 
 ---
 
@@ -190,7 +190,7 @@ All primitives undergo periodic cryptographic implementation reviews. See the [a
 | [blake3_audit](https://github.com/xero/leviathan-crypto/wiki/blake3_audit) | BLAKE3 §2.2 compress / §2.1 compress4 / §2.3 chunk machine / §2.4 subtree stack / §2.5 root + XOF / §2.6 keyed_hash / §2.7 derive_key correctness, lane-parallel SIMD equivalence, XOF snapshot lifecycle, per-class wipe discipline |
 | [hmac_audit](https://github.com/xero/leviathan-crypto/wiki/hmac_audit) | HMAC-SHA256/512/384 construction, key processing, RFC 4231 vector coverage |
 | [hkdf_audit](https://github.com/xero/leviathan-crypto/wiki/hkdf_audit) | HKDF extract-then-expand, info field domain separation, stream key derivation |
-| [kyber_audit](https://github.com/xero/leviathan-crypto/wiki/kyber_audit) | ML-KEM FIPS 203 correctness (§7.2/§7.3 direct coefficient-range validation), NTT/Montgomery/Barrett verification, FO transform CT analysis, per-op memory hygiene across keygen/encap/decap, ACVP validation |
+| [mlkem_audit](https://github.com/xero/leviathan-crypto/wiki/mlkem_audit) | ML-KEM FIPS 203 correctness (§7.2/§7.3 direct coefficient-range validation), NTT/Montgomery/Barrett verification, FO transform CT analysis, per-op memory hygiene across keygen/encap/decap, ACVP validation |
 | [stream_audit](https://github.com/xero/leviathan-crypto/wiki/stream_audit) | Streaming AEAD composition, counter nonce binding, final-chunk detection, key wipe paths, `'failed'` terminal state |
 | [ratchet_audit](https://github.com/xero/leviathan-crypto/wiki/ratchet_audit) | SPQR KDF primitives: HKDF parameter assignments with full transcript binding (peerEk, kemCt, context), wipe coverage, counter encoding, direction slot alignment, transactional `ResolveHandle` DoS mitigation |
 

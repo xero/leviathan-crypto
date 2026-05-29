@@ -592,7 +592,7 @@ Returns ciphertext concatenated with the 128-bit tag.
 #### `open(nonce, sealed, aad?): Uint8Array`
 
 Authenticated decryption. Tag verification routes through
-`constantTimeEqual` from the dedicated `ct` WASM module. On tag mismatch,
+`constantTimeEqual` from the dedicated `cte` WASM module. On tag mismatch,
 the WASM `sivWipeOnFail` helper zeroes the decrypted-but-unauthenticated
 plaintext at `CHUNK_PT_OFFSET` before this method throws, the bytes
 never become reachable from JS.

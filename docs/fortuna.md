@@ -148,19 +148,20 @@ entropy sources, higher-numbered pools accumulate enough entropy over time
 to produce a strong reseed eventually.
 
 **Immediate usability.** Fortuna seeds itself from `crypto.getRandomValues()`
-(browser) or `crypto.randomBytes()` (Node.js) during creation. `create()`
-asserts that pool 0 received at least 64 bits of entropy from the OS source
-before resolving, and throws if no working entropy source is available. You
-do not need to wait for entropy to accumulate before calling `get()`.
+during creation. This is the Web Crypto global, present in browsers, Node.js
+18 and later, Bun, Deno, and Workers; there is no `node:crypto` fallback.
+`create()` asserts that pool 0 received at least 64 bits of entropy from the
+OS source before resolving, and throws if no working entropy source is
+available. You do not need to wait for entropy to accumulate before calling
+`get()`.
 
 **Browser entropy sources.** Mouse movements, keyboard events, click events,
 scroll position, touch events, device motion and orientation,
 `performance.now()` timing, DOM content hash, and periodic
 `crypto.getRandomValues()`.
 
-**Node.js entropy sources.** `crypto.randomBytes()`, `process.hrtime`
-(nanosecond timing jitter), `process.cpuUsage()`, `process.memoryUsage()`,
-`os.loadavg()`, `os.freemem()`.
+**Node.js entropy sources.** `crypto.getRandomValues()`, `process.hrtime`
+(nanosecond timing jitter), `process.cpuUsage()`, `process.memoryUsage()`.
 
 **Wipe state when done.** Call `stop()` when you are finished with the
 instance. This wipes the generation key and counter from JavaScript memory,
@@ -473,7 +474,7 @@ rng.stop()
 | `init()` not called for the required modules | `Fortuna.create()` throws: `leviathan-crypto: call init({ <m1>: ..., <m2>: ... }) before using Fortuna`, naming the modules required by the chosen generator and hash. |
 | `opts.generator` or `opts.hash` missing | `Fortuna.create()` throws `TypeError: leviathan-crypto: Fortuna.create() requires { generator, hash }`. |
 | `hash.outputSize !== generator.keySize` | `Fortuna.create()` throws `RangeError: leviathan-crypto: Fortuna requires hash.outputSize (X) to match generator.keySize (Y)`. |
-| No working entropy source | `Fortuna.create()` throws: `leviathan-crypto: Fortuna initialization could not gather sufficient entropy. No working crypto.getRandomValues or node:crypto in this environment.` |
+| No working entropy source | `Fortuna.create()` throws: `leviathan-crypto: Fortuna initialization could not gather sufficient entropy. No working crypto.getRandomValues in this environment.` |
 | `new Fortuna()` | Compile-time error. The constructor is private. TypeScript will not allow it. |
 | Any method after `stop()` | Throws: `Fortuna instance has been disposed`. The instance is permanently disposed. |
 

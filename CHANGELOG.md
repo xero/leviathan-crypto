@@ -4,260 +4,213 @@
 
 ### Added
 
-- **AES-256-GCM-SIV cipher suite.** `AESGCMSIVCipher` (RFC 8452) joins
-  `SerpentCipher` and `XChaCha20Cipher` as a first-class peer. `formatEnum
-  0x04`, 32-byte key, 16-byte tag, nonce-misuse resistant. HtE explicit
-  commitment matches the XChaCha20 construction: HKDF-SHA-256 emits 64 bytes
-  from `(masterKey, nonce, INFO || header)`, bytes 0..32 are the per-stream
-  AES-GCM-SIV key, bytes 32..64 are a 32-byte commitment verified in
-  constant time. Works with `Seal`, `SealStream`, `OpenStream`,
-  `SealStreamPool`, and `MlKemSuite`. The standalone `AESGCMSIV` primitive
-  still supports both AES-128 and AES-256.
+- **AES-256-GCM-SIV cipher suite.** `AESGCMSIVCipher` (RFC 8452, AES-GCM-SIV)
+  joins `SerpentCipher` and `XChaCha20Cipher` as a first-class peer at
+  `formatEnum 0x04`, with a 32-byte key, a 16-byte tag, and nonce-misuse
+  resistance. It carries the same HKDF-SHA-256 explicit-commitment
+  construction as the XChaCha20 suite and works with `Seal`, `SealStream`,
+  `OpenStream`, `SealStreamPool`, and `MlKemSuite`. The standalone
+  `AESGCMSIV` primitive supports both AES-128 and AES-256. See the
+  [AES guide](https://github.com/xero/leviathan-crypto/wiki/aes) and the
+  [AESGCMSIVCipher reference](https://github.com/xero/leviathan-crypto/wiki/ciphersuite#aesgcmsivcipher).
 
 - **`MlKemSuite` AES variants.** `MlKemSuite(MlKem512/768/1024,
-  AESGCMSIVCipher)` produces `formatEnum` 0x14, 0x24, 0x34 with preambles
-  820 / 1140 / 1620 bytes, identical to the XChaCha20 KEM variants.
+  AESGCMSIVCipher)` produces `formatEnum` 0x14, 0x24, and 0x34 with
+  preambles of 820, 1140, and 1620 bytes, matching the XChaCha20 KEM
+  variants. See the
+  [MlKemSuite reference](https://github.com/xero/leviathan-crypto/wiki/ciphersuite#mlkemsuite).
 
-- **`AESGenerator`.** AES-256 ECB counter-mode PRF for `Fortuna`'s pluggable
-  `Generator` slot, restoring the original *Practical Cryptography* §9.4
-  spec primitive. Pair with `SHA256Hash` or `SHA3_256Hash` for the full
-  six-combination matrix.
+- **`AESGenerator`.** AES-256 counter-mode PRF for the `Fortuna` pluggable
+  `Generator` slot, restoring the *Practical Cryptography* §9.4 spec
+  primitive. Pair it with `SHA256Hash` or `SHA3_256Hash`. See
+  [Fortuna](https://github.com/xero/leviathan-crypto/wiki/fortuna).
 
 - **AES pool worker.** `AESGCMSIVCipher.createPoolWorker()` spawns classic
-  workers via blob URL from a bundled IIFE, matching the existing
-  `XChaCha20Cipher` and `SerpentCipher` pipeline.
+  workers from a bundled IIFE, matching the `XChaCha20Cipher` and
+  `SerpentCipher` pipeline.
 
-- **`Sign`, `SignStream`, `VerifyStream`.** Single-shot envelope and
-  streaming counterparts under `src/ts/sign/`, structurally parallel to
-  `Seal`. `SignStream.finalize` is byte-identical to `Sign.sign` for the
-  same `(suite, sk, msg, ctx)`, so production and consumption sides can
-  choose independently between in-memory and incremental.
+- **`Sign`, `SignStream`, `VerifyStream`.** Single-shot envelope signing and
+  its streaming counterparts, structurally parallel to `Seal`.
+  `SignStream.finalize` is byte-identical to `Sign.sign` for the same
+  `(suite, sk, msg, ctx)`, so producers and consumers choose independently
+  between in-memory and incremental. See the
+  [signing guide](https://github.com/xero/leviathan-crypto/wiki/signing).
 
 - **`SignatureSuite` abstraction.** `SignatureSuite`,
-  `StreamableSignatureSuite`, and `PrehashAlgorithm` exported from the root
-  barrel as the template for every signature scheme, parallel to
-  `CipherSuite`.
+  `StreamableSignatureSuite`, and `PrehashAlgorithm` are the template for
+  every signature scheme, parallel to `CipherSuite`. See the
+  [SignatureSuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
 - **`SigningError`.** Discriminator-first error class mirroring
-  `AuthenticationError`. Twelve stable discriminators span the suite,
-  envelope, and stream layers.
+  `AuthenticationError`, with twelve stable discriminators spanning the
+  suite, envelope, and stream layers.
 
-- **ML-DSA (FIPS 204).** `MlDsa44`, `MlDsa65`, `MlDsa87` classes share one
-  `mldsa` WASM module. Pure ML-DSA covers `keygen`, `keygenDerand`, hedged
-  `sign`, `signDeterministic`, `signDerand`, and `verify`. HashML-DSA per
-  FIPS 204 §5.4 exposes the `signHash` family with all twelve approved
-  pre-hash functions from §5.4.1: SHA2-{224, 256, 384, 512, 512/224,
-  512/256}, SHA3-{224, 256, 384, 512}, SHAKE128 (32-byte), SHAKE256
-  (64-byte). Subpaths `leviathan-crypto/mldsa` and
-  `leviathan-crypto/mldsa/embedded`.
+- **ML-DSA (FIPS 204).** `MlDsa44`, `MlDsa65`, and `MlDsa87` cover pure
+  ML-DSA (`keygen`, `keygenDerand`, hedged `sign`, `signDeterministic`,
+  `signDerand`, `verify`) and HashML-DSA, whose `signHash` family exposes
+  all twelve approved pre-hash functions from FIPS 204 §5.4.1. A
+  prehashed-input surface (`signHashPrehashed`,
+  `signHashPrehashedDeterministic`, `signHashPrehashedDerand`,
+  `verifyHashPrehashed`) accepts a precomputed digest instead of rehashing;
+  every shipped prehash suite throws `SigningError('sig-malformed-input')`
+  on a wrong-length digest. Subpaths `leviathan-crypto/mldsa` and
+  `leviathan-crypto/mldsa/embedded`. See the
+  [ML-DSA guide](https://github.com/xero/leviathan-crypto/wiki/mldsa).
 
-- **Six ML-DSA suite consts.** `MlDsa44Suite`, `MlDsa65Suite`,
-  `MlDsa87Suite` (catalog bytes 0x03-0x05) cover pure ML-DSA.
-  `MlDsa44PreHashSuite`, `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite`
-  (catalog bytes 0x13-0x15) cover HashML-DSA. Prehash defaults: SHA3-256
-  for 44 / 65, SHA3-512 for 87.
+- **Six ML-DSA suite consts.** `MlDsa44Suite`, `MlDsa65Suite`, `MlDsa87Suite`
+  (catalog bytes 0x03-0x05) cover pure ML-DSA; `MlDsa44PreHashSuite`,
+  `MlDsa65PreHashSuite`, `MlDsa87PreHashSuite` (0x13-0x15) cover HashML-DSA,
+  defaulting to SHA3-256 for 44 and 65 and SHA3-512 for 87. See the
+  [SignatureSuite catalog](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
-- **`MlDsaBase` prehashed-input surface.** Four new methods accept a
-  precomputed prehash digest rather than re-hashing the message:
-  `signHashPrehashed`, `signHashPrehashedDeterministic`,
-  `signHashPrehashedDerand`, `verifyHashPrehashed`. M' construction (OID
-  prefix plus ctx plus PH) is shared with `signHash` / `verifyHash`.
-
-- **SLH-DSA (FIPS 205).** `SlhDsa128f`, `SlhDsa192f`, `SlhDsa256f`
-  (SHAKE-family fast parameter sets, NIST categories 1/3/5) share one
-  `slhdsa` WASM module with an embedded Keccak permutation; pure SLH-DSA
-  never touches the `sha3` module. HashSLH-DSA per FIPS 205 §10.2.2 exposes
-  the `signHash` and `signHashPrehashed` families. The category-1 SHA2-256
-  / SHAKE128 restriction (§10.2.2) is enforced at the public surface.
-  Subpaths `leviathan-crypto/slhdsa` and `leviathan-crypto/slhdsa/embedded`.
+- **SLH-DSA (FIPS 205).** `SlhDsa128f`, `SlhDsa192f`, and `SlhDsa256f`
+  (SHAKE-family fast parameter sets, NIST categories 1, 3, and 5) cover pure
+  SLH-DSA and HashSLH-DSA per FIPS 205 §10.2.2, including the `signHash` and
+  `signHashPrehashed` families. The category-1 SHA2-256 / SHAKE128
+  restriction is enforced at the public surface. Subpaths
+  `leviathan-crypto/slhdsa` and `leviathan-crypto/slhdsa/embedded`. See the
+  [SLH-DSA guide](https://github.com/xero/leviathan-crypto/wiki/slhdsa).
 
 - **Six SLH-DSA suite consts.** `SlhDsa128fSuite`, `SlhDsa192fSuite`,
-  `SlhDsa256fSuite` (catalog bytes 0x06-0x08) cover pure SLH-DSA.
-  `SlhDsa128fPreHashSuite`, `SlhDsa192fPreHashSuite`,
-  `SlhDsa256fPreHashSuite` (catalog bytes 0x16-0x18) cover HashSLH-DSA with
-  SHAKE128 (32-byte) for 128f and SHAKE256 (64-byte) for 192f and 256f.
+  `SlhDsa256fSuite` (catalog bytes 0x06-0x08) cover pure SLH-DSA;
+  `SlhDsa128fPreHashSuite`, `SlhDsa192fPreHashSuite`, `SlhDsa256fPreHashSuite`
+  (0x16-0x18) cover HashSLH-DSA, with SHAKE128 for 128f and SHAKE256 for
+  192f and 256f. See the
+  [SignatureSuite catalog](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
 - **Three PQ-only hybrid suite consts.** `MlDsa44SlhDsa128fSuite`,
-  `MlDsa65SlhDsa192fSuite`, `MlDsa87SlhDsa256fSuite` (catalog bytes
-  0x30-0x32). Composite encoding `pk = pk_mldsa || pk_slhdsa`,
-  `sig = sig_mldsa || sig_slhdsa`, ML-DSA first by convention. Both
-  sub-verifies always run (no early return). Prehash-only; streaming via
-  `SignStream` / `VerifyStream` is mandatory. `wasmModules` declares
-  `['mldsa', 'sha3', 'slhdsa']`.
+  `MlDsa65SlhDsa192fSuite`, and `MlDsa87SlhDsa256fSuite` (catalog bytes
+  0x30-0x32) bind ML-DSA and SLH-DSA in one composite
+  (`pk = pk_mldsa || pk_slhdsa`, `sig = sig_mldsa || sig_slhdsa`,
+  ML-DSA first). Both sub-verifies always run. These are prehash-only;
+  streaming through `SignStream` / `VerifyStream` is mandatory. See the
+  [PQ-only hybrid encoding](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#pq-only-hybrid-composite-encoding).
 
-- **Ed25519 (RFC 8032).** First classical signature primitive. The
-  `Ed25519` class covers pure Ed25519 (§5.1.6) and Ed25519ph (§5.1.7) with
-  the dom2(F=1, ctx) prehash binding. Subpath `leviathan-crypto/ed25519`.
+- **Ed25519 (RFC 8032).** The first classical signature primitive.
+  `Ed25519` covers pure Ed25519 (§5.1.6) and Ed25519ph (§5.1.7) with the
+  dom2 prehash binding. `signPrehashed` takes an explicit `ctx` argument;
+  pass `new Uint8Array(0)` for no context binding. Subpath
+  `leviathan-crypto/ed25519`. See the
+  [Ed25519 guide](https://github.com/xero/leviathan-crypto/wiki/ed25519).
 
-- **X25519 (RFC 7748).** First classical key-agreement primitive.
-  `X25519` exposes `keygen`, `keygenDerand`, and `dh`. Clamping happens
-  internally per §5; the stored secretKey is the unclamped form so
-  round-tripping preserves byte-equality. Subpath
-  `leviathan-crypto/x25519`.
+- **X25519 (RFC 7748).** The first classical key-agreement primitive.
+  `X25519` exposes `keygen`, `keygenDerand`, and `dh`, with §5 clamping
+  handled internally so a round-tripped secretKey preserves byte equality.
+  Subpath `leviathan-crypto/x25519`. See the
+  [X25519 guide](https://github.com/xero/leviathan-crypto/wiki/x25519).
 
-- **`KeyAgreementError`.** New error class. `X25519.dh` throws it when the
-  shared secret is all-zero (small-order peer pk), distinguishing a
-  degenerate exchange from `TypeError` / `RangeError` caller-contract
-  violations.
+- **`KeyAgreementError`.** New error class. `X25519.dh` throws it on an
+  all-zero shared secret (a small-order peer pk), distinguishing a
+  degenerate exchange from a caller-contract `TypeError` or `RangeError`.
 
-- **`curve25519.wasm` (module ID 8).** Scalar module hosting the shared
-  substrate for Ed25519 and X25519: GF(2^255-19) at radix-2^51,
-  edwards25519 in extended coordinates, X25519 Montgomery ladder, scalar
-  arithmetic mod L, point compression with strict-canonical decompression.
-  Embeds SHA-512 verbatim from `src/asm/sha2/sha512.ts` to keep the
-  Ed25519 hash chain inside one WASM call. 4 pages (262144 bytes);
-  pure-mode message ceiling approximately 248 KB.
+- **`Ed25519Suite` and `Ed25519PreHashSuite`.** Format bytes 0x01 and 0x11.
+  `Ed25519Suite` is `SignatureSuite` only and rejects non-empty `user_ctx`
+  with `SigningError('sig-ctx-unsupported')`; `Ed25519PreHashSuite` is
+  `StreamableSignatureSuite`, pins SHA-512, and binds dom2 context inside the
+  curve WASM. See the
+  [SignatureSuite catalog](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
-- **`Ed25519Suite` and `Ed25519PreHashSuite`.** Format bytes `0x01` and
-  `0x11`. `Ed25519Suite` is `SignatureSuite` only and rejects non-empty
-  `user_ctx` with `SigningError('sig-ctx-unsupported')`.
-  `Ed25519PreHashSuite` is `StreamableSignatureSuite`, pins SHA-512, and
-  binds `dom2(F=1, effective_ctx)` inside the curve25519 WASM.
+- **ECDSA over NIST P-256 (FIPS 186-5).** The second classical signature
+  primitive. `EcdsaP256` consumes a 32-byte SHA-256 digest and supports both
+  RFC 6979 §3.2 deterministic and `draft-irtf-cfrg-det-sigs-with-noise-05`
+  §4 hedged K derivation. The signer normalises `s` to low-S per RFC 6979
+  §3.5 and the verifier rejects high-S. Subpaths `leviathan-crypto/ecdsa` and
+  `leviathan-crypto/ecdsa/embedded`. See the
+  [ECDSA-P256 guide](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256).
 
-- **ECDSA over NIST P-256 (FIPS 186-5).** Second classical signature
-  primitive. `EcdsaP256` consumes a 32-byte SHA-256 digest. K derivation
-  supports both RFC 6979 §3.2 deterministic (all-zero `rnd`) and
-  `draft-irtf-cfrg-det-sigs-with-noise-05` §4 hedged modes; the two are
-  not byte-equivalent on all-zero `rnd` per the draft's domain
-  separation. Signer normalises `s` to low-S per RFC 6979 §3.5; verifier
-  rejects high-S. Subpaths `leviathan-crypto/ecdsa` and
-  `leviathan-crypto/ecdsa/embedded`.
+- **`EcdsaP256Suite`.** `StreamableSignatureSuite` at format byte 0x02,
+  pinned to SHA-256 prehash. It rejects non-empty `user_ctx` (FIPS 186-5 has
+  no ctx parameter; context-bound ECDSA lives in the classical+PQ hybrids)
+  and is hedged by default. Consumers needing byte-deterministic signatures
+  drop to `EcdsaP256` directly with an all-zero `rnd`. See the
+  [SignatureSuite catalog](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
-- **`EcdsaP256Suite`.** `StreamableSignatureSuite` at format byte `0x02`.
-  Rejects non-empty `user_ctx` (FIPS 186-5 §6.4 has no ctx parameter);
-  context-bound ECDSA-P256 lives in the classical+PQ hybrids. Pins
-  `prehashAlgorithm: 'sha-256'`. Suite-level sign is hedged by default;
-  consumers needing byte-deterministic signatures drop down to `EcdsaP256`
-  directly with `rnd = new Uint8Array(32)`.
+- **`ecdsaSignatureToDer` / `ecdsaSignatureFromDer`.** Strict-DER codec for
+  X.509, JWS, and TLS interop per RFC 3279 §2.2.3. The decoder rejects
+  non-minimal lengths, excess leading zeroes, negative INTEGERs, wrong tags,
+  and trailing bytes via `SigningError('sig-malformed-input')`. See the
+  [ECDSA-P256 DER utility](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256#der-utility).
 
-- **`ecdsaSignatureToDer` / `ecdsaSignatureFromDer`.** Strict-DER codec at
-  the root barrel for X.509 / JWS / TLS interop per RFC 3279 §2.2.3.
-  Encoder emits minimal X.690 §8.3.2 INTEGER encoding; decoder rejects
-  non-minimal lengths, excess leading zeroes, negative INTEGERs, wrong
-  tags, and trailing bytes via `SigningError('sig-malformed-input')`.
+- **`pointDecompress`, `EcdsaP256.keygenUncompressed`, `encodeEcPrivateKey` /
+  `decodeEcPrivateKey`.** Three ECDSA exports for the composite-sigs §4 wire
+  encodings: the SEC 1 §2.3.3 and §2.3.4 point codec and the RFC 5915 §3 DER
+  `ECPrivateKey` codec for P-256. See the
+  [ECDSA-P256 guide](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256).
 
-- **`p256.wasm` (module ID 9).** Scalar module, 3 pages. Hosts GF(p256) at
-  8 × u32 saturated radix-2^32 with HMV §2.4.1 Algorithm 2.27 Solinas
-  reduction, scalar arithmetic mod n, projective short-Weierstrass points,
-  Renes-Costello-Batina 2016 complete addition formulas (specialised for
-  `a = -3`), constant-time double-and-add-always scalar multiplication for
-  both variable and fixed bases, plus an embedded SHA-256 and
-  HMAC-SHA-256 ported verbatim from `src/asm/sha2/`.
+- **Four classical+PQ composite hybrid suites.** `MlDsa44Ed25519Suite`,
+  `MlDsa65Ed25519Suite`, `MlDsa44EcdsaP256Suite`, and `MlDsa65EcdsaP256Suite`
+  (format bytes 0x20-0x23) per `draft-ietf-lamps-pq-composite-sigs`. Each
+  pre-hashes the message, builds the composite-sigs §3.2 `M'` construction
+  with the `CompositeAlgorithmSignatures2025` prefix and a per-suite label,
+  and signs with both components in parallel (PQ-first,
+  `sig = sig_mldsa || sig_trad`). Composite private keys carry the 32-byte
+  ML-DSA seed only. See the
+  [classical+PQ hybrid encoding](https://github.com/xero/leviathan-crypto/wiki/signaturesuite#classicalpq-hybrid-composite-encoding).
 
-- **`pointDecompress`, `EcdsaP256.keygenUncompressed`,
-  `encodeEcPrivateKey` / `decodeEcPrivateKey`.** Three new ECDSA exports
-  supporting the composite-sigs §4 wire encodings: SEC 1 §2.3.3 / §2.3.4
-  point codec and RFC 5915 §3 DER `ECPrivateKey` codec for P-256.
+- **BLAKE3 hash family.** `blake3.wasm`, the tenth WASM binary, joins SHA-2
+  and SHA-3 with all three modes: default hash (§2.5), keyed_hash (§2.6), and
+  derive_key (§2.7). Seven classes ship: `BLAKE3`, `BLAKE3KeyedHash`, and
+  `BLAKE3DeriveKey` (one-shot); `BLAKE3Stream`, `BLAKE3KeyedHashStream`, and
+  `BLAKE3DeriveKeyStream` (streaming); and `BLAKE3OutputReader`, the XOF
+  reader from `finalizeXof()`. `BLAKE3Hash` is a stateless 32-byte `HashFn`
+  for the `Fortuna` accumulator slot, peer to `SHA256Hash` and
+  `SHA3_256Hash`. Subpaths `leviathan-crypto/blake3` and
+  `leviathan-crypto/blake3/embedded`. See the
+  [BLAKE3 guide](https://github.com/xero/leviathan-crypto/wiki/blake3).
 
-- **Four classical+PQ composite hybrid suites.** Format bytes `0x20`-`0x23`
-  per `draft-ietf-lamps-pq-composite-sigs`: `MlDsa44Ed25519Suite`,
-  `MlDsa65Ed25519Suite`, `MlDsa44EcdsaP256Suite`, `MlDsa65EcdsaP256Suite`.
-  Each pre-hashes the message, builds the composite-sigs §3.2
-  `M' = Prefix || Label || len(ctx) || ctx || PH(M)` construction with
-  the 32-byte ASCII `CompositeAlgorithmSignatures2025` Prefix and
-  per-suite Label, and signs `M'` with both component primitives in
-  parallel. PQ-first serialisation, `sig = sig_mldsa || sig_trad` (raw
-  64-byte `R || S` for Ed25519, DER for ECDSA-P256). Composite private
-  keys carry the 32-byte ML-DSA seed only; the expanded signing key is
-  re-derived per sign.
-
-- **BLAKE3 substrate.** `blake3.wasm` (tenth WASM binary, 2 pages,
-  SIMD-only) joins SHA-2 and SHA-3 as the third hash family. All three
-  modes implemented: default hash (§2.5), keyed_hash with a 32-byte key
-  (§2.6), and two-pass derive_key (§2.7). v128 SIMD compression kernels
-  `compress` (single-state) and `compress4` (lane-parallel, four
-  independent compress operations across distinct CVs, messages,
-  counters, and block_lens). Tree-mode dispatches to `compress4` whenever
-  four siblings are available; no scalar fallback. Subpaths
-  `leviathan-crypto/blake3` and `leviathan-crypto/blake3/embedded`.
-
-- **Seven BLAKE3 classes plus one HashFn const.** `BLAKE3`,
-  `BLAKE3KeyedHash`, `BLAKE3DeriveKey` are the one-shot atomic entries;
-  `BLAKE3Stream`, `BLAKE3KeyedHashStream`, `BLAKE3DeriveKeyStream` are the
-  streaming counterparts; `BLAKE3OutputReader` is the XOF reader returned
-  by `finalizeXof()`. `BLAKE3Hash` is a stateless 32-byte `HashFn` const
-  compatible with the `Fortuna` accumulator slot, peer to `SHA256Hash`
-  and `SHA3_256Hash`.
-
-- **SP 800-185 cSHAKE and KMAC.** Six new classes on the existing `sha3`
-  module: `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`,
-  `KMACXOF256`. The four §2.3 encoding helpers (`leftEncode`,
-  `rightEncode`, `encodeString`, `bytepad`) live in TypeScript. KMAC
-  fixed-output variants ship a static
-  `verify(tag, key, msg, customization)` that throws `AuthenticationError`
-  on mismatch with discriminator `'kmac128'` or `'kmac256'`. cSHAKE
-  rejects empty customization; KMAC rejects empty keys. KMACXOF
-  intentionally has no static `verify`; squeeze the expected number of
-  bytes and use `constantTimeEqual` directly.
+- **SP 800-185 cSHAKE and KMAC.** Six classes on the existing `sha3` module:
+  `CSHAKE128`, `CSHAKE256`, `KMAC128`, `KMAC256`, `KMACXOF128`, and
+  `KMACXOF256`. The fixed-output KMAC variants ship a static
+  `verify(tag, key, msg, customization)` that throws `AuthenticationError` on
+  mismatch. cSHAKE rejects empty customization and KMAC rejects empty keys.
+  KMACXOF has no static `verify` by design; squeeze the expected bytes and
+  use `constantTimeEqual`. See the
+  [KMAC guide](https://github.com/xero/leviathan-crypto/wiki/kmac).
 
 - **Streaming hash classes.** `SHA3_256Stream`, `SHA3_512Stream`,
-  `SHAKE128Stream`, `SHAKE256Stream` in the sha3 module. Incremental
-  `update` / `finalize` lifecycle, exclusivity-guarded the same way as
-  `SHAKE128`. Required by `SignStream` for prehash suites.
+  `SHAKE128Stream`, and `SHAKE256Stream` add an incremental `update` /
+  `finalize` lifecycle to the sha3 module, required by `SignStream` for
+  prehash suites. See the
+  [SHA-3 guide](https://github.com/xero/leviathan-crypto/wiki/sha3).
 
-- **`merkle` module.** TypeScript-only C2SP-conformant transparency log
-  substrate, no new WASM binary. Hash-agnostic at the algorithmic core
-  (RFC 9162 §2.1.1, §2.1.3, §2.1.4) and bind-agnostic at the signature
-  layer (any `SignatureSuite` registered in the c2sp.org/tlog-cosignature
-  §Format byte registry can cosign). Subpath `leviathan-crypto/merkle`.
+- **`merkle` module.** A TypeScript-only, C2SP-conformant transparency-log
+  substrate with no new WASM binary, hash-agnostic per RFC 9162 and
+  bind-agnostic at the signature layer (any registered `SignatureSuite` can
+  cosign). It exports `MerkleVerifier` (verify-only), `MerkleLog`
+  (memory-backed producer, defaulting to SHA-256 and `MlDsa44Suite`),
+  `SignedLog<S>` (cosignature composition), the `Sha256Tree` / `Blake3Tree`
+  specialisations with their hashers, the C2SP checkpoint and signed-note
+  codecs, `MemoryStorage`, and two error classes (`MerkleLogError`,
+  `MerkleCodecError`). Subpath `leviathan-crypto/merkle`. See the
+  [merkle guide](https://github.com/xero/leviathan-crypto/wiki/merkle).
 
-  - **`MerkleVerifier`.** Normie verify-only surface.
-    `verifyCheckpoint`, `verifyInclusion`, `verifyConsistency` all return
-    `boolean`. The verifier hashes raw leaf bytes itself before feeding
-    `verifyInclusionProof`. Inclusion and consistency verify the
-    checkpoint signature first and short-circuit on failure; the proof
-    is never examined against an unverified root.
-  - **`MerkleLog`.** Normie producer surface, memory-backed via
-    `MemoryStorage`. `create` and `generate` are async; `append`, `head`,
-    `size`, `rootHash`, `inclusionProof`, `consistencyProof`, `dispose`
-    are synchronous. Defaults to `sha256` hashing and `MlDsa44Suite`.
-  - **`SignedLog<S>`.** Danger-zone composition surface. Dispatches the
-    cosignature signed-message construction on the algorithm's
-    `messageConstruction` field (`'cosig'` for Ed25519,
-    `'cosigned-message'` for ML-DSA-44).
-  - **`Sha256Tree`, `Blake3Tree`, `Sha256Hasher`, `Blake3Hasher`.** Two
-    `MerkleTree` specialisations. SHA-256 uses RFC 9162 §2.1.1 prefix
-    bytes (`0x00` leaf, `0x01` internal). BLAKE3 uses its native flag-byte
-    separation via the chunk and parent pipelines; the BLAKE3 path
-    deliberately does NOT stack RFC 6962 prefix bytes on top of BLAKE3.
-  - **C2SP codecs.** `serializeCheckpointBody` / `parseCheckpointBody`,
-    `emitSignedNote` / `parseSignedNote`, `emitCosigSignaturePayload` /
-    `parseCosigSignaturePayload`, `buildCosigSignedMessage`,
-    `buildCosignedMessage`, `deriveKeyId`. `ALGO_REGISTRY` is the single
-    source of truth for the `(formatEnum, algoByte, messageConstruction,
-    signaturePayload, sigSize)` mapping.
-  - **`MerkleStorage`, `MemoryStorage`.** Sync per-node persistence
-    interface plus in-process backend. Two-axis key (level, index).
-  - **`MerkleLogError` and `MerkleCodecError`.** Two new error classes
-    covering construction-time and codec-time contract violations with
-    stable discriminators (`'origin-invalid'`, `'pubkey-size'`,
-    `'unsupported-hashing'`, `'unsupported-suite'`,
-    `'module-not-initialized'`, `'timestamp-out-of-range'`,
-    `'timestamp-exceeds-safe-integer'`,
-    `'cosig-payload-length-mismatch'`, `'cosigner-name-length'`,
-    `'log-origin-length'`, `'cosigned-message-state'`).
+- **Embedded-subpath WASM aliases.** `ed25519Wasm`, `x25519Wasm`, and
+  `ecdsaP256Wasm` re-export the underlying `curve25519` and `p256` blobs
+  under names that read naturally per subpath
+  (`leviathan-crypto/ed25519/embedded`, `.../x25519/embedded`,
+  `.../ecdsa/embedded`); tree-shaking is unaffected. The two new scalar WASM
+  modules backing these primitives are documented at
+  [asm_curve25519](https://github.com/xero/leviathan-crypto/wiki/asm_curve25519)
+  and [asm_p256](https://github.com/xero/leviathan-crypto/wiki/asm_p256).
 
-- **Envelope wire format gains `payload_len: u32 BE`.** The v3 attached
-  envelope is now `[suite_byte][ctx_len][ctx][payload_len][payload][sig]`.
-  Required by variable-length signature schemes (the composite ECDSA
-  hybrids at 0x22 / 0x23, whose `Ecdsa-Sig-Value` DER varies 8-72 bytes).
-  Sig fills the envelope tail. 4 bytes overhead per signed blob. Every
-  existing suite's KAT vector file was regenerated. `signDetached` is
-  unchanged.
+- **Signature envelope wire format gains `payload_len: u32 BE`.** The v3
+  attached signature envelope is
+  `[suite_byte][ctx_len][ctx][payload_len][payload][sig]`, required by the
+  variable-length composite ECDSA hybrids (0x22 / 0x23). It adds 4 bytes per
+  signed blob; `signDetached` is unchanged. See the
+  [signing wire format](https://github.com/xero/leviathan-crypto/wiki/signing).
 
-- **`SignatureSuite.sigSize` renamed to `sigMaxSize`.** Semantics shift
-  from "exact bytes" to "upper bound bytes". For fixed-length suites the
-  bound equals the actual size; for the variable-length composite ECDSA
-  suites the bound is the catalog-reserved maximum from composite-sigs
-  Appendix A Table 4 (2492 bytes for `MlDsa44EcdsaP256Suite`, 3381 for
-  `MlDsa65EcdsaP256Suite`).
+- **`SignatureSuite.sigMaxSize`.** The suite size field is an upper bound,
+  not an exact size. For fixed-length suites the bound equals the actual
+  size; for the variable-length composite ECDSA suites it is the
+  catalog-reserved maximum (2492 bytes for `MlDsa44EcdsaP256Suite`, 3381 for
+  `MlDsa65EcdsaP256Suite`). See the
+  [SignatureSuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
-- **`USER_CTX_MAX` raised to 255 library-wide.** `src/ts/sign/ctx.ts`
-  exports `USER_CTX_MAX = 255` to match FIPS 204 §3.6.1's native ctx cap
-  and composite-sigs §3.2's user_ctx cap. `buildEffectiveCtx` enforces
-  that `effective_ctx` also fits 255 bytes, so the user_ctx ceiling on
-  `buildEffectiveCtx`-using suites is `253 - len(ctxDomain)`, computed
-  at call time.
+- **`USER_CTX_MAX` raised to 255 library-wide.** Matches FIPS 204 §3.6.1's
+  native ctx cap and composite-sigs §3.2's user_ctx cap. `buildEffectiveCtx`
+  enforces that `effective_ctx` also fits 255 bytes, so the user_ctx ceiling
+  on suites that use it is `253 - len(ctxDomain)`, computed at call time.
 
 ### Breaking Changes
 
@@ -269,7 +222,9 @@
   of Serpent, the Wikipedia pseudocode, and the RustCrypto, Crypto++,
   Botan, and BouncyCastle implementations. v2 stood alone in the ecosystem
   on the floppy convention, and AB&K's own NESSIE submission already
-  preferred the natural-order layout.
+  preferred the natural-order layout. See the
+  [Serpent reference](https://github.com/xero/leviathan-crypto/wiki/serpent_reference)
+  for the byte-order convention.
 
   **The wire format is incompatible.** v2 ciphertexts produced by
   `SerpentCipher`, `SerpentCbc`, or `SerpentCtr` cannot be decrypted by
@@ -361,11 +316,10 @@
 - **`CT_MAX_BYTES` renamed to `CTE_MAX_BYTES`.** The public const that
   bounds `constantTimeEqual` input length per side keeps its value (32768
   bytes) but moves from the `CT_` prefix to `CTE_` to match the renamed
-  constant-time equality module. The underlying WASM module renames in
-  lockstep: `src/asm/ct/` → `src/asm/cte/`, `ct.wasm` → `cte.wasm`,
-  `src/ts/ct-wasm.ts` → `src/ts/cte-wasm.ts`, `docs/asm_ct.md` →
-  `docs/asm_cte.md`. The TS function name `constantTimeEqual` and the
-  WASM ABI are unchanged.
+  constant-time equality module. The underlying WASM module (`ct.wasm` to
+  `cte.wasm`) renames in lockstep. The TS function name `constantTimeEqual`
+  and the WASM ABI are unchanged. See
+  [asm_cte](https://github.com/xero/leviathan-crypto/wiki/asm_cte).
 
 - **`kyber` renamed to `mlkem` everywhere.** Identifiers, file paths,
   subpath exports, init keys, CI handles, and feature-doc filenames now
@@ -389,225 +343,76 @@
 
   No backward-compat alias. The `MlKem512`/`MlKem768`/`MlKem1024` class
   names, the `MLKEM512`/`MLKEM768`/`MLKEM1024` parameter consts, and
-  every wire-format byte and label are unchanged. The historical
-  `docs/kyber_audit.md` keeps its filename and wiki URL as the audit
-  trail for the original FIPS 203 implementation work.
+  every wire-format byte and label are unchanged. The audit doc is
+  renamed `docs/kyber_audit.md` → `docs/mlkem_audit.md` to match; its
+  internal references now point at `test/unit/mlkem/` and the `mlkem`
+  module throughout.
 
 ### Security
 
-- **HtE explicit commitment on `AESGCMSIVCipher`.** Closes the Invisible
-  Salamanders attack surface for the AES suite; POLYVAL is not
-  key-committing on its own (same posture as Poly1305). `OpenStream` and
-  `SealStreamPool` verify the 32-byte commitment in constant time before
-  any chunk is processed; a wrong key fails fast with
-  `AuthenticationError` discriminator `commitment-aes-gcm-siv`.
+- **Explicit key commitment on `AESGCMSIVCipher`.** Closes the Invisible
+  Salamanders surface for the AES suite, since POLYVAL is not key-committing
+  on its own (the same posture as Poly1305). `OpenStream` and
+  `SealStreamPool` verify a 32-byte commitment in constant time before
+  processing any chunk; a wrong key fails fast with
+  `AuthenticationError('commitment-aes-gcm-siv')`. The header fields
+  (`formatEnum`, the framed flag, the nonce, and `chunkSize`) bind into the
+  HKDF info, so tampering changes the derived key and the AEAD fails on the
+  first chunk. See the
+  [stream audit](https://github.com/xero/leviathan-crypto/wiki/stream_audit).
 
-- **Header binding into HKDF info on `AESGCMSIVCipher`.** Tampering with
-  `formatEnum`, the framed flag, the nonce, or `chunkSize` produces
-  different keys, so the AEAD fails on the first chunk rather than
-  relying on indirect detection through chunk-boundary mismatch.
-
-- **Fault-injection cross-check on Ed25519 and ECDSA-P256 sign.** The
-  caller passes pk alongside sk; the WASM re-derives pk internally and
-  aborts via `unreachable` on mismatch (rethrown as
-  `SigningError('sig-malformed-input')`). One extra scalar
-  multiplication per sign. Suite-layer callers route through the
-  unexported `_signInternalPk` helpers, which skip the comparison
-  because both sides come from the same WASM call; suite-level
-  performance improves about 30%.
+- **Fault-injection cross-check on Ed25519 and ECDSA-P256 signing.** The
+  WASM re-derives the public key during signing and aborts on mismatch
+  (surfaced as `SigningError('sig-malformed-input')`), at the cost of one
+  extra scalar multiplication per sign. See the
+  [Ed25519 audit](https://github.com/xero/leviathan-crypto/wiki/ed25519_audit)
+  and [ECDSA-P256 audit](https://github.com/xero/leviathan-crypto/wiki/ecdsa-p256_audit).
 
 - **Strict-gate verification.** Ed25519 rejects non-canonical pk and R
   encodings, `s >= L`, small-order pk, and equation mismatches per FIPS
-  186-5 §7.6.4. ECDSA-P256 rejects decompression failure, identity pk,
-  `r` or `s` outside `[1, n-1]`, high-S, and equation mismatches.
-  ML-DSA verify exercises HintBitUnpack's three malformed-input checks
-  (FIPS 204 Algorithm 21 lines 4, 9, 17, the SUF-CMA fix from §D.3).
+  186-5 §7.6.4. ECDSA-P256 rejects decompression failure, identity pk, `r`
+  or `s` outside `[1, n-1]`, high-S, and equation mismatches. ML-DSA verify
+  exercises the three HintBitUnpack malformed-input checks, the FIPS 204
+  §D.3 SUF-CMA fix. See the
+  [audits index](https://github.com/xero/leviathan-crypto/wiki/audits).
 
-- **X25519 small-order peer pk rejection.** `X25519.dh` runs a
-  constant-time OR-accumulate over the 32 output bytes and throws
-  `KeyAgreementError` only after the full accumulator is known. The
-  rejection branches off only on a known-bad outcome, matching the
-  x25519-dalek posture.
+- **X25519 small-order peer rejection.** `X25519.dh` runs a constant-time
+  OR-accumulate over the 32 output bytes and throws `KeyAgreementError` only
+  after the full accumulator is known, matching the x25519-dalek posture. See
+  the [X25519 audit](https://github.com/xero/leviathan-crypto/wiki/x25519_audit).
 
-- **Pre-hash domain separation on HashML-DSA and HashSLH-DSA.** Pre-hash
-  byte (0x01 vs 0x00 for pure) plus per-function OID DER bytes from NIST
-  CSOR enforce cross-protocol domain separation. Signatures from
-  `signHash` cannot verify under `verify` on the same key, closing the
-  FIPS 204 §3.6.4 attack surface.
+- **Pre-hash domain separation on HashML-DSA and HashSLH-DSA.** A pre-hash
+  byte plus per-function OID DER bytes from NIST CSOR enforce cross-protocol
+  domain separation, so a `signHash` signature cannot verify under `verify`
+  on the same key, closing the FIPS 204 §3.6.4 surface. See the
+  [ML-DSA audit](https://github.com/xero/leviathan-crypto/wiki/mldsa_audit)
+  and [SLH-DSA audit](https://github.com/xero/leviathan-crypto/wiki/slhdsa_audit).
 
-- **Per-suite `ctxDomain` on every `SignatureSuite`.** Built-in
-  `{scheme}-envelope-v3` (or `{scheme}-prehash-envelope-v3`) so
-  signatures cannot accidentally validate across suites even with
-  identical `(sk, msg, user_ctx)`. PQ-only hybrids use
-  `mldsa{XX}-slhdsa{YYY}f-envelope-v3` so a standalone suite signature
-  placed as one half of a hybrid is rejected.
+- **Per-suite `ctxDomain` and composite prefix binding.** Every
+  `SignatureSuite` carries a built-in `ctxDomain` so signatures cannot
+  validate across suites even with identical `(sk, msg, user_ctx)`. The four
+  classical+PQ hybrids additionally inject the
+  `CompositeAlgorithmSignatures2025` prefix and a per-suite label per
+  composite-sigs §2.2, and both sub-verifies always run regardless of
+  intermediate outcomes. See the
+  [SignatureSuite reference](https://github.com/xero/leviathan-crypto/wiki/signaturesuite).
 
-- **Composite-sigs Prefix and Label binding.** The four classical+PQ
-  hybrids inject the 32-byte ASCII `CompositeAlgorithmSignatures2025`
-  Prefix plus a per-suite Label per composite-sigs §2.2 and §6 into M'.
-  ML-DSA half uses pure ML-DSA per composite-sigs §2.1 with the Label
-  as its native `mldsa_ctx`. ECDSA half hashes `SHA-256(M')` for both
-  ECDSA suites per composite-sigs §6 `ecdsa-with-SHA256`, regardless of
-  the composite-layer PH. `verifyPrehashed` always runs both
-  sub-verifies regardless of intermediate outcomes (strictly stronger
-  than composite-sigs §3.3's early-fail permission). ECDSA-half high-S
-  signatures are normalised to low-S inside the composite verify path
-  so spec-conformant high-S reference vectors accept without weakening
-  the standalone `EcdsaP256Suite`.
+- **Wipe-on-every-path discipline.** Every WASM region holding secret or
+  secret-derived state is zeroed on both success and failure paths across the
+  `mldsa`, `slhdsa`, `curve25519`, `p256`, and `blake3` modules, with each
+  suite method instantiating a fresh primitive inside `try / finally`. See
+  the [audits index](https://github.com/xero/leviathan-crypto/wiki/audits).
 
-- **Wipe-on-every-path discipline.** Every WASM region holding a secret
-  or secret-derived intermediate is wiped on success and failure paths
-  across `mldsa`, `slhdsa`, `curve25519`, `p256`, and `blake3`.
-  Per-call WASM lifecycle pattern: every suite method instantiates a
-  fresh primitive inside `try / finally { dispose() }`.
-
-### Internal
-
-- **`loader.ts` exports tagged `@internal`.** The three loader functions
-  (`decodeWasm`, `compileWasm`, `loadWasm`) now strip from the published
-  `dist/loader.d.ts`, matching `docs/loader.md`'s long-standing claim
-  that the module is internal. The `_depth` recursion-guard parameter on
-  `compileWasm` was renamed to `depth` since the underscore signal is
-  redundant once the function is type-private. No runtime change.
-
-- **`cte/shared.ts ctEqual` for in-WASM byte equality.** New `@inline`
-  AssemblyScript helper exporting `ctEqual(aOff, bOff, len): i32`.
-  Imported by `mlkem/verify.ts`, `slhdsa/hypertree.ts`,
-  `curve25519/ed25519.ts`, and `p256/ecdsa.ts`; the AS compiler inlines
-  the body at each call site so the symbol never appears in any consumer
-  WASM exports table. Scalar XOR-accumulate with a branch-free
-  `~((diff | -diff) >> 31) & 1` reduction. Five pre-existing
-  AS-internal CT byte-compare sites collapse onto the shared helper;
-  two specialty sites (`curve25519/compress.ts`,
-  `p256/field.ts feIsEqual`) stay hand-rolled with new comments
-  documenting why. Sibling `src/asm/cte/index.ts` keeps the SIMD
-  `compare()` for cte.wasm itself.
-
-- **`p256/field.ts` dead-code cleanup.** Removed an unused import
-  (`MUL_INT_HI`), an unused 23-line `condSubP` function, an unused
-  `scratch9` const declaration, and an orphan `tmp` slot in `feInv`'s
-  loop. Net -40 lines, zero behaviour change, `p256.wasm` bytes
-  unchanged. The remaining shift-simplification LSP warnings on the
-  same file are TypeScript false positives caused by the LSP not
-  understanding AssemblyScript's explicit 64-bit types.
-
-- **`verifyPrehashed` digest-length contract.** Every shipped suite
-  (`MlDsa*PreHashSuite`, `SlhDsa*PreHashSuite`, `Ed25519PreHashSuite`,
-  the PQ-only and classical+PQ hybrids) now throws
-  `SigningError('sig-malformed-input')` on a wrong-length digest,
-  symmetric with `signPrehashed`. Previously `verifyPrehashed` returned
-  `false`, conflating a caller contract violation with a signature
-  outcome.
-
-- **`Ed25519.signPrehashed` ctx required.** The `ctx?` default-empty
-  parameter is dropped; callers must pass an explicit `Uint8Array` (use
-  `new Uint8Array(0)` for no context binding). Matches the suite-layer
-  "ctx is required" rule.
-
-- **Embedded hash primitives in scalar WASM modules.** Both
-  `curve25519.wasm` and `p256.wasm` embed their hash dependencies
-  (SHA-512 for curve25519; SHA-256 plus HMAC-SHA-256 for p256) ported
-  verbatim from `src/asm/sha2/` so signing stays in a single WASM call.
-  Source-pin commits recorded in each port's header. The embedded
-  copies are not re-exported from the modules' public ABIs.
-
-- **`ed25519Wasm` / `x25519Wasm` / `ecdsaP256Wasm` aliases.** The
-  `leviathan-crypto/ed25519/embedded`,
-  `leviathan-crypto/x25519/embedded`, and
-  `leviathan-crypto/ecdsa/embedded` subpaths re-export the underlying
-  `curve25519` or `p256` blob under names that read more naturally per
-  subpath. Tree-shaking is unaffected.
-
-- **BLAKE3 tree-mode internal exports.** `_testChunkCV`, `_testParentCV`,
-  and `_testDeriveContextCV` are NOT part of the consumer-facing
-  `Blake3Exports` interface; the underscore prefix and `@internal` tag
-  keep them out of the published `.d.ts`. Substrate for the planned
-  Phase 7 merkle log layer.
-
-- **BLAKE3 merkle substrate rename.** `blake3-log.ts` → `blake3-tree.ts`
-  per the Trillian-PR-2452-style layered split: the file is the tree
-  layer; the log surface lives in `merkle-log.ts` with `signed-log.ts`
-  underneath. No public-API symbol renamed; `Blake3Tree` and
-  `Blake3Hasher` were always the public names.
-
-### Test Suite
-
-- **`internal-api-stripped.test.ts` invariant inverted for the five
-  `_<module>Ready` probes.** Previously asserted "Public `_<module>Ready`
-  probes survive" via a string-presence check on `dist/index.d.ts`,
-  which was satisfied by the re-export line alone regardless of
-  resolution (the test passed even against the broken 2.1.0 build). Now
-  asserts full removal across `dist/index.d.ts`, `dist/index.js`, and
-  each submodule's `dist/<mod>/index.d.ts` and `dist/<mod>/index.js`.
-  Adds positive controls on `isInitialized`.
-
-- **`init.test.ts` migrated.** All `_<module>Ready()` call sites swapped
-  to `isInitialized('<module>')`.
-
-- **KAT corpus extensions.** AES (`seal_aes_v3`, `sealstream_aes_v3`,
-  `fortuna_kat` rows `aes_sha2` and `aes_sha3`); ML-DSA ACVP
-  (keyGen / sigGen / sigVer / HashML-DSA across all three parameter
-  sets in hedged, deterministic, and derand modes); SLH-DSA ACVP (same
-  axes); Ed25519 RFC 8032 §7 plus NIST ACVP EDDSA; X25519 RFC 7748 §5
-  and §6.1, Curve25519; ECDSA-P256 (RFC 6979 §A.2.5, four ACVP files,
-  262-record C2SP Wycheproof `ecdsa_secp256r1_sha256_p1363`, plus
-  suite-level Tier 2 KAT in `sign_ecdsa_p256.ts`); KMAC (24 records
-  from NIST SP 800-185 samples plus the ACVP byte-aligned subset);
-  BLAKE3 (35-record upstream `test_vectors.json` corpus across all
-  three modes and full 131-byte XOF). All new vector files tracked by
-  `test/vectors/SHA256SUMS`.
-
-- **Independent Rust verifier coverage expanded.**
-  `scripts/verify-vectors` gains `--cipher` dispatchers for `mldsa`,
-  `slhdsa`, `hybrid-pq`, `blake3`, and `ecdsa-p256`, each cross-checking
-  against a separate-lineage crate (`ml-dsa`, `slh-dsa`, `blake3`,
-  RustCrypto `p256` + `ecdsa`). ACVP sigVer reconciliation for ECDSA
-  accounts for leviathan-crypto's strict-S gate (the `p256` crate sets
-  `NORMALIZE_S = false` and accepts high-S per FIPS 186-5 §6.4.4
-  verbatim); the Wycheproof corpus exercises the strict-gate directly.
-
-- **New CI groups.** `blake3`, `p256`, and `ecdsa` under
-  `scripts/lib/test-groups.ts`. Sign-layer ECDSA-P256 tests live in the
-  existing sign-layer group. New workflow `.github/workflows/unit-p256.yml`
-  wires the `p256` group into `test-suite.yml`.
-
-### Documentation
-
-- **`docs/CLAUDE_consumer.md`** adds a "Probing initialization state"
-  section documenting `isInitialized(mod)` as the canonical readiness
-  probe, with a note that the per-module `_<module>Ready()` probes were
-  removed in 2.1.1. Routing row added for BLAKE3 so consumer agents
-  pick up the new primitive family.
-
-- **`docs/architecture.md`** per-submodule export map drops the
-  `_<module>Ready` entries, picks up the `ratchet/index.ts` row,
-  `mlkemInit` in the subpath-init list, and a footnote noting
-  `isInitialized(mod)` is now reachable from every submodule subpath.
-  New entries for ECDSA-P256, BLAKE3, SLH-DSA, ML-DSA, curve25519, and
-  the merkle layer.
-
-- **`docs/test-suite.md`** updated to describe the inverted invariant
-  and the new test count.
-
-- **`docs/cdn.md`** examples no longer hardcode the package version;
-  non-SRI URLs are unversioned (resolved by unpkg's redirect to the
-  latest release). SRI example keeps an explicit version pin since the
-  integrity hash is bytes-specific. Adds a "Pinning" callout
-  recommending pinned versions for production. WASM filenames table
-  picks up a missing `mlkem.wasm` row.
-
-- **New shipped docs.** `docs/signaturesuite.md`,
-  `docs/phase-index.md`, `docs/blake3.md`, `docs/slhdsa.md`,
-  `docs/ecdsa-p256.md`, `docs/asm_p256.md`. All ship in the npm doc
-  bundle via `scripts/copy-docs.ts`.
-
-- **Audit docs.** `docs/blake3_audit.md`, `docs/slhdsa_audit.md`,
-  `docs/ecdsa-p256_audit.md`. Repo-internal, not shipped in the npm
-  package.
-
-- **`README.md` and `AGENTS.md`** Quick Start updated for the new
-  signature surface (ECDSA-P256 and the composite hybrid suites) and
-  the per-call WASM lifecycle pattern.
+- **Fortuna seeds from Web Crypto only.** The `node:crypto` `randomBytes`
+  fallback and the `node:os` `loadavg` and `freemem` collectors are gone;
+  the secure seed comes solely from `crypto.getRandomValues`, present on
+  every supported runtime. An absent source fails loud rather than being
+  polyfilled, matching the library's no-polyfill posture, and dropping the
+  last bare `node:` specifiers clears the "externalized for browser
+  compatibility" warnings from consumer browser builds. Node-specific jitter
+  from `process.hrtime`, `process.cpuUsage`, and `process.memoryUsage` is
+  retained. See
+  [Fortuna](https://github.com/xero/leviathan-crypto/wiki/fortuna).
 
 ## v2.1.0
 
@@ -1165,8 +970,6 @@
 
 ## v2.0.1
 
-- Released: 2026-04-10
-
 ### Security
 
 - **Silent data corruption in SerpentCipher pool.** `SealStreamPool` with
@@ -1205,8 +1008,6 @@
 ---
 
 ## v2.0.0
-
-- Released: 2026-04-10
 
 ### Breaking Changes
 
@@ -1351,8 +1152,6 @@
 
 ## v1.4.0
 
-- Released: 2026-04-01
-
 ### Breaking Changes
 
 - **⚠ SerpentStreamSealer wire format: explicit isLast byte.**
@@ -1454,8 +1253,6 @@
 
 ## v1.3.1
 
-- Released: 2026-03-30
-
 ### Changes
 
 - Normalizes the chacha.wasm name to chacha20.wasm to match other primitives with no consumer api changes.
@@ -1466,8 +1263,6 @@
 ---
 
 ## v1.3.0
-
-- Released: 2026-03-28
 
 ### Breaking Changes
 
@@ -1494,8 +1289,6 @@
 ---
 
 ## v1.2.0
-
-- Released: 2026-03-27
 
 ### Added
 

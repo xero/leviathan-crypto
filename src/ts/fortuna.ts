@@ -363,7 +363,7 @@ export class Fortuna {
 		if (this.poolEntropy[0] < Fortuna.RESEED_LIMIT)
 			throw new Error(
 				'leviathan-crypto: Fortuna initialization could not gather sufficient entropy. '
-				+ 'No working crypto.getRandomValues or node:crypto in this environment.',
+				+ 'No working crypto.getRandomValues in this environment.',
 			);
 
 		this.startCollectors();
@@ -515,17 +515,11 @@ export class Fortuna {
 
 	private collectorCryptoRandom(): void {
 		try {
+			// Web Crypto is the only secure source. No node:crypto fallback: an absent
+			// source must fail loud via the init invariant below, never be polyfilled.
+			if (typeof globalThis.crypto === 'undefined' || typeof globalThis.crypto.getRandomValues !== 'function') return;
 			const rnd = new Uint8Array(128);
-			if (typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.getRandomValues === 'function') {
-				globalThis.crypto.getRandomValues(rnd);
-			} else if (isNode) {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports
-				const nodeCrypto = require('node:crypto');
-				const buf = nodeCrypto.randomBytes(128);
-				rnd.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
-			} else {
-				return; // no crypto source available
-			}
+			globalThis.crypto.getRandomValues(rnd);
 			this.addRandomEvent(rnd, this.robin.rnd, 1024);
 			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 		} catch { /* crypto may not be available */ }
@@ -567,22 +561,6 @@ export class Fortuna {
 			memBytes[0] = memVal & 0xff; memBytes[1] = (memVal >>> 8) & 0xff;
 			memBytes[2] = (memVal >>> 16) & 0xff; memBytes[3] = (memVal >>> 24) & 0xff;
 			this.addRandomEvent(memBytes, this.robin.rnd, 1);
-			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
-
-			// loadavg, slow-changing but real system state
-			// eslint-disable-next-line @typescript-eslint/no-require-imports
-			const os = require('node:os');
-			const la: number[] = os.loadavg();
-			const laStr = la.map((n: number) => Math.round(n * 1000).toString()).join('');
-			this.addRandomEvent(utf8ToBytes(laStr), this.robin.time, 1);
-			this.robin.time = (this.robin.time + 1) % Fortuna.NUM_POOLS;
-
-			// freemem, changes with allocation activity
-			const fm: number = os.freemem();
-			const fmBytes = new Uint8Array(4);
-			fmBytes[0] = fm & 0xff; fmBytes[1] = (fm >>> 8) & 0xff;
-			fmBytes[2] = (fm >>> 16) & 0xff; fmBytes[3] = (fm >>> 24) & 0xff;
-			this.addRandomEvent(fmBytes, this.robin.rnd, 1);
 			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 		} catch { /* Node APIs may not be available */ }
 	}

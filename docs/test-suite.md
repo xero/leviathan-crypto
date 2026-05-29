@@ -23,8 +23,8 @@ Describes the unit and e2e test inventory, gate structure, and the complete vect
 | Type | Runner     | Tests                        | Status   |
 | ---- | ---------- | ---------------------------- | -------- |
 | Unit | Vitest     | 6336                         | All pass |
-| e2e  | Playwright | 354 (118 tests × 3 browsers) | All pass |
-|      | **Total**  | **6690**                     | All pass |
+| e2e  | Playwright | 387 (129 tests × 3 browsers) | All pass |
+|      | **Total**  | **6723**                     | All pass |
 
 ---
 
@@ -316,9 +316,11 @@ All tests run in three browsers: Chromium, Firefox, and WebKit.
 | `pool.spec.ts`                | `SealStreamPool`: XChaCha20 + Serpent round-trip (2 workers), pool seal → `OpenStream` open, large payload multi-worker, cross-instance seal/open (both ciphers), tampered ciphertext puts the pool in dead state | 7 |
 | `pool_dispose.spec.ts`        | Explicit `destroy()` during in-flight `seal()` and `open()`, both settle cleanly without leaving dangling worker promises | 2 |
 | `serpent_large_pool.spec.ts`  | `SealStreamPool` Serpent large-chunk: 256 KB (4 full chunks), 5 MB hash comparison, regression for pre-fix corruption (full chunks decrypt correctly, not just trailing partial) | 3 |
+| `pool_csp.spec.ts`            | `SealStreamPool` under CSP: blob worker round-trip with `worker-src/child-src blob:` (Chromium/Firefox pass, WebKit refuses the blob resource), blob refused without `blob:`, and the `createPoolWorker` same-origin worker override under `worker-src 'self'` (all engines) | 4 |
 | `mlkem_suite.spec.ts`         | `MlKemSuite` (MlKem768 + XChaCha20): `Seal` one-shot round-trip, `SealStream`/`OpenStream` streaming round-trip, preamble length (HEADER_SIZE + 1088B) | 3 |
 | `loader.spec.ts`              | `WasmSource` loader: all 7 source types (embedded, URL, ArrayBuffer, Uint8Array, `WebAssembly.Module`, Response, `Promise<Response>`) via `init()` + SHA3-256 FIPS 202 digest proof, plus regression that nested `Promise.resolve(Promise.resolve(...))` wrapping doesn't false-positive trip the depth guard | 8 |
 | `loader_csp.spec.ts`          | All 7 `WasmSource` types under a strict Content-Security-Policy page (no `unsafe-eval`, no `unsafe-inline`), proves none of the loader code paths require an eval-unfriendly compile route | 7 |
+| `loader_csp_negative.spec.ts` | All 7 `WasmSource` types under a CSP WITHOUT `wasm-unsafe-eval`, proving the directive is required: every compile path fails to initialize. Chromium/Firefox reject at compile, WebKit at instantiation | 7 |
 | `fortuna.spec.ts`             | Fortuna CSPRNG: four `(generator, hash)` pair smoke (Serpent/ChaCha20 × SHA-256/SHA3-256), DOM entropy collector wiring (mouse + keyboard via Playwright synthesis), `stop()` listener removal (post-stop methods throw), `SerpentCtr` exclusivity coexistence, external entropy seed | 5     |
 | `ratchet.spec.ts`             | SPQR ratchet (`MlKem768` + `SerpentCipher` + `Seal`): same-realm two-party 10-message round-trip, out-of-order delivery via `SkippedKeyStore` (5 messages reordered with `ResolveHandle.commit/rollback`), tamper + rollback preserves the key for legitimate retry | 3     |
 | `worker_context.spec.ts`      | Library functions inside a `Web Worker`: SHA-256 "abc" digest, `Seal` round-trip (XChaCha20), Fortuna with external entropy. Validates dynamic `import()`, `init()`, primitive use, and disposal all work cross-realm | 3     |

@@ -789,6 +789,12 @@ shake.dispose()
 
 ---
 
+## Content-Security-Policy
+
+Running under a strict CSP needs `'wasm-unsafe-eval'` for WASM compilation, and `worker-src` for `SealStreamPool`. The full directive reference, minimal copy-paste policies, and the per-engine behavior of the pool worker live in [csp.md](./csp.md).
+
+---
+
 
 ## Cross-References
 
@@ -798,4 +804,5 @@ shake.dispose()
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [lexicon](./lexicon.md) | Glossary of cryptographic terms |
 | [cdn](./cdn.md) | CDN usage: no bundler required |
+| [csp](./csp.md) | Content-Security-Policy: required directives and per-engine pool behavior |
 

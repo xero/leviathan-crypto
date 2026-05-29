@@ -374,7 +374,7 @@ Absorb the final length-encoding block (AAD bit-length || CT bit-length,
 both u64 big-endian) into GHASH, XOR the result with `J0E`, and store
 the 128-bit tag at `TAG_OFFSET`. The TS layer reads the computed tag and
 routes the constant-time compare against the received tag through
-`constantTimeEqual` in `src/ts/utils.ts` (the dedicated `ct` WASM
+`constantTimeEqual` in `src/ts/utils.ts` (the dedicated `cte` WASM
 module). No AEAD compares tags inside its own module, library policy.
 
 > [!NOTE]

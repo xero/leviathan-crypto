@@ -97,6 +97,7 @@ Other refs:
 | init() / WasmSource | https://github.com/xero/leviathan-crypto/wiki/init |
 | Loading strategies | https://github.com/xero/leviathan-crypto/wiki/loader |
 | CDN usage | https://github.com/xero/leviathan-crypto/wiki/cdn |
+| Content-Security-Policy | https://github.com/xero/leviathan-crypto/wiki/csp |
 | Worked examples | https://github.com/xero/leviathan-crypto/wiki/examples |
 | Utilities | https://github.com/xero/leviathan-crypto/wiki/utils |
 | Argon2id integration | https://github.com/xero/leviathan-crypto/wiki/argon2id |

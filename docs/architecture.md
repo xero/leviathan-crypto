@@ -434,7 +434,7 @@ test/
 
 The repository root holds project documentation, package metadata, and tool configuration. Build artifacts that only exist after `bun bake` are listed at the end.
 
-**Documentation.** `README.md` is the entry point. `SECURITY.md` covers the vulnerability disclosure policy. `AGENTS.md` is the agent contract that governs how AI agents work in the repo. `CHANGELOG` tracks release history and `LICENSE` is MIT. The `docs/` directory holds the full API reference, audits, benchmarks, and architecture notes (this file lives there).
+**Documentation.** `README.md` is the entry point. `SECURITY.md` covers the vulnerability disclosure policy. `AGENTS.md` is the agent contract that governs how AI agents work in the repo. `CHANGELOG.md` tracks release history and `LICENSE` is MIT. The `docs/` directory holds the full API reference, audits, benchmarks, and architecture notes (this file lives there).
 
 **Package metadata.** `package.json` declares the NPM manifest, subpath exports, and scripts. `package-lock.json` and `bun.lock` are the lockfiles for NPM and bun respectively; both ship checked in so either tool can install reproducibly.
 
@@ -450,7 +450,7 @@ The repository root holds project documentation, package metadata, and tool conf
 ├── README.md
 ├── SECURITY.md
 ├── AGENTS.md
-├── CHANGELOG
+├── CHANGELOG.md
 ├── LICENSE
 ├── package.json
 ├── package-lock.json
@@ -473,11 +473,11 @@ The repository root holds project documentation, package metadata, and tool conf
 
 `scripts/` holds the build, codegen, and tooling scripts that produce `dist/` and the test-vector corpus, plus the independent Rust verifier crate. Four categories.
 
-**Build orchestration.** Four top-level dispatchers front the package scripts: `build.ts` (the `bun bake` shorthand and the canonical `bun run build`), `test.ts` (`bun scripts/test.ts <unit|unit:group|e2e|e2e:install|all>`), `lint.ts` (`bun fix` and the canonical `bun run lint`), and `check.ts` (`bun check`, which runs a full build then lint + unit + e2e in parallel). They share a typed dependency DAG (`scripts/lib/build-graph.ts`), a parallel runner with per-task timing and colored output (`scripts/lib/parallel.ts`), the canonical eight-module list (`scripts/lib/modules.ts`), and the per-CI-group test composition (`scripts/lib/test-groups.ts`). Underneath the dispatchers, the step scripts do the actual work: `build-asm.ts` drives AssemblyScript compilation across the eight modules; `embed-wasm.ts` produces the gzip+base64 blob for each `.wasm`; `embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild. See [Build Pipeline](#build-pipeline) for the full sequence.
+**Build orchestration.** Four top-level dispatchers front the package scripts: `build.ts` (the `bun bake` shorthand and the canonical `bun run build`), `test.ts` (`bun scripts/test.ts <unit|unit:group|e2e|e2e:install|all>`), `lint.ts` (`bun fix` and the canonical `bun run lint`), and `check.ts` (`bun check`, which runs a full build then lint + unit + e2e in parallel). They share a typed dependency DAG (`scripts/lib/build-graph.ts`), a parallel runner with per-task timing and colored output (`scripts/lib/parallel.ts`), the canonical twelve-module list (`scripts/lib/modules.ts`), and the per-CI-group test composition (`scripts/lib/test-groups.ts`). Underneath the dispatchers, the step scripts do the actual work: `build-asm.ts` drives AssemblyScript compilation across the twelve modules; `embed-wasm.ts` produces the gzip+base64 blob for each `.wasm`; `embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild. See [Build Pipeline](#build-pipeline) for the full sequence.
 
 **Codegen.** `generate_simd.ts` produces `src/asm/serpent/serpent_simd.ts` from a template by translating S-box gate logic into v128 ops; the generator and its output are both committed and the output is never edited by hand. `gen-seal-vectors.ts`, `gen-sealstream-vectors.ts`, `gen-fortuna-vectors.ts`, and `gen-ratchet-vectors.ts` produce known-answer-test vectors for their respective primitives.
 
-**Tooling.** `gen-changelog.ts` generates `CHANGELOG` entries. `lint-asm.ts` lints the AssemblyScript sources via `asc --pedantic`. `pin-actions.ts` pins every GitHub Action reference to a SHA, run via `bun pin` after workflow changes.
+**Tooling.** `gen-changelog.ts` generates `CHANGELOG.md` entries. `lint-asm.ts` lints the AssemblyScript sources via `asc --pedantic`. `pin-actions.ts` pins every GitHub Action reference to a SHA, run via `bun pin` after workflow changes.
 
 **Independent verifier.** `verify-vectors/` is a standalone Rust crate that re-runs every Tier 2 KAT against RustCrypto primitives. It builds with a pinned toolchain and pinned dependencies, runs in CI under `verify-vectors.yml`, and shares no code with the leviathan-crypto WASM stack. Provenance details and tier classification live in [vector_audit.md](./vector_audit.md).
 
@@ -519,7 +519,7 @@ For the developer-facing workflow around these scripts (the iteration loop, sing
 
 **Build targets and order.**
 
-1. `asm`: AssemblyScript compiler reads each `src/asm/*/index.ts` for the eight modules, emits `build/*.wasm`.
+1. `asm`: AssemblyScript compiler reads each `src/asm/*/index.ts` for the twelve modules, emits `build/*.wasm`.
 2. `embed`: `scripts/embed-wasm.ts` reads each `.wasm`, gzip compresses, base64 encodes, and writes to `src/ts/embedded/*.ts` and per-module `src/ts/*/embedded.ts`.
 3. `embed-workers`: `scripts/embed-workers.ts` bundles each pool worker into a self-contained IIFE via esbuild and writes the source to `src/ts/embedded/<cipher>-pool-worker.ts` as a string export.
 4. `ts`: TypeScript compiler emits `dist/`.
@@ -761,7 +761,11 @@ lifetime.
 > Strict-CSP consumers (`worker-src 'self'`, no `blob:`) can supply
 > their own URL-based factory by spread-overriding `createPoolWorker`
 > on the cipher object. See [ciphersuite.md](./ciphersuite.md#interface-reference)
-> for the override pattern.
+> for the override pattern. This is also required for WebKit/Safari: it
+> refuses the `blob:` worker resource under a restrictive CSP even with
+> `worker-src blob:` present, while Chromium and Firefox admit it. The
+> override path works on all three engines. See [csp.md](./csp.md) for the
+> full directive reference and per-engine behavior.
 
 ---
 
@@ -1049,7 +1053,7 @@ See [exports.md](./exports.md) for the complete export reference, including ever
 ```
 
 > [!NOTE]
-> Pool worker source files (`dist/serpent/pool-worker.js`, `dist/chacha20/pool-worker.js`, `dist/aes/pool-worker.js`) ship in the package but are not in the `exports` map. They are the build inputs from which `scripts/embed-workers.ts` produces the IIFE source strings embedded in `dist/<cipher>/cipher-suite.js` at lib build time. Workers are spawned from those embedded strings via classic blob URLs. Consumers do not import the `pool-worker.js` files directly, and bundlers do not need to chunk them. Strict-CSP consumers (`worker-src 'self'`, no `blob:`) can supply their own URL-based factory by spread-overriding `createPoolWorker` on the cipher object; see [ciphersuite.md](./ciphersuite.md).
+> Pool worker source files (`dist/serpent/pool-worker.js`, `dist/chacha20/pool-worker.js`, `dist/aes/pool-worker.js`) ship in the package but are not in the `exports` map. They are the build inputs from which `scripts/embed-workers.ts` produces the IIFE source strings embedded in `dist/<cipher>/cipher-suite.js` at lib build time. Workers are spawned from those embedded strings via classic blob URLs. Consumers do not import the `pool-worker.js` files directly, and bundlers do not need to chunk them. Strict-CSP consumers (`worker-src 'self'`, no `blob:`) can serve one of these files as their own same-origin worker by spread-overriding `createPoolWorker` on the cipher object; see [ciphersuite.md](./ciphersuite.md) for the pattern and [csp.md](./csp.md) for the policy.
 
 The root `.` export re-exports everything. Subpath exports allow bundlers to tree-shake at the module level; a consumer importing only `./sha3` does not include the Serpent wrapper classes or their embedded WASM binaries in their bundle.
 
@@ -1077,7 +1081,7 @@ The `test/` directory contains three independent categories of files, used by se
 
 **Unit tests** (`unit/`) are Vitest suites that compile to a JS target for fast local iteration. The directory mirrors `src/ts/` structure with one folder per module, plus a handful of top-level `.test.ts` files for cross-cutting concerns (init, errors, utils, fortuna). CI splits these by domain via `unit-*.yml` for parallel execution.
 
-**End-to-end tests** (`e2e/`) are Playwright suites that exercise the actual WASM artifacts across V8, SpiderMonkey, and JavaScriptCore. They run after the full build, including pool-worker bundling. Beyond cross-browser KAT replay (Monte Carlo reduced to 50 outer iterations versus 1200 in unit), the e2e tier exercises code paths the unit tier cannot reach: Fortuna's DOM entropy collector against synthesized mouse and keyboard events, all seven `WasmSource` loader types under a strict Content-Security-Policy page with no `unsafe-eval` and no `unsafe-inline`, primitive use and disposal inside a real `Web Worker`, multi-worker `SealStreamPool` with in-flight `destroy()` and dead-pool cascades on tampered ciphertext, large-chunk regression up to 5MB, SIMD throughput benchmarks per browser JS engine, and full lifecycle for the SPQR ratchet and `MerkleLog` + `MerkleVerifier`.
+**End-to-end tests** (`e2e/`) are Playwright suites that exercise the actual WASM artifacts across V8, SpiderMonkey, and JavaScriptCore. They run after the full build, including pool-worker bundling. Beyond cross-browser KAT replay (Monte Carlo reduced to 50 outer iterations versus 1200 in unit), the e2e tier exercises code paths the unit tier cannot reach: Fortuna's DOM entropy collector against synthesized mouse and keyboard events, all seven `WasmSource` loader types under a strict Content-Security-Policy page with no `unsafe-eval` and no `unsafe-inline` (plus the negative case proving `wasm-unsafe-eval` is required, and `SealStreamPool` worker behavior across `blob:` and same-origin factories per engine; see [csp.md](./csp.md)), primitive use and disposal inside a real `Web Worker`, multi-worker `SealStreamPool` with in-flight `destroy()` and dead-pool cascades on tampered ciphertext, large-chunk regression up to 5MB, SIMD throughput benchmarks per browser JS engine, and full lifecycle for the SPQR ratchet and `MerkleLog` + `MerkleVerifier`.
 
 **Test vectors** (`vectors/`) is the immutable known-answer-test corpus. Files are read-only reference data. Some come from authoritative specifications (FIPS, RFCs, ACVP, NIST CAVP); others are self generated as regression vectors by `scripts/gen-*-vectors.ts`. CI validates KAT file integrity against `SHA256SUMS` and re-derives every Tier 2 byte against the [Rust verifier](./vector_audit.md) crate at `scripts/verify-vectors/` on every commit and PR.
 

@@ -204,7 +204,7 @@ yields `d = (t & M) + ((t >> 1) & M)`, and 8 pairs of 2-bit fields
 independence beyond byte 127, write footprint (no spillover past the
 512-byte destination polynomial), and exact coefficient agreement with an
 inline FIPS 203 Algorithm 7 reference over 100 random inputs are pinned by
-the three Gate 5 KATs in `test/unit/kyber/poly_arithmetic.test.ts`. Verified
+the three Gate 5 KATs in `test/unit/mlkem/poly_arithmetic.test.ts`. Verified
 byte layout and iteration count match FIPS 203 Algorithm 7.
 
 **η=3 (used in ML-KEM-512 for `e`):**
@@ -313,7 +313,7 @@ acceptable here (FIPS 203 §A.2 explicitly permits this). Verified correct.
 
 ### 1.12 Buffer Layout
 
-The kyber WASM module uses 3 pages (192 KB) of linear memory. All buffers are
+The mlkem WASM module uses 3 pages (192 KB) of linear memory. All buffers are
 statically allocated at fixed offsets; no dynamic allocation is used.
 
 | Region | Offset | Size | Purpose |
@@ -460,8 +460,8 @@ Every arithmetic path that touches secret material is designed to run in constan
 ### 2.2 SIMD Optimization
 
 The NTT and polynomial arithmetic paths were vectorized using WASM `v128`
-SIMD instructions (`--enable simd`). This places kyber in the same
-SIMD-required class as the serpent and chacha20 modules. The kyber binary
+SIMD instructions (`--enable simd`). This places mlkem in the same
+SIMD-required class as the serpent and chacha20 modules. The mlkem binary
 requires WebAssembly SIMD and `init()` performs the same preflight check.
 
 **Vectorized functions:**
@@ -551,13 +551,13 @@ constant-time guarantee" posture for WASM:
   (len=4, len=2) likewise uses fixed loops with no conditional branches on
   coefficient values. The SIMD and scalar paths have equivalent constant-time
   properties.
-- Each WASM module has independent linear memory. The kyber module's memory
+- Each WASM module has independent linear memory. The mlkem module's memory
   is physically separate from the sha3 module's memory, even though both
-  are used during KEM operations. Secret key material in the kyber buffer
+  are used during KEM operations. Secret key material in the mlkem buffer
   cannot be read by the sha3 module, and vice versa.
 - **Per-op memory hygiene across all three KEM operations.** After any of
   `kemKeypairDerand`, `kemEncapsulateDerand`, or `kemDecapsulate` returns,
-  every kyber linear-memory region that transiently held secret or
+  every mlkem linear-memory region that transiently held secret or
   secret-derived bytes is explicitly zeroed before return. The regions
   and sizes are:
 
@@ -601,7 +601,7 @@ constant-time guarantee" posture for WASM:
   is long-lived key material whose disclosure compromises every ciphertext
   under the corresponding `ek`, not just a single per-message noise trace.
   On keygen the foot-gun is the common "keygen once, encap many" pattern
- , without the wipe, `skCpa` would sit in kyber WASM until the next op
+ , without the wipe, `skCpa` would sit in mlkem WASM until the next op
   overwrote it (which never happens on pure-encap workloads) or
   `MlKem.dispose()` ran. On the encap path `MSG_OFFSET` is the
   highest-severity residual: reading `m` plus the public `ek` reproduces
@@ -623,17 +623,17 @@ constant-time guarantee" posture for WASM:
   attacker can already observe or compute from public state.
   Lifecycle-level wipe via `MlKem.dispose()` → `wipeBuffers()` still
   covers the entire layout. **After any of the three public KEM
-  operations returns, no kyber secret or secret-derived data persists
+  operations returns, no mlkem secret or secret-derived data persists
   in WASM linear memory between ops.**
 
-  **sha3 scratch.** The kyber module's WASM memory is the first half of
-  the story; every kyber public op also touches the sha3 module (`H`,
+  **sha3 scratch.** The mlkem module's WASM memory is the first half of
+  the story; every mlkem public op also touches the sha3 module (`H`,
   `G`, `J`, and the SHAKE128/SHAKE256 XOFs that drive matrix expansion
   and noise sampling). sha3 scratch comprises three regions:
   `STATE` (200 B at offset 0, the 5×5 Keccak lane matrix), `INPUT`
   (168 B at offset 209, the absorb staging buffer sized for SHAKE128's
   168-byte rate), and `OUT` (168 B at offset 377, one squeeze block).
-  Across the four public-facing kyber paths, `kemKeypairDerand`,
+  Across the four public-facing mlkem paths, `kemKeypairDerand`,
   `kemEncapsulateDerand`, `kemDecapsulate`, and `checkDecapsulationKey`
  , the *last* sha3 call is always keyed on public material (`H(ek)`
   in keygen and `checkDecapsulationKey`, the final `genMatrixRow`
@@ -641,20 +641,20 @@ constant-time guarantee" posture for WASM:
   and the decap FO re-encryption path), so the historical no-residue
   argument was behavioral: "no secret residue because the last sha3
   op happens to be keyed on public material." A reordering, a
-  post-hash validation step, or a new kyber path that invokes a
+  post-hash validation step, or a new mlkem path that invokes a
   secret-keyed PRF helper after matrix expansion could silently break
   that invariant without any test catching it. Each of the four public
   paths now calls `sx.wipeBuffers()` explicitly before returning,
   under the `_assertNotOwned('sha3')` guard the enclosing `MlKemBase`
-  method holds for the op's duration. After any kyber op that
+  method holds for the op's duration. After any mlkem op that
   executed sha3 work, `STATE`, `INPUT`, and `OUT` are all zero,
   mechanically, not behaviorally. **One documented exception:
   `checkDecapsulationKey`'s length-gate early return (`dk.length !==
   params.dkBytes`) happens before any sha3 work runs, so the wipe
   does not fire on that path. Nothing needs wiping because nothing
   was written.** Combining the two halves, the full post-op
-  invariant is: no kyber secret or secret-derived data persists in
-  kyber or sha3 linear memory between operations.
+  invariant is: no mlkem secret or secret-derived data persists in
+  mlkem or sha3 linear memory between operations.
 
 ---
 
@@ -715,6 +715,6 @@ decryption failure or an incorrect `K'`.
 | [index](./README.md) | Project Documentation index |
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [exports](./exports.md) | `MlKem512`, `MlKem768`, `MlKem1024` export reference |
-| [sha3_audit](./sha3_audit.md) | Keccak audit (sha3 module, used by kyber) |
+| [sha3_audit](./sha3_audit.md) | Keccak audit (sha3 module, used by mlkem) |
 | [test-suite](./test-suite.md) | ACVP vector coverage, test counts |
 

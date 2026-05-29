@@ -253,4 +253,5 @@ Every WASM instance receives a `WebAssembly.Memory` with exactly 3 pages (192 KB
 | [architecture](./architecture.md) | Repository structure, build and CI, WASM modules, public API, test suite, and security posture |
 | [init](./init.md) | the public `init()` API that uses this loader |
 | [wasm](./wasm.md) | WebAssembly primer: modules, instances, and memory model |
+| [csp](./csp.md) | Content-Security-Policy directives per `WasmSource` loading strategy |
 
