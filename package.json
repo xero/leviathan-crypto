@@ -75,12 +75,12 @@
 		"@vitest/web-worker": "^3.2.4",
 		"assemblyscript": "^0.27.37",
 		"esbuild": "^0.28.0",
-		"eslint": "^10.4.0",
+		"eslint": "^10.4.1",
 		"jiti": "^2.7.0",
 		"pin-github-action": "^3.4.0",
 		"tsx": "^4.22.3",
 		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.59.4",
+		"typescript-eslint": "^8.60.0",
 		"vitest": "^3.2.4"
 	},
 	"keywords": [
