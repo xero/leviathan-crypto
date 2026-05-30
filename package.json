@@ -1,6 +1,6 @@
 {
 	"name": "leviathan-crypto",
-	"version": "2.1.0",
+	"version": "3.0.0",
 	"license": "MIT",
 	"description": "Paranoid post-quantum WASM cryptography library with bitsliced ciphers (Serpent, XChaCha20, AES), ML-KEM, lattice and hash-based signatures (ML-DSA, SLH-DSA, hybrid composites), hashing (SHA-2, SHA-3, BLAKE3), forward-secret ratchet, and Fortuna CSPRNG. Zero dependencies, tree-shakeable, and side-effect-free.",
 	"repository": {
