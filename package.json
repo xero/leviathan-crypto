@@ -1,6 +1,6 @@
 {
 	"name": "leviathan-crypto",
-	"version": "3.0.0",
+	"version": "3.0.1",
 	"license": "MIT",
 	"description": "Post-quantum WASM cryptography. Authenticated encryption, signatures with key agreement, transparency logs, and ratcheting built on constant-time bitsliced ciphers (Serpent, XChaCha20, AES), post-quantum schemes (ML-KEM, ML-DSA, SLH-DSA), BLAKE3 and SHA-family hashing, and the Fortuna CSPRNG. Zero dependencies, tree-shakeable, side-effect-free.",
 	"repository": {
