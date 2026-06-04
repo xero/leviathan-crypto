@@ -30,7 +30,17 @@ import type { Generator, HashFn } from './types.js';
 import { wipe, utf8ToBytes, concat } from './utils.js';
 
 const isBrowser = typeof window !== 'undefined';
-const isNode = typeof process !== 'undefined' && typeof process.pid === 'number';
+
+// Optional Node entropy sources. Accessed via globalThis with a minimal local
+// type so the browser-first lib build carries no dependency on @types/node.
+interface NodeProcess {
+	pid?: number;
+	hrtime: { bigint(): bigint };
+	cpuUsage(): { user: number; system: number };
+	memoryUsage(): { heapUsed: number };
+}
+const proc = (globalThis as { process?: NodeProcess }).process;
+const isNode = typeof proc !== 'undefined' && typeof proc.pid === 'number';
 
 /**
  * Fortuna CSPRNG, spec §9.3-§9.5
@@ -526,8 +536,9 @@ export class Fortuna {
 	}
 
 	private captureHrtime(): void {
+		if (!proc) return;
 		try {
-			const hr = process.hrtime.bigint();
+			const hr = proc.hrtime.bigint();
 			const hrBytes = new Uint8Array(8);
 			for (let i = 0; i < 8; i++) hrBytes[i] = Number((hr >> BigInt(i * 8)) & 0xffn);
 			this.addRandomEvent(hrBytes, this.robin.time, 8);
@@ -536,16 +547,17 @@ export class Fortuna {
 	}
 
 	private collectNodeStats(): void {
+		if (!proc) return;
 		try {
 			// hrtime, nanosecond scheduling jitter
-			const hr = process.hrtime.bigint();
+			const hr = proc.hrtime.bigint();
 			const hrBytes = new Uint8Array(8);
 			for (let i = 0; i < 8; i++) hrBytes[i] = Number((hr >> BigInt(i * 8)) & 0xffn);
 			this.addRandomEvent(hrBytes, this.robin.time, 8);
 			this.robin.time = (this.robin.time + 1) % Fortuna.NUM_POOLS;
 
 			// cpuUsage, user + system CPU microseconds
-			const cpu = process.cpuUsage();
+			const cpu = proc.cpuUsage();
 			const cpuBytes = new Uint8Array(8);
 			cpuBytes[0] = cpu.user & 0xff; cpuBytes[1] = (cpu.user >>> 8) & 0xff;
 			cpuBytes[2] = (cpu.user >>> 16) & 0xff; cpuBytes[3] = (cpu.user >>> 24) & 0xff;
@@ -555,7 +567,7 @@ export class Fortuna {
 			this.robin.rnd = (this.robin.rnd + 1) % Fortuna.NUM_POOLS;
 
 			// memoryUsage, heapUsed changes constantly
-			const mem = process.memoryUsage();
+			const mem = proc.memoryUsage();
 			const memVal = mem.heapUsed;
 			const memBytes = new Uint8Array(4);
 			memBytes[0] = memVal & 0xff; memBytes[1] = (memVal >>> 8) & 0xff;

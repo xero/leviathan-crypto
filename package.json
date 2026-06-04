@@ -2,7 +2,7 @@
 	"name": "leviathan-crypto",
 	"version": "3.0.0",
 	"license": "MIT",
-	"description": "Paranoid post-quantum WASM cryptography library with bitsliced ciphers (Serpent, XChaCha20, AES), ML-KEM, lattice and hash-based signatures (ML-DSA, SLH-DSA, hybrid composites), hashing (SHA-2, SHA-3, BLAKE3), forward-secret ratchet, and Fortuna CSPRNG. Zero dependencies, tree-shakeable, and side-effect-free.",
+	"description": "Post-quantum WASM cryptography. Authenticated encryption, signatures with key agreement, transparency logs, and ratcheting built on constant-time bitsliced ciphers (Serpent, XChaCha20, AES), post-quantum schemes (ML-KEM, ML-DSA, SLH-DSA), BLAKE3 and SHA-family hashing, and the Fortuna CSPRNG. Zero dependencies, tree-shakeable, side-effect-free.",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/xero/leviathan-crypto.git"
@@ -72,16 +72,20 @@
 		"@playwright/test": "^1.60.0",
 		"@types/bun": "^1.3.14",
 		"@types/node": "^25.9.1",
-		"@vitest/web-worker": "^3.2.4",
-		"assemblyscript": "^0.27.37",
+		"@vitest/web-worker": "^4.1.8",
+		"assemblyscript": "^0.28.18",
 		"esbuild": "^0.28.0",
 		"eslint": "^10.4.1",
 		"jiti": "^2.7.0",
 		"pin-github-action": "^3.4.0",
-		"tsx": "^4.22.3",
-		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.60.0",
-		"vitest": "^3.2.4"
+		"tsx": "^4.22.4",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.60.1",
+		"vitest": "^4.1.8"
+	},
+	"overrides": {
+		"brace-expansion": "^5.0.6",
+		"postcss": "^8.5.10"
 	},
 	"keywords": [
 		"cryptography",

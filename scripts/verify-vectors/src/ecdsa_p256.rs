@@ -184,10 +184,7 @@ pub struct SignEcdsaP256Vector {
 // ────────────────────────────────────────────────────────────────────────────
 
 fn into_field_bytes(label: &str, v: &[u8]) -> Result<FieldBytes, String> {
-    if v.len() != 32 {
-        return Err(format!("{label} length {} != 32", v.len()));
-    }
-    Ok(*FieldBytes::from_slice(v))
+    FieldBytes::try_from(v).map_err(|_| format!("{label} length {} != 32", v.len()))
 }
 
 // Build a P-256 verifying key from raw (qx, qy) uncompressed coordinates.
@@ -213,7 +210,7 @@ fn verifying_key_from_xy(qx: &[u8], qy: &[u8]) -> Result<VerifyingKey, String> {
 // SHA-256 the message and return the 32-byte digest as FieldBytes.
 fn sha256_field(msg: &[u8]) -> FieldBytes {
     let digest = Sha256::digest(msg);
-    *FieldBytes::from_slice(digest.as_slice())
+    FieldBytes::try_from(digest.as_slice()).expect("SHA-256 digest is always 32 bytes")
 }
 
 // ────────────────────────────────────────────────────────────────────────────

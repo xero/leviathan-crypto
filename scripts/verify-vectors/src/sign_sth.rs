@@ -313,6 +313,13 @@ fn run_ed25519_record(rec: &SthRec, log: &mut Vec<String>) -> bool {
         log.push(format!("    ✗ {}: ed25519-dalek pk mismatch with recorded pk", rec.id));
         ok = false;
     }
+    // Ed25519 secret key is the 32-byte seed (RFC 8032 §5.1.5); the recorded
+    // skHex must equal the seed the signing key was derived from.
+    let expected_sk = hex::decode(&rec.sk_hex).unwrap();
+    if sk.to_bytes().as_slice() != expected_sk.as_slice() {
+        log.push(format!("    ✗ {}: ed25519-dalek sk mismatch with recorded sk", rec.id));
+        ok = false;
+    }
     let sig = sk.sign(&signed);
     let sig_bytes = sig.to_bytes();
     let expected_sig = hex::decode(&rec.sig_hex).unwrap();
@@ -392,6 +399,22 @@ fn run_mldsa44_record(rec: &SthRec, log: &mut Vec<String>) -> bool {
     let derived_pk = kp.verifying_key().encode().as_slice().to_vec();
     if derived_pk.as_slice() != pk.as_slice() {
         log.push(format!("    ✗ {}: ml-dsa pk mismatch with recorded pk", rec.id));
+        ok = false;
+    }
+
+    // sk parity: the seed-derived signing key, re-encoded via FIPS 204 §5.1
+    // Algorithm 24 (skEncode), must equal the recorded skHex. `to_expanded` is
+    // the only API yielding that 2560-byte form; the crate marks it deprecated
+    // in favour of seed-form keys, but the encoding under test is the expanded
+    // one the library stores.
+    #[allow(deprecated)]
+    let derived_sk = kp.signing_key().to_expanded();
+    let expected_sk = hex::decode(&rec.sk_hex).unwrap();
+    if derived_sk.as_slice() != expected_sk.as_slice() {
+        log.push(format!(
+            "    ✗ {}: ml-dsa sk mismatch with recorded sk, got {} expected {} bytes",
+            rec.id, derived_sk.len(), expected_sk.len(),
+        ));
         ok = false;
     }
 
